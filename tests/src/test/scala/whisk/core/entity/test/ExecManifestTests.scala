@@ -63,10 +63,11 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k1 = RuntimeManifest("k1", ImageName("???"))
     val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
     val p1 = RuntimeManifest("p1", ImageName("???"))
-    val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, "256M"))))
+    val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson, "s1" -> Set(s1).toJson))
     val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
-    Seq("k1", "k2", "p1").foreach {
+    Seq("k1", "k2", "p1", "s1").foreach {
       runtimes.knownContainerRuntimes.contains(_) shouldBe true
     }
 
@@ -75,9 +76,11 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("k1") shouldBe Some(k1)
     runtimes.resolveDefaultRuntime("k2") shouldBe Some(k2)
     runtimes.resolveDefaultRuntime("p1") shouldBe Some(p1)
+    runtimes.resolveDefaultRuntime("s1") shouldBe Some(s1)
 
     runtimes.resolveDefaultRuntime("ks:default") shouldBe Some(k2)
     runtimes.resolveDefaultRuntime("p1:default") shouldBe Some(p1)
+    runtimes.resolveDefaultRuntime("s1:default") shouldBe Some(s1)
   }
 
   it should "read a valid configuration without default prefix, default tag" in {
@@ -85,9 +88,15 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val i2 = RuntimeManifest("i2", ImageName("???", Some("ppp")), default = Some(true))
     val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
     val k1 = RuntimeManifest("k1", ImageName("???", None, Some("ttt")))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, "256M"))))
 
     val mf =
-      JsObject("runtimes" -> JsObject("is" -> Set(i1, i2).toJson, "js" -> Set(j1).toJson, "ks" -> Set(k1).toJson))
+      JsObject(
+        "runtimes" -> JsObject(
+          "is" -> Set(i1, i2).toJson,
+          "js" -> Set(j1).toJson,
+          "ks" -> Set(k1).toJson,
+          "ss" -> Set(s1).toJson))
     val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
@@ -95,6 +104,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???:test"
     runtimes.resolveDefaultRuntime("j1").get.image.publicImageName shouldBe "ppp/???:ttt"
     runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "pre/???:ttt"
+    runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "pre/???:test"
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe "256M"
   }
 
   it should "read a valid configuration with blackbox images but without default prefix or tag" in {

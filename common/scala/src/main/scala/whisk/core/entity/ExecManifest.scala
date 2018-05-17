@@ -122,6 +122,7 @@ protected[core] object ExecManifest {
    * @param requireMain true iff main entry point is not optional
    * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
    * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
+   * @param stemCells optional list of stemCells to be initialized by invoker per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
                                              image: ImageName,
@@ -129,7 +130,8 @@ protected[core] object ExecManifest {
                                              default: Option[Boolean] = None,
                                              attached: Option[Attached] = None,
                                              requireMain: Option[Boolean] = None,
-                                             sentinelledLogs: Option[Boolean] = None) {
+                                             sentinelledLogs: Option[Boolean] = None,
+                                             stemCells: Option[List[StemCell]] = None) {
 
     protected[entity] def toJsonSummary = {
       JsObject(
@@ -138,9 +140,15 @@ protected[core] object ExecManifest {
         "deprecated" -> deprecated.getOrElse(false).toJson,
         "default" -> default.getOrElse(false).toJson,
         "attached" -> attached.isDefined.toJson,
-        "requireMain" -> requireMain.getOrElse(false).toJson)
+        "requireMain" -> requireMain.getOrElse(false).toJson,
+        "stemCells" -> stemCells.getOrElse(List()).toJson)
     }
   }
+
+  /**
+   * A stemcell for a container image to be initialized by the container pool.
+   */
+  protected[core] case class StemCell(count: Int, memory: String)
 
   /**
    * An image name for an action refers to the container image canonically as
@@ -285,6 +293,7 @@ protected[core] object ExecManifest {
     private val defaultSplitter = "([a-z0-9]+):default".r
   }
 
+  protected[entity] implicit val stemCellSerdes = jsonFormat2(StemCell.apply)
   protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
-  protected[entity] implicit val runtimeManifestSerdes = jsonFormat7(RuntimeManifest)
+  protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
 }
