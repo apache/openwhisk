@@ -146,9 +146,14 @@ protected[core] object ExecManifest {
   }
 
   /**
-   * A stemcell for a container image to be initialized by the container pool.
+   * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
+   *
+   * @param count the number of stemcell containers to create
+   * @param memory the max memory this stemcell will allocate
    */
-  protected[core] case class StemCell(count: Int, memory: ByteSize)
+  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
+    require(count > 0, "count must be positive")
+  }
 
   /**
    * An image name for an action refers to the container image canonically as
@@ -248,6 +253,14 @@ protected[core] object ExecManifest {
 
     val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
 
+    val manifests: Map[String, RuntimeManifest] = {
+      runtimes.flatMap {
+        _.versions.map { m =>
+          m.kind -> m
+        }
+      }.toMap
+    }
+
     def skipDockerPull(image: ImageName): Boolean = {
       blackboxImages.contains(image) ||
       image.prefix.flatMap(p => bypassPullForLocalImages.map(_ == p)).getOrElse(false)
@@ -270,13 +283,16 @@ protected[core] object ExecManifest {
       }
     }
 
-    val manifests: Map[String, RuntimeManifest] = {
-      runtimes.flatMap {
-        _.versions.map { m =>
-          m.kind -> m
-        }
-      }.toMap
-    }
+    /**
+     * Collects all runtimes for which there is a stemcell configuration defined
+     *
+     * @return list of runtime manifests with stemcell configurations
+     */
+    def stemcells[T](f: (RuntimeManifest, List[StemCell]) => List[T]): List[T] = {
+      manifests.collect {
+        case (_, m @ RuntimeManifest(_, _, _, _, _, _, _, Some(stemCells))) if stemCells.nonEmpty => f(m, stemCells)
+      }
+    }.flatten.toList
 
     private val defaultRuntimes: Map[String, String] = {
       runtimes.map { family =>
@@ -294,13 +310,14 @@ protected[core] object ExecManifest {
   }
 
   protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
-    def write(cell: StemCell) = JsObject("count" -> JsNumber(cell.count), "memory" -> JsString(cell.memory.toString))
+    def write(cell: StemCell) =
+      JsObject("count" -> JsNumber(cell.count), "memory" -> JsString(cell.memory.toString))
 
     def read(value: JsValue): StemCell = {
       Try {
         value.asJsObject.getFields("count", "memory") match {
           case Seq(JsNumber(count), JsString(memory)) =>
-            require(count.isWhole(), "stem cell count must be whole number")
+            require(count.isWhole && count.intValue > 0, "stem cell count must be whole number greater than zero")
             StemCell(count.intValue, ByteSize.fromString(memory))
         }
       } match {

@@ -173,16 +173,13 @@ class InvokerReactive(
         .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
-    ExecManifest.runtimesManifest.manifests.flatMap {
-      case (_, ExecManifest.RuntimeManifest(kind, _, _, _, _, _, _, Some(stemCells))) =>
-        stemCells.collect {
-          case cell if cell.count > 0 =>
-            ExecManifest.runtimesManifest
-              .resolveDefaultRuntime(kind)
-              .map(manifest => PrewarmingConfig(cell.count, new CodeExecAsString(manifest, "", None), cell.memory))
-        }.flatten
+    ExecManifest.runtimesManifest.stemcells {
+      case (mf, cells) =>
+        cells.map { cell =>
+          PrewarmingConfig(cell.count, new CodeExecAsString(mf, "", None), cell.memory)
+        }
     }
-  }.toList
+  }
 
   private val pool =
     actorSystem.actorOf(ContainerPool.props(childFactory, poolConfig, activationFeed, prewarmingConfigs))
