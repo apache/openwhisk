@@ -50,7 +50,7 @@ import scala.util.{Failure, Success}
  * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
  * has at most 16 slots available, those will be divided to 8 slots for each loadbalancer (if there are 2).
  */
-class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)(
+class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: ControllerInstanceId)(
   implicit val actorSystem: ActorSystem,
   logging: Logging,
   materializer: ActorMaterializer)
@@ -159,7 +159,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   /** 2. Update local state with the to be executed activation */
   private def setupActivation(msg: ActivationMessage,
                               action: ExecutableWhiskActionMetaData,
-                              instance: InstanceId): ActivationEntry = {
+                              instance: InvokerInstanceId): ActivationEntry = {
 
     totalActivations.increment()
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
@@ -191,7 +191,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   /** 3. Send the activation to the invoker */
   private def sendActivationToInvoker(producer: MessageProducer,
                                       msg: ActivationMessage,
-                                      invoker: InstanceId): Future[RecordMetadata] = {
+                                      invoker: InvokerInstanceId): Future[RecordMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     val topic = s"invoker${invoker.toInt}"
@@ -218,7 +218,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    * Subscribes to active acks (completion messages from the invokers), and
    * registers a handler for received active acks from invokers.
    */
-  private val activeAckTopic = s"completed${controllerInstance.toInt}"
+  private val activeAckTopic = s"completed${controllerInstance.asString}"
   private val maxActiveAcksPerPoll = 128
   private val activeAckPollDuration = 1.second
   private val activeAckConsumer =
@@ -252,7 +252,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private def processCompletion(response: Either[ActivationId, WhiskActivation],
                                 tid: TransactionId,
                                 forced: Boolean,
-                                invoker: InstanceId): Unit = {
+                                invoker: InvokerInstanceId): Unit = {
     val aid = response.fold(l => l, r => r.activationId)
 
     // treat left as success (as it is the result of a message exceeding the bus limit)
@@ -295,14 +295,14 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       InvokerPool.props(
         (f, i) => f.actorOf(InvokerActor.props(i, controllerInstance)),
         (m, i) => sendActivationToInvoker(messageProducer, m, i),
-        messagingProvider.getConsumer(config, s"health${controllerInstance.toInt}", "health", maxPeek = 128),
+        messagingProvider.getConsumer(config, s"health${controllerInstance.asString}", "health", maxPeek = 128),
         Some(monitor)))
   }
 }
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(
+  override def loadBalancer(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
     implicit actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = new ShardingContainerPoolBalancer(whiskConfig, instance)
@@ -341,7 +341,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
                dispatched: IndexedSeq[ForcableSemaphore],
                index: Int,
                step: Int,
-               stepsDone: Int = 0)(implicit logging: Logging): Option[InstanceId] = {
+               stepsDone: Int = 0)(implicit logging: Logging): Option[InvokerInstanceId] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -501,6 +501,6 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invoker
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
-                           invokerName: InstanceId,
+                           invokerName: InvokerInstanceId,
                            timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]])

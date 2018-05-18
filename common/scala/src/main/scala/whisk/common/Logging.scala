@@ -20,11 +20,10 @@ package whisk.common
 import java.io.PrintStream
 import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
-
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import whisk.core.entity.InstanceId
+import whisk.core.entity.ControllerInstanceId
 
 trait Logging {
 
@@ -255,7 +254,7 @@ object LoggingMarkers {
   /*
    * Controller related markers
    */
-  def CONTROLLER_STARTUP(i: Int) = LogMarkerToken(controller, s"startup$i", count)
+  def CONTROLLER_STARTUP(id: String) = LogMarkerToken(controller, s"startup$id", count)
 
   // Time of the activation in controller until it is delivered to Kafka
   val CONTROLLER_ACTIVATION = LogMarkerToken(controller, activation, start)
@@ -277,8 +276,8 @@ object LoggingMarkers {
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
 
-  def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: InstanceId) =
-    LogMarkerToken(loadbalancer + controllerInstance.toInt, "activationsInflight", count)
+  def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) =
+    LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)

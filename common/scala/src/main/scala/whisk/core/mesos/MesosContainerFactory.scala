@@ -47,7 +47,7 @@ import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import whisk.core.entity.UUID
 
 /**
@@ -198,7 +198,7 @@ object MesosContainerFactoryProvider extends ContainerFactoryProvider {
   override def getContainerFactory(actorSystem: ActorSystem,
                                    logging: Logging,
                                    config: WhiskConfig,
-                                   instance: InstanceId,
+                                   instance: InvokerInstanceId,
                                    parameters: Map[String, Set[String]]): ContainerFactory =
     new MesosContainerFactory(config, actorSystem, logging, parameters)
 }

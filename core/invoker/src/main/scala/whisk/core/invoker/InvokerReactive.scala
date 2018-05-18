@@ -43,7 +43,7 @@ import DefaultJsonProtocol._
 
 class InvokerReactive(
   config: WhiskConfig,
-  instance: InstanceId,
+  instance: InvokerInstanceId,
   producer: MessageProducer,
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool))(
   implicit actorSystem: ActorSystem,
@@ -114,13 +114,13 @@ class InvokerReactive(
   private val ack = (tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
-                     controllerInstance: InstanceId,
+                     controllerInstance: ControllerInstanceId,
                      userId: UUID) => {
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
       val msg = CompletionMessage(transid, res, instance)
-      producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
+      producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
           logging.info(
             this,

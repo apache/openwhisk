@@ -29,7 +29,7 @@ import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 import pureconfig._
@@ -38,7 +38,7 @@ import whisk.core.containerpool.ContainerArgsConfig
 
 case class DockerContainerFactoryConfig(useRunc: Boolean)
 
-class DockerContainerFactory(instance: InstanceId,
+class DockerContainerFactory(instance: InvokerInstanceId,
                              parameters: Map[String, Set[String]],
                              containerArgsConfig: ContainerArgsConfig =
                                loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
@@ -136,7 +136,7 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
   override def getContainerFactory(actorSystem: ActorSystem,
                                    logging: Logging,
                                    config: WhiskConfig,
-                                   instanceId: InstanceId,
+                                   instanceId: InvokerInstanceId,
                                    parameters: Map[String, Set[String]]): ContainerFactory = {
 
     new DockerContainerFactory(instanceId, parameters)(
