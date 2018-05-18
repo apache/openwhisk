@@ -167,6 +167,7 @@ trait WskTestHelpers extends Matchers {
       case t: Throwable =>
         // log the exception that occurred in the test and rethrow it
         println(s"Exception occurred during test execution: $t")
+        t.printStackTrace()
         throw t
     } finally {
       // delete assets in reverse order so that was created last is deleted first
