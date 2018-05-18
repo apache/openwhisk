@@ -29,14 +29,17 @@ whisk:
     date: "{{ansible_date_time.iso8601}}"
 
 ##
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
-# briefly:
-#   defaultImagePrefix: the default image prefix when not given explicitly
-#   defaultImageTag: the default image tag
-#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
-#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
-#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
-#                             to skip docker pull in invoker even if the image is not part of the blackbox set
+# configuration parameters related to support runtimes (see whisk.core.entity.ExecManifest for schema of the manifest).
+# briefly the parameters are:
+#
+#   runtimes_registry: optional registry (with trailing slack) where to pull docker images from for runtimes and backbox images
+#
+#   skip_pull_runtimes: this will skip pulling the images to the invoker (images must exist there somehow)
+#
+#   runtimes_manifest: set of language runtime families grouped by language (e.g., nodejs, python) and blackbox images to pre-pull
+#
+#   runtimes_bypass_pull_for_local_images: optional, if true, allow images with a prefix that matches
+#       {{ runtimes_local_image_prefix }} to skip docker pull in invoker even if the image is not part of the blackbox set
 #
 runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '/ansible/files/runtimes.json') | from_json) }}"
 

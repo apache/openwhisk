@@ -52,12 +52,11 @@ object Invoker {
    * An object which records the environment variables required for this component to run.
    */
   def requiredProperties =
-    Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
+    Map(servicePort -> 8080.toString, invokerName -> "", runtimesRegistry -> "") ++
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++ Map(dockerImageTag -> "latest") ++
-      Map(invokerName -> "")
+      wskApiHost
 
   def main(args: Array[String]): Unit = {
     Kamon.start()

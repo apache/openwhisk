@@ -85,7 +85,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("s1:default") shouldBe Some(s1)
   }
 
-  it should "read a valid configuration without default prefix, default tag" in {
+  it should "read a valid configuration where an image may omit prefix or tag" in {
     val i1 = RuntimeManifest("i1", ImageName("???"))
     val i2 = RuntimeManifest("i2", ImageName("???", Some("ppp")), default = Some(true))
     val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
@@ -99,14 +99,14 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           "js" -> Set(j1).toJson,
           "ks" -> Set(k1).toJson,
           "ss" -> Set(s1).toJson))
-    val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
+    val rmc = RuntimeManifestConfig()
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
-    runtimes.resolveDefaultRuntime("i1").get.image.publicImageName shouldBe "pre/???:test"
-    runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???:test"
+    runtimes.resolveDefaultRuntime("i1").get.image.publicImageName shouldBe "???"
+    runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???"
     runtimes.resolveDefaultRuntime("j1").get.image.publicImageName shouldBe "ppp/???:ttt"
-    runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "pre/???:ttt"
-    runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "pre/???:test"
+    runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "???:ttt"
+    runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "???"
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }
@@ -126,27 +126,25 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.skipDockerPull(ImageName("???", Some("bbb"))) shouldBe false
   }
 
-  it should "read a valid configuration with blackbox images, default prefix and tag" in {
-    val imgs = Set(
+  it should "read a valid configuration with blackbox images, which may omit prefix or tag" in {
+    val imgs = List(
       ImageName("???"),
       ImageName("???", Some("ppp")),
       ImageName("???", Some("ppp"), Some("ttt")),
       ImageName("???", None, Some("ttt")))
 
     val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
-    val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
+    val rmc = RuntimeManifestConfig()
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
-    runtimes.blackboxImages shouldBe {
-      Set(
-        ImageName("???", Some("pre"), Some("test")),
-        ImageName("???", Some("ppp"), Some("test")),
-        ImageName("???", Some("ppp"), Some("ttt")),
-        ImageName("???", Some("pre"), Some("ttt")))
-    }
+    runtimes.blackboxImages shouldBe imgs.toSet
 
-    runtimes.skipDockerPull(ImageName("???", Some("pre"), Some("test"))) shouldBe true
-    runtimes.skipDockerPull(ImageName("???", Some("bbb"), Some("test"))) shouldBe false
+    imgs.forall(runtimes.skipDockerPull(_)) shouldBe true
+
+    runtimes.skipDockerPull(ImageName("xxx")) shouldBe false
+    runtimes.skipDockerPull(ImageName("???", Some("bbb"))) shouldBe false
+    runtimes.skipDockerPull(ImageName("???", Some("ppp"), Some("test"))) shouldBe false
+    runtimes.skipDockerPull(ImageName("???", None, Some("test"))) shouldBe false
   }
 
   it should "reject runtimes with multiple defaults" in {
@@ -171,17 +169,15 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
 
     Seq(
       (ExecManifest.ImageName(name), name),
-      (ExecManifest.ImageName(name, Some("pre")), s"pre/$name"),
       (ExecManifest.ImageName(name, None, Some("t")), s"$name:t"),
+      (ExecManifest.ImageName(name, Some("pre")), s"pre/$name"),
       (ExecManifest.ImageName(name, Some("pre"), Some("t")), s"pre/$name:t")).foreach {
       case (image, exp) =>
         image.publicImageName shouldBe exp
+        image.localImageName("") shouldBe exp
+        image.localImageName("r") shouldBe s"r/$exp"
+        image.localImageName("r/") shouldBe s"r/$exp"
 
-        image.localImageName("", "", None) shouldBe image.tag.map(t => s"$name:$t").getOrElse(s"$name:latest")
-        image.localImageName("", "p", None) shouldBe image.tag.map(t => s"p/$name:$t").getOrElse(s"p/$name:latest")
-        image.localImageName("r", "", None) shouldBe image.tag.map(t => s"r/$name:$t").getOrElse(s"r/$name:latest")
-        image.localImageName("r", "p", None) shouldBe image.tag.map(t => s"r/p/$name:$t").getOrElse(s"r/p/$name:latest")
-        image.localImageName("r", "p", Some("tag")) shouldBe s"r/p/$name:tag"
     }
   }
 

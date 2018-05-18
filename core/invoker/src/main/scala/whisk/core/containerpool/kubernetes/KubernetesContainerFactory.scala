@@ -69,7 +69,7 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {
-      actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+      actionImage.localImageName(config.runtimesRegistry)
     }
 
     KubernetesContainer.create(

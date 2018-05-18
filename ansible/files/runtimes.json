@@ -4,7 +4,9 @@
             {
                 "kind": "nodejs",
                 "image": {
-                    "name": "nodejsaction"
+                    "prefix": "openwhisk",
+                    "name": "nodejsaction",
+                    "tag": "latest"
                 },
                 "deprecated": true
             },
@@ -12,7 +14,9 @@
                 "kind": "nodejs:6",
                 "default": true,
                 "image": {
-                    "name": "nodejs6action"
+                    "prefix": "openwhisk",
+                    "name": "nodejs6action",
+                    "tag": "latest"
                 },
                 "deprecated": false,
                 "stemCells": [{
@@ -24,7 +28,9 @@
                 "kind": "nodejs:8",
                 "default": false,
                 "image": {
-                    "name": "action-nodejs-v8"
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v8",
+                    "tag": "latest"
                 },
                 "deprecated": false
             }
@@ -33,7 +39,9 @@
             {
                 "kind": "python",
                 "image": {
-                    "name": "python2action"
+                    "prefix": "openwhisk",
+                    "name": "python2action",
+                    "tag": "latest"
                 },
                 "deprecated": false
             },
@@ -41,14 +49,18 @@
                 "kind": "python:2",
                 "default": true,
                 "image": {
-                    "name": "python2action"
+                    "prefix": "openwhisk",
+                    "name": "python2action",
+                    "tag": "latest"
                 },
                 "deprecated": false
             },
             {
                 "kind": "python:3",
                 "image": {
-                    "name": "python3action"
+                    "prefix": "openwhisk",
+                    "name": "python3action",
+                    "tag": "latest"
                 },
                 "deprecated": false
             }
@@ -57,21 +69,27 @@
             {
                 "kind": "swift",
                 "image": {
-                    "name": "swiftaction"
+                    "prefix": "openwhisk",
+                    "name": "swiftaction",
+                    "tag": "latest"
                 },
                 "deprecated": true
             },
             {
                 "kind": "swift:3",
                 "image": {
-                    "name": "swift3action"
+                    "prefix": "openwhisk",
+                    "name": "swift3action",
+                    "tag": "latest"
                 },
                 "deprecated": true
             },
             {
                 "kind": "swift:3.1.1",
                 "image": {
-                    "name": "action-swift-v3.1.1"
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v3.1.1",
+                    "tag": "latest"
                 },
                 "deprecated": false
             },
@@ -79,7 +97,9 @@
                 "kind": "swift:4.1",
                 "default": true,
                 "image": {
-                    "name": "action-swift-v4.1"
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v4.1",
+                    "tag": "latest"
                 },
                 "deprecated": false
             }
@@ -89,7 +109,9 @@
                 "kind": "java",
                 "default": true,
                 "image": {
-                    "name": "java8action"
+                    "prefix": "openwhisk",
+                    "name": "java8action",
+                    "tag": "latest"
                 },
                 "deprecated": false,
                 "attached": {
@@ -106,14 +128,18 @@
                 "default": true,
                 "deprecated": false,
                 "image": {
-                    "name": "action-php-v7.1"
+                    "prefix": "openwhisk",
+                    "name": "action-php-v7.1",
+                    "tag": "latest"
                 }
             }
         ]
     },
     "blackboxes": [
         {
-            "name": "dockerskeleton"
+            "prefix": "openwhisk",
+            "name": "dockerskeleton",
+            "tag": "latest"
         }
     ]
 }

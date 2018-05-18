@@ -61,7 +61,7 @@ class DockerContainerFactory(instance: InstanceId,
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {
-      actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+      actionImage.localImageName(config.runtimesRegistry)
     }
 
     DockerContainer.create(
