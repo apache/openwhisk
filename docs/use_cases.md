@@ -30,13 +30,13 @@ The modular and inherently scalable nature of OpenWhisk makes it ideal for imple
 
 Even though OpenWhisk was originally designed for event based programming, it offers several benefits for user-facing applications. For example, when you combine it with a small Node.js stub, you can use it to serve applications that are relatively easy to debug. And because OpenWhisk applications are a lot less computationally intensive than running a server process on a PaaS platform, they are considerably cheaper, as well.
 
-Full web applications can be built and run with OpenWhisk. Combining serverless APIs with static file hosting for site resources, e.g. HTML, JavaScript and CSS, means we can build entire serverless web applications. The simplicity of operating a hosted OpenWhisk environment (or rather not having to operate anything at all since it is hosted on Bluemix) is a great benefit compared to standing up and operating a Node.js Express or other traditional server runtime.
+Full web applications can be built and run with OpenWhisk. Combining serverless APIs with static file hosting for site resources, e.g. HTML, JavaScript and CSS, means we can build entire serverless web applications. The simplicity of operating a hosted OpenWhisk environment (or rather not having to operate anything at all since it is hosted on IBM Cloud) is a great benefit compared to standing up and operating a Node.js Express or other traditional server runtime.
 
 One of the things that helps is the option of OpenWhisk CLI *wsk* tool called "--annotation web-export true", which makes the code accessible from a web browser.
 
 Here are few examples on how to use OpenWhisk to build a web app:
 - [Web Actions: Serverless Web Apps with OpenWhisk](https://medium.com/openwhisk/web-actions-serverless-web-apps-with-openwhisk-f21db459f9ba).
-- [Build a user-facing OpenWhisk application with Bluemix and Node.js](https://www.ibm.com/developerworks/cloud/library/cl-openwhisk-node-bluemix-user-facing-app/index.html)
+- [Build a user-facing OpenWhisk application with IBM Cloud Functions and Node.js](https://www.ibm.com/developerworks/cloud/library/cl-openwhisk-node-bluemix-user-facing-app/index.html)
 - [Serverless HTTP handlers with OpenWhisk](https://medium.com/openwhisk/serverless-http-handlers-with-openwhisk-90a986cc7cdd)
 
 ## IoT
@@ -57,7 +57,7 @@ Here is an example and a discussion of [using Serverless as an API backend](http
 
 ## Mobile back end
 
-Many mobile applications require server-side logic. For mobile developers that don't want to manage server-side logic and would rather focus on the app that is running on the device or browser, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills. Mobile applications often have unpredictable load patterns and hosted OpenWhisk solution, such as IBM Bluemix can scale to meet practically any demand in workload without the need to provision resources ahead of time.
+Many mobile applications require server-side logic. For mobile developers that don't want to manage server-side logic and would rather focus on the app that is running on the device or browser, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills. Mobile applications often have unpredictable load patterns and hosted OpenWhisk solution, such as IBM Cloud Functions, can scale to meet practically any demand in workload without the need to provision resources ahead of time.
 
 ## Data processing
 
@@ -67,4 +67,4 @@ With the amount of data now available, application development requires the abil
 
 Cognitive technologies can be effectively combined with OpenWhisk to create powerful applications. For example, IBM Alchemy API and Watson Visual Recognition can be used with OpenWhisk to automatically extract useful information from videos without having to actually watch them.
 
-Here is a sample application [Dark vision](https://github.com/IBM-Bluemix/openwhisk-darkvisionapp) that does just that. In this application the user uploads a video or image using the Dark Vision web application, which stores it in a Cloudant DB. Once the video is uploaded, OpenWhisk detects the new video by listening to Cloudant changes (trigger). OpenWhisk then triggers the video extractor action. During its execution, the extractor produces frames (images) and stores them in Cloudant. The frames are then processed using Watson Visual Recognition and the results are stored in the same Cloudant DB. The results can be viewed using Dark Vision web application OR an iOS application. Object Storage can be used in addition to Cloudant. When doing so, video and image medadata are stored in Cloudant and the media files are stored in Object Storage.
+Here is a sample application [Dark vision](https://github.com/IBM-Cloud/openwhisk-darkvisionapp) that does just that. In this application the user uploads a video or image using the Dark Vision web application, which stores it in a Cloudant DB. Once the video is uploaded, OpenWhisk detects the new video by listening to Cloudant changes (trigger). OpenWhisk then triggers the video extractor action. During its execution, the extractor produces frames (images) and stores them in Cloudant. The frames are then processed using Watson Visual Recognition and the results are stored in the same Cloudant DB. The results can be viewed using Dark Vision web application OR an iOS application. Object Storage can be used in addition to Cloudant. When doing so, video and image medadata are stored in Cloudant and the media files are stored in Object Storage.
