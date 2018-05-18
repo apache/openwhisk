@@ -153,13 +153,16 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
       pkg.create(samplePackage, shared = Some(true))(wp)
     }
 
-    val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
-    verifyPackageSharedList(packageList, guestNamespace, samplePackage)
+    retry({
+      val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+      verifyPackageSharedList(packageList, guestNamespace, samplePackage)
+    }, 10, Some(500.milliseconds))
   }
 
   def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val fullyQualifiedPackageName = s"/$namespace/$packageName"
-    packageList.stdout should include regex (fullyQualifiedPackageName + """\s+shared""")
+    withClue(s"Packagelist is: ${packageList.stdout}; Packagename is: $fullyQualifiedPackageName")(
+      packageList.stdout should include regex (fullyQualifiedPackageName + """\s+shared"""))
   }
 
   it should "not list private packages" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -167,13 +170,16 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
       pkg.create(samplePackage)(wp)
     }
 
-    val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
-    verifyPackageNotSharedList(packageList, guestNamespace, samplePackage)
+    retry({
+      val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+      verifyPackageNotSharedList(packageList, guestNamespace, samplePackage)
+    }, 10, Some(500.milliseconds))
   }
 
   def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val fullyQualifiedPackageName = s"/$namespace/$packageName"
-    packageList.stdout should not include (fullyQualifiedPackageName)
+    withClue(s"Packagelist is: ${packageList.stdout}; Packagename is: $fullyQualifiedPackageName")(
+      packageList.stdout should not include (fullyQualifiedPackageName))
   }
 
   it should "list shared package actions" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -188,8 +194,10 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
     }
 
     val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-    val packageList = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps)
-    verifyPackageList(packageList, guestNamespace, samplePackage, sampleAction)
+    retry({
+      val packageList = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps)
+      verifyPackageList(packageList, guestNamespace, samplePackage, sampleAction)
+    }, 10, Some(500.milliseconds))
   }
 
   def verifyPackageList(packageList: RunResult, namespace: String, packageName: String, actionName: String): Unit = {
