@@ -39,7 +39,7 @@ The easiest way to start using OpenWhisk is to get Docker installed on on Mac, W
 
 ```
 git clone https://github.com/apache/incubator-openwhisk-devtools.git
-cd docker-compose
+cd incubator-openwhisk-devtools/docker-compose
 make quick-start
 ```
 
