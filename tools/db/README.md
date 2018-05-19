@@ -41,11 +41,9 @@ Detailed instructions are found in the [ansible readme](../../ansible/README.md)
 ## Using Cloudant
 
 As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service.
-There are two ways to get a Cloudant account and configure OpenWhisk to use it.
-You only need to establish an account once, either through IBM Bluemix or with Cloudant directly.
 
-### Create a Cloudant account via IBM Bluemix
-Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail. Using Bluemix, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your Bluemix account.
+### Create a Cloudant account via IBM Cloud
+Sign up for an account via [IBM Cloud](https://bluemix.net). IBM Cloud offers trial accounts and its signup process is straightforward so it is not described here in detail. Using IBM Cloud, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your IBM Cloud account.
 
 When `cf` is set up, issue the following commands to create a Cloudant database.
 
@@ -61,11 +59,6 @@ When `cf` is set up, issue the following commands to create a Cloudant database.
   ```
 
 Make note of the Cloudant `username` and `password` from the last `cf` command so you can create the required `db_local.ini`.
-
-### Create a Cloudant account directly with Cloudant
-
-As an alternative to IBM Bluemix, you may sign up for an account with [Cloudant](https://cloudant.com) directly. Cloudant is free to try and offers a metered pricing where the first $50 of usage is free each month. The signup process is straightforward so it is not described here in detail.
-Once you have created a Cloudant account, make note of the account `username` and `password` from the Cloudant dashboard, so you can create the required `db_local.ini`.
 
 ### Setting the Cloudant credentials
 

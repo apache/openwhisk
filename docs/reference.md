@@ -29,7 +29,7 @@ OpenWhisk actions, triggers, and rules belong in a namespace, and optionally a p
 
 Packages can contain actions and feeds. A package cannot contain another package, so package nesting is not allowed. Also, entities do not have to be contained in a package.
 
-In Bluemix, an organization+space pair corresponds to a OpenWhisk namespace. For example, the organization `BobsOrg` and space `dev` would correspond to the OpenWhisk namespace `/BobsOrg_dev`.
+In IBM Cloud, an organization+space pair corresponds to a OpenWhisk namespace. For example, the organization `BobsOrg` and space `dev` would correspond to the OpenWhisk namespace `/BobsOrg_dev`.
 
 You can create your own namespaces if you're entitled to do so. The `/whisk.system` namespace is reserved for entities that are distributed with the OpenWhisk system.
 
@@ -453,7 +453,7 @@ Information about the REST API can be found [here](rest_api.md)
 ### Actions
 OpenWhisk has a few system limits, including how much memory an action can use and how many action invocations are allowed per minute.
 
-**Note:** This default limits are for the open source distribution; production deployments like Bluemix likely have higher limits.
+**Note:** This default limits are for the open source distribution; production deployments like IBM Cloud Functions likely have higher limits.
 As an operator or developer you can change some of the limits using [ansible inventory variables](../ansible/README.md#changing-limits).
 
 The following table lists the default limits for actions.
