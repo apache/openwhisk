@@ -126,7 +126,7 @@ In our specific case, as we’re having a *Node.js* based action at hand, the In
 
 ### Storing the results: CouchDB again
 
-As the result is obtained by the Invoker, it is stored into the **whisks** database as an activation under the ActivationId mentioned further above. The **whisks** database lives in **CouchDB**.
+As the result is obtained by the Invoker, it is stored into the **activations** database as an activation under the ActivationId mentioned further above. The **activations** database lives in **CouchDB**.
 
 In our specific case, the Invoker gets the resulting JSON object back from the action, grabs the log written by Docker, puts them all into the activation record and stores it into the database. It will look roughly like this:
 
