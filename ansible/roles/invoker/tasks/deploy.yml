@@ -255,7 +255,7 @@
 - name: extend invoker volume for coverage
   set_fact:
     volumes: "{{ volumes|default('') }},{{ openwhisk_home }}/core/invoker/build/scoverage/container:/coverage"
-  when: "lookup('env','GRADLE_COVERAGE') == 'true'"
+  when: coverage_enabled
 
 - name: start invoker using docker cli
   docker_container:

@@ -253,7 +253,7 @@
 - name: extend controller volume for coverage
   set_fact:
     controller_volumes: "{{ controller_volumes|default({}) + [openwhisk_home+'/core/controller/build/scoverage/container:/coverage']  }}"
-  when: "lookup('env','GRADLE_COVERAGE') == 'true'"
+  when: coverage_enabled
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"
