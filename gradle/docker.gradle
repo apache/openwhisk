@@ -81,7 +81,6 @@ task distDockerCoverage() {
         file("${buildDir}/scoverage/container").mkdirs()
 
         def buildArgs = [
-                "DOCKER_IMAGE_PREFIX=${project.ext.dockerImagePrefix}",
                 "OW_ROOT_DIR=${project.rootProject.projectDir.absolutePath}"
         ]
         def dockerImageNameOrig = dockerImageName
