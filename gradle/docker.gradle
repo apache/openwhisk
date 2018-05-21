@@ -78,8 +78,6 @@ task distDockerCoverage() {
             copy {from file(jar); into "build/tmp/docker-coverage/lib"; rename { it.replace('-scoverage', '')}}
         }
 
-        file("${buildDir}/scoverage/container").mkdirs()
-
         def buildArgs = [
                 "OW_ROOT_DIR=${project.rootProject.projectDir.absolutePath}"
         ]

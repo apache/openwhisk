@@ -250,6 +250,14 @@
        - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
        - "{{ controller.confdir }}/{{ controller_name }}:/conf"
 
+- name: ensure controller coverage directory is created with permissions
+  file:
+    path: "{{ openwhisk_home }}/core/controller/build/scoverage/container }}"
+    state: directory
+    mode: 0777
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
 - name: extend controller volume for coverage
   set_fact:
     controller_volumes: "{{ controller_volumes|default({}) + [openwhisk_home+'/core/controller/build/scoverage/container:/coverage']  }}"

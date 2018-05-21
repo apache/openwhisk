@@ -252,6 +252,14 @@
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
+- name: ensure controller coverage directory is created with permissions
+  file:
+    path: "{{ openwhisk_home }}/core/invoker/build/scoverage/container }}"
+    state: directory
+    mode: 0777
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
 - name: extend invoker volume for coverage
   set_fact:
     volumes: "{{ volumes|default('') }},{{ openwhisk_home }}/core/invoker/build/scoverage/container:/coverage"
