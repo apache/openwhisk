@@ -244,6 +244,17 @@
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"
 
+- name: populate volumes for controller
+  set_fact:
+    controller_volumes:
+       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
+       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+
+- name: extend controller volume for coverage
+  set_fact:
+    controller_volumes: "{{ controller_volumes|default({}) + [openwhisk_home+'/core/controller/build/scoverage/container:/coverage']  }}"
+  when: "lookup('env','GRADLE_COVERAGE') == 'true'"
+
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
@@ -258,9 +269,7 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "{{ controller_name }}"
     env: "{{ env }}"
-    volumes:
-      - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
-      - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+    volumes: "{{ controller_volumes }}"
     ports: "{{ ports_to_expose }}"
     command:
       /bin/sh -c

@@ -252,6 +252,11 @@
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
+- name: extend invoker volume for coverage
+  set_fact:
+    volumes: "{{ volumes|default('') }},{{ openwhisk_home }}/core/invoker/build/scoverage/container:/coverage"
+  when: "lookup('env','GRADLE_COVERAGE') == 'true'"
+
 - name: start invoker using docker cli
   docker_container:
     userns_mode: "host"
