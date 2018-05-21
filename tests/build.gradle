@@ -198,17 +198,39 @@ gradle.projectsEvaluated {
     }
 }
 
+task copyMeasurementFiles() {
+    doLast{
+        Project common = project(":common:scala")
+        Project controller = project(":core:controller")
+        Project invoker = project(":core:invoker")
+        copyAndRenameMeasurementFile(controller, "common", common)
+        copyAndRenameMeasurementFile(controller, "controller", controller)
+        copyAndRenameMeasurementFile(invoker, "common", common)
+        copyAndRenameMeasurementFile(invoker, "invoker", invoker)
+    }
+}
+
 /**
  * Task to generate coverage xml report. Requires the
  * tests to be executed prior to its invocation
  */
 task reportCoverage(type: ScoverageReport) {
     dependsOn([
+        copyMeasurementFiles,
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
         ':core:invoker:reportScoverage',
         ':tools:admin:reportScoverage'
     ])
+
+}
+
+def copyAndRenameMeasurementFile(Project source, String moduleName, Project dest){
+    copy{
+        from("${source.buildDir.absolutePath}/scoverage/container/$moduleName")
+        into("${dest.buildDir.absolutePath}/scoverage")
+        rename {it+"container"}
+    }
 }
 
 /**
