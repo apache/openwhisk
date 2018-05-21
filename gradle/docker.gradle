@@ -77,6 +77,9 @@ task distDockerCoverage() {
         coverageJars.each {jar ->
             copy {from file(jar); into "build/tmp/docker-coverage/lib"; rename { it.replace('-scoverage', '')}}
         }
+
+        file("${buildDir}/scoverage/container").mkdirs()
+
         def buildArgs = [
                 "DOCKER_IMAGE_PREFIX=${project.ext.dockerImagePrefix}",
                 "OW_ROOT_DIR=${project.rootProject.projectDir.absolutePath}"
