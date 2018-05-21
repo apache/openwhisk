@@ -255,7 +255,7 @@
     path: "{{ openwhisk_home }}/core/controller/build/scoverage/container }}"
     state: directory
     mode: 0777
-  become: "{{ logs.dir.become }}"
+  become: true
   when: coverage_enabled
 
 - name: extend controller volume for coverage
