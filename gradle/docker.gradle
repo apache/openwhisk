@@ -93,7 +93,7 @@ task distDockerCoverage() {
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
 
         //Replace the original image with coverage one
-        project.ext.dockerTaggedImageName = dockerImagePrefix + '/' + dockerImageNameOrig + ':' + "latest"
+        project.ext.dockerTaggedImageName = dockerImagePrefix + '/' + dockerImageNameOrig + ':' + "cov"
     }
     finalizedBy('tagImage')
 }
