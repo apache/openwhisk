@@ -31,7 +31,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskPackage
-import whisk.utils.retry
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
@@ -47,6 +46,8 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
   override def afterAll() = {
     disposeAdditionalTestSubject(guestWskProps.namespace)
   }
+
+  def retry[A](block: => A) = whisk.utils.retry(block, 10, Some(500.milliseconds))
 
   val samplePackage = "samplePackage"
   val sampleAction = "sampleAction"
@@ -153,10 +154,10 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
       pkg.create(samplePackage, shared = Some(true))(wp)
     }
 
-    retry({
+    retry {
       val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
       verifyPackageSharedList(packageList, guestNamespace, samplePackage)
-    }, 10, Some(500.milliseconds))
+    }
   }
 
   def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
@@ -170,10 +171,10 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
       pkg.create(samplePackage)(wp)
     }
 
-    retry({
+    retry {
       val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
       verifyPackageNotSharedList(packageList, guestNamespace, samplePackage)
-    }, 10, Some(500.milliseconds))
+    }
   }
 
   def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
@@ -194,10 +195,10 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
     }
 
     val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-    retry({
+    retry {
       val packageList = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps)
       verifyPackageList(packageList, guestNamespace, samplePackage, sampleAction)
-    }, 10, Some(500.milliseconds))
+    }
   }
 
   def verifyPackageList(packageList: RunResult, namespace: String, packageName: String, actionName: String): Unit = {
@@ -377,7 +378,7 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
           trigger.create(name, feed = Some(fullyQualifiedFeedName), expectedExitCode = timeoutCode)(wp)
         }
         // with several active controllers race condition with cache invalidation might occur, thus retry
-        retry(wsk.trigger.get("badfeed", expectedExitCode = notFoundCode)(wp), 10, Some(500.milliseconds))
+        retry(wsk.trigger.get("badfeed", expectedExitCode = notFoundCode)(wp))
       }
   }
 
