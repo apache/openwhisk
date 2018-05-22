@@ -22,11 +22,7 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
-import akka.actor.Actor
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.actor.Props
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props}
 
 /**
  * Scheduler utility functions to execute tasks in a repetitive way with controllable behavior
@@ -99,7 +95,7 @@ object Scheduler {
                          name: String = "Scheduler")(f: () => Future[Any])(implicit system: ActorSystem,
                                                                            logging: Logging,
                                                                            transid: TransactionId =
-                                                                             TransactionId.unknown) = {
+                                                                             TransactionId.unknown): ActorRef = {
     require(interval > Duration.Zero)
     system.actorOf(Props(new Worker(initialDelay, interval, false, name, f)))
   }

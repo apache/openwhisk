@@ -39,7 +39,7 @@ import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
-import whisk.http.{BasicHttpService, BasicRasService}
+import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
@@ -178,14 +178,14 @@ object Invoker {
       case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
     }
 
-    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+    val healthScheduler = Scheduler.scheduleWaitAtMost(1.seconds)(() => {
       producer.send("health", PingMessage(invokerInstance)).andThen {
         case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
       }
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
+    BasicHttpService.startHttpService(new InvokerServer(actorSystem, healthScheduler).route, port)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
   }
