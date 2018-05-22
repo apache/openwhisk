@@ -168,7 +168,7 @@ object Invoker {
 
     val invokerInstance = InstanceId(assignedInvokerId, invokerName)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
+    if (msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker").isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
     val producer = msgProvider.getProducer(config)
