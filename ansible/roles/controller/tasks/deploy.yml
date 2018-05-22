@@ -252,9 +252,12 @@
 
 - name: ensure controller coverage directory is created with permissions
   file:
-    path: "{{ coverage_logs_dir }}/controller"
+    path: "{{ coverage_logs_dir }}/controller/{{ item }}"
     state: directory
     mode: 0777
+  with_items:
+    - controller
+    - common
   become: "{{ logs.dir.become }}"
   when: coverage_enabled
 

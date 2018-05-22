@@ -254,9 +254,12 @@
 
 - name: ensure invoker coverage directory is created with permissions
   file:
-    path: "{{ coverage_logs_dir }}/invoker"
+    path: "{{ coverage_logs_dir }}/invoker/{{ item }}"
     state: directory
     mode: 0777
+  with_items:
+    - invoker
+    - common
   become: "{{ logs.dir.become }}"
   when: coverage_enabled
 
