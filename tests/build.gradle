@@ -203,10 +203,17 @@ task copyMeasurementFiles() {
         Project common = project(":common:scala")
         Project controller = project(":core:controller")
         Project invoker = project(":core:invoker")
-        copyAndRenameMeasurementFile(controller, "common", common)
-        copyAndRenameMeasurementFile(controller, "controller", controller)
-        copyAndRenameMeasurementFile(invoker, "common", common)
-        copyAndRenameMeasurementFile(invoker, "invoker", invoker)
+
+        Properties wskProps = loadWhiskProps()
+        String covLogsDir = wskProps.getProperty('whisk.coverage.logs.dir')
+        assert covLogsDir : "Did not find coverage logs property 'whisk.coverage.logs.dir' in whisk props"
+
+        File covLogs = new File(covLogsDir)
+
+        copyAndRenameMeasurementFile(covLogs, 'controller', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'controller', "controller", controller)
+        copyAndRenameMeasurementFile(covLogs, 'invoker', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'invoker', "invoker", invoker)
     }
 }
 
@@ -225,12 +232,25 @@ task reportCoverage(type: ScoverageReport) {
 
 }
 
-def copyAndRenameMeasurementFile(Project source, String moduleName, Project dest){
-    copy{
-        from("${source.buildDir.absolutePath}/scoverage/container/$moduleName")
-        into("${dest.buildDir.absolutePath}/scoverage")
-        rename {it+"container"}
+def copyAndRenameMeasurementFile(File covLogDir, String containerName, String moduleName, Project dest){
+    File dir = new File(new File(covLogDir, containerName), moduleName)
+    if (!dir.exists()) {
+        println "Coverage logs directory ${dir.absolutePath} does not exist. Skipping measurement file collection"
+        return
     }
+    copy{
+        from(dir)
+        into("${dest.buildDir.absolutePath}/scoverage")
+        rename {it+".$containerName-container"}
+    }
+}
+
+def loadWhiskProps(){
+    Properties p = new Properties()
+    file('../whisk.properties').withInputStream {is ->
+        p.load(is)
+    }
+    p
 }
 
 /**
