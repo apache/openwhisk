@@ -254,7 +254,7 @@
 
 - name: ensure controller coverage directory is created with permissions
   file:
-    path: "{{ openwhisk_home }}/core/invoker/build/scoverage/container }}"
+    path: "{{ openwhisk_home }}/core/invoker/build/scoverage/container"
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
