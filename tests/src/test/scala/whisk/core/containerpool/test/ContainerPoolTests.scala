@@ -330,8 +330,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   val differentNamespace = EntityName("differentNamespace")
 
   /** Helper to create a new action from String representations */
-  def createAction(namespace: String = "actionNS", name: String = "actionName") =
-    ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec)
+  def createAction(namespace: String = "actionNS", name: String = "actionName", limits: ActionLimits = ActionLimits()) =
+    ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec, limits = limits)
 
   /** Helper to create WarmedData with sensible defaults */
   def warmedData(action: ExecutableWhiskAction = createAction(),
@@ -414,11 +414,19 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   it should "not use a container when active activation count >= maxconcurrent" in {
     val maxConcurrent = 25
-    val data = warmedData(active = maxConcurrent)
+
+    val data = warmedData(
+      active = maxConcurrent,
+      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
     val pool = Map('warm -> data)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe None
 
-    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data)
+    val data2 = warmedData(
+      active = maxConcurrent - 1,
+      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
+    val pool2 = Map('warm -> data2)
+
+    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
 
   }
 
