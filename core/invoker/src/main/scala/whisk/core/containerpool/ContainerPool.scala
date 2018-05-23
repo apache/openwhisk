@@ -213,7 +213,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           freePool = freePool + (ref -> data)
           prewarmedPool = prewarmedPool - ref
           // Create a new prewarm container
-          // NOTE: prewarming ignores the action code, but this is dangerous as the code is accessible to the factory
+          // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the factory
           prewarmContainer(action.exec, memory)
           (ref, data)
       }

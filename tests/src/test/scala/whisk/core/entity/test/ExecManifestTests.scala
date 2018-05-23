@@ -302,7 +302,12 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       (m.kind, m.image, c.count, c.memory)
     }
 
-    mf.stemcells(stemCellFactory) should contain theSameElementsAs List(
+    mf.stemcells.flatMap {
+      case (m, cells) =>
+        cells.map { c =>
+          (m.kind, m.image, c.count, c.memory)
+        }
+    }.toList should contain theSameElementsAs List(
       (js6.kind, js6.image, 1, 128.MB),
       (js8.kind, js8.image, 1, 128.MB),
       (js8.kind, js8.image, 1, 256.MB),

@@ -19,7 +19,7 @@ package whisk.core.entity
 
 import pureconfig.loadConfigOrThrow
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.{ConfigKeys, WhiskConfig}
@@ -288,11 +288,13 @@ protected[core] object ExecManifest {
      *
      * @return list of runtime manifests with stemcell configurations
      */
-    def stemcells[T](f: (RuntimeManifest, List[StemCell]) => List[T]): List[T] = {
-      manifests.collect {
-        case (_, m @ RuntimeManifest(_, _, _, _, _, _, _, Some(stemCells))) if stemCells.nonEmpty => f(m, stemCells)
-      }
-    }.flatten.toList
+    def stemcells: Map[RuntimeManifest, List[StemCell]] = {
+      manifests
+        .flatMap {
+          case (_, m) => m.stemCells.map(m -> _)
+        }
+        .filter(_._2.nonEmpty)
+    }
 
     private val defaultRuntimes: Map[String, String] = {
       runtimes.map { family =>
@@ -309,24 +311,12 @@ protected[core] object ExecManifest {
     private val defaultSplitter = "([a-z0-9]+):default".r
   }
 
-  protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
-    def write(cell: StemCell) =
-      JsObject("count" -> JsNumber(cell.count), "memory" -> JsString(cell.memory.toString))
+  protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
 
-    def read(value: JsValue): StemCell = {
-      Try {
-        value.asJsObject.getFields("count", "memory") match {
-          case Seq(JsNumber(count), JsString(memory)) =>
-            require(count.isWhole && count.intValue > 0, "stem cell count must be whole number greater than zero")
-            StemCell(count.intValue, ByteSize.fromString(memory))
-        }
-      } match {
-        case Success(c) => c
-        case Failure(t) => throw t
-      }
-    }
+  protected[entity] implicit val stemCellSerdes = {
+    import whisk.core.entity.size.serdes
+    jsonFormat2(StemCell.apply)
   }
 
-  protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
   protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
 }
