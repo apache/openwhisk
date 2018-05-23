@@ -215,6 +215,14 @@
     env: "{{ env|default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
 
+- name: merge extra env variables
+  set_fact:
+    env: "{{ env | default({}) | combine(item) }}"
+  with_items: "{{ extraEnvSets.split(',') | map('trim') | map('extract', vars)| list }}"
+  loop_control:
+      label: redacted
+  when: extraEnvSets is defined and extraEnvSets != False
+
 - name: set invoker volumes
   set_fact:
     volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\

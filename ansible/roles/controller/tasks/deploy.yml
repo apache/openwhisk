@@ -236,6 +236,14 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
+- name: merge extra env variables
+  set_fact:
+    controller_env: "{{ controller_env | default({}) | combine(item) }}"
+  with_items: "{{ extraEnvSets.split(',') | map('trim') | map('extract', vars)| list }}"
+  loop_control:
+    label: redacted
+  when: extraEnvSets is defined and extraEnvSets != False
+
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
