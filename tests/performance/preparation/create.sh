@@ -25,13 +25,15 @@ credentials=$2
 action=$3
 # Path to action src
 action_src=$4
+# Concurrency setting
+action_concurrency=${5:-1}
 
 # jq will json encode the src (need to strip leading/trailing quotes that jq adds)
 #action_code=$(jq -cs . "$action_src" | sed 's/^.\(.*\).$/\1/')
 action_code=$(cat "$action_src")
 
 # setup the action json to create the action
-action_json='{"namespace":"_","name":"'"$action"'","exec":{"kind":"nodejs:default","code":""}}'
+action_json='{"namespace":"_","name":"'"$action"'","exec":{"kind":"nodejs:default","code":""},"limits":{"concurrency":'"$action_concurrency"'}}'
 action_json=$(echo  "$action_json" | jq -c --arg code "$action_code" '.exec.code=($code)')
 
 

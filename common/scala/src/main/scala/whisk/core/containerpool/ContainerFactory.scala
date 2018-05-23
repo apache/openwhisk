@@ -31,11 +31,7 @@ case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
                                extraArgs: Map[String, Set[String]] = Map.empty)
 
-case class ContainerPoolConfig(numCore: Int,
-                               coreShare: Int,
-                               maxConcurrent: Int = 1,
-                               concurrentPeekFactor: Double = 0.5) {
-  require(maxConcurrent >= 1, "maxConcurrent must be >= 1")
+case class ContainerPoolConfig(numCore: Int, coreShare: Int, concurrentPeekFactor: Double = 0.5) {
   require(concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0, "concurrentPeekFactor must be > 0 and <= 1.0")
 
   /**

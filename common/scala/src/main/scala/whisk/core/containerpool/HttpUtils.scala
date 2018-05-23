@@ -18,13 +18,11 @@
 package whisk.core.containerpool
 
 import java.nio.charset.StandardCharsets
-
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
@@ -35,9 +33,7 @@ import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
-import pureconfig._
 import spray.json._
-import whisk.core.ConfigKeys
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
@@ -54,7 +50,7 @@ import whisk.core.entity.size.SizeLong
  * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
-protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize) {
+protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int) {
 
   def close() = Try(connection.close())
 
@@ -78,11 +74,12 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    execute(request, timeout.toMillis.toInt, retry)
+    execute(request, timeout.toMillis.toInt, maxConcurrent, retry)
   }
 
   private def execute(request: HttpRequestBase,
                       timeoutMsec: Integer,
+                      maxConcurrent: Int,
                       retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
@@ -113,7 +110,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
         if (timeoutMsec > 0) {
           Thread sleep 100
           val newTimeout = timeoutMsec - 100
-          execute(request, newTimeout, retry)
+          execute(request, newTimeout, maxConcurrent, retry)
         } else {
           Left(Timeout())
         }
@@ -136,25 +133,22 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
   // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
   val cm = new PoolingHttpClientConnectionManager
   // Increase default max connections per route (default is 2)
-  cm.setDefaultMaxPerRoute(HttpUtils.maxConcurrent)
+  cm.setDefaultMaxPerRoute(maxConcurrent)
   // Increase max total connections (default is 20)
-  cm.setMaxTotal(HttpUtils.maxConcurrent)
+  cm.setMaxTotal(maxConcurrent)
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
-    .setConnectionManager(if (HttpUtils.maxConcurrent > 1) cm else null) //set the Pooling connection manager IFF maxConcurrent > 1
+    .setConnectionManager(if (maxConcurrent > 1) cm else null) //set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
 }
 
 object HttpUtils {
-  //load ContainerPoolConfig here so that we can tune the connection manager based on concurrency requirements
-  private val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
-  private val maxConcurrent = poolConfig.maxConcurrent
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
-    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, 1)
     val response = connection.post(endPoint, content, retry = true)
     connection.close()
     response match {

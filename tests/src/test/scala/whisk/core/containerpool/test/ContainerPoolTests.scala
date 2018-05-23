@@ -416,9 +416,9 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val maxConcurrent = 25
     val data = warmedData(active = maxConcurrent)
     val pool = Map('warm -> data)
-    ContainerPool.schedule(data.action, data.invocationNamespace, pool, maxConcurrent) shouldBe None
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe None
 
-    ContainerPool.schedule(data.action, data.invocationNamespace, pool, maxConcurrent + 1) shouldBe Some('warm, data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data)
 
   }
 

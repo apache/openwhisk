@@ -228,12 +228,11 @@ class ContainerProxy(
       if (newData.activeActivationCount > 0) {
         stay using newData
       } else {
-        logging.info(this, "going to ready after load completed")
         goto(Ready) using newData
       }
 
     case Event(job: Run, data: WarmedData)
-        if stateData.activeActivationCount < poolConfig.maxConcurrent && !rescheduleJob => //if there was a delay, or a failure on resume, skip the run
+        if stateData.activeActivationCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, or a failure on resume, skip the run
 
       implicit val transid = job.msg.transid
       val newData = data.incrementActive
@@ -381,7 +380,9 @@ class ContainerProxy(
       case data: WarmedData =>
         Future.successful(None)
       case _ =>
-        container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
+        container
+          .initialize(job.action.containerInitializer, actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .map(Some(_))
     }
 
     val activation: Future[WhiskActivation] = initialize
@@ -401,13 +402,15 @@ class ContainerProxy(
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
 
-        container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
-          case (runInterval, response) =>
-            val initRunInterval = initInterval
-              .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))
-              .getOrElse(runInterval)
-            ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response)
-        }
+        container
+          .run(parameters, environment, actionTimeout, job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
+          .map {
+            case (runInterval, response) =>
+              val initRunInterval = initInterval
+                .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))
+                .getOrElse(runInterval)
+              ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response)
+          }
       }
       .recover {
         case InitializationError(interval, response) =>

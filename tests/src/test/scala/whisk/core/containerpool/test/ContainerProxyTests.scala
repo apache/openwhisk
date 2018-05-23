@@ -514,7 +514,8 @@ class ContainerProxyTests
   it should "complete the transaction and destroy the container on a failed init" in within(timeout) {
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
-                              timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+                              timeout: FiniteDuration,
+                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         Future.failed(InitializationError(initInterval, ActivationResponse.applicationError("boom")))
       }
@@ -553,7 +554,7 @@ class ContainerProxyTests
 
   it should "complete the transaction and destroy the container on a failed run" in within(timeout) {
     val container = new TestContainer {
-      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         runCount += 1
         Future.successful((initInterval, ActivationResponse.applicationError("boom")))
@@ -725,7 +726,8 @@ class ContainerProxyTests
     val initPromise = Promise[Interval]
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
-                              timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+                              timeout: FiniteDuration,
+                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         initPromise.future
       }
@@ -850,7 +852,7 @@ class ContainerProxyTests
       destroyCount += 1
       super.destroy()
     }
-    override def initialize(initializer: JsObject, timeout: FiniteDuration)(
+    override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
       initializer shouldBe action.containerInitializer
@@ -861,7 +863,7 @@ class ContainerProxyTests
         case None          => Future.successful(initInterval)
       }
     }
-    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
       runCount += 1
       environment.fields("api_key") shouldBe message.user.authkey.toJson

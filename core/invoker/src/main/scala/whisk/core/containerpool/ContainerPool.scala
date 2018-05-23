@@ -73,15 +73,16 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     }
   }
 
-  def logContainerStart(r: Run, containerState: String): Unit = {
+  def logContainerStart(r: Run, containerState: String, activeActivations: Int): Unit = {
     val namespaceName = r.msg.user.namespace.name
     val actionName = r.action.name.name
+    val maxConcurrent = r.action.limits.concurrency.maxConcurrent
     val activationId = r.msg.activationId.toString
 
     r.msg.transid.mark(
       this,
       LoggingMarkers.INVOKER_CONTAINER_START(containerState),
-      s"containerStart containerState: $containerState action: $actionName namespace: $namespaceName activationId: $activationId",
+      s"containerStart containerState: $containerState ($activeActivations of max $maxConcurrent) action: $actionName namespace: $namespaceName activationId: $activationId",
       akka.event.Logging.InfoLevel)
   }
 
@@ -96,18 +97,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
         // Schedule a job to a warm container
         ContainerPool
-          .schedule(r.action, r.msg.user.namespace, freePool, poolConfig.maxConcurrent)
+          .schedule(r.action, r.msg.user.namespace, freePool)
           .map(container => {
-            (container, "warm")
+            (container, "warm", container._2.activeActivationCount)
           })
           .orElse {
             if (busyPool.size + freePool.size < poolConfig.maxActiveContainers) {
               takePrewarmContainer(r.action)
                 .map(container => {
-                  (container, "prewarmed")
+                  (container, "prewarmed", container._2.activeActivationCount)
                 })
                 .orElse {
-                  Some(createContainer(), "cold")
+                  Some(createContainer(), "cold", 0)
                 }
             } else None
           }
@@ -117,24 +118,29 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               removeContainer(toDelete)
               takePrewarmContainer(r.action)
                 .map(container => {
-                  (container, "recreated")
+                  (container, "recreated", container._2.activeActivationCount)
                 })
                 .getOrElse {
-                  (createContainer(), "recreated")
+                  (createContainer(), "recreated", 0)
                 }
             }
           }
       } else None
 
       createdContainer match {
-        case Some(((actor, data), containerState)) =>
+        case Some(((actor, data), containerState, activeActivations)) =>
           //only move to busyPool if max reached
-          if (data.activeActivationCount + 1 >= poolConfig.maxConcurrent) {
+          if (data.activeActivationCount + 1 >= r.action.limits.concurrency.maxConcurrent) {
+            if (r.action.limits.concurrency.maxConcurrent > 1) {
+              logging.info(
+                this,
+                s"container for ${r.action} is now busy with ${data.activeActivationCount + 1} activations")
+            }
             busyPool = busyPool + (actor -> data)
             freePool = freePool - actor
           }
           actor ! r // forwards the run request to the container
-          logContainerStart(r, containerState)
+          logContainerStart(r, containerState, activeActivations)
         case None =>
           // this can also happen if createContainer fails to start a new container, or
           // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
@@ -156,10 +162,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
       feed ! MessageFeed.Processed
-      if (data.activeActivationCount < poolConfig.maxConcurrent) {
+      if (data.activeActivationCount < data.action.limits.concurrency.maxConcurrent) {
         //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
         freePool = freePool + (sender() -> data)
-        busyPool = busyPool - sender()
+        if (busyPool.contains(sender())) {
+          busyPool = busyPool - sender()
+          if (data.action.limits.concurrency.maxConcurrent > 1) {
+            logging.info(
+              this,
+              s"container for ${data.action} is no longer busy with ${data.activeActivationCount} activations")
+          }
+        }
       } else {
         //update freePool IFF it was previously PreWarmedData (it is still free, but now has WarmedData)
         //otherwise update busyPool to reflect the updated activation counts
@@ -167,6 +180,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           case Some(_: PreWarmedData) =>
             freePool = freePool + (sender() -> data)
           case None =>
+            if (data.action.limits.concurrency.maxConcurrent > 1) {
+              logging.info(
+                this,
+                s"container for ${data.action} is now busy with ${data.activeActivationCount} activations")
+            }
             busyPool = busyPool + (sender() -> data)
           case _ => //was free+WarmedData - do nothing
         }
@@ -260,11 +278,10 @@ object ContainerPool {
    */
   protected[containerpool] def schedule[A](action: ExecutableWhiskAction,
                                            invocationNamespace: EntityName,
-                                           idles: Map[A, ContainerData],
-                                           maxConcurrent: Int = 1): Option[(A, ContainerData)] = {
+                                           idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles.find {
       case c @ (_, WarmedData(_, `invocationNamespace`, `action`, _, _))
-          if c._2.activeActivationCount < maxConcurrent =>
+          if c._2.activeActivationCount < action.limits.concurrency.maxConcurrent =>
         true
       case _ => false
     }
@@ -295,8 +312,7 @@ object ContainerPool {
   def props(factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: Option[PrewarmingConfig] = None,
-            maxConcurrent: Int = 1) =
+            prewarmConfig: Option[PrewarmingConfig] = None) =
     Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
 }
 
