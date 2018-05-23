@@ -1047,7 +1047,7 @@ trait RunWskCmd extends BaseRunWsk {
             stdinFile.getOrElse(null),
             args ++ params: _*)
 
-          if (rr.exitCode == NETWORK_ERROR_EXIT) {
+          if (expectedExitCode != NETWORK_ERROR_EXIT && rr.exitCode == NETWORK_ERROR_EXIT) {
             println(rr)
             throw new Exception("A network error occurred.")
           }
