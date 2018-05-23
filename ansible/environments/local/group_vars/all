@@ -2,6 +2,7 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 
 whisk_version_name: local
+extraEnvSets: "{{ lookup('env', 'OPENWHISK_EXTRA_ENV_SETS')|default(false, true) }}"
 openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
 whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
