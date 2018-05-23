@@ -30,7 +30,7 @@ import akka.http.scaladsl.unmarshalling._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.LogStore
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.{Collection, Privilege, Resource}
@@ -63,6 +63,10 @@ object WhiskActivationsApi {
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] =
     RestApiCommons.stringToListLimit(Collection(Collection.ACTIVATIONS))
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] =
+    RestApiCommons.stringToListSkip(Collection(Collection.ACTIVATIONS))
 
 }
 
@@ -143,9 +147,10 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
     import WhiskActivationsApi.stringToRestrictedEntityPath
     import WhiskActivationsApi.stringToInstantDeserializer
     import WhiskActivationsApi.stringToListLimit
+    import WhiskActivationsApi.stringToListSkip
 
     parameter(
-      'skip ? 0,
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
       'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
       'count ? false,
       'docs ? false,
@@ -157,7 +162,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
           WhiskActivation.countCollectionInNamespace(
             activationStore,
             name.flatten.map(p => namespace.addPath(p)).getOrElse(namespace),
-            skip,
+            skip.n,
             since,
             upto,
             StaleParameter.UpdateAfter,
@@ -172,7 +177,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
               activationStore,
               namespace,
               action,
-              skip,
+              skip.n,
               limit.n,
               docs,
               since,
@@ -182,7 +187,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
             WhiskActivation.listCollectionInNamespace(
               activationStore,
               namespace,
-              skip,
+              skip.n,
               limit.n,
               docs,
               since,
@@ -207,9 +212,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
     val docid = DocId(WhiskEntity.qualifiedName(namespace, activationId))
     pathEndOrSingleSlash {
       getEntity(
-        WhiskActivation,
-        activationStore,
-        docid,
+        WhiskActivation.get(activationStore, docid),
         postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson)))
 
     } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(docid) } ~
@@ -226,9 +229,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
    */
   private def fetchResponse(docid: DocId)(implicit transid: TransactionId) = {
     getEntityAndProject(
-      WhiskActivation,
-      activationStore,
-      docid,
+      WhiskActivation.get(activationStore, docid),
       (activation: WhiskActivation) => Future.successful(activation.response.toExtendedJson))
   }
 
@@ -243,9 +244,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
   private def fetchLogs(user: Identity, docid: DocId)(implicit transid: TransactionId) = {
     extractRequest { request =>
       getEntityAndProject(
-        WhiskActivation,
-        activationStore,
-        docid,
+        WhiskActivation.get(activationStore, docid),
         (activation: WhiskActivation) => logStore.fetchLogs(user, activation, request).map(_.toJsonObject))
     }
   }

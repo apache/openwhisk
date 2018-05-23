@@ -25,11 +25,11 @@ sudo apt-add-repository -y ppa:ansible/ansible
 sudo apt-get update
 sudo apt-get install -y python-dev libffi-dev libssl-dev
 sudo pip install markupsafe
-sudo pip install ansible==2.4.2.0
-sudo pip install docker==2.2.1
+sudo pip install ansible==2.5.2
 sudo pip install jinja2==2.9.6
-sudo pip install httplib2==0.9.2
-sudo pip install requests==2.10.0
+sudo pip install docker==2.2.1    --ignore-installed  --force-reinstall
+sudo pip install httplib2==0.9.2  --ignore-installed  --force-reinstall
+sudo pip install requests==2.10.0 --ignore-installed  --force-reinstall
 
 ansible --version
 ansible-playbook --version

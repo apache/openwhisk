@@ -151,9 +151,12 @@ object Messages {
   }
 
   def listLimitOutOfRange(collection: String, value: Int, max: Int) = {
-    s"The value $value is not in the range of 0 to $max for $collection."
+    s"The value '$value' is not in the range of 0 to $max for $collection."
   }
-  def listLimitIsNotAString = s"The API expects the 'limit' value to be an integer but the given value is not."
+  def listSkipOutOfRange(collection: String, value: Int) = {
+    s"The value '$value' is not greater than or equal to 0 for $collection."
+  }
+  def argumentNotInteger(collection: String, value: String) = s"The value '$value' is not an integer for $collection."
 
   def truncateLogs(limit: ByteSize) = {
     s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."
@@ -253,7 +256,7 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
     def read(v: JsValue) =
       Try {
         v.asJsObject.getFields("error", "code") match {
-          case Seq(JsString(error), JsNumber(code)) =>
+          case Seq(JsString(error), JsString(code)) =>
             ErrorResponse(error, TransactionId(code))
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)

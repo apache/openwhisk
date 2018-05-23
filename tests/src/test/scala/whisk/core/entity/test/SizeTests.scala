@@ -119,24 +119,42 @@ class SizeTests extends FlatSpec with Matchers {
 
   // Create ObjectSize from String
   it should "create ObjectSize from String 3B" in {
-    val fromString = ByteSize.fromString("3B")
-    fromString equals (3 B)
+    ByteSize.fromString("3b") equals (3 B)
+    ByteSize.fromString("3B") equals (3 B)
+    ByteSize.fromString("3 b") equals (3 B)
+    ByteSize.fromString("3 B") equals (3 B)
   }
 
   it should "create ObjectSize from String 7K" in {
-    val fromString = ByteSize.fromString("7K")
-    fromString equals (7 KB)
+    ByteSize.fromString("7k") equals (7 KB)
+    ByteSize.fromString("7K") equals (7 KB)
+    ByteSize.fromString("7KB") equals (7 KB)
+    ByteSize.fromString("7kB") equals (7 KB)
+    ByteSize.fromString("7kb") equals (7 KB)
+    ByteSize.fromString("7 k") equals (7 KB)
+    ByteSize.fromString("7 K") equals (7 KB)
+    ByteSize.fromString("7 KB") equals (7 KB)
+    ByteSize.fromString("7 kB") equals (7 KB)
+    ByteSize.fromString("7 kb") equals (7 KB)
   }
 
   it should "create ObjectSize from String 120M" in {
-    val fromString = ByteSize.fromString("120M")
-    fromString equals (120 MB)
+    ByteSize.fromString("120m") equals (120 MB)
+    ByteSize.fromString("120M") equals (120 MB)
+    ByteSize.fromString("120MB") equals (120 MB)
+    ByteSize.fromString("120mB") equals (120 MB)
+    ByteSize.fromString("120mb") equals (120 MB)
+    ByteSize.fromString("120 m") equals (120 MB)
+    ByteSize.fromString("120 M") equals (120 MB)
+    ByteSize.fromString("120 MB") equals (120 MB)
+    ByteSize.fromString("120 mB") equals (120 MB)
+    ByteSize.fromString("120 mb") equals (120 MB)
   }
 
   it should "throw error on creating ObjectSize from String 120A" in {
     the[IllegalArgumentException] thrownBy {
       ByteSize.fromString("120A")
-    } should have message """Size Unit not supported. Only "B", "K" and "M" are supported."""
+    } should have message ByteSize.formatError
   }
 
   it should "throw error on creating ByteSize object with negative size" in {

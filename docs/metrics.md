@@ -1,25 +1,31 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 # Openwhisk Metric Support
 
-Openwhick contains the capability to send metric information to a statsd server. This capability is disabled per default. Instead metric information is normally written to the log files in logmarker format.
+Openwhisk distinguishes between system and user metrics (events).
 
-## Configuration
+System metrics typically contain information about system performance and provide a possibility to send them to Kamon or write them to log files in logmarker format. This metrics are typically used by OpenWhisk providers/operators.
+
+User metrics encompass information about action performance which is sent to Kafka in a form of events. These metrics are to be consumed by OpenWhisk users, however they could be also used for billing or audit purpose. It is to be noted that at the moment the events are not directly exposed to the users and require an additional Kakfa Consumer based micro-service for data processing.
+
+## System specific metrics
+### Configuration
 
 Both capabilties can be enabled or disabled separately during deployment via Ansible configuration in the 'goup_vars/all' file of an  environment.
 
@@ -60,7 +66,7 @@ metrics_kamon_statsd_port: '8125'
 metrics_log: true
 ```
 
-## Testing the statsd metric support
+### Testing the statsd metric support
 
 The Kamon project privides an integrated docker image containing statsd and a connected Grafana dashboard via [this Github project](https://github.com/kamon-io/docker-grafana-graphite). This image is helpful for testing the metrices sent via statsd.
 
@@ -69,3 +75,39 @@ Please follow these [instructions](https://github.com/kamon-io/docker-grafana-gr
 The docker image exposes statsd via the (standard) port 8125 and a Graphana dashboard via port 8080 on your docker host.
 
 The address of your docker host has to be configured in the `metrics_kamon_statsd_host` configuration property.
+
+## User specific metrics
+### Configuration
+User metrics are enabled by default and could be explicitly disabled by setting the following property in one of the Ansible configuration files:
+```
+user_events: false
+```
+
+### Supported events
+Activation is an event that occurs after after each activation. It includes the following execution metadata:
+```
+waitTime - internal system hold time
+initTime - time it took to initialise an action, e.g. docker init
+statusCode - status code of the invocation: 0 - success, 1 - application error, 2 - action developer error, 3 - internal OpenWhisk error
+duration - actual time the action code was running
+kind - action flavor, e.g. nodejs
+conductor - true for conductor backed actions
+memory - maximum memory allowed for action container
+causedBy - true for sequence actions
+```
+Metric is any user specific event produced by the system and it at this moment includes the following information:
+```
+ConcurrentRateLimit - a user has exceeded its limit for concurrent invocations.
+TimedRateLimit - the user has reached its per minute limit for the number of invocations.
+ConcurrentInvocations - the number of in flight invocations per user.
+```
+
+Example events that could be consumed from Kafka.
+Activation:
+```
+{"body":{"statusCode":0,"duration":3,"name":"whisk.system/invokerHealthTestAction0","waitTime":583915671,"conductor":false,"kind":"nodejs:6","initTime":0,"memory": 256, "causedBy": false},"eventType":"Activation","source":"invoker0","subject":"whisk.system","timestamp":1524476122676,"userId":"d0888ad5-5a92-435e-888a-d55a92935e54","namespace":"whisk.system"}
+```
+Metric:
+```
+{"body":{"metricName":"ConcurrentInvocations","metricValue":1},"eventType":"Metric","source":"controller0","subject":"guest","timestamp":1524476104419,"userId":"23bc46b1-71f6-4ed5-8c54-816aa4f8c502","namespace":"guest"}
+```

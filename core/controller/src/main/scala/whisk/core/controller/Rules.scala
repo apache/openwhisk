@@ -24,7 +24,7 @@ import akka.http.scaladsl.server.StandardRoute
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import spray.json.DeserializationException
 import whisk.common.TransactionId
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.{CacheChangeNotification, DocumentConflictException, NoDocumentException}
 import whisk.core.entitlement.{Collection, Privilege, ReferencedEntities}
 import whisk.core.entity._
@@ -134,7 +134,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     extractStatusRequest { requestedState =>
       val docid = entityName.toDocId
 
-      getEntity(WhiskRule, entityStore, docid, Some {
+      getEntity(WhiskRule.get(entityStore, docid), Some {
         rule: WhiskRule =>
           val ruleName = rule.fullyQualifiedName(false)
 
@@ -230,9 +230,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     getEntity(
-      WhiskRule,
-      entityStore,
-      entityName.toDocId,
+      WhiskRule.get(entityStore, entityName.toDocId),
       Some { rule: WhiskRule =>
         val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
           getStatus(trigger, entityName)
@@ -255,19 +253,21 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        if (!count) {
-          listEntities {
-            WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = true) map { list =>
-              list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
-            }
-          }
-        } else {
-          countEntities {
-            WhiskRule.countCollectionInNamespace(entityStore, namespace, skip)
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      if (!count) {
+        listEntities {
+          WhiskRule.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = true) map { list =>
+            list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
           }
         }
+      } else {
+        countEntities {
+          WhiskRule.countCollectionInNamespace(entityStore, namespace, skip.n)
+        }
+      }
     }
   }
 
@@ -430,6 +430,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
 }
 
 private case class IgnoredRuleActivation(noop: Boolean) extends Throwable

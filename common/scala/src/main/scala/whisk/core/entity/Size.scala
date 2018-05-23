@@ -79,18 +79,23 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
 }
 
 object ByteSize {
+  private val regex = """(?i)\s?(\d+)\s?(MB|KB|B|M|K)\s?""".r.pattern
+  protected[entity] val formatError = """Size Unit not supported. Only "B", "K[B]" and "M[B]" are supported."""
+
   def fromString(sizeString: String): ByteSize = {
-    val unitprefix = sizeString.takeRight(1).toUpperCase
-    val size = sizeString.dropRight(1).trim.toLong
+    val matcher = regex.matcher(sizeString)
+    if (matcher.matches()) {
+      val size = matcher.group(1).toInt
+      val unit = matcher.group(2).charAt(0).toUpper match {
+        case 'B' => SizeUnits.BYTE
+        case 'K' => SizeUnits.KB
+        case 'M' => SizeUnits.MB
+      }
 
-    val unit = unitprefix match {
-      case "B" => SizeUnits.BYTE
-      case "K" => SizeUnits.KB
-      case "M" => SizeUnits.MB
-      case _   => throw new IllegalArgumentException("""Size Unit not supported. Only "B", "K" and "M" are supported.""")
+      ByteSize(size, unit)
+    } else {
+      throw new IllegalArgumentException(formatError)
     }
-
-    ByteSize(size, unit)
   }
 }
 

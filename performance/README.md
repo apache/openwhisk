@@ -1,18 +1,19 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 # :electric_plug: Apache OpenWhisk - Performance Tests
@@ -107,4 +108,31 @@ EXCLUDED_KINDS          (default: "", format: "python:default,java:default,swift
 You can run the simulation with (in OPENWHISK_HOME)
 ```
 OPENWHISK_HOST="openwhisk.mydomain.com" MEAN_RESPONSE_TIME="20" API_KEY="UUID:KEY" ./gradlew gatlingRun-LatencySimulation
+```
+
+##### BlockingInvokeOneActionSimulation
+
+This simulation executes the same action with the same user over and over again.
+The aim of this test is, to test the throughput of the system, if all containers are always warm.
+
+The action that is invoked, writes one log line and returns a little json.
+
+The simulations creates the action in the beginning, invokes it as often as possible for 5 seconds, to warm all containers up and invokes it afterwards for the given amount of time.
+The warmup-phase will not be part of the assertions.
+
+To run the test, you can specify the amount of concurrent requests. Keep in mind, that the actions are invoked blocking and the system is limited to `AMOUNT_OF_INVOKERS * SLOTS_PER_INVOKER * NON_BLACKBOX_INVOKER_RATIO` concurrent actions/requests.
+
+Available environment variables:
+```
+OPENWHISK_HOST          (required)
+API_KEY                 (required, format: UUID:KEY)
+CONNECTIONS             (required)
+SECONDS                 (default: 10)
+REQUESTS_PER_SEC        (required)
+MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+```
+
+You can run the simulation with
+```
+OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-BlockingInvokeOneActionSimulation
 ```

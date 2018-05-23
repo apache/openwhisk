@@ -26,7 +26,7 @@ import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 
 import whisk.common.TransactionId
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -157,7 +157,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskPackage, entityStore, entityName.toDocId, Some { mergePackageWithBinding() _ })
+    getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some { mergePackageWithBinding() _ })
   }
 
   /**
@@ -168,26 +168,28 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        val viewName = if (user.namespace.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
-        if (!count) {
-          listEntities {
-            WhiskPackage
-              .listCollectionInNamespace(
-                entityStore,
-                namespace,
-                skip,
-                limit.n,
-                includeDocs = false,
-                viewName = viewName)
-              .map(_.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_))))
-          }
-        } else {
-          countEntities {
-            WhiskPackage.countCollectionInNamespace(entityStore, namespace, skip, viewName = viewName)
-          }
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      val viewName = if (user.namespace.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
+      if (!count) {
+        listEntities {
+          WhiskPackage
+            .listCollectionInNamespace(
+              entityStore,
+              namespace,
+              skip.n,
+              limit.n,
+              includeDocs = false,
+              viewName = viewName)
+            .map(_.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_))))
         }
+      } else {
+        countEntities {
+          WhiskPackage.countCollectionInNamespace(entityStore, namespace, skip.n, viewName = viewName)
+        }
+      }
     }
   }
 
@@ -297,7 +299,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
         logging.debug(this, s"fetching package '$docid' for reference")
-        getEntity(WhiskPackage, entityStore, docid, Some {
+        getEntity(WhiskPackage.get(entityStore, docid), Some {
           mergePackageWithBinding(Some { wp }) _
         })
     } getOrElse {
@@ -330,4 +332,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
 }

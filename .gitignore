@@ -29,6 +29,7 @@ bin/
 
 # Linux
 *~
+*.swp
 
 # Mac
 .DS_Store

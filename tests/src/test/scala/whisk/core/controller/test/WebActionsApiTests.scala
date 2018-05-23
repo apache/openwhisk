@@ -41,6 +41,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaType
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -334,7 +335,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       error.fields.get("error").get shouldBe JsString(m)
     }
     error.fields.get("code") shouldBe defined
-    error.fields.get("code").get shouldBe an[JsNumber]
+    error.fields.get("code").get shouldBe an[JsString]
   }
 
   Seq(None, Some(WhiskAuthHelpers.newIdentity())).foreach { creds =>
@@ -1726,10 +1727,27 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         status should be(BadRequest)
       }
     }
+
+    it should s"support json (including +json subtypes) (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val path = s"$systemId/proxy/export_c.text/content/field1"
+      val entity = JsObject("field1" -> "value1".toJson)
+
+      Seq(
+        ContentType(MediaType.applicationWithFixedCharset("cloudevents+json", HttpCharsets.`UTF-8`)),
+        ContentTypes.`application/json`).foreach { ct =>
+        invocationsAllowed += 1
+        Post(s"$testRoutePath/$path", HttpEntity(ct, entity.compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          responseAs[String] shouldBe "value1"
+        }
+      }
+    }
   }
 
   class TestingEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)
-      extends EntitlementProvider(config, loadBalancer) {
+      extends EntitlementProvider(config, loadBalancer, InstanceId(0)) {
 
     protected[core] override def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
       val subject = user.subject

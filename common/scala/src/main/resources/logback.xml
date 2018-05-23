@@ -12,7 +12,7 @@
 
   <!-- Kafka -->
   <logger name="org.apache.kafka" level="ERROR" />
-  
+
   <root level="${logback.log.level:-INFO}">
     <appender-ref ref="console" />
   </root>

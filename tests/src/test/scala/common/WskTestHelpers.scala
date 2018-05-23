@@ -84,9 +84,9 @@ object ActivationResult extends DefaultJsonProtocol {
       Try {
         value match {
           case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-          case _           => deserializationError("timetsamp malformed")
+          case _           => deserializationError("timestamp malformed")
         }
-      } getOrElse deserializationError("timetsamp malformed 2")
+      } getOrElse deserializationError("timestamp malformed 2")
   }
 
   implicit val serdes = new RootJsonFormat[ActivationResult] {
@@ -167,6 +167,7 @@ trait WskTestHelpers extends Matchers {
       case t: Throwable =>
         // log the exception that occurred in the test and rethrow it
         println(s"Exception occurred during test execution: $t")
+        t.printStackTrace()
         throw t
     } finally {
       // delete assets in reverse order so that was created last is deleted first

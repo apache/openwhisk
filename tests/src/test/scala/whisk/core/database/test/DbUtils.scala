@@ -18,6 +18,7 @@
 package whisk.core.database.test
 
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -31,7 +32,6 @@ import scala.util.Success
 import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database._
 import whisk.core.database.memory.MemoryArtifactStore
@@ -39,25 +39,32 @@ import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
 
+import akka.http.scaladsl.model.ContentType
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
  * and in the presence of a cache, there will be inconsistencies if one mixes these
  * operations with those that flow through the cache. To mitigate this, use unique asset
  * names in tests, and defer all cleanup to the end of a test suite.
  */
-trait DbUtils extends TransactionCounter {
+trait DbUtils {
   implicit val dbOpTimeout = 15 seconds
-  override val instanceOrdinal = 0
-  val instance = InstanceId(instanceOrdinal)
+  val instance = InstanceId(0)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
   case class RetryOp() extends Throwable
+
+  val cnt = new AtomicInteger(0)
+  def transid() = TransactionId(cnt.incrementAndGet().toString)
 
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.
    * Attempt the operation up to 'count' times. The future from the
    * step is not aborted --- TODO fix this.
    */
-  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 5): Try[T] = {
+  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 100): Try[T] = {
+    val graceBeforeRetry = 50.milliseconds
     val future = step()
     if (count > 0) try {
       val result = Await.result(future, timeout)
@@ -65,12 +72,15 @@ trait DbUtils extends TransactionCounter {
     } catch {
       case n: NoDocumentException =>
         println("no document exception, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case RetryOp() =>
         println("condition not met, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: TimeoutException =>
         println("timed out, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: Throwable =>
         println(s"unexpected failure $t")
@@ -192,6 +202,20 @@ trait DbUtils extends TransactionCounter {
     assert(doc != null)
     if (garbageCollect) docsToDelete += ((db, doc))
     doc
+  }
+
+  def attach[A, Au >: A](
+    db: ArtifactStore[Au],
+    doc: DocInfo,
+    name: String,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    garbageCollect: Boolean = true)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = db.attach(doc, name, contentType, docStream)
+    val newDoc = Await.result(docFuture, timeout)
+    assert(newDoc != null)
+    if (garbageCollect) docsToDelete += ((db, newDoc))
+    newDoc
   }
 
   /**

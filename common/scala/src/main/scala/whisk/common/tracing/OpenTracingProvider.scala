@@ -38,9 +38,9 @@ import whisk.core.ConfigKeys
  */
 object OpenTracingProvider {
 
-  private val spanMap: mutable.Map[Long, mutable.ListBuffer[ActiveSpan]] =
-    TrieMap[Long, mutable.ListBuffer[ActiveSpan]]()
-  private val contextMap: mutable.Map[Long, SpanContext] = TrieMap[Long, SpanContext]()
+  private val spanMap: mutable.Map[String, mutable.ListBuffer[ActiveSpan]] =
+    TrieMap[String, mutable.ListBuffer[ActiveSpan]]()
+  private val contextMap: mutable.Map[String, SpanContext] = TrieMap[String, SpanContext]()
 
   var enabled = false;
 

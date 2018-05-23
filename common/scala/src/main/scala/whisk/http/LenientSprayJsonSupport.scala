@@ -14,3 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package whisk.http
+
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+import spray.json.JsValue
+
+object LenientSprayJsonSupport extends SprayJsonSupport {
+  // Removes the mandatory application/json content-type for unmarshalling
+  override implicit def sprayJsValueUnmarshaller: FromEntityUnmarshaller[JsValue] =
+    Unmarshaller.byteStringUnmarshaller
+      .andThen(sprayJsValueByteStringUnmarshaller)
+}

@@ -1,3 +1,6 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
 mode: deploy
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
@@ -19,7 +22,7 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
+hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
 
 whisk:
   version:
@@ -97,7 +100,7 @@ jmx:
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:
-  stride: "{{ groups['controllers'] | length }}"
+  header: "{{ transactions_header | default('X-Request-ID') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -108,6 +111,13 @@ kafka:
     keystore:
       name: kafka-keystore.jks
       password: openwhisk
+    cipher_suites:
+    - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+    - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+    - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+    - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
   protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
   port: 9072
@@ -170,7 +180,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.12') }}"
+  version: "{{ nginx_version | default('1.13') }}"
   port:
     http: 80
     api: 443
@@ -324,3 +334,4 @@ metrics:
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
+user_events: "{{ user_events_enabled | default(false) }}"

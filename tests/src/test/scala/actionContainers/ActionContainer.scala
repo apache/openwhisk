@@ -30,13 +30,13 @@ import scala.concurrent.duration.DurationInt
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.util.Random
+import scala.util.{Failure, Success}
 
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import akka.actor.ActorSystem
-import common.WhiskProperties
 import spray.json._
 import whisk.core.entity.Exec
 
@@ -88,14 +88,38 @@ object ActionContainer {
   }
 
   private lazy val dockerCmd: String = {
-    val version = WhiskProperties.getProperty("whisk.version.name")
-    // Check if we are running on docker-machine env.
-    val hostStr = if (version.toLowerCase().contains("mac")) {
-      s" --host tcp://${WhiskProperties.getMainDockerEndpoint} "
-    } else {
-      " "
+    /*
+     * The docker host is set to a provided property 'docker.host' if it's
+     * available; otherwise by the environment variable DOCKER_HOST
+     * (which is usually set, especially for DOCKER_MACHINE).
+     *
+     * The plan is to move builds to using 'gradle-docker-plugin', which know
+     * its docker socket and to have it pass the docker socket implicitly using
+     * 'systemProperty "docker.host", docker.url'.  Eventually, we will also
+     * need to handle TLS certificates here.  Again, 'gradle-docker-plugin'
+     * knows where they are; we will just add system properties to get the
+     * information onto the docker command line.
+     */
+    val dockerCmdString = dockerBin +
+      sys.props
+        .get("docker.host")
+        .orElse(sys.env.get("DOCKER_HOST"))
+        .map(" --host " + _)
+        .getOrElse("")
+    // Test here that this actually works, otherwise throw a somewhat understandable error message
+    proc(s"$dockerCmdString info").onComplete {
+      case Success((v, _, _)) if (v != 0) =>
+        throw new RuntimeException(s"""Unable to connect to docker host using $dockerCmdString as command string.
+          |The docker host is determined using the Java property 'docker.host' or
+          |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+          |other is set for your build/test process.""".stripMargin)
+      case Success((v, _, _)) if (v == 0) =>
+      // Do nothing
+      case Failure(t) =>
+        throw t
     }
-    s"$dockerBin $hostStr"
+
+    dockerCmdString
   }
 
   private def docker(command: String): String = s"$dockerCmd $command"
@@ -145,8 +169,9 @@ object ActionContainer {
 
     // ...find out its IP address...
     val (ip, port) =
-      if (WhiskProperties.getProperty("whisk.version.name") == "local" &&
-          WhiskProperties.onMacOSX()) {
+      if (System.getProperty("os.name").toLowerCase().contains("mac") && !sys.env
+            .get("DOCKER_HOST")
+            .exists(_.trim.nonEmpty)) {
         // on MacOSX, where docker for mac does not permit communicating with container directly
         val p = 8988 // port must be available or docker run will fail
         createContainer(Some(p))

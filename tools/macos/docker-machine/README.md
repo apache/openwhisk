@@ -1,18 +1,19 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor 
-# license agreements.  See the NOTICE file distributed with this work for additional 
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this 
-# file except in compliance with the License.  You may obtain a copy of the License 
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed 
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 
@@ -29,7 +30,7 @@ The following are required to build and deploy OpenWhisk from a Mac host:
 - [Docker 1.12.0](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 - [Scala 2.11](http://scala-lang.org/download/)
-- [Ansible 2.4.2.0](http://docs.ansible.com/ansible/intro_installation.html)
+- [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
 **Tip** Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continues integration and deployment.
 
@@ -55,7 +56,7 @@ brew install scala
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install docker==2.2.1 ansible==2.4.2.0 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
+sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
 # Create and configure Docker machine
@@ -131,14 +132,14 @@ cd /your/path/to/openwhisk
 
 ```
 brew install python
-pip install ansible==2.4.2.0
+pip install ansible==2.5.0
 pip install jinja2==2.9.6
 
 cd ansible
 ansible-playbook -i environments/docker-machine setup.yml [-e docker_machine_name=whisk]
 ```
 
-**Hint:** If you omit the optional `-e docker_machine_name` parameter, it will default to "whisk".  
+**Hint:** If you omit the optional `-e docker_machine_name` parameter, it will default to "whisk".
 If your docker-machine VM has a different name you may pass it via the `-e docker_machine_name` parameter.
 
 After this there should be a `hosts` file in the `ansible/environments/docker-machine` directory.

@@ -1,24 +1,25 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor 
-# license agreements.  See the NOTICE file distributed with this work for additional 
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this 
-# file except in compliance with the License.  You may obtain a copy of the License 
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed 
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 
 # Setting up OpenWhisk on Ubuntu server(s)
 
-The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup. 
+The following are verified to work on Ubuntu 14 LTS. You may need `sudo` or root access to install required software depending on your system setup.
 
 The commands below should be executed on the host machine for single VM/server deployments of OpenWhisk. For a distributed deployment spanning multiple VMs, the commands should be executed on a machine with network connectivity to all the VMs in the deployment - this is called the `bootstrapper` and it is ideally an Ubuntu 14.04 VM that is provisioned in an IaaS (infrastructure as a service platform e.g., OpenStack).  Your local machine can act as the bootstrapper as well if it can connect to the VMs deployed in your IaaS.
 
@@ -28,7 +29,7 @@ The commands below should be executed on the host machine for single VM/server d
 
   # Clone openwhisk
   git clone https://github.com/apache/incubator-openwhisk.git openwhisk
-  
+
   # Change current directory to openwhisk
   cd openwhisk
 
