@@ -65,6 +65,11 @@ class ContainerProxyTests
 
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val concurrentAction = ExecutableWhiskAction(
+    EntityPath("actionSpace"),
+    EntityName("actionName"),
+    exec,
+    limits = ActionLimits(concurrency = ConcurrencyLimit(20)))
 
   // create a transaction id to set the start time and control queue time
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
@@ -168,7 +173,7 @@ class ContainerProxyTests
     Future.successful(())
   }
 
-  val poolConfig = ContainerPoolConfig(1, 2, 20)
+  val poolConfig = ContainerPoolConfig(1, 2)
 
   behavior of "ContainerProxy"
 
@@ -399,7 +404,7 @@ class ContainerProxyTests
       Promise[(Interval, ActivationResponse)]())
     val container = new TestContainer(Some(initPromise), Some(runPromises))
     val factory = createFactory(Future.successful(container))
-    val acker = createAcker()
+    val acker = createAcker(concurrentAction)
     val store = createStore
     val collector = createCollector()
 
@@ -410,8 +415,8 @@ class ContainerProxyTests
     registerCallback(machine)
     preWarm(machine) //ends in Started state
 
-    machine ! Run(action, message) //first in Started state
-    machine ! Run(action, message) //second in Started or Running state
+    machine ! Run(concurrentAction, message) //first in Started state
+    machine ! Run(concurrentAction, message) //second in Started or Running state
 
     //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
     //second message will be delayed until we get to Running state with WarmedData
@@ -420,34 +425,34 @@ class ContainerProxyTests
 
     //complete the init
     initPromise complete Try(initInterval)
-    expectWarmed(invocationNamespace.name, action, 1) //when init completes
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when init completes
 
     //complete the first run
     runPromises(0) complete Try(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, action, 0) //when first completes (count is 0 since stashed not counted)
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when first completes (count is 0 since stashed not counted)
     expectMsg(Transition(machine, Running, Ready)) //wait for first to complete to skip the delay step that can only reliably be tested in single threaded
     expectMsg(Transition(machine, Ready, Running)) //when second starts (after delay...)
 
     //complete the second run
     runPromises(1) complete Try(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, action, 0) //when second completes
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when second completes
 
     //go back to ready after first and second runs are complete
     expectMsg(Transition(machine, Running, Ready))
 
-    machine ! Run(action, message) //third in Ready state
-    machine ! Run(action, message) //fourth in Ready state
+    machine ! Run(concurrentAction, message) //third in Ready state
+    machine ! Run(concurrentAction, message) //fourth in Ready state
 
     //third message will go from Ready -> Running -> Ready (after fourth run)
     expectMsg(Transition(machine, Ready, Running))
 
     //complete the third run
     runPromises(2) complete Try(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, action, 1) //when third completes (stays in running)
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when third completes (stays in running)
 
     //complete the fourth run
     runPromises(3) complete Try(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, action, 0) //when fourth completes
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when fourth completes
 
     //back to ready
     expectMsg(Transition(machine, Running, Ready))
