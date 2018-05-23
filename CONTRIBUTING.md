@@ -36,8 +36,8 @@ All contributors must sign and submit an Apache CLA (Contributor License Agreeme
 Instructions on how to do this can be found here:
 [http://www.apache.org/licenses/#clas](http://www.apache.org/licenses/#clas)
 
-Once submitted, you will receive a confirmation email from the Apache Software Foundation (ASF) and be added to
-the following list: http://people.apache.org/unlistedclas.html.
+Sign the appropriate CLA and submit it to the Apache Software Foundation (ASF) secretary. You will receive a confirmation email from the ASF and be added to
+the following list: http://people.apache.org/unlistedclas.html.  Once your name is on this list, you are done and your PR can be merged.
 
 Project committers will use this list to verify pull requests (PRs) come from contributors that have signed a CLA.
 
