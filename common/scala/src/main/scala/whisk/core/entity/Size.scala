@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import com.typesafe.config.ConfigValue
 import pureconfig._
 import spray.json._
-import whisk.core.entity.ByteSize.formatError
+import ByteSize.formatError
 
 object SizeUnits extends Enumeration {
 
@@ -70,6 +70,11 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
   }
 
   def compare(other: ByteSize) = toBytes compare other.toBytes
+
+  override def equals(that: Any): Boolean = that match {
+    case t: ByteSize => compareTo(t) == 0
+    case _           => false
+  }
 
   override def toString = {
     unit match {
