@@ -27,4 +27,4 @@ action_src=$3
 # How long to run the test
 duration=${4:-30s}
 
-$currentDir/throughput.sh $host $credentials  $action_src 1 1 $duration
+$currentDir/throughput.sh $host $credentials  $action_src 1 1 1 $duration
