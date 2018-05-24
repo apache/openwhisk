@@ -131,19 +131,7 @@ protected[core] object ExecManifest {
                                              attached: Option[Attached] = None,
                                              requireMain: Option[Boolean] = None,
                                              sentinelledLogs: Option[Boolean] = None,
-                                             stemCells: Option[List[StemCell]] = None) {
-
-    protected[entity] def toJsonSummary = {
-      JsObject(
-        "kind" -> kind.toJson,
-        "image" -> image.publicImageName.toJson,
-        "deprecated" -> deprecated.getOrElse(false).toJson,
-        "default" -> default.getOrElse(false).toJson,
-        "attached" -> attached.isDefined.toJson,
-        "requireMain" -> requireMain.getOrElse(false).toJson,
-        "stemCells" -> stemCells.getOrElse(List()).toJson)
-    }
-  }
+                                             stemCells: Option[List[StemCell]] = None)
 
   /**
    * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
@@ -269,7 +257,16 @@ protected[core] object ExecManifest {
     def toJson: JsObject = {
       runtimes
         .map { family =>
-          family.name -> family.versions.map(_.toJsonSummary)
+          family.name -> family.versions.map {
+            case rt =>
+              JsObject(
+                "kind" -> rt.kind.toJson,
+                "image" -> rt.image.publicImageName.toJson,
+                "deprecated" -> rt.deprecated.getOrElse(false).toJson,
+                "default" -> rt.default.getOrElse(false).toJson,
+                "attached" -> rt.attached.isDefined.toJson,
+                "requireMain" -> rt.requireMain.getOrElse(false).toJson)
+          }
         }
         .toMap
         .toJson
