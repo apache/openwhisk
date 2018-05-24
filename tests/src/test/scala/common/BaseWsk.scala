@@ -199,6 +199,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              timeout: Option[Duration] = None,
              memory: Option[ByteSize] = None,
              logsize: Option[ByteSize] = None,
+             concurrency: Option[Int] = None,
              shared: Option[Boolean] = None,
              update: Boolean = false,
              web: Option[String] = None,

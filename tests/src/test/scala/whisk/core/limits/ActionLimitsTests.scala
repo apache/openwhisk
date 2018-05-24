@@ -166,6 +166,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             logsize = parm.logs,
             memory = parm.memory,
             timeout = parm.timeout,
+            concurrency = parm.concurrency,
             expectedExitCode = DONTCARE_EXIT)
           withClue(s"Unexpected result when creating action '${name}':\n${result.toString}\nFailed assertion:") {
             result.exitCode should be(parm.ec)
