@@ -69,3 +69,5 @@
       - "{{ nginx.port.http }}:80"
       - "{{ nginx.port.api }}:443"
       - "{{ nginx.port.adminportal }}:8443"
+    env:
+      TZ: "{{ docker.timezone }}"

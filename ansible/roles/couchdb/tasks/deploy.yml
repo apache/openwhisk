@@ -53,6 +53,7 @@
       COUCHDB_USER: "{{ db.credentials.admin.user }}"
       COUCHDB_PASSWORD: "{{ db.credentials.admin.pass }}"
       NODENAME: "{{ ansible_host }}"
+      TZ: "{{ docker.timezone }}"
     pull: "{{ couchdb.pull_couchdb | default(true) }}"
 
 - name: wait until CouchDB in this host is up and running

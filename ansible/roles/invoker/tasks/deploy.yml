@@ -168,6 +168,7 @@
       "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
       "PORT": 8080
+      "TZ": "{{ docker.timezone }}"
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"

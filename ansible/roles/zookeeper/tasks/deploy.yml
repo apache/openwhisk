@@ -18,6 +18,7 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     env:
+        TZ: "{{ docker.timezone }}"
         ZOO_MY_ID: "{{ groups['zookeepers'].index(inventory_hostname) + 1 }}"
         ZOO_SERVERS: "{% set zhosts = [] %}
                       {% for host in groups['zookeepers'] %}

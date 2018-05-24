@@ -124,6 +124,7 @@
       "JMX_REMOTE": "{{ jmx.enabled }}"
 
       "PORT": 8080
+      "TZ": "{{ docker.timezone }}"
 
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
       "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"

@@ -275,6 +275,7 @@ docker:
   pull:
     retries: 10
     delay: 10
+  timezone: "{{ docker_timezone | default('UTC') }}"
 
 sdk:
   dir:
