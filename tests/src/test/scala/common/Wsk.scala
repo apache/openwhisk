@@ -1036,7 +1036,7 @@ trait RunWskCmd extends BaseRunWsk {
     val args = baseCommand
     if (verbose) args += "--verbose"
     if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-    val rr: RunResult =
+    val rr =
       retry(
         {
           val rr = TestUtils.runCmd(
@@ -1047,14 +1047,15 @@ trait RunWskCmd extends BaseRunWsk {
             stdinFile.getOrElse(null),
             args ++ params: _*)
 
-          if (expectedExitCode != NETWORK_ERROR_EXIT && rr.exitCode == NETWORK_ERROR_EXIT) {
-            println(rr)
-            throw new Exception("A network error occurred.")
+          withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
+            if (expectedExitCode != NETWORK_ERROR_EXIT) {
+              rr.exitCode should not be NETWORK_ERROR_EXIT
+            }
           }
 
           rr
         },
-        10,
+        3,
         Some(1.second))
 
     withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
