@@ -218,10 +218,10 @@
 - name: merge extra env variables
   set_fact:
     env: "{{ env | default({}) | combine(item) }}"
-  with_items: "{{ extraEnvSets.split(',') | map('trim') | map('extract', vars)| list }}"
+  with_items: "{{ invoker.extraEnv.split(',') | map('trim') | map('extract', vars)| list }}"
   loop_control:
       label: redacted
-  when: extraEnvSets is defined and extraEnvSets != False
+  when: invoker.extraEnv | default(false)
 
 - name: set invoker volumes
   set_fact:
