@@ -24,7 +24,7 @@
 # Don't use vagrant resume, it will run the provisioning a second producing errors
 # Use vagrant suspend and vagrant up (using up it skips provisioning)
 
-BOX = "ubuntu/xenial64"
+BOX = ENV['BOX_OS'] || "ubuntu/xenial64"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
 BOX_CPUS = ENV['BOX_CPUS'] || '4'
 MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.16'
