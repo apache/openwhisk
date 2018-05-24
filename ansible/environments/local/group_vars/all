@@ -2,7 +2,6 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 
 whisk_version_name: local
-extraEnvSets: "{{ lookup('env', 'OPENWHISK_EXTRA_ENV_SETS')|default(false, true) }}"
 openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
 whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
@@ -38,3 +37,9 @@ kafka_topics_invoker_retentionBytes: 104857600
 kafka_topics_invoker_retentionMS: 300000
 
 env_hosts_dir: "{{ playbook_dir }}/environments/local"
+
+controller:
+  extraEnv: "{{ lookup('env', 'OPENWHISK_EXTRA_ENV') | default(false, true) }}"
+
+invoker:
+  extraEnv: "{{ lookup('env', 'OPENWHISK_EXTRA_ENV') | default(false, true) }}"
