@@ -250,6 +250,11 @@
        - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
        - "{{ controller.confdir }}/{{ controller_name }}:/conf"
 
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
 - name: ensure controller coverage directory is created with permissions
   file:
     path: "{{ coverage_logs_dir }}/controller/{{ item }}"

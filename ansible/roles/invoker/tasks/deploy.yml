@@ -252,6 +252,11 @@
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
 - name: ensure invoker coverage directory is created with permissions
   file:
     path: "{{ coverage_logs_dir }}/invoker/{{ item }}"
