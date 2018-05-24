@@ -96,8 +96,9 @@ class DockerClient(dockerHost: Option[String] = None,
     Seq(dockerBin) ++ host
   }
 
-  protected val maxParallelRuns = 10
-  protected val runSemaphore = new Semaphore( /* permits= */ maxParallelRuns, /* fair= */ true)
+  protected val maxParallelRuns = loadConfigOrThrow[Int](ConfigKeys.dockerParallelRuns)
+  protected val runSemaphore =
+    new Semaphore( /* permits= */ if (maxParallelRuns > 0) maxParallelRuns else Int.MaxValue, /* fair= */ true)
 
   // Docker < 1.13.1 has a known problem: if more than 10 containers are created (docker run)
   // concurrently, there is a good chance that some of them will fail.

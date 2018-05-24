@@ -84,6 +84,7 @@
     - "{{ db.whisk.actions }}"
     - "{{ db.whisk.auth }}"
     - "{{ db.whisk.activations }}"
+  run_once: true
 
 - name: prepare controller port
   set_fact:
