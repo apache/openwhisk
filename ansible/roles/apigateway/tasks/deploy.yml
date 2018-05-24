@@ -3,6 +3,14 @@
 ---
 # This role will install apigateway
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: (re)start apigateway
   docker_container:
     name: apigateway
@@ -19,6 +27,8 @@
     ports:
       - "{{ apigateway.port.mgmt }}:8080"
       - "{{ apigateway.port.api }}:9000"
+    volumes:
+      - "{{ docker.tz_path }}:/etc/localtime"
     pull: "{{ apigateway_local_build is undefined }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"

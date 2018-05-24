@@ -218,6 +218,7 @@
 - name: set invoker volumes
   set_fact:
     volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
+      {{ docker.tz_path }}:/etc/localtime,\
       {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs,\
       {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
@@ -227,6 +228,14 @@
   set_fact:
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
+
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
 
 - name: start invoker using docker cli
   docker_container:
