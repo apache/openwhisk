@@ -788,13 +788,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
     val name = action.name
     val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
-    val expectedPutLog = Seq(
-      s"caching $cacheKey",
-      s"uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
-      s"caching $cacheKey").mkString("(?s).*")
+    val expectedPutLog =
+      Seq(s"uploading attachment '[\\w-]+' of document 'id: ${action.namespace}/${action.name}", s"caching $cacheKey")
+        .mkString("(?s).*")
     val notExpectedGetLog = Seq(
       s"finding document: 'id: ${action.namespace}/${action.name}",
-      s"finding attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
+      s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
 
     // first request invalidates any previous entries and caches new result
     Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
@@ -868,20 +867,20 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
     val expectedGetLog = Seq(
       s"finding document: 'id: ${action.namespace}/${action.name}",
-      s"finding attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
+      s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
 
     action.exec match {
       case exec @ CodeExecAsAttachment(_, _, _) =>
-        val newAction = action.copy(exec = exec.attach)
-        newAction.revision(action.rev)
-
-        val doc1 = put(entityStore, newAction, false)
-
         val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
         val manifest = exec.manifest.attached.get
         val src = StreamConverters.fromInputStream(() => stream)
-
-        attach(entityStore, doc1, manifest.attachmentName, manifest.attachmentType, src)
+        putAndAttach[WhiskAction, WhiskEntity](
+          entityStore,
+          action,
+          (d, a) => d.copy(exec = exec.attach(a)).revision[WhiskAction](d.rev),
+          manifest.attachmentType,
+          src,
+          None)
 
       case _ =>
     }
@@ -917,23 +916,22 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
     val name = action.name
     val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
-    val expectedPutLog = Seq(
-      s"caching $cacheKey",
-      s"uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
-      s"caching $cacheKey").mkString("(?s).*")
+    val expectedPutLog =
+      Seq(s"uploading attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}", s"caching $cacheKey")
+        .mkString("(?s).*")
 
     action.exec match {
       case exec @ CodeExecAsAttachment(_, _, _) =>
-        val newAction = action.copy(exec = exec.attach)
-        newAction.revision(action.rev)
-
-        val doc = put(entityStore, newAction)
-
         val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
         val manifest = exec.manifest.attached.get
         val src = StreamConverters.fromInputStream(() => stream)
-
-        attach(entityStore, doc, manifest.attachmentName, manifest.attachmentType, src)
+        putAndAttach[WhiskAction, WhiskEntity](
+          entityStore,
+          action,
+          (d, a) => d.copy(exec = exec.attach(a)).revision[WhiskAction](d.rev),
+          manifest.attachmentType,
+          src,
+          None)
 
       case _ =>
     }

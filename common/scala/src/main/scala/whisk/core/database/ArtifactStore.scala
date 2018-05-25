@@ -26,6 +26,7 @@ import akka.util.ByteString
 import spray.json.JsObject
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.DocInfo
 
 abstract class StaleParameter(val value: Option[String])
@@ -69,16 +70,18 @@ trait ArtifactStore[DocumentAbstraction] {
    * If the operation is successful, the future completes with the requested document if it exists.
    *
    * @param doc the document info for the record to get (must contain valid id and rev)
+   * @param attachmentHandler function to update the attachment details in document
    * @param transid the transaction id for logging
    * @param ma manifest for A to determine its runtime type, required by some db APIs
    * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
    */
-  protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(implicit transid: TransactionId,
-                                                                      ma: Manifest[A]): Future[A]
+  protected[database] def get[A <: DocumentAbstraction](
+    doc: DocInfo,
+    attachmentHandler: Option[(A, Attached) => A] = None)(implicit transid: TransactionId, ma: Manifest[A]): Future[A]
 
   /**
    * Gets all documents from database view that match a start key, up to an end key, using a future.
-   * If the operation is successful, the promise completes with List[View]] with zero or more documents.
+   * If the operation is successful, the promise completes with List[View] with zero or more documents.
    *
    * @param table the name of the table to query
    * @param startKey to starting key to query the view for
@@ -119,9 +122,17 @@ trait ArtifactStore[DocumentAbstraction] {
 
   /**
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
+   *
+   * @param update - function to transform the document with new attachment details
+   * @param oldAttachment Optional old document instance for the update scenario. It would be used to determine
+   *                      the existing attachment details.
    */
-  protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-    implicit transid: TransactionId): Future[DocInfo]
+  protected[database] def putAndAttach[A <: DocumentAbstraction](
+    d: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)]
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.

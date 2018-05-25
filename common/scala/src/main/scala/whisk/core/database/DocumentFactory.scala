@@ -20,7 +20,7 @@ package whisk.core.database
 import java.io.InputStream
 import java.io.OutputStream
 
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -29,6 +29,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import whisk.common.TransactionId
+import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
@@ -95,9 +96,10 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
    * @param doc the entity to store
    * @param transid the transaction id for logging
    * @param notifier an optional callback when cache changes
+   * @param old an optional old document in case of update
    * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
    */
-  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, old: Option[W])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
     Try {
@@ -120,12 +122,13 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     }
   }
 
-  def attach[Wsuper >: W](db: ArtifactStore[Wsuper],
-                          doc: W,
-                          attachmentName: String,
-                          contentType: ContentType,
-                          bytes: InputStream,
-                          postProcess: Option[W => W] = None)(
+  def putAndAttach[Wsuper >: W](db: ArtifactStore[Wsuper],
+                                doc: W,
+                                update: (W, Attached) => W,
+                                contentType: ContentType,
+                                bytes: InputStream,
+                                oldAttachment: Option[Attached],
+                                postProcess: Option[W => W] = None)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
@@ -137,14 +140,18 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
 
       val key = CacheKey(doc)
-      val docInfo = doc.docinfo
       val src = StreamConverters.fromInputStream(() => bytes)
-      val cacheDoc = postProcess map { _(doc) } getOrElse doc
 
-      cacheUpdate(cacheDoc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
-        cacheDoc.revision[W](newDocInfo.rev)
-        cacheDoc.docinfo
+      val p = Promise[W]
+      cacheUpdate(p.future, key, db.putAndAttach[W](doc, update, contentType, src, oldAttachment) map {
+        case (newDocInfo, attached) =>
+          val newDoc = update(doc, attached)
+          val cacheDoc = postProcess map { _(newDoc) } getOrElse newDoc
+          cacheDoc.revision[W](newDocInfo.rev)
+          p.success(cacheDoc)
+          newDocInfo
       })
+
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)
@@ -191,6 +198,15 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     doc: DocId,
     rev: DocRevision = DocRevision.empty,
     fromCache: Boolean = cacheEnabled)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
+    getWithAttachment(db, doc, rev, fromCache, None)
+  }
+
+  protected def getWithAttachment[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: DocId,
+    rev: DocRevision = DocRevision.empty,
+    fromCache: Boolean,
+    attachmentHandler: Option[(W, Attached) => W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
     Try {
       require(db != null, "db undefined")
     } map {
@@ -198,7 +214,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
       val key = doc.asDocInfo(rev)
       _ =>
-        cacheLookup(CacheKey(key), db.get[W](key), fromCache)
+        cacheLookup(CacheKey(key), db.get[W](key, attachmentHandler), fromCache)
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)

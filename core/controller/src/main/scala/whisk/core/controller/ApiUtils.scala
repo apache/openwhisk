@@ -253,7 +253,7 @@ trait WriteOps extends Directives {
     onComplete(factory.get(datastore, docid) flatMap { doc =>
       if (overwrite) {
         logging.debug(this, s"[PUT] entity exists, will try to update '$doc'")
-        update(doc)
+        update(doc).map(updatedDoc => (Some(doc), updatedDoc))
       } else if (treatExistsAsConflict) {
         logging.debug(this, s"[PUT] entity exists, but overwrite is not enabled, aborting")
         Future failed RejectRequest(Conflict, "resource already exists")
@@ -263,12 +263,13 @@ trait WriteOps extends Directives {
     } recoverWith {
       case _: NoDocumentException =>
         logging.debug(this, s"[PUT] entity does not exist, will try to create it")
-        create()
-    } flatMap { a =>
-      logging.debug(this, s"[PUT] entity created/updated, writing back to datastore")
-      factory.put(datastore, a) map { _ =>
-        a
-      }
+        create().map(newDoc => (None, newDoc))
+    } flatMap {
+      case (old, a) =>
+        logging.debug(this, s"[PUT] entity created/updated, writing back to datastore")
+        factory.put(datastore, a, old) map { _ =>
+          a
+        }
     }) {
       case Success(entity) =>
         logging.debug(this, s"[PUT] entity success")
