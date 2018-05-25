@@ -37,6 +37,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import akka.actor.ActorSystem
+import scala.concurrent.ExecutionContext
 import spray.json._
 import whisk.core.entity.Exec
 
@@ -47,6 +48,7 @@ import whisk.core.entity.Exec
 trait ActionContainer {
   def init(value: JsValue): (Int, Option[JsObject])
   def run(value: JsValue): (Int, Option[JsObject])
+  def run(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
@@ -189,6 +191,8 @@ object ActionContainer {
     val mock = new ActionContainer {
       def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
       def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def run(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
+        concurrentSyncPost(ip, port, "/run", values)
     }
 
     try {
@@ -206,5 +210,9 @@ object ActionContainer {
 
   private def syncPost(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
     whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
+  }
+  private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
+    implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+    whisk.core.containerpool.HttpUtils.concurrentPost(host, port, endPoint, contents, 30.seconds)
   }
 }

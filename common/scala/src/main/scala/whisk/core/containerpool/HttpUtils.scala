@@ -33,6 +33,10 @@ import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import spray.json._
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
@@ -159,5 +163,29 @@ object HttpUtils {
         throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
     }
+  }
+
+  /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
+  def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: Duration)(
+    implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, contents.size)
+
+    val futureResults = contents map { content =>
+      Future {
+        connection.post(endPoint, content, retry = true) match {
+          case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+          case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
+          case Left(Timeout())            => throw new java.util.concurrent.TimeoutException()
+          case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
+            throw new java.util.concurrent.TimeoutException()
+          case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
+        }
+      }
+    }
+
+    val results = Await.result(Future.sequence(futureResults), timeout)
+
+    connection.close()
+    results
   }
 }
