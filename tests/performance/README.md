@@ -146,6 +146,8 @@ OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" A
 This simulation makes as much cold invocations as possible. Therefor you have to specify, how many users should be used.
 This amount of users is executing actions in parallel. I recommend using the same amount of users like your amount of node-js action slots in your invokers.
 
+The users, that are used are loaded from the file `gatling_tests/src/gatling/resources/data/users.csv`. If you want to increase the number of parallel users, you have to specify at least this amount of valid users in that file.
+
 Each user creates n actions (default is 5). Afterwards all users are executing their actions in parallel. But each user is rotating it's action. That's how the cold starts are enforced.
 
 The aim of the test is, to test the throughput of the system, if all containers are always cold.
