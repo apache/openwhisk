@@ -34,6 +34,7 @@ import scala.util.{Failure, Success}
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.{FlatSpec, Matchers}
 import akka.actor.ActorSystem
+import scala.concurrent.ExecutionContext
 import spray.json._
 import common.StreamLogging
 import whisk.common.Logging
@@ -48,6 +49,7 @@ import common.WhiskProperties
 trait ActionContainer {
   def init(value: JsValue): (Int, Option[JsObject])
   def run(value: JsValue): (Int, Option[JsObject])
+  def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
@@ -204,6 +206,8 @@ object ActionContainer {
     val mock = new ActionContainer {
       def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
       def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
+        concurrentSyncPost(ip, port, "/run", values)
     }
 
     try {
@@ -225,5 +229,13 @@ object ActionContainer {
     implicit val transid = TransactionId.testing
 
     whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
+  }
+  private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
+    implicit logging: Logging,
+    ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+
+    implicit val transid = TransactionId.testing
+
+    whisk.core.containerpool.HttpUtils.concurrentPost(host, port, endPoint, contents, 30.seconds)
   }
 }
