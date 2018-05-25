@@ -65,6 +65,8 @@ On using CI/CD pipelines (e.g. Jenkins) you will be able to set a threshold on a
 This Simulation calls the `api/v1`.
 You can specify the endpoint, the amount of connections against the backend and the duration of this burst.
 
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
+
 Available environment variables:
 
 ```
@@ -122,6 +124,8 @@ The warmup-phase will not be part of the assertions.
 
 To run the test, you can specify the amount of concurrent requests. Keep in mind, that the actions are invoked blocking and the system is limited to `AMOUNT_OF_INVOKERS * SLOTS_PER_INVOKER * NON_BLACKBOX_INVOKER_RATIO` concurrent actions/requests.
 
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
+
 Available environment variables:
 ```
 OPENWHISK_HOST          (required)
@@ -147,6 +151,8 @@ Each user creates n actions (default is 5). Afterwards all users are executing t
 The aim of the test is, to test the throughput of the system, if all containers are always cold.
 
 The action that is invoked, writes one log line and returns a little json.
+
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
 
 Available environment variables:
 ```
