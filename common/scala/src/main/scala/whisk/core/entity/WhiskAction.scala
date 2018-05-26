@@ -317,7 +317,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 
   // overriden to store attached code
-  override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+  override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
@@ -330,25 +330,27 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           implicit val logger = db.logging
           implicit val ec = db.executionContext
 
-          val newDoc = doc.copy(exec = exec.attach)
-          newDoc.revision(doc.rev)
-
           val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
           val manifest = exec.manifest.attached.get
+          val oldAttachment = old
+            .flatMap(_.exec match {
+              case CodeExecAsAttachment(_, a: Attached, _) => Some(a)
+              case _                                       => None
+            })
 
-          for (i1 <- super.put(db, newDoc);
-               i2 <- attach[A](
-                 db,
-                 newDoc.revision(i1.rev),
-                 manifest.attachmentName,
-                 manifest.attachmentType,
-                 stream,
-                 Some { a: WhiskAction =>
-                   a.copy(exec = exec.inline(code.getBytes("UTF-8")))
-                 })) yield i2
+          super.putAndAttach(
+            db,
+            doc,
+            (d, a) => d.copy(exec = exec.attach(a)).revision[WhiskAction](d.rev),
+            manifest.attachmentType,
+            stream,
+            oldAttachment,
+            Some { a: WhiskAction =>
+              a.copy(exec = exec.inline(code.getBytes("UTF-8")))
+            })
 
         case _ =>
-          super.put(db, doc)
+          super.put(db, doc, old)
       }
     } match {
       case Success(f) => f
@@ -365,11 +367,11 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     implicit val ec = db.executionContext
 
-    val fa = super.get(db, doc, rev, fromCache)
+    val fa = super.getWithAttachment(db, doc, rev, fromCache, Some(attachmentHandler _))
 
     fa.flatMap { action =>
       action.exec match {
-        case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _), _) =>
+        case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
           val boas = new ByteArrayOutputStream()
           val b64s = Base64.getEncoder().wrap(boas)
 
@@ -384,6 +386,16 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           Future.successful(action)
       }
     }
+  }
+
+  def attachmentHandler(action: WhiskAction, attached: Attached): WhiskAction = {
+    val eu = action.exec match {
+      case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
+        require(attachmentName == attached.attachmentName)
+        exec.attach(attached)
+      case exec => exec
+    }
+    action.copy(exec = eu).revision[WhiskAction](action.rev)
   }
 
   override def del[Wsuper >: WhiskAction](db: ArtifactStore[Wsuper], doc: DocInfo)(

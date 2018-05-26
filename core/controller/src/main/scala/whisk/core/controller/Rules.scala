@@ -157,7 +157,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
               WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                 val newTrigger = trigger.removeRule(ruleName)
                 val triggerLink = ReducedRule(rule.action, newStatus)
-                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
+                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), Some(trigger))
               }
           }
 
@@ -208,7 +208,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
         } flatMap {
           case (status, triggerOpt) =>
             triggerOpt map { trigger =>
-              WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ =>
+              WhiskTrigger.put(entityStore, trigger.removeRule(ruleName), triggerOpt) map { _ =>
                 {}
               }
             } getOrElse Future.successful({})
@@ -293,7 +293,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
           val triggerLink = ReducedRule(actionName, Status.ACTIVE)
           logging.debug(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
-          WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ =>
+          WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink), old = None) map { _ =>
             rule
           }
       }
@@ -331,11 +331,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
             oldTrigger <- oldTriggerOpt
           } yield {
-            WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
+            WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName), oldTriggerOpt)
           }
 
           val triggerLink = ReducedRule(actionName, status)
-          val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
+          val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), oldTriggerOpt)
           Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
       }
     }

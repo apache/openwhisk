@@ -155,10 +155,8 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
     copy(code = Inline(encoded))
   }
 
-  def attach: CodeExecAsAttachment = {
-    manifest.attached.map { a =>
-      copy(code = Attached(a.attachmentName, a.attachmentType))
-    } getOrElse this
+  def attach(attached: Attached): CodeExecAsAttachment = {
+    copy(code = attached)
   }
 }
 

@@ -38,10 +38,10 @@ import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
-
 import akka.http.scaladsl.model.ContentType
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import whisk.core.entity.Attachments.Attached
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -204,15 +204,16 @@ trait DbUtils {
     doc
   }
 
-  def attach[A, Au >: A](
+  def putAndAttach[A <: DocumentRevisionProvider, Au >: A](
     db: ArtifactStore[Au],
-    doc: DocInfo,
-    name: String,
+    doc: A,
+    update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached],
     garbageCollect: Boolean = true)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = db.attach(doc, name, contentType, docStream)
-    val newDoc = Await.result(docFuture, timeout)
+    val docFuture = db.putAndAttach[A](doc, update, contentType, docStream, oldAttachment)
+    val newDoc = Await.result(docFuture, timeout)._1
     assert(newDoc != null)
     if (garbageCollect) docsToDelete += ((db, newDoc))
     newDoc
