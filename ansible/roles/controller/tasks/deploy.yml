@@ -238,10 +238,7 @@
 
 - name: merge extra env variables
   set_fact:
-    controller_env: "{{ controller_env | default({}) | combine(item) }}"
-  with_items: "{{ controller.extraEnv.split(',') | map('trim') | map('extract', vars)| list }}"
-  loop_control:
-    label: redacted
+    controller_env: "{{ controller_env | default({}) | combine(controller.extraEnv) }}"
   when: controller.extraEnv | default(false)
 
 - name: include plugins
