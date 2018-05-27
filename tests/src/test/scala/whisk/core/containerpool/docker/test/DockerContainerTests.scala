@@ -111,6 +111,7 @@ class DockerContainerTests
         path: String,
         body: JsObject,
         timeout: FiniteDuration,
+        concurrent: Int,
         retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
       }
@@ -362,7 +363,7 @@ class DockerContainerTests
       Future.successful(RunResult(interval, Right(ContainerResponse(true, "", None))))
     }
 
-    val initInterval = container.initialize(JsObject(), initTimeout)
+    val initInterval = container.initialize(JsObject(), initTimeout, 1)
     await(initInterval, initTimeout) shouldBe interval
 
     // assert the starting log is there
@@ -386,7 +387,7 @@ class DockerContainerTests
       Future.successful(RunResult(interval, Left(Timeout())))
     }
 
-    val init = container.initialize(JsObject(), initTimeout)
+    val init = container.initialize(JsObject(), initTimeout, 1)
 
     val error = the[InitializationError] thrownBy await(init, initTimeout)
     error.interval shouldBe interval
@@ -413,7 +414,7 @@ class DockerContainerTests
       Future.successful(RunResult(interval, Right(ContainerResponse(true, result.compactPrint, None))))
     }
 
-    val runResult = container.run(JsObject(), JsObject(), 1.second)
+    val runResult = container.run(JsObject(), JsObject(), 1.second, 1)
     await(runResult) shouldBe (interval, ActivationResponse.success(Some(result)))
 
     // assert the starting log is there
@@ -437,7 +438,7 @@ class DockerContainerTests
       Future.successful(RunResult(interval, Left(Timeout())))
     }
 
-    val runResult = container.run(JsObject(), JsObject(), runTimeout)
+    val runResult = container.run(JsObject(), JsObject(), runTimeout, 1)
     await(runResult) shouldBe (interval, ActivationResponse.applicationError(
       Messages.timedoutActivation(runTimeout, false)))
 

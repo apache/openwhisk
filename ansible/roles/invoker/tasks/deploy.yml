@@ -210,6 +210,7 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
+
 - name: extend invoker env
   set_fact:
     env: "{{ env|default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"

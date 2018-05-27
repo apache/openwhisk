@@ -22,7 +22,6 @@ import akka.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
 import java.time.Instant
-
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
@@ -37,6 +36,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.entity.ConcurrencyLimit
 import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize, Exec, LogLimit, MemoryLimit, TimeLimit}
 import whisk.core.entity.size._
 import whisk.http.Messages
@@ -64,14 +64,16 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
    * @param timeout the action timeout limit to be set in test
    * @param memory the action memory size limit to be set in test
    * @param logs the action log size limit to be set in test
+   * @param concurrency the action concurrency limit to be set in test
    * @param ec the expected exit code when creating the action
    */
   sealed case class PermutationTestParameter(timeout: Option[Duration] = None,
                                              memory: Option[ByteSize] = None,
                                              logs: Option[ByteSize] = None,
+                                             concurrency: Option[Int] = None,
                                              ec: Int = SUCCESS_EXIT) {
     override def toString: String =
-      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, logsize: ${toLogsString}"
+      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, logsize: ${toLogsString}, concurrency: ${toConcurrencyString}"
 
     val toTimeoutString = timeout match {
       case None                                    => "None"
@@ -102,7 +104,15 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       case Some(l) if (l > LogLimit.maxLogSize) => s"${l} (> max)"
       case Some(l)                              => s"${l} (allowed)"
     }
-
+    val toConcurrencyString = concurrency match {
+      case None                                            => "None"
+      case Some(ConcurrencyLimit.minConcurrent)            => s"${ConcurrencyLimit.minConcurrent} (= min)"
+      case Some(ConcurrencyLimit.stdConcurrent)            => s"${ConcurrencyLimit.stdConcurrent} (= std)"
+      case Some(ConcurrencyLimit.maxConcurrent)            => s"${ConcurrencyLimit.maxConcurrent} (= max)"
+      case Some(c) if (c < ConcurrencyLimit.minConcurrent) => s"${c} (< min)"
+      case Some(c) if (c > ConcurrencyLimit.maxConcurrent) => s"${c} (> max)"
+      case Some(c)                                         => s"${c} (allowed)"
+    }
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
   }
 
@@ -111,20 +121,23 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
       log <- Seq(None, Some(LogLimit.minLogSize), Some(LogLimit.maxLogSize))
-    } yield PermutationTestParameter(time, mem, log)
+      concurrency <- Seq(None, Some(ConcurrencyLimit.minConcurrent), Some(ConcurrencyLimit.maxConcurrent))
+    } yield PermutationTestParameter(time, mem, log, concurrency)
   } ++
     // Add variations for negative tests
     Seq(
-      PermutationTestParameter(Some(0.milliseconds), None, None, BAD_REQUEST), // timeout that is lower than allowed
-      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
-      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, BAD_REQUEST), // timeout that is much higher than allowed
-      PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
-      PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
-      PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
-      PermutationTestParameter(None, None, Some((LogLimit.maxLogSize.toMB * 5).MB), BAD_REQUEST)) // log size limit that is much higher than allowed
+      PermutationTestParameter(Some(0.milliseconds), None, None, None, BAD_REQUEST), // timeout that is lower than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, None, BAD_REQUEST), // timeout that is much higher than allowed
+      PermutationTestParameter(None, Some(0.MB), None, None, BAD_REQUEST), // memory limit that is lower than allowed
+      PermutationTestParameter(None, None, None, Some(0), BAD_REQUEST), // concurrency limit that is lower than allowed
+      PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, None, BAD_REQUEST), // memory limit that is slightly higher than allowed
+      PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, None, BAD_REQUEST), // memory limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some((LogLimit.maxLogSize.toMB * 5).MB), None, BAD_REQUEST), // log size limit that is much higher than allowed
+      PermutationTestParameter(None, None, None, Some(Int.MaxValue), BAD_REQUEST)) // concurrency limit that is much higher than allowed
 
   /**
-   * Integration test to verify that valid timeout, memory and log size limits are accepted
+   * Integration test to verify that valid timeout, memory, log size, and concurrency limits are accepted
    * when creating an action while any invalid limit is rejected.
    *
    * At the first sight, this test looks like a typical unit test that should not be performed
@@ -141,7 +154,8 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       val limits = JsObject(
         "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
         "memory" -> parm.memory.getOrElse(MemoryLimit.stdMemory).toMB.toInt.toJson,
-        "logs" -> parm.logs.getOrElse(LogLimit.stdLogSize).toMB.toInt.toJson)
+        "logs" -> parm.logs.getOrElse(LogLimit.stdLogSize).toMB.toInt.toJson,
+        "concurrency" -> parm.concurrency.getOrElse(ConcurrencyLimit.stdConcurrent).toJson)
 
       val name = "ActionLimitTests-" + Instant.now.toEpochMilli
       val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
@@ -152,6 +166,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             logsize = parm.logs,
             memory = parm.memory,
             timeout = parm.timeout,
+            concurrency = parm.concurrency,
             expectedExitCode = DONTCARE_EXIT)
           withClue(s"Unexpected result when creating action '${name}':\n${result.toString}\nFailed assertion:") {
             result.exitCode should be(parm.ec)

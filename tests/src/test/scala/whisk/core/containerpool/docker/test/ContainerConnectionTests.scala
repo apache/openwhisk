@@ -85,7 +85,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new HttpUtils(hostWithPort, timeout, 1.B)
+    val connection = new HttpUtils(hostWithPort, timeout, 1.B, 1)
     testHang = timeout * 2
     val start = Instant.now()
     val result = connection.post("/init", JsObject(), retry = true)
@@ -98,7 +98,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new HttpUtils(hostWithPort, timeout, 1.B)
+    val connection = new HttpUtils(hostWithPort, timeout, 1.B, 1)
     testStatusCode = 204
     val result = connection.post("/init", JsObject(), retry = true)
     result shouldBe Left(NoResponseReceived())
@@ -106,7 +106,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new HttpUtils(hostWithPort, timeout.millis, 50.B)
+    val connection = new HttpUtils(hostWithPort, timeout.millis, 50.B, 1)
     Seq(true, false).foreach { code =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (code) 200 else 500
@@ -123,7 +123,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
     val timeout = 1.minute.toMillis
     val limit = 1.B
     val excess = limit + 1.B
-    val connection = new HttpUtils(hostWithPort, timeout.millis, limit)
+    val connection = new HttpUtils(hostWithPort, timeout.millis, limit, 1)
     Seq(true, false).foreach { code =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (code) 200 else 500

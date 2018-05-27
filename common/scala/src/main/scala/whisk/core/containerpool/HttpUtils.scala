@@ -18,13 +18,11 @@
 package whisk.core.containerpool
 
 import java.nio.charset.StandardCharsets
-
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
@@ -34,7 +32,11 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import spray.json._
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
@@ -52,7 +54,7 @@ import whisk.core.entity.size.SizeLong
  * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
-protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize) {
+protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int) {
 
   def close() = Try(connection.close())
 
@@ -76,11 +78,12 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    execute(request, timeout.toMillis.toInt, retry)
+    execute(request, timeout.toMillis.toInt, maxConcurrent, retry)
   }
 
   private def execute(request: HttpRequestBase,
                       timeoutMsec: Integer,
+                      maxConcurrent: Int,
                       retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
@@ -111,7 +114,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
         if (timeoutMsec > 0) {
           Thread sleep 100
           val newTimeout = timeoutMsec - 100
-          execute(request, newTimeout, retry)
+          execute(request, newTimeout, maxConcurrent, retry)
         } else {
           Left(Timeout())
         }
@@ -131,8 +134,15 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     .setSocketTimeout(timeout.toMillis.toInt)
     .build
 
+  // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
+  val cm = new PoolingHttpClientConnectionManager
+  // Increase default max connections per route (default is 2)
+  cm.setDefaultMaxPerRoute(maxConcurrent)
+  // Increase max total connections (default is 20)
+  cm.setMaxTotal(maxConcurrent)
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
+    .setConnectionManager(if (maxConcurrent > 1) cm else null) //set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
@@ -142,7 +152,7 @@ object HttpUtils {
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
-    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, 1)
     val response = connection.post(endPoint, content, retry = true)
     connection.close()
     response match {
@@ -153,5 +163,29 @@ object HttpUtils {
         throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
     }
+  }
+
+  /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
+  def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: Duration)(
+    implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, contents.size)
+
+    val futureResults = contents map { content =>
+      Future {
+        connection.post(endPoint, content, retry = true) match {
+          case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+          case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
+          case Left(Timeout())            => throw new java.util.concurrent.TimeoutException()
+          case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
+            throw new java.util.concurrent.TimeoutException()
+          case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
+        }
+      }
+    }
+
+    val results = Await.result(Future.sequence(futureResults), timeout)
+
+    connection.close()
+    results
   }
 }

@@ -291,6 +291,7 @@ class WskRestAction
     timeout: Option[Duration] = None,
     memory: Option[ByteSize] = None,
     logsize: Option[ByteSize] = None,
+    concurrency: Option[Int] = None,
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
@@ -436,6 +437,10 @@ class WskRestAction
     } ++ {
       memory map { m =>
         Map("memory" -> m.toMB.toJson)
+      } getOrElse Map[String, JsValue]()
+    } ++ {
+      concurrency map { c =>
+        Map("concurrency" -> c.toInt.toJson)
       } getOrElse Map[String, JsValue]()
     }
 
