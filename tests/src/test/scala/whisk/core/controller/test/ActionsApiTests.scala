@@ -781,7 +781,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put and then get an action with attachment from cache" in {
     val action =
-      WhiskAction(namespace, aname(), javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
+      WhiskAction(
+        namespace,
+        aname(),
+        javaDefault(nonInlinedCode(entityStore), Some("hello")),
+        annotations = Parameters("exec", "java"))
     val content = WhiskActionPut(
       Some(action.exec),
       Some(action.parameters),
@@ -856,7 +860,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "get an action with attachment that is not cached" in {
     implicit val tid = transid()
-    val code = "ZHViZWU="
+    val code = nonInlinedCode(entityStore)
     val action =
       WhiskAction(namespace, aname(), javaDefault(code, Some("hello")), annotations = Parameters("exec", "java"))
     val content = WhiskActionPut(
@@ -907,7 +911,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "update an existing action with attachment that is not cached" in {
     implicit val tid = transid()
-    val code = "ZHViZWU="
+    val code = nonInlinedCode(entityStore)
     val action =
       WhiskAction(namespace, aname(), javaDefault(code, Some("hello")), annotations = Parameters("exec", "java"))
     val content = WhiskActionPut(
