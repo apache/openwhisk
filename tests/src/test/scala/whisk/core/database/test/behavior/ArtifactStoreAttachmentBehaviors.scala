@@ -17,12 +17,16 @@
 
 package whisk.core.database.test.behavior
 
-import akka.http.scaladsl.model.Uri
+import java.io.ByteArrayOutputStream
+
+import akka.http.scaladsl.model.{ContentTypes, Uri}
+import akka.stream.IOResult
+import akka.stream.scaladsl.StreamConverters
 import whisk.common.TransactionId
-import whisk.core.database.{AttachmentInliner, CacheChangeNotification}
+import whisk.core.database.{AttachmentInliner, CacheChangeNotification, NoDocumentException}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
-import whisk.core.entity.{CodeExec, EntityName, ExecManifest, WhiskAction}
+import whisk.core.entity.{CodeExec, DocInfo, EntityName, ExecManifest, WhiskAction}
 
 trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with ExecHelpers {
   behavior of "Attachments"
@@ -105,6 +109,19 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
     attachmentUri.scheme shouldBe AttachmentInliner.MemScheme
     a.length shouldBe Some(attachmentSize)
     a.digest should not be empty
+  }
+
+  it should "throw NoDocumentException for non existing attachment" in {
+    implicit val tid: TransactionId = transid()
+
+    val sink = StreamConverters.fromOutputStream(() => new ByteArrayOutputStream())
+    entityStore
+      .readAttachment[IOResult](
+        DocInfo ! ("non-existing-doc", "42"),
+        Attached("foo", ContentTypes.`application/octet-stream`),
+        sink)
+      .failed
+      .futureValue shouldBe a[NoDocumentException]
   }
 
   private def attached(a: WhiskAction): Attached =
