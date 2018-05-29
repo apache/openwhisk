@@ -176,6 +176,8 @@ dependencies {
     compile project(':core:controller')
     compile project(':core:invoker')
 
+    compile group: 'io.opentracing', name: 'opentracing-mock', version: '0.31.0'
+
     scoverage gradle.scoverage.deps
 }
 

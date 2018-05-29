@@ -66,11 +66,11 @@ dependencies {
     compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.7'
 
     //tracing support
-    compile group:'io.opentracing', name:'opentracing-api', version: '0.30.0'
-    compile group:'io.opentracing', name:'opentracing-util', version: '0.30.0'
-    compile group:'io.opentracing.brave', name:'brave-opentracing', version: '0.21.1'
-    compile group:'io.zipkin.reporter', name:'zipkin-reporter', version: '0.7.1'
-    compile group:'io.zipkin.reporter', name:'zipkin-sender-okhttp3', version: '0.7.1'
+    compile group:'io.opentracing', name:'opentracing-api', version: '0.31.0'
+    compile group:'io.opentracing', name:'opentracing-util', version: '0.31.0'
+    compile group:'io.opentracing.brave', name:'brave-opentracing', version: '0.31.0'
+    compile group:'io.zipkin.reporter2', name:'zipkin-sender-okhttp3', version: '2.6.1'
+    compile group:'io.zipkin.reporter2', name:'zipkin-reporter', version: '2.6.1'
 
     scoverage gradle.scoverage.deps
 }
