@@ -125,20 +125,16 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
       case t: NoRouteToHostException => Failure(RetryableConnectionError(t))
     } match {
       case Success(response) => response
-      case Failure(t: RetryableConnectionError) =>
-        if (retry) {
-          val sleepTime = 10.milliseconds
-          if (timeout.length > 0) {
-            logging.info(this, s"POST failed with ${t} - retrying after sleeping ${sleepTime}.")
-            Thread.sleep(sleepTime.toMillis)
-            val newTimeout = timeout - sleepTime
-            execute(request, newTimeout, retry = true)
-          } else {
-            logging.warn(this, s"POST failed with ${t} - no retry because timeout exceeded.")
-            Left(Timeout(t))
-          }
+      case Failure(t: RetryableConnectionError) if retry =>
+        val sleepTime = 10.milliseconds
+        if (timeout > Duration.Zero) {
+          logging.info(this, s"POST failed with ${t} - retrying after sleeping ${sleepTime}.")
+          Thread.sleep(sleepTime.toMillis)
+          val newTimeout = timeout - sleepTime
+          execute(request, newTimeout, retry = true)
         } else {
-          Left(ConnectionError(t))
+          logging.warn(this, s"POST failed with ${t} - no retry because timeout exceeded.")
+          Left(Timeout(t))
         }
       case Failure(t: Throwable) => Left(ConnectionError(t))
     }
@@ -174,7 +170,7 @@ object HttpUtils {
     response match {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
-      case Left(Timeout(t))           => throw new java.util.concurrent.TimeoutException()
+      case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
         throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
