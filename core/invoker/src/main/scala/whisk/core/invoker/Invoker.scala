@@ -27,8 +27,7 @@ import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
 import akka.Done
-import akka.actor.ActorSystem
-import akka.actor.CoordinatedShutdown
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
@@ -39,10 +38,11 @@ import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
-import whisk.http.BasicHttpService
+import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
+import sun.misc.{Signal, SignalHandler}
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
@@ -185,8 +185,23 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new InvokerServer(actorSystem, healthScheduler).route, port)(
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
+
+    Signal.handle(
+      new Signal("USR2"),
+      new SignalHandler() {
+        override def handle(signal: Signal) = {
+          signal.getName match {
+            case "USR2" =>
+              logger.info(this, s"Stopping health scheduler")
+              actorSystem.stop(healthScheduler)
+              while (true) {}
+            case _ =>
+          }
+        }
+      })
+
   }
 }
