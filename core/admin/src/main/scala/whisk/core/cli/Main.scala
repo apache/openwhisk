@@ -39,7 +39,12 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
 object Main {
   def main(args: Array[String]) {
-    execute(new Conf(args))
+    //Parse conf before instantiating actorSystem to ensure fast pre check of config
+    val conf = new Conf(args)
+    conf.subcommands match {
+      case List(c: WhiskCommand) => c.failNoSubCommand()
+    }
+    execute(conf)
   }
 
   private def execute(conf: Conf): Unit = {
@@ -62,6 +67,18 @@ object Main {
     admin.executeCommand()
 
     authStore.shutdown()
+  }
+}
+
+trait WhiskCommand {
+  this: ScallopConfBase =>
+
+  shortSubcommandsHelp()
+
+  def failNoSubCommand(): Unit = {
+    val s = parentConfig.builder.findSubbuilder(commandNameAndAliases.head).get
+    println(s.help)
+    sys.exit(0)
   }
 }
 

@@ -20,12 +20,14 @@ package whisk.core.database
 import java.util.UUID
 
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
+import whisk.core.cli.WhiskCommand
 import whisk.core.entity.{AuthKey, WhiskAuth}
 import whisk.core.entity.types._
 
 import scala.util.Try
 
-object UserCommand extends Subcommand("user") {
+object UserCommand extends Subcommand("user") with WhiskCommand {
+
   object CreateUserCmd extends Subcommand("create") {
     descr("create a user and show authorization key")
     val auth =
@@ -76,8 +78,6 @@ object UserCommand extends Subcommand("user") {
       opt[String](descr = "delete key for given namespace only", argName = "NAMESPACE")
   }
   addSubcommand(delete)
-
-  verify()
 
   def exec(cmd: ScallopConfBase)(implicit authStore: AuthStore) = {
     cmd match {
