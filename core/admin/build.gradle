@@ -25,7 +25,7 @@ repositories {
     mavenCentral()
 }
 
-mainClassName = 'whisk.cli.Main'
+mainClassName = 'whisk.core.cli.Main'
 
 dependencies {
     compile project(':common:scala')
