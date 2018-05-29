@@ -235,7 +235,7 @@ class KubernetesContainerTests
     val interval = intervalOf(initTimeout + 1.nanoseconds)
 
     val container = kubernetesContainer() {
-      Future.successful(RunResult(interval, Left(Timeout())))
+      Future.successful(RunResult(interval, Left(Timeout(new Throwable()))))
     }
 
     val init = container.initialize(JsObject(), initTimeout)
@@ -284,7 +284,7 @@ class KubernetesContainerTests
     val interval = intervalOf(runTimeout + 1.nanoseconds)
 
     val container = kubernetesContainer() {
-      Future.successful(RunResult(interval, Left(Timeout())))
+      Future.successful(RunResult(interval, Left(Timeout(new Throwable()))))
     }
 
     val runResult = container.run(JsObject(), JsObject(), runTimeout)
