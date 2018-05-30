@@ -17,14 +17,15 @@
 
 package whisk.core.containerpool
 
-import scala.collection.immutable
-import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
+import whisk.core.connector.MessageFeed
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.connector.MessageFeed
 
+import scala.collection.immutable
 import scala.concurrent.duration._
+import scala.util.Try
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -91,39 +92,46 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val createdContainer = if (busyPool.size < poolConfig.maxActiveContainers) {
-
-        // Schedule a job to a warm container
-        ContainerPool
-          .schedule(r.action, r.msg.user.namespace.name, freePool)
-          .map(container => {
-            (container, "warm")
-          })
-          .orElse {
-            if (busyPool.size + freePool.size < poolConfig.maxActiveContainers) {
-              takePrewarmContainer(r.action)
-                .map(container => {
-                  (container, "prewarmed")
-                })
-                .orElse {
-                  Some(createContainer(), "cold")
-                }
-            } else None
-          }
-          .orElse {
-            // Remove a container and create a new one for the given job
-            ContainerPool.remove(freePool).map { toDelete =>
-              removeContainer(toDelete)
-              takePrewarmContainer(r.action)
-                .map(container => {
-                  (container, "recreated")
-                })
-                .getOrElse {
-                  (createContainer(), "recreated")
+      val createdContainer =
+        if (busyPool.map(_._2.memoryLimit.toMB).sum + r.action.limits.memory.megabytes <= poolConfig.userMemory.toMB) {
+          // Schedule a job to a warm container
+          ContainerPool
+            .schedule(r.action, r.msg.user.namespace.name, freePool)
+            .map(container => {
+              (container, "warm")
+            })
+            .orElse {
+              if (busyPool
+                    .map(_._2.memoryLimit.toMB)
+                    .sum + freePool.map(_._2.memoryLimit.toMB).sum < poolConfig.userMemory.toMB) {
+                takePrewarmContainer(r.action)
+                  .map(container => {
+                    (container, "prewarmed")
+                  })
+                  .orElse {
+                    Some(createContainer(r.action.limits.memory.megabytes.MB), "cold")
+                  }
+              } else None
+            }
+            .orElse {
+              // Remove a container and create a new one for the given job
+              ContainerPool
+                .remove(freePool, r.action.limits.memory.megabytes.MB)
+                .map(removeContainer)
+                // If the list had at least one entry, enough containers were removed to start the new container. After
+                // removing the containers, we are not interested anymore in the containers that have been removed.
+                .headOption
+                .map { _ =>
+                  takePrewarmContainer(r.action)
+                    .map(container => {
+                      (container, "recreated")
+                    })
+                    .getOrElse {
+                      (createContainer(r.action.limits.memory.megabytes.MB), "recreated")
+                    }
                 }
             }
-          }
-      } else None
+        } else None
 
       createdContainer match {
         case Some(((actor, data), containerState)) =>
@@ -139,9 +147,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           val retryLogDeadline = if (isErrorLogged) {
             logging.error(
               this,
-              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
-                s"busyPoolSize: ${busyPool.size}, maxActiveContainers ${poolConfig.maxActiveContainers}, " +
-                s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}")(r.msg.transid)
+              s"Rescheduling Run message, too many message in the pool, " +
+                s"freePoolSize: ${freePool.size} containers and ${freePool.map(_._2.memoryLimit.toMB).sum} MB, " +
+                s"busyPoolSize: ${busyPool.size} containers and ${busyPool.map(_._2.memoryLimit.toMB).sum} MB, " +
+                s"maxContainersMemory ${poolConfig.userMemory}, " +
+                s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
             Some(logMessageInterval.fromNow)
           } else {
             r.retryLogDeadline
@@ -181,9 +192,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new container and updates state accordingly. */
-  def createContainer(): (ActorRef, ContainerData) = {
+  def createContainer(memoryLimit: ByteSize): (ActorRef, ContainerData) = {
     val ref = childFactory(context)
-    val data = NoData()
+    val data = MemoryData(memoryLimit)
     freePool = freePool + (ref -> data)
     ref -> data
   }
@@ -262,15 +273,24 @@ object ContainerPool {
    * @param pool a map of all free containers in the pool
    * @return a container to be removed iff found
    */
-  protected[containerpool] def remove[A](pool: Map[A, ContainerData]): Option[A] = {
+  protected[containerpool] def remove[A](pool: Map[A, ContainerData], memory: ByteSize): List[A] = {
     val freeContainers = pool.collect {
+      // Only warm containers will be removed. Prewarmed containers will stay always.
       case (ref, w: WarmedData) => ref -> w
     }
 
-    if (freeContainers.nonEmpty) {
-      val (ref, _) = freeContainers.minBy(_._2.lastUsed)
-      Some(ref)
-    } else None
+    if (freeContainers.nonEmpty && freeContainers.map(_._2.memoryLimit.toMB).sum >= memory.toMB) {
+      if (memory > 0.B) {
+        val (ref, data) = freeContainers.minBy(_._2.lastUsed)
+        // Catch exception if remaining memory will be negative
+        val remainingMemory = Try(memory - data.memoryLimit).getOrElse(0.B)
+        List(ref) ++ remove(freeContainers.filterKeys(_ != ref), remainingMemory)
+      } else {
+        // Enough containers are found to get the memory, that is necessary. -> Abort recursion
+        List.empty
+      }
+      // else case: All containers are in use currently, or there is more memory needed than containers can be removed.
+    } else List.empty
   }
 
   def props(factory: ActorRefFactory => ActorRef,

@@ -18,25 +18,18 @@
 package whisk.core.containerpool
 
 import akka.actor.ActorSystem
-import scala.concurrent.Future
-import whisk.common.Logging
-import whisk.common.TransactionId
+import whisk.common.{Logging, TransactionId}
 import whisk.core.WhiskConfig
-import whisk.core.entity.ByteSize
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InvokerInstanceId
+import whisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import whisk.spi.Spi
+
+import scala.concurrent.Future
 
 case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
                                extraArgs: Map[String, Set[String]] = Map.empty)
 
-case class ContainerPoolConfig(numCore: Int, coreShare: Int, akkaClient: Boolean) {
-
-  /**
-   * The total number of containers is simply the number of cores dilated by the cpu sharing.
-   */
-  def maxActiveContainers = numCore * coreShare
+case class ContainerPoolConfig(userMemory: ByteSize, akkaClient: Boolean) {
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.
@@ -45,7 +38,8 @@ case class ContainerPoolConfig(numCore: Int, coreShare: Int, akkaClient: Boolean
    * On an idle/underloaded system, a container will still get to use underutilized CPU shares.
    */
   private val totalShare = 1024.0 // This is a pre-defined value coming from docker and not our hard-coded value.
-  def cpuShare = (totalShare / maxActiveContainers).toInt
+  // Grant more CPU to a container if it allocates more memory.
+  def cpuShare(reservedMemory: ByteSize) = (totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt
 }
 
 /**

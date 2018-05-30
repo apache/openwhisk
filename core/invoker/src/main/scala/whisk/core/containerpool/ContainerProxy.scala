@@ -19,28 +19,26 @@ package whisk.core.containerpool
 
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.Success
-import scala.util.Failure
-import akka.actor.FSM
-import akka.actor.Props
-import akka.actor.Stash
 import akka.actor.Status.{Failure => FailureMessage}
+import akka.actor.{FSM, Props, Stash}
+import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
-import spray.json._
+import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
+import whisk.core.ConfigKeys
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogCollectingException
+import whisk.core.database.UserContext
+import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
-import akka.event.Logging.InfoLevel
-import pureconfig.loadConfigOrThrow
-import whisk.core.ConfigKeys
-import whisk.core.database.UserContext
+
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 // States
 sealed trait ContainerState
@@ -54,14 +52,16 @@ case object Paused extends ContainerState
 case object Removing extends ContainerState
 
 // Data
-sealed abstract class ContainerData(val lastUsed: Instant)
-case class NoData() extends ContainerData(Instant.EPOCH)
-case class PreWarmedData(container: Container, kind: String, memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH)
+sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize)
+case class NoData() extends ContainerData(Instant.EPOCH, 0.B)
+case class MemoryData(override val memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH, memoryLimit)
+case class PreWarmedData(container: Container, kind: String, override val memoryLimit: ByteSize)
+    extends ContainerData(Instant.EPOCH, memoryLimit)
 case class WarmedData(container: Container,
                       invocationNamespace: EntityName,
                       action: ExecutableWhiskAction,
                       override val lastUsed: Instant)
-    extends ContainerData(lastUsed)
+    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB)
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
@@ -120,7 +120,7 @@ class ContainerProxy(
         job.exec.image,
         job.exec.pull,
         job.memoryLimit,
-        poolConfig.cpuShare)
+        poolConfig.cpuShare(job.memoryLimit))
         .map(container => PreWarmedData(container, job.exec.kind, job.memoryLimit))
         .pipeTo(self)
 
@@ -137,7 +137,7 @@ class ContainerProxy(
         job.action.exec.image,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
-        poolConfig.cpuShare)
+        poolConfig.cpuShare(job.action.limits.memory.megabytes.MB))
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting

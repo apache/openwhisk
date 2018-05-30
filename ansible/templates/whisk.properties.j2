@@ -59,8 +59,6 @@ controller.protocol={{ controller.protocol }}
 invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
-invoker.numcore={{ invoker.numcore }}
-invoker.coreshare={{ invoker.coreshare }}
 invoker.useRunc={{ invoker.useRunc }}
 
 main.docker.endpoint={{ hostvars[groups["controllers"]|first].ansible_host }}:{{ docker.port }}

@@ -78,9 +78,10 @@ class MesosContainerFactoryTest
     lastTaskId
   }
 
-  val poolConfig = ContainerPoolConfig(8, 10, false)
-  val dockerCpuShares = poolConfig.cpuShare
-  val mesosCpus = poolConfig.cpuShare / 1024.0
+  // 80 slots, each 265MB
+  val poolConfig = ContainerPoolConfig(21200.MB, false)
+  val actionMemory = 265.MB
+  val mesosCpus = poolConfig.cpuShare(actionMemory) / 1024.0
 
   val containerArgsConfig =
     new ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
@@ -134,8 +135,8 @@ class MesosContainerFactoryTest
       "mesosContainer",
       ImageName("fakeImage"),
       false,
-      1.MB,
-      poolConfig.cpuShare)
+      actionMemory,
+      poolConfig.cpuShare(actionMemory))
 
     expectMsg(
       SubmitTask(TaskDef(
@@ -143,7 +144,7 @@ class MesosContainerFactoryTest
         "mesosContainer",
         "fakeImage",
         mesosCpus,
-        1,
+        actionMemory.toMB.toInt,
         List(8080),
         Some(0),
         false,
@@ -184,15 +185,15 @@ class MesosContainerFactoryTest
       "mesosContainer",
       ImageName("fakeImage"),
       false,
-      1.MB,
-      poolConfig.cpuShare)
+      actionMemory,
+      poolConfig.cpuShare(actionMemory))
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage",
         mesosCpus,
-        1,
+        actionMemory.toMB.toInt,
         List(8080),
         Some(0),
         false,
@@ -255,8 +256,8 @@ class MesosContainerFactoryTest
       "mesosContainer",
       ImageName("fakeImage"),
       false,
-      1.MB,
-      poolConfig.cpuShare)
+      actionMemory,
+      poolConfig.cpuShare(actionMemory))
 
     probe.expectMsg(
       SubmitTask(TaskDef(
@@ -264,7 +265,7 @@ class MesosContainerFactoryTest
         "mesosContainer",
         "fakeImage",
         mesosCpus,
-        1,
+        actionMemory.toMB.toInt,
         List(8080),
         Some(0),
         false,
@@ -293,7 +294,7 @@ class MesosContainerFactoryTest
     implicit val tid = TransactionId.testing
     implicit val m = ActorMaterializer()
     val logs = container
-      .logs(1.MB, false)
+      .logs(actionMemory, false)
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
     await(logs)(0) should endWith
