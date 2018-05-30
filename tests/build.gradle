@@ -147,6 +147,7 @@ dependencies {
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':core:admin')
 
     scoverage gradle.scoverage.deps
 }
