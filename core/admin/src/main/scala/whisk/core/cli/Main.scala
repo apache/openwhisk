@@ -32,6 +32,7 @@ import scala.util.{Failure, Success}
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
 
+  printedName = "wskadmin"
   val verbose = tally()
 
   addSubcommand(new UserCommand)

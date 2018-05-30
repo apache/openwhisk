@@ -36,6 +36,7 @@ import scala.reflect.classTag
 import scala.util.Try
 
 class UserCommand extends Subcommand("user") with WhiskCommand {
+  descr("manage users")
 
   class CreateUserCmd extends Subcommand("create") {
     descr("create a user and show authorization key")
