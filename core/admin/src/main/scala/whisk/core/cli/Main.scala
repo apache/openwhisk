@@ -53,7 +53,7 @@ object Main {
   def main(args: Array[String]) {
     //Parse conf before instantiating actorSystem to ensure fast pre check of config
     val conf = new Conf(args)
-    LogSupport.init(conf)
+    initLogging(conf)
     initConfig(conf)
 
     conf.subcommands match {
@@ -108,7 +108,22 @@ object Main {
     conf.configFile.foreach(f => System.setProperty("config.file", f.getAbsolutePath))
   }
 
+  private def initLogging(conf: Conf): Unit = {
+    val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+    ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
+  }
+
+  private def toLevel(v: Int) = {
+    v match {
+      case 0 => Level.WARN
+      case 1 => Level.INFO
+      case 2 => Level.DEBUG
+      case _ => Level.ALL
+    }
+  }
+
   private def printErr(message: String): Unit = {
+    //Taken from ScallopConf
     if (overrideColorOutput.value.getOrElse(System.console() != null)) {
       Console.err.println("[\u001b[31m%s\u001b[0m] Error: %s" format (printedName, message))
     } else {
@@ -137,28 +152,10 @@ trait WhiskCommand {
 class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
                              implicit val materializer: ActorMaterializer,
                              implicit val logging: Logging) {
-  //TODO Turn on extra logging in verbose mode
   implicit val tid = TransactionId(TransactionId.systemPrefix + "cli")
   def executeCommand(): Future[Either[CommandError, String]] = {
     conf.subcommands match {
       case List(cmd: UserCommand, x) => cmd.exec(x)
-    }
-  }
-}
-
-object LogSupport {
-
-  def init(conf: Conf): Unit = {
-    val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
-    ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
-  }
-
-  private def toLevel(v: Int) = {
-    v match {
-      case 0 => Level.WARN
-      case 1 => Level.INFO
-      case 2 => Level.DEBUG
-      case _ => Level.ALL
     }
   }
 }
