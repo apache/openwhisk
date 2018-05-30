@@ -51,7 +51,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
     validate(subject) { s =>
       if (s.length < 5) {
-        Left("Subject name must be at least 5 characters")
+        Left(CommandMessages.shortName)
       } else {
         Right(Unit)
       }
@@ -61,9 +61,9 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       a.split(":") match {
         case Array(uuid, key) =>
           if (key.length < 64) {
-            Left("authorization key must be at least 64 characters long")
+            Left(CommandMessages.shortKey)
           } else if (!isUUID(uuid)) {
-            Left("authorization id is not a valid UUID")
+            Left(CommandMessages.invalidUUID)
           } else {
             Right(Unit)
           }

@@ -20,5 +20,8 @@ package whisk.core.cli
 object CommandMessages {
   val subjectBlocked = "The subject you want to edit is blocked"
   val namespaceExists = "Namespace already exists"
+  val shortName = "Subject name must be at least 5 characters"
+  val invalidUUID = "authorization id is not a valid UUID"
+  val shortKey = "authorization key must be at least 64 characters long"
 
 }
