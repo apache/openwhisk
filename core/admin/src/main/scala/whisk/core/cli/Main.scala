@@ -19,16 +19,21 @@ package whisk.core.cli
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
+import org.slf4j.LoggerFactory
 import whisk.common.{AkkaLogging, Logging, TransactionId}
 import whisk.core.database.UserCommand
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
+
+  val verbose = tally()
+
   addSubcommand(new UserCommand)
   shortSubcommandsHelp()
 
@@ -40,6 +45,8 @@ object Main {
   def main(args: Array[String]) {
     //Parse conf before instantiating actorSystem to ensure fast pre check of config
     val conf = new Conf(args)
+    LogSupport.init(conf)
+
     conf.subcommands match {
       case List(c: WhiskCommand) => c.failNoSubCommand()
       case _                     =>
@@ -106,6 +113,23 @@ class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
   def executeCommand(): Future[Either[CommandError, String]] = {
     conf.subcommands match {
       case List(cmd: UserCommand, x) => cmd.exec(x)
+    }
+  }
+}
+
+object LogSupport {
+
+  def init(conf: Conf): Unit = {
+    val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+    ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
+  }
+
+  private def toLevel(v: Int) = {
+    v match {
+      case 0 => Level.WARN
+      case 1 => Level.INFO
+      case 2 => Level.DEBUG
+      case _ => Level.ALL
     }
   }
 }
