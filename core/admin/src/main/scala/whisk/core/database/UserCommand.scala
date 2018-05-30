@@ -19,16 +19,25 @@ package whisk.core.database
 
 import java.util.UUID
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
-import whisk.core.cli.WhiskCommand
-import whisk.core.entity.{AuthKey, WhiskAuth}
+import spray.json.{JsBoolean, JsObject, JsValue, RootJsonFormat}
+import whisk.common.{Logging, TransactionId}
+import whisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
+import whisk.core.database.UserCommand.ExtendedAuth
 import whisk.core.entity.types._
+import whisk.core.entity.{AuthKey, DocInfo, EntityName, Subject, WhiskAuth, WhiskDocumentReader, WhiskNamespace}
+import whisk.http.Messages
+import whisk.spi.SpiLoader
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.classTag
 import scala.util.Try
 
-object UserCommand extends Subcommand("user") with WhiskCommand {
+class UserCommand extends Subcommand("user") with WhiskCommand {
 
-  object CreateUserCmd extends Subcommand("create") {
+  class CreateUserCmd extends Subcommand("create") {
     descr("create a user and show authorization key")
     val auth =
       opt[String](
@@ -64,12 +73,14 @@ object UserCommand extends Subcommand("user") with WhiskCommand {
 
     def isUUID(u: String) = Try(UUID.fromString(u)).isSuccess
 
-    def desiredNamespace = namespace.getOrElse(subject()).trim
+    def desiredNamespace = EntityName(namespace.getOrElse(subject()).trim)
 
-    def authKey(): AuthKey = auth.map(AuthKey(_)).getOrElse(AuthKey())
+    def authKey: AuthKey = auth.map(AuthKey(_)).getOrElse(AuthKey())
   }
 
-  addSubcommand(CreateUserCmd)
+  val create = new CreateUserCmd
+
+  addSubcommand(create)
 
   val delete = new Subcommand("delete") {
     descr("delete a user")
@@ -79,14 +90,79 @@ object UserCommand extends Subcommand("user") with WhiskCommand {
   }
   addSubcommand(delete)
 
-  def exec(cmd: ScallopConfBase)(implicit authStore: AuthStore) = {
-    cmd match {
-      case CreateUserCmd => createUser()
+  def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
+                                 logging: Logging,
+                                 materializer: ActorMaterializer,
+                                 transid: TransactionId): Future[Either[CommandError, String]] = {
+    implicit val executionContext = system.dispatcher
+    val authStore = UserCommand.createDataStore()
+    val result = cmd match {
+      case `create` => createUser(authStore)
+    }
+    result.onComplete { _ =>
+      authStore.shutdown()
+    }
+    result
+  }
+
+  def createUser(authStore: AuthStore)(implicit transid: TransactionId,
+                                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    authStore.get[ExtendedAuth](DocInfo(create.subject())).flatMap { auth =>
+      if (auth.isBlocked) {
+        Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))
+      } else if (auth.namespaces.exists(_.name == create.desiredNamespace)) {
+        Future.successful(Left(IllegalState(CommandMessages.namespaceExists)))
+      } else {
+        val newNS = auth.namespaces + WhiskNamespace(create.desiredNamespace, create.authKey)
+        val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
+        authStore.put(newAuth).map(_ => Right(create.authKey.compact))
+      }
+    }
+  }.recoverWith {
+    case _: NoDocumentException =>
+      val auth =
+        WhiskAuth(Subject(create.subject()), Set(WhiskNamespace(create.desiredNamespace, create.authKey)))
+      authStore.put(auth).map(_ => Right(create.authKey.compact))
+  }
+}
+
+object UserCommand {
+  def createDataStore()(implicit system: ActorSystem,
+                        logging: Logging,
+                        materializer: ActorMaterializer): ArtifactStore[WhiskAuth] =
+    SpiLoader
+      .get[ArtifactStoreProvider]
+      .makeStore[WhiskAuth]()(
+        classTag[WhiskAuth],
+        ExtendedAuthFormat,
+        WhiskDocumentReader,
+        system,
+        logging,
+        materializer)
+
+  class ExtendedAuth(subject: Subject, namespaces: Set[WhiskNamespace], blocked: Option[Boolean])
+      extends WhiskAuth(subject, namespaces) {
+    override def toJson: JsObject =
+      blocked.map(b => JsObject(super.toJson.fields + ("blocked" -> JsBoolean(b)))).getOrElse(super.toJson)
+
+    def isBlocked: Boolean = blocked.getOrElse(false)
+  }
+
+  private object ExtendedAuthFormat extends RootJsonFormat[WhiskAuth] {
+    override def write(obj: WhiskAuth): JsValue = {
+      obj.toDocumentRecord
+    }
+
+    override def read(json: JsValue): WhiskAuth = {
+      val r = Try[ExtendedAuth] {
+        val auth = WhiskAuth.serdes.read(json)
+        val blocked = json.asJsObject.fields.get("blocked") match {
+          case Some(b: JsBoolean) => Some(b.value)
+          case _                  => None
+        }
+        new ExtendedAuth(auth.subject, auth.namespaces, blocked).revision[ExtendedAuth](auth.rev)
+      }
+      if (r.isSuccess) r.get else throw DocumentUnreadable(Messages.corruptedEntity)
     }
   }
-
-  def createUser()(implicit authStore: AuthStore) = {
-    println("Create user")
-  }
-
 }

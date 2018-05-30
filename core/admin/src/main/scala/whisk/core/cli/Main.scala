@@ -20,17 +20,16 @@ package whisk.core.cli
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import org.rogach.scallop._
-import whisk.common.{AkkaLogging, Logging}
+import whisk.common.{AkkaLogging, Logging, TransactionId}
 import whisk.core.database.UserCommand
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.types._
 
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
-  addSubcommand(UserCommand)
+  addSubcommand(new UserCommand)
   shortSubcommandsHelp()
 
   requireSubcommand()
@@ -43,11 +42,13 @@ object Main {
     val conf = new Conf(args)
     conf.subcommands match {
       case List(c: WhiskCommand) => c.failNoSubCommand()
+      case _                     =>
     }
-    execute(conf)
+    val exitCode = execute(conf)
+    System.exit(exitCode)
   }
 
-  private def execute(conf: Conf): Unit = {
+  private def execute(conf: Conf): Int = {
     implicit val actorSystem = ActorSystem("admin-cli")
     try {
       executeWithSystem(conf)
@@ -57,18 +58,33 @@ object Main {
     }
   }
 
-  private def executeWithSystem(conf: Conf)(implicit actorSystem: ActorSystem): Unit = {
+  private def executeWithSystem(conf: Conf)(implicit actorSystem: ActorSystem): Int = {
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
     implicit val materializer = ActorMaterializer.create(actorSystem)
 
-    implicit val authStore = WhiskAuthStore.datastore()
-
     val admin = new WhiskAdmin(conf)
-    admin.executeCommand()
-
-    authStore.shutdown()
+    val f = admin.executeCommand()
+    val result = Await.ready(f, 30.seconds).value.get
+    result match {
+      case Success(r) =>
+        r match {
+          case Right(msg) =>
+            println(msg)
+            0
+          case Left(e) =>
+            println(e.message)
+            e.code
+        }
+      case Failure(e) =>
+        e.printStackTrace()
+        3
+    }
   }
 }
+
+class CommandError(val message: String, val code: Int)
+case class IllegalState(override val message: String) extends CommandError(message, 1)
+case class IllegalArg(override val message: String) extends CommandError(message, 2)
 
 trait WhiskCommand {
   this: ScallopConfBase =>
@@ -84,12 +100,12 @@ trait WhiskCommand {
 
 class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
                              implicit val materializer: ActorMaterializer,
-                             implicit val logging: Logging,
-                             implicit val authStore: AuthStore) {
-
-  def executeCommand(): Unit = {
+                             implicit val logging: Logging) {
+  //TODO Turn on extra logging in verbose mode
+  implicit val tid = TransactionId(TransactionId.systemPrefix + "cli")
+  def executeCommand(): Future[Either[CommandError, String]] = {
     conf.subcommands match {
-      case List(UserCommand, x) => UserCommand.exec(x)
+      case List(cmd: UserCommand, x) => cmd.exec(x)
     }
   }
 }
