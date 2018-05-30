@@ -17,6 +17,8 @@
 
 package whisk.core.cli
 
+import java.io.File
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import ch.qos.logback.classic.{Level, LoggerContext}
@@ -34,12 +36,14 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
 
   val verbose = tally()
+  val configFile = opt[File](descr = "application.conf path")
   printedName = Main.printedName
 
   addSubcommand(new UserCommand)
   shortSubcommandsHelp()
 
   requireSubcommand()
+  validateFileExists(configFile)
   verify()
 }
 
@@ -50,6 +54,7 @@ object Main {
     //Parse conf before instantiating actorSystem to ensure fast pre check of config
     val conf = new Conf(args)
     LogSupport.init(conf)
+    initConfig(conf)
 
     conf.subcommands match {
       case List(c: WhiskCommand) => c.failNoSubCommand()
@@ -91,12 +96,16 @@ object Main {
       case Failure(e) =>
         e match {
           case _: ConfigReaderException[_] =>
-            printErr("Incomplete config. Provide application.conf via 'config.file' system property")
+            printErr("Incomplete config. Provide application.conf via '-c' option")
           case _ =>
         }
         e.printStackTrace()
         3
     }
+  }
+
+  private def initConfig(conf: Conf): Unit = {
+    conf.configFile.foreach(f => System.setProperty("config.file", f.getAbsolutePath))
   }
 
   private def printErr(message: String): Unit = {
