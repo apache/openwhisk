@@ -22,18 +22,19 @@ import akka.stream.ActorMaterializer
 import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
 import org.slf4j.LoggerFactory
+import pureconfig.error.ConfigReaderException
 import whisk.common.{AkkaLogging, Logging, TransactionId}
 import whisk.core.database.UserCommand
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
 
-  printedName = "wskadmin"
   val verbose = tally()
+  printedName = Main.printedName
 
   addSubcommand(new UserCommand)
   shortSubcommandsHelp()
@@ -43,6 +44,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 }
 
 object Main {
+  val printedName = "wskadmin"
+
   def main(args: Array[String]) {
     //Parse conf before instantiating actorSystem to ensure fast pre check of config
     val conf = new Conf(args)
@@ -71,8 +74,10 @@ object Main {
     implicit val materializer = ActorMaterializer.create(actorSystem)
 
     val admin = new WhiskAdmin(conf)
-    val f = admin.executeCommand()
-    val result = Await.ready(f, 30.seconds).value.get
+    val result = Try {
+      val f = admin.executeCommand()
+      Await.result(f, 30.seconds)
+    }
     result match {
       case Success(r) =>
         r match {
@@ -80,12 +85,26 @@ object Main {
             println(msg)
             0
           case Left(e) =>
-            println(e.message)
+            printErr(e.message)
             e.code
         }
       case Failure(e) =>
+        e match {
+          case _: ConfigReaderException[_] =>
+            printErr("Incomplete config. Provide application.conf via 'config.file' system property")
+          case _ =>
+        }
         e.printStackTrace()
         3
+    }
+  }
+
+  private def printErr(message: String): Unit = {
+    if (overrideColorOutput.value.getOrElse(System.console() != null)) {
+      Console.err.println("[\u001b[31m%s\u001b[0m] Error: %s" format (printedName, message))
+    } else {
+      // no colors on output
+      Console.err.println("[%s] Error: %s" format (printedName, message))
     }
   }
 }
