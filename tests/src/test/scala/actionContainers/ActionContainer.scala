@@ -31,13 +31,13 @@ import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.util.Random
 import scala.util.{Failure, Success}
-
 import org.apache.commons.lang3.StringUtils
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-
+import org.scalatest.{FlatSpec, Matchers}
 import akka.actor.ActorSystem
 import spray.json._
+import common.StreamLogging
+import whisk.common.Logging
+import whisk.common.TransactionId
 import whisk.core.entity.Exec
 
 /**
@@ -49,7 +49,7 @@ trait ActionContainer {
   def run(value: JsValue): (Int, Option[JsObject])
 }
 
-trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
+trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
   import ActionContainer.{filterSentinel, sentinel}
 
   def initPayload(code: String, main: String = "main"): JsObject =
@@ -149,8 +149,8 @@ object ActionContainer {
   val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
   def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
 
-  def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(code: ActionContainer => Unit)(
-    implicit actorSystem: ActorSystem): (String, String) = {
+  def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
+    code: ActionContainer => Unit)(implicit actorSystem: ActorSystem, logging: Logging): (String, String) = {
     val rand = { val r = Random.nextInt; if (r < 0) -r else r }
     val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
     val envArgs = environment.toSeq
@@ -204,7 +204,11 @@ object ActionContainer {
     }
   }
 
-  private def syncPost(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
+  private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
+    implicit logging: Logging): (Int, Option[JsObject]) = {
+
+    implicit val transid = TransactionId.testing
+
     whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
   }
 }

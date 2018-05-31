@@ -200,3 +200,15 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+
+========================================================================
+Apache License 2.0
+========================================================================
+
+This distribution bundles the following components, which are available under an Apache License 2.0 (https://opensource.org/licenses/Apache-2.0).
+Spray Caching 1.3.4 (io.spray:spray-caching_2.11:1.3.4 - http://spray.io/documentation/1.2.4/spray-caching/)
+  ConcurrentMapBackedCache.scala under common/scala/src/main/scala/whisk/core/database contains implementation
+  from Spray's [[spray.caching.Cache]] and [[spray.caching.SimpleLruCache]] respectively.
+  License included at licenses/LICENSE-spray.txt, or https://github.com/spray/spray/blob/master/LICENSE
+  Copyright (C) 2017 Lightbend Inc. <http://www.lightbend.com/>

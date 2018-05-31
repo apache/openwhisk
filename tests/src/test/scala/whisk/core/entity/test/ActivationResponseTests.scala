@@ -58,7 +58,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   }
 
   it should "interpret failed init that does not response" in {
-    Seq(ConnectionError(new Throwable()), NoResponseReceived(), Timeout())
+    Seq(ConnectionError(new Throwable()), NoResponseReceived(), Timeout(new Throwable()))
       .map(Left(_))
       .foreach { e =>
         val ar = processInitResponseContent(e, logger)
@@ -122,7 +122,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   }
 
   it should "interpret failed run that does not response" in {
-    Seq(ConnectionError(new Throwable()), NoResponseReceived(), Timeout())
+    Seq(ConnectionError(new Throwable()), NoResponseReceived(), Timeout(new Throwable()))
       .map(Left(_))
       .foreach { e =>
         val ar = processRunResponseContent(e, logger)

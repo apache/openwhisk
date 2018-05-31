@@ -17,14 +17,15 @@
 
 package whisk.core.containerpool
 
+import java.net.NoRouteToHostException
 import java.nio.charset.StandardCharsets
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import scala.annotation.tailrec
+import scala.concurrent.duration._
+import scala.util.control.NoStackTrace
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
@@ -34,8 +35,9 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-
 import spray.json._
+import whisk.common.Logging
+import whisk.common.TransactionId
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
@@ -52,7 +54,8 @@ import whisk.core.entity.size.SizeLong
  * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
-protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize) {
+protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize)(
+  implicit logging: Logging) {
 
   def close() = Try(connection.close())
 
@@ -68,7 +71,8 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
    * @param retry whether or not to retry on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
+  def post(endpoint: String, body: JsValue, retry: Boolean)(
+    implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
 
@@ -76,12 +80,15 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    execute(request, timeout.toMillis.toInt, retry)
+    execute(request, timeout, retry)
   }
 
-  private def execute(request: HttpRequestBase,
-                      timeoutMsec: Integer,
-                      retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
+  // Used internally to wrap all exceptions for which the request can be retried
+  private case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
+
+  // Annotation will make the compiler complain if no tail recursion is possible
+  @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, retry: Boolean)(
+    implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
         .map { entity =>
@@ -105,15 +112,29 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
 
       response.close()
       containerResponse
+    } recoverWith {
+      // The route to target socket as well as the target socket itself may need some time to be available -
+      // particularly on a loaded system.
+      // The following exceptions occur on such transient conditions. In addition, no data has been transmitted
+      // yet if these exceptions occur. For this reason, it is safe and reasonable to retry.
+      //
+      // HttpHostConnectException: no target socket is listening (yet).
+      case t: HttpHostConnectException => Failure(RetryableConnectionError(t))
+      //
+      // NoRouteToHostException: route to target host is not known (yet).
+      case t: NoRouteToHostException => Failure(RetryableConnectionError(t))
     } match {
-      case Success(r) => r
-      case Failure(t: HttpHostConnectException) if retry =>
-        if (timeoutMsec > 0) {
-          Thread sleep 100
-          val newTimeout = timeoutMsec - 100
-          execute(request, newTimeout, retry)
+      case Success(response) => response
+      case Failure(t: RetryableConnectionError) if retry =>
+        val sleepTime = 10.milliseconds
+        if (timeout > Duration.Zero) {
+          logging.info(this, s"POST failed with ${t} - retrying after sleeping ${sleepTime}.")
+          Thread.sleep(sleepTime.toMillis)
+          val newTimeout = timeout - sleepTime
+          execute(request, newTimeout, retry = true)
         } else {
-          Left(Timeout())
+          logging.warn(this, s"POST failed with ${t} - no retry because timeout exceeded.")
+          Left(Timeout(t))
         }
       case Failure(t: Throwable) => Left(ConnectionError(t))
     }
@@ -141,14 +162,15 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
 object HttpUtils {
 
   /** A helper method to post one single request to a connection. Used for container tests. */
-  def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
+  def post(host: String, port: Int, endPoint: String, content: JsValue)(implicit logging: Logging,
+                                                                        tid: TransactionId): (Int, Option[JsObject]) = {
     val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
     val response = connection.post(endPoint, content, retry = true)
     connection.close()
     response match {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
-      case Left(Timeout())            => throw new java.util.concurrent.TimeoutException()
+      case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
         throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
