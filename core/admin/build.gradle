@@ -27,6 +27,14 @@ repositories {
 
 mainClassName = 'whisk.core.cli.Main'
 
+jar {
+    enabled = true
+}
+
+bootJar {
+    classifier = 'cli'
+}
+
 dependencies {
     compile project(':common:scala')
     compile 'org.rogach:scallop_2.11:3.1.2'
