@@ -19,12 +19,14 @@ package whisk.core.entity.test
 
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
-import spray.json.DefaultJsonProtocol._
+import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
+import whisk.core.entity.size._
+import whisk.core.entity.ByteSize
 
 import scala.util.Success
 
@@ -63,10 +65,11 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k1 = RuntimeManifest("k1", ImageName("???"))
     val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
     val p1 = RuntimeManifest("p1", ImageName("???"))
-    val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, 256.MB))))
+    val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson, "s1" -> Set(s1).toJson))
     val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
-    Seq("k1", "k2", "p1").foreach {
+    Seq("k1", "k2", "p1", "s1").foreach {
       runtimes.knownContainerRuntimes.contains(_) shouldBe true
     }
 
@@ -75,9 +78,11 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("k1") shouldBe Some(k1)
     runtimes.resolveDefaultRuntime("k2") shouldBe Some(k2)
     runtimes.resolveDefaultRuntime("p1") shouldBe Some(p1)
+    runtimes.resolveDefaultRuntime("s1") shouldBe Some(s1)
 
     runtimes.resolveDefaultRuntime("ks:default") shouldBe Some(k2)
     runtimes.resolveDefaultRuntime("p1:default") shouldBe Some(p1)
+    runtimes.resolveDefaultRuntime("s1:default") shouldBe Some(s1)
   }
 
   it should "read a valid configuration without default prefix, default tag" in {
@@ -85,9 +90,15 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val i2 = RuntimeManifest("i2", ImageName("???", Some("ppp")), default = Some(true))
     val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
     val k1 = RuntimeManifest("k1", ImageName("???", None, Some("ttt")))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, 256.MB))))
 
     val mf =
-      JsObject("runtimes" -> JsObject("is" -> Set(i1, i2).toJson, "js" -> Set(j1).toJson, "ks" -> Set(k1).toJson))
+      JsObject(
+        "runtimes" -> JsObject(
+          "is" -> Set(i1, i2).toJson,
+          "js" -> Set(j1).toJson,
+          "ks" -> Set(k1).toJson,
+          "ss" -> Set(s1).toJson))
     val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
@@ -95,6 +106,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???:test"
     runtimes.resolveDefaultRuntime("j1").get.image.publicImageName shouldBe "ppp/???:ttt"
     runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "pre/???:ttt"
+    runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "pre/???:test"
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }
 
   it should "read a valid configuration with blackbox images but without default prefix or tag" in {
@@ -143,7 +157,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
   }
 
-  it should "reject finding a default when none is specified for multiple versions" in {
+  it should "reject finding a default when none specified for multiple versions in the same family" in {
     val k1 = RuntimeManifest("k1", ImageName("???"))
     val k2 = RuntimeManifest("k2", ImageName("???"))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
@@ -180,4 +194,123 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     manifest.get.skipDockerPull(ImageName(prefix = Some("localpre"), name = "y")) shouldBe true
   }
 
+  it should "de/serialize stem cell configuration" in {
+    val cell = StemCell(3, 128.MB)
+    val cellAsJson = JsObject("count" -> JsNumber(3), "memory" -> JsString("128 MB"))
+    stemCellSerdes.write(cell) shouldBe cellAsJson
+    stemCellSerdes.read(cellAsJson) shouldBe cell
+
+    an[IllegalArgumentException] shouldBe thrownBy {
+      StemCell(-1, 128.MB)
+    }
+
+    an[IllegalArgumentException] shouldBe thrownBy {
+      StemCell(0, 128.MB)
+    }
+
+    an[IllegalArgumentException] shouldBe thrownBy {
+      val cellAsJson = JsObject("count" -> JsNumber(0), "memory" -> JsString("128 MB"))
+      stemCellSerdes.read(cellAsJson)
+    }
+
+    the[IllegalArgumentException] thrownBy {
+      val cellAsJson = JsObject("count" -> JsNumber(1), "memory" -> JsString("128"))
+      stemCellSerdes.read(cellAsJson)
+    } should have message {
+      ByteSize.formatError
+    }
+  }
+
+  it should "parse manifest from JSON string" in {
+    val json = """
+                 |{ "runtimes": {
+                 |    "nodef": [
+                 |      {
+                 |        "kind": "nodejs:6",
+                 |        "image": {
+                 |          "name": "nodejsaction"
+                 |        },
+                 |        "stemCells": [{
+                 |          "count": 1,
+                 |          "memory": "128 MB"
+                 |        }]
+                 |      }, {
+                 |        "kind": "nodejs:8",
+                 |        "default": true,
+                 |        "image": {
+                 |          "name": "nodejsaction"
+                 |        },
+                 |        "stemCells": [{
+                 |          "count": 1,
+                 |          "memory": "128 MB"
+                 |        }, {
+                 |          "count": 1,
+                 |          "memory": "256 MB"
+                 |        }]
+                 |      }
+                 |    ],
+                 |    "pythonf": [{
+                 |      "kind": "python",
+                 |      "image": {
+                 |        "name": "pythonaction"
+                 |      },
+                 |      "stemCells": [{
+                 |        "count": 2,
+                 |        "memory": "256 MB"
+                 |      }]
+                 |    }],
+                 |    "swiftf": [{
+                 |      "kind": "swift",
+                 |      "image": {
+                 |        "name": "swiftaction"
+                 |      },
+                 |      "stemCells": []
+                 |    }],
+                 |    "phpf": [{
+                 |      "kind": "php",
+                 |      "image": {
+                 |        "name": "phpaction"
+                 |      }
+                 |    }]
+                 |  }
+                 |}
+                 |""".stripMargin.parseJson.asJsObject
+
+    val js6 = RuntimeManifest("nodejs:6", ImageName("nodejsaction"), stemCells = Some(List(StemCell(1, 128.MB))))
+    val js8 = RuntimeManifest(
+      "nodejs:8",
+      ImageName("nodejsaction"),
+      default = Some(true),
+      stemCells = Some(List(StemCell(1, 128.MB), StemCell(1, 256.MB))))
+    val py = RuntimeManifest("python", ImageName("pythonaction"), stemCells = Some(List(StemCell(2, 256.MB))))
+    val sw = RuntimeManifest("swift", ImageName("swiftaction"), stemCells = Some(List.empty))
+    val ph = RuntimeManifest("php", ImageName("phpaction"))
+    val mf = ExecManifest.runtimes(json, RuntimeManifestConfig()).get
+
+    mf shouldBe {
+      Runtimes(
+        Set(
+          RuntimeFamily("nodef", Set(js6, js8)),
+          RuntimeFamily("pythonf", Set(py)),
+          RuntimeFamily("swiftf", Set(sw)),
+          RuntimeFamily("phpf", Set(ph))),
+        Set.empty,
+        None)
+    }
+
+    def stemCellFactory(m: RuntimeManifest, cells: List[StemCell]) = cells.map { c =>
+      (m.kind, m.image, c.count, c.memory)
+    }
+
+    mf.stemcells.flatMap {
+      case (m, cells) =>
+        cells.map { c =>
+          (m.kind, m.image, c.count, c.memory)
+        }
+    }.toList should contain theSameElementsAs List(
+      (js6.kind, js6.image, 1, 128.MB),
+      (js8.kind, js8.image, 1, 128.MB),
+      (js8.kind, js8.image, 1, 256.MB),
+      (py.kind, py.image, 2, 256.MB))
+  }
 }
