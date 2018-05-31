@@ -18,7 +18,6 @@
 plugins {
     id 'org.springframework.boot' version '2.0.2.RELEASE'
     id 'scala'
-    id 'application'
 }
 
 apply plugin: 'org.scoverage'
@@ -27,14 +26,13 @@ repositories {
     mavenCentral()
 }
 
-mainClassName = 'whisk.core.cli.Main'
-
 jar {
     enabled = true
 }
 
 bootJar {
     classifier = 'cli'
+    mainClassName = 'whisk.core.cli.Main'
 }
 
 dependencies {
