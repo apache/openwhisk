@@ -99,6 +99,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     val authStore = UserCommand.createDataStore()
     val result = cmd match {
       case `create` => createUser(authStore)
+      case `delete` => deleteUser(authStore)
     }
     result.onComplete { _ =>
       authStore.shutdown()
@@ -124,6 +125,32 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       val auth =
         WhiskAuth(Subject(create.subject()), Set(WhiskNamespace(create.desiredNamespace, create.authKey)))
       authStore.put(auth).map(_ => Right(create.authKey.compact))
+  }
+
+  def deleteUser(authStore: AuthStore)(implicit transid: TransactionId,
+                                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    authStore
+      .get[ExtendedAuth](DocInfo(delete.subject()))
+      .flatMap { auth =>
+        delete.namespace
+          .map { namespaceToDelete =>
+            val newNS = auth.namespaces.filter(_.name.asString != namespaceToDelete)
+            if (newNS == auth.namespaces) {
+              Future.successful(
+                Left(IllegalState(CommandMessages.namespaceMissing(namespaceToDelete, delete.subject()))))
+            } else {
+              val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
+              authStore.put(newAuth).map(_ => Right(CommandMessages.namespaceDeleted))
+            }
+          }
+          .getOrElse {
+            authStore.del(auth.docinfo).map(_ => Right(CommandMessages.subjectDeleted))
+          }
+      }
+      .recover {
+        case _: NoDocumentException =>
+          Left(IllegalState(CommandMessages.subjectMissing))
+      }
   }
 }
 

@@ -22,7 +22,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.common.TransactionId
 import whisk.core.cli.{CommandMessages, Conf, WhiskAdmin}
-import whisk.core.entity.{AuthKey, DocInfo, EntityName, Identity, Subject, WhiskAuth, WhiskNamespace}
+import whisk.core.entity.{AuthKey, DocId, DocInfo, EntityName, Identity, Subject, WhiskAuth, WhiskNamespace}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
@@ -110,6 +110,67 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     authStore2.shutdown()
   }
 
+  behavior of "delete user"
+
+  it should "fail deleting non existing user" in {
+    WhiskAdmin(new Conf(Seq("user", "delete", "non-existing-user")))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.subjectMissing
+  }
+
+  it should "delete existing user" in {
+    val subject = newSubject()
+    val key = AuthKey()
+
+    //Create user
+    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key.compact, subject))).executeCommand().futureValue
+
+    WhiskAdmin(new Conf(Seq("user", "delete", subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get shouldBe CommandMessages.subjectDeleted
+  }
+
+  it should "remove namespace from existing user" in {
+    implicit val tid = transid()
+    val subject = newSubject()
+
+    val ns1 = newNS()
+    val ns2 = newNS()
+
+    val auth = WhiskAuth(Subject(subject), Set(ns1, ns2))
+
+    put(authStore, auth)
+
+    WhiskAdmin(new Conf(Seq("user", "delete", "--namespace", ns1.name.asString, subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get shouldBe CommandMessages.namespaceDeleted
+
+    val authFromDB = authStore.get[WhiskAuth](DocInfo(DocId(subject))).futureValue
+    authFromDB.namespaces shouldBe Set(ns2)
+  }
+
+  it should "not remove missing namespace" in {
+    implicit val tid = transid()
+    val subject = newSubject()
+    val auth = WhiskAuth(Subject(subject), Set(newNS(), newNS()))
+
+    put(authStore, auth)
+    WhiskAdmin(new Conf(Seq("user", "delete", "--namespace", "non-existing-ns", subject)))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.namespaceMissing("non-existing-ns", subject)
+
+  }
+
   override def cleanup()(implicit timeout: Duration): Unit = {
     implicit val tid = TransactionId.testing
     usersToDelete.map { u =>
@@ -121,6 +182,8 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     usersToDelete.clear()
     super.cleanup()
   }
+
+  private def newNS() = WhiskNamespace(EntityName(randomString()), AuthKey())
 
   private def newSubject(): String = {
     val subject = randomString()

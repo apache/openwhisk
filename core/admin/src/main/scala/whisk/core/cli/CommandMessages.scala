@@ -24,4 +24,10 @@ object CommandMessages {
   val invalidUUID = "authorization id is not a valid UUID"
   val shortKey = "authorization key must be at least 64 characters long"
 
+  val subjectMissing = "Subject to delete not found"
+
+  def namespaceMissing(ns: String, u: String) = s"Namespace '$ns' does not exist for '$u'"
+  val namespaceDeleted = "Namespace deleted"
+  val subjectDeleted = "Subject deleted"
+
 }
