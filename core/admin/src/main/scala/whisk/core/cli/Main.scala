@@ -149,9 +149,9 @@ trait WhiskCommand {
   }
 }
 
-class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
-                             implicit val materializer: ActorMaterializer,
-                             implicit val logging: Logging) {
+case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
+                                  implicit val materializer: ActorMaterializer,
+                                  implicit val logging: Logging) {
   implicit val tid = TransactionId(TransactionId.systemPrefix + "cli")
   def executeCommand(): Future[Either[CommandError, String]] = {
     conf.subcommands match {
