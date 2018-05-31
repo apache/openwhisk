@@ -34,7 +34,7 @@ git clone https://github.com/apache/incubator-openwhisk-utilities.git
 
 # run the scancode util. against project source code starting at its root
 cd $UTILDIR
-scancode/scanCode.py --config scancode/ASF-Release-v2.cfg $ROOTDIR
+scancode/scanCode.py --config scancode/ASF-Release.cfg $ROOTDIR
 
 # run scalafmt checks
 cd $ROOTDIR
