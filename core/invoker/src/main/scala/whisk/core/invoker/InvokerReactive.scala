@@ -33,6 +33,7 @@ import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database._
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
@@ -172,17 +173,14 @@ class InvokerReactive(
       ContainerProxy
         .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
-  val prewarmingConfigs: List[PrewarmingConfig] = {
-    ExecManifest.runtimesManifest.stemcells.flatMap {
-      case (mf, cells) =>
-        cells.map { cell =>
-          PrewarmingConfig(cell.count, new CodeExecAsString(mf, "", None), cell.memory)
-        }
-    }.toList
-  }
+  private val prewarmKind = "nodejs:6"
+  private val prewarmExec = ExecManifest.runtimesManifest
+    .resolveDefaultRuntime(prewarmKind)
+    .map(manifest => CodeExecAsString(manifest, "", None))
+    .get
 
-  private val pool =
-    actorSystem.actorOf(ContainerPool.props(childFactory, poolConfig, activationFeed, prewarmingConfigs))
+  private val pool = actorSystem.actorOf(
+    ContainerPool.props(childFactory, poolConfig, activationFeed, Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
