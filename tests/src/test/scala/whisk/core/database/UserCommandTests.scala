@@ -171,6 +171,61 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   }
 
+  behavior of "get key"
+
+  it should "not get key for missing subject" in {
+    WhiskAdmin(new Conf(Seq("user", "get", "non-existing-user")))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.subjectMissing
+  }
+
+  it should "get key for existing user" in {
+    implicit val tid = transid()
+    val subject = newSubject()
+
+    val ns1 = newNS()
+    val ns2 = newNS()
+    val ns3 = WhiskNamespace(EntityName(subject), AuthKey())
+
+    val auth = WhiskAuth(Subject(subject), Set(ns1, ns2, ns3))
+    put(authStore, auth)
+
+    WhiskAdmin(new Conf(Seq("user", "get", "--namespace", ns1.name.asString, subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get shouldBe ns1.authkey.compact
+
+    val all = WhiskAdmin(new Conf(Seq("user", "get", "--all", subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get
+
+    all should include(ns1.authkey.compact)
+    all should include(ns2.authkey.compact)
+    all should include(ns3.authkey.compact)
+
+    //Is --namespace is not there look by subject
+    WhiskAdmin(new Conf(Seq("user", "get", subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get shouldBe ns3.authkey.compact
+
+    //Look for namespace which does not exist
+    WhiskAdmin(new Conf(Seq("user", "get", "--namespace", "non-existing-ns", subject)))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.namespaceMissing("non-existing-ns", subject)
+
+  }
+
   override def cleanup()(implicit timeout: Duration): Unit = {
     implicit val tid = TransactionId.testing
     usersToDelete.map { u =>

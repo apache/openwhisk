@@ -91,6 +91,17 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   }
   addSubcommand(delete)
 
+  val get = new Subcommand("get") {
+    descr("get authorization key for user")
+
+    val subject = trailArg[String](descr = "the subject to get key for")
+    val namespace =
+      opt[String](descr = "the namespace to get the key for, defaults to subject id", argName = "NAMESPACE")
+
+    val all = opt[Boolean](descr = "list all namespaces and their keys")
+  }
+  addSubcommand(get)
+
   def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
                                  logging: Logging,
                                  materializer: ActorMaterializer,
@@ -100,6 +111,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     val result = cmd match {
       case `create` => createUser(authStore)
       case `delete` => deleteUser(authStore)
+      case `get`    => getKey(authStore)
     }
     result.onComplete { _ =>
       authStore.shutdown()
@@ -151,6 +163,27 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
         case _: NoDocumentException =>
           Left(IllegalState(CommandMessages.subjectMissing))
       }
+  }
+
+  def getKey(authStore: AuthStore)(implicit transid: TransactionId,
+                                   ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    authStore
+      .get[ExtendedAuth](DocInfo(get.subject()))
+      .map { auth =>
+        if (get.all.isSupplied) {
+          val msg = auth.namespaces.map(ns => s"${ns.name}\t${ns.authkey.compact}").mkString("\n")
+          Right(msg)
+        } else {
+          val ns = get.namespace.getOrElse(get.subject())
+          auth.namespaces
+            .find(_.name.asString == ns)
+            .map(n => Right(n.authkey.compact))
+            .getOrElse(Left(IllegalState(CommandMessages.namespaceMissing(ns, get.subject()))))
+        }
+      } recover {
+      case _: NoDocumentException =>
+        Left(IllegalState(CommandMessages.subjectMissing))
+    }
   }
 }
 
