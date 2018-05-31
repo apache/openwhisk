@@ -226,6 +226,37 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   }
 
+  behavior of "whois"
+
+  it should "not get subject for missing subject" in {
+    WhiskAdmin(new Conf(Seq("user", "whois", AuthKey().compact)))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.subjectMissing
+  }
+
+  it should "get key for existing user" in {
+    implicit val tid = transid()
+    val subject = newSubject()
+
+    val ns1 = newNS()
+    val ns3 = WhiskNamespace(EntityName(subject), AuthKey())
+
+    val auth = WhiskAuth(Subject(subject), Set(ns1, ns3))
+    put(authStore, auth)
+
+    val result = WhiskAdmin(new Conf(Seq("user", "whois", ns1.authkey.compact)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get
+
+    result should include(subject)
+    result should include(ns1.name.asString)
+  }
+
   override def cleanup()(implicit timeout: Duration): Unit = {
     implicit val tid = TransactionId.testing
     usersToDelete.map { u =>

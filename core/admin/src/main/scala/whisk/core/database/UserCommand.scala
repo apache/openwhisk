@@ -27,7 +27,16 @@ import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
 import whisk.core.database.UserCommand.ExtendedAuth
 import whisk.core.entity.types._
-import whisk.core.entity.{AuthKey, DocInfo, EntityName, Subject, WhiskAuth, WhiskDocumentReader, WhiskNamespace}
+import whisk.core.entity.{
+  AuthKey,
+  DocInfo,
+  EntityName,
+  Identity,
+  Subject,
+  WhiskAuth,
+  WhiskDocumentReader,
+  WhiskNamespace
+}
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
@@ -102,6 +111,12 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   }
   addSubcommand(get)
 
+  val whois = new Subcommand("whois") {
+    descr("identify user from an authorization key")
+    val authkey = trailArg[String](descr = "the credentials to look up 'uuid:key'")
+  }
+  addSubcommand(whois)
+
   def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
                                  logging: Logging,
                                  materializer: ActorMaterializer,
@@ -112,6 +127,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       case `create` => createUser(authStore)
       case `delete` => deleteUser(authStore)
       case `get`    => getKey(authStore)
+      case `whois`  => whoIs(authStore)
     }
     result.onComplete { _ =>
       authStore.shutdown()
@@ -184,6 +200,20 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       case _: NoDocumentException =>
         Left(IllegalState(CommandMessages.subjectMissing))
     }
+  }
+
+  def whoIs(authStore: AuthStore)(implicit transid: TransactionId,
+                                  ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    Identity
+      .get(authStore, AuthKey(whois.authkey()))
+      .map { i =>
+        val msg = Seq(s"subject: ${i.subject}", s"namespace: ${i.namespace}").mkString("\n")
+        Right(msg)
+      }
+      .recover {
+        case _: NoDocumentException =>
+          Left(IllegalState(CommandMessages.subjectMissing))
+      }
   }
 }
 
