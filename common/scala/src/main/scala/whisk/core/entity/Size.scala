@@ -21,8 +21,6 @@ import java.nio.charset.StandardCharsets
 
 import com.typesafe.config.ConfigValue
 import pureconfig._
-import spray.json._
-import whisk.core.entity.ByteSize.formatError
 
 object SizeUnits extends Enumeration {
 
@@ -126,15 +124,6 @@ object size {
   // Creation of an intermediary Config object is necessary here, since "getBytes" is only part of that interface.
   implicit val pureconfigReader =
     ConfigReader[ConfigValue].map(v => ByteSize(v.atKey("key").getBytes("key"), SizeUnits.BYTE))
-
-  protected[entity] implicit val serdes = new RootJsonFormat[ByteSize] {
-    def write(b: ByteSize) = JsString(b.toString)
-
-    def read(value: JsValue): ByteSize = value match {
-      case JsString(s) => ByteSize.fromString(s)
-      case _           => deserializationError(formatError)
-    }
-  }
 }
 
 trait SizeConversion {

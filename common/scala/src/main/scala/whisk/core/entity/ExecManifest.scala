@@ -122,7 +122,6 @@ protected[core] object ExecManifest {
    * @param requireMain true iff main entry point is not optional
    * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
    * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
-   * @param stemCells optional list of stemCells to be initialized by invoker per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
                                              image: ImageName,
@@ -130,17 +129,17 @@ protected[core] object ExecManifest {
                                              default: Option[Boolean] = None,
                                              attached: Option[Attached] = None,
                                              requireMain: Option[Boolean] = None,
-                                             sentinelledLogs: Option[Boolean] = None,
-                                             stemCells: Option[List[StemCell]] = None)
+                                             sentinelledLogs: Option[Boolean] = None) {
 
-  /**
-   * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
-   *
-   * @param count the number of stemcell containers to create
-   * @param memory the max memory this stemcell will allocate
-   */
-  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
-    require(count > 0, "count must be positive")
+    protected[entity] def toJsonSummary = {
+      JsObject(
+        "kind" -> kind.toJson,
+        "image" -> image.publicImageName.toJson,
+        "deprecated" -> deprecated.getOrElse(false).toJson,
+        "default" -> default.getOrElse(false).toJson,
+        "attached" -> attached.isDefined.toJson,
+        "requireMain" -> requireMain.getOrElse(false).toJson)
+    }
   }
 
   /**
@@ -241,14 +240,6 @@ protected[core] object ExecManifest {
 
     val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
 
-    val manifests: Map[String, RuntimeManifest] = {
-      runtimes.flatMap {
-        _.versions.map { m =>
-          m.kind -> m
-        }
-      }.toMap
-    }
-
     def skipDockerPull(image: ImageName): Boolean = {
       blackboxImages.contains(image) ||
       image.prefix.flatMap(p => bypassPullForLocalImages.map(_ == p)).getOrElse(false)
@@ -257,16 +248,7 @@ protected[core] object ExecManifest {
     def toJson: JsObject = {
       runtimes
         .map { family =>
-          family.name -> family.versions.map {
-            case rt =>
-              JsObject(
-                "kind" -> rt.kind.toJson,
-                "image" -> rt.image.publicImageName.toJson,
-                "deprecated" -> rt.deprecated.getOrElse(false).toJson,
-                "default" -> rt.default.getOrElse(false).toJson,
-                "attached" -> rt.attached.isDefined.toJson,
-                "requireMain" -> rt.requireMain.getOrElse(false).toJson)
-          }
+          family.name -> family.versions.map(_.toJsonSummary)
         }
         .toMap
         .toJson
@@ -280,17 +262,12 @@ protected[core] object ExecManifest {
       }
     }
 
-    /**
-     * Collects all runtimes for which there is a stemcell configuration defined
-     *
-     * @return list of runtime manifests with stemcell configurations
-     */
-    def stemcells: Map[RuntimeManifest, List[StemCell]] = {
-      manifests
-        .flatMap {
-          case (_, m) => m.stemCells.map(m -> _)
+    val manifests: Map[String, RuntimeManifest] = {
+      runtimes.flatMap {
+        _.versions.map { m =>
+          m.kind -> m
         }
-        .filter(_._2.nonEmpty)
+      }.toMap
     }
 
     private val defaultRuntimes: Map[String, String] = {
@@ -309,11 +286,5 @@ protected[core] object ExecManifest {
   }
 
   protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
-
-  protected[entity] implicit val stemCellSerdes = {
-    import whisk.core.entity.size.serdes
-    jsonFormat2(StemCell.apply)
-  }
-
-  protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
+  protected[entity] implicit val runtimeManifestSerdes = jsonFormat7(RuntimeManifest)
 }
