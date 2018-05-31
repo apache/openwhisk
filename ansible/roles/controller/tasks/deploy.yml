@@ -238,8 +238,7 @@
 
 - name: merge extra env variables
   set_fact:
-    controller_env: "{{ controller_env | default({}) | combine(controller.extraEnv) }}"
-  when: controller.extraEnv | default(false)
+    controller_env: "{{ controller_env | combine(controller.extraEnv) }}"
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"

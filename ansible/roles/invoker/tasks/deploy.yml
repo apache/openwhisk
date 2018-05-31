@@ -217,8 +217,7 @@
 
 - name: merge extra env variables
   set_fact:
-    invoker_env: "{{ invoker_env | default({}) | combine(invoker.extraEnv) }}"
-  when: invoker.extraEnv | default(false)
+    invoker_env: "{{ invoker_env | combine(invoker.extraEnv) }}"
 
 - name: set invoker volumes
   set_fact:
