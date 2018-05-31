@@ -22,11 +22,12 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.common.TransactionId
 import whisk.core.cli.{CommandMessages, Conf, WhiskAdmin}
-import whisk.core.entity.{AuthKey, DocInfo, WhiskAuth}
+import whisk.core.entity.{AuthKey, DocInfo, EntityName, Identity, Subject, WhiskAuth, WhiskNamespace}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Try
+import whisk.core.database.UserCommand.ExtendedAuth
 
 @RunWith(classOf[JUnitRunner])
 class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
@@ -57,8 +58,56 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val subject = newSubject()
     val key = AuthKey()
     val conf = new Conf(Seq("user", "create", "--auth", key.compact, subject))
-    val admin = new WhiskAdmin(conf)
+    val admin = WhiskAdmin(conf)
     admin.executeCommand().futureValue.right.get shouldBe key.compact
+  }
+
+  it should "add namespace to existing user" in {
+    val subject = newSubject()
+    val key = AuthKey()
+
+    //Create user
+    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key.compact, subject))).executeCommand().futureValue
+
+    //Add new namespace
+    val key2 = AuthKey()
+    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key2.compact, "--namespace", "foo", subject)))
+      .executeCommand()
+      .futureValue
+      .right
+      .get shouldBe key2.compact
+
+    //Adding same namespace should fail
+    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key2.compact, "--namespace", "foo", subject)))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.namespaceExists
+
+    //It should be possible to lookup by new namespace
+    implicit val tid = transid()
+    val i = Identity.get(authStore, EntityName("foo")).futureValue
+    i.subject.asString shouldBe subject
+  }
+
+  it should "not add namespace to a blocked user" in {
+    val subject = newSubject()
+    val ns = randomString()
+    val blockedAuth = new ExtendedAuth(Subject(subject), Set(WhiskNamespace(EntityName(ns), AuthKey())), Some(true))
+    val authStore2 = UserCommand.createDataStore()
+
+    implicit val tid = transid()
+    authStore2.put(blockedAuth).futureValue
+
+    WhiskAdmin(new Conf(Seq("user", "create", "--namespace", "foo", subject)))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message shouldBe CommandMessages.subjectBlocked
+
+    authStore2.shutdown()
   }
 
   override def cleanup()(implicit timeout: Duration): Unit = {
