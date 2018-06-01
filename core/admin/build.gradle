@@ -30,10 +30,17 @@ jar {
     enabled = true
 }
 
+task copyBootJarToBin(type:Copy){
+    from ("${buildDir}/libs")
+    into file("${project.rootProject.projectDir}/bin")
+    rename("${project.archivesBaseName}-$version-cli.jar", "wskadmin-cli")
+}
+
 bootJar {
     classifier = 'cli'
     mainClassName = 'whisk.core.cli.Main'
     launchScript()
+    finalizedBy copyBootJarToBin
 }
 
 dependencies {
