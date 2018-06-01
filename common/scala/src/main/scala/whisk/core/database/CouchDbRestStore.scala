@@ -36,6 +36,8 @@ import whisk.core.entity.DocumentReader
 import whisk.core.entity.UUID
 import whisk.http.Messages
 
+import scala.util.{Success, Try}
+
 /**
  * Basic client to put and delete artifacts in a data store.
  *
@@ -474,12 +476,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           val (name, value) = fields.head
           value.asJsObject.getFields("content_type", "digest", "length") match {
             case Seq(JsString(contentTypeValue), JsString(digest), JsNumber(length)) =>
-              val attachmentName = Uri.from(scheme = attachmentScheme, path = name).toString()
               val contentType = ContentType.parse(contentTypeValue) match {
                 case Right(ct) => ct
                 case Left(_)   => ContentTypes.NoContentType //Should not happen
               }
-              attachmentHandler(doc, Attached(attachmentName, contentType, Some(length.intValue()), Some(digest)))
+              attachmentHandler(
+                doc,
+                Attached(getAttachmentName(name), contentType, Some(length.intValue()), Some(digest)))
             case x =>
               throw DeserializationException("Attachment json does not have required fields" + x)
 
@@ -487,6 +490,17 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
         case x => throw DeserializationException("Multiple attachments found" + x)
       }
       .getOrElse(doc)
+  }
+
+  /**
+   * Determines if the attachment scheme confirms to new UUID based scheme or not
+   * and generates the name based on that
+   */
+  private def getAttachmentName(name: String): String = {
+    Try { java.util.UUID.fromString(name) } match {
+      case Success(_) => Uri.from(scheme = attachmentScheme, path = name).toString()
+      case _          => name //attachment based on old scheme
+    }
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
