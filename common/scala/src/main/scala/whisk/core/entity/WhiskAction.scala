@@ -393,7 +393,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
         require(
           attachmentName == attached.attachmentName,
-          s"Attachment name '$attachmentName' does not match the expected name '${attached.attachmentName}'")
+          s"Attachment name '${attached.attachmentName}' does not match the expected name '$attachmentName'")
         exec.attach(attached)
       case exec => exec
     }
