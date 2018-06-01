@@ -17,9 +17,6 @@
 
 package whisk.core.database
 
-import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.duration._
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
@@ -28,15 +25,14 @@ import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
-import whisk.core.entity.Attachments.Attached
 import whisk.core.database.StoreUtils._
-import whisk.core.entity.BulkEntityResult
-import whisk.core.entity.DocInfo
-import whisk.core.entity.DocumentReader
-import whisk.core.entity.UUID
+import whisk.core.entity.Attachments.Attached
+import whisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
 import whisk.http.Messages
 
-import scala.util.{Success, Try}
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.util.Try
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -497,10 +493,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
    * and generates the name based on that
    */
   private def getAttachmentName(name: String): String = {
-    Try { java.util.UUID.fromString(name) } match {
-      case Success(_) => Uri.from(scheme = attachmentScheme, path = name).toString()
-      case _          => name //attachment based on old scheme
-    }
+    Try(java.util.UUID.fromString(name))
+      .map(_ => Uri.from(scheme = attachmentScheme, path = name).toString)
+      .getOrElse(name)
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
