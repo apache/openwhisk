@@ -20,26 +20,26 @@ package whisk.core.invoker
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common._
-import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector._
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database._
 import whisk.core.entity._
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-import DefaultJsonProtocol._
 
 class InvokerReactive(
   config: WhiskConfig,
@@ -167,10 +167,15 @@ class InvokerReactive(
   }
 
   /** Creates a ContainerProxy Actor when being called. */
-  private val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(
-      ContainerProxy
-        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
+  private val childFactory = SpiLoader
+    .get[ContainerPoolProvider]
+    .getContainerProxyFactory(
+      containerFactory.createContainer,
+      ack,
+      store,
+      logsProvider.collectLogs,
+      instance,
+      poolConfig)
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
     ExecManifest.runtimesManifest.stemcells.flatMap {
@@ -181,8 +186,10 @@ class InvokerReactive(
     }.toList
   }
 
-  private val pool =
-    actorSystem.actorOf(ContainerPool.props(childFactory, poolConfig, activationFeed, prewarmingConfigs))
+  private val pool = actorSystem.actorOf(
+    SpiLoader
+      .get[ContainerPoolProvider]
+      .props(childFactory, poolConfig, activationFeed, prewarmingConfigs))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
