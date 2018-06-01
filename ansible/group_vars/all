@@ -83,6 +83,8 @@ controller:
     truststore:
       password: "{{ controllerKeystorePassword }}"
       path: "/conf/{{ controllerKeystoreName }}"
+  extraEnv: "{{ controller_extraEnv | default({}) }}"
+
 # move controller protocol outside to not evaluate controller variables during execution of setup.yml
 controllerProtocolForSetup: "{{ controller_protocol | default('https') }}"
 controllerKeystoreName: "{{ controllerKeyPrefix }}openwhisk-keystore.p12"
@@ -169,6 +171,7 @@ invoker:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
     {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
     {% endif %}"
+  extraEnv: "{{ invoker_extraEnv | default({}) }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
