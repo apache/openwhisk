@@ -391,7 +391,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   def attachmentHandler(action: WhiskAction, attached: Attached): WhiskAction = {
     val eu = action.exec match {
       case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
-        require(attachmentName == attached.attachmentName)
+        require(
+          attachmentName == attached.attachmentName,
+          s"Attachment name '${attached.attachmentName}' does not match the expected name '$attachmentName'")
         exec.attach(attached)
       case exec => exec
     }

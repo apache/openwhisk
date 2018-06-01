@@ -17,9 +17,6 @@
 
 package whisk.core.database
 
-import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.duration._
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
@@ -28,13 +25,14 @@ import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
-import whisk.core.entity.Attachments.Attached
 import whisk.core.database.StoreUtils._
-import whisk.core.entity.BulkEntityResult
-import whisk.core.entity.DocInfo
-import whisk.core.entity.DocumentReader
-import whisk.core.entity.UUID
+import whisk.core.entity.Attachments.Attached
+import whisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
 import whisk.http.Messages
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.util.Try
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -474,12 +472,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           val (name, value) = fields.head
           value.asJsObject.getFields("content_type", "digest", "length") match {
             case Seq(JsString(contentTypeValue), JsString(digest), JsNumber(length)) =>
-              val attachmentName = Uri.from(scheme = attachmentScheme, path = name).toString()
               val contentType = ContentType.parse(contentTypeValue) match {
                 case Right(ct) => ct
                 case Left(_)   => ContentTypes.NoContentType //Should not happen
               }
-              attachmentHandler(doc, Attached(attachmentName, contentType, Some(length.intValue()), Some(digest)))
+              attachmentHandler(
+                doc,
+                Attached(getAttachmentName(name), contentType, Some(length.intValue()), Some(digest)))
             case x =>
               throw DeserializationException("Attachment json does not have required fields" + x)
 
@@ -487,6 +486,16 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
         case x => throw DeserializationException("Multiple attachments found" + x)
       }
       .getOrElse(doc)
+  }
+
+  /**
+   * Determines if the attachment scheme confirms to new UUID based scheme or not
+   * and generates the name based on that
+   */
+  private def getAttachmentName(name: String): String = {
+    Try(java.util.UUID.fromString(name))
+      .map(_ => Uri.from(scheme = attachmentScheme, path = name).toString)
+      .getOrElse(name)
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
