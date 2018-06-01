@@ -25,7 +25,9 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Source, StreamConverters}
 import akka.util.ByteString
 import common.{StreamLogging, WskActorSystem}
+import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol
@@ -46,6 +48,7 @@ import whisk.core.entity.{
 
 import scala.concurrent.Future
 
+@RunWith(classOf[JUnitRunner])
 class AttachmentCompatibilityTests
     extends FlatSpec
     with Matchers
