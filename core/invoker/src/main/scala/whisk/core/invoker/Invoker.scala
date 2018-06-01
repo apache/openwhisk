@@ -20,7 +20,6 @@ package whisk.core.invoker
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
-import scala.util.Failure
 import scala.util.Try
 import kamon.Kamon
 import org.apache.curator.retry.RetryUntilElapsed
@@ -30,11 +29,9 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
-import whisk.common.Scheduler
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
@@ -42,7 +39,6 @@ import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
-import sun.misc.{Signal, SignalHandler}
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
@@ -178,30 +174,10 @@ object Invoker {
       case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
     }
 
-    val healthScheduler = Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-      producer.send("health", PingMessage(invokerInstance)).andThen {
-        case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
-      }
-    })
-
     val port = config.servicePort.toInt
     BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
-
-    Signal.handle(
-      new Signal("USR2"),
-      new SignalHandler() {
-        override def handle(signal: Signal) = {
-          signal.getName match {
-            case "USR2" =>
-              logger.info(this, s"Stopping health scheduler")
-              actorSystem.stop(healthScheduler)
-              while (true) {}
-            case _ =>
-          }
-        }
-      })
 
   }
 }

@@ -23,9 +23,13 @@ import java.time.Instant
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
+import akka.pattern.{ask, gracefulStop}
+import akka.util.Timeout
+
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
 import spray.json._
+
 import whisk.common._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector._
@@ -36,10 +40,13 @@ import whisk.core.entity._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scala.language.postfixOps
+
 import DefaultJsonProtocol._
+import sun.misc.{Signal, SignalHandler}
 
 class InvokerReactive(
   config: WhiskConfig,
@@ -284,4 +291,57 @@ class InvokerReactive(
       })
   }
 
+  val healthScheduler = Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+    producer.send("health", PingMessage(instance)).andThen {
+      case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+    }
+  })
+
+  Signal.handle(
+    new Signal("USR2"),
+    new SignalHandler() {
+      override def handle(signal: Signal) = {
+        signal.getName match {
+          case "USR2" =>
+            logging.info(this, s"Starting graceful shutdown")
+
+            try {
+              logging.info(this, "Starting graceful shutdown of health communication")
+
+              val s2 = gracefulStop(healthScheduler, 5.seconds)
+              val a = Await.result(s2, 6.seconds)
+              logging.info(this, s"health shcuedler: $a")
+            } catch {
+              case e: akka.pattern.AskTimeoutException => logging.info(this, "AskTimeoutException")
+            }
+
+            try {
+              logging.info(this, "Starting graceful shutdown of activation feed")
+
+              val s1 = gracefulStop(activationFeed, 5.seconds)
+              val a = Await.result(s1, 6.seconds)
+              logging.info(this, s"activation feed: $a")
+
+            } catch {
+              case e: akka.pattern.AskTimeoutException => logging.info(this, "AskTimeoutException")
+            }
+
+            logging.info(this, "Waiting for user containers to finish")
+
+            implicit val timeout = Timeout(5 seconds)
+            var res = -1
+            while (res != 0) {
+              val resFuture = pool ? GetBusyPool
+              res = Await.result(resFuture, timeout.duration).asInstanceOf[Int]
+              logging.info(this, s"busy pool: $res")
+              Thread.sleep(1000)
+            }
+
+            logging.info(this, "shutting down now")
+            System.exit(0)
+
+          case _ =>
+        }
+      }
+    })
 }
