@@ -32,9 +32,20 @@ The commands below should be executed on the host machine for single VM/server d
 
   # Change current directory to openwhisk
   cd openwhisk
+  ```
 
+Open JDK 8 is installed by running the following script as the default Java environment.
+
+  ```
   # Install all required software
   (cd tools/ubuntu-setup && ./all.sh)
+  ```
+
+If you choose to install Oracle JDK 8 instead of Open JDK 8, please run the following script.
+
+  ```
+  # Install all required software
+  (cd tools/ubuntu-setup && ./all.sh oracle)
   ```
 
 If you are deploying OpenWhisk in a distributed environment across multiple VMs, then follow the instructions in [ansible/README_DISTRIBUTED.md](../../ansible/README_DISTRIBUTED.md) to complete the deployment. Otherwise, continue with the instructions below.
