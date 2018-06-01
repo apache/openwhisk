@@ -33,6 +33,7 @@ jar {
 bootJar {
     classifier = 'cli'
     mainClassName = 'whisk.core.cli.Main'
+    launchScript()
 }
 
 dependencies {
