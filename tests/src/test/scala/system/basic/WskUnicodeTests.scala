@@ -19,7 +19,7 @@ package system.basic
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
+import scala.concurrent.duration.DurationInt
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
@@ -36,6 +36,8 @@ abstract class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHe
 
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: BaseWsk
+  val activationMaxDuration = 2.minutes
+  val activationPollDuration = 3.minutes
 
   s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
@@ -46,16 +48,19 @@ abstract class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHe
         name,
         Some(TestUtils.getTestActionFilename(actionSource)),
         main = if (actionKind == "java") Some("Unicode") else None,
-        kind = Some(actionKind))
+        kind = Some(actionKind),
+        timeout = Some(activationMaxDuration))
     }
 
-    withActivation(wsk.activation, wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄")))) {
-      activation =>
-        val response = activation.response
-        response.result.get.fields.get("error") shouldBe empty
-        response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+    withActivation(
+      wsk.activation,
+      wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄"))),
+      totalWait = activationPollDuration) { activation =>
+      val response = activation.response
+      response.result.get.fields.get("error") shouldBe empty
+      response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
 
-        activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+      activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
     }
   }
 }
