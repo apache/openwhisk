@@ -287,7 +287,7 @@ trait DbUtils {
    * Generates a Base64 string for code which would not be inlined by the ArtifactStore
    */
   def nonInlinedCode(db: ArtifactStore[_]): String = {
-    Base64.getEncoder.encodeToString(randomBytes(nonInlinedAttachmentSize(db)))
+    encodedRandomBytes(nonInlinedAttachmentSize(db))
   }
 
   /**
