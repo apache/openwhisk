@@ -86,7 +86,7 @@ trait AttachmentInliner {
    * Constructs a source from inlined attachment contents
    */
   protected def memorySource(uri: Uri): Source[ByteString, NotUsed] = {
-    require(uri.scheme == MemScheme)
+    require(uri.scheme == MemScheme, s"URI $uri scheme is not $MemScheme")
     Source.single(ByteString(decode(uri)))
   }
 
