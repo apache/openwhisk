@@ -52,14 +52,15 @@ trait AttachmentInliner {
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
 
-  protected def inlineAndTail(docStream: Source[ByteString, _]): Future[(immutable.Seq[Byte], Source[Byte, _])] = {
+  protected[database] def inlineAndTail(
+    docStream: Source[ByteString, _]): Future[(immutable.Seq[Byte], Source[Byte, _])] = {
     docStream
       .mapConcat(_.seq)
       .prefixAndTail(maxInlineSize.toBytes.toInt)
       .runWith(Sink.head[(immutable.Seq[Byte], Source[Byte, _])])
   }
 
-  protected def uriOf(bytes: Seq[Byte], path: => String): Uri = {
+  protected[database] def uriOf(bytes: Seq[Byte], path: => String): Uri = {
     //For less than case its definitive that tail source would be empty
     //for equal case it cannot be determined if tail source is empty. Actual max inline size
     //would be inlineSize - 1
@@ -74,8 +75,8 @@ trait AttachmentInliner {
    * Constructs a combined source based on attachment content read so far and rest of unread content.
    * Emitted elements are up to `chunkSize` sized [[akka.util.ByteString]] elements.
    */
-  protected def combinedSource(inlinedBytes: immutable.Seq[Byte],
-                               tailSource: Source[Byte, _]): Source[ByteString, NotUsed] =
+  protected[database] def combinedSource(inlinedBytes: immutable.Seq[Byte],
+                                         tailSource: Source[Byte, _]): Source[ByteString, NotUsed] =
     Source
       .combine(Source(inlinedBytes), tailSource)(Concat[Byte])
       .batch[ByteStringBuilder](chunkSize.toBytes, b => { val bb = new ByteStringBuilder(); bb += b })((bb, b) =>
@@ -85,14 +86,14 @@ trait AttachmentInliner {
   /**
    * Constructs a source from inlined attachment contents
    */
-  protected def memorySource(uri: Uri): Source[ByteString, NotUsed] = {
+  protected[database] def memorySource(uri: Uri): Source[ByteString, NotUsed] = {
     require(uri.scheme == MemScheme, s"URI $uri scheme is not $MemScheme")
     Source.single(ByteString(decode(uri)))
   }
 
-  protected def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
+  protected[database] def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
 
-  protected def digest(bytes: TraversableOnce[Byte]): String = {
+  protected[database] def digest(bytes: TraversableOnce[Byte]): String = {
     val digester = MessageDigest.getInstance(digestAlgo)
     digester.update(bytes.toArray)
     val digest = digester.digest().map("%02x".format(_)).mkString
