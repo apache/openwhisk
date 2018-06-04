@@ -297,51 +297,45 @@ class InvokerReactive(
     }
   })
 
-  Signal.handle(
-    new Signal("USR2"),
-    new SignalHandler() {
-      override def handle(signal: Signal) = {
-        signal.getName match {
-          case "USR2" =>
-            logging.info(this, s"Starting graceful shutdown")
+  private def gracefulShutdown: Unit = {
+    logging.info(this, s"Starting graceful shutdown")
 
-            try {
-              logging.info(this, "Starting graceful shutdown of health communication")
+    try {
+      logging.info(this, "Starting graceful shutdown of health communication")
+      Await.result(gracefulStop(healthScheduler, 5.seconds), 6.seconds)
+    } catch {
+      case e: akka.pattern.AskTimeoutException =>
+        logging.info(this, "Health communication failed to shutdown gracefully")
+    }
 
-              val s2 = gracefulStop(healthScheduler, 5.seconds)
-              val a = Await.result(s2, 6.seconds)
-              logging.info(this, s"health shcuedler: $a")
-            } catch {
-              case e: akka.pattern.AskTimeoutException => logging.info(this, "AskTimeoutException")
-            }
+    try {
+      logging.info(this, "Starting graceful shutdown of activation feed")
+      Await.result(gracefulStop(activationFeed, 5.seconds), 6.seconds)
+    } catch {
+      case e: akka.pattern.AskTimeoutException => logging.info(this, "Activation feed failed to shutdown gracefully")
+    }
 
-            try {
-              logging.info(this, "Starting graceful shutdown of activation feed")
+    logging.info(this, "Starting graceful shutdown of container pool")
 
-              val s1 = gracefulStop(activationFeed, 5.seconds)
-              val a = Await.result(s1, 6.seconds)
-              logging.info(this, s"activation feed: $a")
+    implicit val timeout = Timeout(5 seconds)
 
-            } catch {
-              case e: akka.pattern.AskTimeoutException => logging.info(this, "AskTimeoutException")
-            }
+    while (Await.result(pool ? Busy, timeout.duration).asInstanceOf[Boolean] == true) {
+      logging.info(this, s"Container pool is busy")
+      Thread.sleep(1000)
+    }
 
-            logging.info(this, "Waiting for user containers to finish")
+    logging.info(this, "Shutting down invoker")
+    System.exit(0)
+  }
 
-            implicit val timeout = Timeout(5 seconds)
-            var res = -1
-            while (res != 0) {
-              val resFuture = pool ? GetBusyPool
-              res = Await.result(resFuture, timeout.duration).asInstanceOf[Int]
-              logging.info(this, s"busy pool: $res")
-              Thread.sleep(1000)
-            }
+  Signal.handle(new Signal("TERM"), new SignalHandler() {
+    override def handle(signal: Signal) = {
+      signal.getName match {
+        case "TERM" =>
+          gracefulShutdown
 
-            logging.info(this, "shutting down now")
-            System.exit(0)
-
-          case _ =>
-        }
+        case _ =>
       }
-    })
+    }
+  })
 }

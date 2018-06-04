@@ -32,8 +32,6 @@ case object Free extends WorkerState
 
 case class WorkerData(data: ContainerData, state: WorkerState)
 
-case object GetBusyPool
-
 /**
  * A pool managing containers to run actions on.
  *
@@ -181,8 +179,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool = freePool - sender()
       busyPool = busyPool - sender()
 
-    case GetBusyPool =>
-      sender ! busyPool.size
+    case Busy =>
+      sender ! (busyPool.size != 0)
   }
 
   /** Creates a new container and updates state accordingly. */
