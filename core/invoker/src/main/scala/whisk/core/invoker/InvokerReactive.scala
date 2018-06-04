@@ -83,7 +83,6 @@ class InvokerReactive(
           "--ulimit" -> Set("nofile=1024:1024"),
           "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
-  sys.addShutdownHook(containerFactory.cleanup())
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
@@ -301,7 +300,6 @@ class InvokerReactive(
     logging.info(this, s"Starting graceful shutdown")
 
     try {
-      logging.info(this, "Starting graceful shutdown of health communication")
       Await.result(gracefulStop(healthScheduler, 5.seconds), 6.seconds)
     } catch {
       case e: akka.pattern.AskTimeoutException =>
@@ -309,13 +307,10 @@ class InvokerReactive(
     }
 
     try {
-      logging.info(this, "Starting graceful shutdown of activation feed")
       Await.result(gracefulStop(activationFeed, 5.seconds), 6.seconds)
     } catch {
       case e: akka.pattern.AskTimeoutException => logging.info(this, "Activation feed failed to shutdown gracefully")
     }
-
-    logging.info(this, "Starting graceful shutdown of container pool")
 
     implicit val timeout = Timeout(5 seconds)
 
@@ -324,18 +319,21 @@ class InvokerReactive(
       Thread.sleep(1000)
     }
 
+    containerFactory.cleanup()
     logging.info(this, "Shutting down invoker")
     System.exit(0)
   }
 
-  Signal.handle(new Signal("TERM"), new SignalHandler() {
+  private val termSignal = "TERM"
+
+  Signal.handle(new Signal(termSignal), new SignalHandler() {
     override def handle(signal: Signal) = {
       signal.getName match {
-        case "TERM" =>
+        case `termSignal` =>
           gracefulShutdown
-
         case _ =>
       }
     }
   })
+
 }
