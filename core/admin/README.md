@@ -22,12 +22,12 @@
 The `wskadmin` utility is handy for performing various administrative operations against an OpenWhisk deployment.
 It allows you to create a new subject, manage their namespaces, to block a subject or delete their record entirely.
 
-### Build 
+### Build
 
 To build the tool run
 
     $./gradlew :core:admin:build
-    
+
 This would create a jar at `core/admin/build/libs/admin-1.0.0-SNAPSHOT-cli.jar` and install it as an executable script at
 `bin/wskadmin-cli`.
 
@@ -37,7 +37,7 @@ Build task would have created an executable ay `bin/wskadmin-cli`. This script w
 for accessing database. For e.g. to access user details from default CouchDB setup create a file `application-cli.conf`.
 
     include classpath("application.conf")
-    
+
     whisk {
       couchdb {
         protocol = "http"
@@ -53,16 +53,16 @@ for accessing database. For e.g. to access user details from default CouchDB set
         }
       }
     }
-    
+
 And pass that to command via `-c` option.
 
     $./wskadmin-cli -c application-cli.conf user get guest
-    
+
 
 ### Managing Users (subjects)
 
-The `wskadmin-cli user -h` command will print the help message for working with subject records. You can create and delete a 
-new user, list all their namespaces or keys for a specific namespace, identify a user by their key, block/unblock a subject, 
+The `wskadmin-cli user -h` command will print the help message for working with subject records. You can create and delete a
+new user, list all their namespaces or keys for a specific namespace, identify a user by their key, block/unblock a subject,
 and list all keys that have access to a particular namespace.
 
 Some examples:
