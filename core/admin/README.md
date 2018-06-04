@@ -29,12 +29,12 @@ To build the tool run
     $./gradlew :core:admin:build
     
 This would create a jar at `core/admin/build/libs/admin-1.0.0-SNAPSHOT-cli.jar` and install it as an executable script at
-`bin/wskadmin-cli`
+`bin/wskadmin-cli`.
 
 ### Setup
 
 Build task would have created an executable ay `bin/wskadmin-cli`. This script would require config related to `ArtifactStore`
-for accessing database. For e.g. to access user details from default CouchDB setup create a file `application-cli.conf`
+for accessing database. For e.g. to access user details from default CouchDB setup create a file `application-cli.conf`.
 
     include classpath("application.conf")
     
@@ -54,7 +54,7 @@ for accessing database. For e.g. to access user details from default CouchDB set
       }
     }
     
-And pass that to command via `-c` option
+And pass that to command via `-c` option.
 
     $./wskadmin-cli -c application-cli.conf user get guest
     
