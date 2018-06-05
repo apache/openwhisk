@@ -17,34 +17,29 @@
 
 package common
 
-import common.rest.WskRest
 import io.opentracing.mock.{MockSpan, MockTracer}
+import io.opentracing.util.GlobalTracer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import whisk.common.{LoggingMarkers, TransactionId}
-import whisk.common.tracing.OpenTracingProvider
-import whisk.common.tracing.OpenTracingProvider.TracingConfig
+import whisk.common.tracing.WhiskTracerProvider
 
 @RunWith(classOf[JUnitRunner])
 class WskTracingTests extends TestHelpers {
 
-  implicit val wskprops = WskProps()
-  val wsk: WskRest = new WskRest
-  val testString = "this is a test"
   val tracer: MockTracer = new MockTracer()
   val sleepTime = 10
 
   {
-    val tracingConfig = new TracingConfig(true, "", null)
-    OpenTracingProvider.configureTracer("Test", Some(tracer), Some(tracingConfig))
+    GlobalTracer.register(tracer)
   }
 
   it should "create a finished span" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
@@ -54,13 +49,13 @@ class WskTracingTests extends TestHelpers {
   it should "create a child span" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 2)
@@ -73,9 +68,9 @@ class WskTracingTests extends TestHelpers {
   it should "create a span with tag" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
@@ -85,19 +80,19 @@ class WskTracingTests extends TestHelpers {
 
   }
 
-  it should "create a valid trace context" in {
+  it should "create a valid trace context and use it" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    val context = OpenTracingProvider.getTraceContext(transactionId)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    val context = WhiskTracerProvider.tracer.getTraceContext(transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     tracer.reset
     //use context for new span
-    OpenTracingProvider.setTraceContext(transactionId, context)
-    OpenTracingProvider.startTrace(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    WhiskTracerProvider.tracer.setTraceContext(transactionId, context)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    OpenTracingProvider.finish(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    WhiskTracerProvider.tracer.finishSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)

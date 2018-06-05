@@ -23,7 +23,7 @@ import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
-import whisk.common.tracing.OpenTracingProvider
+import whisk.common.tracing.WhiskTracerProvider
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
@@ -168,7 +168,7 @@ protected[actions] trait PrimitiveActions {
       waitForResponse.isDefined,
       args,
       cause = cause,
-      OpenTracingProvider.getTraceContext(transid))
+      WhiskTracerProvider.tracer.getTraceContext(transid))
 
     val postedFuture = loadBalancer.publish(action, message)
 

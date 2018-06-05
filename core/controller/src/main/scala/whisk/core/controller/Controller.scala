@@ -35,7 +35,6 @@ import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.common.tracing.OpenTracingProvider
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.RemoteCacheInvalidation
@@ -204,7 +203,6 @@ object Controller {
     // if deploying multiple instances (scale out), must pass the instance number as the
     require(args.length >= 1, "controller instance required")
     val instance = args(0).toInt
-    OpenTracingProvider.apply("Controller")
 
     def abort(message: String) = {
       logger.error(this, message)

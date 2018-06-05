@@ -25,7 +25,7 @@ import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.core.ConfigKeys
 import pureconfig._
-import whisk.common.tracing.OpenTracingProvider
+import whisk.common.tracing.WhiskTracerProvider
 
 import scala.util.Try
 
@@ -86,7 +86,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     MetricEmitter.emitCounterMetric(marker)
 
     //tracing support
-    OpenTracingProvider.startTrace(marker, this)
+    WhiskTracerProvider.tracer.startSpan(marker, this)
     StartMarker(Instant.now, marker)
   }
 
@@ -123,7 +123,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
 
     //tracing support
-    OpenTracingProvider.finish(endMarker, this)
+    WhiskTracerProvider.tracer.finishSpan(endMarker, this)
   }
 
   /**
@@ -154,7 +154,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     MetricEmitter.emitCounterMetric(endMarker)
 
     //tracing support
-    OpenTracingProvider.error(this)
+    WhiskTracerProvider.tracer.error(this)
   }
 
   /**

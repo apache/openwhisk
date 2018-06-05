@@ -43,7 +43,6 @@ import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
-import whisk.common.tracing.OpenTracingProvider
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
@@ -77,7 +76,6 @@ object Invoker {
 
     // load values for the required properties from the environment
     implicit val config = new WhiskConfig(requiredProperties)
-    OpenTracingProvider.apply("Invoker")
 
     def abort(message: String) = {
       logger.error(this, message)(TransactionId.invoker)
