@@ -39,10 +39,15 @@ trait AttachmentStore {
    * Retrieves a saved attachment, streaming it into the provided Sink.
    */
   protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)]
+    implicit transid: TransactionId): Future[T]
 
   /**
    * Deletes all attachments linked to given document
    */
   protected[core] def deleteAttachments(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
+
+  /**
+   * Deletes specific attachment.
+   */
+  protected[core] def deleteAttachment(doc: DocInfo, name: String)(implicit transid: TransactionId): Future[Boolean]
 }

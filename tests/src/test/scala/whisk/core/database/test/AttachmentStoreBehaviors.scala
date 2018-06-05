@@ -51,8 +51,7 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
 
     val readResult = store.readAttachment(info, "code", byteStringSink)
 
-    readResult.futureValue._1 shouldBe ContentTypes.`application/octet-stream`
-    readResult.futureValue._2.result() shouldBe ByteString(bytes)
+    readResult.futureValue.result() shouldBe ByteString(bytes)
   }
 
   it should "add and then update attachment" in {
@@ -71,8 +70,7 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
 
     val readResult = store.readAttachment(info, "code", byteStringSink)
 
-    readResult.futureValue._1 shouldBe ContentTypes.`application/json`
-    readResult.futureValue._2.result() shouldBe ByteString(updatedBytes)
+    readResult.futureValue.result() shouldBe ByteString(updatedBytes)
   }
 
   it should "add and delete attachment" in {
@@ -90,29 +88,29 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     wr2.futureValue shouldBe info
     wr3.futureValue shouldBe info2
 
-    def getAttachmentType(info: DocInfo, name: String) = {
-      store.readAttachment(info, name, byteStringSink)
+    def getAttachmentBytes(info: DocInfo, name: String) = {
+      store.readAttachment(info, name, byteStringSink())
     }
 
-    getAttachmentType(info, "code").futureValue._1 shouldBe ContentTypes.`application/octet-stream`
-    getAttachmentType(info, "code2").futureValue._1 shouldBe ContentTypes.`application/json`
+    getAttachmentBytes(info, "code").futureValue.result() shouldBe ByteString(bytes)
+    getAttachmentBytes(info, "code2").futureValue.result() shouldBe ByteString(bytes)
 
     val deleteResult = store.deleteAttachments(info)
 
     deleteResult.futureValue shouldBe true
 
-    getAttachmentType(info, "code").failed.futureValue shouldBe a[NoDocumentException]
-    getAttachmentType(info, "code2").failed.futureValue shouldBe a[NoDocumentException]
+    getAttachmentBytes(info, "code").failed.futureValue shouldBe a[NoDocumentException]
+    getAttachmentBytes(info, "code2").failed.futureValue shouldBe a[NoDocumentException]
 
     //Delete should not have deleted other attachments
-    getAttachmentType(info2, "code2").futureValue._1 shouldBe ContentTypes.`application/json`
+    getAttachmentBytes(info2, "code2").futureValue.result() shouldBe ByteString(bytes)
   }
 
   it should "throw NoDocumentException on reading non existing attachment" in {
     implicit val tid: TransactionId = transid()
 
     val info = DocInfo ! ("nonExistingAction", "1")
-    val f = store.readAttachment(info, "code", byteStringSink)
+    val f = store.readAttachment(info, "code", byteStringSink())
 
     f.failed.futureValue shouldBe a[NoDocumentException]
   }
@@ -131,7 +129,7 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     val writeResult = store.attach(info, "code", ContentTypes.`application/octet-stream`, faultySource)
     writeResult.failed.futureValue.getCause should be theSameInstanceAs error
 
-    val readResult = store.readAttachment(info, "code", byteStringSink)
+    val readResult = store.readAttachment(info, "code", byteStringSink())
     readResult.failed.futureValue shouldBe a[NoDocumentException]
   }
 
@@ -156,7 +154,7 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     StreamConverters.fromInputStream(() => new ByteArrayInputStream(bytes), 42)
   }
 
-  private def byteStringSink = {
+  private def byteStringSink() = {
     Sink.fold[ByteStringBuilder, ByteString](new ByteStringBuilder)((builder, b) => builder ++= b)
   }
 }

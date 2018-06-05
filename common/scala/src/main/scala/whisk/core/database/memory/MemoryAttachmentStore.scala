@@ -23,7 +23,7 @@ import akka.http.scaladsl.model.ContentType
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
-import whisk.common.LoggingMarkers.{DATABASE_ATT_DELETE, DATABASE_ATT_GET, DATABASE_ATT_SAVE}
+import whisk.common.LoggingMarkers.{DATABASE_ATTS_DELETE, DATABASE_ATT_DELETE, DATABASE_ATT_GET, DATABASE_ATT_SAVE}
 import whisk.common.{Logging, StartMarker, TransactionId}
 import whisk.core.database._
 import whisk.core.entity.{DocId, DocInfo}
@@ -49,7 +49,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private case class Attachment(bytes: ByteString, contentType: ContentType)
+  private case class Attachment(bytes: ByteString)
 
   private val attachments = new TrieMap[String, Attachment]
 
@@ -64,7 +64,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
     val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
     val g = f
-      .map(b => attachments += (attachmentKey(doc.id, name) -> Attachment(b.result().compact, contentType)))
+      .map(b => attachments += (attachmentKey(doc.id, name) -> Attachment(b.result().compact)))
       .flatMap(_ => {
         transid
           .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
@@ -81,7 +81,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
    * Retrieves a saved attachment, streaming it into the provided Sink.
    */
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = {
+    implicit transid: TransactionId): Future[T] = {
     checkDocState(doc)
     require(name != null, "name undefined")
 
@@ -89,11 +89,11 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
       transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$doc'")
 
     val f = attachments.get(attachmentKey(doc.id, name)) match {
-      case Some(Attachment(bytes, contentType)) =>
+      case Some(Attachment(bytes)) =>
         val r = Source.single(bytes).toMat(sink)(Keep.right).run
         r.map(t => {
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          (contentType, t)
+          t
         })
       case None =>
         transid.finished(
@@ -110,10 +110,19 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
   override protected[core] def deleteAttachments(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
     checkDocState(doc)
-    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
+    val start = transid.started(this, DATABASE_ATTS_DELETE, s"[ATTS_DELETE] uploading attachment of document '$doc'")
 
     val prefix = doc.id.id + "/"
     attachments --= attachments.keySet.filter(_.startsWith(prefix))
+    transid.finished(this, start, s"[ATTS_DELETE] completed: delete attachment of document '$doc'")
+    Future.successful(true)
+  }
+
+  override protected[core] def deleteAttachment(doc: DocInfo, name: String)(
+    implicit transid: TransactionId): Future[Boolean] = {
+    checkDocState(doc)
+    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
+    attachments.remove(attachmentKey(doc.id, name))
     transid.finished(this, start, s"[ATT_DELETE] completed: delete attachment of document '$doc'")
     Future.successful(true)
   }
