@@ -20,10 +20,10 @@ package whisk.core.invoker
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
-import akka.pattern.{ask, gracefulStop}
+import akka.pattern.{after, ask, gracefulStop}
 import akka.util.Timeout
 
 import org.apache.kafka.common.errors.RecordTooLargeException
@@ -296,44 +296,57 @@ class InvokerReactive(
     }
   })
 
-  private def gracefulShutdown: Unit = {
-    logging.info(this, s"Starting graceful shutdown")
-
-    try {
-      Await.result(gracefulStop(healthScheduler, 5.seconds), 6.seconds)
-    } catch {
-      case e: akka.pattern.AskTimeoutException =>
-        logging.info(this, "Health communication failed to shutdown gracefully")
-    }
-
-    try {
-      Await.result(gracefulStop(activationFeed, 5.seconds), 6.seconds)
-    } catch {
-      case e: akka.pattern.AskTimeoutException => logging.info(this, "Activation feed failed to shutdown gracefully")
-    }
-
+  /** Polls the pool's status and returns a future which completes once the pool is idle. */
+  def waitForContainerPoolIdle(pool: ActorRef): Future[Unit] = {
     implicit val timeout = Timeout(5 seconds)
+    val delay = 1.second
 
-    while (Await.result(pool ? Busy, timeout.duration).asInstanceOf[Boolean] == true) {
-      logging.info(this, s"Container pool is busy")
-      Thread.sleep(1000)
-    }
-
-    containerFactory.cleanup()
-    logging.info(this, "Shutting down invoker")
-    System.exit(0)
+    (pool ? Busy)
+      .mapTo[Boolean]
+      .flatMap {
+        case true  =>
+          logging.info(this, "Container pool is not idle.")
+          after(delay, actorSystem.scheduler)(waitForContainerPoolIdle(pool))
+        case false =>
+          Future.successful(())
+      }
+      .recoverWith { case _ => after(delay, actorSystem.scheduler)(waitForContainerPoolIdle(pool)) }
   }
 
   private val termSignal = "TERM"
 
-  Signal.handle(new Signal(termSignal), new SignalHandler() {
-    override def handle(signal: Signal) = {
-      signal.getName match {
-        case `termSignal` =>
-          gracefulShutdown
-        case _ =>
+  Signal.handle(
+    new Signal(termSignal),
+    new SignalHandler() {
+      override def handle(signal: Signal) = {
+        signal.getName match {
+          case `termSignal` =>
+            logging.info(this, s"Starting graceful shutdown")
+
+            // Shutdown the health scheduler, activation feed, and wait until container pool is idle. Order is important
+            // here so futures are ran sequentially
+            val shutdowns = for {
+              _ <- gracefulStop(healthScheduler, 5.seconds).recover { case _ => logging.info(this, "Health communication failed to shutdown gracefully") }
+              _ <- gracefulStop(activationFeed, 5.seconds).recover { case _ => logging.info(this, "Activation feed failed to shutdown gracefully") }
+              _ <- waitForContainerPoolIdle(pool)
+            } yield { logging.info(this, "Successfully shutdown health communication, activation feed, and container pool") }
+
+            try {
+              // Allow the shutdown to take a maximum of 3 times the maximum action runtime since the
+              // feed can be buffered and we want to allow for some grace period.
+              Await.result(shutdowns, TimeLimit.MAX_DURATION * 3)
+            } finally {
+              containerFactory.cleanup()
+              logging.info(this, "Shutting down invoker")
+              System.exit(0)
+            }
+          case _ =>
+        }
       }
-    }
-  })
+    })
+
+
+
+
 
 }
