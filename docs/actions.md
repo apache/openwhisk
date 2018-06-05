@@ -58,6 +58,7 @@ paths more suitable. Or, you can [create a new runtime](actions-new.md).
 * [JavaScript](actions-node.md)
 * [PHP](actions-php.md)
 * [Python](actions-python.md)
+* [Ruby](actions-ruby.md)
 * [Swift](actions-swift.md)
 * [Docker and native binaries](actions-docker.md)
 
