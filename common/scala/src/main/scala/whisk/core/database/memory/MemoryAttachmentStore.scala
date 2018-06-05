@@ -18,13 +18,13 @@
 package whisk.core.database.memory
 
 import akka.actor.ActorSystem
-import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model.ContentType
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
 import whisk.common.LoggingMarkers.{DATABASE_ATTS_DELETE, DATABASE_ATT_DELETE, DATABASE_ATT_GET, DATABASE_ATT_SAVE}
-import whisk.common.{Logging, StartMarker, TransactionId}
+import whisk.common.{Logging, TransactionId}
+import whisk.core.database.StoreUtils._
 import whisk.core.database._
 import whisk.core.entity.{DocId, DocInfo}
 
@@ -133,13 +133,4 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
   }
 
   private def attachmentKey(docId: DocId, name: String) = s"${docId.id}/$name"
-
-  private def reportFailure[T](f: Future[T], start: StartMarker, failureMessage: Throwable => String)(
-    implicit transid: TransactionId): Future[T] = {
-    f.onFailure({
-      case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
-      case x                         => transid.failed(this, start, failureMessage(x), ErrorLevel)
-    })
-    f
-  }
 }
