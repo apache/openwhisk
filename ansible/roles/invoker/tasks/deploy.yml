@@ -143,7 +143,7 @@
 
 - name: prepare invoker env
   set_fact:
-    env:
+    invoker_env:
       "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
@@ -210,10 +210,14 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-- name: extend invoker env
+- name: extend invoker dns env
   set_fact:
-    env: "{{ env|default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+    invoker_env: "{{ invoker_env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
+
+- name: merge extra env variables
+  set_fact:
+    invoker_env: "{{ invoker_env | combine(invoker.extraEnv) }}"
 
 - name: set invoker volumes
   set_fact:
@@ -239,7 +243,7 @@
     image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
     state: started
     recreate: true
-    env: "{{ env }}"
+    env: "{{ invoker_env }}"
     volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"

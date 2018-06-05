@@ -282,6 +282,12 @@ the configuration to use trusted certificates instead.
 Don't use `vagrant resume`. See
 [here](https://github.com/mitchellh/vagrant/issues/6787) for related issue.
 
+## Override Vagrant Box
+By default the Vagrant VM will use `ubuntu/xenial64` if you want to use `ubuntu/trusty64` you can override with an environment variable `BOX_OS`.
+```
+BOX_OS="ubuntu/trusty64" ./hello
+```
+
 ## Using Vagrant VM in GUI mode (Optional)
 Create VM with Desktop GUI. The `username` and `password` are both set to
 `vagrant` by default.

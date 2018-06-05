@@ -17,7 +17,7 @@
 #
 set -e
 SCRIPTDIR="$(cd "$(dirname "$0")"; pwd)"
-ROOTDIR="$SCRIPTDIR/../.."
+ROOTDIR="$SCRIPTDIR/../../.."
 
 # Build Openwhisk
 cd $ROOTDIR

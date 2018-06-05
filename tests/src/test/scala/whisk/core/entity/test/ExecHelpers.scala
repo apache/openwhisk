@@ -26,6 +26,7 @@ import whisk.core.WhiskConfig
 import whisk.core.entity._
 import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.ExecManifest._
+import whisk.core.entity.size._
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -59,7 +60,12 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def js6(code: String, main: Option[String] = None) = {
     CodeExecAsString(
-      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
+      RuntimeManifest(
+        NODEJS6,
+        imagename(NODEJS6),
+        default = Some(true),
+        deprecated = Some(false),
+        stemCells = Some(List(StemCell(2, 256.MB)))),
       trim(code),
       main.map(_.trim))
   }
@@ -70,7 +76,12 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def js6MetaData(main: Option[String] = None, binary: Boolean) = {
     CodeExecMetaDataAsString(
-      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
+      RuntimeManifest(
+        NODEJS6,
+        imagename(NODEJS6),
+        default = Some(true),
+        deprecated = Some(false),
+        stemCells = Some(List(StemCell(2, 256.MB)))),
       binary,
       main.map(_.trim))
   }

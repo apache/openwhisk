@@ -19,7 +19,7 @@ package system.basic
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
+import scala.concurrent.duration.DurationInt
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
@@ -36,6 +36,8 @@ abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with 
   val wsk: BaseWsk
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.swift"))
   lazy val actionKind = "swift:3.1.1"
+  val activationMaxDuration = 2.minutes
+  val activationPollDuration = 3.minutes
 
   behavior of "Swift runtime"
 
@@ -45,10 +47,10 @@ abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with 
       val file = Some(TestUtils.getTestActionFilename("niam.swift"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, main = Some("niam"), kind = Some(actionKind))
+        action.create(name, file, main = Some("niam"), kind = Some(actionKind), timeout = Some(activationMaxDuration))
       }
 
-      withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+      withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) { activation =>
         val response = activation.response
         response.result.get.fields.get("error") shouldBe empty
         response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))

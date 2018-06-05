@@ -65,6 +65,8 @@ On using CI/CD pipelines (e.g. Jenkins) you will be able to set a threshold on a
 This Simulation calls the `api/v1`.
 You can specify the endpoint, the amount of connections against the backend and the duration of this burst.
 
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
+
 Available environment variables:
 
 ```
@@ -122,6 +124,8 @@ The warmup-phase will not be part of the assertions.
 
 To run the test, you can specify the amount of concurrent requests. Keep in mind, that the actions are invoked blocking and the system is limited to `AMOUNT_OF_INVOKERS * SLOTS_PER_INVOKER * NON_BLACKBOX_INVOKER_RATIO` concurrent actions/requests.
 
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
+
 Available environment variables:
 ```
 OPENWHISK_HOST          (required)
@@ -135,4 +139,33 @@ MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
 You can run the simulation with
 ```
 OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-BlockingInvokeOneActionSimulation
+```
+
+##### ColdBlockingInvokeSimulation
+
+This simulation makes as much cold invocations as possible. Therefor you have to specify, how many users should be used.
+This amount of users is executing actions in parallel. I recommend using the same amount of users like your amount of node-js action slots in your invokers.
+
+The users, that are used are loaded from the file `gatling_tests/src/gatling/resources/data/users.csv`. If you want to increase the number of parallel users, you have to specify at least this amount of valid users in that file.
+
+Each user creates n actions (default is 5). Afterwards all users are executing their actions in parallel. But each user is rotating it's action. That's how the cold starts are enforced.
+
+The aim of the test is, to test the throughput of the system, if all containers are always cold.
+
+The action that is invoked, writes one log line and returns a little json.
+
+The test is doing as many requests as possible for the given amount of time (`SECONDS`). Afterwards it compares if the test reached the intended throughput (`REQUESTS_PER_SEC`, `MIN_REQUESTS_PER_SEC`).
+
+Available environment variables:
+```
+OPENWHISK_HOST          (required)
+USERS                   (required)
+SECONDS                 (default: 10)
+REQUESTS_PER_SEC        (required)
+MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+```
+
+You can run the simulation with
+```
+OPENWHISK_HOST="openwhisk.mydomain.com" USERS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ColdBlockingInvokeSimulation
 ```

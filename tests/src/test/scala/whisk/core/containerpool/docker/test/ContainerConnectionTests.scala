@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 import scala.concurrent.duration._
-
 import org.apache.http.HttpRequest
 import org.apache.http.HttpResponse
 import org.apache.http.entity.StringEntity
@@ -34,8 +33,9 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-
 import spray.json.JsObject
+import common.StreamLogging
+import whisk.common.TransactionId
 import whisk.core.containerpool.HttpUtils
 import whisk.core.entity.size._
 import whisk.core.entity.ActivationResponse._
@@ -44,7 +44,14 @@ import whisk.core.entity.ActivationResponse._
  * Unit tests for HttpUtils which communicate with containers.
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
+class ContainerConnectionTests
+    extends FlatSpec
+    with Matchers
+    with BeforeAndAfter
+    with BeforeAndAfterAll
+    with StreamLogging {
+
+  implicit val transid = TransactionId.testing
 
   var testHang: FiniteDuration = 0.second
   var testStatusCode: Int = 200
@@ -75,6 +82,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
     testHang = 0.second
     testStatusCode = 200
     testResponse = null
+    stream.reset()
   }
 
   override def afterAll = {
