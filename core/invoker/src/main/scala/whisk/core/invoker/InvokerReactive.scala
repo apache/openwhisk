@@ -304,13 +304,31 @@ class InvokerReactive(
     (pool ? Busy)
       .mapTo[Boolean]
       .flatMap {
-        case true  =>
+        case true =>
           logging.info(this, "Container pool is not idle.")
           after(delay, actorSystem.scheduler)(waitForContainerPoolIdle(pool))
         case false =>
           Future.successful(())
       }
       .recoverWith { case _ => after(delay, actorSystem.scheduler)(waitForContainerPoolIdle(pool)) }
+  }
+
+  /** Polls the feed's status and returns a future which completes once the feed is idle. */
+  def waitForActivationFeedIdle(feed: ActorRef): Future[Unit] = {
+    implicit val timeout = Timeout(5 seconds)
+    val delay = 1.second
+
+    activationFeed ! MessageFeed.GracefulShutdown
+    (feed ? MessageFeed.Busy)
+      .mapTo[Boolean]
+      .flatMap {
+        case true =>
+          logging.info(this, "Activation feed is not idle.")
+          after(delay, actorSystem.scheduler)(waitForActivationFeedIdle(feed))
+        case false =>
+          Future.successful(())
+      }
+      .recoverWith { case _ => after(delay, actorSystem.scheduler)(waitForActivationFeedIdle(feed)) }
   }
 
   private val termSignal = "TERM"
@@ -326,10 +344,17 @@ class InvokerReactive(
             // Shutdown the health scheduler, activation feed, and wait until container pool is idle. Order is important
             // here so futures are ran sequentially
             val shutdowns = for {
-              _ <- gracefulStop(healthScheduler, 5.seconds).recover { case _ => logging.info(this, "Health communication failed to shutdown gracefully") }
-              _ <- gracefulStop(activationFeed, 5.seconds).recover { case _ => logging.info(this, "Activation feed failed to shutdown gracefully") }
+              _ <- gracefulStop(healthScheduler, 5.seconds).recover {
+                case _ => logging.info(this, "Health communication failed to shutdown gracefully")
+              }
+              _ <- waitForActivationFeedIdle(activationFeed)
               _ <- waitForContainerPoolIdle(pool)
-            } yield { logging.info(this, "Successfully shutdown health communication, activation feed, and container pool") }
+              _ <- gracefulStop(activationFeed, 5.seconds).recover {
+                case _ => logging.info(this, "Activation feed failed to shutdown gracefully")
+              }
+            } yield {
+              logging.info(this, "Successfully shutdown health scheduler, activation feed, and container pool")
+            }
 
             try {
               // Allow the shutdown to take a maximum of 3 times the maximum action runtime since the
@@ -344,9 +369,5 @@ class InvokerReactive(
         }
       }
     })
-
-
-
-
 
 }

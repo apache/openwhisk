@@ -139,7 +139,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           val retryLogDeadline = if (isErrorLogged) {
             logging.error(
               this,
-              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
+              s"Rescheduling Run message, too many messages in the pool, freePoolSize: ${freePool.size}, " +
                 s"busyPoolSize: ${busyPool.size}, maxActiveContainers ${poolConfig.maxActiveContainers}, " +
                 s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
             Some(logMessageInterval.fromNow)
@@ -180,7 +180,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       busyPool = busyPool - sender()
 
     case Busy =>
-      sender ! (busyPool.size != 0)
+      sender ! (!busyPool.isEmpty)
   }
 
   /** Creates a new container and updates state accordingly. */

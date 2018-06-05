@@ -60,6 +60,7 @@ object MessageFeed {
   protected[connector] case object Idle extends FeedState
   protected[connector] case object FillingPipeline extends FeedState
   protected[connector] case object DrainingPipeline extends FeedState
+  protected[connector] case object GracefulShutdownDrain extends FeedState
 
   protected sealed trait FeedData
   private case object NoData extends FeedData
@@ -69,6 +70,10 @@ object MessageFeed {
 
   /** Steady state message, indicates capacity in downstream process to receive more messages. */
   object Processed
+
+  object GracefulShutdown
+
+  object Busy
 
   /** Indicates the fill operation has completed. */
   private case class FillCompleted(messages: Seq[(String, Int, Long, Array[Byte])])
@@ -151,6 +156,9 @@ class MessageFeed(description: String,
         goto(DrainingPipeline)
       }
 
+    case Event(GracefulShutdown, _) =>
+      goto(GracefulShutdownDrain)
+
     case _ => stay
   }
 
@@ -162,6 +170,26 @@ class MessageFeed(description: String,
         fillPipeline()
         goto(FillingPipeline)
       } else stay
+
+    case Event(GracefulShutdown, _) =>
+      goto(GracefulShutdownDrain)
+
+    case _ => stay
+  }
+
+  when(GracefulShutdownDrain) {
+    case Event(Processed, _) =>
+      updateHandlerCapacity()
+      sendOutstandingMessages()
+      stay
+
+    case Event(FillCompleted(messages), _) =>
+      outstandingMessages = outstandingMessages ++ messages
+      sendOutstandingMessages()
+      stay
+
+    case Event(Busy, _) =>
+      stay() replying (handlerCapacity != maximumHandlerCapacity && !outstandingMessages.isEmpty)
 
     case _ => stay
   }
@@ -207,7 +235,7 @@ class MessageFeed(description: String,
     val occupancy = outstandingMessages.size
     if (occupancy > 0 && handlerCapacity > 0) {
       // Easiest way with an immutable queue to cleanly dequeue
-      // Head is the first elemeent of the queue, desugared w/ an assignment pattern
+      // Head is the first element of the queue, desugared w/ an assignment pattern
       // Tail is everything but the first element, thus mutating the collection variable
       val (topic, partition, offset, bytes) = outstandingMessages.head
       outstandingMessages = outstandingMessages.tail
