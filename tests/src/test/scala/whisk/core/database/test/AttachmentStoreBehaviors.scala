@@ -157,12 +157,6 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     s"attachmentTests_${prefix}_$counter"
   }
 
-  private def randomBytes(size: Int): Array[Byte] = {
-    val arr = new Array[Byte](size)
-    Random.nextBytes(arr)
-    arr
-  }
-
   private def chunkedSource(bytes: Array[Byte]): Source[ByteString, _] = {
     StreamConverters.fromInputStream(() => new ByteArrayInputStream(bytes), 42)
   }
