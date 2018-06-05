@@ -17,7 +17,6 @@
 
 package whisk.core.database.test.memory
 
-import akka.stream.ActorMaterializer
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -29,7 +28,6 @@ import whisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
 class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors with WskActorSystem {
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override val store: AttachmentStore = MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()
 
