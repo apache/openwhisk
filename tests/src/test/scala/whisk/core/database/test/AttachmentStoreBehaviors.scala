@@ -34,6 +34,9 @@ import scala.util.Random
 trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers with StreamLogging {
   this: FlatSpec =>
 
+  //Bring in sync the timeout used by ScalaFutures and DBUtils
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
+
   def store: AttachmentStore
 
   def storeType: String
