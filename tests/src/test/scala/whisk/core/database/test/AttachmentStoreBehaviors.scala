@@ -133,8 +133,18 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     readResult.failed.futureValue shouldBe a[NoDocumentException]
   }
 
-  it should "throw exception when doc is null" is pending
-  it should "have start and end markers" is pending
+  it should "throw exception when doc or doc revision is null" in {
+    Seq(null, DocInfo("foo")).foreach { doc =>
+      implicit val tid: TransactionId = transid()
+      intercept[IllegalArgumentException] {
+        store.readAttachment(doc, "bar", byteStringSink())
+      }
+
+      intercept[IllegalArgumentException] {
+        store.attach(doc, "code", ContentTypes.`application/octet-stream`, chunkedSource(randomBytes(10)))
+      }
+    }
+  }
 
   private val prefix = Random.alphanumeric.take(10).mkString
   @volatile var counter = 0
