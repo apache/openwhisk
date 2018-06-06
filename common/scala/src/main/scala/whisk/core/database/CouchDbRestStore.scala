@@ -362,15 +362,15 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       uri <- Future.successful(uriOf(bytes, UUID().asString))
       attached <- {
         val a = if (isInlined(uri)) {
-          Attached(uri.toString(), contentType, Some(bytes.size), Some(digest(bytes)))
+          Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
         } else {
-          Attached(uri.toString(), contentType)
+          Attached(uri.toString, contentType)
         }
         Future.successful(a)
       }
       i1 <- put(update(d, attached))
       i2 <- if (isInlined(uri)) { Future.successful(i1) } else {
-        attach(i1, uri.path.toString(), attached.attachmentType, combinedSource(bytes, tailSource))
+        attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
       }
     } yield (i2, attached)
   }
@@ -435,7 +435,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     val g = if (isInlined(attachmentUri)) {
       memorySource(attachmentUri).runWith(sink)
     } else {
-      val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString(), sink)
+      val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString, sink)
       f.map {
         case Right((_, result)) =>
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
