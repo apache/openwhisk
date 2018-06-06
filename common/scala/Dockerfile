@@ -7,7 +7,7 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-RUN apk add --update sed curl bash
+RUN apk add --update sed curl bash nodejs
 
 RUN mkdir /logs
 
