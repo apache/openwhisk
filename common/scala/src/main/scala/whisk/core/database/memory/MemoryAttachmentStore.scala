@@ -26,7 +26,7 @@ import whisk.common.LoggingMarkers.{DATABASE_ATTS_DELETE, DATABASE_ATT_DELETE, D
 import whisk.common.{Logging, TransactionId}
 import whisk.core.database.StoreUtils._
 import whisk.core.database._
-import whisk.core.entity.{DocId, DocInfo}
+import whisk.core.entity.DocId
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -53,83 +53,76 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
   private val attachments = new TrieMap[String, Attachment]
 
+  override val scheme = "mems"
+
   override protected[core] def attach(
-    doc: DocInfo,
+    docId: DocId,
     name: String,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
-    checkDocState(doc)
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[Boolean] = {
     require(name != null, "name undefined")
-    val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$doc'")
+    val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$docId'")
 
     val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
     val g = f
-      .map(b => attachments += (attachmentKey(doc.id, name) -> Attachment(b.result().compact)))
+      .map(b => attachments += (attachmentKey(docId, name) -> Attachment(b.result().compact)))
       .flatMap(_ => {
         transid
-          .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
-        Future.successful(doc)
+          .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$docId'")
+        Future.successful(true)
       })
 
     reportFailure(
       g,
       start,
-      failure => s"[ATT_PUT] '$dbName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'")
+      failure => s"[ATT_PUT] '$dbName' internal error, name: '$name', doc: '$docId', failure: '${failure.getMessage}'")
   }
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.
    */
-  override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
+  override protected[core] def readAttachment[T](docId: DocId, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[T] = {
-    checkDocState(doc)
     require(name != null, "name undefined")
 
     val start =
-      transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$doc'")
+      transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$docId'")
 
-    val f = attachments.get(attachmentKey(doc.id, name)) match {
+    val f = attachments.get(attachmentKey(docId, name)) match {
       case Some(Attachment(bytes)) =>
         val r = Source.single(bytes).toMat(sink)(Keep.right).run
         r.map(t => {
-          transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
+          transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$docId'")
           t
         })
       case None =>
         transid.finished(
           this,
           start,
-          s"[ATT_GET] '$dbName', retrieving attachment '$name' of document '$doc'; not found.")
+          s"[ATT_GET] '$dbName', retrieving attachment '$name' of document '$docId'; not found.")
         Future.failed(NoDocumentException("Not found on 'readAttachment'."))
     }
     reportFailure(
       f,
       start,
-      failure => s"[ATT_GET] '$dbName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'")
+      failure => s"[ATT_GET] '$dbName' internal error, name: '$name', doc: '$docId', failure: '${failure.getMessage}'")
   }
 
-  override protected[core] def deleteAttachments(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-    checkDocState(doc)
-    val start = transid.started(this, DATABASE_ATTS_DELETE, s"[ATTS_DELETE] uploading attachment of document '$doc'")
+  override protected[core] def deleteAttachments(docId: DocId)(implicit transid: TransactionId): Future[Boolean] = {
+    val start = transid.started(this, DATABASE_ATTS_DELETE, s"[ATTS_DELETE] uploading attachment of document '$docId'")
 
-    val prefix = doc.id.id + "/"
+    val prefix = docId + "/"
     attachments --= attachments.keySet.filter(_.startsWith(prefix))
-    transid.finished(this, start, s"[ATTS_DELETE] completed: delete attachment of document '$doc'")
+    transid.finished(this, start, s"[ATTS_DELETE] completed: delete attachment of document '$docId'")
     Future.successful(true)
   }
 
-  override protected[core] def deleteAttachment(doc: DocInfo, name: String)(
+  override protected[core] def deleteAttachment(docId: DocId, name: String)(
     implicit transid: TransactionId): Future[Boolean] = {
-    checkDocState(doc)
-    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
-    attachments.remove(attachmentKey(doc.id, name))
-    transid.finished(this, start, s"[ATT_DELETE] completed: delete attachment of document '$doc'")
+    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$docId'")
+    attachments.remove(attachmentKey(docId, name))
+    transid.finished(this, start, s"[ATT_DELETE] completed: delete attachment of document '$docId'")
     Future.successful(true)
-  }
-
-  private def checkDocState(doc: DocInfo): Unit = {
-    require(doc != null, "doc undefined")
-    require(doc.rev.rev != null, "doc revision must be specified")
   }
 
   private def attachmentKey(docId: DocId, name: String) = s"${docId.id}/$name"

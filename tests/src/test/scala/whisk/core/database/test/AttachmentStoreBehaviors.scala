@@ -28,11 +28,11 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import whisk.common.TransactionId
 import whisk.core.database.{AttachmentStore, NoDocumentException}
-import whisk.core.entity.DocInfo
+import whisk.core.entity.DocId
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
 import scala.util.Random
 
 trait AttachmentStoreBehaviors
@@ -65,78 +65,56 @@ trait AttachmentStoreBehaviors
     implicit val tid: TransactionId = transid()
     val bytes = randomBytes(4000)
 
-    val info = newDocInfo()
-    val info_v2 = store.attach(info, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
+    val docId = newDocId()
+    val result = store.attach(docId, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
 
-    info_v2.id shouldBe info.id
+    result shouldBe true
 
-    val byteBuilder = store.readAttachment(info_v2, "code", byteStringSink()).futureValue
+    val byteBuilder = store.readAttachment(docId, "code", byteStringSink()).futureValue
 
     byteBuilder.result() shouldBe ByteString(bytes)
-    garbageCollect(info_v2)
+    garbageCollect(docId)
   }
 
-  it should "add and then update attachment" in {
+  it should "add and delete attachments" in {
     implicit val tid: TransactionId = transid()
-    val bytes = randomBytes(4000)
+    val b1 = randomBytes(4000)
+    val b2 = randomBytes(4000)
+    val b3 = randomBytes(4000)
 
-    val info = newDocInfo()
-    val info_v2 = store.attach(info, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
+    val docId = newDocId()
+    val r1 = store.attach(docId, "c1", ContentTypes.`application/octet-stream`, chunkedSource(b1)).futureValue
+    val r2 = store.attach(docId, "c2", ContentTypes.`application/json`, chunkedSource(b2)).futureValue
+    val r3 = store.attach(docId, "c3", ContentTypes.`application/json`, chunkedSource(b3)).futureValue
 
-    info_v2.id shouldBe info.id
+    r1 shouldBe true
+    r2 shouldBe true
+    r3 shouldBe true
 
-    val updatedBytes = randomBytes(7000)
-    val info_v3 =
-      store.attach(info_v2, "code", ContentTypes.`application/json`, chunkedSource(updatedBytes)).futureValue
+    attachmentBytes(docId, "c1").futureValue.result() shouldBe ByteString(b1)
+    attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
+    attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)
 
-    info_v3.id shouldBe info.id
+    //Delete single attachment
+    store.deleteAttachment(docId, "c1").futureValue shouldBe true
 
-    val byteBuilder = store.readAttachment(info_v3, "code", byteStringSink()).futureValue
+    //Non deleted attachments related to same docId must still be accessible
+    attachmentBytes(docId, "c1").failed.futureValue shouldBe a[NoDocumentException]
+    attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
+    attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)
 
-    byteBuilder.result() shouldBe ByteString(updatedBytes)
+    //Delete all attachments
+    store.deleteAttachments(docId).futureValue shouldBe true
 
-    garbageCollect(info_v3)
-  }
-
-  it should "add and delete attachment" in {
-    implicit val tid: TransactionId = transid()
-    val bytes = randomBytes(4000)
-
-    val info = newDocInfo()
-    val info_v2 = store.attach(info, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
-    val info_v3 = store.attach(info_v2, "code2", ContentTypes.`application/json`, chunkedSource(bytes)).futureValue
-
-    val info2 = newDocInfo()
-    val info2_v2 = store.attach(info2, "code2", ContentTypes.`application/json`, chunkedSource(bytes)).futureValue
-
-    info_v2.id shouldBe info.id
-    info_v3.id shouldBe info.id
-    info2_v2.id shouldBe info2.id
-
-    def getAttachmentBytes(info: DocInfo, name: String) = {
-      store.readAttachment(info, name, byteStringSink())
-    }
-
-    getAttachmentBytes(info_v3, "code").futureValue.result() shouldBe ByteString(bytes)
-    getAttachmentBytes(info_v3, "code2").futureValue.result() shouldBe ByteString(bytes)
-
-    val deleteResult = deleteAttachment(info)
-
-    deleteResult.futureValue shouldBe true
-
-    getAttachmentBytes(info_v3, "code").failed.futureValue shouldBe a[NoDocumentException]
-    getAttachmentBytes(info_v3, "code2").failed.futureValue shouldBe a[NoDocumentException]
-
-    //Delete should not have deleted other attachments
-    getAttachmentBytes(info2_v2, "code2").futureValue.result() shouldBe ByteString(bytes)
-    garbageCollect(info2_v2)
+    attachmentBytes(docId, "c2").failed.futureValue shouldBe a[NoDocumentException]
+    attachmentBytes(docId, "c3").failed.futureValue shouldBe a[NoDocumentException]
   }
 
   it should "throw NoDocumentException on reading non existing attachment" in {
     implicit val tid: TransactionId = transid()
 
-    val info = DocInfo ! ("nonExistingAction", "1")
-    val f = store.readAttachment(info, "code", byteStringSink())
+    val docId = DocId("no-existing-id")
+    val f = store.readAttachment(docId, "code", byteStringSink())
 
     f.failed.futureValue shouldBe a[NoDocumentException]
   }
@@ -144,7 +122,7 @@ trait AttachmentStoreBehaviors
   it should "not write an attachment when there is error in Source" in {
     implicit val tid: TransactionId = transid()
 
-    val info = newDocInfo()
+    val docId = newDocId()
     val error = new Error("boom!")
     val faultySource = Source(1 to 10)
       .map { n ⇒
@@ -152,56 +130,42 @@ trait AttachmentStoreBehaviors
         n
       }
       .map(ByteString(_))
-    val writeResult = store.attach(info, "code", ContentTypes.`application/octet-stream`, faultySource)
+    val writeResult = store.attach(docId, "code", ContentTypes.`application/octet-stream`, faultySource)
     writeResult.failed.futureValue.getCause should be theSameInstanceAs error
 
-    val readResult = store.readAttachment(info, "code", byteStringSink())
+    val readResult = store.readAttachment(docId, "code", byteStringSink())
     readResult.failed.futureValue shouldBe a[NoDocumentException]
-  }
-
-  it should "throw exception when doc or doc revision is null" in {
-    Seq(null, DocInfo("foo")).foreach { doc =>
-      implicit val tid: TransactionId = transid()
-      intercept[IllegalArgumentException] {
-        store.readAttachment(doc, "bar", byteStringSink())
-      }
-
-      intercept[IllegalArgumentException] {
-        store.attach(doc, "code", ContentTypes.`application/octet-stream`, chunkedSource(randomBytes(10)))
-      }
-    }
   }
 
   override def afterAll(): Unit = {
     if (garbageCollectAttachments) {
       implicit val tid: TransactionId = transid()
       val f =
-        Source(attachmentsToDelete.toList).mapAsync(2)(id => deleteAttachment(DocInfo ! (id, "1"))).runWith(Sink.ignore)
+        Source(attachmentsToDelete.toList)
+          .mapAsync(2)(id => store.deleteAttachments(DocId(id)))
+          .runWith(Sink.ignore)
       Await.result(f, 1.minute)
     }
     super.afterAll()
   }
 
-  protected def deleteAttachment(info: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-    store.deleteAttachments(info)
-  }
+  protected def garbageCollect(docId: DocId): Unit = {}
 
-  protected def garbageCollect(doc: DocInfo): Unit = {}
-
-  protected def newDocInfo(): DocInfo = {
+  protected def newDocId(): DocId = {
     //By default create an info with dummy revision
     //as apart from CouchDB other stores do not support the revision property
     //for blobs
-    val docId = newDocId()
+    counter = counter + 1
+    val docId = s"${prefix}_$counter"
     attachmentsToDelete += docId
-    DocInfo ! (docId, "1")
+    DocId(docId)
   }
 
   @volatile var counter = 0
 
-  protected def newDocId(): String = {
-    counter = counter + 1
-    s"${prefix}_$counter"
+  private def attachmentBytes(id: DocId, name: String) = {
+    implicit val tid: TransactionId = transid()
+    store.readAttachment(id, name, byteStringSink())
   }
 
   private def chunkedSource(bytes: Array[Byte]): Source[ByteString, _] = {

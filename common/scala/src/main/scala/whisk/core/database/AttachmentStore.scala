@@ -20,11 +20,13 @@ import akka.http.scaladsl.model.ContentType
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import whisk.common.TransactionId
-import whisk.core.entity.DocInfo
+import whisk.core.entity.DocId
 
 import scala.concurrent.{ExecutionContext, Future}
 
 trait AttachmentStore {
+
+  protected[core] def scheme: String
 
   /** Execution context for futures */
   protected[core] implicit val executionContext: ExecutionContext
@@ -32,22 +34,22 @@ trait AttachmentStore {
   /**
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
    */
-  protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-    implicit transid: TransactionId): Future[DocInfo]
+  protected[core] def attach(doc: DocId, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+    implicit transid: TransactionId): Future[Boolean]
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.
    */
-  protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
+  protected[core] def readAttachment[T](doc: DocId, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[T]
 
   /**
    * Deletes all attachments linked to given document
    */
-  protected[core] def deleteAttachments(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
+  protected[core] def deleteAttachments(doc: DocId)(implicit transid: TransactionId): Future[Boolean]
 
   /**
    * Deletes specific attachment.
    */
-  protected[core] def deleteAttachment(doc: DocInfo, name: String)(implicit transid: TransactionId): Future[Boolean]
+  protected[core] def deleteAttachment(doc: DocId, name: String)(implicit transid: TransactionId): Future[Boolean]
 }
