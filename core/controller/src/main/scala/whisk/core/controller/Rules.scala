@@ -393,7 +393,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * @return future that completes with references trigger and action if they exist
    */
   private def checkTriggerAndActionExist(trigger: FullyQualifiedEntityName, action: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
+    implicit transid: TransactionId): Future[(WhiskTrigger, WhiskActionMetaData)] = {
 
     for {
       triggerExists <- WhiskTrigger.get(entityStore, trigger.toDocId) recoverWith {
@@ -408,7 +408,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
 
       actionExists <- WhiskAction.resolveAction(entityStore, action) flatMap { resolvedName =>
-        WhiskAction.get(entityStore, resolvedName.toDocId)
+        WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
       } recoverWith {
         case _: NoDocumentException =>
           Future.failed {
