@@ -180,7 +180,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       busyPool = busyPool - sender()
 
     case Busy =>
-      sender ! (!busyPool.isEmpty)
+      sender ! (busyPool.nonEmpty)
   }
 
   /** Creates a new container and updates state accordingly. */

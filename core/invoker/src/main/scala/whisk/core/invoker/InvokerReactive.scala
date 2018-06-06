@@ -292,7 +292,7 @@ class InvokerReactive(
 
   val healthScheduler = Scheduler.scheduleWaitAtMost(1.seconds)(() => {
     producer.send("health", PingMessage(instance)).andThen {
-      case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+      case Failure(t) => logging.error(this, s"failed to ping the controller(s): $t")
     }
   })
 

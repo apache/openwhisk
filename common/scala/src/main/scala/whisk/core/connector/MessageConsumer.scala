@@ -189,7 +189,7 @@ class MessageFeed(description: String,
       stay
 
     case Event(Busy, _) =>
-      stay() replying (handlerCapacity != maximumHandlerCapacity && !outstandingMessages.isEmpty)
+      stay() replying (handlerCapacity != maximumHandlerCapacity && outstandingMessages.nonEmpty)
 
     case _ => stay
   }
