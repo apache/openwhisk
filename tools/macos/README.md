@@ -54,23 +54,27 @@ sudo easy_install pip
 sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
-The above section of command installs Oracle JDK 8 as the default Java environment. If you would like to install Open JDK 8 instead of Oracle JDK 8, please run the following section.
+The above section of command installs Oracle JDK 8 as the default Java environment. If you would like to install Open JDK 8 instead of Oracle JDK 8, please run the following section:
 
 ```
-echo '
-# install homebrew
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install for finding alternative versions (Open JDK 8)
 brew tap AdoptOpenJDK/openjdk
 # install Open JDK 8
 brew install adoptopenjdk-openjdk8
-# install scala
-brew install scala
-# install pip
-sudo easy_install pip
-# install script prerequisites
-sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
+
+instead of
+
+```
+# install for finding alternative versions (java8)
+brew tap caskroom/versions
+# install java 8
+brew cask install java8
+```
+
+with the shell command described above.
+
+No matter which JDK is used, make sure you correctly configure the environment variable $JAVA_HOME.
 
 # Build
 ```
