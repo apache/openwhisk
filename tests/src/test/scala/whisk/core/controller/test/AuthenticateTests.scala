@@ -48,9 +48,12 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     implicit val tid = transid()
     val subject = Subject()
 
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+
     val namespaces = Set(
-      WhiskNamespace(MakeName.next("authenticatev_tests"), AuthKey()),
-      WhiskNamespace(MakeName.next("authenticatev_tests"), AuthKey()))
+      WhiskNamespace(Namespace(MakeName.next("authenticatev_tests"), uuid1), AuthKey(uuid1, Secret())),
+      WhiskNamespace(Namespace(MakeName.next("authenticatev_tests"), uuid2), AuthKey(uuid2, Secret())))
     val entry = WhiskAuth(subject, namespaces)
     put(authStore, entry) // this test entry is reclaimed when the test completes
 
@@ -60,7 +63,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         waitOnView(authStore, ns.authkey, 1) // wait for the view to be updated
         val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
-        user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+        user.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
 
         // first lookup should have been from datastore
         stream.toString should include(s"serving from datastore: ${CacheKey(ns.authkey)}")
@@ -68,7 +71,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
 
         // repeat query, now should be served from cache
         val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-        cachedUser.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+        cachedUser.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
 
         stream.toString should include(s"serving from cache: ${CacheKey(ns.authkey)}")
         stream.reset()

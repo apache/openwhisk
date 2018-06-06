@@ -52,7 +52,8 @@ class ElasticSearchLogStoreTests
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val user = Identity(Subject(), EntityName("testSpace"), AuthKey(), Set())
+  private val uuid = UUID()
+  private val user = Identity(Subject(), Namespace(EntityName("testSpace"), uuid), AuthKey(uuid, Secret()), Set())
   private val activationId = ActivationId.generate()
 
   private val defaultLogSchema =

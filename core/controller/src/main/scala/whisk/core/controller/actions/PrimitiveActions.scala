@@ -344,7 +344,7 @@ protected[actions] trait PrimitiveActions {
               // no next action, end composition execution, return to caller
               Future.successful(ActivationResponse(activation.response.statusCode, Some(params.getOrElse(result))))
             case Some(next) =>
-              FullyQualifiedEntityName.resolveName(next, user.namespace) match {
+              FullyQualifiedEntityName.resolveName(next, user.namespace.name) match {
                 case Some(fqn) if session.accounting.components < actionSequenceLimit =>
                   tryInvokeNext(user, fqn, params, session)
 
@@ -512,7 +512,7 @@ protected[actions] trait PrimitiveActions {
 
     // create the whisk activation
     val activation = WhiskActivation(
-      namespace = user.namespace.toPath,
+      namespace = user.namespace.name.toPath,
       name = session.action.name,
       user.subject,
       activationId = session.activationId,
@@ -552,7 +552,7 @@ protected[actions] trait PrimitiveActions {
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
     val result = Promise[Either[ActivationId, WhiskActivation]]
 
-    val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
+    val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.name.toPath, activationId))
     logging.debug(this, s"action activation will block for result upto $totalWaitTime")
 
     // 1. Wait for the active-ack to happen. Either immediately resolve the promise or poll the database quickly

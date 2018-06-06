@@ -138,7 +138,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
     val chosen = if (invokersToUse.nonEmpty) {
-      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
+      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
       ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)

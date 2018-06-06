@@ -132,7 +132,7 @@ class ContainerProxy(
       // create a new container
       val container = factory(
         job.msg.transid,
-        ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name),
+        ContainerProxy.containerName(instance, job.msg.user.namespace.name.asString, job.action.name.asString),
         job.action.exec.image,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
@@ -161,13 +161,18 @@ class ContainerProxy(
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
             val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, response)
-            sendActiveAck(transid, activation, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.authkey.uuid)
+            sendActiveAck(
+              transid,
+              activation,
+              job.msg.blocking,
+              job.msg.rootControllerIndex,
+              job.msg.user.namespace.uuid)
             storeActivation(transid, activation)
         }
         .flatMap { container =>
           // now attempt to inject the user code and run the action
           initializeAndRun(container, job)
-            .map(_ => WarmedData(container, job.msg.user.namespace, job.action, Instant.now))
+            .map(_ => WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now))
         }
         .pipeTo(self)
 
@@ -192,7 +197,7 @@ class ContainerProxy(
     case Event(job: Run, data: PreWarmedData) =>
       implicit val transid = job.msg.transid
       initializeAndRun(data.container, job)
-        .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
         .pipeTo(self)
 
       goto(Running)
@@ -228,7 +233,7 @@ class ContainerProxy(
     case Event(job: Run, data: WarmedData) =>
       implicit val transid = job.msg.transid
       initializeAndRun(data.container, job)
-        .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
         .pipeTo(self)
 
       goto(Running)
@@ -261,7 +266,7 @@ class ContainerProxy(
             self ! job
         }
         .flatMap(_ => initializeAndRun(data.container, job))
-        .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
         .pipeTo(self)
 
       goto(Running)
@@ -351,7 +356,7 @@ class ContainerProxy(
 
         val environment = JsObject(
           "api_key" -> job.msg.user.authkey.compact.toJson,
-          "namespace" -> job.msg.user.namespace.toJson,
+          "namespace" -> job.msg.user.namespace.name.toJson,
           "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
           "activation_id" -> job.msg.activationId.toString.toJson,
           // compute deadline on invoker side avoids discrepancies inside container
@@ -380,7 +385,8 @@ class ContainerProxy(
       }
 
     // Sending active ack. Entirely asynchronous and not waited upon.
-    activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.authkey.uuid))
+    activation.foreach(
+      sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
 
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
@@ -487,7 +493,7 @@ object ContainerProxy {
 
     WhiskActivation(
       activationId = job.msg.activationId,
-      namespace = job.msg.user.namespace.toPath,
+      namespace = job.msg.user.namespace.name.toPath,
       subject = job.msg.user.subject,
       cause = job.msg.cause,
       name = job.action.name,

@@ -33,10 +33,12 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
   it should "find subject by namespace" in {
     implicit val tid: TransactionId = transid()
-    val ak1 = AuthKey()
-    val ak2 = AuthKey()
-    val ns1 = aname()
-    val ns2 = aname()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = AuthKey(uuid1, Secret())
+    val ak2 = AuthKey(uuid2, Secret())
+    val ns1 = Namespace(aname(), uuid1)
+    val ns2 = Namespace(aname(), uuid2)
     val subs =
       Array(WhiskAuth(Subject(), Set(WhiskNamespace(ns1, ak1))), WhiskAuth(Subject(), Set(WhiskNamespace(ns2, ak2))))
     subs foreach (put(authStore, _))
@@ -44,7 +46,7 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(authStore, ak1, 1)
     waitOnView(authStore, ak2, 1)
 
-    val s1 = Identity.get(authStore, ns1).futureValue
+    val s1 = Identity.get(authStore, ns1.name).futureValue
     s1.subject shouldBe subs(0).subject
 
     val s2 = Identity.get(authStore, ak2).futureValue
@@ -53,20 +55,23 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
   it should "not get blocked subject" in {
     implicit val tid: TransactionId = transid()
-    val ns1 = aname()
+    val uuid1 = UUID()
+    val ns1 = Namespace(aname(), uuid1)
     val ak1 = AuthKey()
     val auth = new ExtendedAuth(Subject(), Set(WhiskNamespace(ns1, ak1)), blocked = true)
     put(authStore, auth)
 
-    Identity.get(authStore, ns1).failed.futureValue shouldBe a[NoDocumentException]
+    Identity.get(authStore, ns1.name).failed.futureValue shouldBe a[NoDocumentException]
   }
 
   it should "not find subject when authKey matches partially" in {
     implicit val tid: TransactionId = transid()
-    val ak1 = AuthKey()
-    val ak2 = AuthKey()
-    val ns1 = aname()
-    val ns2 = aname()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = AuthKey(uuid1, Secret())
+    val ak2 = AuthKey(uuid2, Secret())
+    val ns1 = Namespace(aname(), uuid1)
+    val ns2 = Namespace(aname(), uuid2)
 
     val auth = WhiskAuth(
       Subject(),
@@ -80,10 +85,12 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
   it should "find subject by namespace with limits" in {
     implicit val tid: TransactionId = transid()
-    val ak1 = AuthKey()
-    val ak2 = AuthKey()
-    val name1 = aname()
-    val name2 = aname()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = AuthKey(uuid1, Secret())
+    val ak2 = AuthKey(uuid2, Secret())
+    val name1 = Namespace(aname(), uuid1)
+    val name2 = Namespace(aname(), uuid2)
     val subs = Array(
       WhiskAuth(Subject(), Set(WhiskNamespace(name1, ak1))),
       WhiskAuth(Subject(), Set(WhiskNamespace(name2, ak2))))
@@ -93,9 +100,9 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(authStore, ak2, 1)
 
     val limits = UserLimits(invocationsPerMinute = Some(7), firesPerMinute = Some(31))
-    put(authStore, new LimitEntity(name1, limits))
+    put(authStore, new LimitEntity(name1.name, limits))
 
-    val i = Identity.get(authStore, name1).futureValue
+    val i = Identity.get(authStore, name1.name).futureValue
     i.subject shouldBe subs(0).subject
     i.limits shouldBe limits
   }
@@ -109,8 +116,10 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     val n4 = aname()
     val n5 = aname()
 
-    val ak1 = AuthKey()
-    val ak2 = AuthKey()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = AuthKey(uuid1, Secret())
+    val ak2 = AuthKey(uuid2, Secret())
 
     //Create 3 limits entry where one has limits > 0 thus non blacklisted
     //And one blocked subject with 2 namespaces
@@ -118,7 +127,10 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
       new LimitEntity(n1, UserLimits(invocationsPerMinute = Some(0))),
       new LimitEntity(n2, UserLimits(concurrentInvocations = Some(0))),
       new LimitEntity(n3, UserLimits(invocationsPerMinute = Some(7), concurrentInvocations = Some(7))),
-      new ExtendedAuth(Subject(), Set(WhiskNamespace(n4, ak1), WhiskNamespace(n5, ak2)), blocked = true))
+      new ExtendedAuth(
+        Subject(),
+        Set(WhiskNamespace(Namespace(n4, uuid1), ak1), WhiskNamespace(Namespace(n5, uuid2), ak2)),
+        blocked = true))
 
     limitsAndAuths foreach (put(authStore, _))
 

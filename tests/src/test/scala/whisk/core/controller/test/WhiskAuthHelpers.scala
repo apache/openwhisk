@@ -24,13 +24,14 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.Subject
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.Identity
+import whisk.core.entity.Namespace
 
 object WhiskAuthHelpers {
   def newAuth(s: Subject = Subject(), k: AuthKey = AuthKey()) = {
-    WhiskAuth(s, Set(WhiskNamespace(EntityName(s.asString), k)))
+    WhiskAuth(s, Set(WhiskNamespace(Namespace(EntityName(s.asString), k.uuid), k)))
   }
 
   def newIdentity(s: Subject = Subject(), k: AuthKey = AuthKey()) = {
-    Identity(s, EntityName(s.asString), k, Privilege.ALL)
+    Identity(s, Namespace(EntityName(s.asString), k.uuid), k, Privilege.ALL)
   }
 }

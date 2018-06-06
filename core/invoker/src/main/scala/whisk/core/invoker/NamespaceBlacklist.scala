@@ -44,7 +44,7 @@ class NamespaceBlacklist(authStore: AuthStore) {
    * @param identity which invoked the action.
    * @return whether or not the current identity is considered blacklisted
    */
-  def isBlacklisted(identity: Identity): Boolean = blacklist.contains(identity.namespace.name)
+  def isBlacklisted(identity: Identity): Boolean = blacklist.contains(identity.namespace.name.asString)
 
   /** Refreshes the current blacklist from the database. */
   def refreshBlacklist()(implicit ec: ExecutionContext, tid: TransactionId): Future[Set[String]] = {

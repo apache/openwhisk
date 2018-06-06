@@ -112,7 +112,7 @@ private case class Context(propertyMap: WebApiDirectives,
         .toMap
         .toJson,
       propertyMap.path -> path.toJson) ++
-      user.map(u => propertyMap.namespace -> u.namespace.asString.toJson)
+      user.map(u => propertyMap.namespace -> u.namespace.name.asString.toJson)
   }
 
   def toActionArgument(user: Option[Identity], boxQueryAndBody: Boolean): Map[String, JsValue] = {

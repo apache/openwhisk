@@ -138,7 +138,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
           val triggerActivationId = activationIdFactory.make()
           logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
           val triggerActivation = WhiskActivation(
-            namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
+            namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace,
             entityName.name,
             user.subject,
             triggerActivationId,

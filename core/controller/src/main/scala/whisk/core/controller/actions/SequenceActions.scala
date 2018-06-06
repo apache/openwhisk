@@ -196,7 +196,7 @@ protected[actions] trait SequenceActions {
 
     // create the whisk activation
     WhiskActivation(
-      namespace = user.namespace.toPath,
+      namespace = user.namespace.name.toPath,
       name = action.name,
       user.subject,
       activationId = activationId,
@@ -358,7 +358,7 @@ protected[actions] trait SequenceActions {
   private def resolveDefaultNamespace(components: Vector[FullyQualifiedEntityName],
                                       user: Identity): Vector[FullyQualifiedEntityName] = {
     // resolve any namespaces that may appears as "_" (the default namespace)
-    components.map(c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name))
+    components.map(c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace.name), c.name))
   }
 
   /** Max atomic action count allowed for sequences */
