@@ -59,18 +59,24 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     docId: DocId,
     name: String,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[Boolean] = {
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[(String, Long)] = {
     require(name != null, "name undefined")
     val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$docId'")
 
-    val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
-    val g = f
-      .map(b => attachments += (attachmentKey(docId, name) -> Attachment(b.result().compact)))
-      .flatMap(_ => {
-        transid
-          .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$docId'")
-        Future.successful(true)
-      })
+    val byteSink = Sink.fold[ByteStringBuilder, ByteString](new ByteStringBuilder)((builder, b) => builder ++= b)
+
+    val f = docStream.runWith(combinedSink(byteSink))
+
+    val g = for {
+      digest <- f._1
+      length <- f._2
+      byteBuilder <- f._3
+    } yield {
+      attachments += (attachmentKey(docId, name) -> Attachment(byteBuilder.result().compact))
+      transid
+        .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$docId'")
+      (digest, length)
+    }
 
     reportFailure(
       g,

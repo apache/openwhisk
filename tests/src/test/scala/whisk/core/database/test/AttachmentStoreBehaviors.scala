@@ -63,12 +63,12 @@ trait AttachmentStoreBehaviors
 
   it should "add and read attachment" in {
     implicit val tid: TransactionId = transid()
-    val bytes = randomBytes(4000)
+    val bytes = randomBytes(16023)
 
     val docId = newDocId()
     val result = store.attach(docId, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
 
-    result shouldBe true
+    result._2 shouldBe 16023
 
     val byteBuilder = store.readAttachment(docId, "code", byteStringSink()).futureValue
 
@@ -78,18 +78,18 @@ trait AttachmentStoreBehaviors
 
   it should "add and delete attachments" in {
     implicit val tid: TransactionId = transid()
-    val b1 = randomBytes(4000)
-    val b2 = randomBytes(4000)
-    val b3 = randomBytes(4000)
+    val b1 = randomBytes(1000)
+    val b2 = randomBytes(2000)
+    val b3 = randomBytes(3000)
 
     val docId = newDocId()
     val r1 = store.attach(docId, "c1", ContentTypes.`application/octet-stream`, chunkedSource(b1)).futureValue
     val r2 = store.attach(docId, "c2", ContentTypes.`application/json`, chunkedSource(b2)).futureValue
     val r3 = store.attach(docId, "c3", ContentTypes.`application/json`, chunkedSource(b3)).futureValue
 
-    r1 shouldBe true
-    r2 shouldBe true
-    r3 shouldBe true
+    r1._2 shouldBe 1000
+    r2._2 shouldBe 2000
+    r3._2 shouldBe 3000
 
     attachmentBytes(docId, "c1").futureValue.result() shouldBe ByteString(b1)
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)

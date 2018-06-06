@@ -35,7 +35,7 @@ trait AttachmentStore {
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
    */
   protected[core] def attach(doc: DocId, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-    implicit transid: TransactionId): Future[Boolean]
+    implicit transid: TransactionId): Future[(String, Long)]
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.

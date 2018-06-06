@@ -17,10 +17,15 @@
 
 package whisk.core.database
 
+import java.security.MessageDigest
+
 import akka.event.Logging.ErrorLevel
+import akka.stream.SinkShape
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, Sink}
+import akka.util.ByteString
+import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, RootJsonFormat}
 import whisk.common.{Logging, StartMarker, TransactionId}
-import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.{DocInfo, DocRevision, DocumentReader, WhiskDocument}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -65,4 +70,32 @@ private[database] object StoreUtils {
     // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
     deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
   }
+
+  def combinedSink[T](dest: Sink[ByteString, T]): Sink[ByteString, (Future[String], Future[Long], T)] = {
+    Sink.fromGraph(GraphDSL.create(digestSink(), lengthSink(), dest)((_, _, _)) {
+      implicit builder => (dgs, ls, dests) =>
+        import GraphDSL.Implicits._
+
+        val bcast = builder.add(Broadcast[ByteString](3))
+
+        bcast ~> dgs.in
+        bcast ~> ls.in
+        bcast ~> dests.in
+
+        SinkShape(bcast.in)
+    })
+  }
+
+  private def digestSink(): Sink[ByteString, Future[String]] = {
+    Flow[ByteString]
+      .fold(emptyDigest())((digest, bytes) => { digest.update(bytes.toArray); digest })
+      .map(md => md.digest().map("%02X" format _).mkString)
+      .toMat(Sink.head)(Keep.right)
+  }
+
+  private def lengthSink(): Sink[ByteString, Future[Long]] = {
+    Sink.fold[Long, ByteString](0)((length, bytes) => length + bytes.size)
+  }
+
+  private def emptyDigest() = MessageDigest.getInstance("SHA-256")
 }
