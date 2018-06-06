@@ -71,8 +71,9 @@ private[database] object StoreUtils {
     deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
   }
 
-  def combinedSink[T](dest: Sink[ByteString, T]): Sink[ByteString, (Future[String], Future[Long], T)] = {
-    Sink.fromGraph(GraphDSL.create(digestSink(), lengthSink(), dest)((_, _, _)) {
+  def combinedSink[T](dest: Sink[ByteString, Future[T]])(
+    implicit ec: ExecutionContext): Sink[ByteString, Future[AttachmentUploadResult[T]]] = {
+    Sink.fromGraph(GraphDSL.create(digestSink(), lengthSink(), dest)(combineResult) {
       implicit builder => (dgs, ls, dests) =>
         import GraphDSL.Implicits._
 
@@ -85,6 +86,17 @@ private[database] object StoreUtils {
         SinkShape(bcast.in)
     })
   }
+
+  private def combineResult[T](digest: Future[String], length: Future[Long], upload: Future[T])(
+    implicit ec: ExecutionContext) = {
+    for {
+      d <- digest
+      l <- length
+      u <- upload
+    } yield AttachmentUploadResult(d, l, u)
+  }
+
+  case class AttachmentUploadResult[T](digest: String, length: Long, uploadResult: T)
 
   private def digestSink(): Sink[ByteString, Future[String]] = {
     Flow[ByteString]
