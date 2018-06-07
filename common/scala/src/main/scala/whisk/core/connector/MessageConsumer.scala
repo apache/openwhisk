@@ -122,6 +122,7 @@ class MessageFeed(description: String,
   // Best practice dictates a mutable variable pointing at an immutable collection for this reason
   private var outstandingMessages = immutable.Queue.empty[(String, Int, Long, Array[Byte])]
   private var handlerCapacity = maximumHandlerCapacity
+  private var fillingQueue = false
 
   private implicit val tid = TransactionId.dispatcher
 
@@ -131,6 +132,7 @@ class MessageFeed(description: String,
 
   when(Idle) {
     case Event(Ready, _) =>
+      fillingQueue = true
       fillPipeline()
       goto(FillingPipeline)
 
@@ -148,8 +150,10 @@ class MessageFeed(description: String,
     case Event(FillCompleted(messages), _) =>
       outstandingMessages = outstandingMessages ++ messages
       sendOutstandingMessages()
+      fillingQueue = false
 
       if (shouldFillQueue()) {
+        fillingQueue = true
         fillPipeline()
         stay
       } else {
@@ -166,7 +170,9 @@ class MessageFeed(description: String,
     case Event(Processed, _) =>
       updateHandlerCapacity()
       sendOutstandingMessages()
+
       if (shouldFillQueue()) {
+        fillingQueue = true
         fillPipeline()
         goto(FillingPipeline)
       } else stay
@@ -189,7 +195,7 @@ class MessageFeed(description: String,
       stay
 
     case Event(Busy, _) =>
-      stay() replying (handlerCapacity != maximumHandlerCapacity && outstandingMessages.nonEmpty)
+      stay() replying (handlerCapacity != maximumHandlerCapacity && outstandingMessages.nonEmpty && fillingQueue)
 
     case _ => stay
   }
