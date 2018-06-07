@@ -258,7 +258,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[T] = {
-    //TODO Temporary implementation till MemoryAttachmentStore PR is merged
     val name = attached.attachmentName
     val start = transid.started(
       this,
