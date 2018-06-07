@@ -331,14 +331,16 @@ class InvokerReactive(
       .recoverWith { case _ => after(delay, actorSystem.scheduler)(waitForActivationFeedIdle(feed)) }
   }
 
-  private val termSignal = "TERM"
+  object Signals {
+    val TERM = new Signal("TERM")
+  }
 
   Signal.handle(
-    new Signal(termSignal),
+    Signals.TERM,
     new SignalHandler() {
       override def handle(signal: Signal) = {
         signal.getName match {
-          case `termSignal` =>
+          case "TERM" =>
             logging.info(this, s"Starting graceful shutdown")
 
             // Shutdown the health scheduler, activation feed, and wait until container pool is idle. Order is important
