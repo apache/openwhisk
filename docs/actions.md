@@ -651,9 +651,9 @@ If your PHP action requires [Composer](https://getcomposer.org) dependencies, yo
 ```bash
 zip -r helloPHP.zip index.php vendor
 wsk action create helloPHP --kind php:7.1 helloPHP.zip
-``` 
+```
 
-The PHP runtime will automatically include Composer's autoloader for you, so you can immediately use the dependencies in your action code. 
+The PHP runtime will automatically include Composer's autoloader for you, so you can immediately use the dependencies in your action code.
 
 Note that if you don't include your own `vendor` folder, then the runtime will include one for you. The packages included are listed in the [reference](https://github.com/apache/incubator-openwhisk/blob/master/docs/reference.md#composer-packages).
 
