@@ -30,6 +30,7 @@ import whisk.core.database.StoreUtils._
 import whisk.core.database._
 import whisk.core.entity.Attachments.Attached
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.Messages
 
 import scala.collection.concurrent.TrieMap
@@ -352,20 +353,13 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   //Use curried case class to allow equals support only for id and rev
   //This allows us to implement atomic replace and remove which check
   //for id,rev equality only
-  private case class Artifact(id: String, rev: Int)(val doc: JsObject,
-                                                    val computed: JsObject,
-                                                    val attachments: Map[String, Attachment] = Map.empty) {
+  private case class Artifact(id: String, rev: Int)(val doc: JsObject, val computed: JsObject) {
     def incrementRev(): Artifact = {
       val (newRev, updatedDoc) = incrementAndGet()
-      copy(rev = newRev)(updatedDoc, computed, Map.empty) //With Couch attachments are lost post update
+      copy(rev = newRev)(updatedDoc, computed) //With Couch attachments are lost post update
     }
 
     def docInfo = DocInfo(DocId(id), DocRevision(rev.toString))
-
-    def attach(name: String, attachment: Attachment): Artifact = {
-      val (newRev, updatedDoc) = incrementAndGet()
-      copy(rev = newRev)(updatedDoc, computed, attachments + (name -> attachment))
-    }
 
     private def incrementAndGet() = {
       val newRev = rev + 1
@@ -373,8 +367,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
       (newRev, updatedDoc)
     }
   }
-
-  private case class Attachment(bytes: ByteString, contentType: ContentType)
 
   private object Artifact {
     def apply(id: String, rev: Int, doc: JsObject): Artifact = {
