@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package whisk.core.database.test.memory
+package whisk.core.database.memory
 
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.core.database.AttachmentStore
-import whisk.core.database.memory.MemoryAttachmentStoreProvider
 import whisk.core.database.test.AttachmentStoreBehaviors
 import whisk.core.entity.WhiskEntity
 
