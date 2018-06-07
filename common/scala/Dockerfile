@@ -1,7 +1,7 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 
-FROM openjdk:8u151-jdk-alpine
+FROM adoptopenjdk/openjdk8:jdk8u172-b11-alpine
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
