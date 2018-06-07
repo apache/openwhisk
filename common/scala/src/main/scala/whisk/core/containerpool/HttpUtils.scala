@@ -126,9 +126,8 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     } match {
       case Success(response) => response
       case Failure(t: RetryableConnectionError) if retry =>
-        val sleepTime = 10.milliseconds
+        val sleepTime = 50.milliseconds
         if (timeout > Duration.Zero) {
-          logging.info(this, s"POST failed with ${t} - retrying after sleeping ${sleepTime}.")
           Thread.sleep(sleepTime.toMillis)
           val newTimeout = timeout - sleepTime
           execute(request, newTimeout, retry = true)
