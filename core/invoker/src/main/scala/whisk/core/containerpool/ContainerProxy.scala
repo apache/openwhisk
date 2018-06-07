@@ -354,8 +354,9 @@ class ContainerProxy(
       .flatMap { initInterval =>
         val parameters = job.msg.content getOrElse JsObject()
 
+        val authkey = job.msg.user.authkey.toEnvironment
+
         val environment = JsObject(
-          "api_key" -> job.msg.user.authkey.compact.toJson,
           "namespace" -> job.msg.user.namespace.name.toJson,
           "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
           "activation_id" -> job.msg.activationId.toString.toJson,
@@ -363,7 +364,9 @@ class ContainerProxy(
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
 
-        container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
+        logging.info(this, s"*******MH env JSON: ${JsObject(authkey.fields ++ environment.fields)}")
+
+        container.run(parameters, JsObject(authkey.fields ++ environment.fields), actionTimeout)(job.msg.transid).map {
           case (runInterval, response) =>
             val initRunInterval = initInterval
               .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))

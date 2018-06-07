@@ -17,24 +17,31 @@
 
 package whisk.core.entity
 
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpCredentials}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
+trait AuthKeyEnv {
+  val authElements: Map[String, String]
+  def toEnvironment = authElements.toJson.asJsObject
+  def getCredentials: HttpCredentials
+}
 
 /**
  * Authentication key, consisting of a UUID and Secret.
  *
- * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
  * @param k (uuid, key) the uuid and key, assured to be non-null because both types are values
  */
-protected[core] class AuthKey private (private val k: (UUID, Secret)) extends AnyVal {
-  def uuid: UUID = k._1
-  def key: Secret = k._2
-  def revoke = new AuthKey(uuid, Secret())
-  def compact: String = s"$uuid:$key"
+protected[core] case class AuthKey private (authElements: Map[String, String]) extends AuthKeyEnv {
+  def uuid: UUID = UUID(this.authElements("api_key").split(":")(0))
+  def key: Secret = Secret(this.authElements("api_key").split(":")(1))
+  def revoke = AuthKey(uuid, Secret())
+  def compact: String = this.authElements("api_key")
   override def toString: String = uuid.toString
+  override def getCredentials: HttpCredentials = BasicHttpCredentials(uuid.asString, key.asString)
 }
 
 protected[core] object AuthKey {
@@ -45,14 +52,16 @@ protected[core] object AuthKey {
    * @param uuid the uuid, assured to be non-null because UUID is a value
    * @param key the key, assured to be non-null because Secret is a value
    */
-  protected[core] def apply(uuid: UUID, key: Secret): AuthKey = new AuthKey(uuid, key)
+  protected[core] def apply(uuid: UUID, key: Secret): AuthKey = {
+    new AuthKey(Map("api_key" -> s"${uuid.toString}:${key.toString}"))
+  }
 
   /**
    * Creates an auth key for a randomly generated UUID with a randomly generated secret.
    *
    * @return AuthKey
    */
-  protected[core] def apply(): AuthKey = new AuthKey(UUID(), Secret())
+  protected[core] def apply(): AuthKey = AuthKey(UUID(), Secret())
 
   /**
    * Creates AuthKey from a string where the uuid and key are separated by a colon.
@@ -71,11 +80,11 @@ protected[core] object AuthKey {
       case Nil         => ("", "")
     }
 
-    new AuthKey(UUID(uuid.trim), Secret(secret.trim))
+    AuthKey(UUID(uuid.trim), Secret(secret.trim))
   }
 
   protected[core] implicit val serdes: RootJsonFormat[AuthKey] = new RootJsonFormat[AuthKey] {
-    def write(k: AuthKey) = JsString(k.compact)
-    def read(value: JsValue) = AuthKey(value.convertTo[String])
+    def write(k: AuthKey) = k.toEnvironment
+    def read(value: JsValue) = new AuthKey(value.convertTo[Map[String, String]])
   }
 }

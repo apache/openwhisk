@@ -113,7 +113,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     val expected = JsObject(
       "subject" -> i.subject.asString.toJson,
       "namespace" -> i.namespace.toJson,
-      "authkey" -> i.authkey.compact.toJson,
+      "authkey" -> i.authkey.toEnvironment,
       "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
       "limits" -> JsObject())
     Identity.serdes.write(i) shouldBe expected

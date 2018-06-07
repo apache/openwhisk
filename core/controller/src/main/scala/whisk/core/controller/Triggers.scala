@@ -28,7 +28,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, NoContent, OK, ServerError}
 import akka.http.scaladsl.model.Uri.Path
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
+import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
@@ -390,9 +390,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     val request = HttpRequest(
       method = POST,
       uri = url.withPath(actionUrl ++ actionPath),
-      headers = List(
-        Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString)),
-        transid.toHeader),
+      headers = List(Authorization(user.authkey.getCredentials), transid.toHeader),
       entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
     singleRequest(request)
