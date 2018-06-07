@@ -17,14 +17,12 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-
 import akka.http.scaladsl.model.ContentType
-
-import spray.json._
 import spray.json.DefaultJsonProtocol._
-
+import spray.json._
 import whisk.core.entity.size._
+
+import scala.util.Try
 
 object Attachments {
 
@@ -43,7 +41,7 @@ object Attachments {
 
   case class Attached(attachmentName: String,
                       attachmentType: ContentType,
-                      length: Option[Int] = None,
+                      length: Option[Long] = None,
                       digest: Option[String] = None)
       extends Attachment[Nothing]
 

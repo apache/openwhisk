@@ -20,8 +20,8 @@ package whisk.core.database.memory
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, Uri}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.util.{ByteString, ByteStringBuilder}
+import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
@@ -30,7 +30,6 @@ import whisk.core.database.StoreUtils._
 import whisk.core.database._
 import whisk.core.entity.Attachments.Attached
 import whisk.core.entity._
-import whisk.core.entity.size._
 import whisk.http.Messages
 
 import scala.collection.concurrent.TrieMap
@@ -45,11 +44,20 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
+    makeArtifactStore(MemoryAttachmentStoreProvider.makeStore())
+  }
+
+  def makeArtifactStore[D <: DocumentSerializer: ClassTag](attachmentStore: AttachmentStore)(
+    implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
+    actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
     val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
-    new MemoryArtifactStore(dbName, handler, viewMapper, inliningConfig)
+    new MemoryArtifactStore(dbName, handler, viewMapper, inliningConfig, attachmentStore)
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
@@ -75,7 +83,8 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
 class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: String,
                                                                      documentHandler: DocumentHandler,
                                                                      viewMapper: MemoryViewMapper,
-                                                                     val inliningConfig: InliningConfig)(
+                                                                     val inliningConfig: InliningConfig,
+                                                                     attachmentStore: AttachmentStore)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
@@ -92,7 +101,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   private val _id = "_id"
   private val _rev = "_rev"
-  val attachmentScheme = "mems"
+  val attachmentScheme = attachmentStore.scheme
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord
@@ -260,20 +269,17 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
       memorySource(attachmentUri).runWith(sink)
     } else {
       val storedName = attachmentUri.path.toString()
-      artifacts.get(doc.id.id) match {
-        case Some(a: Artifact) if a.attachments.contains(storedName) =>
-          val attachment = a.attachments(storedName)
-          val r = Source.single(attachment.bytes).toMat(sink)(Keep.right).run
+      val f = attachmentStore.readAttachment(doc.id, storedName, sink)
+      f.onSuccess {
+        case _ =>
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          r
-        case None =>
-          Future.failed(NoDocumentException("Not found on 'readAttachment'."))
       }
+      f
     }
   }
 
   override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-    Future.successful(true)
+    attachmentStore.deleteAttachments(doc.id)
   }
 
   override protected[database] def putAndAttach[A <: DocumentAbstraction](
@@ -283,52 +289,34 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
+    val asJson = d.toDocumentRecord
+    val id = asJson.fields(_id).convertTo[String].trim
     //Inlined attachment with Memory storage is not required. However to validate the constructs
     //inlined support is implemented
     for {
-      allBytes <- toByteString(docStream)
-      (bytes, tailSource) <- inlineAndTail(Source.single(allBytes))
+      (bytes, tailSource) <- inlineAndTail(docStream)
       uri <- Future.successful(uriOf(bytes, UUID().asString))
       attached <- {
-        val a = if (isInlined(uri)) {
-          Attached(uri.toString(), contentType, Some(bytes.size), Some(digest(bytes)))
+        if (isInlined(uri)) {
+          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          Future.successful(a)
         } else {
-          Attached(uri.toString(), contentType, Some(allBytes.size), Some(digest(allBytes)))
+          val f = attachmentStore.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
+          f.map { case (digest, length) => Attached(uri.toString, contentType, Some(length), Some(digest)) }
         }
-        Future.successful(a)
       }
       i1 <- put(update(d, attached))
-      i2 <- if (isInlined(uri)) { Future.successful(i1) } else {
-        attach(i1, uri.path.toString(), attached.attachmentType, toByteString(combinedSource(bytes, tailSource)))
-      }
-    } yield (i2, attached)
-  }
-
-  private def attach(doc: DocInfo, name: String, contentType: ContentType, bytes: Future[ByteString])(
-    implicit transid: TransactionId): Future[DocInfo] = {
-
-    val start = transid.started(
-      this,
-      LoggingMarkers.DATABASE_ATT_SAVE,
-      s"[ATT_PUT] '$dbName' uploading attachment '$name' of document '$doc'")
-
-    //TODO Temporary implementation till MemoryAttachmentStore PR is merged
-    bytes.map { b =>
-      artifacts.get(doc.id.id) match {
-        case Some(a) =>
-          val existing = Artifact(doc, a.doc, a.computed)
-          val updated = existing.attach(name, Attachment(b, contentType))
-          if (artifacts.replace(doc.id.id, existing, updated)) {
-            transid
-              .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
-            updated.docInfo
+      _ <- oldAttachment
+        .map { old =>
+          val oldUri = Uri(old.attachmentName)
+          if (oldUri.scheme == attachmentStore.scheme) {
+            attachmentStore.deleteAttachment(DocId(id), oldUri.path.toString)
           } else {
-            throw DocumentConflictException("conflict on 'put'")
+            Future.successful(true)
           }
-        case None =>
-          throw DocumentConflictException("conflict on 'put'")
-      }
-    }
+        }
+        .getOrElse(Future.successful(true))
+    } yield (i1, attached)
   }
 
   override def shutdown(): Unit = {
@@ -353,9 +341,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     reportFailure(f, start, failure => s"[GET] '$dbName' internal error, doc: '$id', failure: '${failure.getMessage}'")
   }
-
-  private def toByteString(docStream: Source[Traversable[Byte], _]) =
-    docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b).map(_.result().compact)
 
   private def getRevision(asJson: JsObject) = {
     asJson.fields.get(_rev) match {

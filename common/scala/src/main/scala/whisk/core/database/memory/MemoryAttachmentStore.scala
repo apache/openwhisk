@@ -85,7 +85,6 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
    */
   override protected[core] def readAttachment[T](docId: DocId, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[T] = {
-    require(name != null, "name undefined")
 
     val start =
       transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$docId'")
