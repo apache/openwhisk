@@ -31,15 +31,22 @@ object retry {
    * @return the result of fn iff it is successful
    * @throws Throwable exception from fn (or an illegal argument exception if N is < 1)
    */
-  def apply[T](fn: => T, N: Int = 3, waitBeforeRetry: Option[Duration] = Some(50.milliseconds)): T = {
+  def apply[T](fn: => T,
+               N: Int = 3,
+               waitBeforeRetry: Option[Duration] = Some(50.milliseconds),
+               retryMessage: Option[String] = None): T = {
     require(N >= 1, "maximum number of fn applications must be greater than 1")
     waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis)) // initial wait if any
 
     try fn
     catch {
       case _ if N > 1 =>
+        retryMessage match {
+          case Some(msg) => println(msg)
+          case None      =>
+        }
         waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis))
-        retry(fn, N - 1, waitBeforeRetry)
+        retry(fn, N - 1, waitBeforeRetry, retryMessage)
     }
   }
 }
