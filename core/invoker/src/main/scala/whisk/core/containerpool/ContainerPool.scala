@@ -63,6 +63,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be buffered here to keep order of computation.
+  // Otherwise actions with small memory-limits could block actions with large memory limits.
+  var runBuffer = immutable.Queue.empty[Run]
   val logMessageInterval = 10.seconds
 
   prewarmConfig.foreach { config =>
@@ -92,72 +95,89 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val createdContainer =
-        if (busyPool.map(_._2.memoryLimit.toMB).sum + r.action.limits.memory.megabytes <= poolConfig.userMemory.toMB) {
-          // Schedule a job to a warm container
-          ContainerPool
-            .schedule(r.action, r.msg.user.namespace.name, freePool)
-            .map(container => {
-              (container, "warm")
-            })
-            .orElse {
-              if (busyPool
-                    .map(_._2.memoryLimit.toMB)
-                    .sum + freePool.map(_._2.memoryLimit.toMB).sum < poolConfig.userMemory.toMB) {
-                takePrewarmContainer(r.action)
-                  .map(container => {
-                    (container, "prewarmed")
-                  })
-                  .orElse {
-                    Some(createContainer(r.action.limits.memory.megabytes.MB), "cold")
-                  }
-              } else None
-            }
-            .orElse {
-              // Remove a container and create a new one for the given job
-              ContainerPool
-                .remove(freePool, r.action.limits.memory.megabytes.MB)
-                .map(removeContainer)
-                // If the list had at least one entry, enough containers were removed to start the new container. After
-                // removing the containers, we are not interested anymore in the containers that have been removed.
-                .headOption
-                .map { _ =>
+      // Only process request, if there are no other requests waiting for free slots, or if the current request is the next request to process
+      if (runBuffer.isEmpty || runBuffer.dequeueOption.exists(_._1.msg == r.msg)) {
+        val createdContainer =
+          if (busyPool
+                .map(_._2.memoryLimit.toMB)
+                .sum + r.action.limits.memory.megabytes <= poolConfig.userMemory.toMB) {
+            // Schedule a job to a warm container
+            ContainerPool
+              .schedule(r.action, r.msg.user.namespace.name, freePool)
+              .map(container => {
+                (container, "warm")
+              })
+              .orElse {
+                if (busyPool
+                      .map(_._2.memoryLimit.toMB)
+                      .sum + freePool.map(_._2.memoryLimit.toMB).sum < poolConfig.userMemory.toMB) {
                   takePrewarmContainer(r.action)
                     .map(container => {
-                      (container, "recreated")
+                      (container, "prewarmed")
                     })
-                    .getOrElse {
-                      (createContainer(r.action.limits.memory.megabytes.MB), "recreated")
+                    .orElse {
+                      Some(createContainer(r.action.limits.memory.megabytes.MB), "cold")
                     }
-                }
-            }
-        } else None
+                } else None
+              }
+              .orElse {
+                // Remove a container and create a new one for the given job
+                ContainerPool
+                  .remove(freePool, r.action.limits.memory.megabytes.MB)
+                  .map(removeContainer)
+                  // If the list had at least one entry, enough containers were removed to start the new container. After
+                  // removing the containers, we are not interested anymore in the containers that have been removed.
+                  .headOption
+                  .map { _ =>
+                    takePrewarmContainer(r.action)
+                      .map(container => {
+                        (container, "recreated")
+                      })
+                      .getOrElse {
+                        (createContainer(r.action.limits.memory.megabytes.MB), "recreated")
+                      }
+                  }
+              }
+          } else None
 
-      createdContainer match {
-        case Some(((actor, data), containerState)) =>
-          busyPool = busyPool + (actor -> data)
-          freePool = freePool - actor
-          actor ! r // forwards the run request to the container
-          logContainerStart(r, containerState)
-        case None =>
-          // this can also happen if createContainer fails to start a new container, or
-          // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
-          // (and a new container would over commit the pool)
-          val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
-          val retryLogDeadline = if (isErrorLogged) {
-            logging.error(
-              this,
-              s"Rescheduling Run message, too many message in the pool, " +
-                s"freePoolSize: ${freePool.size} containers and ${freePool.map(_._2.memoryLimit.toMB).sum} MB, " +
-                s"busyPoolSize: ${busyPool.size} containers and ${busyPool.map(_._2.memoryLimit.toMB).sum} MB, " +
-                s"maxContainersMemory ${poolConfig.userMemory}, " +
-                s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
-            Some(logMessageInterval.fromNow)
-          } else {
-            r.retryLogDeadline
-          }
-          self ! Run(r.action, r.msg, retryLogDeadline)
+        createdContainer match {
+          case Some(((actor, data), containerState)) =>
+            busyPool = busyPool + (actor -> data)
+            freePool = freePool - actor
+            // Remove the action that get's executed now from the buffer and execute the next one afterwards.
+            runBuffer = runBuffer.dequeueOption.map(_._2).getOrElse(runBuffer)
+            runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
+            actor ! r // forwards the run request to the container
+            logContainerStart(r, containerState)
+          case None =>
+            // this can also happen if createContainer fails to start a new container, or
+            // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
+            // (and a new container would over commit the pool)
+            val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
+            val retryLogDeadline = if (isErrorLogged) {
+              logging.error(
+                this,
+                s"Rescheduling Run message, too many message in the pool, " +
+                  s"freePoolSize: ${freePool.size} containers and ${freePool.map(_._2.memoryLimit.toMB).sum} MB, " +
+                  s"busyPoolSize: ${busyPool.size} containers and ${busyPool.map(_._2.memoryLimit.toMB).sum} MB, " +
+                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                  s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
+              Some(logMessageInterval.fromNow)
+            } else {
+              r.retryLogDeadline
+            }
+            if (!runBuffer.exists(_.msg == r.msg)) {
+              // Add this request to the buffer, as it is not there yet.
+              runBuffer = runBuffer.enqueue(r)
+            }
+            // As this request is the first one in the buffer, try again to execute it.
+            self ! Run(r.action, r.msg, retryLogDeadline)
+        }
+      } else {
+        // There are currently actions waiting to be executed before this action gets executed.
+        // These waiting actions were not able to free up enough memory.
+        runBuffer = runBuffer.enqueue(r)
       }
 
     // Container is free to take more work

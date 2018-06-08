@@ -378,6 +378,96 @@ class ContainerPoolTests
     pool ! runMessage
     containers(1).expectMsg(runMessage)
   }
+
+  /*
+   * Run buffer
+   */
+  it should "first put messages into the queue and retrying them and then put messages only into the queue" in within(
+    timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    // Pool with 512 MB usermemory
+    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(MemoryLimit.stdMemory * 2), feed.ref))
+
+    // Send action that blocks the pool
+    pool ! runMessageLarge
+    containers(0).expectMsg(runMessageLarge)
+
+    // Send action that should be written to the queue and retried in invoker
+    pool ! runMessage
+    containers(1).expectNoMessage(100.milliseconds)
+
+    // Send another message that should not be retried, but put into the queue as well
+    pool ! runMessageDifferentAction
+    containers(2).expectNoMessage(100.milliseconds)
+
+    // Action with 512 MB is finished
+    containers(0).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+
+    // Action 1 should start immediately
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(runMessage.action, runMessage.msg, Some(_)) => true
+    }
+    // Action 2 should start immediately as well (without any retries, as there is already enough space in the pool)
+    containers(1).expectMsg(runMessageDifferentAction)
+  }
+
+  it should "process activations in the order they are arriving" in within(timeout) {
+    val (containers, factory) = testContainers(4)
+    val feed = TestProbe()
+
+    // Pool with 512 MB usermemory
+    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(MemoryLimit.stdMemory * 2), feed.ref))
+
+    // Send 4 actions to the ContainerPool (Action 0, Action 2 and Action 3 with each 265 MB and Action 1 with 512 MB)
+    pool ! runMessage
+    containers(0).expectMsg(runMessage)
+    pool ! runMessageLarge
+    containers(1).expectNoMessage(100.milliseconds)
+    pool ! runMessageDifferentNamespace
+    containers(2).expectNoMessage(100.milliseconds)
+    pool ! runMessageDifferentAction
+    containers(3).expectNoMessage(100.milliseconds)
+
+    // Action 0 ist finished -> Large action should be executed now
+    containers(0).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+    containers(1).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(runMessageLarge.action, runMessageLarge.msg, Some(_)) => true
+    }
+
+    // Send another action to the container pool, that would fit memory-wise
+    pool ! runMessageDifferentEverything
+    containers(4).expectNoMessage(100.milliseconds)
+
+    // Action 1 is finished -> Action 2 and Action 3 should be executed now
+    containers(1).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+    containers(2).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(runMessageDifferentNamespace.action, runMessageDifferentNamespace.msg, Some(_)) => true
+    }
+    // Assert retryLogline = false to check if this request has been stored in the queue instead of retrying in the system
+    containers(3).expectMsg(runMessageDifferentAction)
+
+    // Action 3 is finished -> Action 4 should start
+    containers(3).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+    containers(4).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(runMessageDifferentEverything.action, runMessageDifferentEverything.msg, Some(_)) => true
+    }
+
+    // Action 2 and 4 are finished
+    containers(2).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+    containers(4).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+  }
 }
 
 /**
