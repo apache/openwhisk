@@ -19,7 +19,7 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:invoker'
-include 'core:admin'
+include 'tools:admin'
 include 'actionRuntimes:nodejs6Action'
 include 'actionRuntimes:nodejs8Action'
 include 'actionRuntimes:actionProxy'

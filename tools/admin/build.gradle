@@ -22,6 +22,8 @@ plugins {
 
 apply plugin: 'org.scoverage'
 
+project.archivesBaseName = "openwhisk-admin-tools"
+
 repositories {
     mavenCentral()
 }
@@ -33,7 +35,7 @@ jar {
 task copyBootJarToBin(type:Copy){
     from ("${buildDir}/libs")
     into file("${project.rootProject.projectDir}/bin")
-    rename("${project.archivesBaseName}-$version-cli.jar", "wskadmin-cli")
+    rename("${project.archivesBaseName}-$version-cli.jar", "wskadmin-next")
 }
 
 bootJar {
