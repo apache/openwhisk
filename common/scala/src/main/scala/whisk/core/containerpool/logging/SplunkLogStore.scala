@@ -112,11 +112,7 @@ class SplunkLogStore(
       Map(
         "exec_mode" -> "oneshot",
         "search" -> search,
-        "output_mode" -> "json",
-        "earliest_time" -> activation.start.toString, //assume that activation start/end are UTC zone, and splunk events are the same
-        "latest_time" -> activation.end
-          .plusSeconds(5) //add 5s to avoid a timerange of 0 on short-lived activations
-          .toString)).toEntity
+        "output_mode" -> "json")).toEntity
 
     logging.debug(this, "sending request")
     queueRequest(
