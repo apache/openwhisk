@@ -19,15 +19,14 @@ package system.basic
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.ActivationResult
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.BaseWsk
-import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import common.rest.WskRest
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -139,8 +138,8 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
         action.create(copiedActionName, Some(origActionName), Some("copy"))
       }
 
-      val copiedAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, wsk.isInstanceOf[Wsk])
-      val origAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, wsk.isInstanceOf[Wsk])
+      val copiedAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, !wsk.isInstanceOf[WskRest])
+      val origAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, !wsk.isInstanceOf[WskRest])
 
       copiedAction.fields("annotations") shouldBe origAction.fields("annotations")
       copiedAction.fields("parameters") shouldBe origAction.fields("parameters")
@@ -179,7 +178,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
         action.create(copiedName, Some(origName), Some("copy"), parameters = copiedParams, annotations = copiedAnnots)
       }
 
-      val copiedAction = getJSONFromResponse(wsk.action.get(copiedName).stdout, wsk.isInstanceOf[Wsk])
+      val copiedAction = getJSONFromResponse(wsk.action.get(copiedName).stdout, !wsk.isInstanceOf[WskRest])
 
       // CLI does not guarantee order of annotations and parameters so do a diff to compare the values
       copiedAction.fields("parameters").convertTo[Seq[JsObject]] diff resParams shouldBe List()

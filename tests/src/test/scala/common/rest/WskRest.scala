@@ -61,7 +61,6 @@ import common._
 import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
 import common.HasActivation
-import common.RunWskCmd
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
@@ -1213,7 +1212,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
   }
 }
 
-class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFutures with WskActorSystem {
+class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
