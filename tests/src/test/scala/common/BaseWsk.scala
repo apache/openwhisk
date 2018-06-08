@@ -23,10 +23,8 @@ import java.io.FileWriter
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
-import scala.collection.mutable.Buffer
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
-import org.scalatest.Matchers
 
 import TestUtils._
 import spray.json._
@@ -85,6 +83,16 @@ trait WaitFor {
       }
     }
     null.asInstanceOf[T]
+  }
+}
+
+trait BaseRunWsk {
+  /*
+   * Utility function to return a JSON object from the CLI output that returns
+   * an optional a status line following by the JSON data
+   */
+  def parseJsonString(jsonStr: String): JsObject = {
+    jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
   }
 }
 
@@ -185,7 +193,7 @@ trait BaseDeleteFromCollection extends FullyQualifiedNames {
   def sanitize(name: String)(implicit wp: WskProps): RunResult
 }
 
-trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait BaseAction extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
 
   def create(name: String,
              artifact: Option[String],
@@ -213,7 +221,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BasePackage extends BaseRunWsk with BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait BasePackage extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
 
   def create(name: String,
              parameters: Map[String, JsValue] = Map(),
@@ -231,7 +239,7 @@ trait BasePackage extends BaseRunWsk with BaseDeleteFromCollection with BaseList
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseTrigger extends BaseRunWsk with BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait BaseTrigger extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
 
   def create(name: String,
              parameters: Map[String, JsValue] = Map(),
@@ -249,7 +257,7 @@ trait BaseTrigger extends BaseRunWsk with BaseDeleteFromCollection with BaseList
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseRule extends BaseRunWsk with BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait BaseRule extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
 
   def create(name: String,
              trigger: String,
@@ -266,7 +274,7 @@ trait BaseRule extends BaseRunWsk with BaseDeleteFromCollection with BaseListOrG
   def state(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseActivation extends BaseRunWsk {
+trait BaseActivation {
 
   def extractActivationId(result: RunResult): Option[String]
 
@@ -298,14 +306,14 @@ trait BaseActivation extends BaseRunWsk {
     implicit wp: WskProps): RunResult
 }
 
-trait BaseNamespace extends BaseRunWsk {
+trait BaseNamespace {
 
   def list(expectedExitCode: Int = SUCCESS_EXIT, nameSort: Option[Boolean] = None)(implicit wp: WskProps): RunResult
 
   def whois()(implicit wskprops: WskProps): String
 }
 
-trait BaseApi extends BaseRunWsk {
+trait BaseApi {
 
   def create(basepath: Option[String] = None,
              relpath: Option[String] = None,
@@ -338,30 +346,4 @@ trait BaseApi extends BaseRunWsk {
              operation: Option[String] = None,
              expectedExitCode: Int = SUCCESS_EXIT,
              cliCfgFile: Option[String] = None)(implicit wp: WskProps): RunResult
-}
-
-trait BaseRunWsk extends Matchers {
-
-  // Takes a string and a list of sensitive strings. Any sensistive string found in
-  // the target string will be replaced with "XXXXX", returning the processed string
-  def hideStr(str: String, hideThese: Seq[String]): String = {
-    // Iterate through each string to hide, replacing it in the target string (str)
-    hideThese.fold(str)((updatedStr, replaceThis) => updatedStr.replace(replaceThis, "XXXXX"))
-  }
-
-  /*
-   * Utility function to return a JSON object from the CLI output that returns
-   * an optional a status line following by the JSON data
-   */
-  def parseJsonString(jsonStr: String): JsObject = {
-    jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
-  }
-
-  def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
-    val s = new StringBuilder()
-    s.append(args.mkString(" ") + "\n")
-    if (rr.stdout.nonEmpty) s.append(rr.stdout + "\n")
-    if (rr.stderr.nonEmpty) s.append(rr.stderr)
-    s.append("exit code:")
-  }
 }

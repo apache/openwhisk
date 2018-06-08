@@ -276,14 +276,6 @@ trait WskTestHelpers extends Matchers {
     }
   }
 
-  def removeCLIHeader(response: String): String = {
-    if (response.contains("\n")) response.substring(response.indexOf("\n")) else response
-  }
-
-  def getJSONFromResponse(response: String, isCli: Boolean = false): JsObject = {
-    if (isCli) removeCLIHeader(response).parseJson.asJsObject else response.parseJson.asJsObject
-  }
-
   def getAdditionalTestSubject(newUser: String): WskProps = {
     val wskadmin = new RunWskAdminCmd {}
     WskProps(namespace = newUser, authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)

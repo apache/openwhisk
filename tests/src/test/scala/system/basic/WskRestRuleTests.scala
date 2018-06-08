@@ -71,8 +71,8 @@ class WskRestRuleTests extends WskRuleTests {
         retry({
           val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
           val getStdout = wsk.rule.get(ruleName).stdout
-          getJSONFromResponse(createStdout, false).fields.get("status") shouldBe status
-          getJSONFromResponse(getStdout, false).fields.get("status") shouldBe status
+          wsk.parseJsonString(createStdout).fields.get("status") shouldBe status
+          wsk.parseJsonString(getStdout).fields.get("status") shouldBe status
         }, 10, Some(1.second))
     }
   }

@@ -35,6 +35,6 @@ class WskRestActionTests extends WskActionTests {
       action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
     }
     val rr = wsk.action.get(name)
-    getJSONFromResponse(rr.stdout, false).getFieldPath("exec", "code") shouldBe Some(JsString(""))
+    wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
   }
 }

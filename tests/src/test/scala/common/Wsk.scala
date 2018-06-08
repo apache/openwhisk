@@ -18,11 +18,13 @@
 package common
 
 import java.io.File
-import scala.collection.JavaConversions.mapAsJavaMap
 
+import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import scala.language.postfixOps
 import scala.util.Try
+
+import org.scalatest.Matchers
 
 import TestUtils._
 
@@ -82,7 +84,7 @@ trait HasActivation {
   }
 }
 
-trait RunWskCmd extends BaseRunWsk {
+trait RunWskCmd extends Matchers {
 
   /**
    * The base command to run. This returns a new mutable buffer, intended for building the rest of the command line.
@@ -138,6 +140,22 @@ trait RunWskCmd extends BaseRunWsk {
       println(s"command will retry to due to network error: $rr")
       retry(i + 1, N, cmd)
     } else rr
+
+  /**
+   * Takes a string and a list of sensitive strings. Any sensistive string found in
+   * the target string will be replaced with "XXXXX", returning the processed string.
+   */
+  private def hideStr(str: String, hideThese: Seq[String]): String = {
+    // Iterate through each string to hide, replacing it in the target string (str)
+    hideThese.fold(str)((updatedStr, replaceThis) => updatedStr.replace(replaceThis, "XXXXX"))
+  }
+
+  private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
+    val s = new StringBuilder()
+    s.append(args.mkString(" ") + "\n")
+    if (rr.stdout.nonEmpty) s.append(rr.stdout + "\n")
+    if (rr.stderr.nonEmpty) s.append(rr.stderr)
+    s.append("exit code:")
   }
 }
 
