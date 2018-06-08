@@ -31,6 +31,8 @@ import whisk.core.entity.{DocInfo, DocRevision, DocumentReader, WhiskDocument}
 import scala.concurrent.{ExecutionContext, Future}
 
 private[database] object StoreUtils {
+  private val digestAlgo = "SHA-256"
+  private val encodedAlgoName = digestAlgo.toLowerCase.replaceAllLiterally("-", "")
 
   def reportFailure[T](f: Future[T], start: StartMarker, failureMessage: Throwable => String)(
     implicit transid: TransactionId,
@@ -87,6 +89,13 @@ private[database] object StoreUtils {
     })
   }
 
+  def emptyDigest(): MessageDigest = MessageDigest.getInstance(digestAlgo)
+
+  def encodeDigest(bytes: Array[Byte]): String = {
+    val digest = bytes.map("%02x".format(_)).mkString
+    s"$encodedAlgoName-$digest"
+  }
+
   private def combineResult[T](digest: Future[String], length: Future[Long], upload: Future[T])(
     implicit ec: ExecutionContext) = {
     for {
@@ -101,13 +110,11 @@ private[database] object StoreUtils {
   private def digestSink(): Sink[ByteString, Future[String]] = {
     Flow[ByteString]
       .fold(emptyDigest())((digest, bytes) => { digest.update(bytes.toArray); digest })
-      .map(md => md.digest().map("%02X" format _).mkString)
+      .map(md => encodeDigest(md.digest()))
       .toMat(Sink.head)(Keep.right)
   }
 
   private def lengthSink(): Sink[ByteString, Future[Long]] = {
     Sink.fold[Long, ByteString](0)((length, bytes) => length + bytes.size)
   }
-
-  private def emptyDigest() = MessageDigest.getInstance("SHA-256")
 }

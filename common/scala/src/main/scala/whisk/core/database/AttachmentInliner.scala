@@ -17,7 +17,6 @@
 
 package whisk.core.database
 
-import java.security.MessageDigest
 import java.util.Base64
 
 import akka.NotUsed
@@ -46,8 +45,6 @@ case class InliningConfig(maxInlineSize: ByteSize, chunkSize: ByteSize)
  * name itself.
  */
 trait AttachmentInliner {
-  private val digestAlgo = "SHA-256"
-  private val encodedAlgoName = digestAlgo.toLowerCase.replaceAllLiterally("-", "")
 
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
@@ -94,10 +91,9 @@ trait AttachmentInliner {
   protected[database] def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
 
   protected[database] def digest(bytes: TraversableOnce[Byte]): String = {
-    val digester = MessageDigest.getInstance(digestAlgo)
+    val digester = StoreUtils.emptyDigest()
     digester.update(bytes.toArray)
-    val digest = digester.digest().map("%02x".format(_)).mkString
-    s"$encodedAlgoName-$digest"
+    StoreUtils.encodeDigest(digester.digest())
   }
 
   /**
