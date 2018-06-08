@@ -86,7 +86,15 @@ trait WaitFor {
   }
 }
 
-trait BaseRunWsk {
+trait BaseWsk {
+  val action: BaseAction
+  val trigger: BaseTrigger
+  val rule: BaseRule
+  val activation: BaseActivation
+  val pkg: BasePackage
+  val namespace: BaseNamespace
+  val api: BaseApi
+
   /*
    * Utility function to return a JSON object from the CLI output that returns
    * an optional a status line following by the JSON data
@@ -96,17 +104,7 @@ trait BaseRunWsk {
   }
 }
 
-trait BaseWsk extends BaseRunWsk {
-  val action: BaseAction
-  val trigger: BaseTrigger
-  val rule: BaseRule
-  val activation: BaseActivation
-  val pkg: BasePackage
-  val namespace: BaseNamespace
-  val api: BaseApi
-}
-
-trait FullyQualifiedNames {
+object FullyQualifiedNames {
 
   /**
    * Fully qualifies the name of an entity with its namespace.
@@ -139,7 +137,7 @@ trait FullyQualifiedNames {
   }
 }
 
-trait BaseListOrGetFromCollection extends FullyQualifiedNames {
+trait BaseListOrGetFromCollection {
 
   protected val noun: String
 
@@ -171,7 +169,7 @@ trait BaseListOrGetFromCollection extends FullyQualifiedNames {
           saveAs: Option[String] = None)(implicit wp: WskProps): RunResult
 }
 
-trait BaseDeleteFromCollection extends FullyQualifiedNames {
+trait BaseDeleteFromCollection {
 
   protected val noun: String
 

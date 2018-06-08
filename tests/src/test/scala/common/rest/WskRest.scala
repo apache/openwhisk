@@ -155,8 +155,8 @@ class WskRest() extends RunWskRestCmd with BaseWsk {
   override implicit val api = new WskRestApi
 }
 
-trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
-  self: RunWskRestCmd =>
+trait ListOrGetFromCollectionRest extends RunWskRestCmd with BaseListOrGetFromCollection {
+  import FullyQualifiedNames.resolve
 
   /**
    * List entities in collection.
@@ -202,14 +202,13 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
     val (ns, entity) = getNamespaceEntityName(name)
     val entPath = Path(s"$basePath/namespaces/$ns/$noun/$entity")
     val resp = requestEntity(GET, entPath)(wp)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 }
 
-trait DeleteFromCollectionRest extends BaseDeleteFromCollection {
-  self: RunWskRestCmd =>
+trait DeleteFromCollectionRest extends RunWskRestCmd with BaseDeleteFromCollection {
 
   /**
    * Deletes entity from collection.
@@ -222,9 +221,9 @@ trait DeleteFromCollectionRest extends BaseDeleteFromCollection {
     val (ns, entityName) = getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$entityName")
     val resp = requestEntity(DELETE, path)(wp)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   /**
