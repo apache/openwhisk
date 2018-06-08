@@ -83,11 +83,11 @@ class ApiGwRestEndToEndTests extends ApiGwEndToEndTests {
     val apidoc = RestResult.getFieldJsObject(apiValue, "apidoc")
     bw.write(apidoc.toString())
     bw.close()
-    return swaggerfile
+    swaggerfile
   }
 
   override def getSwaggerApiUrl(rr: RunResult): String = {
     val apiResultRest = rr.asInstanceOf[RestResult]
-    return apiResultRest.getField("gwApiUrl") + "/path"
+    apiResultRest.getField("gwApiUrl") + "/path"
   }
 }

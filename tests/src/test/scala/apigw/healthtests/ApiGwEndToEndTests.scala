@@ -98,12 +98,10 @@ abstract class ApiGwEndToEndTests
     val bw = new BufferedWriter(new FileWriter(swaggerfile))
     bw.write(rr.stdout)
     bw.close()
-    return swaggerfile
+    swaggerfile
   }
 
-  def getSwaggerApiUrl(rr: RunResult): String = {
-    return rr.stdout.split("\n")(1)
-  }
+  def getSwaggerApiUrl(rr: RunResult): String = rr.stdout.split("\n")(1)
 
   behavior of "Wsk api"
 

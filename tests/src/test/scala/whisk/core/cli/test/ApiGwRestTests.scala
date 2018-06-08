@@ -249,7 +249,7 @@ class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil {
 
   def getSwaggerApiUrl(rr: RunResult): String = {
     val apiResultRest = rr.asInstanceOf[RestResult]
-    return apiResultRest.getField("gwApiUrl") + "/path"
+    apiResultRest.getField("gwApiUrl") + "/path"
   }
 
   def getParametersFromJson(rr: RunResult, pathName: String): Vector[JsObject] = {
