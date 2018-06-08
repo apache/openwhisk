@@ -19,14 +19,12 @@ package whisk.core.database
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigFactory
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.ConfigKeys
 import whisk.core.entity.DocumentReader
 import whisk.core.entity.size._
 import pureconfig._
-import whisk.spi.SpiLoader
 
 import scala.reflect.ClassTag
 
@@ -81,15 +79,5 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       useBatching,
       inliningConfig,
       attachmentStore)
-  }
-
-  private def getAttachmentStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                                      logging: Logging,
-                                                                      materializer: ActorMaterializer) = {
-    if (ConfigFactory.load().hasPath("whisk.spi.AttachmentStoreProvider")) {
-      Some(SpiLoader.get[AttachmentStoreProvider].makeStore[D]())
-    } else {
-      None
-    }
   }
 }
