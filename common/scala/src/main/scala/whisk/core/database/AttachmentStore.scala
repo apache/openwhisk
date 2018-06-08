@@ -16,13 +16,23 @@
  */
 package whisk.core.database
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentType
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import whisk.common.TransactionId
+import whisk.common.{Logging, TransactionId}
 import whisk.core.entity.DocId
+import whisk.spi.Spi
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
+
+trait AttachmentStoreProvider extends Spi {
+  def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
+                                                     logging: Logging,
+                                                     materializer: ActorMaterializer): AttachmentStore
+}
 
 trait AttachmentStore {
 
@@ -32,7 +42,9 @@ trait AttachmentStore {
   protected[core] implicit val executionContext: ExecutionContext
 
   /**
-   * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
+   * Attaches a "file" of type `contentType` to an existing document.
+   *
+   * @return tuple of attachment hash and attachment length
    */
   protected[core] def attach(doc: DocId, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
     implicit transid: TransactionId): Future[(String, Long)]
