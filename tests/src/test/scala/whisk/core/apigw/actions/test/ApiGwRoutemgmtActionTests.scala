@@ -99,7 +99,7 @@ abstract class ApiGwRoutemgmtActionTests
         case e: Exception =>
           JsArray.empty
       }
-    return apiJsArray.elements
+    apiJsArray.elements
   }
 
   def createApi(namespace: Option[String] = Some("_"),
@@ -155,13 +155,12 @@ abstract class ApiGwRoutemgmtActionTests
       } getOrElse Map[String, JsValue]()
     }
 
-    val rr = wsk.action.invoke(
+    wsk.action.invoke(
       name = "apimgmt/createApi",
       parameters = parm,
       blocking = true,
       result = true,
       expectedExitCode = expectedExitCode)(wskprops)
-    return rr
   }
 
   def deleteApi(namespace: Option[String] = Some("_"),
@@ -202,13 +201,12 @@ abstract class ApiGwRoutemgmtActionTests
       } getOrElse Map[String, JsValue]()
     }
 
-    val rr = wsk.action.invoke(
+    wsk.action.invoke(
       name = "apimgmt/deleteApi",
       parameters = parms,
       blocking = true,
       result = true,
       expectedExitCode = expectedExitCode)(wskprops)
-    return rr
   }
 
   def apiMatch(apiarr: Vector[JsValue],
@@ -256,7 +254,8 @@ abstract class ApiGwRoutemgmtActionTests
         }
       }
     }
-    return matches
+
+    matches
   }
 
   def actionMatch(jsAction: JsObject, action: ApiAction): Boolean = {
@@ -265,10 +264,10 @@ abstract class ApiGwRoutemgmtActionTests
     System.out.println(
       "actionMatch: namespace " + jsAction.fields("namespace").convertTo[String] + "; namespace " + action.namespace)
     System.out.println("actionMatch: action " + jsAction.fields("action").convertTo[String] + "; action " + action.name)
-    val matches = jsAction.fields("url").convertTo[String] == action.backendUrl &&
-      jsAction.fields("namespace").convertTo[String] == action.namespace &&
-      jsAction.fields("action").convertTo[String] == action.name
-    return matches
+
+    jsAction.fields("url").convertTo[String] == action.backendUrl &&
+    jsAction.fields("namespace").convertTo[String] == action.namespace &&
+    jsAction.fields("action").convertTo[String] == action.name
   }
 
   behavior of "API Gateway apimgmt action parameter validation"

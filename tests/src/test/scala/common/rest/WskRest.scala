@@ -1201,14 +1201,13 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
       Map("spaceguid" -> wp.authKey.split(":")(0).toJson)
     }
 
-    val rr = invokeAction(
+    invokeAction(
       name = "apimgmt/deleteApi",
       parameters = parms,
       blocking = true,
       result = true,
       web = true,
       expectedExitCode = expectedExitCode)(wp)
-    return rr
   }
 }
 
@@ -1244,7 +1243,7 @@ class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskA
   }
 
   def getNamePath(noun: String, name: String)(implicit wp: WskProps): Path = {
-    return Path(s"$basePath/namespaces/${wp.namespace}/$noun/$name")
+    Path(s"$basePath/namespaces/${wp.namespace}/$noun/$name")
   }
 
   def getExt(filePath: String)(implicit wp: WskProps) = {
@@ -1441,9 +1440,9 @@ object RestResult {
   }
 
   def convertStausCodeToExitCode(statusCode: StatusCode, blocking: Boolean = false): Int = {
-    if ((statusCode == OK) || (!blocking && (statusCode == Accepted)))
-      return 0
-    if (statusCode.intValue < BadRequest.intValue) statusCode.intValue else statusCode.intValue - codeConversion
+    if ((statusCode == OK) || (!blocking && (statusCode == Accepted))) 0
+    else if (statusCode.intValue < BadRequest.intValue) statusCode.intValue
+    else statusCode.intValue - codeConversion
   }
 
   def convertHttpResponseToStderr(respData: String): String = {
@@ -1499,8 +1498,8 @@ class ApiAction(var name: String,
                 var backendMethod: String = "POST",
                 var backendUrl: String,
                 var authkey: String) {
-  def toJson(): JsObject = {
-    return JsObject(
+  def toJson() = {
+    JsObject(
       "name" -> name.toJson,
       "namespace" -> namespace.toJson,
       "backendMethod" -> backendMethod.toJson,
