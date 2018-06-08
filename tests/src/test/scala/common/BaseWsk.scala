@@ -25,10 +25,11 @@ import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
-
 import TestUtils._
 import spray.json._
 import whisk.core.entity.ByteSize
+
+import scala.util.Try
 
 case class WskProps(
   authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
@@ -86,6 +87,62 @@ trait WaitFor {
   }
 }
 
+trait HasActivation {
+
+  /**
+   * Extracts activation id from invoke (action or trigger) or activation get
+   */
+  def extractActivationId(result: RunResult): Option[String] = {
+    Try {
+      // try to interpret the run result as the result of an invoke
+      extractActivationIdFromInvoke(result) getOrElse extractActivationIdFromActivation(result).get
+    } toOption
+  }
+
+  /**
+   * Extracts activation id from 'wsk activation get' run result
+   */
+  private def extractActivationIdFromActivation(result: RunResult): Option[String] = {
+    Try {
+      // a characteristic string that comes right before the activationId
+      val idPrefix = "ok: got activation "
+      val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
+      assert(output.contains(idPrefix), output)
+      extractActivationId(idPrefix, output).get
+    } toOption
+  }
+
+  /**
+   * Extracts activation id from 'wsk action invoke' or 'wsk trigger invoke'
+   */
+  private def extractActivationIdFromInvoke(result: RunResult): Option[String] = {
+    Try {
+      val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
+      assert(output.contains("ok: invoked") || output.contains("ok: triggered"), output)
+      // a characteristic string that comes right before the activationId
+      val idPrefix = "with id "
+      extractActivationId(idPrefix, output).get
+    } toOption
+  }
+
+  /**
+   * Extracts activation id preceded by a prefix (idPrefix) from a string (output)
+   *
+   * @param idPrefix the prefix of the activation id
+   * @param output the string to be used in the extraction
+   * @return an option containing the id as a string or None if the extraction failed for any reason
+   */
+  private def extractActivationId(idPrefix: String, output: String): Option[String] = {
+    Try {
+      val start = output.indexOf(idPrefix) + idPrefix.length
+      var end = start
+      assert(start > 0)
+      while (end < output.length && output.charAt(end) != '\n') end = end + 1
+      output.substring(start, end) // a uuid
+    } toOption
+  }
+}
+
 trait BaseWsk {
   val action: BaseAction
   val trigger: BaseTrigger
@@ -101,39 +158,6 @@ trait BaseWsk {
    */
   def parseJsonString(jsonStr: String): JsObject = {
     jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
-  }
-}
-
-object FullyQualifiedNames {
-
-  /**
-   * Fully qualifies the name of an entity with its namespace.
-   * If the name already starts with the PATHSEP character, then
-   * it already is fully qualified. Otherwise (package name or
-   * basic entity name) it is prefixed with the namespace. The
-   * namespace is derived from the implicit whisk properties.
-   *
-   * @param name to fully qualify iff it is not already fully qualified
-   * @param wp whisk properties
-   * @return name if it is fully qualified else a name fully qualified for a namespace
-   */
-  def fqn(name: String)(implicit wp: WskProps) = {
-    val sep = "/" // Namespace.PATHSEP
-    if (name.startsWith(sep) || name.count(_ == sep(0)) == 2) name
-    else s"$sep${wp.namespace}$sep$name"
-  }
-
-  /**
-   * Resolves a namespace. If argument is defined, it takes precedence.
-   * else resolve to namespace in implicit WskProps.
-   *
-   * @param namespace an optional namespace
-   * @param wp whisk properties
-   * @return resolved namespace
-   */
-  def resolve(namespace: Option[String])(implicit wp: WskProps) = {
-    val sep = "/" // Namespace.PATHSEP
-    namespace getOrElse s"$sep${wp.namespace}"
   }
 }
 

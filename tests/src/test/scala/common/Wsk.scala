@@ -21,68 +21,10 @@ import java.io.File
 
 import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
-import scala.language.postfixOps
-import scala.util.Try
 import org.scalatest.Matchers
 import TestUtils._
 
 import scala.collection.mutable
-
-trait HasActivation {
-
-  /**
-   * Extracts activation id from invoke (action or trigger) or activation get
-   */
-  def extractActivationId(result: RunResult): Option[String] = {
-    Try {
-      // try to interpret the run result as the result of an invoke
-      extractActivationIdFromInvoke(result) getOrElse extractActivationIdFromActivation(result).get
-    } toOption
-  }
-
-  /**
-   * Extracts activation id from 'wsk activation get' run result
-   */
-  private def extractActivationIdFromActivation(result: RunResult): Option[String] = {
-    Try {
-      // a characteristic string that comes right before the activationId
-      val idPrefix = "ok: got activation "
-      val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
-      assert(output.contains(idPrefix), output)
-      extractActivationId(idPrefix, output).get
-    } toOption
-  }
-
-  /**
-   * Extracts activation id from 'wsk action invoke' or 'wsk trigger invoke'
-   */
-  private def extractActivationIdFromInvoke(result: RunResult): Option[String] = {
-    Try {
-      val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
-      assert(output.contains("ok: invoked") || output.contains("ok: triggered"), output)
-      // a characteristic string that comes right before the activationId
-      val idPrefix = "with id "
-      extractActivationId(idPrefix, output).get
-    } toOption
-  }
-
-  /**
-   * Extracts activation id preceded by a prefix (idPrefix) from a string (output)
-   *
-   * @param idPrefix the prefix of the activation id
-   * @param output the string to be used in the extraction
-   * @return an option containing the id as a string or None if the extraction failed for any reason
-   */
-  private def extractActivationId(idPrefix: String, output: String): Option[String] = {
-    Try {
-      val start = output.indexOf(idPrefix) + idPrefix.length
-      var end = start
-      assert(start > 0)
-      while (end < output.length && output.charAt(end) != '\n') end = end + 1
-      output.substring(start, end) // a uuid
-    } toOption
-  }
-}
 
 trait RunWskCmd extends Matchers {
 
