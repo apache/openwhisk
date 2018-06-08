@@ -23,8 +23,8 @@ import java.util.Base64
 import java.security.cert.X509Certificate
 
 import org.apache.commons.io.FileUtils
-import org.scalatest.Matchers
 import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 
