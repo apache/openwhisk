@@ -35,6 +35,39 @@ import TestUtils.SUCCESS_EXIT
 import TestUtils.CONFLICT
 import akka.http.scaladsl.model.StatusCodes
 
+object FullyQualifiedNames {
+
+  /**
+   * Fully qualifies the name of an entity with its namespace.
+   * If the name already starts with the PATHSEP character, then
+   * it already is fully qualified. Otherwise (package name or
+   * basic entity name) it is prefixed with the namespace. The
+   * namespace is derived from the implicit whisk properties.
+   *
+   * @param name to fully qualify iff it is not already fully qualified
+   * @param wp whisk properties
+   * @return name if it is fully qualified else a name fully qualified for a namespace
+   */
+  def fqn(name: String)(implicit wp: WskProps) = {
+    val sep = "/" // Namespace.PATHSEP
+    if (name.startsWith(sep) || name.count(_ == sep(0)) == 2) name
+    else s"$sep${wp.namespace}$sep$name"
+  }
+
+  /**
+   * Resolves a namespace. If argument is defined, it takes precedence.
+   * else resolve to namespace in implicit WskProps.
+   *
+   * @param namespace an optional namespace
+   * @param wp whisk properties
+   * @return resolved namespace
+   */
+  def resolve(namespace: Option[String])(implicit wp: WskProps) = {
+    val sep = "/" // Namespace.PATHSEP
+    namespace getOrElse s"$sep${wp.namespace}"
+  }
+}
+
 /**
  * An arbitrary response of a whisk action. Includes the result as a JsObject as the
  * structure of "result" is not defined.
