@@ -19,7 +19,6 @@ package whisk.core.entity
 
 import java.nio.charset.StandardCharsets
 
-import scala.language.postfixOps
 import scala.util.matching.Regex
 
 import spray.json._
@@ -29,6 +28,8 @@ import whisk.core.entity.ExecManifest._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
+import whisk.core.ConfigKeys
+import pureconfig.loadConfigOrThrow
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -212,7 +213,9 @@ protected[core] case class SequenceExecMetaData(components: Vector[FullyQualifie
 
 protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
 
-  val sizeLimit = 48 MB
+  import whisk.core.entity.size.pureconfigReader
+
+  val sizeLimit = loadConfigOrThrow[ByteSize](ConfigKeys.actionBlobSize)
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic
@@ -342,7 +345,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
 
 protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] with DefaultJsonProtocol {
 
-  val sizeLimit = 48 MB
+  val sizeLimit = Exec.sizeLimit
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic

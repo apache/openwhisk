@@ -57,3 +57,30 @@ Using docker-runc obtains significantly better performance, but requires that th
 2017-09-29T20:15:54.551Z] [ERROR] [#sid_102] [RuncClient] code: 1, stdout: , stderr: json: cannot unmarshal object into Go value of type []string [marker:invoker_runc.pause_error:6830148:259]
 ```
 When a docker-runc operations results in an error, the container will be killed by the invoker.  This results in missed opportunities for container reuse and poor performance.  Setting INVOKER_USE_RUNC to false can be used as a workaround until proper usage of docker-runc can be configured for the deployment.
+
+# System configuration for large size actions.
+
+Notice that current OpenWhisk implementation is still not suitable to deal with large size action. The recommended way is to refactor applications into smaller granularities.
+
+To create a large size action, you have to build the system with large size tolerable limits.
+
+## Size limit
+
+Set `limit_action_code_size` for nginx, controller, invoker and database (only support couchdb, currently).
+
+## Timeout limit
+
+The timeout depends on how large the system resource is. Therefore, several timeout limits will be configured manually and separately. Here's some config you might need to set:
+
+* Internal http timeout: `akka.http.[client/server].[request-timeout/idle-timeout]`.
+* Database query timeout: i.e. `query_server_config.os_process_limit` in couchdb.
+* Nginx: `proxy_read_timeout`.
+* [Aaction invocation timeout](./reference.md#per-action-timeout-ms-default-60s)
+
+## System tunning
+
+Finally, you have to make sure the system have enough resources, including:
+
+* JVM heap size: `controller_heap` and `invoker_heap`.
+* If you are running OpenWhisk in sandboxed environment (i.e. VMs or Docker for mac), make sure the resource is allocate sufficiently.
+* [Action memory limit](./reference.md#per-action-memory-mb-default-256mb)

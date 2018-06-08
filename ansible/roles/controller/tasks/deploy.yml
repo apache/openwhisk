@@ -190,6 +190,10 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
 
+      "CONFIG_whisk_action_blobSize": "{{ limit_action_blob_size | default() }}"
+      "CONFIG_akka_http_server_parsing_maxContentLength": "{{ limit_action_blob_size | default() }}"
+      "CONFIG_akka_http_client_parsing_maxContentLength": "{{ limit_action_blob_size | default() }}"
+
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
 

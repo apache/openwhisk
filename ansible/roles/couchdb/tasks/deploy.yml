@@ -63,6 +63,19 @@
     force_basic_auth: yes
   when: (couchdb.version|version_compare('2.0','>=')) and (db.instances|int == 1)
 
+- name: setup httpd request entity size limit for database
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_node/couchdb@{{ ansible_host }}/_config/httpd/max_http_request_size"
+    method: PUT
+    body: >
+      "{{ limit_action_blob_size | default('50m') | human_to_bytes }}"
+    body_format: raw
+    status_code: 200
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: (couchdb.version|version_compare('2.0','>=')) and (db.instances|int == 1)
+
 - name: enable the cluster setup mode
   uri:
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"

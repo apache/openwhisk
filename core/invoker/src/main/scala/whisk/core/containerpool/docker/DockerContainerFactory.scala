@@ -18,6 +18,7 @@
 package whisk.core.containerpool.docker
 
 import akka.actor.ActorSystem
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -30,11 +31,14 @@ import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
+
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+
 import pureconfig._
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerArgsConfig
+import whisk.core.entity.Exec.sizeLimit
 
 case class DockerContainerFactoryConfig(useRunc: Boolean)
 
@@ -70,7 +74,7 @@ class DockerContainerFactory(instance: InstanceId,
       userProvidedImage = userProvidedImage,
       memory = memory,
       cpuShares = cpuShares,
-      environment = Map("__OW_API_HOST" -> config.wskApiHost),
+      environment = Map("__OW_API_HOST" -> config.wskApiHost, "__OW_ACTION_BLOB_SIZE" -> s"${sizeLimit.toMB}"),
       network = containerArgsConfig.network,
       dnsServers = containerArgsConfig.dnsServers,
       name = Some(name),

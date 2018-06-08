@@ -42,6 +42,7 @@ import whisk.core.containerpool.docker.RuncApi
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.size._
+import whisk.core.entity.Exec.sizeLimit
 
 @RunWith(classOf[JUnitRunner])
 class DockerContainerFactoryTests
@@ -81,6 +82,8 @@ class DockerContainerFactoryTests
           "net1",
           "-e",
           "__OW_API_HOST=://:",
+          "-e",
+          s"__OW_ACTION_BLOB_SIZE=${sizeLimit.toMB}",
           "--dns",
           "dns1",
           "--dns",

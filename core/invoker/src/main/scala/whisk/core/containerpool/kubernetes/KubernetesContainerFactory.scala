@@ -30,6 +30,7 @@ import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
+import whisk.core.entity.Exec.sizeLimit
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.InstanceId
@@ -78,7 +79,7 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
       image,
       userProvidedImage,
       memory,
-      environment = Map("__OW_API_HOST" -> config.wskApiHost),
+      environment = Map("__OW_API_HOST" -> config.wskApiHost, "__OW_ACTION_BLOB_SIZE" -> s"${sizeLimit.toMB}"),
       labels = Map("invoker" -> label))
   }
 }
