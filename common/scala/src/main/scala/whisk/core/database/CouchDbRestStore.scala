@@ -30,8 +30,8 @@ import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
 import whisk.http.Messages
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 /**
@@ -51,18 +51,21 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                                                   dbUsername: String,
                                                                   dbPassword: String,
                                                                   dbName: String,
-                                                                  useBatching: Boolean = false)(
+                                                                  useBatching: Boolean = false,
+                                                                  val inliningConfig: InliningConfig)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  materializer: ActorMaterializer,
+  val materializer: ActorMaterializer,
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
-    with DefaultJsonProtocol {
+    with DefaultJsonProtocol
+    with AttachmentInliner {
 
   protected[core] implicit val executionContext = system.dispatcher
 
-  private val attachmentScheme = "couch"
+  val attachmentScheme: String = "couch"
+
   private val client: CouchDbRestClient =
     new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
@@ -354,13 +357,21 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
-    val attachmentUri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
-    val attached = Attached(attachmentUri.toString(), contentType)
-    val updatedDoc = update(d, attached)
-
     for {
-      i1 <- put(updatedDoc)
-      i2 <- attach(i1, attachmentUri.path.toString(), attached.attachmentType, docStream)
+      (bytes, tailSource) <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      attached <- {
+        val a = if (isInlined(uri)) {
+          Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+        } else {
+          Attached(uri.toString, contentType)
+        }
+        Future.successful(a)
+      }
+      i1 <- put(update(d, attached))
+      i2 <- if (isInlined(uri)) { Future.successful(i1) } else {
+        attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+      }
     } yield (i2, attached)
   }
 
@@ -408,9 +419,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           ErrorLevel))
   }
 
-  override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = {
+  override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
+    implicit transid: TransactionId): Future[T] = {
 
+    val name = attached.attachmentName
     val start = transid.started(
       this,
       LoggingMarkers.DATABASE_ATT_GET,
@@ -420,12 +432,14 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     require(doc.rev.rev != null, "doc revision must be specified")
 
     val attachmentUri = Uri(name)
-    val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString(), sink)
-    val g = f.map { e =>
-      e match {
-        case Right((contentType, result)) =>
+    val g = if (isInlined(attachmentUri)) {
+      memorySource(attachmentUri).runWith(sink)
+    } else {
+      val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString, sink)
+      f.map {
+        case Right((_, result)) =>
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          (contentType, result)
+          result
 
         case Left(StatusCodes.NotFound) =>
           transid.finished(

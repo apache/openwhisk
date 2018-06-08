@@ -23,6 +23,7 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.ConfigKeys
 import whisk.core.entity.DocumentReader
+import whisk.core.entity.size._
 import pureconfig._
 
 import scala.reflect.ClassTag
@@ -58,6 +59,8 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.provider == "Cloudant" || dbConfig.provider == "CouchDB",
       s"Unsupported db.provider: ${dbConfig.provider}")
 
+    val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
+
     new CouchDbRestStore[D](
       dbConfig.protocol,
       dbConfig.host,
@@ -65,6 +68,7 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.username,
       dbConfig.password,
       dbConfig.databaseFor[D],
-      useBatching)
+      useBatching,
+      inliningConfig)
   }
 }
