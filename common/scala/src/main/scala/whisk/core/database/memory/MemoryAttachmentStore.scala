@@ -52,6 +52,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
   private case class Attachment(bytes: ByteString)
 
   private val attachments = new TrieMap[String, Attachment]
+  private var closed = false
 
   override val scheme = "mems"
 
@@ -127,6 +128,12 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
   }
 
   def attachmentCount: Int = attachments.size
+
+  def isClosed = closed
+
+  override def shutdown(): Unit = {
+    closed = true
+  }
 
   private def attachmentKey(docId: DocId, name: String) = s"${docId.id}/$name"
 }

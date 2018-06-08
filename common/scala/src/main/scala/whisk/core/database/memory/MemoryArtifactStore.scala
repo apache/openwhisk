@@ -324,6 +324,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   override def shutdown(): Unit = {
     artifacts.clear()
+    attachmentStore.shutdown()
   }
 
   override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {

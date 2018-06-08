@@ -68,6 +68,7 @@ trait ArtifactStoreBehaviorBase
     entityStore.shutdown()
     activationStore.shutdown()
     super.afterAll()
+    assertAttachmentStoresAreClosed()
   }
 
   //~----------------------------------------< utility methods >
@@ -153,6 +154,15 @@ trait ArtifactStoreBehaviorBase
         as <- getAttachmentStore(s)
         count <- getAttachmentCount(as)
       } require(count == 0, s"AttachmentStore not empty after all runs - $count")
+    }
+  }
+
+  private def assertAttachmentStoresAreClosed(): Unit = {
+    Seq(authStore, entityStore, activationStore).foreach { s =>
+      getAttachmentStore(s).foreach {
+        case s: MemoryAttachmentStore => require(s.isClosed, "AttachmentStore was not closed")
+        case _                        =>
+      }
     }
   }
 

@@ -64,4 +64,7 @@ trait AttachmentStore {
    * Deletes specific attachment.
    */
   protected[core] def deleteAttachment(doc: DocId, name: String)(implicit transid: TransactionId): Future[Boolean]
+
+  /** Shut it down. After this invocation, every other call is invalid. */
+  def shutdown(): Unit
 }
