@@ -81,7 +81,7 @@ class InvokerReactive(
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
   private val activationStore =
-    SpiLoader.get[ActivationStoreProvider].activationStore(actorSystem, materializer, logging)
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
   private val authStore = WhiskAuthStore.datastore()
 

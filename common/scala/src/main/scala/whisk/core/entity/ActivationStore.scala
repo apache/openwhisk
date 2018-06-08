@@ -38,7 +38,7 @@ trait ActivationStore {
   def delete(activationId: ActivationId)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[Boolean]
 
-  def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
+  def countActivationsInNamespace(name: Option[EntityPath] = None,
                                   namespace: EntityPath,
                                   skip: Int,
                                   since: Option[Instant] = None,
@@ -63,5 +63,5 @@ trait ActivationStore {
 }
 
 trait ActivationStoreProvider extends Spi {
-  def activationStore(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging): ActivationStore
+  def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging): ActivationStore
 }

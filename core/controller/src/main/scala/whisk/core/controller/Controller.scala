@@ -123,7 +123,7 @@ class Controller(val instance: InstanceId,
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
   private implicit val activationStore =
-    SpiLoader.get[ActivationStoreProvider].activationStore(actorSystem, materializer, logging)
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
   // register collections
   Collection.initialize(entityStore)

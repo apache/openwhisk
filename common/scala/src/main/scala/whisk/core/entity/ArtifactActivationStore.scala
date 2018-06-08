@@ -67,19 +67,19 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
     }
   }
 
-  def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
+  def countActivationsInNamespace(name: Option[EntityPath] = None,
                                   namespace: EntityPath,
                                   skip: Int,
                                   since: Option[Instant] = None,
                                   upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject] = {
     WhiskActivation.countCollectionInNamespace(
       artifactStore,
-      name.flatten.map(p => namespace.addPath(p)).getOrElse(namespace),
+      name.map(p => namespace.addPath(p)).getOrElse(namespace),
       skip,
       since,
       upto,
       StaleParameter.UpdateAfter,
-      name.flatten.map(_ => WhiskActivation.filtersView).getOrElse(WhiskActivation.view))
+      name.map(_ => WhiskActivation.filtersView).getOrElse(WhiskActivation.view))
   }
 
   def listActivationsMatchingName(namespace: EntityPath,
@@ -123,6 +123,6 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
 }
 
 object ArtifactActivationStoreProvider extends ActivationStoreProvider {
-  override def activationStore(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
+  override def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
     new ArtifactActivationStore(actorSystem, actorMaterializer, logging)
 }

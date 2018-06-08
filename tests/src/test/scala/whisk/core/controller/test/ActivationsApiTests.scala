@@ -93,13 +93,9 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now)
     }.toList
     try {
-      notExpectedActivations foreach {
-        storeActivation(_)
-      }
-      activations foreach {
-        storeActivation(_)
-      }
+      (notExpectedActivations ++ activations).foreach(storeActivation)
       waitOnListActivationsInNamespace(namespace, 2)
+
       whisk.utils.retry {
         Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
@@ -138,12 +134,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
 
     } finally {
-      notExpectedActivations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
-      activations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
+      (notExpectedActivations ++ activations).foreach(activation =>
+        deleteActivation(ActivationId(activation.docid.asString)))
     }
   }
 
@@ -184,14 +176,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      notExpectedActivations foreach {
-        storeActivation(_)
-      }
-      activations foreach {
-        storeActivation(_)
-      }
+      (notExpectedActivations ++ activations).foreach(storeActivation)
       waitOnListActivationsInNamespace(namespace, 2)
-
       checkCount("", 2)
 
       whisk.utils.retry {
@@ -203,12 +189,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         }
       }
     } finally {
-      notExpectedActivations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
-      activations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
+      (notExpectedActivations ++ activations).foreach(activation =>
+        deleteActivation(ActivationId(activation.docid.asString)))
     }
   }
 
@@ -269,12 +251,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = now.plusSeconds(30))) // should match
 
     try {
-      notExpectedActivations foreach {
-        storeActivation(_)
-      }
-      activations foreach {
-        storeActivation(_)
-      }
+      (notExpectedActivations ++ activations).foreach(storeActivation)
       waitOnListActivationsInNamespace(namespace, activations.length)
 
       { // get between two time stamps
@@ -328,12 +305,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
 
     } finally {
-      notExpectedActivations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
-      activations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
+      (notExpectedActivations ++ activations).foreach(activation =>
+        deleteActivation(ActivationId(activation.docid.asString)))
     }
   }
 
@@ -387,19 +360,9 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
     }.toList
     try {
-      notExpectedActivations foreach {
-        storeActivation(_)
-      }
-      activations foreach {
-        storeActivation(_)
-      }
-      activationsInPackage foreach {
-        storeActivation(_)
-      }
-
+      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(storeActivation)
       waitOnListActivationsMatchingName(namespace, EntityPath("xyz"), activations.length)
       waitOnListActivationsMatchingName(namespace, EntityName("pkg").addPath(EntityName("xyz")), activations.length)
-
       checkCount("name=xyz", activations.length)
 
       whisk.utils.retry {
@@ -422,15 +385,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         }
       }
     } finally {
-      notExpectedActivations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
-      activations foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
-      activationsInPackage foreach { activation =>
-        deleteActivation(ActivationId(activation.docid.asString))
-      }
+      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(activation =>
+        deleteActivation(ActivationId(activation.docid.asString)))
     }
 
   }

@@ -88,7 +88,7 @@ protected trait ControllerTestCommon
   val entityStore = WhiskEntityStore.datastore()
   val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
-  val activationStore = SpiLoader.get[ActivationStoreProvider].activationStore(actorSystem, materializer, logging)
+  val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
@@ -99,10 +99,7 @@ protected trait ControllerTestCommon
 
   def getActivation(activationId: ActivationId)(implicit transid: TransactionId,
                                                 timeout: Duration = 10 seconds): WhiskActivation = {
-    val activationFuture = activationStore.get(activationId)
-    val activation = Await.result(activationFuture, timeout)
-    assert(activation != null)
-    activation
+    Await.result(activationStore.get(activationId), timeout)
   }
 
   def storeActivation(activation: WhiskActivation)(implicit transid: TransactionId,
@@ -133,7 +130,6 @@ protected trait ControllerTestCommon
             throw RetryOp()
           } else true
         }
-
       },
       timeout)
 
@@ -155,7 +151,6 @@ protected trait ControllerTestCommon
             throw RetryOp()
           } else true
         }
-
       },
       timeout)
 
