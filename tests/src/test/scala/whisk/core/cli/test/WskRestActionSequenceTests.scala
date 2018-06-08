@@ -27,7 +27,7 @@ import common.TestUtils.RunResult
 
 @RunWith(classOf[JUnitRunner])
 class WskRestActionSequenceTests extends WskActionSequenceTests {
-  override lazy val wsk: common.rest.WskRest = new WskRest
+  override lazy val wsk = new WskRest
 
   override def verifyActionSequence(action: RunResult, name: String, compValue: JsArray, kindValue: JsString): Unit = {
     val actionResultRest = action.asInstanceOf[RestResult]
