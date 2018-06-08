@@ -23,10 +23,10 @@ import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import scala.language.postfixOps
 import scala.util.Try
-
 import org.scalatest.Matchers
-
 import TestUtils._
+
+import scala.collection.mutable
 
 trait HasActivation {
 
@@ -160,6 +160,10 @@ trait RunWskCmd extends Matchers {
 }
 
 object WskAdmin {
+  val wskadmin = new RunWskCmd {
+    override def baseCommand: mutable.Buffer[String] = WskAdmin.baseCommand
+  }
+
   private val binDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
   private val binaryName = "wskadmin"
 
@@ -175,7 +179,6 @@ object WskAdmin {
   }
 
   def listKeys(namespace: String, pick: Integer = 1): List[(String, String)] = {
-    val wskadmin = new RunWskAdminCmd {}
     wskadmin
       .cli(Seq("user", "list", namespace, "--pick", pick.toString))
       .stdout
@@ -184,8 +187,4 @@ object WskAdmin {
       .map(parts => (parts(0), parts(1)))
       .toList
   }
-}
-
-trait RunWskAdminCmd extends RunWskCmd {
-  override def baseCommand = WskAdmin.baseCommand
 }

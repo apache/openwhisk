@@ -277,12 +277,12 @@ trait WskTestHelpers extends Matchers {
   }
 
   def getAdditionalTestSubject(newUser: String): WskProps = {
-    val wskadmin = new RunWskAdminCmd {}
+    import WskAdmin.wskadmin
     WskProps(namespace = newUser, authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)
   }
 
   def disposeAdditionalTestSubject(subject: String, expectedExitCode: Int = SUCCESS_EXIT): Unit = {
-    val wskadmin = new RunWskAdminCmd {}
+    import WskAdmin.wskadmin
     withClue(s"failed to delete temporary subject $subject") {
       wskadmin.cli(Seq("user", "delete", subject), expectedExitCode).stdout should include("Subject deleted")
     }
