@@ -17,28 +17,22 @@
 
 package whisk.core.admin
 
-import scala.concurrent.duration.DurationInt
-
-import org.junit.runner.RunWith
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.BeforeAndAfterAll
-
-import common.RunWskAdminCmd
-import common.TestHelpers
+import common.WskAdmin.wskadmin
+import common.{TestHelpers, TestUtils, WskAdmin, WskProps}
 import common.rest.WskRest
-import common.WskAdmin
-import common.WskProps
-import whisk.core.entity.BasicAuthenticationAuthKey
-import whisk.core.entity.Subject
-import common.TestUtils
+import org.junit.runner.RunWith
+import org.scalatest.{BeforeAndAfterAll, Matchers}
+import org.scalatest.junit.JUnitRunner
+import whisk.core.entity.{BasicAuthenticationAuthKey, Subject}
+import common.TestHelpers
+
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
 
   override def beforeAll() = {
-    val wskadmin = new RunWskAdminCmd {}
     val testSpaces = Seq("testspace", "testspace1", "testspace2")
     testSpaces.foreach(testspace => {
       Try {
@@ -60,7 +54,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "CRD a subject" in {
-    val wskadmin = new RunWskAdminCmd {}
     val auth = BasicAuthenticationAuthKey()
     val subject = Subject().asString
     try {
@@ -103,7 +96,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "list all namespaces for a subject" in {
-    val wskadmin = new RunWskAdminCmd {}
     val auth = BasicAuthenticationAuthKey()
     val subject = Subject().asString
     try {
@@ -122,7 +114,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "verify guest account installed correctly" in {
-    val wskadmin = new RunWskAdminCmd {}
     implicit val wskprops = WskProps()
     val wsk = new WskRest
     val ns = wsk.namespace.whois()
@@ -130,7 +121,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "block and unblock a user respectively" in {
-    val wskadmin = new RunWskAdminCmd {}
     val auth = BasicAuthenticationAuthKey()
     val subject1 = Subject().asString
     val subject2 = Subject().asString
@@ -170,7 +160,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "block and unblock should accept more than a single subject" in {
-    val wskadmin = new RunWskAdminCmd {}
     val subject1 = Subject().asString
     val subject2 = Subject().asString
     try {
@@ -196,7 +185,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "not allow edits on a blocked subject" in {
-    val wskadmin = new RunWskAdminCmd {}
     val subject = Subject().asString
     try {
       // initially create the subject
@@ -217,7 +205,6 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
   }
 
   it should "adjust throttles for namespace" in {
-    val wskadmin = new RunWskAdminCmd {}
     val subject = Subject().asString
     try {
       // set some limits

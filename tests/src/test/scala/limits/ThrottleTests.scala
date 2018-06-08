@@ -31,15 +31,10 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import common.RunWskAdminCmd
-import common.TestHelpers
-import common.TestUtils
+import common._
 import common.TestUtils._
-import common.WhiskProperties
 import common.rest.WskRest
-import common.WskActorSystem
-import common.WskProps
-import common.WskTestHelpers
+import WskAdmin.wskadmin
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages._
@@ -306,7 +301,6 @@ class NamespaceSpecificThrottleTests
 
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
-  val wskadmin = new RunWskAdminCmd {}
   val wsk = new WskRest
 
   def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT): Unit = {
