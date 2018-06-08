@@ -50,12 +50,12 @@ import whisk.http.Messages
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers {
 
-  implicit val wskprops: common.WskProps = WskProps()
-  val wsk: common.rest.WskRest = new WskRest
+  implicit val wskprops = WskProps()
+  val wsk = new WskRest
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
-  behavior of "Wsk CLI usage"
+  behavior of "Wsk API basic usage"
 
   it should "allow a 3 part Fully Qualified Name (FQN) without a leading '/'" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>

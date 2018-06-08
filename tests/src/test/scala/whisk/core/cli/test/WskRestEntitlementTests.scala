@@ -30,7 +30,7 @@ import common.TestUtils.RunResult
 
 @RunWith(classOf[JUnitRunner])
 class WskRestEntitlementTests extends WskEntitlementTests {
-  override lazy val wsk: common.rest.WskRest = new WskRest
+  override lazy val wsk = new WskRest
   override lazy val forbiddenCode = Forbidden.intValue
   override lazy val timeoutCode = BadGateway.intValue
   override lazy val notFoundCode = NotFound.intValue
