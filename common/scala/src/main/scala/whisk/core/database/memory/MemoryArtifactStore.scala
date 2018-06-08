@@ -379,10 +379,5 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     def apply(info: DocInfo): Artifact = {
       Artifact(info.id.id, info.rev.rev.toInt)(JsObject.empty, JsObject.empty)
     }
-
-    def apply(info: DocInfo, doc: JsObject, c: JsObject): Artifact = {
-      Artifact(info.id.id, info.rev.rev.toInt)(doc, c)
-    }
   }
-
 }
