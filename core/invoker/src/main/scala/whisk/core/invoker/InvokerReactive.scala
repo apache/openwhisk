@@ -331,45 +331,52 @@ class InvokerReactive(
       .recoverWith { case _ => after(delay, actorSystem.scheduler)(waitForActivationFeedIdle(feed)) }
   }
 
-  object Signals {
-    val TERM = new Signal("TERM")
-  }
-
+  // Capture SIGTERM signals to gracefully shutdown the invoker. When gracefully shutting down, the health scheduler is
+  // shutdown preventing additional actions from being scheduler to the invoker, then the invoker processes its buffered
+  // messages from the activation feed, and waits for its user containers to finish running before the process exits.
   Signal.handle(
-    Signals.TERM,
+    new Signal("TERM"),
     new SignalHandler() {
       override def handle(signal: Signal) = {
-        signal.getName match {
-          case "TERM" =>
-            logging.info(this, s"Starting graceful shutdown")
+        logging.info(this, s"Starting graceful shutdown")
 
-            // Shutdown the health scheduler, activation feed, and wait until container pool is idle. Order is important
-            // here so futures are ran sequentially
-            val shutdowns = for {
-              _ <- gracefulStop(healthScheduler, 5.seconds).recover {
-                case _ => logging.info(this, "Health communication failed to shutdown gracefully")
-              }
-              _ <- waitForActivationFeedIdle(activationFeed)
-              _ <- waitForContainerPoolIdle(pool)
-              _ <- gracefulStop(activationFeed, 5.seconds).recover {
-                case _ => logging.info(this, "Activation feed failed to shutdown gracefully")
-              }
-            } yield {
-              logging.info(this, "Successfully shutdown health scheduler, activation feed, and container pool")
-            }
+        // Order is important here so futures are ran sequentially
+        val shutdowns = for {
+          _ <- gracefulStop(healthScheduler, 5.seconds).recover {
+            case _ => logging.info(this, "Health communication failed to shutdown gracefully")
+          }
+          _ <- waitForActivationFeedIdle(activationFeed)
+          _ <- waitForContainerPoolIdle(pool)
+          _ <- gracefulStop(activationFeed, 5.seconds).recover {
+            case _ => logging.info(this, "Activation feed failed to shutdown gracefully")
+          }
+        } yield {
+          logging.info(this, "Successfully shutdown health scheduler, activation feed, and container pool")
+        }
 
-            try {
-              // Allow the shutdown to take a maximum of 3 times the maximum action runtime since the
-              // feed can be buffered and we want to allow for some grace period.
-              Await.result(shutdowns, TimeLimit.MAX_DURATION * 3)
-            } finally {
-              containerFactory.cleanup()
-              logging.info(this, "Shutting down invoker")
-              System.exit(0)
-            }
-          case _ =>
+        try {
+          // Allow the shutdown to take a maximum of 3 times the maximum action runtime since the feed can be
+          // buffered and we want to allow for some grace period.
+          Await.result(shutdowns, TimeLimit.MAX_DURATION * 3)
+        } finally {
+          containerFactory.cleanup()
+          logging.info(this, "Shutting down invoker")
+          System.exit(0)
         }
       }
     })
+
+  // Capture SIGUSR2 signals to put the invoker into drain mode. When draining, the health scheduler is shutdown
+  // preventing additional actions from being scheduled to the invoker allowing the invoker to process its current
+  // queue.
+  Signal.handle(new Signal("USR2"), new SignalHandler() {
+    override def handle(signal: Signal) = {
+      logging.info(this, "Draining invoker")
+
+      gracefulStop(healthScheduler, 5.seconds).recover {
+        case _ => logging.info(this, "Health communication failed to shutdown gracefully")
+      }
+    }
+  })
 
 }
