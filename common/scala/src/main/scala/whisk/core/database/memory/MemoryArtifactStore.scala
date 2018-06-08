@@ -85,7 +85,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
                                                                      documentHandler: DocumentHandler,
                                                                      viewMapper: MemoryViewMapper,
                                                                      val inliningConfig: InliningConfig,
-                                                                     attachmentStore: AttachmentStore)(
+                                                                     val attachmentStore: AttachmentStore)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
@@ -102,7 +102,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   private val _id = "_id"
   private val _rev = "_rev"
-  val attachmentScheme = attachmentStore.scheme
+  val attachmentScheme: String = attachmentStore.scheme
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord

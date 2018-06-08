@@ -177,6 +177,30 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
       .futureValue shouldBe a[NoDocumentException]
   }
 
+  it should "delete attachment on document delete" in {
+    val attachmentStore = getAttachmentStore(entityStore)
+    assume(attachmentStore.isDefined, "ArtifactStore does not have attachmentStore configured")
+
+    implicit val tid: TransactionId = transid()
+    val size = nonInlinedAttachmentSize(entityStore)
+    val base64 = encodedRandomBytes(size)
+
+    val exec = javaDefault(base64, Some("hello"))
+    val javaAction =
+      WhiskAction(namespace, EntityName("attachment_unique"), exec)
+
+    val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
+    val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue
+
+    WhiskAction.del(entityStore, i1).futureValue shouldBe true
+
+    val attachmentName = Uri(attached(action2).attachmentName).path.toString
+    attachmentStore.get
+      .readAttachment(i1.id, attachmentName, byteStringSink())
+      .failed
+      .futureValue shouldBe a[NoDocumentException]
+  }
+
   private def attached(a: WhiskAction): Attached =
     a.exec.asInstanceOf[CodeExec[Attachment[Nothing]]].code.asInstanceOf[Attached]
 

@@ -52,5 +52,8 @@ trait CouchDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
     CouchDbStoreProvider.makeArtifactStore[WhiskActivation](useBatching = true, getAttachmentStore[WhiskActivation]())
   }
 
+  override protected def getAttachmentStore(store: ArtifactStore[_]) =
+    store.asInstanceOf[CouchDbRestStore[_]].attachmentStore
+
   protected def getAttachmentStore[D <: DocumentSerializer: ClassTag](): Option[AttachmentStore] = None
 }

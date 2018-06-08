@@ -53,7 +53,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                                                   dbName: String,
                                                                   useBatching: Boolean = false,
                                                                   val inliningConfig: InliningConfig,
-                                                                  attachmentStore: Option[AttachmentStore])(
+                                                                  val attachmentStore: Option[AttachmentStore])(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],

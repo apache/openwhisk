@@ -275,7 +275,10 @@ trait DbUtils {
    */
   def cleanup()(implicit timeout: Duration = 10 seconds) = {
     docsToDelete.map { e =>
-      Try(Await.result(e._1.del(e._2)(TransactionId.testing), timeout))
+      Try {
+        Await.result(e._1.del(e._2)(TransactionId.testing), timeout)
+        Await.result(e._1.deleteAttachments(e._2)(TransactionId.testing), timeout)
+      }
     }
     docsToDelete.clear()
   }

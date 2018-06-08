@@ -126,5 +126,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     Future.successful(true)
   }
 
+  def attachmentCount: Int = attachments.size
+
   private def attachmentKey(docId: DocId, name: String) = s"${docId.id}/$name"
 }

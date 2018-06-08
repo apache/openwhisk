@@ -31,4 +31,10 @@ class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors 
   override val store: AttachmentStore = MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()
 
   override def storeType: String = "Memory"
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    val count = store.asInstanceOf[MemoryAttachmentStore].attachmentCount
+    require(count == 0, s"AttachmentStore not empty after all runs - $count")
+  }
 }
