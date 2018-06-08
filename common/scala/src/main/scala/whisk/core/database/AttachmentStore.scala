@@ -34,6 +34,8 @@ trait AttachmentStoreProvider extends Spi {
                                                      materializer: ActorMaterializer): AttachmentStore
 }
 
+case class AttachResult(digest: String, length: Long)
+
 trait AttachmentStore {
 
   protected[core] def scheme: String
@@ -43,11 +45,9 @@ trait AttachmentStore {
 
   /**
    * Attaches a "file" of type `contentType` to an existing document.
-   *
-   * @return tuple of attachment hash and attachment length
    */
   protected[core] def attach(doc: DocId, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-    implicit transid: TransactionId): Future[(String, Long)]
+    implicit transid: TransactionId): Future[AttachResult]
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.

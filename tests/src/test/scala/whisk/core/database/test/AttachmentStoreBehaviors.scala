@@ -68,7 +68,7 @@ trait AttachmentStoreBehaviors
     val docId = newDocId()
     val result = store.attach(docId, "code", ContentTypes.`application/octet-stream`, chunkedSource(bytes)).futureValue
 
-    result._2 shouldBe 16023
+    result.length shouldBe 16023
 
     val byteBuilder = store.readAttachment(docId, "code", byteStringSink()).futureValue
 
@@ -87,9 +87,9 @@ trait AttachmentStoreBehaviors
     val r2 = store.attach(docId, "c2", ContentTypes.`application/json`, chunkedSource(b2)).futureValue
     val r3 = store.attach(docId, "c3", ContentTypes.`application/json`, chunkedSource(b3)).futureValue
 
-    r1._2 shouldBe 1000
-    r2._2 shouldBe 2000
-    r3._2 shouldBe 3000
+    r1.length shouldBe 1000
+    r2.length shouldBe 2000
+    r3.length shouldBe 3000
 
     attachmentBytes(docId, "c1").futureValue.result() shouldBe ByteString(b1)
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)

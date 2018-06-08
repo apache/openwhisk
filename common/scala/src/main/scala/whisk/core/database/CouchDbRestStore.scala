@@ -373,8 +373,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
               val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
               Future.successful(a)
             } else {
-              val f = as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-              f.map { case (digest, length) => Attached(uri.toString, contentType, Some(length), Some(digest)) }
+              as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
+                .map { r =>
+                  Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
+                }
             }
           }
           i1 <- put(update(d, attached))

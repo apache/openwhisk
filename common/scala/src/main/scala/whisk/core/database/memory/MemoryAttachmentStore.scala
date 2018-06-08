@@ -59,7 +59,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     docId: DocId,
     name: String,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[(String, Long)] = {
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[AttachResult] = {
     require(name != null, "name undefined")
     val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$docId'")
 
@@ -71,7 +71,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
       attachments += (attachmentKey(docId, name) -> Attachment(r.uploadResult.result().compact))
       transid
         .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$docId'")
-      (r.digest, r.length)
+      AttachResult(r.digest, r.length)
     }
 
     reportFailure(

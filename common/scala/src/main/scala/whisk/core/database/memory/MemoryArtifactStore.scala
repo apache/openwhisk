@@ -301,8 +301,11 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
           val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
           Future.successful(a)
         } else {
-          val f = attachmentStore.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-          f.map { case (digest, length) => Attached(uri.toString, contentType, Some(length), Some(digest)) }
+          attachmentStore
+            .attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
+            .map { r =>
+              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
+            }
         }
       }
       i1 <- put(update(d, attached))
