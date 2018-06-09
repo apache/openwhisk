@@ -27,6 +27,8 @@ import common.TestUtils
 import common.rest.WskRestOperations
 import common.WskProps
 import common.WskTestHelpers
+import common.WskActorSystem
+
 import whisk.core.entity._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -38,7 +40,7 @@ import org.scalatest.tagobjects.Slow
  * Tests for action duration limits. These tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class MaxActionDurationTests extends TestHelpers with WskTestHelpers {
+class MaxActionDurationTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations

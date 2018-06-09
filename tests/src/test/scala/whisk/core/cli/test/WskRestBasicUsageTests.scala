@@ -36,6 +36,7 @@ import common.TestUtils._
 import common.WhiskProperties
 import common.WskProps
 import common.WskTestHelpers
+import common.WskActorSystem
 import common.rest.WskRestOperations
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -48,7 +49,7 @@ import whisk.http.Messages
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers {
+class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations

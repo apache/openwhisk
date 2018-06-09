@@ -19,26 +19,26 @@ package system.rest
 
 import scala.util.Success
 import scala.util.Try
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import com.jayway.restassured.RestAssured
-
-import common.TestUtils
-import common.WhiskProperties
+import common._
 import common.rest.WskRestOperations
-import common.WskProps
-import common.WskTestHelpers
 import spray.json._
 
 /**
  * Basic tests of API calls for actions
  */
 @RunWith(classOf[JUnitRunner])
-class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSchema with WskTestHelpers {
+class ActionSchemaTests
+    extends FlatSpec
+    with Matchers
+    with RestUtil
+    with JsonSchema
+    with WskTestHelpers
+    with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations

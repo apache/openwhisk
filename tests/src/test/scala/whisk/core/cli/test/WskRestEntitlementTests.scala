@@ -20,16 +20,15 @@ package whisk.core.cli.test
 import akka.http.scaladsl.model.StatusCodes.BadGateway
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.TestUtils.RunResult
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class WskRestEntitlementTests extends WskEntitlementTests {
+class WskRestEntitlementTests extends WskEntitlementTests with WskActorSystem {
   override lazy val wsk = new WskRestOperations
   override lazy val forbiddenCode = Forbidden.intValue
   override lazy val timeoutCode = BadGateway.intValue

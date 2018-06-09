@@ -295,6 +295,7 @@ class NamespaceSpecificThrottleTests
     extends FlatSpec
     with TestHelpers
     with WskTestHelpers
+    with WskActorSystem
     with Matchers
     with BeforeAndAfterAll
     with LocalHelper {

@@ -55,7 +55,7 @@ abstract class ApiGwEndToEndTests
 
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: WskOperations
-  val namespace: String = wsk.namespace.whois()
+  lazy val namespace: String = wsk.namespace.whois()
   val createCode: Int
 
   // Custom CLI properties file

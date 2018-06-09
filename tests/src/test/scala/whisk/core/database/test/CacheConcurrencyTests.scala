@@ -20,25 +20,20 @@ package whisk.core.database.test
 import scala.collection.parallel._
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.forkjoin.ForkJoinPool
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import common.TestUtils._
-import common.TestUtils
-import common.WhiskProperties
-import common.WskProps
-import common.WskTestHelpers
+import common._
 import common.rest.WskRestOperations
 import spray.json.JsString
 import whisk.common.TransactionId
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndAfterEach {
+class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with WskActorSystem with BeforeAndAfterEach {
 
   println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
 

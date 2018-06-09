@@ -25,7 +25,7 @@ import spray.json._
 import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.TestUtils.{RunResult, _}
-import common.TestUtils
+import common.{TestUtils, WskActorSystem}
 import system.rest.RestUtil
 import java.io.File
 
@@ -33,7 +33,7 @@ import java.io.File
  * Tests for testing the CLI "api" subcommand.  Most of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil {
+class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil with WskActorSystem {
   override lazy val wsk = new WskRestOperations
   override lazy val createCode = OK.intValue
 

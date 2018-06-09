@@ -17,17 +17,15 @@
 
 package system.basic
 
+import common.{TestUtils, WskActorSystem}
+import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.rest.WskRestOperations
-import common.TestUtils
-
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-class WskRestActionTests extends WskActionTests {
-  override val wsk: WskRestOperations = new WskRestOperations
+class WskRestActionTests extends WskActionTests with WskActorSystem {
+  override val wsk = new WskRestOperations
 
   it should "create an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "empty"

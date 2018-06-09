@@ -29,12 +29,13 @@ import org.scalatest.junit.JUnitRunner
 import common.TestUtils._
 import common.rest.WskRestOperations
 import common.rest.RestResult
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class ApiGwRestEndToEndTests extends ApiGwEndToEndTests {
+class ApiGwRestEndToEndTests extends ApiGwEndToEndTests with WskActorSystem {
 
-  override lazy val wsk: common.rest.WskRestOperations = new WskRestOperations
-  override val createCode: Int = OK.intValue
+  override lazy val wsk = new WskRestOperations
+  override val createCode = OK.intValue
 
   override def verifyAPICreated(rr: RunResult): Unit = {
     val apiResultRest = rr.asInstanceOf[RestResult]

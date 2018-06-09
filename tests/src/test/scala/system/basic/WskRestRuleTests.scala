@@ -23,6 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import common.TestUtils.RunResult
 import common.rest.WskRestOperations
 import common.rest.RestResult
+import common.WskActorSystem
 
 import whisk.utils.retry
 
@@ -32,8 +33,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-class WskRestRuleTests extends WskRuleTests {
-  override val wsk: common.rest.WskRestOperations = new WskRestOperations
+class WskRestRuleTests extends WskRuleTests with WskActorSystem {
+  override val wsk = new WskRestOperations
 
   override def verifyRuleList(ruleListResult: RunResult,
                               ruleNameEnable: String,

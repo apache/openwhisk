@@ -38,7 +38,7 @@ abstract class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
   val wsk: WskOperations
   val defaultNamespace = EntityPath.DEFAULT.asString
-  val namespace = wsk.namespace.whois()
+  lazy val namespace = wsk.namespace.whois()
 
   behavior of "Wsk Action Sequence"
 

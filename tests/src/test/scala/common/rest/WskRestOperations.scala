@@ -23,7 +23,6 @@ import java.util.Base64
 import java.security.cert.X509Certificate
 
 import org.apache.commons.io.FileUtils
-import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
@@ -67,7 +66,6 @@ import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.RunResult
 import common.WaitFor
 import common.WhiskProperties
-import common.WskActorSystem
 import common.WskProps
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
@@ -145,7 +143,7 @@ object HttpConnection {
   }
 }
 
-class WskRestOperations() extends RunWskRestCmd with WskOperations {
+class WskRestOperations(implicit actorSytem: ActorSystem) extends WskOperations {
   override implicit val action = new RestActionOperations
   override implicit val trigger = new RestTriggerOperations
   override implicit val rule = new RestRuleOperations
@@ -155,7 +153,7 @@ class WskRestOperations() extends RunWskRestCmd with WskOperations {
   override implicit val api = new RestGatewayOperations
 }
 
-trait RestListOrGetFromCollectionOperations extends RunWskRestCmd with ListOrGetFromCollectionOperations {
+trait RestListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperations with RunRestCmd {
   import FullyQualifiedNames.resolve
 
   /**
@@ -208,7 +206,7 @@ trait RestListOrGetFromCollectionOperations extends RunWskRestCmd with ListOrGet
   }
 }
 
-trait RestDeleteFromCollectionOperations extends RunWskRestCmd with DeleteFromCollectionOperations {
+trait RestDeleteFromCollectionOperations extends DeleteFromCollectionOperations with RunRestCmd {
 
   /**
    * Deletes entity from collection.
@@ -257,9 +255,8 @@ trait RestActivation extends HasActivation {
   }
 }
 
-class RestActionOperations
-    extends RunWskRestCmd
-    with RestListOrGetFromCollectionOperations
+class RestActionOperations(implicit val actorSystem: ActorSystem)
+    extends RestListOrGetFromCollectionOperations
     with RestDeleteFromCollectionOperations
     with RestActivation
     with ActionOperations {
@@ -458,9 +455,8 @@ class RestActionOperations
   }
 }
 
-class RestTriggerOperations
-    extends RunWskRestCmd
-    with RestListOrGetFromCollectionOperations
+class RestTriggerOperations(implicit val actorSystem: ActorSystem)
+    extends RestListOrGetFromCollectionOperations
     with RestDeleteFromCollectionOperations
     with RestActivation
     with TriggerOperations {
@@ -568,9 +564,8 @@ class RestTriggerOperations
   }
 }
 
-class RestRuleOperations
-    extends RunWskRestCmd
-    with RestListOrGetFromCollectionOperations
+class RestRuleOperations(implicit val actorSystem: ActorSystem)
+    extends RestListOrGetFromCollectionOperations
     with RestDeleteFromCollectionOperations
     with WaitFor
     with RuleOperations {
@@ -652,7 +647,11 @@ class RestRuleOperations
   }
 }
 
-class RestActivationOperations extends RunWskRestCmd with RestActivation with WaitFor with ActivationOperations {
+class RestActivationOperations(implicit val actorSystem: ActorSystem)
+    extends ActivationOperations
+    with RunRestCmd
+    with RestActivation
+    with WaitFor {
 
   protected val noun = "activations"
 
@@ -695,7 +694,7 @@ class RestActivationOperations extends RunWskRestCmd with RestActivation with Wa
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")
-    var paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++ {
+    val paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++ {
       limit map { l =>
         Map("limit" -> l.toString)
       } getOrElse Map.empty
@@ -864,7 +863,7 @@ class RestActivationOperations extends RunWskRestCmd with RestActivation with Wa
   private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class RestNamespaceOperations extends RunWskRestCmd with NamespaceOperations {
+class RestNamespaceOperations(implicit val actorSystem: ActorSystem) extends NamespaceOperations with RunRestCmd {
 
   protected val noun = "namespaces"
 
@@ -895,9 +894,8 @@ class RestNamespaceOperations extends RunWskRestCmd with NamespaceOperations {
   }
 }
 
-class RestPackageOperations
-    extends RunWskRestCmd
-    with RestListOrGetFromCollectionOperations
+class RestPackageOperations(implicit val actorSystem: ActorSystem)
+    extends RestListOrGetFromCollectionOperations
     with RestDeleteFromCollectionOperations
     with PackageOperations {
 
@@ -979,7 +977,7 @@ class RestPackageOperations
 
 }
 
-class RestGatewayOperations extends RunWskRestCmd with GatewayOperations {
+class RestGatewayOperations(implicit val actorSystem: ActorSystem) extends GatewayOperations with RunRestCmd {
   protected val noun = "apis"
 
   /**
@@ -1196,10 +1194,8 @@ class RestGatewayOperations extends RunWskRestCmd with GatewayOperations {
   }
 }
 
-class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
+trait RunRestCmd extends Matchers with ScalaFutures {
 
-  implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
-  implicit val materializer = ActorMaterializer()
   val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
   val queueSize = 10
@@ -1207,11 +1203,16 @@ class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskA
   val basePath = Path("/api/v1")
   val systemNamespace = "whisk.system"
 
-  val sslConfig = AkkaSSLConfig().mapSettings {
+  implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
+  implicit val actorSystem: ActorSystem
+  lazy implicit val executionContext = actorSystem.dispatcher
+  lazy implicit val materializer = ActorMaterializer()
+
+  lazy val sslConfig = AkkaSSLConfig().mapSettings {
     _.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
   }
 
-  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext(), Some(sslConfig))
+  lazy val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext(), Some(sslConfig))
 
   def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
