@@ -32,7 +32,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.WskProps
 import common.WskTestHelpers
@@ -44,7 +44,7 @@ import whisk.http.Messages
 class WskRestBasicTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: common.rest.WskRest = new WskRest
+  val wsk: common.rest.WskRestOperations = new WskRestOperations
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
   /**

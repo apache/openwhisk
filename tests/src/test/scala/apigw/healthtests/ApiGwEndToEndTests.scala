@@ -34,7 +34,7 @@ import com.jayway.restassured.RestAssured
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -54,7 +54,7 @@ abstract class ApiGwEndToEndTests
     with BeforeAndAfterAll {
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val namespace: String = wsk.namespace.whois()
   val createCode: Int
 

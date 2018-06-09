@@ -166,7 +166,7 @@ object RuleActivationResult extends DefaultJsonProtocol {
  * completed, will delete them all.
  */
 trait WskTestHelpers extends Matchers {
-  type Assets = ListBuffer[(BaseDeleteFromCollection, String, Boolean)]
+  type Assets = ListBuffer[(DeleteFromCollectionOperations, String, Boolean)]
 
   /**
    * Helper to register an entity to delete once a test completes.
@@ -175,7 +175,7 @@ trait WskTestHelpers extends Matchers {
    *
    */
   class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
-    def withCleaner[T <: BaseDeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
+    def withCleaner[T <: DeleteFromCollectionOperations](cli: T, name: String, confirmDelete: Boolean = true)(
       cmd: (T, String) => RunResult): RunResult = {
       // sanitize (delete) if asset exists
       cli.sanitize(name)(wskprops)
@@ -208,7 +208,7 @@ trait WskTestHelpers extends Matchers {
         case (cli, n, delete) =>
           n -> Try {
             cli match {
-              case _: BasePackage if delete =>
+              case _: PackageOperations if delete =>
                 // sanitize ignores the exit code, so we can inspect the actual result and retry accordingly
                 val rr = cli.sanitize(n)(wskprops)
                 rr.exitCode match {
@@ -239,7 +239,7 @@ trait WskTestHelpers extends Matchers {
    * the activation to the post processor which then check for expected values.
    */
   def withActivation(
-    wsk: BaseActivation,
+    wsk: ActivationOperations,
     run: RunResult,
     initialWait: Duration = 1.second,
     pollPeriod: Duration = 1.second,
@@ -257,7 +257,7 @@ trait WskTestHelpers extends Matchers {
    * Polls activations until one matching id is found. If found, pass
    * the activation to the post processor which then check for expected values.
    */
-  def withActivation(wsk: BaseActivation,
+  def withActivation(wsk: ActivationOperations,
                      activationId: String,
                      initialWait: Duration,
                      pollPeriod: Duration,
@@ -273,7 +273,7 @@ trait WskTestHelpers extends Matchers {
         }
     }
   }
-  def withActivation(wsk: BaseActivation, activationId: String)(check: ActivationResult => Unit)(
+  def withActivation(wsk: ActivationOperations, activationId: String)(check: ActivationResult => Unit)(
     implicit wskprops: WskProps): Unit = {
     withActivation(wsk, activationId, 1.second, 1.second, 60.seconds)(check)
   }

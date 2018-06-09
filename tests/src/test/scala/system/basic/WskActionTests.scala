@@ -23,7 +23,7 @@ import common.ActivationResult
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -33,7 +33,7 @@ import spray.json.DefaultJsonProtocol._
 abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)

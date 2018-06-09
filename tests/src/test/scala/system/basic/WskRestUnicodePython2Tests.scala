@@ -22,12 +22,12 @@ import org.scalatest.junit.JUnitRunner
 
 import common.JsHelpers
 import common.WskTestHelpers
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 @RunWith(classOf[JUnitRunner])
 class WskRestUnicodePython2Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
-  override val wsk: common.rest.WskRest = new WskRest
+  override val wsk: common.rest.WskRestOperations = new WskRestOperations
   override lazy val actionKind = "python:2"
   override lazy val actionSource = "unicode2.py"
 

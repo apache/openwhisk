@@ -33,7 +33,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.TestUtils._
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import WskAdmin.wskadmin
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -62,7 +62,7 @@ class ThrottleTests
 
   implicit val testConfig = PatienceConfig(5.minutes)
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   val throttleWindow = 1.minute
@@ -301,7 +301,7 @@ class NamespaceSpecificThrottleTests
 
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT): Unit = {
     val deletions = namespaces.map { ns =>

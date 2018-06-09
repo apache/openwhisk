@@ -29,7 +29,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 import common.TestUtils
 import common.WhiskProperties
-import common.rest.{HttpConnection, WskRest}
+import common.rest.{HttpConnection, WskRestOperations}
 import common.WskProps
 import common.WskTestHelpers
 import akka.http.scaladsl.model.Uri
@@ -81,7 +81,7 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
 
   val basePath = Path("/api/v1")
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   /**
    * Checks, if the required headers are in the list of all headers.

@@ -33,7 +33,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common._
-import common.rest.{HttpConnection, WskRest}
+import common.rest.{HttpConnection, WskRestOperations}
 import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -54,7 +54,7 @@ class ShootComponentsTests
     with ShootComponentUtils {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   implicit val materializer = ActorMaterializer()

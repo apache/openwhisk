@@ -22,7 +22,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import TestUtils.RunResult
@@ -36,7 +36,7 @@ import whisk.core.entity.EntityPath
 abstract class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val defaultNamespace = EntityPath.DEFAULT.asString
   val namespace = wsk.namespace.whois()
 

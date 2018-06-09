@@ -30,7 +30,7 @@ import com.jayway.restassured.response.Header
 import common.TestHelpers
 import common.TestUtils
 import common.WhiskProperties
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import common.SimpleExec
@@ -48,7 +48,7 @@ import whisk.core.entity.Subject
 abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
   val MAX_URL_LENGTH = 8192 // 8K matching nginx default
 
-  val wsk: BaseWsk
+  val wsk: WskOperations
   private implicit val wskprops = WskProps()
   val namespace = wsk.namespace.whois()
 

@@ -143,14 +143,14 @@ trait HasActivation {
   }
 }
 
-trait BaseWsk {
-  val action: BaseAction
-  val trigger: BaseTrigger
-  val rule: BaseRule
-  val activation: BaseActivation
-  val pkg: BasePackage
-  val namespace: BaseNamespace
-  val api: BaseApi
+trait WskOperations {
+  val action: ActionOperations
+  val trigger: TriggerOperations
+  val rule: RuleOperations
+  val activation: ActivationOperations
+  val pkg: PackageOperations
+  val namespace: NamespaceOperations
+  val api: GatewayOperations
 
   /*
    * Utility function to return a JSON object from the CLI output that returns
@@ -161,7 +161,7 @@ trait BaseWsk {
   }
 }
 
-trait BaseListOrGetFromCollection {
+trait ListOrGetFromCollectionOperations {
 
   protected val noun: String
 
@@ -193,7 +193,7 @@ trait BaseListOrGetFromCollection {
           saveAs: Option[String] = None)(implicit wp: WskProps): RunResult
 }
 
-trait BaseDeleteFromCollection {
+trait DeleteFromCollectionOperations {
 
   protected val noun: String
 
@@ -215,7 +215,7 @@ trait BaseDeleteFromCollection {
   def sanitize(name: String)(implicit wp: WskProps): RunResult
 }
 
-trait BaseAction extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
              artifact: Option[String],
@@ -243,7 +243,7 @@ trait BaseAction extends BaseDeleteFromCollection with BaseListOrGetFromCollecti
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BasePackage extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait PackageOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
              parameters: Map[String, JsValue] = Map(),
@@ -261,7 +261,7 @@ trait BasePackage extends BaseDeleteFromCollection with BaseListOrGetFromCollect
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseTrigger extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait TriggerOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
              parameters: Map[String, JsValue] = Map(),
@@ -279,7 +279,7 @@ trait BaseTrigger extends BaseDeleteFromCollection with BaseListOrGetFromCollect
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseRule extends BaseDeleteFromCollection with BaseListOrGetFromCollection {
+trait RuleOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
              trigger: String,
@@ -296,7 +296,7 @@ trait BaseRule extends BaseDeleteFromCollection with BaseListOrGetFromCollection
   def state(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
-trait BaseActivation {
+trait ActivationOperations {
 
   def extractActivationId(result: RunResult): Option[String]
 
@@ -328,14 +328,14 @@ trait BaseActivation {
     implicit wp: WskProps): RunResult
 }
 
-trait BaseNamespace {
+trait NamespaceOperations {
 
   def list(expectedExitCode: Int = SUCCESS_EXIT, nameSort: Option[Boolean] = None)(implicit wp: WskProps): RunResult
 
   def whois()(implicit wskprops: WskProps): String
 }
 
-trait BaseApi {
+trait GatewayOperations {
 
   def create(basepath: Option[String] = None,
              relpath: Option[String] = None,

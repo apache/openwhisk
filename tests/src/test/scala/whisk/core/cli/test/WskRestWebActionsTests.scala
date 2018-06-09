@@ -20,9 +20,9 @@ package whisk.core.cli.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 @RunWith(classOf[JUnitRunner])
 class WskRestWebActionsTests extends WskWebActionsTests {
-  override lazy val wsk: common.rest.WskRest = new WskRest
+  override lazy val wsk: common.rest.WskRestOperations = new WskRestOperations
 }

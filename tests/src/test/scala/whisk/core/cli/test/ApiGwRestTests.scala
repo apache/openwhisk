@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.json.JsObject
 import spray.json._
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.TestUtils.{RunResult, _}
 import common.TestUtils
@@ -34,7 +34,7 @@ import java.io.File
  */
 @RunWith(classOf[JUnitRunner])
 class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil {
-  override lazy val wsk = new WskRest
+  override lazy val wsk = new WskRestOperations
   override lazy val createCode = OK.intValue
 
   override def verifyBadCommands(rr: RunResult, badpath: String): Unit = {

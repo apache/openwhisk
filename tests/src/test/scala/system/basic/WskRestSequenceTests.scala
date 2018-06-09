@@ -20,7 +20,7 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import whisk.core.WhiskConfig
 
 /**
@@ -29,7 +29,7 @@ import whisk.core.WhiskConfig
 
 @RunWith(classOf[JUnitRunner])
 class WskRestSequenceTests extends WskSequenceTests {
-  override val wsk: common.rest.WskRest = new WskRest
+  override val wsk: common.rest.WskRestOperations = new WskRestOperations
   override val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
   assert(whiskConfig.isValid)
 }

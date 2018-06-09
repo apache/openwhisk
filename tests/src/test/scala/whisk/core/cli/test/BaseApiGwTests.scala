@@ -33,7 +33,7 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils._
 import common.WhiskProperties
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 
@@ -44,7 +44,7 @@ import common.WskTestHelpers
 abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with BeforeAndAfterEach with BeforeAndAfterAll {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
 
   // This test suite makes enough CLI invocations in 60 seconds to trigger the OpenWhisk
   // throttling restriction.  To avoid CLI failures due to being throttled, track the

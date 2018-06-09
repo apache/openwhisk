@@ -17,14 +17,14 @@
 
 package system.basic
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicSwift41Tests extends WskBasicSwift3Tests {
-  override val wsk: common.rest.WskRest = new WskRest
+  override val wsk: common.rest.WskRestOperations = new WskRestOperations
   override lazy val actionKind = "swift:4.1"
 
 }

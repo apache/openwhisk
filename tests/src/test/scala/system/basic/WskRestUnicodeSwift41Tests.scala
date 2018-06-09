@@ -18,14 +18,14 @@
 package system.basic
 
 import common.{JsHelpers, WskTestHelpers}
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class WskRestUnicodeSwift41Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
-  override val wsk: common.rest.WskRest = new WskRest
+  override val wsk: common.rest.WskRestOperations = new WskRestOperations
   override lazy val actionKind = "swift:4.1"
   override lazy val actionSource = "unicode.swift"
 

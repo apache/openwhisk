@@ -23,7 +23,7 @@ import scala.concurrent.duration.DurationInt
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -35,7 +35,7 @@ abstract class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHe
   val actionSource: String
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val activationMaxDuration = 2.minutes
   val activationPollDuration = 3.minutes
 
