@@ -46,12 +46,13 @@ import FullyQualifiedNames.resolve
  * of several traits that are common to the whisk collections and corresponds
  * to one of the top level CLI nouns.
  *
- * Each of the "noun" classes mixes in the RunWskCmd trait which runs arbitrary
- * wsk commands and returns the results. Optionally RunWskCmd can validate the exit
+ * Each of the "noun" classes mixes in the RunCliCmd trait which runs arbitrary
+ * wsk commands and returns the results. Optionally RunCliCmd can validate the exit
  * code matched a desired value.
  *
  * The various collections support one or more of these as common traits:
  * list, get, delete, and sanitize.
+ *
  * Sanitize is akin to delete but accepts a failure because entity may not
  * exit. Additionally, some of the nouns define custom commands.
  *
@@ -64,17 +65,26 @@ import FullyQualifiedNames.resolve
  * It also sets the apihost and apiversion explicitly to avoid ambiguity with
  * a local property file if it exists.
  */
-class Wsk extends WskOperations with RunWskCliCmd {
-  override implicit val action = new CliActionOperations
-  override implicit val trigger = new CliTriggerOperations
-  override implicit val rule = new CliRuleOperations
-  override implicit val activation = new CliActivationOperations
-  override implicit val pkg = new CliPackageOperations
-  override implicit val namespace = new CliNamespaceOperations
-  override implicit val api = new CliGatewayOperations
+class Wsk(cliPath: String = Wsk.defaultCliPath) extends WskOperations with RunCliCmd {
+
+  assert({
+    val f = new File(cliPath)
+    f.exists && f.isFile && f.canExecute
+  }, s"did not find $cliPath")
+
+  override def baseCommand = Buffer(cliPath)
+
+  override implicit val action = new CliActionOperations(this)
+  override implicit val trigger = new CliTriggerOperations(this)
+  override implicit val rule = new CliRuleOperations(this)
+  override implicit val activation = new CliActivationOperations(this)
+  override implicit val pkg = new CliPackageOperations(this)
+  override implicit val namespace = new CliNamespaceOperations(this)
+  override implicit val api = new CliGatewayOperations(this)
 }
 
-trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperations with RunWskCliCmd {
+trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperations {
+  val wsk: RunCliCmd
 
   /**
    * List entities in collection.
@@ -96,7 +106,7 @@ trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperat
         Seq("--name-sort")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -133,11 +143,12 @@ trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperat
       } getOrElse Seq()
     }
 
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 }
 
-trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations with RunWskCliCmd {
+trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations {
+  val wsk: RunCliCmd
 
   /**
    * Deletes entity from collection.
@@ -147,7 +158,7 @@ trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations w
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def delete(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
-    cli(wp.overrides ++ Seq(noun, "delete", "--auth", wp.authKey, fqn(name)), expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "delete", "--auth", wp.authKey, fqn(name)), expectedExitCode)
   }
 
   /**
@@ -161,7 +172,7 @@ trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations w
   }
 }
 
-class CliActionOperations
+class CliActionOperations(override val wsk: RunCliCmd)
     extends CliListOrGetFromCollectionOperations
     with CliDeleteFromCollectionOperations
     with HasActivation
@@ -250,7 +261,7 @@ class CliActionOperations
         Seq("--web-secure", ws)
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -275,11 +286,11 @@ class CliActionOperations
         Seq("-P", pf)
       } getOrElse Seq()
     } ++ { if (blocking) Seq("--blocking") else Seq() } ++ { if (result) Seq("--result") else Seq() }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 }
 
-class CliTriggerOperations
+class CliTriggerOperations(override val wsk: RunCliCmd)
     extends CliListOrGetFromCollectionOperations
     with CliDeleteFromCollectionOperations
     with HasActivation
@@ -328,7 +339,7 @@ class CliTriggerOperations
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -351,11 +362,11 @@ class CliTriggerOperations
         Seq("-P", pf)
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 }
 
-class CliRuleOperations
+class CliRuleOperations(override val wsk: RunCliCmd)
     extends CliListOrGetFromCollectionOperations
     with CliDeleteFromCollectionOperations
     with WaitFor
@@ -388,7 +399,7 @@ class CliRuleOperations
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -410,7 +421,7 @@ class CliRuleOperations
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def enable(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
-    cli(wp.overrides ++ Seq(noun, "enable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "enable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
   }
 
   /**
@@ -421,7 +432,7 @@ class CliRuleOperations
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def disable(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
-    cli(wp.overrides ++ Seq(noun, "disable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "disable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
   }
 
   /**
@@ -432,11 +443,11 @@ class CliRuleOperations
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def state(name: String, expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
-    cli(wp.overrides ++ Seq(noun, "status", "--auth", wp.authKey, fqn(name)), expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "status", "--auth", wp.authKey, fqn(name)), expectedExitCode)
   }
 }
 
-class CliActivationOperations extends ActivationOperations with RunWskCliCmd with HasActivation with WaitFor {
+class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations with HasActivation with WaitFor {
 
   protected val noun = "activation"
 
@@ -460,7 +471,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
         Seq("--since-seconds", s.toSeconds.toString)
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -485,7 +496,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
         Seq("--since", i.toEpochMilli.toString)
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -535,7 +546,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
         Seq("--summary")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey) ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey) ++ params, expectedExitCode)
   }
 
   /**
@@ -558,7 +569,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
         Seq("--last")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ Seq(noun, "logs", "--auth", wp.authKey) ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "logs", "--auth", wp.authKey) ++ params, expectedExitCode)
   }
 
   /**
@@ -581,7 +592,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
         Seq("--last")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ Seq(noun, "result", "--auth", wp.authKey) ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "result", "--auth", wp.authKey) ++ params, expectedExitCode)
   }
 
   /**
@@ -629,7 +640,8 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
     val activation = waitfor(
       () => {
         val result =
-          cli(wp.overrides ++ Seq(noun, "get", activationId, "--auth", wp.authKey), expectedExitCode = DONTCARE_EXIT)
+          wsk
+            .cli(wp.overrides ++ Seq(noun, "get", activationId, "--auth", wp.authKey), expectedExitCode = DONTCARE_EXIT)
         if (result.exitCode == NOT_FOUND) {
           null
         } else if (result.exitCode == SUCCESS_EXIT) {
@@ -657,7 +669,9 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCmd wit
   private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class CliNamespaceOperations extends CliDeleteFromCollectionOperations with NamespaceOperations with RunWskCliCmd {
+class CliNamespaceOperations(override val wsk: RunCliCmd)
+    extends CliDeleteFromCollectionOperations
+    with NamespaceOperations {
 
   protected val noun = "namespace"
 
@@ -674,7 +688,7 @@ class CliNamespaceOperations extends CliDeleteFromCollectionOperations with Name
         Seq("--name-sort")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -704,11 +718,11 @@ class CliNamespaceOperations extends CliDeleteFromCollectionOperations with Name
         Seq("--name-sort")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ Seq(noun, "get", resolve(namespace), "--auth", wp.authKey) ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ Seq(noun, "get", resolve(namespace), "--auth", wp.authKey) ++ params, expectedExitCode)
   }
 }
 
-class CliPackageOperations
+class CliPackageOperations(override val wsk: RunCliCmd)
     extends CliListOrGetFromCollectionOperations
     with CliDeleteFromCollectionOperations
     with PackageOperations {
@@ -750,7 +764,7 @@ class CliPackageOperations
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 
   /**
@@ -774,11 +788,11 @@ class CliPackageOperations
         Seq("-a", p._1, p._2.compactPrint)
       }
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    wsk.cli(wp.overrides ++ params, expectedExitCode)
   }
 }
 
-class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
+class CliGatewayOperations(val wsk: RunCliCmd) extends GatewayOperations {
   protected val noun = "api"
 
   /**
@@ -825,7 +839,7 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
         Seq("--response-type", t)
       } getOrElse Seq()
     }
-    cli(
+    wsk.cli(
       wp.overrides ++ params,
       expectedExitCode,
       showCmd = true,
@@ -876,7 +890,7 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
         Seq("--name-sort")
       } getOrElse Seq()
     }
-    cli(
+    wsk.cli(
       wp.overrides ++ params,
       expectedExitCode,
       showCmd = true,
@@ -908,7 +922,7 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
         Seq("--format", ft)
       } getOrElse Seq()
     }
-    cli(
+    wsk.cli(
       wp.overrides ++ params,
       expectedExitCode,
       showCmd = true,
@@ -935,7 +949,7 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
         Seq(o)
       } getOrElse Seq()
     }
-    cli(
+    wsk.cli(
       wp.overrides ++ params,
       expectedExitCode,
       showCmd = true,
@@ -943,16 +957,12 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
   }
 }
 
-trait RunWskCliCmd extends RunCliCmd {
-  private val binaryName = "wsk"
-  private val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
-
-  assert((new File(cliPath)).exists, s"did not find $cliPath")
+object Wsk {
+  val binaryName = "wsk"
+  val defaultCliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
 
   /** What is the path to a downloaded CLI? **/
   private def getDownloadedGoCLIPath = {
     s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
   }
-
-  def baseCommand = Buffer(cliPath)
 }
