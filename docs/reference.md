@@ -411,7 +411,7 @@ Swift 4.1 action runtime doesn't embed any packages, follow the instructions for
 
 ## PHP actions
 
-PHP actions are executed using PHP 7.1. To use this runtime, specify the `wsk` CLI parameter `--kind php:7.1` when creating or updating an action. This is the default when creating an action with file that has a `.php` extension.
+PHP actions are executed using PHP 7.1.18. To use this runtime, specify the `wsk` CLI parameter `--kind php:7.1` when creating or updating an action. This is the default when creating an action with file that has a `.php` extension.
 
 The following PHP extensions are available in addition to the standard ones:
 
@@ -431,8 +431,8 @@ The following PHP extensions are available in addition to the standard ones:
 
 The following Composer packages are also available:
 
-- guzzlehttp/guzzle       v6.3.0
-- ramsey/uuid             v3.6.1
+- guzzlehttp/guzzle       v6.7.3
+- ramsey/uuid             v3.6.3
 
 ## Docker actions
 
