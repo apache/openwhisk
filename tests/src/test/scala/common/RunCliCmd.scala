@@ -23,7 +23,8 @@ import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import org.scalatest.Matchers
 import TestUtils._
-
+import whisk.utils.retry
+import scala.concurrent.duration._
 import scala.collection.mutable
 
 trait RunCliCmd extends Matchers {
