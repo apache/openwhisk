@@ -32,7 +32,7 @@ import common.TestUtils
 import common.WhiskProperties
 import common.WskProps
 import common.WskTestHelpers
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import spray.json.JsString
 import whisk.common.TransactionId
 import whisk.utils.retry
@@ -44,7 +44,7 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
 
   implicit private val transId = TransactionId.testing
   implicit private val wp = WskProps()
-  private val wsk = new WskRest
+  private val wsk = new WskRestOperations
 
   val nExternalIters = 1
   val nInternalIters = 5

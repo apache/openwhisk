@@ -25,7 +25,7 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.RunResult
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -35,7 +35,7 @@ import spray.json.DefaultJsonProtocol._
 abstract class WskBasicNodeDefaultTests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
   val currentNodeJsDefaultKind = "nodejs:6"
 

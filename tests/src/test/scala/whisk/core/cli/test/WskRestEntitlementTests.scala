@@ -24,13 +24,13 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.TestUtils.RunResult
 
 @RunWith(classOf[JUnitRunner])
 class WskRestEntitlementTests extends WskEntitlementTests {
-  override lazy val wsk = new WskRest
+  override lazy val wsk = new WskRestOperations
   override lazy val forbiddenCode = Forbidden.intValue
   override lazy val timeoutCode = BadGateway.intValue
   override lazy val notFoundCode = NotFound.intValue

@@ -58,8 +58,8 @@ import akka.stream.ActorMaterializer
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import common._
-import common.BaseDeleteFromCollection
-import common.BaseListOrGetFromCollection
+import common.DeleteFromCollectionOperations
+import common.ListOrGetFromCollectionOperations
 import common.HasActivation
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.ANY_ERROR_EXIT
@@ -145,17 +145,17 @@ object HttpConnection {
   }
 }
 
-class WskRest() extends RunWskRestCmd with BaseWsk {
-  override implicit val action = new WskRestAction
-  override implicit val trigger = new WskRestTrigger
-  override implicit val rule = new WskRestRule
-  override implicit val activation = new WskRestActivation
-  override implicit val pkg = new WskRestPackage
-  override implicit val namespace = new WskRestNamespace
-  override implicit val api = new WskRestApi
+class WskRestOperations() extends RunWskRestCmd with WskOperations {
+  override implicit val action = new RestActionOperations
+  override implicit val trigger = new RestTriggerOperations
+  override implicit val rule = new RestRuleOperations
+  override implicit val activation = new RestActivationOperations
+  override implicit val pkg = new RestPackageOperations
+  override implicit val namespace = new RestNamespaceOperations
+  override implicit val api = new RestGatewayOperations
 }
 
-trait ListOrGetFromCollectionRest extends RunWskRestCmd with BaseListOrGetFromCollection {
+trait RestListOrGetFromCollectionOperations extends RunWskRestCmd with ListOrGetFromCollectionOperations {
   import FullyQualifiedNames.resolve
 
   /**
@@ -208,7 +208,7 @@ trait ListOrGetFromCollectionRest extends RunWskRestCmd with BaseListOrGetFromCo
   }
 }
 
-trait DeleteFromCollectionRest extends RunWskRestCmd with BaseDeleteFromCollection {
+trait RestDeleteFromCollectionOperations extends RunWskRestCmd with DeleteFromCollectionOperations {
 
   /**
    * Deletes entity from collection.
@@ -237,7 +237,7 @@ trait DeleteFromCollectionRest extends RunWskRestCmd with BaseDeleteFromCollecti
   }
 }
 
-trait HasActivationRest extends HasActivation {
+trait RestActivation extends HasActivation {
 
   /**
    * Extracts activation id from invoke (action or trigger) or activation get
@@ -257,12 +257,12 @@ trait HasActivationRest extends HasActivation {
   }
 }
 
-class WskRestAction
+class RestActionOperations
     extends RunWskRestCmd
-    with ListOrGetFromCollectionRest
-    with DeleteFromCollectionRest
-    with HasActivationRest
-    with BaseAction {
+    with RestListOrGetFromCollectionOperations
+    with RestDeleteFromCollectionOperations
+    with RestActivation
+    with ActionOperations {
 
   override protected val noun = "actions"
 
@@ -458,12 +458,12 @@ class WskRestAction
   }
 }
 
-class WskRestTrigger
+class RestTriggerOperations
     extends RunWskRestCmd
-    with ListOrGetFromCollectionRest
-    with DeleteFromCollectionRest
-    with HasActivationRest
-    with BaseTrigger {
+    with RestListOrGetFromCollectionOperations
+    with RestDeleteFromCollectionOperations
+    with RestActivation
+    with TriggerOperations {
 
   override protected val noun = "triggers"
 
@@ -568,12 +568,12 @@ class WskRestTrigger
   }
 }
 
-class WskRestRule
+class RestRuleOperations
     extends RunWskRestCmd
-    with ListOrGetFromCollectionRest
-    with DeleteFromCollectionRest
+    with RestListOrGetFromCollectionOperations
+    with RestDeleteFromCollectionOperations
     with WaitFor
-    with BaseRule {
+    with RuleOperations {
 
   override protected val noun = "rules"
 
@@ -652,7 +652,7 @@ class WskRestRule
   }
 }
 
-class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFor with BaseActivation {
+class RestActivationOperations extends RunWskRestCmd with RestActivation with WaitFor with ActivationOperations {
 
   protected val noun = "activations"
 
@@ -864,7 +864,7 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
   private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
+class RestNamespaceOperations extends RunWskRestCmd with NamespaceOperations {
 
   protected val noun = "namespaces"
 
@@ -895,11 +895,11 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
   }
 }
 
-class WskRestPackage
+class RestPackageOperations
     extends RunWskRestCmd
-    with ListOrGetFromCollectionRest
-    with DeleteFromCollectionRest
-    with BasePackage {
+    with RestListOrGetFromCollectionOperations
+    with RestDeleteFromCollectionOperations
+    with PackageOperations {
 
   override protected val noun = "packages"
 
@@ -979,7 +979,7 @@ class WskRestPackage
 
 }
 
-class WskRestApi extends RunWskRestCmd with BaseApi {
+class RestGatewayOperations extends RunWskRestCmd with GatewayOperations {
   protected val noun = "apis"
 
   /**
@@ -1386,15 +1386,21 @@ class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskA
                    web: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, actName) = this.getNamespaceEntityName(name)
+
     val path =
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
+
     val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
+
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))
     } getOrElse Some(parameters.toJson.toString)
+
     val resp = requestEntity(POST, path, paramMap, input)
+
     val rr = new RestResult(resp.status.intValue, getRespData(resp), blocking)
+
     // If the statusCode does not not equal to expectedExitCode, it is acceptable that the statusCode
     // equals to 200 for the case that either blocking or result is set to true.
     if (!isStatusCodeExpected(expectedExitCode, rr.statusCode.intValue)) {
@@ -1404,6 +1410,7 @@ class RunWskRestCmd() extends FlatSpec with Matchers with ScalaFutures with WskA
         rr.statusCode.intValue shouldBe expectedExitCode
       }
     }
+
     rr
   }
 }

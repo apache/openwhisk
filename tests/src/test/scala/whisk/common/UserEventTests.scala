@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets
 
 import akka.actor.ActorSystem
 import common._
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -38,7 +38,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
   implicit val system = ActorSystem("UserEventTestSystem")
   val config = new WhiskConfig(WhiskConfig.kafkaHosts)
 
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   val groupid = "kafkatest"
   val topic = "events"

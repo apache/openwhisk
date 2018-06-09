@@ -20,9 +20,9 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 @RunWith(classOf[JUnitRunner])
 class WskRestConductorTests extends WskConductorTests {
-  override val wsk: WskRest = new WskRest
+  override val wsk: WskRestOperations = new WskRestOperations
 }

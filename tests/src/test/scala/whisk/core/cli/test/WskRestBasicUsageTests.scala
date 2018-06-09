@@ -36,7 +36,7 @@ import common.TestUtils._
 import common.WhiskProperties
 import common.WskProps
 import common.WskTestHelpers
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.core.entity._
@@ -51,7 +51,7 @@ import whisk.http.Messages
 class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 

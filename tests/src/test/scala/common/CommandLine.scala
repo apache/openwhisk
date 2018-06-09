@@ -26,7 +26,7 @@ import TestUtils._
 
 import scala.collection.mutable
 
-trait CliCommand extends Matchers {
+trait CommandLine extends Matchers {
 
   /**
    * The base command to run. This returns a new mutable buffer, intended for building the rest of the command line.
@@ -102,7 +102,7 @@ trait CliCommand extends Matchers {
 }
 
 object WskAdmin {
-  val wskadmin = new CliCommand {
+  val wskadmin = new CommandLine {
     override def baseCommand: mutable.Buffer[String] = WskAdmin.baseCommand
   }
 

@@ -28,7 +28,7 @@ import common.StreamLogging
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 
@@ -43,7 +43,7 @@ import whisk.http.Messages._
 abstract class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers with StreamLogging {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val allowedActionDuration = 120 seconds
 
   val testString = "this is a test"

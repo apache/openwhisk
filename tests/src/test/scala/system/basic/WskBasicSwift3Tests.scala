@@ -23,7 +23,7 @@ import scala.concurrent.duration.DurationInt
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -33,7 +33,7 @@ import common.TestUtils.RunResult
 abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.swift"))
   lazy val actionKind = "swift:3.1.1"
   val activationMaxDuration = 2.minutes

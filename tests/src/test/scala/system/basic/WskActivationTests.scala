@@ -20,7 +20,7 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.{BaseWsk, TestHelpers, TestUtils, WskProps, WskTestHelpers}
+import common.{TestHelpers, TestUtils, WskOperations, WskProps, WskTestHelpers}
 
 import whisk.utils.retry
 
@@ -33,7 +33,7 @@ import spray.json.DefaultJsonProtocol._
 abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
 
-  val wsk: BaseWsk
+  val wsk: WskOperations
 
   behavior of "Whisk activations"
 

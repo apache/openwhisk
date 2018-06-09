@@ -24,7 +24,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.WskProps
 import common.WskTestHelpers
 import whisk.core.entity._
@@ -41,7 +41,7 @@ import org.scalatest.tagobjects.Slow
 class MaxActionDurationTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   /**
    * Purpose of the following integration test is to verify that the action proxy

@@ -22,7 +22,7 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.RunResult
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import common.RuleActivationResult
@@ -34,7 +34,7 @@ import java.time.Instant
 abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val defaultAction = TestUtils.getTestActionFilename("wc.js")
   val secondAction = TestUtils.getTestActionFilename("hello.js")
   val testString = "this is a test"

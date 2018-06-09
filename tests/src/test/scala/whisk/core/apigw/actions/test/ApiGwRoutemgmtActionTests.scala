@@ -27,7 +27,7 @@ import common.TestHelpers
 import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.RunResult
 import common.TestUtils.SUCCESS_EXIT
-import common.BaseWsk
+import common.WskOperations
 import common.WskActorSystem
 import common.WskAdmin
 import common.WskProps
@@ -50,7 +50,7 @@ abstract class ApiGwRoutemgmtActionTests
 
   val systemId = "whisk.system"
   implicit val wskprops = WskProps(authKey = WskAdmin.listKeys(systemId)(0)._1, namespace = systemId)
-  val wsk: BaseWsk
+  val wsk: WskOperations
 
   def getApis(bpOrName: Option[String],
               relpath: Option[String] = None,

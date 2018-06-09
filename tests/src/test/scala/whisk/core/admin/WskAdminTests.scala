@@ -19,7 +19,7 @@ package whisk.core.admin
 
 import common.WskAdmin.wskadmin
 import common.{TestHelpers, TestUtils, WskAdmin, WskProps}
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.scalatest.junit.JUnitRunner
@@ -115,7 +115,7 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
 
   it should "verify guest account installed correctly" in {
     implicit val wskprops = WskProps()
-    val wsk = new WskRest
+    val wsk = new WskRestOperations
     val ns = wsk.namespace.whois()
     wskadmin.cli(Seq("user", "get", ns)).stdout.trim should be(wskprops.authKey)
   }

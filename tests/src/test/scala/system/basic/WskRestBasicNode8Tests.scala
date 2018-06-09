@@ -17,12 +17,12 @@
 
 package system.basic
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicNode8Tests extends WskBasicNode8Tests {
-  override val wsk: common.rest.WskRest = new WskRest
+  override val wsk: common.rest.WskRestOperations = new WskRestOperations
 }

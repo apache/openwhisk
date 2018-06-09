@@ -20,12 +20,12 @@ package whisk.core.apigw.actions.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.rest.WskRest
+import common.rest.WskRestOperations
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
 class ApiGwRestRoutemgmtActionTests extends ApiGwRoutemgmtActionTests {
-  override lazy val wsk = new WskRest
+  override lazy val wsk = new WskRestOperations
 }

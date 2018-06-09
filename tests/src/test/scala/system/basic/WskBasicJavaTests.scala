@@ -24,7 +24,7 @@ import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
 import common.WskTestHelpers
 import common.WskProps
-import common.BaseWsk
+import common.WskOperations
 
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
@@ -36,7 +36,7 @@ import spray.json.JsString
 abstract class WskBasicJavaTests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val expectedDuration = 120.seconds
   val activationPollDuration = 60.seconds
 

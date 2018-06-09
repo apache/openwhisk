@@ -24,7 +24,7 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.RunResult
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -36,7 +36,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAndAfterAll {
 
-  val wsk: BaseWsk
+  val wsk: WskOperations
   lazy val defaultWskProps = WskProps()
   lazy val guestWskProps = getAdditionalTestSubject(Subject().asString)
   val forbiddenCode: Int

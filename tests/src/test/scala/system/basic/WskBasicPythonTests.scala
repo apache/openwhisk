@@ -26,7 +26,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import common.WhiskProperties
@@ -35,7 +35,7 @@ import common.WhiskProperties
 abstract class WskBasicPythonTests extends TestHelpers with WskTestHelpers with Matchers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
 
   behavior of "Native Python Action"
 

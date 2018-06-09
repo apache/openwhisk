@@ -24,7 +24,7 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.TestUtils
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -37,7 +37,7 @@ import common.WskProps
 abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations
   val LOG_DELAY = 80 seconds
 
   behavior of "Wsk Package"

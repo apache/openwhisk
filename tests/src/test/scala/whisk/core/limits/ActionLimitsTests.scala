@@ -32,7 +32,7 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
 import common.WhiskProperties
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -45,7 +45,7 @@ import whisk.http.Messages
 class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   val defaultSleepAction = TestUtils.getTestActionFilename("sleep.js")
   val allowedActionDuration = 10 seconds
