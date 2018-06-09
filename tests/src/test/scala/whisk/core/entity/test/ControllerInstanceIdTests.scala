@@ -28,17 +28,19 @@ class ControllerInstanceIdTests extends FlatSpec with Matchers {
 
   behavior of "StringInstanceId"
 
-  it should "strip unusable characters when creating a topic name" in {
-    val id = ControllerInstanceId("  12  34&&^^%%5$ $7890._-123  ")
-    id.asString shouldBe "123457890._-123"
+  it should "accept usable characters" in {
+    Seq("a", "1", "a.1", "a_1").foreach { s =>
+      ControllerInstanceId(s).asString shouldBe s
+
+    }
   }
 
-  it should "throw an exception when the topic name length exceeds the limit" in {
-    val maxLen = 230
-    //229 chars is fine
-    ControllerInstanceId("1" * (maxLen - 1)) //should be fine
-    //230 chars is too long...
-    a[IllegalArgumentException] should be thrownBy ControllerInstanceId("1" * 230)
+  it should "reject unusable characters" in {
+    Seq(" ", "!", "$", "a" * 129).foreach { s =>
+      an[IllegalArgumentException] shouldBe thrownBy {
+        ControllerInstanceId(s)
+      }
+    }
   }
 
 }
