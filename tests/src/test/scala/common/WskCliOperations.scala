@@ -35,7 +35,6 @@ import spray.json.JsObject
 import spray.json.JsValue
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-import common._
 
 import FullyQualifiedNames.fqn
 import FullyQualifiedNames.resolve
@@ -65,7 +64,7 @@ import FullyQualifiedNames.resolve
  * It also sets the apihost and apiversion explicitly to avoid ambiguity with
  * a local property file if it exists.
  */
-class Wsk extends WskOperations {
+class Wsk extends WskOperations with RunWskCliCmd {
   override implicit val action = new CliActionOperations
   override implicit val trigger = new CliTriggerOperations
   override implicit val rule = new CliRuleOperations
@@ -75,7 +74,7 @@ class Wsk extends WskOperations {
   override implicit val api = new CliGatewayOperations
 }
 
-trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperations with RunWskCliCommand {
+trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperations with RunWskCliCmd {
 
   /**
    * List entities in collection.
@@ -138,7 +137,7 @@ trait CliListOrGetFromCollectionOperations extends ListOrGetFromCollectionOperat
   }
 }
 
-trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations with RunWskCliCommand {
+trait CliDeleteFromCollectionOperations extends DeleteFromCollectionOperations with RunWskCliCmd {
 
   /**
    * Deletes entity from collection.
@@ -437,7 +436,7 @@ class CliRuleOperations
   }
 }
 
-class CliActivationOperations extends ActivationOperations with RunWskCliCommand with HasActivation with WaitFor {
+class CliActivationOperations extends ActivationOperations with RunWskCliCmd with HasActivation with WaitFor {
 
   protected val noun = "activation"
 
@@ -658,7 +657,7 @@ class CliActivationOperations extends ActivationOperations with RunWskCliCommand
   private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class CliNamespaceOperations extends CliDeleteFromCollectionOperations with NamespaceOperations with RunWskCliCommand {
+class CliNamespaceOperations extends CliDeleteFromCollectionOperations with NamespaceOperations with RunWskCliCmd {
 
   protected val noun = "namespace"
 
@@ -779,7 +778,7 @@ class CliPackageOperations
   }
 }
 
-class CliGatewayOperations extends GatewayOperations with RunWskCliCommand {
+class CliGatewayOperations extends GatewayOperations with RunWskCliCmd {
   protected val noun = "api"
 
   /**
@@ -944,7 +943,7 @@ class CliGatewayOperations extends GatewayOperations with RunWskCliCommand {
   }
 }
 
-trait RunWskCliCommand extends RunCliCmd {
+trait RunWskCliCmd extends RunCliCmd {
   private val binaryName = "wsk"
   private val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
 
