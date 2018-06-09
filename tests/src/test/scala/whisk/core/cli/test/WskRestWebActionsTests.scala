@@ -17,12 +17,12 @@
 
 package whisk.core.cli.test
 
+import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.rest.WskRestOperations
 
 @RunWith(classOf[JUnitRunner])
-class WskRestWebActionsTests extends WskWebActionsTests {
-  override lazy val wsk: common.rest.WskRestOperations = new WskRestOperations
+class WskRestWebActionsTests extends WskWebActionsTests with WskActorSystem {
+  override lazy val wsk = new WskRestOperations
 }

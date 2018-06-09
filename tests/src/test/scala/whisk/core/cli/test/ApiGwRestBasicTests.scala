@@ -36,7 +36,7 @@ import common.WskProps
 @RunWith(classOf[JUnitRunner])
 abstract class ApiGwRestBasicTests extends BaseApiGwTests {
 
-  val clinamespace = wsk.namespace.whois()
+  lazy val clinamespace = wsk.namespace.whois()
   val createCode: Int
 
   def verifyBadCommands(rr: RunResult, badpath: String): Unit = {

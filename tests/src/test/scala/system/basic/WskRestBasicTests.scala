@@ -36,15 +36,17 @@ import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.WskProps
 import common.WskTestHelpers
+import common.WskActorSystem
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class WskRestBasicTests extends TestHelpers with WskTestHelpers {
+class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
-  implicit val wskprops: common.WskProps = WskProps()
-  val wsk: common.rest.WskRestOperations = new WskRestOperations
+  implicit val wskprops = WskProps()
+  val wsk = new WskRestOperations
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
   /**

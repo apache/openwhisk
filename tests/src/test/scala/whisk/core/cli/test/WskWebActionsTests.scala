@@ -48,9 +48,9 @@ import whisk.core.entity.Subject
 abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
   val MAX_URL_LENGTH = 8192 // 8K matching nginx default
 
-  val wsk: WskOperations
   private implicit val wskprops = WskProps()
-  val namespace = wsk.namespace.whois()
+  val wsk: WskOperations
+  lazy val namespace = wsk.namespace.whois()
 
   protected val testRoutePath: String = "/api/v1/web"
 
@@ -313,7 +313,7 @@ abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with R
 
   private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
 
-  private val (vanitySubdomain, vanityNamespace, makeTestSubject) = {
+  private lazy val (vanitySubdomain, vanityNamespace, makeTestSubject) = {
     if (namespace.matches(subdomainRegex)) {
       (namespace, namespace, false)
     } else {
@@ -322,7 +322,7 @@ abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with R
     }
   }
 
-  private val wskPropsForSubdomainTest = if (makeTestSubject) {
+  private lazy val wskPropsForSubdomainTest = if (makeTestSubject) {
     getAdditionalTestSubject(vanityNamespace) // create new subject for the test
   } else {
     WskProps()

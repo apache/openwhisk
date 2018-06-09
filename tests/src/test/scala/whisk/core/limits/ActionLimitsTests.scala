@@ -35,6 +35,8 @@ import common.WhiskProperties
 import common.rest.WskRestOperations
 import common.WskProps
 import common.WskTestHelpers
+import common.WskActorSystem
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize, Exec, LogLimit, MemoryLimit, TimeLimit}
@@ -42,7 +44,7 @@ import whisk.core.entity.size._
 import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class ActionLimitsTests extends TestHelpers with WskTestHelpers {
+class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations

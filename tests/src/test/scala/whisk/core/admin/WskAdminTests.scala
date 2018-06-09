@@ -18,7 +18,7 @@
 package whisk.core.admin
 
 import common.WskAdmin.wskadmin
-import common.{TestHelpers, TestUtils, WskAdmin, WskProps}
+import common._
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers}
@@ -30,7 +30,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
+class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with BeforeAndAfterAll {
 
   override def beforeAll() = {
     val testSpaces = Seq("testspace", "testspace1", "testspace2")
