@@ -320,6 +320,19 @@ trait WskTestHelpers extends Matchers {
       wskadmin.cli(Seq("user", "delete", subject), expectedExitCode).stdout should include("Subject deleted")
     }
   }
-  //Append the current timestamp in ms
+
+  /** Appends the current timestamp in ms. */
   def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
+
+  /** Strips the first line if it ends in a new line as is common for CLI output. */
+  def removeCLIHeader(response: String): String = {
+    if (response.contains("\n")) response.substring(response.indexOf("\n")) else response
+  }
+
+  // using annotation will cause compile errors because we use -Xfatal-warnings
+  // @deprecated(message = "use wsk.parseJsonString instead", since = "pr #3741")
+  def getJSONFromResponse(response: String, isCli: Boolean = false): JsObject = {
+    println("!!! WARNING: method is deprecated; use wsk.parseJsonString instead")
+    if (isCli) removeCLIHeader(response).parseJson.asJsObject else response.parseJson.asJsObject
+  }
 }
