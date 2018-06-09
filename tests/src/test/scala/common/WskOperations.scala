@@ -152,9 +152,18 @@ trait WskOperations {
   val namespace: NamespaceOperations
   val api: GatewayOperations
 
-  /*
-   * Utility function to return a JSON object from the CLI output that returns
-   * an optional a status line following by the JSON data
+  /**
+   * Utility function which strips the leading line if it ends in a newline (present when output is from
+   * wsk CLI) and parses the rest as a JSON object.
+   */
+  def parseJsonString(jsonStr: String): JsObject = WskOperations.parseJsonString(jsonStr)
+}
+
+object WskOperations {
+
+  /**
+   * Utility function which strips the leading line if it ends in a newline (present when output is from
+   * wsk CLI) and parses the rest as a JSON object.
    */
   def parseJsonString(jsonStr: String): JsObject = {
     jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
