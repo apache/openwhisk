@@ -19,22 +19,11 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:invoker'
-include 'actionRuntimes:nodejs6Action'
-include 'actionRuntimes:nodejs8Action'
-include 'actionRuntimes:actionProxy'
-include 'actionRuntimes:pythonAction'
-include 'actionRuntimes:python2Action'
-include 'actionRuntimes:swift3.1.1Action'
-include 'actionRuntimes:swift4.1Action'
-include 'actionRuntimes:javaAction'
-include 'actionRuntimes:php7.1Action'
-
-include 'sdk:docker'
 
 include 'tests'
-include 'tests:dat:blackbox:badaction'
-include 'tests:dat:blackbox:badproxy'
 include 'tests:performance:gatling_tests'
+
+include 'tools:actionProxy'
 
 rootProject.name = 'openwhisk'
 

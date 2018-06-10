@@ -47,6 +47,12 @@ For example, the following is handy to run a subset of all tests from the comman
 
   * `redo tests -a '--tests package.name.TestClass.evenMethodName'`
 
+Some components are dynamically generated. This is supported by a generic component name
+which specifies a regex. The `runtime:([\w]+)` is one such component, useful for rebuilding
+action runtime images.
+
+  * `redo --dir /path/to/incubator-openwhisk-runtime-nodejs runtime:nodejs6action`
+
 ## How to use `citool`
 
 This script allows for monitoring of ongoing Jenkins and Travis builds.
