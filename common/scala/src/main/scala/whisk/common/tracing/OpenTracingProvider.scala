@@ -17,8 +17,8 @@
 
 package whisk.common.tracing
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 import brave.Tracing
 import brave.opentracing.BraveTracer
 import brave.sampler.Sampler
@@ -31,14 +31,12 @@ import pureconfig._
 import whisk.common.{LogMarkerToken, TransactionId}
 import whisk.core.ConfigKeys
 
+import scala.ref.WeakReference
+
 /**
  * OpenTracing based implementation for tracing
  */
 class OpenTracer(val tracer: Tracer) extends WhiskTracer {
-
-  private val spanMap: mutable.Map[String, mutable.ListBuffer[Span]] =
-    TrieMap[String, mutable.ListBuffer[Span]]()
-  private val contextMap: mutable.Map[String, SpanContext] = TrieMap[String, SpanContext]()
 
   /**
    * Start a Trace for given service.
@@ -49,23 +47,25 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
   override def startSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
 
     val activeSpan: Option[Span] =
-      spanMap.get(transactionId.meta.id) match {
+      TracingCacheProvider.spanCache.get(transactionId.meta.id) match {
         case Some(spanList) => {
           //create a child span
+          val spanBuilder = tracer
+            .buildSpan(logMarker.action)
+            .withTag("transactionId", transactionId.meta.id)
+
           Some(
-            tracer
-              .buildSpan(logMarker.action)
-              .withTag("transactionId", transactionId.meta.id)
-              .asChildOf(spanList.last)
-              .startActive(true)
-              .span())
+            spanList.last.get
+              .map(spanBuilder.asChildOf(_).startActive(true).span())
+              .getOrElse(spanBuilder.startActive(true).span()))
+
         }
         case None => {
           //initialize list for this transactionId
-          val list: mutable.ListBuffer[Span] = mutable.ListBuffer()
-          spanMap.put(transactionId.meta.id, list)
+          val list: mutable.ListBuffer[WeakReference[Span]] = mutable.ListBuffer()
+          TracingCacheProvider.spanCache.put(transactionId.meta.id, list)
 
-          contextMap.get(transactionId.meta.id) match {
+          TracingCacheProvider.contextCache.get(transactionId.meta.id) match {
             case Some(context) => {
               //create child span if we have a tracing context
               Some(
@@ -91,7 +91,7 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
 
     //add active span to list
     if (activeSpan.isDefined)
-      spanMap.get(transactionId.meta.id).map(_.+=:(activeSpan.get))
+      TracingCacheProvider.spanCache.get(transactionId.meta.id).map(_.+=:(new WeakReference(activeSpan.get)))
   }
 
   /**
@@ -99,7 +99,7 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    *
    * @param transactionId
    */
-  override def finishSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
+  override def finishSpan(transactionId: TransactionId): Unit = {
     clear(transactionId)
   }
 
@@ -120,12 +120,17 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    */
   override def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
     var contextMap: Option[Map[String, String]] = None
-    spanMap.get(transactionId.meta.id) match {
+    TracingCacheProvider.spanCache.get(transactionId.meta.id) match {
       case Some(spanList) => {
         var map: java.util.Map[String, String] = new java.util.HashMap()
         //inject latest span context in map
-        tracer.inject(spanList.last.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map))
-        contextMap = Some(scala.collection.JavaConverters.mapAsScalaMapConverter(map).asScala.toMap)
+        spanList.last.get match {
+          case Some(span) => {
+            tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map))
+            contextMap = Some(map.asScala.toMap)
+          }
+          case _ =>
+        }
       }
       case None => None
     }
@@ -144,20 +149,20 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
         var javaMap: java.util.Map[String, String] =
           scala.collection.JavaConverters.mapAsJavaMapConverter(scalaMap).asJava
         var ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(javaMap))
-        contextMap.put(transactionId.meta.id, ctx)
+        TracingCacheProvider.contextCache.put(transactionId.meta.id, ctx)
       }
       case None =>
     }
   }
 
   private def clear(transactionId: TransactionId): Unit = {
-    spanMap.get(transactionId.meta.id) match {
+    TracingCacheProvider.spanCache.get(transactionId.meta.id) match {
       case Some(spanList) => {
-        spanList.last.finish
+        spanList.last.get.map(_.finish)
         spanList.remove(spanList.size - 1)
         if (spanList.isEmpty) {
-          spanMap.remove(transactionId.meta.id)
-          contextMap.remove(transactionId.meta.id)
+          TracingCacheProvider.spanCache.invalidate(transactionId.meta.id)
+          TracingCacheProvider.contextCache.invalidate(transactionId.meta.id)
         }
 
       }
@@ -168,7 +173,7 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
 
 trait WhiskTracer {
   def startSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {}
-  def finishSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {}
+  def finishSpan(transactionId: TransactionId): Unit = {}
   def error(transactionId: TransactionId): Unit = {}
   def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = None
   def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]): Unit = {}
@@ -185,7 +190,7 @@ object WhiskTracerProvider {
       case Some(zipkinConfig) => {
         val zipkinConfig = tracingConfig.zipkin.get
         if (!GlobalTracer.isRegistered) {
-          val sender: Sender = OkHttpSender.create(zipkinConfig.url)
+          val sender: Sender = OkHttpSender.create(zipkinConfig.getUrl)
           val spanReporter = AsyncReporter.create(sender)
           val braveTracing = Tracing
             .newBuilder()
@@ -209,7 +214,7 @@ object WhiskTracerProvider {
 }
 
 private object NoopTracer extends WhiskTracer
-case class TracingConfig(component: String, zipkin: Option[ZipkinConfig] = None)
-case class ZipkinConfig(host: String, port: Int, sampleRate: String) {
-  def url = s"http://$host:$port/api/v2/spans"
+case class TracingConfig(component: String, cacheExpiry: Option[Int] = None, zipkin: Option[ZipkinConfig] = None)
+case class ZipkinConfig(url: String, sampleRate: String) {
+  def getUrl = s"$url/api/v2/spans"
 }

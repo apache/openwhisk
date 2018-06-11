@@ -123,7 +123,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
 
     //tracing support
-    WhiskTracerProvider.tracer.finishSpan(endMarker, this)
+    WhiskTracerProvider.tracer.finishSpan(this)
   }
 
   /**
