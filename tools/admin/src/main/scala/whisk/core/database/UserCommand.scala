@@ -21,6 +21,7 @@ import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Sink, Source}
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import spray.json.{JsBoolean, JsObject, JsString, JsValue, RootJsonFormat}
 import whisk.common.{Logging, TransactionId}
@@ -134,6 +135,18 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   }
   addSubcommand(list)
 
+  val block = new Subcommand("block") {
+    descr("block one or more users")
+    val subjects = trailArg[List[String]](descr = "one or more users to block")
+  }
+  addSubcommand(block)
+
+  val unblock = new Subcommand("unblock") {
+    descr("unblock one or more users")
+    val subjects = trailArg[List[String]](descr = "one or more users to unblock")
+  }
+  addSubcommand(unblock)
+
   def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
                                  logging: Logging,
                                  materializer: ActorMaterializer,
@@ -141,11 +154,13 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     implicit val executionContext = system.dispatcher
     val authStore = UserCommand.createDataStore()
     val result = cmd match {
-      case `create` => createUser(authStore)
-      case `delete` => deleteUser(authStore)
-      case `get`    => getKey(authStore)
-      case `whois`  => whoIs(authStore)
-      case `list`   => list(authStore)
+      case `create`  => createUser(authStore)
+      case `delete`  => deleteUser(authStore)
+      case `get`     => getKey(authStore)
+      case `whois`   => whoIs(authStore)
+      case `list`    => list(authStore)
+      case `block`   => changeUserState(authStore, block.subjects(), blocked = true)
+      case `unblock` => changeUserState(authStore, unblock.subjects(), blocked = false)
     }
     result.onComplete { _ =>
       authStore.shutdown()
@@ -257,6 +272,42 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       }
   }
 
+  def changeUserState(authStore: AuthStore, subjects: List[String], blocked: Boolean)(
+    implicit transid: TransactionId,
+    materializer: ActorMaterializer,
+    ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    Source(subjects)
+      .mapAsync(1)(changeUserState(authStore, _, blocked))
+      .runWith(Sink.seq[Either[CommandError, String]])
+      .map { rows =>
+        val lefts = rows.count(_.isLeft)
+        val msg = rows
+          .map {
+            case Left(x)  => x.message
+            case Right(x) => x
+          }
+          .mkString("\n")
+
+        if (lefts > 0) Left(new CommandError(msg, lefts)) else Right(msg)
+      }
+  }
+
+  private def changeUserState(authStore: AuthStore, subject: String, blocked: Boolean)(
+    implicit transid: TransactionId,
+    ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    authStore
+      .get[ExtendedAuth](DocInfo(subject))
+      .flatMap { auth =>
+        val newAuth = new ExtendedAuth(auth.subject, auth.namespaces, Some(blocked))
+        newAuth.revision[ExtendedAuth](auth.rev)
+        val msg = if (blocked) CommandMessages.blocked(subject) else CommandMessages.unblocked(subject)
+        authStore.put(newAuth).map(_ => Right(msg))
+      }
+      .recover {
+        case _: NoDocumentException =>
+          Left(IllegalState(CommandMessages.subjectMissing(subject)))
+      }
+  }
 }
 
 object UserCommand {

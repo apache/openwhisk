@@ -31,4 +31,7 @@ object CommandMessages {
   val subjectDeleted = "Subject deleted"
 
   def namespaceMissing(ns: String) = s"no identities found for namespace  '$ns'"
+  def blocked(subject: String) = s"'$subject' blocked successfully"
+  def unblocked(subject: String) = s"'$subject' unblocked successfully"
+  def subjectMissing(subject: String) = s"'$subject missing"
 }

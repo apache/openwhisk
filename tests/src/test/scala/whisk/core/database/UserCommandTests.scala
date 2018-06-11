@@ -234,6 +234,33 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     r3 should not include a2.subject.asString
   }
 
+  behavior of "block"
+
+  it should "block subjects" in {
+    implicit val tid = transid()
+    val a1 = WhiskAuth(Subject(newSubject()), Set(newNS()))
+    val a2 = WhiskAuth(Subject(newSubject()), Set(newNS()))
+    val a3 = WhiskAuth(Subject(newSubject()), Set(newNS()))
+
+    Seq(a1, a2, a3).foreach(put(authStore, _))
+
+    val r1 = resultOk("user", "block", a1.subject.asString, a2.subject.asString)
+
+    val authStore2 = UserCommand.createDataStore()
+
+    authStore2.get[ExtendedAuth](a1.docinfo).futureValue.isBlocked shouldBe true
+    authStore2.get[ExtendedAuth](a2.docinfo).futureValue.isBlocked shouldBe true
+    authStore2.get[ExtendedAuth](a3.docinfo).futureValue.isBlocked shouldBe false
+
+    val r2 = resultOk("user", "unblock", a2.subject.asString, a3.subject.asString)
+
+    authStore2.get[ExtendedAuth](a1.docinfo).futureValue.isBlocked shouldBe true
+    authStore2.get[ExtendedAuth](a2.docinfo).futureValue.isBlocked shouldBe false
+    authStore2.get[ExtendedAuth](a3.docinfo).futureValue.isBlocked shouldBe false
+
+    authStore2.shutdown()
+  }
+
   override def cleanup()(implicit timeout: Duration): Unit = {
     implicit val tid = TransactionId.testing
     usersToDelete.map { u =>
