@@ -201,7 +201,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     def newWhiskAuth(ns: String*) =
       WhiskAuth(Subject(newSubject()), ns.map(n => WhiskNamespace(EntityName(n), AuthKey())).toSet)
 
-    def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.name.asString == ns).map(_.authkey.compact)
+    def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.name.asString == ns).map(_.authkey).get
 
     val ns1 = randomString()
     val ns2 = randomString()
@@ -213,6 +213,8 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     Seq(a1, a2, a3).foreach(put(authStore, _))
 
+    Seq(a1, a2, a3).foreach(a => waitOnView(authStore, key(a, ns1), 1))
+
     //Check negative case
     resultNotOk("user", "list", "non-existing-ns") shouldBe CommandMessages.namespaceMissing("non-existing-ns")
 
@@ -220,7 +222,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val r1 = resultOk("user", "list", ns1)
     r1.split("\n").length shouldBe 3
     r1 should include(a1.subject.asString)
-    r1 should include(key(a2, ns1).get)
+    r1 should include(key(a2, ns1).compact)
 
     //Check limit
     val r2 = resultOk("user", "list", "-p", "2", ns1)
@@ -228,7 +230,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     //Check key only
     val r3 = resultOk("user", "list", "-k", ns1)
-    r3 should include(key(a2, ns1).get)
+    r3 should include(key(a2, ns1).compact)
     r3 should not include a2.subject.asString
   }
 
