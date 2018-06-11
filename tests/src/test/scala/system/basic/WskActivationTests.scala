@@ -72,15 +72,8 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
     }
 
-    val run = wsk.action.invoke(name)
-
-    // Use withActivation() to reduce intermittent failures that may result from eventually consistent DBs
-    withActivation(wsk.activation, run) { activation =>
-      retry({
-        val result = wsk.activation.result(Some(activation.activationId)).stdout
-
-        result.parseJson.asJsObject shouldBe expectedResult
-      }, 10, Some(1.second))
+    withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+      wsk.activation.result(Some(activation.activationId)).stdout.parseJson.asJsObject shouldBe expectedResult
     }
   }
 }
