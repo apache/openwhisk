@@ -223,7 +223,7 @@ object Controller {
       "cacheInvalidation" -> "cache-invalidation",
       "events" -> "events").foreach {
       case (topic, topicConfigurationKey) =>
-        if (msgProvider.ensureTopic(config, topic + instance, topicConfigurationKey).isFailure) {
+        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey).isFailure) {
           abort(s"failure during msgProvider.ensureTopic for topic $topic")
         }
     }
