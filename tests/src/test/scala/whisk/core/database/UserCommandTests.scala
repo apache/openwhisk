@@ -71,19 +71,10 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     //Add new namespace
     val key2 = AuthKey()
-    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key2.compact, "--namespace", "foo", subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get shouldBe key2.compact
+    resultOk("user", "create", "--auth", key2.compact, "--namespace", "foo", subject) shouldBe key2.compact
 
     //Adding same namespace should fail
-    WhiskAdmin(new Conf(Seq("user", "create", "--auth", key2.compact, "--namespace", "foo", subject)))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.namespaceExists
+    resultNotOk("user", "create", "--auth", key2.compact, "--namespace", "foo", subject) shouldBe CommandMessages.namespaceExists
 
     //It should be possible to lookup by new namespace
     implicit val tid = transid()
@@ -100,12 +91,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     implicit val tid = transid()
     authStore2.put(blockedAuth).futureValue
 
-    WhiskAdmin(new Conf(Seq("user", "create", "--namespace", "foo", subject)))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.subjectBlocked
+    resultNotOk("user", "create", "--namespace", "foo", subject) shouldBe CommandMessages.subjectBlocked
 
     authStore2.shutdown()
   }
@@ -113,12 +99,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   behavior of "delete user"
 
   it should "fail deleting non existing user" in {
-    WhiskAdmin(new Conf(Seq("user", "delete", "non-existing-user")))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.subjectMissing
+    resultNotOk("user", "delete", "non-existing-user") shouldBe CommandMessages.subjectMissing
   }
 
   it should "delete existing user" in {
@@ -128,11 +109,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     //Create user
     WhiskAdmin(new Conf(Seq("user", "create", "--auth", key.compact, subject))).executeCommand().futureValue
 
-    WhiskAdmin(new Conf(Seq("user", "delete", subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get shouldBe CommandMessages.subjectDeleted
+    resultOk("user", "delete", subject) shouldBe CommandMessages.subjectDeleted
   }
 
   it should "remove namespace from existing user" in {
@@ -146,11 +123,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     put(authStore, auth)
 
-    WhiskAdmin(new Conf(Seq("user", "delete", "--namespace", ns1.name.asString, subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get shouldBe CommandMessages.namespaceDeleted
+    resultOk("user", "delete", "--namespace", ns1.name.asString, subject) shouldBe CommandMessages.namespaceDeleted
 
     val authFromDB = authStore.get[WhiskAuth](DocInfo(DocId(subject))).futureValue
     authFromDB.namespaces shouldBe Set(ns2)
@@ -162,24 +135,14 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val auth = WhiskAuth(Subject(subject), Set(newNS(), newNS()))
 
     put(authStore, auth)
-    WhiskAdmin(new Conf(Seq("user", "delete", "--namespace", "non-existing-ns", subject)))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.namespaceMissing("non-existing-ns", subject)
-
+    resultNotOk("user", "delete", "--namespace", "non-existing-ns", subject) shouldBe
+      CommandMessages.namespaceMissing("non-existing-ns", subject)
   }
 
   behavior of "get key"
 
   it should "not get key for missing subject" in {
-    WhiskAdmin(new Conf(Seq("user", "get", "non-existing-user")))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.subjectMissing
+    resultNotOk("user", "get", "non-existing-user") shouldBe CommandMessages.subjectMissing
   }
 
   it should "get key for existing user" in {
@@ -193,48 +156,26 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns2, ns3))
     put(authStore, auth)
 
-    WhiskAdmin(new Conf(Seq("user", "get", "--namespace", ns1.name.asString, subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get shouldBe ns1.authkey.compact
+    resultOk("user", "get", "--namespace", ns1.name.asString, subject) shouldBe ns1.authkey.compact
 
-    val all = WhiskAdmin(new Conf(Seq("user", "get", "--all", subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get
+    val all = resultOk("user", "get", "--all", subject)
 
     all should include(ns1.authkey.compact)
     all should include(ns2.authkey.compact)
     all should include(ns3.authkey.compact)
 
     //Is --namespace is not there look by subject
-    WhiskAdmin(new Conf(Seq("user", "get", subject)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get shouldBe ns3.authkey.compact
+    resultOk("user", "get", subject) shouldBe ns3.authkey.compact
 
     //Look for namespace which does not exist
-    WhiskAdmin(new Conf(Seq("user", "get", "--namespace", "non-existing-ns", subject)))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.namespaceMissing("non-existing-ns", subject)
-
+    resultNotOk("user", "get", "--namespace", "non-existing-ns", subject) shouldBe
+      CommandMessages.namespaceMissing("non-existing-ns", subject)
   }
 
   behavior of "whois"
 
   it should "not get subject for missing subject" in {
-    WhiskAdmin(new Conf(Seq("user", "whois", AuthKey().compact)))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message shouldBe CommandMessages.subjectMissing
+    resultNotOk("user", "whois", AuthKey().compact) shouldBe CommandMessages.subjectMissing
   }
 
   it should "get key for existing user" in {
@@ -247,11 +188,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns3))
     put(authStore, auth)
 
-    val result = WhiskAdmin(new Conf(Seq("user", "whois", ns1.authkey.compact)))
-      .executeCommand()
-      .futureValue
-      .right
-      .get
+    val result = resultOk("user", "whois", ns1.authkey.compact)
 
     result should include(subject)
     result should include(ns1.name.asString)
