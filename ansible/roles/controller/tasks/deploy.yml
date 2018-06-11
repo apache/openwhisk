@@ -128,7 +128,8 @@
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
 
-      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_common_bootstrapHosts": 
+        "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":
         "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes":

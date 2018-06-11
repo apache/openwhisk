@@ -34,11 +34,9 @@ import scala.concurrent.{blocking, ExecutionContext, Future}
 
 case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricFlushIntervalS: Int)
 
-class KafkaConsumerConnector(
-  kafkahost: String,
-  groupid: String,
-  topic: String,
-  override val maxPeek: Int = Int.MaxValue)(implicit logging: Logging, actorSystem: ActorSystem)
+class KafkaConsumerConnector(groupid: String, topic: String, override val maxPeek: Int = Int.MaxValue)(
+  implicit logging: Logging,
+  actorSystem: ActorSystem)
     extends MessageConsumer {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -114,7 +112,6 @@ class KafkaConsumerConnector(
   private def createConsumer(topic: String) = {
     val config = Map(
       ConsumerConfig.GROUP_ID_CONFIG -> groupid,
-      ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahost,
       ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> maxPeek.toString) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaConsumer))

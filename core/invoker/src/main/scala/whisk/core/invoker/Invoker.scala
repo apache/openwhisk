@@ -32,7 +32,7 @@ import akka.actor.CoordinatedShutdown
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
@@ -43,6 +43,9 @@ import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
+import pureconfig._
+
+case class ZookeeperConfig(hosts: String)
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
@@ -54,8 +57,6 @@ object Invoker {
   def requiredProperties =
     Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
       ExecManifest.requiredProperties ++
-      kafkaHosts ++
-      zookeeperHosts ++
       wskApiHost ++ Map(dockerImageTag -> "latest") ++
       Map(invokerName -> "")
 
@@ -117,16 +118,16 @@ object Invoker {
         id
       }
       .getOrElse {
-        if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
-          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
+        val zookeeperConfig = loadConfig[ZookeeperConfig](ConfigKeys.zookeeper).right.getOrElse {
+          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment")
         }
         if (invokerName.isEmpty || invokerName.get.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
-        logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHosts}")
+        logger.info(this, s"invokerReg: creating zkClient to ${zookeeperConfig.hosts}")
         val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
-        val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHosts, retryPolicy)
+        val zkClient = CuratorFrameworkFactory.newClient(zookeeperConfig.hosts, retryPolicy)
         zkClient.start()
         zkClient.blockUntilConnected()
         logger.info(this, "invokerReg: connected to zookeeper")
@@ -168,10 +169,10 @@ object Invoker {
 
     val invokerInstance = InstanceId(assignedInvokerId, invokerName)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
+    if (!msgProvider.ensureTopic(topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
-    val producer = msgProvider.getProducer(config)
+    val producer = msgProvider.getProducer()
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)
     } catch {

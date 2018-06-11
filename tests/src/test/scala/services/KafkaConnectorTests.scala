@@ -28,7 +28,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import whisk.common.TransactionId
 import whisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector.Message
 import whisk.utils.{retry, ExecutionContextFactory}
 
@@ -36,6 +36,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 import scala.util.Try
+import pureconfig._
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests
@@ -48,9 +49,6 @@ class KafkaConnectorTests
   implicit val transid: TransactionId = TransactionId.testing
   implicit val ec: ExecutionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
-  val config = new WhiskConfig(WhiskConfig.kafkaHosts)
-  assert(config.isValid)
-
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
   val maxPollInterval = 10.seconds
@@ -58,17 +56,17 @@ class KafkaConnectorTests
   // Need to overwrite replication factor for tests that shut down and start
   // Kafka instances intentionally. These tests will fail if there is more than
   // one Kafka host but a replication factor of 1.
-  val kafkaHosts: Array[String] = config.kafkaHosts.split(",")
+  val kafkaHosts: Array[String] = loadConfigOrThrow[String](ConfigKeys.kafkaCommon + ".bootstrap-hosts").split(',')
   val replicationFactor: Int = kafkaHosts.length / 2 + 1
   System.setProperty("whisk.kafka.replication-factor", replicationFactor.toString)
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
+  assert(KafkaMessagingProvider.ensureTopic(topic, topic), s"Creation of topic $topic failed")
 
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
+  assert(KafkaMessagingProvider.ensureTopic(topic, topic), s"Creation of topic $topic failed")
 
-  val producer = new KafkaProducerConnector(config.kafkaHosts)
-  val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
+  val producer = new KafkaProducerConnector()
+  val consumer = new KafkaConsumerConnector(groupid, topic)
 
   override def afterAll(): Unit = {
     producer.close()

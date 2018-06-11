@@ -21,11 +21,11 @@ import java.util.Properties
 import java.util.concurrent.ExecutionException
 
 import akka.actor.ActorSystem
-import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
+import org.apache.kafka.clients.admin.{AdminClient, NewTopic}
 import org.apache.kafka.common.errors.TopicExistsException
 import pureconfig._
 import whisk.common.Logging
-import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.ConfigKeys
 import whisk.core.connector.{MessageConsumer, MessageProducer, MessagingProvider}
 
 import scala.collection.JavaConverters._
@@ -39,22 +39,21 @@ case class KafkaConfig(replicationFactor: Short)
 object KafkaMessagingProvider extends MessagingProvider {
   import KafkaConfiguration._
 
-  def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
+  def getConsumer(groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging,
     actorSystem: ActorSystem): MessageConsumer =
-    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek)
+    new KafkaConsumerConnector(groupId, topic, maxPeek)
 
-  def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHosts)
+  def getProducer()(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer =
+    new KafkaProducerConnector()
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
+  def ensureTopic(topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
     val tc = KafkaConfiguration.configMapToKafkaConfig(
       loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
 
-    val baseConfig = Map(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
-    val client = AdminClient.create(baseConfig ++ commonConfig)
+    val client = AdminClient.create(commonConfig)
     val numPartitions = 1
     val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.asJava)
     val results = client.createTopics(List(nt).asJava)

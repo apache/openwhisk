@@ -149,7 +149,7 @@
       "JMX_REMOTE": "{{ jmx.enabled }}"
       "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}"
       "PORT": 8080
-      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_common_bootstrapHosts": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionMs": "{{ kafka_topics_invoker_retentionMS | default() }}"
