@@ -13,20 +13,23 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: "pull runtime action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item}}:{{docker.image.tag}}"
-  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image.name') | list | unique }}"
-  when: docker_registry != ""
+- name: "pull runtime action and blackbox images"
+  vars:
+    image_registry: "{{ item.registry | default(runtimes.default_registry) }}"
+    image_prefix:
+      "{{ image_registry }}/{{ item.prefix | default(runtimes.default_image_prefix) }}"
+    image_tag: "{{ item.tag | default(runtimes.default_image_tag) }}"
+  docker_image:
+    state: present
+    name: "{{ image_prefix }}/{{ item.name }}:{{ image_tag }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
-
-- name: "pull blackboxes action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item.name}}:{{docker.image.tag}}"
+  when: image_prefix != runtimes.local_image_prefix
   with_items:
-    - "{{ runtimesManifest.blackboxes }}"
-  when: docker_registry != ""
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
+    - "{{ runtimes.manifest.runtimes.values() | sum(start=[]) |
+          selectattr('deprecated', 'equalto', false)  |
+          map(attribute='image') | list | unique }}"
+    - "{{ runtimes.manifest.blackboxes }}"
 
 - name: "determine docker root dir on docker-machine"
   uri:  url="http://{{ ansible_host }}:{{ docker.port }}/info" return_content=yes
@@ -179,11 +182,15 @@
       "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
       "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
       "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
-      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
-      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
-      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
-      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+      "RUNTIMES_MANIFEST": "{{ runtimes.manifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix":
+        "{{ runtimes.default_image_prefix }}"
+      "CONFIG_whisk_runtimes_defaultImageTag":
+        "{{ runtimes.default_image_tag }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages":
+        "{{ runtimes.bypass_pull_for_local_images }}"
+      "CONFIG_whisk_runtimes_localImagePrefix":
+        "{{ runtimes.local_image_prefix }}"
       "DOCKER_REGISTRY": "{{ docker_registry }}"
       "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}"
       "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}"
@@ -255,3 +262,5 @@
   until: result.status == 200
   retries: 12
   delay: 5
+
+# VIM: let b:syntastic_yaml_yamllint_args="-c ".expand('%:p:h')."/../../../yamllint.yml"
