@@ -58,12 +58,11 @@ import whisk.core.entity.size.SizeLong
  * @param hostname the host name
  * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
- * @param maxConcurrent the maximum number of concurrent requests allowed
+ * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
-protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int)(
+protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
   implicit logging: Logging) {
-  def this(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize)(implicit logging: Logging) =
-    this(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, 1)
+
   def close() = Try(connection.close())
 
   /**
@@ -139,7 +138,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
           val newTimeout = timeout - sleepTime
           execute(request, newTimeout, maxConcurrent, retry = true)
         } else {
-          logging.warn(this, s"POST failed with ${t} - no retry because timeout exceeded.")
+          logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
           Left(Timeout(t))
         }
       case Failure(t: Throwable) => Left(ConnectionError(t))
@@ -158,15 +157,17 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     .setSocketTimeout(timeout.toMillis.toInt)
     .build
 
-  // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
-  val cm = new PoolingHttpClientConnectionManager
-  // Increase default max connections per route (default is 2)
-  cm.setDefaultMaxPerRoute(maxConcurrent)
-  // Increase max total connections (default is 20)
-  cm.setMaxTotal(maxConcurrent)
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
-    .setConnectionManager(if (maxConcurrent > 1) cm else null) //set the Pooling connection manager IFF maxConcurrent > 1
+    .setConnectionManager(if (maxConcurrent > 1) {
+      // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
+      val cm = new PoolingHttpClientConnectionManager
+      // Increase default max connections per route (default is 2)
+      cm.setDefaultMaxPerRoute(maxConcurrent)
+      // Increase max total connections (default is 20)
+      cm.setMaxTotal(maxConcurrent)
+      cm
+    } else null) //set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
