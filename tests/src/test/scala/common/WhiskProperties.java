@@ -319,9 +319,9 @@ public class WhiskProperties {
     }
 
     /**
-     * where is python 2.7?
+     * python interpreter.
      */
-    public static final String python = findPython();
+    public static final String python = "python";
 
     protected static File findFileRecursively(String dir, String needle) {
         if (dir != null) {
@@ -360,15 +360,6 @@ public class WhiskProperties {
             }
         }
         return props;
-    }
-
-    private static String findPython() {
-        File p27 = new File("/usr/local/bin/python2.7");
-        if (p27.exists()) {
-            return "/usr/local/bin/python2.7";
-        } else {
-            return "python";
-        }
     }
 
     private static int getConcurrentTestCount(String count) {
