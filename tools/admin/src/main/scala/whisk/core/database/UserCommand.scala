@@ -22,7 +22,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
-import spray.json.{JsBoolean, JsObject, JsValue, RootJsonFormat}
+import spray.json.{JsBoolean, JsObject, JsString, JsValue, RootJsonFormat}
 import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
 import whisk.core.database.UserCommand.ExtendedAuth
@@ -117,6 +117,23 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   }
   addSubcommand(whois)
 
+  val list = new Subcommand("list") {
+    descr("list authorization keys associated with a namespace")
+    val namespace = trailArg[String](descr = "the namespace to lookup")
+
+    val pick = opt[Int](descr = "show no more than N identities", argName = "N", validate = _ > 0)
+    val key = opt[Boolean](descr = "show only the keys")
+    val all = opt[Boolean](descr = "show all identities")
+
+    def limit: Int = {
+      if (all.isSupplied) 0
+      else pick.getOrElse(0)
+    }
+
+    def showOnlyKeys = key.isSupplied
+  }
+  addSubcommand(list)
+
   def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
                                  logging: Logging,
                                  materializer: ActorMaterializer,
@@ -128,6 +145,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       case `delete` => deleteUser(authStore)
       case `get`    => getKey(authStore)
       case `whois`  => whoIs(authStore)
+      case `list`   => list(authStore)
     }
     result.onComplete { _ =>
       authStore.shutdown()
@@ -215,6 +233,30 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
           Left(IllegalState(CommandMessages.subjectMissing))
       }
   }
+
+  def list(authStore: AuthStore)(implicit transid: TransactionId,
+                                 ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    Identity
+      .list(authStore, List(list.namespace()), limit = list.limit)
+      .map { rows =>
+        if (rows.isEmpty) Left(IllegalState(CommandMessages.namespaceMissing(list.namespace())))
+        else {
+          val msg = rows
+            .map { row =>
+              row.getFields("id", "value") match {
+                case Seq(JsString(subject), JsObject(value)) =>
+                  val JsString(uuid) = value("uuid")
+                  val JsString(secret) = value("key")
+                  s"$uuid:$secret${if (list.showOnlyKeys) "" else s"\t$subject"}"
+                case _ => throw new IllegalStateException("identities view malformed")
+              }
+            }
+            .mkString("\n")
+          Right(msg)
+        }
+      }
+  }
+
 }
 
 object UserCommand {

@@ -30,4 +30,5 @@ object CommandMessages {
   val namespaceDeleted = "Namespace deleted"
   val subjectDeleted = "Subject deleted"
 
+  def namespaceMissing(ns: String) = s"no identities found for namespace  '$ns'"
 }

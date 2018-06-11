@@ -257,6 +257,44 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     result should include(ns1.name.asString)
   }
 
+  behavior of "list"
+
+  it should "list keys associated with given namespace" in {
+    implicit val tid = transid()
+    def newWhiskAuth(ns: String*) =
+      WhiskAuth(Subject(newSubject()), ns.map(n => WhiskNamespace(EntityName(n), AuthKey())).toSet)
+
+    def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.name.asString == ns).map(_.authkey.compact)
+
+    val ns1 = randomString()
+    val ns2 = randomString()
+    val ns3 = randomString()
+
+    val a1 = newWhiskAuth(ns1)
+    val a2 = newWhiskAuth(ns1, ns2)
+    val a3 = newWhiskAuth(ns1, ns2, ns3)
+
+    Seq(a1, a2, a3).foreach(put(authStore, _))
+
+    //Check negative case
+    resultNotOk("user", "list", "non-existing-ns") shouldBe CommandMessages.namespaceMissing("non-existing-ns")
+
+    //Check all results
+    val r1 = resultOk("user", "list", ns1)
+    r1.split("\n").length shouldBe 3
+    r1 should include(a1.subject.asString)
+    r1 should include(key(a2, ns1).get)
+
+    //Check limit
+    val r2 = resultOk("user", "list", "-p", "2", ns1)
+    r2.split("\n").length shouldBe 2
+
+    //Check key only
+    val r3 = resultOk("user", "list", "-k", ns1)
+    r3 should include(key(a2, ns1).get)
+    r3 should not include a2.subject.asString
+  }
+
   override def cleanup()(implicit timeout: Duration): Unit = {
     implicit val tid = TransactionId.testing
     usersToDelete.map { u =>
@@ -268,6 +306,21 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     usersToDelete.clear()
     super.cleanup()
   }
+
+  private def resultOk(args: String*) =
+    WhiskAdmin(new Conf(args.toSeq))
+      .executeCommand()
+      .futureValue
+      .right
+      .get
+
+  private def resultNotOk(args: String*) =
+    WhiskAdmin(new Conf(args.toSeq))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message
 
   private def newNS() = WhiskNamespace(EntityName(randomString()), AuthKey())
 
