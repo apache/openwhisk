@@ -31,7 +31,7 @@ import whisk.spi.SpiLoader
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.classTag
-import scala.util.Try
+import scala.util.{Properties, Try}
 
 class LimitsCommand extends Subcommand("limits") with WhiskCommand {
   descr("manage namespace-specific limits")
@@ -126,7 +126,7 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         val msg = Seq(
           l.concurrentInvocations.map(ci => s"concurrentInvocations =  $ci"),
           l.invocationsPerMinute.map(i => s"invocationsPerMinute = $i"),
-          l.firesPerMinute.map(i => s"firesPerMinute = $i")).flatten.mkString("\n")
+          l.firesPerMinute.map(i => s"firesPerMinute = $i")).flatten.mkString(Properties.lineSeparator)
         Right(msg)
       }
       .recover {

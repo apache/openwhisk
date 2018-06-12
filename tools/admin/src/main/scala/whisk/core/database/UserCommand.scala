@@ -43,7 +43,7 @@ import whisk.spi.SpiLoader
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.classTag
-import scala.util.Try
+import scala.util.{Properties, Try}
 
 class UserCommand extends Subcommand("user") with WhiskCommand {
   descr("manage users")
@@ -220,7 +220,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       .get[ExtendedAuth](DocInfo(get.subject()))
       .map { auth =>
         if (get.all.isSupplied) {
-          val msg = auth.namespaces.map(ns => s"${ns.name}\t${ns.authkey.compact}").mkString("\n")
+          val msg = auth.namespaces.map(ns => s"${ns.name}\t${ns.authkey.compact}").mkString(Properties.lineSeparator)
           Right(msg)
         } else {
           val ns = get.namespace.getOrElse(get.subject())
@@ -240,7 +240,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     Identity
       .get(authStore, AuthKey(whois.authkey()))
       .map { i =>
-        val msg = Seq(s"subject: ${i.subject}", s"namespace: ${i.namespace}").mkString("\n")
+        val msg = Seq(s"subject: ${i.subject}", s"namespace: ${i.namespace}").mkString(Properties.lineSeparator)
         Right(msg)
       }
       .recover {
@@ -266,7 +266,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
                 case _ => throw new IllegalStateException("identities view malformed")
               }
             }
-            .mkString("\n")
+            .mkString(Properties.lineSeparator)
           Right(msg)
         }
       }
@@ -286,7 +286,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
             case Left(x)  => x.message
             case Right(x) => x
           }
-          .mkString("\n")
+          .mkString(Properties.lineSeparator)
 
         if (lefts > 0) Left(new CommandError(msg, lefts)) else Right(msg)
       }
