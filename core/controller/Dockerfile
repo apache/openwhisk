@@ -4,7 +4,7 @@
 FROM scala
 
 ENV UID=1001 \
-    NOT_ROOT_USER=runtimeuser
+    NOT_ROOT_USER=owuser
 
 # Install swagger-ui
 RUN curl -sSL -o swagger-ui-v3.6.0.tar.gz --no-verbose https://github.com/swagger-api/swagger-ui/archive/v3.6.0.tar.gz && \
@@ -19,6 +19,7 @@ ADD build/distributions/controller.tar /
 
 COPY init.sh /
 RUN chmod +x init.sh
+RUN chmod 777 /root
 
 RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
 USER ${NOT_ROOT_USER}
