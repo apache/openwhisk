@@ -22,6 +22,7 @@ import common.{StreamLogging, WskActorSystem}
 import org.rogach.scallop.throwError
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import whisk.core.cli.{Conf, WhiskAdmin}
 import whisk.core.database.test.DbUtils
 import whisk.core.entity.WhiskAuthStore
 
@@ -56,4 +57,19 @@ trait WhiskAdminCliTestBase
   }
 
   protected def randomString(len: Int = 5): String = Random.alphanumeric.take(len).mkString
+
+  protected def resultOk(args: String*): String =
+    WhiskAdmin(new Conf(args.toSeq))
+      .executeCommand()
+      .futureValue
+      .right
+      .get
+
+  protected def resultNotOk(args: String*): String =
+    WhiskAdmin(new Conf(args.toSeq))
+      .executeCommand()
+      .futureValue
+      .left
+      .get
+      .message
 }

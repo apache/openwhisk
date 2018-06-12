@@ -34,4 +34,12 @@ object CommandMessages {
   def blocked(subject: String) = s"'$subject' blocked successfully"
   def unblocked(subject: String) = s"'$subject' unblocked successfully"
   def subjectMissing(subject: String) = s"'$subject missing"
+
+  def limitsSuccessfullyUpdated(namespace: String) = s"Limits successfully updated for '$namespace'"
+  def limitsSuccessfullySet(namespace: String) = s"Limits successfully set for '$namespace'"
+  val defaultLimits = "No limits found, default system limits apply"
+
+  def limitsNotFound(namespace: String) = s"Limits not found for '$namespace'"
+  val limitsDeleted = s"Limits deleted"
+
 }

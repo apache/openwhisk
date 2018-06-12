@@ -273,21 +273,6 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     super.cleanup()
   }
 
-  private def resultOk(args: String*) =
-    WhiskAdmin(new Conf(args.toSeq))
-      .executeCommand()
-      .futureValue
-      .right
-      .get
-
-  private def resultNotOk(args: String*) =
-    WhiskAdmin(new Conf(args.toSeq))
-      .executeCommand()
-      .futureValue
-      .left
-      .get
-      .message
-
   private def newNS() = WhiskNamespace(EntityName(randomString()), AuthKey())
 
   private def newSubject(): String = {
