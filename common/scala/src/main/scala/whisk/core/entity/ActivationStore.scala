@@ -30,22 +30,69 @@ import scala.concurrent.Future
 
 trait ActivationStore {
 
+  /**
+   * Stores an activation.
+   *
+   * @param activation activation to store
+   * @param transid transaction ID for request
+   * @param notifier cache change notifier
+   * @return Future containing DocInfo related to stored activation
+   */
   def store(activation: WhiskActivation)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[DocInfo]
 
+  /**
+   * Retrieves an activation corresponding to the specified activation ID.
+   *
+   * @param activationId ID of activation to retrieve
+   * @param transid transaction ID for request
+   * @return Future containing the retrieved WhiskActivation
+   */
   def get(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
 
+  /**
+   * Deletes an activation corresponding to the provided activation ID.
+   *
+   * @param activationId ID of activation to delete
+   * @param transid transaction ID for the request
+   * @param notifier cache change notifier
+   * @return Future containing a Boolean value indication whether the activation was deleted
+   */
   def delete(activationId: ActivationId)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[Boolean]
 
-  def countActivationsInNamespace(name: Option[EntityPath] = None,
-                                  namespace: EntityPath,
+  /**
+   * Counts the number of activations in a namespace.
+   *
+   * @param namespace namespace to query
+   * @param name entity name to query
+   * @param skip number of activations to skip
+   * @param since timestamp to retrieve activations after
+   * @param upto timestamp to retrieve activations before
+   * @param transid transaction ID for request
+   * @return Future containing number of activations returned from query in JSON format
+   */
+  def countActivationsInNamespace(namespace: EntityPath,
+                                  name: Option[EntityPath] = None,
                                   skip: Int,
                                   since: Option[Instant] = None,
                                   upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject]
 
+  /**
+   * Returns activations corresponding to provided entity name.
+   *
+   * @param namespace namespace to query
+   * @param name entity name to query
+   * @param skip number of activations to skip
+   * @param limit maximum number of activations to list
+   * @param includeDocs return document with each activation
+   * @param since timestamp to retrieve activations after
+   * @param upto timestamp to retrieve activations before
+   * @param transid transaction ID for request
+   * @return Future containing a List of activations in JSON format or List of WhiskActivation
+   */
   def listActivationsMatchingName(namespace: EntityPath,
-                                  path: EntityPath,
+                                  name: EntityPath,
                                   skip: Int,
                                   limit: Int,
                                   includeDocs: Boolean = false,
@@ -53,7 +100,19 @@ trait ActivationStore {
                                   upto: Option[Instant] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
-  def listActivationsInNamespace(path: EntityPath,
+  /**
+   * List all activations in a specified namespace.
+   *
+   * @param namespace namespace to query
+   * @param skip number of activations to skip
+   * @param limit maximum number of activations to list
+   * @param includeDocs return document with each activation
+   * @param since timestamp to retrieve activations after
+   * @param upto timestamp to retrieve activations before
+   * @param transid transaction ID for request
+   * @return Future containing a List of activations is JSON format or a List of WhiskActivation
+   */
+  def listActivationsInNamespace(namespace: EntityPath,
                                  skip: Int,
                                  limit: Int,
                                  includeDocs: Boolean = false,

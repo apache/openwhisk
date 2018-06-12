@@ -157,7 +157,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       'upto.as[Instant] ?) { (skip, limit, count, docs, name, since, upto) =>
       if (count && !docs) {
         countEntities {
-          activationStore.countActivationsInNamespace(name.flatten, namespace, skip.n, since, upto)
+          activationStore.countActivationsInNamespace(namespace, name.flatten, skip.n, since, upto)
         }
       } else if (count && docs) {
         terminate(BadRequest, Messages.docsNotAllowedWithCount)

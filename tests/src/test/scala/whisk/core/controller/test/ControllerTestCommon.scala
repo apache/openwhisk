@@ -28,7 +28,7 @@ import org.scalatest.Matchers
 import common.StreamLogging
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
-import spray.json.{DefaultJsonProtocol, JsObject, JsString}
+import spray.json._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -136,14 +136,14 @@ protected trait ControllerTestCommon
     assert(success.isSuccess, "wait aborted")
   }
 
-  def waitOnListActivationsMatchingName(namespace: EntityPath, path: EntityPath, count: Int)(
+  def waitOnListActivationsMatchingName(namespace: EntityPath, name: EntityPath, count: Int)(
     implicit context: ExecutionContext,
     transid: TransactionId,
     timeout: Duration) = {
     val success = retry(
       () => {
         val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
-          activationStore.listActivationsMatchingName(namespace, path, 0, 0)
+          activationStore.listActivationsMatchingName(namespace, name, 0, 0)
         val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
 
         listFuture map { l =>
