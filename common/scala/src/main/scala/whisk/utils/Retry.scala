@@ -41,10 +41,7 @@ object retry {
     try fn
     catch {
       case _ if N > 1 =>
-        retryMessage match {
-          case Some(msg) => println(msg)
-          case None      =>
-        }
+        retryMessage.foreach(println)
         waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis))
         retry(fn, N - 1, waitBeforeRetry, retryMessage)
     }
