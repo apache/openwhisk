@@ -424,12 +424,14 @@ case class ShardingContainerPoolBalancerState(
     val oldSize = _invokers.size
     val newSize = newInvokers.size
 
-    val blackboxes = Math.max(1, (newSize.toDouble * blackboxFraction).toInt)
-    val managed = Math.max(1, newSize - blackboxes)
+    // for small N, allow the managed invokers to overlap with blackbox invokers, and
+    // further assume that blackbox invokers << managed invokers
+    val managed = Math.max(1, Math.ceil(newSize.toDouble * (1 - blackboxFraction)).toInt)
+    val blackboxes = Math.max(1, Math.floor(newSize.toDouble * blackboxFraction).toInt)
 
     _invokers = newInvokers
-    _blackboxInvokers = _invokers.takeRight(blackboxes)
     _managedInvokers = _invokers.take(managed)
+    _blackboxInvokers = _invokers.takeRight(blackboxes)
 
     if (oldSize != newSize) {
       _managedStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)
