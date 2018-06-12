@@ -47,9 +47,7 @@ protected[core] case class Identity(subject: Subject,
                                     namespace: Namespace,
                                     authkey: AuthKey,
                                     rights: Set[Privilege],
-                                    limits: UserLimits = UserLimits()) {
-  def uuid = namespace.uuid
-}
+                                    limits: UserLimits = UserLimits())
 
 object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
 
