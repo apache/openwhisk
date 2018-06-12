@@ -13,7 +13,6 @@ RUN curl -sSL -o swagger-ui-v3.6.0.tar.gz --no-verbose https://github.com/swagge
     rm swagger-ui-v3.6.0.tar.gz && \
     sed -i s#http://petstore.swagger.io/v2/swagger.json#/api/v1/api-docs#g /swagger-ui/index.html
 
-#
 # Copy app jars
 ADD build/distributions/controller.tar /
 
