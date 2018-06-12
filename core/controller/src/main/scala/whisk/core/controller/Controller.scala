@@ -216,18 +216,16 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
-      abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
-    }
-    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
-      abort(s"failure during msgProvider.ensureTopic for topic health")
-    }
-    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
-      abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
-    }
 
-    if (!msgProvider.ensureTopic(config, topic = "events", topicConfig = "events")) {
-      abort(s"failure during msgProvider.ensureTopic for topic events")
+    Map(
+      "completed" + instance -> "completed",
+      "health" -> "health",
+      "cacheInvalidation" -> "cache-invalidation",
+      "events" -> "events").foreach {
+      case (topic, topicConfigurationKey) =>
+        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey).isFailure) {
+          abort(s"failure during msgProvider.ensureTopic for topic $topic")
+        }
     }
 
     ExecManifest.initialize(config) match {

@@ -15,28 +15,21 @@
  * limitations under the License.
  */
 
-package whisk.core.connector
-
-import akka.actor.ActorSystem
-
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import whisk.common.Logging
-import whisk.core.WhiskConfig
-import whisk.spi.Spi
-
-import scala.util.Try
+package whisk.common
 
 /**
- * An Spi for providing Messaging implementations.
+ * Helper to match on exceptions caused by other exceptions.
+ *
+ * Use this like:
+ *
+ * ```
+ * try {
+ *   block()
+ * } catch {
+ *   case CausedBy(internalException: MyFancyException) => ...
+ * }
+ * ```
  */
-trait MessagingProvider extends Spi {
-  def getConsumer(
-    config: WhiskConfig,
-    groupId: String,
-    topic: String,
-    maxPeek: Int = Int.MaxValue,
-    maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging, actorSystem: ActorSystem): MessageConsumer
-  def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Try[Unit]
+object CausedBy {
+  def unapply(e: Throwable): Option[Throwable] = Option(e.getCause)
 }
