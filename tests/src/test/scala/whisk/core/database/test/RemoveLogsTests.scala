@@ -46,14 +46,14 @@ class RemoveLogsTests extends FlatSpec with DatabaseScriptTestUtils with StreamL
     WhiskProperties.getFileRelativeToWhiskHome("tools/db/deleteLogsFromActivations.py").getAbsolutePath
 
   /** Runs the clean up script to delete old activations */
-  def removeLogsTool(dbUrl: String, dbName: String, days: Int, docsPerRequest: Int = 20) = {
-    println(s"Running removeLogs tool: $dbUrl, $dbName, $days, $docsPerRequest")
+  def removeLogsTool(dbUrl: DatabaseUrl, dbName: String, days: Int, docsPerRequest: Int = 20) = {
+    println(s"Running removeLogs tool: ${dbUrl.safeUrl}, $dbName, $days, $docsPerRequest")
 
     val cmd = Seq(
       python,
       removeLogsToolPath,
       "--dbUrl",
-      dbUrl,
+      dbUrl.url,
       "--dbName",
       dbName,
       "--days",
