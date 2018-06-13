@@ -269,9 +269,20 @@ Components = [
     makeComponent('edge',
                   'deploy edge'),
 
+    makeComponent('cli',
+                  'download cli from api host',
+                  modes = 'clean',
+                  yaml = 'downloadcli.yml'),
+
     makeComponent('catalog',
                   'install catalog',
                   yaml = 'postdeploy.yml'),
+
+    makeComponent('apigw',
+                  'deploy api gateway',
+                  gradle = False,
+                  modes = 'clean',
+                  yaml = 'routemgmt.yml apigateway.yml'),
 
     # the following (re)build images via gradle
     makeComponent('runtime:([\w.-]+)',

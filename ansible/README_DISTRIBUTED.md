@@ -85,7 +85,13 @@ ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+
+# installs a catalog of public packages and actions
 ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
 ```
 
 Setup your CLI and verify that OpenWhisk is working.
