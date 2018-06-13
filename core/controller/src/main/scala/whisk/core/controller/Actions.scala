@@ -186,7 +186,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskActionPut]) { content =>
-        val request = content.resolve(user.namespace.name)
+        val request = content.resolve(user.namespace)
 
         onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
           case Success(_) =>
@@ -221,7 +221,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some {
           act: WhiskActionMetaData =>
             // resolve the action --- special case for sequences that may contain components with '_' as default package
-            val action = act.resolve(user.namespace.name)
+            val action = act.resolve(user.namespace)
             onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
               case Success(_) =>
                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
@@ -362,7 +362,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                                       user: Identity): Vector[FullyQualifiedEntityName] = {
     // if components are part of the default namespace, they contain `_`; replace it!
     val resolvedComponents = components map { c =>
-      FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace.name), c.name)
+      FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name)
     }
     resolvedComponents
   }
