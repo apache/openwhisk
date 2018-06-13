@@ -20,6 +20,7 @@ package whisk.core.cli
 import java.io.File
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
@@ -72,6 +73,7 @@ object Main {
     try {
       executeWithSystem(conf)
     } finally {
+      Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
       actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
     }
