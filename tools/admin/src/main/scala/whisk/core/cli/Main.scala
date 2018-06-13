@@ -29,15 +29,17 @@ import pureconfig.error.ConfigReaderException
 import whisk.common.{AkkaLogging, Logging, TransactionId}
 import whisk.core.database.{LimitsCommand, UserCommand}
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk admin command line tool")
-
+  val durationConverter = singleArgConverter[Duration](Duration(_))
   val verbose = tally()
   val configFile = opt[File](descr = "application.conf path")
+  val timeout =
+    opt[Duration](descr = "time to wait for asynchronous task to finish", default = Some(30.seconds))(durationConverter)
   printedName = Main.printedName
 
   def verboseEnabled: Boolean = verbose() > 0
@@ -73,9 +75,9 @@ object Main {
     try {
       executeWithSystem(conf)
     } finally {
-      Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
+      Await.result(Http().shutdownAllConnectionPools(), 60.seconds)
       actorSystem.terminate()
-      Await.result(actorSystem.whenTerminated, 30.seconds)
+      Await.result(actorSystem.whenTerminated, 60.seconds)
     }
   }
 
@@ -86,7 +88,7 @@ object Main {
     val admin = new WhiskAdmin(conf)
     val result = Try {
       val f = admin.executeCommand()
-      Await.result(f, 30.seconds)
+      Await.result(f, admin.timeout)
     }
     result match {
       case Success(r) =>
@@ -165,6 +167,12 @@ case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
     conf.subcommands match {
       case List(cmd: UserCommand, x)   => cmd.exec(x)
       case List(cmd: LimitsCommand, x) => cmd.exec(x)
+    }
+  }
+
+  def timeout: Duration = {
+    conf.subcommands match {
+      case _ => conf.timeout()
     }
   }
 }
