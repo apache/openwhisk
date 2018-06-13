@@ -18,7 +18,6 @@
 package whisk.core.database
 
 import scala.concurrent.Future
-
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -27,10 +26,8 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.Logging
 import whisk.http.PoolingRestClient
 
@@ -46,6 +43,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
   implicit system: ActorSystem,
   logging: Logging)
     extends PoolingRestClient(protocol, host, port, 16 * 1024) {
+
+  implicit override val context = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
   // Headers common to all requests.
   val baseHeaders: List[HttpHeader] =

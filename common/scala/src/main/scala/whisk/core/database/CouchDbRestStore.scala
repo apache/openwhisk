@@ -62,7 +62,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     with DefaultJsonProtocol
     with AttachmentInliner {
 
-  protected[core] implicit val executionContext = system.dispatcher
+  protected[core] implicit val executionContext = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
   val attachmentScheme: String = "couch"
 
