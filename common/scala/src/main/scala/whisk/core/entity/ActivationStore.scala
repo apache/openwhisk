@@ -89,7 +89,8 @@ trait ActivationStore {
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
    * @param transid transaction ID for request
-   * @return Future containing a List of activations in JSON format or List of WhiskActivation
+   * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
+   *         are included, a List of WhiskActivation is returned.
    */
   def listActivationsMatchingName(namespace: EntityPath,
                                   name: EntityPath,
@@ -110,7 +111,8 @@ trait ActivationStore {
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
    * @param transid transaction ID for request
-   * @return Future containing a List of activations is JSON format or a List of WhiskActivation
+   * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
+   *         are included, a List of WhiskActivation is returned.
    */
   def listActivationsInNamespace(namespace: EntityPath,
                                  skip: Int,
