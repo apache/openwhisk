@@ -80,7 +80,9 @@ class InvokerReactive(
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
-  private val activationStore = WhiskActivationStore.datastore()
+  private val activationStore =
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+
   private val authStore = WhiskAuthStore.datastore()
 
   private val namespaceBlacklist = new NamespaceBlacklist(authStore)
@@ -159,11 +161,7 @@ class InvokerReactive(
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation) => {
     implicit val transid: TransactionId = tid
-    logging.debug(this, "recording the activation result to the data store")
-    WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t)  => logging.error(this, s"failed to record activation")
-    }
+    activationStore.store(activation)(tid, notifier = None)
   }
 
   /** Creates a ContainerProxy Actor when being called. */
