@@ -38,6 +38,7 @@ case class AttachResult(digest: String, length: Long)
 
 trait AttachmentStore {
 
+  /** Identifies the store type */
   protected[core] def scheme: String
 
   /** Execution context for futures */

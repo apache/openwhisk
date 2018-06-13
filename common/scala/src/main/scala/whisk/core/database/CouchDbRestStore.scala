@@ -353,64 +353,84 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   }
 
   override protected[database] def putAndAttach[A <: DocumentAbstraction](
-    d: A,
+    doc: A,
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
     attachmentStore match {
-      case Some(as) =>
-        val asJson = d.toDocumentRecord
-        val id = asJson.fields("_id").convertTo[String].trim
-
-        for {
-          (bytes, tailSource) <- inlineAndTail(docStream)
-          uri <- Future.successful(uriOf(bytes, UUID().asString))
-          attached <- {
-            // Upload if cannot be inlined
-            if (isInlined(uri)) {
-              val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-              Future.successful(a)
-            } else {
-              as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-                .map { r =>
-                  Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
-                }
-            }
-          }
-          i1 <- put(update(d, attached))
-
-          //Remove old attachment if it was part of attachmentStore
-          _ <- oldAttachment
-            .map { old =>
-              val oldUri = Uri(old.attachmentName)
-              if (oldUri.scheme == as.scheme) {
-                as.deleteAttachment(DocId(id), oldUri.path.toString)
-              } else {
-                Future.successful(true)
-              }
-            }
-            .getOrElse(Future.successful(true))
-        } yield (i1, attached)
+      case Some(_) =>
+        attachToExternalStore(doc, update, contentType, docStream, oldAttachment)
       case None =>
-        for {
-          (bytes, tailSource) <- inlineAndTail(docStream)
-          uri <- Future.successful(uriOf(bytes, UUID().asString))
-          attached <- {
-            val a = if (isInlined(uri)) {
-              Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-            } else {
-              Attached(uri.toString, contentType)
-            }
-            Future.successful(a)
-          }
-          i1 <- put(update(d, attached))
-          i2 <- if (isInlined(uri)) { Future.successful(i1) } else {
-            attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
-          }
-        } yield (i2, attached)
+        attachToCouch(doc, update, contentType, docStream)
     }
+  }
+
+  private def attachToCouch[A <: DocumentAbstraction](
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _])(implicit transid: TransactionId) = {
+    for {
+      (bytes, tailSource) <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      attached <- {
+        val a = if (isInlined(uri)) {
+          Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+        } else {
+          Attached(uri.toString, contentType)
+        }
+        Future.successful(a)
+      }
+      i1 <- put(update(doc, attached))
+      i2 <- if (isInlined(uri)) {
+        Future.successful(i1)
+      } else {
+        attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+      }
+    } yield (i2, attached)
+  }
+
+  private def attachToExternalStore[A <: DocumentAbstraction](
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
+    val as = attachmentStore.get
+    val asJson = doc.toDocumentRecord
+    val id = asJson.fields("_id").convertTo[String].trim
+
+    for {
+      (bytes, tailSource) <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      attached <- {
+        // Upload if cannot be inlined
+        if (isInlined(uri)) {
+          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          Future.successful(a)
+        } else {
+          as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
+            .map { r =>
+              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
+            }
+        }
+      }
+      i1 <- put(update(doc, attached))
+
+      //Remove old attachment if it was part of attachmentStore
+      _ <- oldAttachment
+        .map { old =>
+          val oldUri = Uri(old.attachmentName)
+          if (oldUri.scheme == as.scheme) {
+            as.deleteAttachment(DocId(id), oldUri.path.toString)
+          } else {
+            Future.successful(true)
+          }
+        }
+        .getOrElse(Future.successful(true))
+    } yield (i1, attached)
   }
 
   private def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
@@ -465,6 +485,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       case AttachmentInliner.MemScheme =>
         memorySource(attachmentUri).runWith(sink)
       case s if s == couchScheme || attachmentUri.isRelative =>
+        //relative case is for compatibility with earlier naming approach where attachment name would be like 'jarfile'
+        //Compared to current approach of '<scheme>:<name>'
         readAttachmentFromCouch(doc, attachmentUri, sink)
       case s if attachmentStore.isDefined && attachmentStore.get.scheme == s =>
         attachmentStore.get.readAttachment(doc.id, attachmentUri.path.toString, sink)
