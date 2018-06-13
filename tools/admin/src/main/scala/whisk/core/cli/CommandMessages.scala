@@ -17,6 +17,10 @@
 
 package whisk.core.cli
 
+import java.io.File
+
+import scala.collection.immutable.Iterable
+
 object CommandMessages {
   val subjectBlocked = "The subject you want to edit is blocked"
   val namespaceExists = "Namespace already exists"
@@ -41,5 +45,9 @@ object CommandMessages {
 
   def limitsNotFound(namespace: String) = s"Limits not found for '$namespace'"
   val limitsDeleted = s"Limits deleted"
+
+  def dbContentToFile(count: Long, f: File) = s"Dumped $count documents to ${f.getAbsolutePath}"
+
+  def invalidDatabase(db: String, dbs: Iterable[String]) = s"Database type '$db' not found in $dbs"
 
 }

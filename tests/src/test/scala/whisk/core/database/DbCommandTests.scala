@@ -15,42 +15,19 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.springframework.boot' version '2.0.2.RELEASE'
-    id 'scala'
+package whisk.core.database
+
+import org.junit.runner.RunWith
+import org.scalatest.FlatSpec
+import org.scalatest.junit.JUnitRunner
+import whisk.core.cli.CommandMessages
+
+@RunWith(classOf[JUnitRunner])
+class DbCommandTests extends FlatSpec with WhiskAdminCliTestBase {
+
+  behavior of "db get"
+
+  it should "get all artifacts" in {
+    resultOk("db", "get", "subjects") shouldBe CommandMessages.subjectDeleted
+  }
 }
-
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
-
-project.archivesBaseName = "openwhisk-admin-tools"
-
-repositories {
-    mavenCentral()
-}
-
-jar {
-    enabled = true
-}
-
-task copyBootJarToBin(type:Copy){
-    from ("${buildDir}/libs")
-    into file("${project.rootProject.projectDir}/bin")
-    rename("${project.archivesBaseName}-$version-cli.jar", "wskadmin-next")
-}
-
-bootJar {
-    classifier = 'cli'
-    mainClassName = 'whisk.core.cli.Main'
-    launchScript()
-    finalizedBy copyBootJarToBin
-}
-
-dependencies {
-    compile project(':common:scala')
-    compile 'org.rogach:scallop_2.11:3.1.2'
-    compile 'com.lightbend.akka:akka-stream-alpakka-json-streaming_2.11:0.19'
-    scoverage gradle.scoverage.deps
-}
-
-

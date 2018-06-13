@@ -27,7 +27,7 @@ import org.rogach.scallop._
 import org.slf4j.LoggerFactory
 import pureconfig.error.ConfigReaderException
 import whisk.common.{AkkaLogging, Logging, TransactionId}
-import whisk.core.database.{LimitsCommand, UserCommand}
+import whisk.core.database.{DbCommand, LimitsCommand, UserCommand}
 
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{Await, Future}
@@ -63,6 +63,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   addSubcommand(new UserCommand)
   addSubcommand(new LimitsCommand)
+  addSubcommand(new DbCommand)
   shortSubcommandsHelp()
 
   requireSubcommand()
@@ -189,6 +190,7 @@ case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
     conf.subcommands match {
       case List(cmd: UserCommand, x)   => cmd.exec(x)
       case List(cmd: LimitsCommand, x) => cmd.exec(x)
+      case List(cmd: DbCommand, x)     => cmd.exec(x)
     }
   }
 
