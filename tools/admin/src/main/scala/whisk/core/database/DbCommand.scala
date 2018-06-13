@@ -24,6 +24,7 @@ import akka.stream.scaladsl.{FileIO, Flow, Keep, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
@@ -100,7 +101,9 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
   }
 
   private def createSink() =
-    get.out.map(f => FileIO.toPath(f.toPath)).getOrElse(StreamConverters.fromOutputStream(() => System.out))
+    get.out
+      .map(f => FileIO.toPath(f.toPath))
+      .getOrElse(StreamConverters.fromOutputStream(() => new CloseShieldOutputStream(System.out)))
 
 }
 
