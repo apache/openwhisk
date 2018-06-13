@@ -17,32 +17,26 @@
 
 package whisk.core.invoker
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Try
+import akka.Done
+import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.stream.ActorMaterializer
 import kamon.Kamon
-import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
-import akka.Done
-import akka.actor.ActorSystem
-import akka.actor.CoordinatedShutdown
-import akka.stream.ActorMaterializer
-import whisk.common.AkkaLogging
-import whisk.common.Scheduler
+import org.apache.curator.retry.RetryUntilElapsed
+import whisk.common.{AkkaLogging, Scheduler, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.MessagingProvider
-import whisk.core.connector.PingMessage
-import whisk.core.entity._
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.connector.{MessagingProvider, PingMessage}
+import whisk.core.containerpool.ContainerPoolProvider
+import whisk.core.entity.{ExecManifest, InstanceId}
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
-import whisk.common.TransactionId
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.util.{Failure, Try}
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
@@ -56,6 +50,7 @@ object Invoker {
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
+      SpiLoader.get[ContainerPoolProvider].requiredProperties ++
       wskApiHost ++ Map(dockerImageTag -> "latest") ++
       Map(invokerName -> "")
 
