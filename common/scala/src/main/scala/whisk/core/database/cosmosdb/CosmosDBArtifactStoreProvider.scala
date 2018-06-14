@@ -26,6 +26,7 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.database._
 import pureconfig._
+import whisk.core.entity.size._
 import whisk.core.ConfigKeys
 import whisk.core.database.cosmosdb.CosmosDBUtil.createClient
 import whisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
@@ -49,22 +50,23 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
-    makeStoreForClient(config, useBatching, getOrCreateReference(config))
+    makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore())
   }
 
-  def makeStore[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig, useBatching: Boolean)(
+  def makeArtifactStore[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
+                                                           attachmentStore: Option[AttachmentStore])(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
 
-    makeStoreForClient(config, useBatching, createReference(config).reference())
+    makeStoreForClient(config, createReference(config).reference(), attachmentStore)
   }
 
   private def makeStoreForClient[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
-                                                                    useBatching: Boolean,
-                                                                    clientRef: DocumentClientRef)(
+                                                                    clientRef: DocumentClientRef,
+                                                                    attachmentStore: Option[AttachmentStore])(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
@@ -74,7 +76,14 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
 
-    new CosmosDBArtifactStore(dbName, config, clientRef, handler, viewMapper)
+    new CosmosDBArtifactStore(
+      dbName,
+      config,
+      clientRef,
+      handler,
+      viewMapper,
+      loadConfigOrThrow[InliningConfig](ConfigKeys.db),
+      attachmentStore)
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(

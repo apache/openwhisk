@@ -20,7 +20,17 @@ package whisk.core.database.cosmosdb
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+import whisk.core.database.DocumentSerializer
+import whisk.core.database.memory.MemoryAttachmentStoreProvider
 import whisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
 
+import scala.reflect.ClassTag
+
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreAttachmentBehaviors {}
+class CosmosDBAttachmentStoreTests
+    extends FlatSpec
+    with CosmosDBStoreBehaviorBase
+    with ArtifactStoreAttachmentBehaviors {
+  override protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]() =
+    Some(MemoryAttachmentStoreProvider.makeStore[D]())
+}
