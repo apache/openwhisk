@@ -431,7 +431,7 @@ To build and deploy an OpenWhisk Action using `npm` and `webpack`:
   ```
   npm run deploy
   ```
-  {: pre}
+
   Using the CLI:
   ```
   wsk action update my-action dist/bundle.js
@@ -907,7 +907,7 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
 
   The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-### Erro Handling in Swift 4
+### Error Handling in Swift 4
 
 With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
 [Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.
