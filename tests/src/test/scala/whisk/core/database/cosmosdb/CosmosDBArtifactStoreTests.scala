@@ -20,7 +20,7 @@ package whisk.core.database.cosmosdb
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
+import whisk.core.database.test.behavior.ArtifactStoreBehavior
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreAttachmentBehaviors {}
+class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {}

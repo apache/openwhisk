@@ -254,19 +254,24 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
+    val asJson = doc.toDocumentRecord
+    val id = asJson.fields("_id").convertTo[String].trim
+
     attachmentStore match {
       case Some(_) =>
-        attachToExternalStore(doc, update, contentType, docStream, oldAttachment)
+        attachToExternalStore(id, doc, update, contentType, docStream, oldAttachment)
       case None =>
-        attachToCosmos(doc, update, contentType, docStream)
+        attachToCosmos(id, doc, update, contentType, docStream, oldAttachment)
     }
   }
 
   private def attachToCosmos[A <: DocumentAbstraction](
+    id: String,
     doc: A,
     update: (A, Attached) => A,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId) = {
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
     //Convert Source to ByteString as Cosmos API works with InputStream only
     for {
       allBytes <- toByteString(docStream)
@@ -286,18 +291,30 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       } else {
         attach(i1, uri.path.toString, attached.attachmentType, allBytes)
       }
+      //Remove old attachment if it was part of attachmentStore
+      _ <- oldAttachment
+        .map { old =>
+          val oldUri = Uri(old.attachmentName)
+          if (oldUri.scheme == cosmosScheme) {
+            val name = oldUri.path.toString
+            val docId = DocId(id)
+            client.deleteAttachment(s"${selfLinkOf(docId)}/attachments/$name", newRequestOption(docId)).head()
+          } else {
+            Future.successful(true)
+          }
+        }
+        .getOrElse(Future.successful(true))
     } yield (i2, attached)
   }
 
   private def attachToExternalStore[A <: DocumentAbstraction](
+    id: String,
     doc: A,
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
     val as = attachmentStore.get
-    val asJson = doc.toDocumentRecord
-    val id = asJson.fields("_id").convertTo[String].trim
 
     for {
       (bytes, tailSource) <- inlineAndTail(docStream)
