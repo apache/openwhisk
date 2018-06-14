@@ -156,6 +156,8 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
     None
   }
 
+  private val lbConfig = loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
+
   /** State related to invocations and throttling */
   private val activations = TrieMap[ActivationId, ActivationEntry]()
   private val activationsPerNamespace = TrieMap[UUID, LongAdder]()
@@ -163,7 +165,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
   private val totalActivationMemory = new LongAdder()
 
   /** State needed for scheduling. */
-  private val schedulingState = ShardingContainerPoolBalancerState()()
+  private val schedulingState = ShardingContainerPoolBalancerState()(lbConfig)
 
   actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
     MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
@@ -254,7 +256,12 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
     totalActivationMemory.add(action.limits.memory.megabytes)
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
-    val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
+    // Timeout is a multiple of the configured maximum action duration. The minimum timeout is the configured standard
+    // value for action durations to avoid too tight timeouts.
+    // Timeouts in general are diluted by a configurable factor. In essence this factor controls how much slack you want
+    // to allow in your topics before you start reporting failed activations.
+    val timeout = (action.limits.timeout.duration.max(TimeLimit.STD_DURATION) * lbConfig.timeoutFactor) + 1.minute
+
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
@@ -579,8 +586,9 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  *
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
  * @param invokerBusyThreshold how many slots an invoker has available in total
+ * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
  */
-case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
+case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int, timeoutFactor: Int)
 
 /**
  * State kept for each activation until completion.
