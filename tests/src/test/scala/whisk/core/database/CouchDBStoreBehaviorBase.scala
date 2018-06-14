@@ -15,28 +15,31 @@
  * limitations under the License.
  */
 
-package whisk.core.database.memory
+package whisk.core.database
 
-import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import whisk.core.database.ArtifactStore
-import whisk.core.database.test.behavior.ArtifactStoreBehavior
-import whisk.core.entity._
+import whisk.core.database.test.behavior.ArtifactStoreBehaviorBase
+import whisk.core.entity.{
+  DocumentReader,
+  WhiskActivation,
+  WhiskAuth,
+  WhiskDocumentReader,
+  WhiskEntity,
+  WhiskEntityJsonFormat
+}
 
-import scala.reflect.classTag
+import scala.reflect.{classTag, ClassTag}
 
-@RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
-  override def storeType = "Memory"
+trait CouchDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
+  override def storeType = "CouchDB"
 
   override val authStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
-    MemoryArtifactStoreProvider.makeStore[WhiskAuth]()
+    CouchDbStoreProvider.makeArtifactStore[WhiskAuth](useBatching = false, getAttachmentStore[WhiskAuth]())
   }
 
   override val entityStore =
-    MemoryArtifactStoreProvider.makeStore[WhiskEntity]()(
+    CouchDbStoreProvider.makeArtifactStore[WhiskEntity](useBatching = false, getAttachmentStore[WhiskEntity]())(
       classTag[WhiskEntity],
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
@@ -46,9 +49,11 @@ class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
 
   override val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
-    MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
+    CouchDbStoreProvider.makeArtifactStore[WhiskActivation](useBatching = true, getAttachmentStore[WhiskActivation]())
   }
 
   override protected def getAttachmentStore(store: ArtifactStore[_]) =
-    Some(store.asInstanceOf[MemoryArtifactStore[_]].attachmentStore)
+    store.asInstanceOf[CouchDbRestStore[_]].attachmentStore
+
+  protected def getAttachmentStore[D <: DocumentSerializer: ClassTag](): Option[AttachmentStore] = None
 }

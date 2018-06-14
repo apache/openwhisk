@@ -19,9 +19,10 @@ package whisk.core.database
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import spray.json.RootJsonFormat
 import whisk.common.Logging
-import whisk.spi.Spi
+import whisk.spi.{Spi, SpiLoader}
 import whisk.core.entity.DocumentReader
 
 import scala.reflect.ClassTag
@@ -36,4 +37,15 @@ trait ArtifactStoreProvider extends Spi {
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D]
+
+  protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]()(
+    implicit actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): Option[AttachmentStore] = {
+    if (ConfigFactory.load().hasPath("whisk.spi.AttachmentStoreProvider")) {
+      Some(SpiLoader.get[AttachmentStoreProvider].makeStore[D]())
+    } else {
+      None
+    }
+  }
 }

@@ -21,26 +21,23 @@ import java.util.Base64
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.{Failure, Random, Success, Try}
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionId
-import whisk.core.database._
-import whisk.core.database.memory.MemoryArtifactStore
-import whisk.core.entity._
-import whisk.core.entity.types.AuthStore
-import whisk.core.entity.types.EntityStore
 import akka.http.scaladsl.model.ContentType
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.common.TransactionId
+import whisk.core.database._
+import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity.Attachments.Attached
+import whisk.core.entity._
+import whisk.core.entity.types.{AuthStore, EntityStore}
+
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, DurationInt}
+import scala.language.postfixOps
+import scala.util.{Failure, Random, Success, Try}
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -278,7 +275,10 @@ trait DbUtils {
    */
   def cleanup()(implicit timeout: Duration = 10 seconds) = {
     docsToDelete.map { e =>
-      Try(Await.result(e._1.del(e._2)(TransactionId.testing), timeout))
+      Try {
+        Await.result(e._1.del(e._2)(TransactionId.testing), timeout)
+        Await.result(e._1.deleteAttachments(e._2)(TransactionId.testing), timeout)
+      }
     }
     docsToDelete.clear()
   }
@@ -321,7 +321,7 @@ trait DbUtils {
   def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
   def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
 
-  private def randomBytes(size: Int): Array[Byte] = {
+  protected def randomBytes(size: Int): Array[Byte] = {
     val arr = new Array[Byte](size)
     Random.nextBytes(arr)
     arr

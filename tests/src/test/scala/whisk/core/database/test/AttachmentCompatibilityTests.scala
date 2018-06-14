@@ -33,7 +33,8 @@ import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
-import whisk.core.database.{CouchDbConfig, CouchDbRestClient, NoDocumentException}
+import whisk.core.database.memory.MemoryAttachmentStoreProvider
+import whisk.core.database.{CouchDbConfig, CouchDbRestClient, CouchDbStoreProvider, NoDocumentException}
 import whisk.core.entity.Attachments.Inline
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.entity.{
@@ -42,11 +43,14 @@ import whisk.core.entity.{
   EntityName,
   EntityPath,
   WhiskAction,
+  WhiskDocumentReader,
   WhiskEntity,
+  WhiskEntityJsonFormat,
   WhiskEntityStore
 }
 
 import scala.concurrent.Future
+import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
 class AttachmentCompatibilityTests
@@ -93,6 +97,28 @@ class AttachmentCompatibilityTests
     val doc =
       WhiskAction(namespace, EntityName("attachment_unique"), exec)
 
+    createAction(doc)
+
+    val doc2 = WhiskAction.get(entityStore, doc.docid).futureValue
+    doc2.exec shouldBe exec
+  }
+
+  it should "read attachments created using old scheme with AttachmentStore" in {
+    implicit val tid: TransactionId = transid()
+    val namespace = EntityPath("attachment-compat-test2")
+    val exec = javaDefault("ZHViZWU=", Some("hello"))
+    val doc =
+      WhiskAction(namespace, EntityName("attachment_unique"), exec)
+
+    createAction(doc)
+
+    val entityStore2 = createEntityStore()
+    val doc2 = WhiskAction.get(entityStore2, doc.docid).futureValue
+    doc2.exec shouldBe exec
+  }
+
+  private def createAction(doc: WhiskAction) = {
+    implicit val tid: TransactionId = transid()
     doc.exec match {
       case exec @ CodeExecAsAttachment(_, Inline(code), _) =>
         val attached = exec.manifest.attached.get
@@ -109,9 +135,6 @@ class AttachmentCompatibilityTests
       case _ =>
         fail("Exec must be code attachment")
     }
-
-    val doc2 = WhiskAction.get(entityStore, doc.docid).futureValue
-    doc2.exec shouldBe exec
   }
 
   private def attach(doc: DocInfo,
@@ -131,4 +154,17 @@ class AttachmentCompatibilityTests
         throw new Exception("Unexpected http response code: " + code)
     }
   }
+
+  private def createEntityStore() =
+    CouchDbStoreProvider
+      .makeArtifactStore[WhiskEntity](
+        useBatching = false,
+        Some(MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()))(
+        classTag[WhiskEntity],
+        WhiskEntityJsonFormat,
+        WhiskDocumentReader,
+        actorSystem,
+        logging,
+        materializer)
+
 }
