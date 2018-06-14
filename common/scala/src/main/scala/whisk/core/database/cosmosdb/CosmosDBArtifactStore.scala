@@ -139,7 +139,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
         { rr =>
           val js = getResultToWhiskJsonDoc(rr.getResource)
           transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
-          //TODO Invoke DocumentHandler
           deserialize[A, DocumentAbstraction](doc, js)
         }, {
           case e: DocumentClientException if isNotFound(e) =>
@@ -268,16 +267,16 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _])(implicit transid: TransactionId) = {
-    //TODO Read whole stream and then compute size and digest in advance.
-    //Then we do not need documentHandler in get part
+    //Convert Source to ByteString as Cosmos API works with InputStream only
     for {
-      (bytes, tailSource) <- inlineAndTail(docStream)
+      allBytes <- toByteString(docStream)
+      (bytes, tailSource) <- inlineAndTail(Source.single(allBytes))
       uri <- Future.successful(uriOf(bytes, UUID().asString))
       attached <- {
         val a = if (isInlined(uri)) {
           Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
         } else {
-          Attached(uri.toString, contentType)
+          Attached(uri.toString, contentType, Some(allBytes.size), Some(digest(allBytes)))
         }
         Future.successful(a)
       }
@@ -285,7 +284,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       i2 <- if (isInlined(uri)) {
         Future.successful(i1)
       } else {
-        attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+        attach(i1, uri.path.toString, attached.attachmentType, allBytes)
       }
     } yield (i2, attached)
   }
@@ -331,7 +330,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     } yield (i1, attached)
   }
 
-  private def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+  private def attach(doc: DocInfo, name: String, contentType: ContentType, allBytes: ByteString)(
     implicit transid: TransactionId): Future[DocInfo] = {
     val start = transid.started(
       this,
@@ -342,12 +341,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val options = new MediaOptions
     options.setContentType(contentType.toString())
     options.setSlug(name)
-
-    val f = docStream
-      .runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
-      .map(_.result().toArray)
-      .map(new ByteArrayInputStream(_))
-      .flatMap(s => client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc)).head())
+    val s = new ByteArrayInputStream(allBytes.toArray)
+    val f = client
+      .upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc))
+      .head()
       .transform(
         { _ =>
           transid
@@ -366,6 +363,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       start,
       failure => s"[ATT_PUT] '$collName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'")
   }
+
+  private def toByteString(docStream: Source[ByteString, _]) =
+    docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b).map(_.result().compact)
 
   override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[T] = {
