@@ -138,7 +138,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
     val chosen = if (invokersToUse.nonEmpty) {
-      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
+      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
       ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
@@ -162,7 +162,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
                               instance: InstanceId): ActivationEntry = {
 
     totalActivations.increment()
-    activationsPerNamespace.getOrElseUpdate(msg.user.uuid, new LongAdder()).increment()
+    activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
     val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
@@ -178,7 +178,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,
-          msg.user.uuid,
+          msg.user.namespace.uuid,
           instance,
           timeoutHandler,
           Promise[Either[ActivationId, WhiskActivation]]())

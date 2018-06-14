@@ -58,7 +58,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "authorize a user to only read from their collection" in {
     implicit val tid = transid()
     val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, None) }
 
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
@@ -78,9 +78,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
     val resources = collections map { c: Collection =>
       c match {
-        case RULES      => Resource(anotherUser.namespace.toPath, c, None)
-        case NAMESPACES => Resource(anotherUser.namespace.toPath, c, None)
-        case _          => Resource(someUser.namespace.toPath, c, None)
+        case RULES      => Resource(anotherUser.namespace.name.toPath, c, None)
+        case NAMESPACES => Resource(anotherUser.namespace.name.toPath, c, None)
+        case _          => Resource(someUser.namespace.name.toPath, c, None)
       }
     }
 
@@ -92,8 +92,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     resourcesSet.map(r => resourcesList += r)
     val resourceNames = resourcesList.map(r => r.fqname).sorted.toSet.mkString(", ")
     val resourceOtherNames = Seq(
-      Resource(anotherUser.namespace.toPath, RULES, None),
-      Resource(anotherUser.namespace.toPath, NAMESPACES, None)).map(r => r.fqname).toSet.mkString(", ")
+      Resource(anotherUser.namespace.name.toPath, RULES, None),
+      Resource(anotherUser.namespace.name.toPath, NAMESPACES, None)).map(r => r.fqname).toSet.mkString(", ")
 
     Await.ready(entitlementProvider.check(someUser, READ, resourcesSet), requestTimeout).eitherValue.get shouldBe Left(
       RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceOtherNames)))
@@ -116,7 +116,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "not authorize a user to list someone else's collection or access it by other other right" in {
     implicit val tid = transid()
     val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, None) }
     resources foreach { r =>
       // it is permissible to list packages in any namespace (provided they are either owned by
       // the subject requesting access or the packages are public); that is, the entitlement is more
@@ -143,7 +143,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     // packages are tested separately
     val collections = Seq(ACTIONS, RULES, TRIGGERS)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Right({})
@@ -155,9 +155,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "not authorize a user to CRUD an entity in a collection if authkey has no CRUD rights" in {
     implicit val tid = transid()
     val subject = Subject()
-    val someUser = Identity(subject, EntityName(subject.asString), AuthKey(), Set(Privilege.ACTIVATE))
+    val uuid = UUID()
+    val someUser =
+      Identity(subject, Namespace(EntityName(subject.asString), uuid), AuthKey(uuid, Secret()), Set(Privilege.ACTIVATE))
     val collections = Seq(ACTIONS, RULES, TRIGGERS)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
@@ -172,7 +174,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "not authorize a user to CRUD or activate an entity in a collection that does not support CRUD or activate" in {
     implicit val tid = transid()
     val collections = Seq(NAMESPACES, ACTIVATIONS)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
@@ -187,7 +189,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "not authorize a user to CRUD or activate an entity in someone else's collection" in {
     implicit val tid = transid()
     val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
@@ -203,7 +205,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   it should "authorize a user to list, create/update/delete a package" in {
     implicit val tid = transid()
     val collections = Seq(PACKAGES)
-    val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+    val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
       // read should fail because the lookup for the package will fail
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
@@ -219,8 +221,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
 
   it should "grant access to entire collection to another user" in {
     implicit val tid = transid()
-    val all = Resource(someUser.namespace.toPath, ACTIONS, None)
-    val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
+    val all = Resource(someUser.namespace.name.toPath, ACTIONS, None)
+    val one = Resource(someUser.namespace.name.toPath, ACTIONS, Some("xyz"))
     Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
     Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
     Await.result(entitlementProvider.grant(adminUser.subject, READ, all), requestTimeout) // granted
@@ -231,8 +233,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
 
   it should "grant access to specific resource to a user" in {
     implicit val tid = transid()
-    val all = Resource(someUser.namespace.toPath, ACTIONS, None)
-    val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
+    val all = Resource(someUser.namespace.name.toPath, ACTIONS, None)
+    val one = Resource(someUser.namespace.name.toPath, ACTIONS, Some("xyz"))
     Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
     Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
     Await
@@ -271,11 +273,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           // any user can list any namespace packages
           // (because this performs a db view lookup which is later filtered)
-          Resource(someUser.namespace.toPath, PACKAGES, None))
+          Resource(someUser.namespace.name.toPath, PACKAGES, None))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -300,9 +302,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(someUser.namespace.toPath, PACKAGES, Some("xyz")))
+          Resource(someUser.namespace.name.toPath, PACKAGES, Some("xyz")))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -324,15 +326,15 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       (REJECT, guestUser, Right(false)))
 
     // this forces a doc mismatch error
-    val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), jsDefault(""))
+    val action = WhiskAction(someUser.namespace.name.toPath, MakeName.next(), jsDefault(""))
     put(entityStore, action)
     paths foreach {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(someUser.namespace.toPath, PACKAGES, Some(action.name.asString)))
+          Resource(someUser.namespace.name.toPath, PACKAGES, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -341,7 +343,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next())
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next())
     put(entityStore, provider)
 
     val paths = Seq(
@@ -360,9 +362,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(someUser.namespace.toPath, PACKAGES, Some(provider.name.asString)))
+          Resource(someUser.namespace.name.toPath, PACKAGES, Some(provider.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -372,8 +374,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val ep = entitlementProvider
 
     // simulate entitlement change on package for which binding was once entitled
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next())
-    val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next())
+    val binding = WhiskPackage(guestUser.namespace.name.toPath, MakeName.next(), provider.bind)
     put(entityStore, provider, false)
     put(entityStore, binding)
 
@@ -393,9 +395,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
+          Resource(guestUser.namespace.name.toPath, PACKAGES, Some(binding.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
 
@@ -405,9 +407,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
+          Resource(guestUser.namespace.name.toPath, PACKAGES, Some(binding.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -417,8 +419,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val ep = entitlementProvider
 
     // simulate entitlement change on package for which binding was once entitled
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
-    val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind, publish = true)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = true)
+    val binding = WhiskPackage(guestUser.namespace.name.toPath, MakeName.next(), provider.bind, publish = true)
     put(entityStore, provider)
     put(entityStore, binding)
 
@@ -438,9 +440,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
+          Resource(guestUser.namespace.name.toPath, PACKAGES, Some(binding.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -449,8 +451,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
-    val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = true)
+    val binding = WhiskPackage(guestUser.namespace.name.toPath, MakeName.next(), provider.bind)
     put(entityStore, provider)
     put(entityStore, binding)
 
@@ -470,9 +472,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
-          Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
+          Resource(guestUser.namespace.name.toPath, PACKAGES, Some(binding.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -499,11 +501,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           // any user can list any namespace packages
           // (because this performs a db view lookup which is later filtered)
-          Resource(someUser.namespace.toPath, ACTIONS, None))
+          Resource(someUser.namespace.name.toPath, ACTIONS, None))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }
@@ -524,7 +526,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       (ACTIVATE, guestUser, Right(true)),
       (REJECT, guestUser, Right(false)))
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = true)
     val action = WhiskAction(provider.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, action)
@@ -533,7 +535,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           Resource(action.namespace, ACTIONS, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
@@ -544,7 +546,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = false)
     val action = WhiskAction(provider.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, action)
@@ -567,7 +569,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           Resource(action.namespace, ACTIONS, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
@@ -578,8 +580,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
-    val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = true)
+    val binding = WhiskPackage(guestUser.namespace.name.toPath, MakeName.next(), provider.bind)
     val action = WhiskAction(binding.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, binding)
@@ -603,7 +605,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           Resource(action.namespace, ACTIONS, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
@@ -614,8 +616,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
-    val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+    val provider = WhiskPackage(someUser.namespace.name.toPath, MakeName.next(), None, publish = false)
+    val binding = WhiskPackage(guestUser.namespace.name.toPath, MakeName.next(), provider.bind)
     val action = WhiskAction(binding.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, binding)
@@ -639,7 +641,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           Resource(action.namespace, ACTIONS, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
@@ -662,14 +664,14 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       (ACTIVATE, guestUser, Right(false)),
       (REJECT, guestUser, Right(false)))
 
-    val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), jsDefault(""))
+    val action = WhiskAction(someUser.namespace.name.toPath, MakeName.next(), jsDefault(""))
     put(entityStore, action)
 
     paths foreach {
       case (priv, who, expected) =>
         val check = new ActionCollection(entityStore).implicitRights(
           who,
-          Set(who.namespace.asString),
+          Set(who.namespace.name.asString),
           priv,
           Resource(action.namespace, ACTIONS, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected

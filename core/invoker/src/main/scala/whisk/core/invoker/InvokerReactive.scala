@@ -234,7 +234,7 @@ class InvokerReactive(
 
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.authkey.uuid)
+                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
                 store(msg.transid, activation)
                 Future.successful(())
             }
@@ -244,8 +244,8 @@ class InvokerReactive(
           activationFeed ! MessageFeed.Processed
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.authkey.uuid)
-          logging.warn(this, s"namespace ${msg.user.namespace} was blocked in invoker.")
+          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid)
+          logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }
       }
@@ -268,7 +268,7 @@ class InvokerReactive(
 
     WhiskActivation(
       activationId = msg.activationId,
-      namespace = msg.user.namespace.toPath,
+      namespace = msg.user.namespace.name.toPath,
       subject = msg.user.subject,
       cause = msg.cause,
       name = msg.action.name,

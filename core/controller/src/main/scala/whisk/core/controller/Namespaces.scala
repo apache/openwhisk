@@ -42,7 +42,7 @@ trait WhiskNamespacesApi extends Directives with AuthenticatedRouteProvider {
    */
   override def routes(user: Identity)(implicit transid: TransactionId) = {
     (pathPrefix(collection.path) & collectionOps) {
-      complete(OK, List(user.namespace))
+      complete(OK, List(user.namespace.name))
     }
   }
 }

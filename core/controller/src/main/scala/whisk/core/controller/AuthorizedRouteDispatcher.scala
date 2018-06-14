@@ -114,7 +114,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
         } else {
           Messages.namespaceIllegal
         }
-      }) & extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace.asString else ns))
+      }) & extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace.name.asString else ns))
   }
 
   /** Validates entity name from the matched path segment. */

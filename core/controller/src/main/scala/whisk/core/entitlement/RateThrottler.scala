@@ -45,7 +45,7 @@ class RateThrottler(description: String, maxPerMinute: Identity => Int)(implicit
    * @return true iff subject namespace is below allowed limit
    */
   def check(user: Identity)(implicit transid: TransactionId): RateLimit = {
-    val uuid = user.uuid // this is namespace identifier
+    val uuid = user.namespace.uuid // this is namespace identifier
     val throttle = rateMap.getOrElseUpdate(uuid, new RateInfo)
     val limit = maxPerMinute(user)
     val rate = TimedRateLimit(throttle.update(limit), limit)

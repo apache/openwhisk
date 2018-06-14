@@ -121,9 +121,11 @@ class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTe
 }
 
 trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
+  val uuid = UUID()
   val systemId = Subject()
-  val systemKey = AuthKey()
-  val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
+  val systemKey = AuthKey(uuid, Secret())
+  val systemIdentity =
+    Future.successful(Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, Privilege.ALL))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
   protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
 
@@ -404,7 +406,10 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                   "pkg" -> s"$systemId/proxy".toJson,
                   "action" -> "export_auth".toJson,
                   "content" -> metaPayload(m.method.name.toLowerCase, JsObject(), creds, pkgName = "proxy"))
-                response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
+                response
+                  .fields("content")
+                  .asJsObject
+                  .fields(webApiDirectives.namespace) shouldBe user.namespace.name.toJson
               }
             } else {
               m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
@@ -429,7 +434,10 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                   creds,
                   pkgName = "proxy",
                   headers = List(RawHeader("X-Require-Whisk-Auth", requireAuthenticationKey))))
-              response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
+              response
+                .fields("content")
+                .asJsObject
+                .fields(webApiDirectives.namespace) shouldBe user.namespace.name.toJson
             }
 
             // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value does not match

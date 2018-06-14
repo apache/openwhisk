@@ -196,7 +196,7 @@ protected[actions] trait SequenceActions {
 
     // create the whisk activation
     WhiskActivation(
-      namespace = user.namespace.toPath,
+      namespace = user.namespace.name.toPath,
       name = action.name,
       user.subject,
       activationId = activationId,

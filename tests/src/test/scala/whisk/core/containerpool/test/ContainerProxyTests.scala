@@ -79,11 +79,13 @@ class ContainerProxyTests
     Interval(now, now.plusMillis(200))
   }
 
+  val uuid = UUID()
+
   val message = ActivationMessage(
     messageTransId,
     action.fullyQualifiedName(true),
     action.rev,
-    Identity(Subject(), invocationNamespace, AuthKey(), Set()),
+    Identity(Subject(), Namespace(invocationNamespace, uuid), AuthKey(uuid, Secret()), Set()),
     ActivationId.generate(),
     InstanceId(0),
     blocking = false,
@@ -760,7 +762,7 @@ class ContainerProxyTests
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
       runCount += 1
       environment.fields("api_key") shouldBe message.user.authkey.toJson
-      environment.fields("namespace") shouldBe invocationNamespace.toJson
+      environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       val deadline = Instant.ofEpochMilli(environment.fields("deadline").convertTo[String].toLong)
