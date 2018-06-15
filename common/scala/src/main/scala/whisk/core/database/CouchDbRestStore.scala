@@ -372,24 +372,34 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _])(implicit transid: TransactionId) = {
-    for {
-      (bytes, tailSource) <- inlineAndTail(docStream)
-      uri <- Future.successful(uriOf(bytes, UUID().asString))
-      attached <- {
-        val a = if (isInlined(uri)) {
-          Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-        } else {
-          Attached(uri.toString, contentType)
+
+    if (maxInlineSize.toBytes == 0) {
+      val uri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
+      for {
+        attached <- Future.successful(Attached(uri.toString, contentType))
+        i1 <- put(update(doc, attached))
+        i2 <- attach(i1, uri.path.toString, attached.attachmentType, docStream)
+      } yield (i2, attached)
+    } else {
+      for {
+        (bytes, tailSource) <- inlineAndTail(docStream)
+        uri <- Future.successful(uriOf(bytes, UUID().asString))
+        attached <- {
+          val a = if (isInlined(uri)) {
+            Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          } else {
+            Attached(uri.toString, contentType)
+          }
+          Future.successful(a)
         }
-        Future.successful(a)
-      }
-      i1 <- put(update(doc, attached))
-      i2 <- if (isInlined(uri)) {
-        Future.successful(i1)
-      } else {
-        attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
-      }
-    } yield (i2, attached)
+        i1 <- put(update(doc, attached))
+        i2 <- if (isInlined(uri)) {
+          Future.successful(i1)
+        } else {
+          attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+        }
+      } yield (i2, attached)
+    }
   }
 
   private def attachToExternalStore[A <: DocumentAbstraction](
