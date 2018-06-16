@@ -859,6 +859,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   it should "put and then get an action with inlined attachment" in {
+    assumeAttachmentInliningEnabled(entityStore)
     val action =
       WhiskAction(
         namespace,

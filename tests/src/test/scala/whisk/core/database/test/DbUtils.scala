@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.http.scaladsl.model.ContentType
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import org.scalatest.Assertions
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.TransactionId
@@ -45,7 +46,7 @@ import scala.util.{Failure, Random, Success, Try}
  * operations with those that flow through the cache. To mitigate this, use unique asset
  * names in tests, and defer all cleanup to the end of a test suite.
  */
-trait DbUtils {
+trait DbUtils extends Assertions {
   implicit val dbOpTimeout = 15 seconds
   val instance = InstanceId(0)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
@@ -314,6 +315,10 @@ trait DbUtils {
       case _ =>
         42
     }
+  }
+
+  def assumeAttachmentInliningEnabled(db: ArtifactStore[_]): Unit = {
+    assume(inlinedAttachmentSize(db) > 0, "Attachment inlining is disabled")
   }
 
   protected def encodedRandomBytes(size: Int): String = Base64.getEncoder.encodeToString(randomBytes(size))

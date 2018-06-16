@@ -90,6 +90,7 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
    * if attachment is inlined
    */
   it should "work on reading with old inlined attachment" in {
+    assumeAttachmentInliningEnabled(entityStore)
     implicit val tid: TransactionId = transid()
     val code1 = encodedRandomBytes(inlinedAttachmentSize(entityStore))
     val exec = javaDefault(code1, Some("hello"))
@@ -140,6 +141,7 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
   }
 
   it should "inline small attachments" in {
+    assumeAttachmentInliningEnabled(entityStore)
     implicit val tid: TransactionId = transid()
     val attachmentSize = inlinedAttachmentSize(entityStore) - 1
     val base64 = encodedRandomBytes(attachmentSize)
