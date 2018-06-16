@@ -36,7 +36,6 @@ object retry {
                waitBeforeRetry: Option[Duration] = Some(50.milliseconds),
                retryMessage: Option[String] = None): T = {
     require(N >= 1, "maximum number of fn applications must be greater than 1")
-    waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis)) // initial wait if any
 
     try fn
     catch {
