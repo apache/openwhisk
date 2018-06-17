@@ -23,7 +23,6 @@ import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import org.scalatest.Matchers
 import TestUtils._
-import whisk.utils.retry
 import scala.concurrent.duration._
 import scala.collection.mutable
 
@@ -33,6 +32,24 @@ trait RunCliCmd extends Matchers {
    * The base command to run. This returns a new mutable buffer, intended for building the rest of the command line.
    */
   def baseCommand: Buffer[String]
+
+  /**
+   * Delegates execution of the command to an underlying implementation.
+   *
+   * @param expectedExitCode the expected exit code
+   * @param dir the working directory
+   * @param env an environment for the command
+   * @param fileStdin argument file to redirect to stdin (optional)
+   * @param params parameters to pass on the command line
+   * @return an instance of RunResult
+   */
+  def runCmd(expectedExitCode: Int,
+             dir: File,
+             env: Map[String, String],
+             fileStdin: Option[File],
+             params: Seq[String]): RunResult = {
+    TestUtils.runCmd(expectedExitCode, dir, TestUtils.logger, env, fileStdin.getOrElse(null), params: _*)
+  }
 
   /**
    * Runs a command wsk [params] where the arguments come in as a sequence.
@@ -48,20 +65,16 @@ trait RunCliCmd extends Matchers {
           showCmd: Boolean = false,
           hideFromOutput: Seq[String] = Seq(),
           retriesOnNetworkError: Int = 3): RunResult = {
+    require(retriesOnNetworkError >= 0, "retry count on network error must not be negative")
+
     val args = baseCommand
     if (verbose) args += "--verbose"
     if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
+
     val rr = retry(
       0,
       retriesOnNetworkError,
-      () =>
-        TestUtils.runCmd(
-          DONTCARE_EXIT,
-          workingDir,
-          TestUtils.logger,
-          sys.env ++ env,
-          stdinFile.getOrElse(null),
-          args ++ params: _*))
+      () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args ++ params))
 
     withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
@@ -83,6 +96,7 @@ trait RunCliCmd extends Matchers {
       println(s"command will retry to due to network error: $rr")
       retry(i + 1, N, cmd)
     } else rr
+  }
 
   /**
    * Takes a string and a list of sensitive strings. Any sensistive string found in
