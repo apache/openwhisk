@@ -282,7 +282,7 @@ Components = [
                   'deploy api gateway',
                   gradle = False,
                   modes = 'clean',
-                  yaml = 'routemgmt.yml apigateway.yml'),
+                  yaml = 'apigateway.yml'),
 
     # the following (re)build images via gradle
     makeComponent('runtime:([\w.-]+)',

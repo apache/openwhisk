@@ -152,7 +152,6 @@ Vagrant.configure('2') do |config|
     su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False'
     su vagrant -c 'ansible-playbook -i environments/vagrant postdeploy.yml'
     su vagrant -c 'ansible-playbook -i environments/vagrant apigateway.yml'
-    su vagrant -c 'ansible-playbook -i environments/vagrant routemgmt.yml'
 
     # Setup OpenWhisk CLI
     su vagrant -c 'mkdir ${HOME}/bin'

@@ -27,6 +27,5 @@ cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD openwhisk.yml
 $ANSIBLE_CMD apigateway.yml
-$ANSIBLE_CMD routemgmt.yml
 
 echo "Time taken for ${0##*/} is $SECONDS secs"
