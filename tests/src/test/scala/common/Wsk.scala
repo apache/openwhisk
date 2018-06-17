@@ -1032,32 +1032,22 @@ trait RunWskCmd extends BaseRunWsk {
           workingDir: File = new File("."),
           stdinFile: Option[File] = None,
           showCmd: Boolean = false,
-          hideFromOutput: Seq[String] = Seq()): RunResult = {
+          hideFromOutput: Seq[String] = Seq(),
+          retriesOnNetworkError: Int = 3): RunResult = {
     val args = baseCommand
     if (verbose) args += "--verbose"
     if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-    val rr =
-      retry(
-        {
-          val rr = TestUtils.runCmd(
-            DONTCARE_EXIT,
-            workingDir,
-            TestUtils.logger,
-            sys.env ++ env,
-            stdinFile.getOrElse(null),
-            args ++ params: _*)
-
-          if (expectedExitCode != NETWORK_ERROR_EXIT) {
-            withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
-              rr.exitCode should not be NETWORK_ERROR_EXIT
-            }
-          }
-
-          rr
-        },
-        3,
-        Some(1.second),
-        Some(s"CLI encountered a network error, retrying command..."))
+    val rr = retry(
+      0,
+      retriesOnNetworkError,
+      () =>
+        TestUtils.runCmd(
+          DONTCARE_EXIT,
+          workingDir,
+          TestUtils.logger,
+          sys.env ++ env,
+          stdinFile.getOrElse(null),
+          args ++ params: _*))
 
     withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
@@ -1069,6 +1059,16 @@ trait RunWskCmd extends BaseRunWsk {
     }
 
     rr
+  }
+
+  /** Retries cmd on network error exit. */
+  private def retry(i: Int, N: Int, cmd: () => RunResult): RunResult = {
+    val rr = cmd()
+    if (rr.exitCode == NETWORK_ERROR_EXIT && i < N) {
+      Thread.sleep(1.second.toMillis)
+      println(s"command will retry to due to network error: $rr")
+      retry(i + 1, N, cmd)
+    } else rr
   }
 }
 

@@ -22,12 +22,13 @@ import scala.concurrent.duration._
 object retry {
 
   /**
-   * Retry a method which returns a value or throws an exception on failure, up to N times,
+   * Retries a method which returns a value or throws an exception on failure, up to N times,
    * and optionally sleeping up to specified duration between retries.
    *
-   * @param fn the method to retry, fn is expected to throw an exception if it fails, else should return a value of type T
+   * @param fn the function to retry; fn is expected to throw an exception if it fails, else should return a value of type T
    * @param N the maximum number of times to apply fn, must be >= 1
    * @param waitBeforeRetry an option specifying duration to wait before retrying method, will not wait if none given
+   * @param retryMessage an optional message to emit before retrying function
    * @return the result of fn iff it is successful
    * @throws Throwable exception from fn (or an illegal argument exception if N is < 1)
    */
