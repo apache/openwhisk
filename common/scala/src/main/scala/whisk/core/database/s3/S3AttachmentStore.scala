@@ -65,9 +65,6 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
                                                                           logging: Logging,
                                                                           materializer: ActorMaterializer)
     extends AttachmentStore {
-  private val metaContentType = "content-type"
-  private val amzMetaContentType = s"x-amz-meta-$metaContentType"
-
   override val scheme = "s3"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
