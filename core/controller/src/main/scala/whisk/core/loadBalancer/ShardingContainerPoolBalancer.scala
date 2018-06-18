@@ -135,7 +135,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId ): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-    val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
+    val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
     publish(msg.transid, action.limits.timeout.duration.toSeconds.toInt, action.exec.pull, hash, msg, false)
   }
 
@@ -213,7 +213,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     // Increment the activations count in case of a new activation (not rescheduled)
     if (!isRescheduled) {
       totalActivations.increment()
-      activationsPerNamespace.getOrElseUpdate(msg.user.uuid, new LongAdder()).increment()
+      activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
     }
 
     val timeout = actionTimeout.max(TimeLimit.STD_DURATION) + 1.minute
