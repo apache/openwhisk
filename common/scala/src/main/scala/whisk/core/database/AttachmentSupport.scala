@@ -51,14 +51,34 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
 
+  protected def executionContext: ExecutionContext
+
+  /**
+   * Attachment scheme name to use for non inlined attachments
+   */
+  protected def attachmentScheme: String
+
+  protected def inliningConfig: InliningConfig
+
+  /**
+   * Attachments having size less than this would be inlined
+   */
+  def maxInlineSize: ByteSize = inliningConfig.maxInlineSize
+
+  /**
+   * See {{ ArtifactStore#put }}
+   */
+  protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
+
   /**
    * Given a ByteString source it determines if the source can be inlined or not by returning an
    * Either - Left(byteString) containing all the bytes from the source or Right(Source[ByteString, _])
    * if the source is large
    */
-  protected[database] def inlineOrAttach(docStream: Source[ByteString, _],
-                                         previousPrefix: ByteString = ByteString.empty)(
-    implicit ec: ExecutionContext): Future[Either[ByteString, Source[ByteString, _]]] = {
+  protected[database] def inlineOrAttach(
+    docStream: Source[ByteString, _],
+    previousPrefix: ByteString = ByteString.empty): Future[Either[ByteString, Source[ByteString, _]]] = {
+    implicit val ec = executionContext
     docStream.prefixAndTail(1).runWith(Sink.head).flatMap {
       case (Nil, _) =>
         Future.successful(Left(previousPrefix))
@@ -159,25 +179,6 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
         .getOrElse(Future.successful(true))
     } yield (i1, attached)
   }
-
-  /**
-   * Attachments having size less than this would be inlined
-   */
-  def maxInlineSize: ByteSize = inliningConfig.maxInlineSize
-
-  protected def inliningConfig: InliningConfig
-
-  /**
-   * Attachment scheme name to use for non inlined attachments
-   */
-  protected def attachmentScheme: String
-
-  protected def executionContext: ExecutionContext
-
-  /**
-   * See {{ ArtifactStore#put }}
-   */
-  protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
 
   private def encode(bytes: Seq[Byte]): String = {
     Base64.getUrlEncoder.encodeToString(bytes.toArray)
