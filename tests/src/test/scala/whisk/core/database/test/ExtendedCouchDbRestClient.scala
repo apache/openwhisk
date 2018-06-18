@@ -21,10 +21,13 @@ import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.Logging
 import whisk.core.database.CouchDbRestClient
+import whisk.http.PoolingRestClient._
 
 /**
  * Implementation of additional endpoints that should only be used in testing.
@@ -39,22 +42,22 @@ class ExtendedCouchDbRestClient(protocol: String,
 
   // http://docs.couchdb.org/en/1.6.1/api/server/common.html#get--
   def instanceInfo(): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.GET, Uri./, baseHeaders))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, Uri./, headers = baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/server/common.html#all-dbs
   def dbs(): Future[Either[StatusCode, List[String]]] = {
-    requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"), baseHeaders)).map { either =>
+    requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"), headers = baseHeaders)).map { either =>
       either.right.map(_.convertTo[List[String]])
     }
   }
 
   // http://docs.couchdb.org/en/1.6.1/api/database/common.html#put--db
   def createDb(): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.PUT, uri(db), baseHeaders))
+    requestJson[JsObject](mkRequest(HttpMethods.PUT, uri(db), headers = baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/database/common.html#delete--db
   def deleteDb(): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db), baseHeaders))
+    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db), headers = baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/database/bulk-api.html#get--db-_all_docs
   def getAllDocs(skip: Option[Int] = None,
@@ -75,6 +78,6 @@ class ExtendedCouchDbRestClient(protocol: String,
       .toMap
 
     val url = uri(db, "_all_docs").withQuery(Uri.Query(argMap))
-    requestJson[JsObject](mkRequest(HttpMethods.GET, url, baseHeaders))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, url, headers = baseHeaders))
   }
 }

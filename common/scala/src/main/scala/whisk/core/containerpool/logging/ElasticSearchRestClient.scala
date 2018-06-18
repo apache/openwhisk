@@ -32,6 +32,7 @@ import scala.util.Try
 import spray.json._
 
 import whisk.http.PoolingRestClient
+import whisk.http.PoolingRestClient._
 
 trait EsQueryMethod
 trait EsOrder
@@ -164,11 +165,11 @@ class ElasticSearchRestClient(
   private val baseHeaders: List[HttpHeader] = List(Accept(MediaTypes.`application/json`))
 
   def info(headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, JsObject]] = {
-    requestJson[JsObject](mkRequest(GET, Uri./, baseHeaders ++ headers))
+    requestJson[JsObject](mkRequest(GET, Uri./, headers = baseHeaders ++ headers))
   }
 
   def index(index: String, headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, JsObject]] = {
-    requestJson[JsObject](mkRequest(GET, Uri(index), baseHeaders ++ headers))
+    requestJson[JsObject](mkRequest(GET, Uri(index), headers = baseHeaders ++ headers))
   }
 
   def search[T: RootJsonReader](index: String,
