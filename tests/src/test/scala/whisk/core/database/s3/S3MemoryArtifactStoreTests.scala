@@ -20,14 +20,19 @@ package whisk.core.database.s3
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.test.AttachmentStoreBehaviors
-import whisk.core.entity.WhiskEntity
+import whisk.core.database.memory.MemoryArtifactStoreBehaviorBase
+import whisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
+import whisk.core.database.{AttachmentStore, DocumentSerializer}
+
+import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
-class S3AttachmentStoreMinioTests extends FlatSpec with AttachmentStoreBehaviors with S3Minio {
-  override lazy val store = makeS3Store[WhiskEntity]
+class S3MemoryArtifactStoreTests
+    extends FlatSpec
+    with MemoryArtifactStoreBehaviorBase
+    with ArtifactStoreAttachmentBehaviors
+    with S3Minio {
 
-  override def storeType: String = "S3"
-
-  override def garbageCollectAttachments: Boolean = false
+  override def getAttachmentStore[D <: DocumentSerializer: ClassTag](): AttachmentStore =
+    makeS3Store[D]()
 }

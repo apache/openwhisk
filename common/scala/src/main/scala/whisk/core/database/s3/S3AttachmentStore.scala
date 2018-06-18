@@ -65,7 +65,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
                                                                           logging: Logging,
                                                                           materializer: ActorMaterializer)
     extends AttachmentStore {
-  override val scheme = "s3"
+  //TODO Use 's3s' for now as due to some bug `Uri.from(scheme="s3") is causing issue
+  override val scheme = "s3s"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -114,7 +115,7 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
           .finished(this, start, s"[ATT_GET] '$prefix' completed: found attachment '$name' of document 'id: $docId'")
         s
       }, {
-        case s: S3Exception if s.code == "NoSuchKey" =>
+        case s: Throwable if isMissingKeyException(s) =>
           transid
             .finished(
               this,
@@ -180,4 +181,13 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
   private def objectKey(id: DocId, name: String): String = s"$prefix/${id.id}/$name"
 
   private def objectKeyPrefix(id: DocId): String = s"$prefix/${id.id}"
+
+  private def isMissingKeyException(e: Throwable): Boolean = {
+    //In some case S3Exception is a sub cause. So need to recurse
+    e match {
+      case s: S3Exception if s.code == "NoSuchKey"             => true
+      case t if t != null && isMissingKeyException(t.getCause) => true
+      case _                                                   => false
+    }
+  }
 }

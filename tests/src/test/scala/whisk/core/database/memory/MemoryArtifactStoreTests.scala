@@ -20,35 +20,7 @@ package whisk.core.database.memory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.ArtifactStore
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
-import whisk.core.entity._
-
-import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
-  override def storeType = "Memory"
-
-  override val authStore = {
-    implicit val docReader: DocumentReader = WhiskDocumentReader
-    MemoryArtifactStoreProvider.makeStore[WhiskAuth]()
-  }
-
-  override val entityStore =
-    MemoryArtifactStoreProvider.makeStore[WhiskEntity]()(
-      classTag[WhiskEntity],
-      WhiskEntityJsonFormat,
-      WhiskDocumentReader,
-      actorSystem,
-      logging,
-      materializer)
-
-  override val activationStore = {
-    implicit val docReader: DocumentReader = WhiskDocumentReader
-    MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
-  }
-
-  override protected def getAttachmentStore(store: ArtifactStore[_]) =
-    Some(store.asInstanceOf[MemoryArtifactStore[_]].attachmentStore)
-}
+class MemoryArtifactStoreTests extends FlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior
