@@ -383,7 +383,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     } else {
       for {
         bytesOrSource <- inlineOrAttach(docStream)
-        uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
+        uri = uriOf(bytesOrSource, UUID().asString)
         attached <- {
           val a = bytesOrSource match {
             case Left(bytes) => Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))

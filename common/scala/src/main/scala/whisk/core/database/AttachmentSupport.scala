@@ -152,7 +152,7 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
 
     for {
       bytesOrSource <- inlineOrAttach(docStream)
-      uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
+      uri = uriOf(bytesOrSource, UUID().asString)
       attached <- {
         // Upload if cannot be inlined
         bytesOrSource match {
