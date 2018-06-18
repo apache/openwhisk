@@ -62,7 +62,8 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     contentType: ContentType,
     docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[AttachResult] = {
     require(name != null, "name undefined")
-    val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$docId'")
+    val start =
+      transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document 'id: $docId'")
 
     val uploadSink = Sink.fold[ByteStringBuilder, ByteString](new ByteStringBuilder)((builder, b) => builder ++= b)
 
@@ -78,7 +79,8 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     reportFailure(
       g,
       start,
-      failure => s"[ATT_PUT] '$dbName' internal error, name: '$name', doc: '$docId', failure: '${failure.getMessage}'")
+      failure =>
+        s"[ATT_PUT] '$dbName' internal error, name: '$name', doc: 'id: $docId', failure: '${failure.getMessage}'")
   }
 
   /**
@@ -88,7 +90,10 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     implicit transid: TransactionId): Future[T] = {
 
     val start =
-      transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$docId'")
+      transid.started(
+        this,
+        DATABASE_ATT_GET,
+        s"[ATT_GET] '$dbName' finding attachment '$name' of document 'id: $docId'")
 
     val f = attachments.get(attachmentKey(docId, name)) match {
       case Some(Attachment(bytes)) =>
