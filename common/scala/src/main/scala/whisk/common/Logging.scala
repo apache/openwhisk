@@ -299,6 +299,7 @@ object LoggingMarkers {
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
+  def KAFKA_MESSAGE_DELAY(topic: String) = LogMarkerToken(kafka, topic, start, Some("delay"))
 
   /*
    * General markers
@@ -312,5 +313,7 @@ object LoggingMarkers {
   val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)
   val DATABASE_ATT_GET = LogMarkerToken(database, "getDocumentAttachment", start)
   val DATABASE_ATT_SAVE = LogMarkerToken(database, "saveDocumentAttachment", start)
+  val DATABASE_ATT_DELETE = LogMarkerToken(database, "deleteDocumentAttachment", start)
+  val DATABASE_ATTS_DELETE = LogMarkerToken(database, "deleteDocumentAttachments", start)
   val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)
 }

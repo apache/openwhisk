@@ -221,13 +221,14 @@ object InvokerPool {
   /** A stub identity for invoking the test action. This does not need to be a valid identity. */
   val healthActionIdentity = {
     val whiskSystem = "whisk.system"
-    Identity(Subject(whiskSystem), EntityName(whiskSystem), AuthKey(UUID(), Secret()), Set[Privilege]())
+    val uuid = UUID()
+    Identity(Subject(whiskSystem), Namespace(EntityName(whiskSystem), uuid), AuthKey(uuid, Secret()), Set[Privilege]())
   }
 
   /** An action to use for monitoring invoker health. */
   def healthAction(i: InstanceId) = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
     new WhiskAction(
-      namespace = healthActionIdentity.namespace.toPath,
+      namespace = healthActionIdentity.namespace.name.toPath,
       name = EntityName(s"invokerHealthTestAction${i.toInt}"),
       exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None))
   }

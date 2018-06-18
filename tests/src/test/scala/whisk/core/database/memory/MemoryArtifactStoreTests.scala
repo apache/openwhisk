@@ -20,6 +20,7 @@ package whisk.core.database.memory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+import whisk.core.database.ArtifactStore
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
 import whisk.core.entity._
 
@@ -47,4 +48,7 @@ class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
     implicit val docReader: DocumentReader = WhiskDocumentReader
     MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
   }
+
+  override protected def getAttachmentStore(store: ArtifactStore[_]) =
+    Some(store.asInstanceOf[MemoryArtifactStore[_]].attachmentStore)
 }

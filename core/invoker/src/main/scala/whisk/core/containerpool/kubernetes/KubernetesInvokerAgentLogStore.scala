@@ -51,7 +51,7 @@ class KubernetesInvokerAgentLogStore(system: ActorSystem) extends LogDriverLogSt
     val sentinelledLogs = action.exec.sentinelledLogs
 
     // Add the userId field to every written record, so any background process can properly correlate.
-    val userIdField = Map("namespaceId" -> user.authkey.uuid.toJson)
+    val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)
 
     val additionalMetadata = Map(
       "activationId" -> activation.activationId.asString.toJson,

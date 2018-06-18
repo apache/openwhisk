@@ -230,7 +230,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,
-          msg.user.uuid,
+          msg.user.namespace.uuid,
           instance,
           timeoutHandler,
           Promise[Either[ActivationId, WhiskActivation]]())

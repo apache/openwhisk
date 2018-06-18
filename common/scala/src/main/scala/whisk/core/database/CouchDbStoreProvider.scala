@@ -53,6 +53,14 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D] = makeArtifactStore(useBatching, getAttachmentStore())
+
+  def makeArtifactStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean,
+                                                           attachmentStore: Option[AttachmentStore])(
+    implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
+    actorSystem: ActorSystem,
+    logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
     val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
     require(
@@ -69,6 +77,7 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.password,
       dbConfig.databaseFor[D],
       useBatching,
-      inliningConfig)
+      inliningConfig,
+      attachmentStore)
   }
 }

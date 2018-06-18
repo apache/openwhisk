@@ -162,26 +162,12 @@ protected[actions] trait SequenceActions {
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
-        case Success((Right(seqActivation), _)) => storeSequenceActivation(seqActivation)
+        case Success((Right(seqActivation), _)) => activationStore.store(seqActivation)(transid, notifier = None)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?
         case Failure(t) => logging.error(this, s"sequence activation failed: ${t.getMessage}")
       }
-  }
-
-  /**
-   * Stores sequence activation to database.
-   */
-  private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-    logging.debug(this, s"recording activation '${activation.activationId}'")
-    WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t) =>
-        logging.error(
-          this,
-          s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
-    }
   }
 
   /**
@@ -210,7 +196,7 @@ protected[actions] trait SequenceActions {
 
     // create the whisk activation
     WhiskActivation(
-      namespace = user.namespace.toPath,
+      namespace = user.namespace.name.toPath,
       name = action.name,
       user.subject,
       activationId = activationId,

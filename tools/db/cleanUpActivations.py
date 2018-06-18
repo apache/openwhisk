@@ -39,7 +39,7 @@ def deleteOldActivations(args):
     while True:
         activationIds = db.view("activations/byDate", limit=args.docsPerRequest, start_key=0, end_key=endkey)
         if activationIds:
-            documentsToDelete = map(lambda entry: couchdb.client.Document(_id=entry.value[0], _rev=entry.value[1], _deleted=True), activationIds)
+            documentsToDelete = [couchdb.client.Document(_id=entry.value[0], _rev=entry.value[1], _deleted=True) for entry in activationIds]
             db.update(documentsToDelete)
         else:
             return

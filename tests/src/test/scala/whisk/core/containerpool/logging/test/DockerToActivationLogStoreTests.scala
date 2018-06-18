@@ -40,12 +40,13 @@ import scala.concurrent.duration._
 class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
   def await[T](future: Future[T]) = Await.result(future, 1.minute)
 
-  val user = Identity(Subject(), EntityName("testSpace"), AuthKey(), Set())
+  val uuid = UUID()
+  val user = Identity(Subject(), Namespace(EntityName("testSpace"), uuid), AuthKey(uuid, Secret()), Set())
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
-  val action = ExecutableWhiskAction(user.namespace.toPath, EntityName("actionName"), exec)
+  val action = ExecutableWhiskAction(user.namespace.name.toPath, EntityName("actionName"), exec)
   val activation =
     WhiskActivation(
-      user.namespace.toPath,
+      user.namespace.name.toPath,
       action.name,
       user.subject,
       ActivationId.generate(),

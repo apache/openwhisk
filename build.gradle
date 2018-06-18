@@ -61,6 +61,7 @@ subprojects {
             task testSourcesJar(type: Jar, dependsOn: testClasses) {
                 classifier = 'test-sources'
                 from sourceSets.test.allSource
+                exclude("logback-test.xml")
             }
 
             task testClassesJar(type: Jar, dependsOn: testClasses) {

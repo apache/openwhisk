@@ -88,8 +88,11 @@
   delay: "{{ docker.pull.delay }}"
 
 - name: wait until the kafka server started up
-  shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
+  shell:
+    (echo dump; sleep 1) |
+    nc {{hostvars[groups['zookeepers']|first].ansible_host}} {{zookeeper.port}} |
+    grep /brokers/ids/{{ groups['kafkas'].index(inventory_hostname) }}
   register: result
-  until: (('[Kafka Server ' + (groups['kafkas'].index(inventory_hostname)|string) + '], started') in result.stdout)
+  until: (result.rc == 0)
   retries: 10
   delay: 5

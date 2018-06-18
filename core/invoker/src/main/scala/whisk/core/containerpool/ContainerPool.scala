@@ -95,7 +95,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
         // Schedule a job to a warm container
         ContainerPool
-          .schedule(r.action, r.msg.user.namespace, freePool)
+          .schedule(r.action, r.msg.user.namespace.name, freePool)
           .map(container => {
             (container, "warm")
           })
@@ -141,7 +141,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               this,
               s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
                 s"busyPoolSize: ${busyPool.size}, maxActiveContainers ${poolConfig.maxActiveContainers}, " +
-                s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
+                s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}")(r.msg.transid)
             Some(logMessageInterval.fromNow)
           } else {
             r.retryLogDeadline

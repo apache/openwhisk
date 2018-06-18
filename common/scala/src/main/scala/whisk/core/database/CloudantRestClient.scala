@@ -22,9 +22,12 @@ import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.StatusCode
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.Logging
+import whisk.http.PoolingRestClient._
 
 /**
  * This class only handles the basic communication to the proper endpoints

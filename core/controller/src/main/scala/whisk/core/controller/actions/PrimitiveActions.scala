@@ -29,7 +29,7 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.{Resource, _}
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.types.{ActivationStore, EntityStore}
+import whisk.core.entity.types.EntityStore
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 
@@ -344,7 +344,7 @@ protected[actions] trait PrimitiveActions {
               // no next action, end composition execution, return to caller
               Future.successful(ActivationResponse(activation.response.statusCode, Some(params.getOrElse(result))))
             case Some(next) =>
-              FullyQualifiedEntityName.resolveName(next, user.namespace) match {
+              FullyQualifiedEntityName.resolveName(next, user.namespace.name) match {
                 case Some(fqn) if session.accounting.components < actionSequenceLimit =>
                   tryInvokeNext(user, fqn, params, session)
 
@@ -512,7 +512,7 @@ protected[actions] trait PrimitiveActions {
 
     // create the whisk activation
     val activation = WhiskActivation(
-      namespace = user.namespace.toPath,
+      namespace = user.namespace.name.toPath,
       name = session.action.name,
       user.subject,
       activationId = session.activationId,
@@ -531,14 +531,7 @@ protected[actions] trait PrimitiveActions {
         sequenceLimits,
       duration = Some(session.duration))
 
-    logging.debug(this, s"recording activation '${activation.activationId}'")
-    WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t) =>
-        logging.error(
-          this,
-          s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
-    }
+    activationStore.store(activation)(transid, notifier = None)
 
     activation
   }
@@ -559,7 +552,7 @@ protected[actions] trait PrimitiveActions {
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
     val result = Promise[Either[ActivationId, WhiskActivation]]
 
-    val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
+    val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.name.toPath, activationId))
     logging.debug(this, s"action activation will block for result upto $totalWaitTime")
 
     // 1. Wait for the active-ack to happen. Either immediately resolve the promise or poll the database quickly
@@ -596,7 +589,7 @@ protected[actions] trait PrimitiveActions {
                              maxRetries: Int = Int.MaxValue)(implicit transid: TransactionId): Unit = {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
-        WhiskActivation.get(activationStore, docid).onComplete {
+        activationStore.get(ActivationId(docid.asString)).onComplete {
           case Success(activation)             => result.trySuccess(Right(activation))
           case Failure(_: NoDocumentException) => pollActivation(docid, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)

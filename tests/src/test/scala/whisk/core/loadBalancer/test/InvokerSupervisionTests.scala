@@ -48,17 +48,7 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.PingMessage
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.Secret
-import whisk.core.entity.Subject
-import whisk.core.entity.UUID
+import whisk.core.entity._
 import whisk.core.loadBalancer.ActivationRequest
 import whisk.core.loadBalancer.GetStatus
 import whisk.core.loadBalancer.Healthy
@@ -189,14 +179,15 @@ class InvokerSupervisionTests
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
     // Send ActivationMessage to InvokerPool
+    val uuid = UUID()
     val activationMessage = ActivationMessage(
       transid = TransactionId.invokerHealth,
       action = FullyQualifiedEntityName(EntityPath("whisk.system/utils"), EntityName("date")),
       revision = DocRevision.empty,
       user = Identity(
         Subject("unhealthyInvokerCheck"),
-        EntityName("unhealthyInvokerCheck"),
-        AuthKey(UUID(), Secret()),
+        Namespace(EntityName("unhealthyInvokerCheck"), uuid),
+        AuthKey(uuid, Secret()),
         Set[Privilege]()),
       activationId = new ActivationIdGenerator {}.make(),
       rootControllerIndex = InstanceId(0),

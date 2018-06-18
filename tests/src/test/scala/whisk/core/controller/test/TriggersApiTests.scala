@@ -372,8 +372,9 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
       whisk.utils.retry({
         println(s"trying to obtain async activation doc: '${activationDoc}'")
-        val activation = get(activationStore, activationDoc, WhiskActivation, garbageCollect = false)
-        del(activationStore, activationDoc, WhiskActivation)
+
+        val activation = getActivation(ActivationId(activationDoc.asString))
+        deleteActivation(ActivationId(activationDoc.asString))
         activation.end should be(Instant.EPOCH)
         activation.response.result should be(Some(content))
       }, 30, Some(1.second))
@@ -395,7 +396,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
       whisk.utils.retry({
         println(s"trying to delete async activation doc: '${activationDoc}'")
-        del(activationStore, activationDoc, WhiskActivation)
+        deleteActivation(ActivationId(activationDoc.asString))
         response.fields("activationId") should not be None
       }, 30, Some(1.second))
     }

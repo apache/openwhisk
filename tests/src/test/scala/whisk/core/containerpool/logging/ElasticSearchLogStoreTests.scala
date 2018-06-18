@@ -52,7 +52,8 @@ class ElasticSearchLogStoreTests
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val user = Identity(Subject(), EntityName("testSpace"), AuthKey(), Set())
+  private val uuid = UUID()
+  private val user = Identity(Subject(), Namespace(EntityName("testSpace"), uuid), AuthKey(uuid, Secret()), Set())
   private val activationId = ActivationId.generate()
 
   private val defaultLogSchema =
@@ -166,7 +167,7 @@ class ElasticSearchLogStoreTests
       ElasticSearchLogStoreConfig("https", "host", 443, "/elasticsearch/logstash-%s*/_search", defaultLogSchema)
     val httpRequest = HttpRequest(
       POST,
-      Uri(s"/elasticsearch/logstash-${user.uuid.asString}*/_search"),
+      Uri(s"/elasticsearch/logstash-${user.namespace.uuid.asString}*/_search"),
       List(Accept(MediaTypes.`application/json`)),
       HttpEntity(ContentTypes.`application/json`, defaultPayload))
     val esLogStore = new ElasticSearchLogStore(

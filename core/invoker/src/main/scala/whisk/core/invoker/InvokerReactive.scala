@@ -80,7 +80,9 @@ class InvokerReactive(
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
-  private val activationStore = WhiskActivationStore.datastore()
+  private val activationStore =
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+
   private val authStore = WhiskAuthStore.datastore()
 
   private val namespaceBlacklist = new NamespaceBlacklist(authStore)
@@ -159,11 +161,7 @@ class InvokerReactive(
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation) => {
     implicit val transid: TransactionId = tid
-    logging.debug(this, "recording the activation result to the data store")
-    WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t)  => logging.error(this, s"failed to record activation")
-    }
+    activationStore.store(activation)(tid, notifier = None)
   }
 
   /** Creates a ContainerProxy Actor when being called. */
@@ -236,7 +234,7 @@ class InvokerReactive(
 
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.authkey.uuid)
+                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
                 store(msg.transid, activation)
                 Future.successful(())
             }
@@ -246,8 +244,8 @@ class InvokerReactive(
           activationFeed ! MessageFeed.Processed
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.authkey.uuid)
-          logging.warn(this, s"namespace ${msg.user.namespace} was blocked in invoker.")
+          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid)
+          logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }
       }
@@ -270,7 +268,7 @@ class InvokerReactive(
 
     WhiskActivation(
       activationId = msg.activationId,
-      namespace = msg.user.namespace.toPath,
+      namespace = msg.user.namespace.name.toPath,
       subject = msg.user.subject,
       cause = msg.cause,
       name = msg.action.name,

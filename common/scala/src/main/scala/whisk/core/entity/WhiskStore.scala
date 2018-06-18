@@ -38,13 +38,11 @@ import whisk.core.database.DocumentSerializer
 import whisk.core.database.StaleParameter
 import whisk.spi.SpiLoader
 import pureconfig._
-
 import scala.reflect.classTag
 
 package object types {
   type AuthStore = ArtifactStore[WhiskAuth]
   type EntityStore = ArtifactStore[WhiskEntity]
-  type ActivationStore = ArtifactStore[WhiskActivation]
 }
 
 case class DBConfig(actionsDdoc: String, activationsDdoc: String, activationsFilterDdoc: String)
