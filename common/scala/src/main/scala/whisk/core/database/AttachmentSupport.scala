@@ -55,16 +55,14 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
                                         previousPrefix: ByteString = ByteString.empty)(
     implicit ec: ExecutionContext): Future[Either[ByteString, Source[ByteString, _]]] = {
     docStream.prefixAndTail(1).runWith(Sink.head).flatMap {
-      case (prefix, tail) =>
-        prefix.headOption.fold {
-          Future.successful[Either[ByteString, Source[ByteString, _]]](Left(previousPrefix))
-        } { prefix =>
-          val completePrefix = previousPrefix ++ prefix
-          if (completePrefix.size < maxInlineSize.toBytes) {
-            inlineAndTail(tail, completePrefix)
-          } else {
-            Future.successful(Right(tail.prepend(Source.single(completePrefix))))
-          }
+      case (Nil, _) =>
+        Future.successful(Left(previousPrefix))
+      case (Seq(prefix), tail) =>
+        val completePrefix = previousPrefix ++ prefix
+        if (completePrefix.size < maxInlineSize.toBytes) {
+          inlineAndTail(tail, completePrefix)
+        } else {
+          Future.successful(Right(tail.prepend(Source.single(completePrefix))))
         }
     }
   }
