@@ -25,6 +25,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.{Sink, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import whisk.common.TransactionId
+import whisk.core.entity.size._
 import whisk.core.database.{AttachmentInliner, CacheChangeNotification, NoDocumentException}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
@@ -112,14 +113,14 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
     getAttachmentBytes(i2, attached(action2)).futureValue.result() shouldBe decode(code1)
   }
 
-  it should "put and read same attachment" in {
+  it should "put and read 5 MB attachment" in {
     implicit val tid: TransactionId = transid()
-    val size = nonInlinedAttachmentSize(entityStore)
+    val size = Math.max(nonInlinedAttachmentSize(entityStore), 5.MB.toBytes.toInt)
     val base64 = encodedRandomBytes(size)
 
     val exec = javaDefault(base64, Some("hello"))
     val javaAction =
-      WhiskAction(namespace, EntityName("attachment_unique"), exec)
+      WhiskAction(namespace, EntityName("attachment_large"), exec)
 
     val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
     val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue

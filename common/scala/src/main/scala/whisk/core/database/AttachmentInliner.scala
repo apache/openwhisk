@@ -22,13 +22,12 @@ import java.util.Base64
 import akka.NotUsed
 import akka.http.scaladsl.model.Uri
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Concat, Sink, Source}
-import akka.util.{ByteString, ByteStringBuilder}
+import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
 import whisk.core.database.AttachmentInliner.MemScheme
 import whisk.core.entity.ByteSize
 
-import scala.collection.immutable
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object AttachmentInliner {
 
@@ -49,36 +48,30 @@ trait AttachmentInliner {
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
 
-  protected[database] def inlineAndTail(
-    docStream: Source[ByteString, _]): Future[(immutable.Seq[Byte], Source[Byte, _])] = {
-    docStream
-      .mapConcat(_.seq)
-      .prefixAndTail(maxInlineSize.toBytes.toInt)
-      .runWith(Sink.head[(immutable.Seq[Byte], Source[Byte, _])])
-  }
-
-  protected[database] def uriOf(bytes: Seq[Byte], path: => String): Uri = {
-    //For less than case its definitive that tail source would be empty
-    //for equal case it cannot be determined if tail source is empty. Actual max inline size
-    //would be inlineSize - 1
-    if (bytes.size < maxInlineSize.toBytes) {
-      Uri.from(scheme = MemScheme, path = encode(bytes))
-    } else {
-      Uri.from(scheme = attachmentScheme, path = path)
+  protected[database] def inlineAndTail(docStream: Source[ByteString, _],
+                                        previousPrefix: ByteString = ByteString.empty)(
+    implicit ec: ExecutionContext): Future[Either[ByteString, Source[ByteString, _]]] = {
+    docStream.prefixAndTail(1).runWith(Sink.head).flatMap {
+      case (prefix, tail) =>
+        prefix.headOption.fold {
+          Future.successful[Either[ByteString, Source[ByteString, _]]](Left(previousPrefix))
+        } { prefix =>
+          val completePrefix = previousPrefix ++ prefix
+          if (completePrefix.size < maxInlineSize.toBytes) {
+            inlineAndTail(tail, completePrefix)
+          } else {
+            Future.successful(Right(tail.prepend(Source.single(completePrefix))))
+          }
+        }
     }
   }
 
-  /**
-   * Constructs a combined source based on attachment content read so far and rest of unread content.
-   * Emitted elements are up to `chunkSize` sized [[akka.util.ByteString]] elements.
-   */
-  protected[database] def combinedSource(inlinedBytes: immutable.Seq[Byte],
-                                         tailSource: Source[Byte, _]): Source[ByteString, NotUsed] =
-    Source
-      .combine(Source(inlinedBytes), tailSource)(Concat[Byte])
-      .batch[ByteStringBuilder](chunkSize.toBytes, b => { val bb = new ByteStringBuilder(); bb += b })((bb, b) =>
-        bb += b)
-      .map(_.result())
+  protected[database] def uriOf(bytesOrSource: Either[ByteString, Source[ByteString, _]], path: => String): Uri = {
+    bytesOrSource match {
+      case Left(bytes) => Uri.from(scheme = MemScheme, path = encode(bytes))
+      case Right(_)    => Uri.from(scheme = attachmentScheme, path = path)
+    }
+  }
 
   /**
    * Constructs a source from inlined attachment contents

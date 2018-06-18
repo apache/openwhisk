@@ -382,21 +382,19 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       } yield (i2, attached)
     } else {
       for {
-        (bytes, tailSource) <- inlineAndTail(docStream)
-        uri <- Future.successful(uriOf(bytes, UUID().asString))
+        bytesOrSource <- inlineAndTail(docStream)
+        uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
         attached <- {
-          val a = if (isInlined(uri)) {
-            Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-          } else {
-            Attached(uri.toString, contentType)
+          val a = bytesOrSource match {
+            case Left(bytes) => Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+            case Right(_)    => Attached(uri.toString, contentType)
           }
           Future.successful(a)
         }
         i1 <- put(update(doc, attached))
-        i2 <- if (isInlined(uri)) {
-          Future.successful(i1)
-        } else {
-          attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+        i2 <- bytesOrSource match {
+          case Left(_)  => Future.successful(i1)
+          case Right(s) => attach(i1, uri.path.toString, attached.attachmentType, s)
         }
       } yield (i2, attached)
     }
@@ -413,18 +411,16 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     val id = asJson.fields("_id").convertTo[String].trim
 
     for {
-      (bytes, tailSource) <- inlineAndTail(docStream)
-      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      bytesOrSource <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
       attached <- {
         // Upload if cannot be inlined
-        if (isInlined(uri)) {
-          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-          Future.successful(a)
-        } else {
-          as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-            .map { r =>
-              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
-            }
+        bytesOrSource match {
+          case Left(bytes) =>
+            Future.successful(Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes))))
+          case Right(source) =>
+            as.attach(DocId(id), uri.path.toString, contentType, source)
+              .map(r => Attached(uri.toString, contentType, Some(r.length), Some(r.digest)))
         }
       }
       i1 <- put(update(doc, attached))

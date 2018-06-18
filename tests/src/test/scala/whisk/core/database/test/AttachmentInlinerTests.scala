@@ -20,14 +20,14 @@ package whisk.core.database.test
 import akka.http.scaladsl.model.Uri
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
-import akka.util.{ByteStringBuilder, CompactByteString}
+import akka.util.CompactByteString
 import common.WskActorSystem
 import org.junit.runner.RunWith
-import whisk.core.entity.size._
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.database.{AttachmentInliner, InliningConfig}
+import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
 class AttachmentInlinerTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
@@ -40,17 +40,11 @@ class AttachmentInlinerTests extends FlatSpec with Matchers with ScalaFutures wi
     val inliner = new TestInliner(InliningConfig(maxInlineSize = 0.KB, chunkSize = 8.KB))
     val bs = CompactByteString("hello world")
 
-    val (head, tail) = inliner.inlineAndTail(Source.single(bs)).futureValue
-    val uri = inliner.uriOf(head, "foo")
+    val bytesOrSource = inliner.inlineAndTail(Source.single(bs)).futureValue
+    val uri = inliner.uriOf(bytesOrSource, "foo")
 
     uri shouldBe Uri("test:foo")
-
-    val bsResult = toByteString(inliner.combinedSource(head, tail)).futureValue
-    bsResult shouldBe bs
   }
-
-  private def toByteString(docStream: Source[Traversable[Byte], _]) =
-    docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b).map(_.result().compact)
 
   class TestInliner(val inliningConfig: InliningConfig) extends AttachmentInliner {
     override protected[core] implicit val materializer: Materializer = ActorMaterializer()
