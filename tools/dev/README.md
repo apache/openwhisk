@@ -1,18 +1,19 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor 
-# license agreements.  See the NOTICE file distributed with this work for additional 
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this 
-# file except in compliance with the License.  You may obtain a copy of the License 
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed 
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 
@@ -25,14 +26,14 @@ change
 With current directory set to OpenWhisk home
 
     ./gradlew -p tools/dev <taskName>
-    
+
 With this module being base directory
 
     ../../gradlew <taskName>
 
 ## couchdbViews
 
-Extracts and dump the design docs js in readable format. It reads all the design docs from 
+Extracts and dump the design docs js in readable format. It reads all the design docs from
 _<OPENWHISH_HOME>/ansibles/files_ and dumps them in _build/views_ directory
 
 Sample output
@@ -62,8 +63,8 @@ Sample output
 
 ## IntelliJ Run Config Generator
 
-This script enables creation of [Intellij Launch Configuration][1] in _<openwhisk home>/.idea/runConfigurations_ 
-with name controller0 and invoker0. For this to work your Intellij project should be [directory based][3]. If your 
+This script enables creation of [Intellij Launch Configuration][1] in _<openwhisk home>/.idea/runConfigurations_
+with name controller0 and invoker0. For this to work your Intellij project should be [directory based][3]. If your
 project is file based (uses ipr files) then you can convert it to directory based via _File -> Save as Directory-Based Format_. These run configurations can then be invoked from _Run -> Edit Configurations -> Application_
 
 ### Usage
@@ -71,8 +72,8 @@ project is file based (uses ipr files) then you can convert it to directory base
 First setup OpenWhisk so that Controller and Invoker containers are up and running. Then run the script:
 
     ./gradlew -p tools/dev intellij
-    
-It would inspect the running docker containers and then generate the launch configs with name 'controller0' 
+
+It would inspect the running docker containers and then generate the launch configs with name 'controller0'
 and 'invoker0'.
 
 Key points to note:
@@ -87,7 +88,7 @@ Now the docker container can be stopped and application can be launched from wit
 ### Configuration
 
 The script allows some local customization of the launch configuration. This can be done by creating a [config][4] file
-`intellij-run-config.groovy` in project root directory. Below is an example of _<openwhisk home>/intellij-run-config.groovy_ 
+`intellij-run-config.groovy` in project root directory. Below is an example of _<openwhisk home>/intellij-run-config.groovy_
 file to customize the logging and db port used for CouchDB.
 
 ```groovy

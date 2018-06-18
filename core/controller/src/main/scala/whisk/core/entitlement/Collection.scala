@@ -45,9 +45,11 @@ import whisk.core.entity.types.EntityStore
  * @param path the name of the collection (the resource path in URI and the view name in the datastore)
  * @param activate the privilege for an activate (may be ACTIVATE or REJECT for example)
  * @param listLimit the default limit on number of entities returned from a collection on a list operation
+ * @param skipLimit the default skip on number of entities returned from a collection on a list operation
  */
 protected[core] case class Collection protected (val path: String,
-                                                 val defaultListLimit: Int = Collection.DEFAULT_LIST_LIMIT) {
+                                                 val defaultListLimit: Int = Collection.DEFAULT_LIST_LIMIT,
+                                                 val defaultListSkip: Int = Collection.DEFAULT_SKIP_LIMIT) {
   override def toString = path
 
   /** Determines the right to request for the resources and context. */
@@ -110,6 +112,7 @@ protected[core] object Collection {
   /** Number of records allowed per query. */
   protected[core] val DEFAULT_LIST_LIMIT = 30
   protected[core] val MAX_LIST_LIMIT = 200
+  protected[core] val DEFAULT_SKIP_LIMIT = 0
 
   protected[core] val ACTIONS = WhiskAction.collectionName
   protected[core] val TRIGGERS = WhiskTrigger.collectionName

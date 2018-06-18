@@ -1,16 +1,5 @@
 #!/usr/bin/env python
 """Executable Python script for testing the action proxy.
-
-  This script is useful for testing the action proxy (or its derivatives)
-  by simulating invoker interactions. Use it in combination with
-  docker run <image> which starts up the action proxy.
-  Example:
-     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
-     ./invoke.py init <action source file>
-     ./invoke.py run '{"some":"json object as a string"}'
-
-  For additional help, try ./invoke.py -h
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -27,6 +16,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+  This script is useful for testing the action proxy (or its derivatives)
+  by simulating invoker interactions. Use it in combination with
+  docker run <image> which starts up the action proxy.
+  Example:
+     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
+     ./invoke.py init <action source file>
+     ./invoke.py run '{"some":"json object as a string"}'
+
+  For additional help, try ./invoke.py -h
 """
 
 import os
@@ -36,7 +35,6 @@ import json
 import base64
 import requests
 import codecs
-import traceback
 import argparse
 try:
     import argcomplete
@@ -77,6 +75,7 @@ def parseArgs():
     subparsers = parser.add_subparsers(title='available commands', dest='cmd')
 
     initmenu = subparsers.add_parser('init', help='initialize container with src or zip/tgz file')
+    initmenu.add_argument('-b', '--binary', help='treat artifact as binary', action='store_true')
     initmenu.add_argument('main', nargs='?', default='main', help='name of the "main" entry method for the action')
     initmenu.add_argument('artifact', help='a source file or zip/tgz archive')
 
@@ -91,7 +90,7 @@ def init(args):
     main = args.main
     artifact = args.artifact
 
-    if artifact and (artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
+    if artifact and (args.binary or artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
         with open(artifact, 'rb') as fp:
             contents = fp.read()
         contents = base64.b64encode(contents)

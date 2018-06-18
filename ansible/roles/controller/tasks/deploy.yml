@@ -1,33 +1,21 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
-#
+# license agreements; and to You under the Apache License, Version 2.0.
 ---
-# This role will install Controller in group 'controllers' in the environment inventory
+# This role will install Controller in group 'controllers' in the environment
+# inventory
 
 - import_tasks: docker_login.yml
 
-- name: get controller index
+- name: get controller name and index
   set_fact:
-    controller_index: "{{ groups['controllers'].index(inventory_hostname) }}"
-
-- name: get controller name
-  set_fact:
-    controller_name: "controller{{ controller_index }}"
+    controller_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
+    controller_index:
+      "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
 
 - name: "pull the {{ docker.image.tag }} image of controller"
-  shell: "docker pull {{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
+  shell:
+    docker pull
+    {{ docker_registry~docker.image.prefix }}/controller:{{docker.image.tag}}
   when: docker_registry != ""
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
@@ -63,7 +51,8 @@
 - name: "copy kafka truststore/keystore"
   when: kafka.protocol == 'SSL'
   copy:
-    src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
+    src:
+      "{{openwhisk_home~'/ansible/roles/kafka/files/'~kafka.ssl.keystore.name}}"
     dest: "{{ controller.confdir }}/{{ controller_name }}"
 
 - name: copy nginx certificate keystore
@@ -81,8 +70,8 @@
     mode: 0666
     dest: "{{ controller.confdir }}/{{ controller_name }}"
   with_items:
-  - "{{ controller.ssl.cert }}"
-  - "{{ controller.ssl.key }}"
+    - "{{ controller.ssl.cert }}"
+    - "{{ controller.ssl.key }}"
   become: "{{ controller.dir.become }}"
 
 - name: check, that required databases exist
@@ -90,28 +79,44 @@
   vars:
     dbName: "{{ item }}"
   with_items:
-  - "{{ db.whisk.actions }}"
-  - "{{ db.whisk.auth }}"
-  - "{{ db.whisk.activations }}"
+    - "{{ db.whisk.actions }}"
+    - "{{ db.whisk.auth }}"
+    - "{{ db.whisk.activations }}"
 
-- name: prepare controller ports
+- name: prepare controller port
   set_fact:
-    ports_to_expose: ["{{ controller.basePort + (controller_index | int) }}:8080", "{{ controller.akka.cluster.basePort + (controller_index | int) }}:{{ controller.akka.cluster.bindPort }}"]
+    controller_port: "{{ controller.basePort + (controller_index | int) }}"
+    ports_to_expose:
+      - "{{ controller.basePort + (controller_index | int) }}:8080"
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
+  vars:
+    jmx_remote_port: "{{ jmx.basePortController + (controller_index|int) }}"
+    jmx_remote_rmi_port:
+      "{{ jmx.rmiBasePortController + (controller_index|int) }}"
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortController + (controller_index | int) }}:{{ jmx.basePortController + (controller_index | int)}}\" ] + [ \"{{ jmx.rmiBasePortController + (controller_index | int) }}:{{ jmx.rmiBasePortController + (controller_index | int) }}\" ]"
-
-- name: add additional jvm params if jmxremote is enabled
-  when: jmx.enabled
-  set_fact:
-    controller_args: "{{ controller.arguments }} {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ inventory_hostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + (controller_index | int) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + (controller_index | int) }}"
+    ports_to_expose: >-
+      {{ ports_to_expose }} +
+      [ '{{ jmx_remote_port }}:{{ jmx_remote_port }}' ] +
+      [ '{{ jmx_remote_rmi_port }}:{{ jmx_remote_rmi_port }}' ]
+    controller_args: >-
+      {{ controller.arguments }}
+      {{ jmx.jvmCommonArgs }}
+      -Djava.rmi.server.hostname={{ inventory_hostname }}
+      -Dcom.sun.management.jmxremote.rmi.port={{ jmx_remote_rmi_port }}
+      -Dcom.sun.management.jmxremote.port={{ jmx_remote_port }}
 
 - name: populate environment variables for controller
   set_fact:
     controller_env:
-      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
+      "JAVA_OPTS":
+        -Xmx{{ controller.heap }}
+        -XX:+CrashOnOutOfMemoryError
+        -XX:+UseGCOverheadLimit
+        -XX:ErrorFile=/logs/java_error.log
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/logs
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
@@ -124,21 +129,37 @@
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
-      "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes": "{{ kafka_topics_cacheInvalidation_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionMs": "{{ kafka_topics_cacheInvalidation_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_segmentBytes": "{{ kafka_topics_cacheInvalidation_segmentBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_retentionBytes": "{{ kafka_topics_completed_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_retentionMs": "{{ kafka_topics_completed_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_segmentBytes": "{{ kafka_topics_completed_segmentBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_health_retentionBytes": "{{ kafka_topics_health_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_health_retentionMs": "{{ kafka_topics_health_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_health_segmentBytes": "{{ kafka_topics_health_segmentBytes | default() }}"
-      "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}"
-      "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
-      "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
-      "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
-      "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_replicationFactor":
+        "{{ kafka.replicationFactor | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes":
+        "{{ kafka_topics_cacheInvalidation_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionMs":
+        "{{ kafka_topics_cacheInvalidation_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_segmentBytes":
+        "{{ kafka_topics_cacheInvalidation_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_retentionBytes":
+        "{{ kafka_topics_completed_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_retentionMs":
+        "{{ kafka_topics_completed_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_segmentBytes":
+        "{{ kafka_topics_completed_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_health_retentionBytes":
+        "{{ kafka_topics_health_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_health_retentionMs":
+        "{{ kafka_topics_health_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_health_segmentBytes":
+        "{{ kafka_topics_health_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_common_securityProtocol":
+        "{{ kafka.protocol }}"
+      "CONFIG_whisk_kafka_common_sslTruststoreLocation":
+        "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslTruststorePassword":
+        "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_common_sslKeystoreLocation":
+        "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslKeystorePassword":
+        "{{ kafka.ssl.keystore.password }}"
+
       "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db_host }}"
       "CONFIG_whisk_couchdb_port": "{{ db_port }}"
@@ -147,14 +168,17 @@
       "CONFIG_whisk_couchdb_provider": "{{ db_provider }}"
       "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
       "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
-      "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}"
+      "CONFIG_whisk_couchdb_databases_WhiskActivation":
+        "{{ db.whisk.activations }}"
       "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
       "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
-      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.concurrentInvocationsSystem }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM":
+        "{{ limits.concurrentInvocationsSystem }}"
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
       "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
 
@@ -166,58 +190,65 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
 
-      "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
+      "CONFIG_whisk_activation_payload_max":
+        "{{ limit_activation_payload | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
-      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
-      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
-      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix":
+        "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag":
+        "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages":
+        "{{ runtimes_bypass_pull_for_local_images | default() }}"
+      "CONFIG_whisk_runtimes_localImagePrefix":
+        "{{ runtimes_local_image_prefix | default() }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
-      "CONFIG_whisk_controller_https_keystorePath": "{{ controller.ssl.keystore.path }}"
-      "CONFIG_whisk_controller_https_keystorePassword": "{{ controller.ssl.keystore.password }}"
-      "CONFIG_whisk_controller_https_keystoreFlavor": "{{ controller.ssl.storeFlavor }}"
-      "CONFIG_whisk_controller_https_truststorePath": "{{ controller.ssl.truststore.path }}"
-      "CONFIG_whisk_controller_https_truststorePassword": "{{ controller.ssl.truststore.password }}"
-      "CONFIG_whisk_controller_https_truststoreFlavor": "{{ controller.ssl.storeFlavor }}"
-      "CONFIG_whisk_controller_https_clientAuth": "{{ controller.ssl.clientAuth }}"
-      "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"
-      "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"
-
-      "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
-      "CONFIG_akka_remote_netty_tcp_hostname": "{{ controller.akka.cluster.host[(controller_index | int)] }}"
-      "CONFIG_akka_remote_netty_tcp_port": "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
-      "CONFIG_akka_remote_netty_tcp_bindPort": "{{ controller.akka.cluster.bindPort }}"
+      "CONFIG_whisk_controller_https_keystorePath":
+        "{{ controller.ssl.keystore.path }}"
+      "CONFIG_whisk_controller_https_keystorePassword":
+        "{{ controller.ssl.keystore.password }}"
+      "CONFIG_whisk_controller_https_keystoreFlavor":
+        "{{ controller.ssl.storeFlavor }}"
+      "CONFIG_whisk_controller_https_truststorePath":
+        "{{ controller.ssl.truststore.path }}"
+      "CONFIG_whisk_controller_https_truststorePassword":
+        "{{ controller.ssl.truststore.password }}"
+      "CONFIG_whisk_controller_https_truststoreFlavor":
+        "{{ controller.ssl.storeFlavor }}"
+      "CONFIG_whisk_controller_https_clientAuth":
+        "{{ controller.ssl.clientAuth }}"
+      "CONFIG_whisk_loadbalancer_invokerBusyThreshold":
+        "{{ invoker.busyThreshold }}"
+      "CONFIG_whisk_loadbalancer_blackboxFraction":
+        "{{ controller.blackboxFraction }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
 
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
-      "CONFIG_whisk_spi_LoadBalancerProvider": "{{ controller.loadbalancer.spi }}"
+      "CONFIG_whisk_spi_LoadBalancerProvider":
+        "{{ controller.loadbalancer.spi }}"
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
-      "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-- name: create seed nodes list
+- name: merge extra env variables
   set_fact:
-    seed_nodes_list: "{{ seed_nodes_list | default([]) }} + [ '{{ item.1 }}:{{ controller.akka.cluster.basePort+item.0 }}' ]"
-  with_indexed_items:
-  - "{{ controller.akka.cluster.seedNodes }}"
+    controller_env: "{{ controller_env | combine(controller.extraEnv) }}"
 
-- name: add seed nodes to controller environment
-  set_fact:
-    controller_env: "{{ controller_env | default({}) | combine({'CONFIG_akka_cluster_seedNodes_' ~ item.0: 'akka.tcp://controller-actor-system@' ~ item.1}) }}"
-  with_indexed_items: "{{ seed_nodes_list }}"
-
+- name: include plugins
+  include_tasks: "{{ item }}.yml"
+  with_items: "{{ controller_plugins | default([]) }}"
 
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
+    image:
+      "{{docker_registry~docker.image.prefix}}/controller:{{docker.image.tag}}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
@@ -227,15 +258,23 @@
       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
     ports: "{{ ports_to_expose }}"
-    command: /bin/sh -c "exec /init.sh {{ controller_index }} >> /logs/{{ controller_name }}_logs.log 2>&1"
+    command:
+      /bin/sh -c
+      "exec /init.sh {{ controller_index }}
+      >> /logs/{{ controller_name }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ping"
-    validate_certs: no
-    client_key: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
-    client_cert: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
+    url:
+      "{{controller.protocol}}://{{ansible_host}}:{{controller_port}}/ping"
+    validate_certs: "no"
+    client_key:
+      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
+    client_cert:
+      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
   register: result
   until: result.status == 200
   retries: 12
   delay: 5
+
+# VIM: let b:syntastic_yaml_yamllint_args="-c '".expand('%:p:h')."../../../yamllint.yml'"

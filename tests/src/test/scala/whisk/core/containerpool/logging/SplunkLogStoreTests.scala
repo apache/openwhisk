@@ -26,16 +26,16 @@ import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
-import akka.stream.{ActorMaterializer, StreamTcpException}
 import akka.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpecLike, Matchers}
 import pureconfig.error.ConfigReaderException
-import spray.json.{JsNumber, JsObject, _}
+import spray.json._
 import whisk.core.entity._
 import whisk.core.entity.size._
 
@@ -149,7 +149,7 @@ class SplunkLogStoreTests
   it should "fail to connect to bogus host" in {
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
-    a[StreamTcpException] should be thrownBy await(splunkStore.fetchLogs(user, activation, request))
+    a[Throwable] should be thrownBy await(splunkStore.fetchLogs(user, activation, request))
   }
 
   it should "display an error if API cannot be reached" in {

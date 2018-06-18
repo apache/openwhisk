@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import spray.json._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.ByteSize
 
@@ -37,8 +38,8 @@ class SizeTests extends FlatSpec with Matchers {
     val oneKB = 1 KB
     val oneMB = 1 MB
 
-    oneByte < oneKB should be(true)
-    oneKB < oneMB should be(true)
+    oneByte should be < oneKB
+    oneKB should be < oneMB
   }
 
   it should "3 Bytes smaller than 2 KB smaller than 1 MB" in {
@@ -46,8 +47,8 @@ class SizeTests extends FlatSpec with Matchers {
     val myKBs = 2 KB
     val myMBs = 1 MB
 
-    myBytes < myKBs should be(true)
-    myKBs < myMBs should be(true)
+    myBytes should be < myKBs
+    myKBs should be < myMBs
   }
 
   it should "1 MB greater than 1 KB greater than 1 Byte" in {
@@ -55,17 +56,17 @@ class SizeTests extends FlatSpec with Matchers {
     val oneKB = 1 KB
     val oneMB = 1 MB
 
-    oneMB > oneKB should be(true)
-    oneKB > oneByte should be(true)
+    oneMB should be > oneKB
+    oneKB should be > oneByte
   }
 
   it should "1 MB == 1024 KB == 1048576 B" in {
-    val myBytes = 1048576 B
+    val myBytes = (1 << 20) B
     val myKBs = 1024 KB
     val myMBs = 1 MB
 
-    myBytes equals (myKBs)
-    myKBs equals (myMBs)
+    myBytes should equal(myKBs)
+    myKBs should equal(myMBs)
   }
 
   // Addition
@@ -98,7 +99,7 @@ class SizeTests extends FlatSpec with Matchers {
   }
 
   it should "1048576 B to MB = 1" in {
-    (1048576 B).toMB should be(1)
+    ((1 << 20) B).toMB should be(1)
   }
 
   it should "1 KB to B = 1024" in {
@@ -110,7 +111,7 @@ class SizeTests extends FlatSpec with Matchers {
   }
 
   it should "1 MB to B = 1048576" in {
-    (1 MB).toBytes should be(1048576)
+    (1 MB).toBytes should be(1 << 20)
   }
 
   it should "1 MB to KB = 1024" in {
@@ -119,24 +120,49 @@ class SizeTests extends FlatSpec with Matchers {
 
   // Create ObjectSize from String
   it should "create ObjectSize from String 3B" in {
-    val fromString = ByteSize.fromString("3B")
-    fromString equals (3 B)
+    ByteSize.fromString("3b") should be(3 B)
+    ByteSize.fromString("3B") should be(3 B)
+    ByteSize.fromString("3 b") should be(3 B)
+    ByteSize.fromString("3 B") should be(3 B)
   }
 
   it should "create ObjectSize from String 7K" in {
-    val fromString = ByteSize.fromString("7K")
-    fromString equals (7 KB)
+    ByteSize.fromString("7k") should be(7 KB)
+    ByteSize.fromString("7K") should be(7 KB)
+    ByteSize.fromString("7KB") should be(7 KB)
+    ByteSize.fromString("7kB") should be(7 KB)
+    ByteSize.fromString("7kb") should be(7 KB)
+    ByteSize.fromString("7 k") should be(7 KB)
+    ByteSize.fromString("7 K") should be(7 KB)
+    ByteSize.fromString("7 KB") should be(7 KB)
+    ByteSize.fromString("7 kB") should be(7 KB)
+    ByteSize.fromString("7 kb") should be(7 KB)
   }
 
   it should "create ObjectSize from String 120M" in {
-    val fromString = ByteSize.fromString("120M")
-    fromString equals (120 MB)
+    ByteSize.fromString("120m") should be(120 MB)
+    ByteSize.fromString("120M") should be(120 MB)
+    ByteSize.fromString("120MB") should be(120 MB)
+    ByteSize.fromString("120mB") should be(120 MB)
+    ByteSize.fromString("120mb") should be(120 MB)
+    ByteSize.fromString("120 m") should be(120 MB)
+    ByteSize.fromString("120 M") should be(120 MB)
+    ByteSize.fromString("120 MB") should be(120 MB)
+    ByteSize.fromString("120 mB") should be(120 MB)
+    ByteSize.fromString("120 mb") should be(120 MB)
+  }
+
+  it should "read and write size as JSON" in {
+    import whisk.core.entity.size.serdes
+    serdes.read(JsString("3b")) should be(3 B)
+    serdes.write(3 B) should be(JsString("3 B"))
+    a[DeserializationException] should be thrownBy (serdes.read(JsNumber(3)))
   }
 
   it should "throw error on creating ObjectSize from String 120A" in {
     the[IllegalArgumentException] thrownBy {
       ByteSize.fromString("120A")
-    } should have message """Size Unit not supported. Only "B", "K" and "M" are supported."""
+    } should have message ByteSize.formatError
   }
 
   it should "throw error on creating ByteSize object with negative size" in {

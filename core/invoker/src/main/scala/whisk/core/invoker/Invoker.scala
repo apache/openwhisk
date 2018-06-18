@@ -39,7 +39,7 @@ import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
-import whisk.http.BasicHttpService
+import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
@@ -52,12 +52,11 @@ object Invoker {
    * An object which records the environment variables required for this component to run.
    */
   def requiredProperties =
-    Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
+    Map(servicePort -> 8080.toString, invokerName -> "", runtimesRegistry -> "") ++
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++ Map(dockerImageTag -> "latest") ++
-      Map(invokerName -> "")
+      wskApiHost
 
   def main(args: Array[String]): Unit = {
     Kamon.start()
@@ -185,7 +184,7 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new InvokerServer().route, port)(
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
   }

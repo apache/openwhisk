@@ -41,7 +41,11 @@ object Attachments {
 
   case class Inline[T](value: T) extends Attachment[T]
 
-  case class Attached(attachmentName: String, attachmentType: ContentType) extends Attachment[Nothing]
+  case class Attached(attachmentName: String,
+                      attachmentType: ContentType,
+                      length: Option[Int] = None,
+                      digest: Option[String] = None)
+      extends Attachment[Nothing]
 
   // Attachments are considered free because the name/content type are system determined
   // and a size check for the content is done during create/update
@@ -65,7 +69,7 @@ object Attachments {
           }
       }
 
-      jsonFormat2(Attached.apply)
+      jsonFormat4(Attached.apply)
     }
   }
 

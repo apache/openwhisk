@@ -82,10 +82,4 @@ class WhiskConfigTests extends FlatSpec with Matchers with StreamLogging {
     assert(config("d", "a") == "A")
     assert(config("c", "a") == "A")
   }
-
-  it should "get property with no value from whisk.properties file" in {
-    val config = new WhiskConfig(Map(WhiskConfig.dockerRegistry -> null))
-    println(s"${WhiskConfig.dockerRegistry} is: '${config.dockerRegistry}'")
-    assert(config.isValid)
-  }
 }

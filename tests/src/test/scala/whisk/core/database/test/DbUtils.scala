@@ -17,7 +17,9 @@
 
 package whisk.core.database.test
 
+import java.util.Base64
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -26,18 +28,19 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Random, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database._
 import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
+import akka.http.scaladsl.model.ContentType
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+import whisk.core.entity.Attachments.Attached
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -45,19 +48,22 @@ import whisk.core.entity.types.EntityStore
  * operations with those that flow through the cache. To mitigate this, use unique asset
  * names in tests, and defer all cleanup to the end of a test suite.
  */
-trait DbUtils extends TransactionCounter {
+trait DbUtils {
   implicit val dbOpTimeout = 15 seconds
-  override val instanceOrdinal = 0
-  val instance = InstanceId(instanceOrdinal)
+  val instance = InstanceId(0)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
   case class RetryOp() extends Throwable
+
+  val cnt = new AtomicInteger(0)
+  def transid() = TransactionId(cnt.incrementAndGet().toString)
 
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.
    * Attempt the operation up to 'count' times. The future from the
    * step is not aborted --- TODO fix this.
    */
-  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 5): Try[T] = {
+  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 100): Try[T] = {
+    val graceBeforeRetry = 50.milliseconds
     val future = step()
     if (count > 0) try {
       val result = Await.result(future, timeout)
@@ -65,12 +71,15 @@ trait DbUtils extends TransactionCounter {
     } catch {
       case n: NoDocumentException =>
         println("no document exception, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case RetryOp() =>
         println("condition not met, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: TimeoutException =>
         println("timed out, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: Throwable =>
         println(s"unexpected failure $t")
@@ -194,6 +203,21 @@ trait DbUtils extends TransactionCounter {
     doc
   }
 
+  def putAndAttach[A <: DocumentRevisionProvider, Au >: A](
+    db: ArtifactStore[Au],
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached],
+    garbageCollect: Boolean = true)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = db.putAndAttach[A](doc, update, contentType, docStream, oldAttachment)
+    val newDoc = Await.result(docFuture, timeout)._1
+    assert(newDoc != null)
+    if (garbageCollect) docsToDelete += ((db, newDoc))
+    newDoc
+  }
+
   /**
    * Gets document by id from datastore, and add it to gc queue to delete after the test completes.
    */
@@ -259,6 +283,47 @@ trait DbUtils extends TransactionCounter {
     docsToDelete.clear()
   }
 
+  /**
+   * Generates a Base64 string for code which would not be inlined by the ArtifactStore
+   */
+  def nonInlinedCode(db: ArtifactStore[_]): String = {
+    encodedRandomBytes(nonInlinedAttachmentSize(db))
+  }
+
+  /**
+   * Size in bytes for attachments which would always be inlined.
+   */
+  def inlinedAttachmentSize(db: ArtifactStore[_]): Int = {
+    db match {
+      case inliner: AttachmentInliner =>
+        inliner.maxInlineSize.toBytes.toInt - 1
+      case _ =>
+        throw new IllegalStateException(s"ArtifactStore does not support attachment inlining $db")
+    }
+  }
+
+  /**
+   * Size in bytes for attachments which would never be inlined.
+   */
+  def nonInlinedAttachmentSize(db: ArtifactStore[_]): Int = {
+    db match {
+      case inliner: AttachmentInliner =>
+        val inlineSize = inliner.maxInlineSize.toBytes.toInt
+        val chunkSize = inliner.chunkSize.toBytes.toInt
+        Math.max(inlineSize, chunkSize) * 2
+      case _ =>
+        42
+    }
+  }
+
+  protected def encodedRandomBytes(size: Int): String = Base64.getEncoder.encodeToString(randomBytes(size))
+
   def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
   def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
+
+  private def randomBytes(size: Int): Array[Byte] = {
+    val arr = new Array[Byte](size)
+    Random.nextBytes(arr)
+    arr
+  }
 }

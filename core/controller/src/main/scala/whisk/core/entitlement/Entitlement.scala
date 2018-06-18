@@ -27,9 +27,10 @@ import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.REJECT
-import whisk.common.Logging
-import whisk.common.TransactionId
+import whisk.common.{Logging, TransactionId, UserEvents}
+import whisk.connector.kafka.KafkaMessagingProvider
 import whisk.core.WhiskConfig
+import whisk.core.connector.{EventMessage, Metric}
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
 import whisk.core.loadBalancer.{LoadBalancer, ShardingContainerPoolBalancer}
@@ -66,17 +67,17 @@ protected[core] object EntitlementProvider {
     WhiskConfig.actionInvokePerMinuteLimit -> null,
     WhiskConfig.actionInvokeConcurrentLimit -> null,
     WhiskConfig.triggerFirePerMinuteLimit -> null,
-    WhiskConfig.actionInvokeSystemOverloadLimit -> null,
-    WhiskConfig.controllerInstances -> null)
+    WhiskConfig.actionInvokeSystemOverloadLimit -> null)
 }
 
 /**
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)(
-  implicit actorSystem: ActorSystem,
-  logging: Logging) {
+protected[core] abstract class EntitlementProvider(
+  config: WhiskConfig,
+  loadBalancer: LoadBalancer,
+  controllerInstance: InstanceId)(implicit actorSystem: ActorSystem, logging: Logging) {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -84,8 +85,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
    * controllers
    */
-  private val overcommit = if (config.controllerInstances.toInt > 1) 1.2 else 1
-  private def dilateLimit(limit: Int): Int = Math.ceil(limit.toDouble * overcommit).toInt
+  private def overcommit(clusterSize: Int) = if (clusterSize > 1) 1.2 else 1
+  private def dilateLimit(limit: Int): Int = Math.ceil(limit.toDouble * overcommit(loadBalancer.clusterSize)).toInt
 
   /**
    * Calculates a possibly dilated limit relative to the current user.
@@ -141,6 +142,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       loadBalancer,
       activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations),
       config.actionInvokeSystemOverloadLimit.toInt)
+
+  private val eventProducer = KafkaMessagingProvider.getProducer(this.config)
 
   /**
    * Grants a subject the right to access a resources.
@@ -358,10 +361,37 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   private def checkThrottleOverload(throttle: Future[RateLimit], user: Identity)(
     implicit transid: TransactionId): Future[Unit] = {
     throttle.flatMap { limit =>
+      val userId = user.authkey.uuid
       if (limit.ok) {
+        limit match {
+          case c: ConcurrentRateLimit => {
+            val metric =
+              Metric("ConcurrentInvocations", c.count + 1)
+            UserEvents.send(
+              eventProducer,
+              EventMessage(
+                s"controller${controllerInstance.instance}",
+                metric,
+                user.subject,
+                user.namespace.toString,
+                userId,
+                metric.typeName))
+          }
+          case _ => // ignore
+        }
         Future.successful(())
       } else {
         logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
+        val metric = Metric(limit.limitName, 1)
+        UserEvents.send(
+          eventProducer,
+          EventMessage(
+            s"controller${controllerInstance.instance}",
+            metric,
+            user.subject,
+            user.namespace.toString,
+            userId,
+            metric.typeName))
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

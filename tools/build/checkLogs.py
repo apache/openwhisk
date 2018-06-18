@@ -76,11 +76,15 @@ def colors():
 
 # Script entrypoint.
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) > 3:
         sys.stderr.write("Usage: %s logs_directory.\n" % sys.argv[0])
         sys.exit(1)
 
     root_dir = sys.argv[1]
+
+    tags_to_check = []
+    if len(sys.argv) == 3:
+        tags_to_check = {x.strip() for x in sys.argv[2].split(',')}
 
     col = colors()
 
@@ -88,20 +92,21 @@ if __name__ == "__main__":
         sys.stderr.write("%s: %s is not a directory.\n" % (sys.argv[0], root_dir))
 
     file_checks = [
-        ("db-rules.log", [ partial(database_has_at_most_x_entries, 0) ]),
-        ("db-triggers.log", [ partial(database_has_at_most_x_entries, 0) ]),
+        ("db-rules.log", {"db"}, [ partial(database_has_at_most_x_entries, 0) ]),
+        ("db-triggers.log", {"db"}, [ partial(database_has_at_most_x_entries, 0) ]),
         # Assert that stdout of the container is correctly piped and empty
-        ("controller0.log", [ partial(file_has_at_most_x_bytes, 0) ]),
-        ("invoker0.log", [ partial(file_has_at_most_x_bytes, 0) ])
+        ("controller0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ]),
+        ("invoker0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ])
     ]
 
     all_errors = []
 
     # Runs all relevant checks on all relevant files.
-    for file_name, checks in file_checks:
-        file_path = root_dir + "/" + file_name
-        errors = run_file_checks(file_path, checks)
-        all_errors += map(lambda p: (file_path, p[0], p[1]), errors)
+    for file_name, tags, checks in file_checks:
+        if not tags_to_check or any(t in tags for t in tags_to_check):
+            file_path = root_dir + "/" + file_name
+            errors = run_file_checks(file_path, checks)
+            all_errors += map(lambda p: (file_path, p[0], p[1]), errors)
 
     sort_key = lambda p: p[0]
 

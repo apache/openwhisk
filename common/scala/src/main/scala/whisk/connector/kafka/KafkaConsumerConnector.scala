@@ -17,8 +17,6 @@
 
 package whisk.connector.kafka
 
-import java.util.Properties
-
 import akka.actor.ActorSystem
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
@@ -26,10 +24,10 @@ import org.apache.kafka.common.errors.{RetriableException, WakeupException}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import pureconfig.loadConfigOrThrow
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
+import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
-import scala.collection.JavaConversions.{iterableAsScalaIterable, seqAsJavaList}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future}
@@ -67,7 +65,7 @@ class KafkaConsumerConnector(
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
     try {
-      val response = consumer.poll(duration.toMillis).map(r => (r.topic, r.partition, r.offset, r.value))
+      val response = consumer.poll(duration.toMillis).asScala.map(r => (r.topic, r.partition, r.offset, r.value))
       response.lastOption.foreach {
         case (_, _, newOffset, _) => offset = newOffset + 1
       }
@@ -112,40 +110,28 @@ class KafkaConsumerConnector(
     logging.info(this, s"closing '$topic' consumer")
   }
 
-  private def getProps: Properties = {
-    val props = new Properties
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
-    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
-
-    val config =
-      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
-        KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaConsumer))
-    config.foreach {
-      case (key, value) => props.put(key, value)
-    }
-    props
-  }
-
   /** Creates a new kafka consumer and subscribes to topic list if given. */
-  private def getConsumer(props: Properties, topics: Option[List[String]] = None) = {
-    val keyDeserializer = new ByteArrayDeserializer
-    val valueDeserializer = new ByteArrayDeserializer
-    val consumer = new KafkaConsumer(props, keyDeserializer, valueDeserializer)
-    topics.foreach(consumer.subscribe(_))
+  private def createConsumer(topic: String) = {
+    val config = Map(
+      ConsumerConfig.GROUP_ID_CONFIG -> groupid,
+      ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahost,
+      ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> maxPeek.toString) ++
+      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
+      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaConsumer))
+
+    val consumer = new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
+    consumer.subscribe(Seq(topic).asJavaCollection)
     consumer
   }
 
   private def recreateConsumer(): Unit = {
     val oldConsumer = consumer
-    Future {
-      oldConsumer.close()
-      logging.info(this, s"old consumer closed")
-    }
-    consumer = getConsumer(getProps, Some(List(topic)))
+    oldConsumer.close()
+    logging.info(this, s"old consumer closed")
+    consumer = createConsumer(topic)
   }
 
-  @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
+  @volatile private var consumer: KafkaConsumer[Array[Byte], Array[Byte]] = createConsumer(topic)
 
   // Read current lag of the consumed topic, e.g. invoker queue
   // Since we use only one partition in kafka, it is defined 0

@@ -1,3 +1,6 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
 mode: deploy
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
@@ -19,21 +22,24 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
+hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
 
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
 ##
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
-# briefly:
-#   defaultImagePrefix: the default image prefix when not given explicitly
-#   defaultImageTag: the default image tag
-#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
-#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
-#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
-#                             to skip docker pull in invoker even if the image is not part of the blackbox set
+# configuration parameters related to support runtimes (see whisk.core.entity.ExecManifest for schema of the manifest).
+# briefly the parameters are:
+#
+#   runtimes_registry: optional registry (with trailing slack) where to pull docker images from for runtimes and backbox images
+#
+#   skip_pull_runtimes: this will skip pulling the images to the invoker (images must exist there somehow)
+#
+#   runtimes_manifest: set of language runtime families grouped by language (e.g., nodejs, python) and blackbox images to pre-pull
+#
+#   runtimes_bypass_pull_for_local_images: optional, if true, allow images with a prefix that matches
+#       {{ runtimes_local_image_prefix }} to skip docker pull in invoker even if the image is not part of the blackbox set
 #
 runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '/ansible/files/runtimes.json') | from_json) }}"
 
@@ -80,6 +86,8 @@ controller:
     truststore:
       password: "{{ controllerKeystorePassword }}"
       path: "/conf/{{ controllerKeystoreName }}"
+  extraEnv: "{{ controller_extraEnv | default({}) }}"
+
 # move controller protocol outside to not evaluate controller variables during execution of setup.yml
 controllerProtocolForSetup: "{{ controller_protocol | default('https') }}"
 controllerKeystoreName: "{{ controllerKeyPrefix }}openwhisk-keystore.p12"
@@ -97,7 +105,7 @@ jmx:
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:
-  stride: "{{ groups['controllers'] | length }}"
+  header: "{{ transactions_header | default('X-Request-ID') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -108,6 +116,10 @@ kafka:
     keystore:
       name: kafka-keystore.jks
       password: openwhisk
+    cipher_suites:
+    - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+    - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
   protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
   port: 9072
@@ -162,6 +174,7 @@ invoker:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
     {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
     {% endif %}"
+  extraEnv: "{{ invoker_extraEnv | default({}) }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
@@ -170,7 +183,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.12') }}"
+  version: "{{ nginx_version | default('1.13') }}"
   port:
     http: 80
     api: 443
@@ -324,3 +337,4 @@ metrics:
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
+user_events: "{{ user_events_enabled | default(false) }}"

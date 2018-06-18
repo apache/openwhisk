@@ -1,17 +1,18 @@
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 # -*- mode: ruby -*-
@@ -23,7 +24,7 @@
 # Don't use vagrant resume, it will run the provisioning a second producing errors
 # Use vagrant suspend and vagrant up (using up it skips provisioning)
 
-BOX = "ubuntu/xenial64"
+BOX = ENV['BOX_OS'] || "ubuntu/xenial64"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
 BOX_CPUS = ENV['BOX_CPUS'] || '4'
 MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.16'
@@ -86,7 +87,7 @@ Vagrant.configure('2') do |config|
       echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
       cd ${OPENWHISK_HOME}
       cd tools/ubuntu-setup
-      su vagrant -c 'source all.sh'
+      su vagrant -c 'source all.sh oracle'
       echo "`date`: ubuntu-setup-end" >> /tmp/vagrant-times.txt
     SCRIPT
 
@@ -143,15 +144,6 @@ Vagrant.configure('2') do |config|
     cd ${OPENWHISK_HOME}
     su vagrant -c './gradlew distDocker'
     echo "`date`: build-core-end" >> /tmp/vagrant-times.txt
-
-    # Clone and Build CLI
-    echo "`date`: build-cli-start" >> /tmp/vagrant-times.txt
-    cd ${OPENWHISK_HOME}/bin
-    rm -rf openwhisk-cli
-    su vagrant -c 'git clone --depth=1 https://github.com/apache/incubator-openwhisk-cli.git openwhisk-cli'
-    cd openwhisk-cli
-    su vagrant -c './gradlew releaseBinaries'
-    echo "`date`: build-cli-end" >> /tmp/vagrant-times.txt
 
     # Deploy OpenWhisk using ansible
     echo "`date`: deploy-start" >> /tmp/vagrant-times.txt

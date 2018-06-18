@@ -99,7 +99,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   protected[core] sealed trait ContainerHttpError extends ContainerConnectionError
   protected[core] case class ConnectionError(t: Throwable) extends ContainerHttpError
   protected[core] case class NoResponseReceived() extends ContainerHttpError
-  protected[core] case class Timeout() extends ContainerHttpError
+  protected[core] case class Timeout(t: Throwable) extends ContainerHttpError
 
   protected[core] case class MemoryExhausted() extends ContainerConnectionError
 

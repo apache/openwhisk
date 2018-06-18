@@ -21,15 +21,11 @@ import java.time.Instant
 
 import scala.concurrent.Future
 import scala.util.Try
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
-import whisk.core.database.ArtifactStore
-import whisk.core.database.DocumentFactory
-import whisk.core.database.StaleParameter
-
+import whisk.core.database.{ArtifactStore, CacheChangeNotification, DocumentFactory, StaleParameter}
 import pureconfig._
 
 /**
@@ -151,9 +147,9 @@ object WhiskActivation
         value match {
           case JsString(t) => Instant.parse(t)
           case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-          case _           => deserializationError("timetsamp malformed")
+          case _           => deserializationError("timestamp malformed")
         }
-      } getOrElse deserializationError("timetsamp malformed")
+      } getOrElse deserializationError("timestamp malformed")
   }
 
   override val collectionName = "activations"
@@ -200,4 +196,10 @@ object WhiskActivation
     val endKey = List(namespace.addPath(path).asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
     query(db, filtersView, startKey, endKey, skip, limit, reduce = false, stale, convert)
   }
+
+  def put[Wsuper >: WhiskActivation](db: ArtifactStore[Wsuper], doc: WhiskActivation)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] =
+    //As activations are not updated we just pass None for the old document
+    super.put(db, doc, None)
 }

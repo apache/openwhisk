@@ -352,7 +352,7 @@ class DatastoreTests
       assert(false)
     }
     intercept[IllegalArgumentException] {
-      Await.result(WhiskAction.put(null, null), dbOpTimeout)
+      Await.result(WhiskAction.put(null, null, None), dbOpTimeout)
       assert(false)
     }
   }

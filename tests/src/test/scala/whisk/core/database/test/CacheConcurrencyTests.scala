@@ -72,7 +72,6 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
 
   for (n <- 1 to nExternalIters)
     "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${n}" in {
-      val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
       val actionFile = TestUtils.getTestActionFilename("empty.js")
 
       run("create") { name =>

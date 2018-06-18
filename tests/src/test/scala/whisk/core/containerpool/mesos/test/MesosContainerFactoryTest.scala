@@ -69,7 +69,7 @@ class MesosContainerFactoryTest
   def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
 
   implicit val wskConfig =
-    new WhiskConfig(Map(dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
+    new WhiskConfig(Map(wskApiHostname -> "apihost") ++ wskApiHost)
   var count = 0
   var lastTaskId: String = null
   def testTaskId() = {
@@ -141,7 +141,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:" + wskConfig.dockerImageTag,
+        "fakeImage",
         mesosCpus,
         1,
         List(8080),
@@ -190,7 +190,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:" + wskConfig.dockerImageTag,
+        "fakeImage",
         mesosCpus,
         1,
         List(8080),
@@ -262,7 +262,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:" + wskConfig.dockerImageTag,
+        "fakeImage",
         mesosCpus,
         1,
         List(8080),

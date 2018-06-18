@@ -1,20 +1,22 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
+
 # Implementing feeds
 
 OpenWhisk supports an open API, where any user can expose an event producer service as a **feed** in a **package**.   This section describes architectural and implementation options for providing your own feed.
@@ -44,7 +46,7 @@ an open repo -->
 # Difference between Feed and Trigger
 
 Feeds and triggers are closely related,
-but technically distinct concepts.   
+but technically distinct concepts.
 
 - OpenWhisk processes **events** which flow into the system.
 
@@ -71,7 +73,7 @@ then under the covers the system will do something equivalent to:
 
 `wsk action invoke mycloudant/changes -p lifecycleEvent CREATE -p triggerName T -p authKey <userAuthKey> -p password <password value from mycloudant binding> -p username <username value from mycloudant binding> -p dbName mytype`
 
-The feed action named *changes* takes these parameters, and is expected to take whatever action is necessary to set up a stream of events from Cloudant, with the appropriate configuration, directed to the trigger *T*.    
+The feed action named *changes* takes these parameters, and is expected to take whatever action is necessary to set up a stream of events from Cloudant, with the appropriate configuration, directed to the trigger *T*.
 
 For the Cloudant *changes* feed, the action happens to talk directly to a *cloudant trigger* service we've implemented with a connection-based architecture.   We'll discuss the other architectures below.
 
@@ -119,4 +121,5 @@ The Cloudant *changes* feed is the canonical example -- it stands up a `cloudant
 
 The *alarm* feed is implemented with a similar pattern.
 
-The connection-based architecture is the highest performance option, but imposes more overhead on operations compared to the polling and hook architectures.   
+The connection-based architecture is the highest performance option, but imposes more overhead on operations compared to the polling and hook architectures.
+

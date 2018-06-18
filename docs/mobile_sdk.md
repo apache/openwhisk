@@ -1,18 +1,19 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
 
@@ -20,8 +21,7 @@
 
 OpenWhisk provides a mobile SDK for iOS and watchOS devices that enables mobile apps to easily fire remote triggers and invoke remote actions. A version for Android is currently not available; Android developers can use the OpenWhisk REST API directly.
 
-The mobile SDK is written in Swift 3.0 and supports iOS 10 and later releases. You can build the mobile SDK using Xcode 8.0. Legacy Swift 2.2/Xcode 7 versions of the SDK are available up to 0.1.7, though this is now deprecated.
-
+The mobile SDK is written in Swift 4 and supports iOS 11 and later releases. You can build the mobile SDK using Xcode 9.
 ## Adding the SDK to your app
 
 You can install the mobile SDK by using CocoaPods, Carthage, or from the source directory.
@@ -35,11 +35,11 @@ install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
 
 target 'MyApp' do
-     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.2.2'
+     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.3.0'
 end
 
 target 'MyApp WatchKit Extension' do
-     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.2.2'
+     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.3.0'
 end
 ```
 
@@ -53,7 +53,7 @@ This is caused if Cocoapods does not update the Swift version in the Pods projec
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['SWIFT_VERSION'] = '3.0'
+      config.build_settings['SWIFT_VERSION'] = '4.0'
     end
   end
 end
@@ -63,7 +63,7 @@ end
 
 Create a file in your app's project directory and name it 'Cartfile'. Put the following line in the file:
 ```
-github "openwhisk/openwhisk-client-swift.git" ~> 0.2.2 # Or latest version
+github "openwhisk/openwhisk-client-swift.git" ~> 0.3.0 # Or latest version
 ```
 
 From the command line, type `carthage update --platform ios`. Carthage downloads and builds the SDK, creates a directory called Carthage in your app's project directory, and puts an OpenWhisk.framework file inside Carthage/build/iOS.
@@ -79,7 +79,7 @@ Build the project for the targets that you need and add the resulting frameworks
 
 ## Installing the starter app example
 
-You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk SDK framework.  
+You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk SDK framework.
 
 To install the starter app example, enter the following command:
 ```

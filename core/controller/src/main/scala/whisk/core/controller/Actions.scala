@@ -34,7 +34,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
@@ -141,7 +141,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             val right = collection.determineRight(m, Some(innername))
             onComplete(entitlementProvider.check(user, right, packageResource)) {
               case Success(_) =>
-                getEntity(WhiskPackage, entityStore, packageDocId, Some {
+                getEntity(WhiskPackage.get(entityStore, packageDocId), Some {
                   if (right == Privilege.READ || right == Privilege.ACTIVATE) {
                     // need to merge package with action, hence authorize subject for package
                     // access (if binding, then subject must be authorized for both the binding
@@ -219,7 +219,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'result ? false,
       'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
       entity(as[Option[JsObject]]) { payload =>
-        getEntity(WhiskActionMetaData, entityStore, entityName.toDocId, Some {
+        getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some {
           act: WhiskActionMetaData =>
             // resolve the action --- special case for sequences that may contain components with '_' as default package
             val action = act.resolve(user.namespace)
@@ -314,14 +314,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('code ? true) { code =>
       code match {
         case true =>
-          getEntity(WhiskAction, entityStore, entityName.toDocId, Some { action: WhiskAction =>
+          getEntity(WhiskAction.get(entityStore, entityName.toDocId), Some { action: WhiskAction =>
             val mergedAction = env map {
               action inherit _
             } getOrElse action
             complete(OK, mergedAction)
           })
         case false =>
-          getEntity(WhiskActionMetaData, entityStore, entityName.toDocId, Some { action: WhiskActionMetaData =>
+          getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some { action: WhiskActionMetaData =>
             val mergedAction = env map {
               action inherit _
             } getOrElse action
@@ -339,20 +339,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        if (!count) {
-          listEntities {
-            WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-              list =>
-                list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
-            }
-          }
-        } else {
-          countEntities {
-            WhiskAction.countCollectionInNamespace(entityStore, namespace, skip)
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      if (!count) {
+        listEntities {
+          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = false) map {
+            list =>
+              list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
           }
         }
+      } else {
+        countEntities {
+          WhiskAction.countCollectionInNamespace(entityStore, namespace, skip.n)
+        }
+      }
     }
   }
 
@@ -534,7 +536,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     // and should hit the cache to ameliorate the cost; this can be improved
     // but requires communicating back from the authorization service the
     // resolved namespace
-    getEntity(WhiskPackage, entityStore, pkgName.toDocId, Some { (wp: WhiskPackage) =>
+    getEntity(WhiskPackage.get(entityStore, pkgName.toDocId), Some { (wp: WhiskPackage) =>
       val pkgns = wp.binding map { b =>
         logging.debug(this, s"list actions in package binding '${wp.name}' -> '$b'")
         b.namespace.addPath(b.name)
@@ -564,7 +566,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         logging.debug(this, s"fetching package '$docid' for reference")
         // already checked that subject is authorized for package and binding;
         // this fetch is redundant but should hit the cache to ameliorate cost
-        getEntity(WhiskPackage, entityStore, docid, Some {
+        getEntity(WhiskPackage.get(entityStore, docid), Some {
           mergeActionWithPackageAndDispatch(method, user, action, Some { wp }) _
         })
     } getOrElse {
@@ -697,6 +699,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
 }
 
 private case class TooManyActionsInSequence() extends IllegalArgumentException

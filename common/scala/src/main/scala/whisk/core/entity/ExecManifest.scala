@@ -72,16 +72,12 @@ protected[core] object ExecManifest {
    * @return Runtimes instance
    */
   protected[entity] def runtimes(config: JsObject, runtimeManifestConfig: RuntimeManifestConfig): Try[Runtimes] = Try {
-
-    val prefix = runtimeManifestConfig.defaultImagePrefix
-    val tag = runtimeManifestConfig.defaultImageTag
-
     val runtimes = config.fields
       .get("runtimes")
       .map(_.convertTo[Map[String, Set[RuntimeManifest]]].map {
         case (name, versions) =>
           RuntimeFamily(name, versions.map { mf =>
-            val img = ImageName(mf.image.name, mf.image.prefix.orElse(prefix), mf.image.tag.orElse(tag))
+            val img = ImageName(mf.image.name, mf.image.prefix, mf.image.tag)
             mf.copy(image = img)
           })
       }.toSet)
@@ -89,7 +85,7 @@ protected[core] object ExecManifest {
     val blackbox = config.fields
       .get("blackboxes")
       .map(_.convertTo[Set[ImageName]].map { image =>
-        ImageName(image.name, image.prefix.orElse(prefix), image.tag.orElse(tag))
+        ImageName(image.name, image.prefix, image.tag)
       })
 
     val bypassPullForLocalImages = runtimeManifestConfig.bypassPullForLocalImages
@@ -100,16 +96,14 @@ protected[core] object ExecManifest {
   }
 
   /**
-   * Misc options related to runtime manifests
-   * @param defaultImagePrefix the default image prefix when not given explicitly
-   * @param defaultImageTag the default image tag
+   * Misc options related to runtime manifests.
+   *
    * @param bypassPullForLocalImages if true, allow images with a prefix that matches localImagePrefix
-   *                                 to skip docker pull in invoker even if the image is not part of the blackbox set
+   *                                 to skip docker pull on invoker even if the image is not part of the blackbox set;
+   *                                 this is useful for testing with local images that aren't published to the runtimes registry
    * @param localImagePrefix image prefix for bypassPullForLocalImages
    */
-  protected[core] case class RuntimeManifestConfig(defaultImagePrefix: Option[String] = None,
-                                                   defaultImageTag: Option[String] = None,
-                                                   bypassPullForLocalImages: Option[Boolean] = None,
+  protected[core] case class RuntimeManifestConfig(bypassPullForLocalImages: Option[Boolean] = None,
                                                    localImagePrefix: Option[String] = None)
 
   /**
@@ -122,6 +116,7 @@ protected[core] object ExecManifest {
    * @param requireMain true iff main entry point is not optional
    * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
    * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
+   * @param stemCells optional list of stemCells to be initialized by invoker per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
                                              image: ImageName,
@@ -129,17 +124,17 @@ protected[core] object ExecManifest {
                                              default: Option[Boolean] = None,
                                              attached: Option[Attached] = None,
                                              requireMain: Option[Boolean] = None,
-                                             sentinelledLogs: Option[Boolean] = None) {
+                                             sentinelledLogs: Option[Boolean] = None,
+                                             stemCells: Option[List[StemCell]] = None)
 
-    protected[entity] def toJsonSummary = {
-      JsObject(
-        "kind" -> kind.toJson,
-        "image" -> image.publicImageName.toJson,
-        "deprecated" -> deprecated.getOrElse(false).toJson,
-        "default" -> default.getOrElse(false).toJson,
-        "attached" -> attached.isDefined.toJson,
-        "requireMain" -> requireMain.getOrElse(false).toJson)
-    }
+  /**
+   * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
+   *
+   * @param count the number of stemcell containers to create
+   * @param memory the max memory this stemcell will allocate
+   */
+  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
+    require(count > 0, "count must be positive")
   }
 
   /**
@@ -158,18 +153,18 @@ protected[core] object ExecManifest {
     }
 
     /**
-     * The internal name of the image for an action kind. It overrides
-     * the prefix with an internal name. Optionally overrides tag.
+     * The internal name of the image for an action kind relative to a registry.
      */
-    def localImageName(registry: String, prefix: String, tagOverride: Option[String] = None): String = {
+    def localImageName(registry: String): String = {
       val r = Option(registry)
         .filter(_.nonEmpty)
         .map { reg =>
           if (reg.endsWith("/")) reg else reg + "/"
         }
         .getOrElse("")
-      val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
-      r + p + name + ":" + tagOverride.orElse(tag).getOrElse(ImageName.defaultImageTag)
+      val p = prefix.filter(_.nonEmpty).map(_ + "/").getOrElse("")
+      val t = tag.filter(_.nonEmpty).map(":" + _).getOrElse("")
+      r + p + name + t
     }
 
     /**
@@ -189,7 +184,7 @@ protected[core] object ExecManifest {
   }
 
   protected[core] object ImageName {
-    protected val defaultImageTag = "latest"
+    private val defaultImageTag = "latest"
     private val componentRegex = """([a-z0-9._-]+)""".r
     private val tagRegex = """([\w.-]{0,128})""".r
 
@@ -240,6 +235,14 @@ protected[core] object ExecManifest {
 
     val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
 
+    val manifests: Map[String, RuntimeManifest] = {
+      runtimes.flatMap {
+        _.versions.map { m =>
+          m.kind -> m
+        }
+      }.toMap
+    }
+
     def skipDockerPull(image: ImageName): Boolean = {
       blackboxImages.contains(image) ||
       image.prefix.flatMap(p => bypassPullForLocalImages.map(_ == p)).getOrElse(false)
@@ -248,7 +251,16 @@ protected[core] object ExecManifest {
     def toJson: JsObject = {
       runtimes
         .map { family =>
-          family.name -> family.versions.map(_.toJsonSummary)
+          family.name -> family.versions.map {
+            case rt =>
+              JsObject(
+                "kind" -> rt.kind.toJson,
+                "image" -> rt.image.publicImageName.toJson,
+                "deprecated" -> rt.deprecated.getOrElse(false).toJson,
+                "default" -> rt.default.getOrElse(false).toJson,
+                "attached" -> rt.attached.isDefined.toJson,
+                "requireMain" -> rt.requireMain.getOrElse(false).toJson)
+          }
         }
         .toMap
         .toJson
@@ -262,12 +274,17 @@ protected[core] object ExecManifest {
       }
     }
 
-    val manifests: Map[String, RuntimeManifest] = {
-      runtimes.flatMap {
-        _.versions.map { m =>
-          m.kind -> m
+    /**
+     * Collects all runtimes for which there is a stemcell configuration defined
+     *
+     * @return list of runtime manifests with stemcell configurations
+     */
+    def stemcells: Map[RuntimeManifest, List[StemCell]] = {
+      manifests
+        .flatMap {
+          case (_, m) => m.stemCells.map(m -> _)
         }
-      }.toMap
+        .filter(_._2.nonEmpty)
     }
 
     private val defaultRuntimes: Map[String, String] = {
@@ -286,5 +303,11 @@ protected[core] object ExecManifest {
   }
 
   protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
-  protected[entity] implicit val runtimeManifestSerdes = jsonFormat7(RuntimeManifest)
+
+  protected[entity] implicit val stemCellSerdes = {
+    import whisk.core.entity.size.serdes
+    jsonFormat2(StemCell.apply)
+  }
+
+  protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
 }

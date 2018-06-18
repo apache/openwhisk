@@ -126,7 +126,21 @@ protected[controller] object RestApiCommons {
         case Success(n) =>
           throw new IllegalArgumentException(
             Messages.listLimitOutOfRange(collection.path, n, Collection.MAX_LIST_LIMIT))
-        case Failure(t) => throw new IllegalArgumentException(Messages.listLimitIsNotAString)
+        case Failure(t) => throw new IllegalArgumentException(Messages.argumentNotInteger(collection.path, value))
+      }
+    }
+  }
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  case class ListSkip(n: Int)
+
+  def stringToListSkip(collection: Collection): Unmarshaller[String, ListSkip] = {
+    Unmarshaller.strict[String, ListSkip] { value =>
+      Try { value.toInt } match {
+        case Success(n) if (n >= 0) => ListSkip(n)
+        case Success(n) =>
+          throw new IllegalArgumentException(Messages.listSkipOutOfRange(collection.path, n))
+        case Failure(t) => throw new IllegalArgumentException(Messages.argumentNotInteger(collection.path, value))
       }
     }
   }

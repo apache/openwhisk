@@ -24,3 +24,4 @@ trait ArtifactStoreBehavior
     with ArtifactStoreSubjectQueryBehaviors
     with ArtifactStoreWhisksQueryBehaviors
     with ArtifactStoreActivationsQueryBehaviors
+    with ArtifactStoreAttachmentBehaviors

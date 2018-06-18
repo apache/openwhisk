@@ -1,20 +1,22 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements.  See the NOTICE file distributed with this work for additional
-# information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this
-# file except in compliance with the License.  You may obtain a copy of the License
-# at:
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 -->
+
 # Web Actions
 
 Web actions are OpenWhisk actions annotated to quickly enable you to build web based applications. This allows you to program backend logic which your web application can access anonymously without requiring an OpenWhisk authentication key. It is up to the action developer to implement their own desired authentication and authorization (i.e. OAuth flow).
@@ -72,7 +74,7 @@ function main() {
     statusCode: 302
   }
 }
-```  
+```
 
 Or sets a cookie:
 ```javascript
@@ -144,12 +146,12 @@ The controller will pass along the action-specified headers, if any, to the HTTP
 
 All web actions, when invoked, receives additional HTTP request details as parameters to the action input argument. They are:
 
-1. `__ow_method` (type: string). the HTTP method of the request.
-2. `__ow_headers` (type: map string to string): A the request headers.
+1. `__ow_method` (type: string): the HTTP method of the request.
+2. `__ow_headers` (type: map string to string): the request headers.
 3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
-4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
-5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise
-6. `__ow_query` (type: string): the query parameters from the request as an unparsed string
+4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject.
+5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise.
+6. `__ow_query` (type: string): the query parameters from the request as an unparsed string.
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 
@@ -221,8 +223,8 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -d "name":"Jane"
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "10",      
-      "content-type": "application/x-www-form-urlencoded",      
+      "content-length": "10",
+      "content-type": "application/x-www-form-urlencoded",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
     },
@@ -241,7 +243,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: app
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "15",      
+      "content-length": "15",
       "content-type": "application/json",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
@@ -268,7 +270,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: tex
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "4",      
+      "content-length": "4",
       "content-type": "text/plain",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
@@ -341,7 +343,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H 
       "content-length": "15",
       "content-type": "application/json",
       "host": "172.17.0.1",
-      "user-agent": "curl/7.43.0"      
+      "user-agent": "curl/7.43.0"
     },
     "__ow_path": ""
   }

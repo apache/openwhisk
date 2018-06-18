@@ -24,7 +24,7 @@ import akka.http.scaladsl.server.StandardRoute
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import spray.json.DeserializationException
 import whisk.common.TransactionId
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.{CacheChangeNotification, DocumentConflictException, NoDocumentException}
 import whisk.core.entitlement.{Collection, Privilege, ReferencedEntities}
 import whisk.core.entity._
@@ -134,7 +134,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     extractStatusRequest { requestedState =>
       val docid = entityName.toDocId
 
-      getEntity(WhiskRule, entityStore, docid, Some {
+      getEntity(WhiskRule.get(entityStore, docid), Some {
         rule: WhiskRule =>
           val ruleName = rule.fullyQualifiedName(false)
 
@@ -157,7 +157,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
               WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                 val newTrigger = trigger.removeRule(ruleName)
                 val triggerLink = ReducedRule(rule.action, newStatus)
-                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
+                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), Some(trigger))
               }
           }
 
@@ -208,7 +208,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
         } flatMap {
           case (status, triggerOpt) =>
             triggerOpt map { trigger =>
-              WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ =>
+              WhiskTrigger.put(entityStore, trigger.removeRule(ruleName), triggerOpt) map { _ =>
                 {}
               }
             } getOrElse Future.successful({})
@@ -230,9 +230,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     getEntity(
-      WhiskRule,
-      entityStore,
-      entityName.toDocId,
+      WhiskRule.get(entityStore, entityName.toDocId),
       Some { rule: WhiskRule =>
         val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
           getStatus(trigger, entityName)
@@ -255,19 +253,21 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        if (!count) {
-          listEntities {
-            WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = true) map { list =>
-              list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
-            }
-          }
-        } else {
-          countEntities {
-            WhiskRule.countCollectionInNamespace(entityStore, namespace, skip)
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      if (!count) {
+        listEntities {
+          WhiskRule.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = true) map { list =>
+            list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
           }
         }
+      } else {
+        countEntities {
+          WhiskRule.countCollectionInNamespace(entityStore, namespace, skip.n)
+        }
+      }
     }
   }
 
@@ -293,7 +293,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
           val triggerLink = ReducedRule(actionName, Status.ACTIVE)
           logging.debug(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
-          WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ =>
+          WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink), old = None) map { _ =>
             rule
           }
       }
@@ -331,11 +331,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
             oldTrigger <- oldTriggerOpt
           } yield {
-            WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
+            WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName), oldTriggerOpt)
           }
 
           val triggerLink = ReducedRule(actionName, status)
-          val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
+          val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), oldTriggerOpt)
           Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
       }
     }
@@ -393,7 +393,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * @return future that completes with references trigger and action if they exist
    */
   private def checkTriggerAndActionExist(trigger: FullyQualifiedEntityName, action: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
+    implicit transid: TransactionId): Future[(WhiskTrigger, WhiskActionMetaData)] = {
 
     for {
       triggerExists <- WhiskTrigger.get(entityStore, trigger.toDocId) recoverWith {
@@ -408,7 +408,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
 
       actionExists <- WhiskAction.resolveAction(entityStore, action) flatMap { resolvedName =>
-        WhiskAction.get(entityStore, resolvedName.toDocId)
+        WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
       } recoverWith {
         case _: NoDocumentException =>
           Future.failed {
@@ -430,6 +430,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
 }
 
 private case class IgnoredRuleActivation(noop: Boolean) extends Throwable

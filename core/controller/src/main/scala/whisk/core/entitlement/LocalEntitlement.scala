@@ -19,13 +19,11 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
-
 import akka.actor.ActorSystem
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.entity.Subject
+import whisk.core.entity.{InstanceId, Subject}
 import whisk.core.loadBalancer.LoadBalancer
 
 private object LocalEntitlementProvider {
@@ -34,10 +32,11 @@ private object LocalEntitlementProvider {
   private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
 }
 
-protected[core] class LocalEntitlementProvider(private val config: WhiskConfig, private val loadBalancer: LoadBalancer)(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
-    extends EntitlementProvider(config, loadBalancer) {
+protected[core] class LocalEntitlementProvider(
+  private val config: WhiskConfig,
+  private val loadBalancer: LoadBalancer,
+  private val controllerInstance: InstanceId)(implicit actorSystem: ActorSystem, logging: Logging)
+    extends EntitlementProvider(config, loadBalancer, controllerInstance) {
 
   private implicit val executionContext = actorSystem.dispatcher
 

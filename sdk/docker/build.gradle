@@ -1,2 +1,0 @@
-ext.dockerImageName = 'example'
-apply from: '../../gradle/docker.gradle'

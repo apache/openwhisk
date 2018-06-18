@@ -1,3 +1,6 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
 whisk_version_name: local
 openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
@@ -37,6 +40,6 @@ env_hosts_dir: "{{ playbook_dir }}/environments/local"
 
 controller_protocol: "http"
 
-cli_installation_mode: "local"
+cli_installation_mode: "remote"
 
 invoker_use_runc: false

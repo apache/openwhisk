@@ -38,7 +38,7 @@ import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.common.{Https, TransactionId}
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
@@ -133,7 +133,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     entity(as[Option[JsObject]]) { payload =>
-      getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some {
+      getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
         trigger: WhiskTrigger =>
           val triggerActivationId = activationIdFactory.make()
           logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
@@ -214,7 +214,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some { trigger =>
+    getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some { trigger =>
       completeAsTriggerResponse(trigger)
     })
   }
@@ -227,20 +227,22 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        if (!count) {
-          listEntities {
-            WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-              list =>
-                list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
-            }
-          }
-        } else {
-          countEntities {
-            WhiskTrigger.countCollectionInNamespace(entityStore, namespace, skip)
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      if (!count) {
+        listEntities {
+          WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = false) map {
+            list =>
+              list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
           }
         }
+      } else {
+        countEntities {
+          WhiskTrigger.countCollectionInNamespace(entityStore, namespace, skip.n)
+        }
+      }
     }
   }
 
@@ -383,7 +385,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * @param args the arguments to post to the action
    * @return a future with the HTTP response from the action activation
    */
-  private def postActivation(user: Identity, rule: ReducedRule, args: JsObject): Future[HttpResponse] = {
+  private def postActivation(user: Identity, rule: ReducedRule, args: JsObject)(
+    implicit transid: TransactionId): Future[HttpResponse] = {
     // Build the url to invoke an action mapped to the rule
     val actionUrl = baseControllerPath / rule.action.path.root.asString / "actions"
 
@@ -394,7 +397,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     val request = HttpRequest(
       method = POST,
       uri = url.withPath(actionUrl ++ actionPath),
-      headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
+      headers = List(
+        Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString)),
+        transid.toHeader),
       entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
     singleRequest(request)
@@ -420,5 +425,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
 
 }
