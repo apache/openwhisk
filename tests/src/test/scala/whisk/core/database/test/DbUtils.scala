@@ -309,9 +309,7 @@ trait DbUtils extends Assertions {
   def nonInlinedAttachmentSize(db: ArtifactStore[_]): Int = {
     db match {
       case inliner: AttachmentSupport[_] =>
-        val inlineSize = inliner.maxInlineSize.toBytes.toInt
-        val chunkSize = inliner.chunkSize.toBytes.toInt
-        Math.max(inlineSize, chunkSize) * 2
+        inliner.maxInlineSize.toBytes.toInt * 2
       case _ =>
         42
     }

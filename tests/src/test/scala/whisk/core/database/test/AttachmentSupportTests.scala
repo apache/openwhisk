@@ -39,7 +39,7 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
   implicit val materializer: Materializer = ActorMaterializer()
 
   it should "not inline if maxInlineSize set to zero" in {
-    val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB, chunkSize = 8.KB))
+    val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB))
     val bs = CompactByteString("hello world")
 
     val bytesOrSource = inliner.inlineAndTail(Source.single(bs)).futureValue

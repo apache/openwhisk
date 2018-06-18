@@ -40,7 +40,7 @@ object AttachmentSupport {
   val MemScheme: String = "mem"
 }
 
-case class InliningConfig(maxInlineSize: ByteSize, chunkSize: ByteSize)
+case class InliningConfig(maxInlineSize: ByteSize)
 
 /**
  * Provides support for inlining small attachments. Inlined attachment contents are encoded as part of attachment
@@ -140,14 +140,15 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
    */
   def maxInlineSize: ByteSize = inliningConfig.maxInlineSize
 
-  def chunkSize: ByteSize = inliningConfig.chunkSize
-
   protected def inliningConfig: InliningConfig
 
   protected def attachmentScheme: String
 
   protected def executionContext: ExecutionContext
 
+  /**
+   * See {{ ArtifactStore#put }}
+   */
   protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
 
   private def encode(bytes: Seq[Byte]): String = {
