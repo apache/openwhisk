@@ -31,7 +31,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig._
 import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.ContainerArgsConfig
 import whisk.core.containerpool.ContainerId
@@ -53,8 +52,7 @@ class DockerContainerFactoryTests
     with WskActorSystem
     with TimingHelpers {
 
-  implicit val config = new WhiskConfig(
-    ExecManifest.requiredProperties ++ Map(dockerImagePrefix -> "testing", dockerImageTag -> "testtag"))
+  implicit val config = new WhiskConfig(ExecManifest.requiredProperties)
   ExecManifest.initialize(config) should be a 'success
 
   behavior of "DockerContainerFactory"
@@ -69,7 +67,7 @@ class DockerContainerFactoryTests
     (dockerApiStub
       .run(_: String, _: Seq[String])(_: TransactionId))
       .expects(
-        image.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag)),
+        image.localImageName(config.runtimesRegistry),
         List(
           "--cpu-shares",
           "32", //should be calculated as 1024/(numcore * sharefactor) via ContainerFactory.cpuShare

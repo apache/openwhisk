@@ -72,16 +72,12 @@ protected[core] object ExecManifest {
    * @return Runtimes instance
    */
   protected[entity] def runtimes(config: JsObject, runtimeManifestConfig: RuntimeManifestConfig): Try[Runtimes] = Try {
-
-    val prefix = runtimeManifestConfig.defaultImagePrefix
-    val tag = runtimeManifestConfig.defaultImageTag
-
     val runtimes = config.fields
       .get("runtimes")
       .map(_.convertTo[Map[String, Set[RuntimeManifest]]].map {
         case (name, versions) =>
           RuntimeFamily(name, versions.map { mf =>
-            val img = ImageName(mf.image.name, mf.image.prefix.orElse(prefix), mf.image.tag.orElse(tag))
+            val img = ImageName(mf.image.name, mf.image.prefix, mf.image.tag)
             mf.copy(image = img)
           })
       }.toSet)
@@ -89,7 +85,7 @@ protected[core] object ExecManifest {
     val blackbox = config.fields
       .get("blackboxes")
       .map(_.convertTo[Set[ImageName]].map { image =>
-        ImageName(image.name, image.prefix.orElse(prefix), image.tag.orElse(tag))
+        ImageName(image.name, image.prefix, image.tag)
       })
 
     val bypassPullForLocalImages = runtimeManifestConfig.bypassPullForLocalImages
@@ -100,16 +96,14 @@ protected[core] object ExecManifest {
   }
 
   /**
-   * Misc options related to runtime manifests
-   * @param defaultImagePrefix the default image prefix when not given explicitly
-   * @param defaultImageTag the default image tag
+   * Misc options related to runtime manifests.
+   *
    * @param bypassPullForLocalImages if true, allow images with a prefix that matches localImagePrefix
-   *                                 to skip docker pull in invoker even if the image is not part of the blackbox set
+   *                                 to skip docker pull on invoker even if the image is not part of the blackbox set;
+   *                                 this is useful for testing with local images that aren't published to the runtimes registry
    * @param localImagePrefix image prefix for bypassPullForLocalImages
    */
-  protected[core] case class RuntimeManifestConfig(defaultImagePrefix: Option[String] = None,
-                                                   defaultImageTag: Option[String] = None,
-                                                   bypassPullForLocalImages: Option[Boolean] = None,
+  protected[core] case class RuntimeManifestConfig(bypassPullForLocalImages: Option[Boolean] = None,
                                                    localImagePrefix: Option[String] = None)
 
   /**
@@ -159,18 +153,18 @@ protected[core] object ExecManifest {
     }
 
     /**
-     * The internal name of the image for an action kind. It overrides
-     * the prefix with an internal name. Optionally overrides tag.
+     * The internal name of the image for an action kind relative to a registry.
      */
-    def localImageName(registry: String, prefix: String, tagOverride: Option[String] = None): String = {
+    def localImageName(registry: String): String = {
       val r = Option(registry)
         .filter(_.nonEmpty)
         .map { reg =>
           if (reg.endsWith("/")) reg else reg + "/"
         }
         .getOrElse("")
-      val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
-      r + p + name + ":" + tagOverride.orElse(tag).getOrElse(ImageName.defaultImageTag)
+      val p = prefix.filter(_.nonEmpty).map(_ + "/").getOrElse("")
+      val t = tag.filter(_.nonEmpty).map(":" + _).getOrElse("")
+      r + p + name + t
     }
 
     /**
@@ -190,7 +184,7 @@ protected[core] object ExecManifest {
   }
 
   protected[core] object ImageName {
-    protected val defaultImageTag = "latest"
+    private val defaultImageTag = "latest"
     private val componentRegex = """([a-z0-9._-]+)""".r
     private val tagRegex = """([\w.-]{0,128})""".r
 

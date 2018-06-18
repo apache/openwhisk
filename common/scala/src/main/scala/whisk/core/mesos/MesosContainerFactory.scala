@@ -114,7 +114,7 @@ class MesosContainerFactory(config: WhiskConfig,
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {
-      actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+      actionImage.localImageName(config.runtimesRegistry)
     }
     val constraintStrings = if (userProvidedImage) {
       mesosConfig.blackboxConstraints
