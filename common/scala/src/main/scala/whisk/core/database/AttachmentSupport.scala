@@ -20,12 +20,15 @@ package whisk.core.database
 import java.util.Base64
 
 import akka.NotUsed
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.{ContentType, Uri}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
+import spray.json.DefaultJsonProtocol
+import whisk.common.TransactionId
 import whisk.core.database.AttachmentSupport.MemScheme
-import whisk.core.entity.ByteSize
+import whisk.core.entity.Attachments.Attached
+import whisk.core.entity.{ByteSize, DocId, DocInfo, UUID}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,7 +46,7 @@ case class InliningConfig(maxInlineSize: ByteSize, chunkSize: ByteSize)
  * Provides support for inlining small attachments. Inlined attachment contents are encoded as part of attachment
  * name itself.
  */
-trait AttachmentSupport {
+trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends DefaultJsonProtocol {
 
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
@@ -89,6 +92,49 @@ trait AttachmentSupport {
     StoreUtils.encodeDigest(digester.digest())
   }
 
+  protected[database] def attachToExternalStore[A <: DocumentAbstraction](
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached],
+    attachmentStore: AttachmentStore)(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
+
+    val asJson = doc.toDocumentRecord
+    val id = asJson.fields("_id").convertTo[String].trim
+
+    implicit val ec = executionContext
+
+    for {
+      bytesOrSource <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
+      attached <- {
+        // Upload if cannot be inlined
+        bytesOrSource match {
+          case Left(bytes) =>
+            Future.successful(Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes))))
+          case Right(source) =>
+            attachmentStore
+              .attach(DocId(id), uri.path.toString, contentType, source)
+              .map(r => Attached(uri.toString, contentType, Some(r.length), Some(r.digest)))
+        }
+      }
+      i1 <- put(update(doc, attached))
+
+      //Remove old attachment if it was part of attachmentStore
+      _ <- oldAttachment
+        .map { old =>
+          val oldUri = Uri(old.attachmentName)
+          if (oldUri.scheme == attachmentStore.scheme) {
+            attachmentStore.deleteAttachment(DocId(id), oldUri.path.toString)
+          } else {
+            Future.successful(true)
+          }
+        }
+        .getOrElse(Future.successful(true))
+    } yield (i1, attached)
+  }
+
   /**
    * Attachments having size less than this would be inlined
    */
@@ -99,6 +145,10 @@ trait AttachmentSupport {
   protected def inliningConfig: InliningConfig
 
   protected def attachmentScheme: String
+
+  protected def executionContext: ExecutionContext
+
+  protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
 
   private def encode(bytes: Seq[Byte]): String = {
     Base64.getUrlEncoder.encodeToString(bytes.toArray)

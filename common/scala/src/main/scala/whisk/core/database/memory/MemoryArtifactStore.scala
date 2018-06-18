@@ -94,7 +94,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
-    with AttachmentSupport {
+    with AttachmentSupport[DocumentAbstraction] {
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -288,37 +288,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
-
-    val asJson = d.toDocumentRecord
-    val id = asJson.fields(_id).convertTo[String].trim
-    //Inlined attachment with Memory storage is not required. However to validate the constructs
-    //inlined support is implemented
-    for {
-      bytesOrSource <- inlineAndTail(docStream)
-      uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
-      attached <- {
-        // Upload if cannot be inlined
-        bytesOrSource match {
-          case Left(bytes) =>
-            Future.successful(Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes))))
-          case Right(s) =>
-            attachmentStore
-              .attach(DocId(id), uri.path.toString, contentType, s)
-              .map(r => Attached(uri.toString, contentType, Some(r.length), Some(r.digest)))
-        }
-      }
-      i1 <- put(update(d, attached))
-      _ <- oldAttachment
-        .map { old =>
-          val oldUri = Uri(old.attachmentName)
-          if (oldUri.scheme == attachmentStore.scheme) {
-            attachmentStore.deleteAttachment(DocId(id), oldUri.path.toString)
-          } else {
-            Future.successful(true)
-          }
-        }
-        .getOrElse(Future.successful(true))
-    } yield (i1, attached)
+    attachToExternalStore(d, update, contentType, docStream, oldAttachment, attachmentStore)
   }
 
   override def shutdown(): Unit = {

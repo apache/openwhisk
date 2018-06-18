@@ -26,7 +26,9 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
+import whisk.common.TransactionId
 import whisk.core.database.{AttachmentSupport, InliningConfig}
+import whisk.core.entity.WhiskEntity
 import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
@@ -37,7 +39,7 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
   implicit val materializer: Materializer = ActorMaterializer()
 
   it should "not inline if maxInlineSize set to zero" in {
-    val inliner = new TestInliner(InliningConfig(maxInlineSize = 0.KB, chunkSize = 8.KB))
+    val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB, chunkSize = 8.KB))
     val bs = CompactByteString("hello world")
 
     val bytesOrSource = inliner.inlineAndTail(Source.single(bs)).futureValue
@@ -46,8 +48,10 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
     uri shouldBe Uri("test:foo")
   }
 
-  class TestInliner(val inliningConfig: InliningConfig) extends AttachmentSupport {
+  class AttachmentSupportTestMock(val inliningConfig: InliningConfig) extends AttachmentSupport[WhiskEntity] {
     override protected[core] implicit val materializer: Materializer = ActorMaterializer()
     override protected def attachmentScheme: String = "test"
+    override protected def executionContext = actorSystem.dispatcher
+    override protected[database] def put(d: WhiskEntity)(implicit transid: TransactionId) = ???
   }
 }
