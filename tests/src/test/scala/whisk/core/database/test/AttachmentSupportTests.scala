@@ -26,11 +26,11 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
-import whisk.core.database.{AttachmentInliner, InliningConfig}
+import whisk.core.database.{AttachmentSupport, InliningConfig}
 import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class AttachmentInlinerTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
+class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
 
   behavior of "Attachment inlining"
 
@@ -46,7 +46,7 @@ class AttachmentInlinerTests extends FlatSpec with Matchers with ScalaFutures wi
     uri shouldBe Uri("test:foo")
   }
 
-  class TestInliner(val inliningConfig: InliningConfig) extends AttachmentInliner {
+  class TestInliner(val inliningConfig: InliningConfig) extends AttachmentSupport {
     override protected[core] implicit val materializer: Materializer = ActorMaterializer()
     override protected def attachmentScheme: String = "test"
   }

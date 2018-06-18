@@ -24,12 +24,12 @@ import akka.http.scaladsl.model.Uri
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import whisk.core.database.AttachmentInliner.MemScheme
+import whisk.core.database.AttachmentSupport.MemScheme
 import whisk.core.entity.ByteSize
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object AttachmentInliner {
+object AttachmentSupport {
 
   /**
    * Scheme name for attachments which are inlined
@@ -43,7 +43,7 @@ case class InliningConfig(maxInlineSize: ByteSize, chunkSize: ByteSize)
  * Provides support for inlining small attachments. Inlined attachment contents are encoded as part of attachment
  * name itself.
  */
-trait AttachmentInliner {
+trait AttachmentSupport {
 
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer

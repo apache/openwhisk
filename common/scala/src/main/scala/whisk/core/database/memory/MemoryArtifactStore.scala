@@ -94,7 +94,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
-    with AttachmentInliner {
+    with AttachmentSupport {
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 

@@ -61,7 +61,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
-    with AttachmentInliner {
+    with AttachmentSupport {
 
   protected[core] implicit val executionContext = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
@@ -488,7 +488,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     val name = attached.attachmentName
     val attachmentUri = Uri(name)
     attachmentUri.scheme match {
-      case AttachmentInliner.MemScheme =>
+      case AttachmentSupport.MemScheme =>
         memorySource(attachmentUri).runWith(sink)
       case s if s == couchScheme || attachmentUri.isRelative =>
         //relative case is for compatibility with earlier naming approach where attachment name would be like 'jarfile'

@@ -26,7 +26,7 @@ import akka.stream.scaladsl.{Sink, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import whisk.common.TransactionId
 import whisk.core.entity.size._
-import whisk.core.database.{AttachmentInliner, CacheChangeNotification, NoDocumentException}
+import whisk.core.database.{AttachmentSupport, CacheChangeNotification, NoDocumentException}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.entity.{CodeExec, DocInfo, EntityName, ExecManifest, WhiskAction}
@@ -162,7 +162,7 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
     val a = attached(action2)
 
     val attachmentUri = Uri(a.attachmentName)
-    attachmentUri.scheme shouldBe AttachmentInliner.MemScheme
+    attachmentUri.scheme shouldBe AttachmentSupport.MemScheme
     a.length shouldBe Some(attachmentSize)
     a.digest should not be empty
   }
