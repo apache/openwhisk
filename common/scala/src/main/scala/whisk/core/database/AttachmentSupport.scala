@@ -51,8 +51,13 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
 
-  protected[database] def inlineAndTail(docStream: Source[ByteString, _],
-                                        previousPrefix: ByteString = ByteString.empty)(
+  /**
+   * Given a ByteString source it determines if the source can be inlined or not by returning an
+   * Either - Left(byteString) containing all the bytes from the source or Right(Source[ByteString, _])
+   * if the source is large
+   */
+  protected[database] def inlineOrAttach(docStream: Source[ByteString, _],
+                                         previousPrefix: ByteString = ByteString.empty)(
     implicit ec: ExecutionContext): Future[Either[ByteString, Source[ByteString, _]]] = {
     docStream.prefixAndTail(1).runWith(Sink.head).flatMap {
       case (Nil, _) =>
@@ -60,13 +65,20 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
       case (Seq(prefix), tail) =>
         val completePrefix = previousPrefix ++ prefix
         if (completePrefix.size < maxInlineSize.toBytes) {
-          inlineAndTail(tail, completePrefix)
+          inlineOrAttach(tail, completePrefix)
         } else {
           Future.successful(Right(tail.prepend(Source.single(completePrefix))))
         }
     }
   }
 
+  /**
+   * Constructs a URI for the attachment
+   *
+   * @param bytesOrSource either byteString or byteString source
+   * @param path function to generate the attachment name for non inlined case
+   * @return constructed uri. In case of inlined attachment the uri contains base64 encoded inlined attachment content
+   */
   protected[database] def uriOf(bytesOrSource: Either[ByteString, Source[ByteString, _]], path: => String): Uri = {
     bytesOrSource match {
       case Left(bytes) => Uri.from(scheme = MemScheme, path = encode(bytes))
@@ -84,12 +96,27 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
 
   protected[database] def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
 
+  /**
+   * Computes digest for passed bytes as hex encoded string
+   */
   protected[database] def digest(bytes: TraversableOnce[Byte]): String = {
     val digester = StoreUtils.emptyDigest()
     digester.update(bytes.toArray)
     StoreUtils.encodeDigest(digester.digest())
   }
 
+  /**
+   * Attaches the passed source content to  an {{ AttachmentStore }}
+   *
+   * @param doc document with attachment
+   * @param update function to update the `Attached` state with attachment metadata
+   * @param contentType contentType of the attachment
+   * @param docStream attachment source
+   * @param oldAttachment old attachment in case of update. Required for deleting the old attachment
+   * @param attachmentStore attachmentStore where attachment needs to be stored
+   *
+   * @return a tuple of updated document info and attachment metadata
+   */
   protected[database] def attachToExternalStore[A <: DocumentAbstraction](
     doc: A,
     update: (A, Attached) => A,
@@ -104,7 +131,7 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
     implicit val ec = executionContext
 
     for {
-      bytesOrSource <- inlineAndTail(docStream)
+      bytesOrSource <- inlineOrAttach(docStream)
       uri <- Future.successful(uriOf(bytesOrSource, UUID().asString))
       attached <- {
         // Upload if cannot be inlined
@@ -140,6 +167,9 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
 
   protected def inliningConfig: InliningConfig
 
+  /**
+   * Attachment scheme name to use for non inlined attachments
+   */
   protected def attachmentScheme: String
 
   protected def executionContext: ExecutionContext

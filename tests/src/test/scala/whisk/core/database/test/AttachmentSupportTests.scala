@@ -42,7 +42,7 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
     val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB))
     val bs = CompactByteString("hello world")
 
-    val bytesOrSource = inliner.inlineAndTail(Source.single(bs)).futureValue
+    val bytesOrSource = inliner.inlineOrAttach(Source.single(bs)).futureValue
     val uri = inliner.uriOf(bytesOrSource, "foo")
 
     uri shouldBe Uri("test:foo")
