@@ -29,13 +29,12 @@ import com.typesafe.config.ConfigFactory
 import common.{SimpleExec, StreamLogging, WhiskProperties}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import whisk.common.{Logging, TransactionId}
-import whisk.core.database.test.DbUtils
 import whisk.core.database.{AttachmentStore, DocumentSerializer}
 
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
-trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLogging {
+trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
   def makeS3Store[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                        logging: Logging,
                                                        materializer: ActorMaterializer): AttachmentStore = {
@@ -71,12 +70,11 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLo
   private val bucket = "test-ow-travis"
 
   override protected def beforeAll(): Unit = {
-    implicit val tid: TransactionId = transid()
+    super.beforeAll()
     dockerExec(
       s"run -d -e MINIO_ACCESS_KEY=$accessKey -e MINIO_SECRET_KEY=$secretAccessKey -p $port:9000 minio/minio server /data")
     println(s"Started minio on $port")
     createTestBucket()
-    super.beforeAll()
   }
 
   override def afterAll(): Unit = {
