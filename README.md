@@ -85,7 +85,7 @@ wsk action invoke /whisk.system/utils/echo -p message hello --result
 These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
 For more information about using OpenWhisk on Vagrant see the [tools/vagrant/README.md](tools/vagrant/README.md)
 
-During the Vagrant setup, Open JDK 8 is used as the default Java environment. If you would like to use Oracle JDK 8, please change the line "su vagrant -c 'source all.sh'" into "su vagrant -c 'source all.sh oracle'" in tools/vagrant/Vagrantfile.
+During the Vagrant setup, the Oracle JDK 8 is used as the default Java environment. If you would like to use OpenJDK 8, please change the line "su vagrant -c 'source all.sh oracle'" into "su vagrant -c 'source all.sh'" in tools/vagrant/Vagrantfile.
 
 ### Native development
 
