@@ -49,31 +49,25 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
     //initialize list for this transactionId
     val spanList: List[WeakReference[Span]] = TracingCacheProvider.spanMap.get(transactionId.meta.id).getOrElse(Nil)
 
-    val activeSpan: Option[Span] = spanList match {
-      case Nil => {
-        val spanBuilder = tracer
-          .buildSpan(logMarker.action)
-          .withTag("transactionId", transactionId.meta.id)
+    val spanBuilder = tracer
+      .buildSpan(logMarker.action)
+      .withTag("transactionId", transactionId.meta.id)
 
-        Some(
-          TracingCacheProvider.contextMap
-            .get(transactionId.meta.id)
-            .map(spanBuilder.asChildOf(_).startActive(true).span())
-            .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span()))
-      }
+    val activeSpan: Span = spanList match {
+      case Nil =>
+        TracingCacheProvider.contextMap
+          .get(transactionId.meta.id)
+          .map(spanBuilder.asChildOf(_).startActive(true).span())
+          .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
+
       case _ =>
-        Some(
-          tracer
-            .buildSpan(logMarker.action)
-            .withTag("transactionId", transactionId.meta.id)
-            .asChildOf(spanList(0).get.get)
-            .startActive(true)
-            .span())
+        spanList.head.get
+          .map(spanBuilder.asChildOf(_).startActive(true).span())
+          .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
 
     }
     //add active span to list
-    if (activeSpan.isDefined)
-      TracingCacheProvider.spanMap.put(transactionId.meta.id, spanList.::(new WeakReference(activeSpan.get)))
+    TracingCacheProvider.spanMap.put(transactionId.meta.id, spanList.::(new WeakReference(activeSpan)))
   }
 
   /**
@@ -106,7 +100,7 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
       case Some(spanList) => {
         var map: java.util.Map[String, String] = new java.util.HashMap()
         //inject latest span context in map
-        spanList(0).get match {
+        spanList.head.get match {
           case Some(span) => {
             tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map))
             contextMap = Some(map.asScala.toMap)
@@ -128,9 +122,7 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
   override def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]) = {
     context match {
       case Some(scalaMap) => {
-        var javaMap: java.util.Map[String, String] =
-          scala.collection.JavaConverters.mapAsJavaMapConverter(scalaMap).asJava
-        var ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(javaMap))
+        val ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(scalaMap.asJava))
         TracingCacheProvider.contextMap.put(transactionId.meta.id, ctx)
       }
       case None =>
@@ -138,19 +130,17 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
   }
 
   private def clear(transactionId: TransactionId): Unit = {
-    TracingCacheProvider.spanMap.get(transactionId.meta.id) match {
-      case Some(spanList) => {
-        if (!spanList.isEmpty) {
-          spanList(0).get.map(_.finish)
-          val newList = spanList.drop(1)
-          if (newList.isEmpty) {
-            TracingCacheProvider.spanMap.remove(transactionId.meta.id)
-            TracingCacheProvider.contextMap.remove(transactionId.meta.id)
-          } else
-            TracingCacheProvider.spanMap.put(transactionId.meta.id, newList)
+    TracingCacheProvider.spanMap.get(transactionId.meta.id).foreach {
+      case head :: tail =>
+        head.get.foreach(_.finish)
+        if (tail.isEmpty) {
+          TracingCacheProvider.spanMap.remove(transactionId.meta.id)
+          TracingCacheProvider.contextMap.remove(transactionId.meta.id)
+        } else {
+          TracingCacheProvider.spanMap.put(transactionId.meta.id, tail)
         }
-      }
-      case None =>
+
+      case _ =>
     }
   }
 }
