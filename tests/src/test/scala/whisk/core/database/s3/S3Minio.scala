@@ -32,7 +32,6 @@ import whisk.common.{Logging, TransactionId}
 import whisk.core.database.test.DbUtils
 import whisk.core.database.{AttachmentStore, DocumentSerializer}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
@@ -71,6 +70,15 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLo
   private val port = freePort()
   private val bucket = "test-ow-travis"
 
+  override protected def beforeAll(): Unit = {
+    implicit val tid: TransactionId = transid()
+    dockerExec(
+      s"run -d -e MINIO_ACCESS_KEY=$accessKey -e MINIO_SECRET_KEY=$secretAccessKey -p $port:9000 minio/minio server /data")
+    println(s"Started minio on $port")
+    createTestBucket()
+    super.beforeAll()
+  }
+
   override def afterAll(): Unit = {
     super.afterAll()
     val containerId = dockerExec("ps -q --filter ancestor=minio/minio")
@@ -86,17 +94,8 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLo
       .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretAccessKey)))
       .build
 
-    retry(() => Future.successful(client.createBucket(bucket)), 1.minute)
+    whisk.utils.retry(client.createBucket(bucket), 6, Some(1.minute))
     println(s"Created bucket $bucket")
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    implicit val tid: TransactionId = transid()
-    dockerExec(
-      s"run -d -e MINIO_ACCESS_KEY=$accessKey -e MINIO_SECRET_KEY=$secretAccessKey -p $port:9000 minio/minio server /data")
-    println(s"Started minio on $port")
-    createTestBucket()
   }
 
   private def dockerExec(cmd: String): String = {
