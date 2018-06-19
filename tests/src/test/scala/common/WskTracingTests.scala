@@ -25,7 +25,6 @@ import org.scalatest.junit.JUnitRunner
 import whisk.common.{LoggingMarkers, TransactionId}
 import whisk.common.tracing.{TracingCacheProvider, WhiskTracerProvider}
 
-import scala.collection.mutable
 import scala.ref.WeakReference
 
 @RunWith(classOf[JUnitRunner])
@@ -41,24 +40,25 @@ class WskTracingTests extends TestHelpers {
   it should "create span and context and invalidate cache after expiry" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    val list: mutable.ListBuffer[WeakReference[Span]] = mutable.ListBuffer()
+    var list: List[WeakReference[Span]] = List()
 
     val span = GlobalTracer.get().buildSpan("test").startActive(true).span()
-    list.+=:(new WeakReference(span))
-    TracingCacheProvider.spanCache.put(transactionId.meta.id, list)
-    TracingCacheProvider.contextCache.put(transactionId.meta.id, span.context())
-    val expiryTime: Int = (TracingCacheProvider.tracingConfig.cacheExpiry.getOrElse(5))
+    list = list.::(new WeakReference(span))
+    TracingCacheProvider.spanMap.put(transactionId.meta.id, list)
+    TracingCacheProvider.contextMap.put(transactionId.meta.id, span.context())
 
-    var cachedSpan = TracingCacheProvider.spanCache.get(transactionId.meta.id)
-    assert(cachedSpan.isDefined)
-    var ctx = TracingCacheProvider.contextCache.get(transactionId.meta.id)
+    var spanList = TracingCacheProvider.spanMap.get(transactionId.meta.id)
+    assert(spanList.isDefined)
+    var ctx = TracingCacheProvider.contextMap.get(transactionId.meta.id)
     assert(ctx.isDefined)
 
-    Thread.sleep((expiryTime + 10) * 1000)
-    cachedSpan = TracingCacheProvider.spanCache.get(transactionId.meta.id)
-    assert(!cachedSpan.isDefined)
-    ctx = TracingCacheProvider.contextCache.get(transactionId.meta.id)
+    Thread.sleep((TracingCacheProvider.tracingConfig.cacheExpiry.toMillis + 5000))
+    spanList = TracingCacheProvider.spanMap.get(transactionId.meta.id)
+    assert(!spanList.isDefined)
+    ctx = TracingCacheProvider.contextMap.get(transactionId.meta.id)
     assert(!ctx.isDefined)
+    TracingCacheProvider.spanMap.remove(transactionId.meta.id)
+    TracingCacheProvider.contextMap.remove(transactionId.meta.id)
   }
 
   it should "create a finished span" in {
@@ -86,8 +86,8 @@ class WskTracingTests extends TestHelpers {
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 2)
-    val parent: MockSpan = finishedSpans.get(0)
-    val child: MockSpan = finishedSpans.get(1)
+    val parent: MockSpan = finishedSpans.get(1)
+    val child: MockSpan = finishedSpans.get(0)
     assert(child.parentId == parent.context().spanId)
 
   }

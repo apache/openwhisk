@@ -19,90 +19,41 @@ package whisk.common.tracing
 
 import java.util.concurrent.TimeUnit
 
-import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.opentracing.{Span, SpanContext}
 import pureconfig.loadConfigOrThrow
 import whisk.core.ConfigKeys
 
-import scala.collection.mutable
 import scala.ref.WeakReference
-
-class WhiskTracingSpanCacheImpl(val cache: Cache[String, mutable.ListBuffer[WeakReference[Span]]])
-    extends WhiskTracingSpanCache {
-
-  override def put(key: String, value: mutable.ListBuffer[WeakReference[Span]]): Unit = {
-    cache.put(key, value)
-  }
-
-  override def get(key: String): Option[mutable.ListBuffer[WeakReference[Span]]] = {
-    Option(cache.getIfPresent(key))
-  }
-
-  override def invalidate(key: String): Unit = {
-    cache.invalidate(key)
-  }
-
-}
-
-class WhiskTracingContextCacheImpl(val cache: Cache[String, SpanContext]) extends WhiskTraceContextCache {
-
-  override def put(key: String, value: SpanContext): Unit = {
-    cache.put(key, value)
-  }
-
-  override def get(key: String): Option[SpanContext] = {
-    Option(cache.getIfPresent(key))
-  }
-
-  override def invalidate(key: String): Unit = {
-    cache.invalidate(key)
-  }
-}
+import scala.collection.concurrent.Map
+import scala.collection.JavaConverters._
 
 object TracingCacheProvider {
   val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
-  lazy val spanCache: WhiskTracingSpanCache = configureSpanCache
-  lazy val contextCache: WhiskTraceContextCache = configureContextCache
+  lazy val spanMap: Map[String, List[WeakReference[Span]]] = configureSpanMap
+  lazy val contextMap: Map[String, SpanContext] = configureContextMap
 
-  def configureSpanCache(): WhiskTracingSpanCache = {
-    val expiry: Int = tracingConfig.cacheExpiry.getOrElse(3600 * 5)
+  def configureContextMap(): Map[String, SpanContext] = {
 
-    val cacheImpl: Cache[String, mutable.ListBuffer[WeakReference[Span]]] =
-      Caffeine
-        .newBuilder()
-        .asInstanceOf[Caffeine[String, mutable.ListBuffer[WeakReference[Span]]]]
-        .expireAfterAccess(expiry, TimeUnit.SECONDS)
-        .softValues()
-        .build()
-
-    new WhiskTracingSpanCacheImpl(cacheImpl)
+    Caffeine
+      .newBuilder()
+      .asInstanceOf[Caffeine[String, SpanContext]]
+      .expireAfterAccess(tracingConfig.cacheExpiry.toSeconds, TimeUnit.SECONDS)
+      .softValues()
+      .build()
+      .asMap()
+      .asScala
   }
 
-  def configureContextCache(): WhiskTraceContextCache = {
-    val expiry: Int = tracingConfig.cacheExpiry.getOrElse(3600 * 5)
+  def configureSpanMap(): Map[String, List[WeakReference[Span]]] = {
 
-    val cacheImpl: Cache[String, SpanContext] =
-      Caffeine
-        .newBuilder()
-        .asInstanceOf[Caffeine[String, SpanContext]]
-        .expireAfterAccess(expiry, TimeUnit.SECONDS)
-        .softValues()
-        .build()
-
-    new WhiskTracingContextCacheImpl(cacheImpl)
+    Caffeine
+      .newBuilder()
+      .asInstanceOf[Caffeine[String, List[WeakReference[Span]]]]
+      .expireAfterAccess(tracingConfig.cacheExpiry.toSeconds, TimeUnit.SECONDS)
+      .softValues()
+      .build()
+      .asMap()
+      .asScala
   }
-}
-trait WhiskTracingSpanCache {
-
-  def put(key: String, value: mutable.ListBuffer[WeakReference[Span]]): Unit = {}
-  def get(key: String): Option[mutable.ListBuffer[WeakReference[Span]]] = None
-  def invalidate(key: String): Unit = {}
-}
-
-trait WhiskTraceContextCache {
-
-  def put(key: String, value: SpanContext): Unit = {}
-  def get(key: String): Option[SpanContext] = null
-  def invalidate(key: String): Unit = {}
-
 }
