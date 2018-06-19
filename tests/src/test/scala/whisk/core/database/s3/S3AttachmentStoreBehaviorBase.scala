@@ -41,8 +41,6 @@ trait S3AttachmentStoreBehaviorBase
 
   override val prefix = s"attachmentTCK_${Random.alphanumeric.take(4).mkString}"
 
-  override def storeType: String = "S3"
-
   override def getAttachmentStore[D <: DocumentSerializer: ClassTag](): AttachmentStore =
     makeS3Store[D]()
 

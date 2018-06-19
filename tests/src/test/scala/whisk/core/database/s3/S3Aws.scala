@@ -17,6 +17,59 @@
 
 package whisk.core.database.s3
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.scalatest.FlatSpec
+import whisk.common.Logging
+import whisk.core.database.{AttachmentStore, DocumentSerializer}
 
-trait S3Aws extends FlatSpec {}
+import scala.reflect.ClassTag
+
+trait S3Aws extends FlatSpec {
+  def makeS3Store[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
+                                                       logging: Logging,
+                                                       materializer: ActorMaterializer): AttachmentStore = {
+    val config = ConfigFactory.parseString(s"""
+       |whisk {
+       |  db {
+       |   s3 {
+       |      alpakka {
+       |         aws {
+       |           credentials {
+       |             provider = static
+       |             access-key-id = "$accessKeyId"
+       |             secret-access-key = "$secretAccessKey"
+       |           }
+       |           region {
+       |             provider = static
+       |             default-region = "$region"
+       |           }
+       |         }
+       |      }
+       |      bucket = "$bucket"
+       |    }
+       |  }
+       |}
+      """.stripMargin).withFallback(ConfigFactory.load())
+    S3AttachmentStoreProvider.makeStore[D](config)
+  }
+
+  override protected def withFixture(test: NoArgTest) = {
+    assume(
+      secretAccessKey != null,
+      s"'AWS_SECRET_ACCESS_KEY' env not configured. Configure following " +
+        s"env variables for test to run. 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION'")
+
+    require(accessKeyId != null, "'AWS_ACCESS_KEY_ID' env variable not set")
+    require(region != null, "'AWS_REGION' env variable not set")
+
+    super.withFixture(test)
+  }
+
+  val bucket = "test-ow-travis"
+
+  val accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
+  val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+  val region = System.getenv("AWS_REGION")
+}

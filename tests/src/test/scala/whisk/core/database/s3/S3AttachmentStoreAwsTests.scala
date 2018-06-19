@@ -22,10 +22,8 @@ import org.scalatest.junit.JUnitRunner
 import whisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
-class S3AttachmentStoreMinioTests extends S3AttachmentStoreBehaviorBase with S3Minio {
+class S3AttachmentStoreAwsTests extends S3AttachmentStoreBehaviorBase with S3Aws {
   override lazy val store = makeS3Store[WhiskEntity]
 
-  override def storeType: String = "S3Minio"
-
-  override def garbageCollectAttachments: Boolean = false
+  override def storeType: String = "S3"
 }
