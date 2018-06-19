@@ -42,7 +42,8 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLo
                                                        materializer: ActorMaterializer): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
       |whisk {
-      |   s3 {
+      |   db{
+      |     s3 {
       |      alpakka {
       |         aws {
       |           credentials {
@@ -58,6 +59,7 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with DbUtils with StreamLo
       |         endpoint-url = "http://localhost:$port"
       |      }
       |      bucket = "$bucket"
+      |     }
       |   }
       |}
       """.stripMargin).withFallback(ConfigFactory.load())
