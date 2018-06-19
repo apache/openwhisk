@@ -22,7 +22,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.common.TransactionId
 import whisk.core.cli.{CommandMessages, Conf, WhiskAdmin}
-import whisk.core.entity.{AuthKey, DocId, DocInfo, EntityName, Identity, Subject, WhiskAuth, WhiskNamespace}
+import whisk.core.entity.{AuthKey, DocId, DocInfo, EntityName, Identity, Namespace, Subject, WhiskAuth, WhiskNamespace}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
@@ -85,7 +85,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   it should "not add namespace to a blocked user" in {
     val subject = newSubject()
     val ns = randomString()
-    val blockedAuth = new ExtendedAuth(Subject(subject), Set(WhiskNamespace(EntityName(ns), AuthKey())), Some(true))
+    val blockedAuth = new ExtendedAuth(Subject(subject), Set(newNS(EntityName(ns), AuthKey())), Some(true))
     val authStore2 = UserCommand.createDataStore()
 
     implicit val tid = transid()
@@ -123,7 +123,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     put(authStore, auth)
 
-    resultOk("user", "delete", "--namespace", ns1.name.asString, subject) shouldBe CommandMessages.namespaceDeleted
+    resultOk("user", "delete", "--namespace", ns1.namespace.name.asString, subject) shouldBe CommandMessages.namespaceDeleted
 
     val authFromDB = authStore.get[WhiskAuth](DocInfo(DocId(subject))).futureValue
     authFromDB.namespaces shouldBe Set(ns2)
@@ -151,12 +151,12 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     val ns1 = newNS()
     val ns2 = newNS()
-    val ns3 = WhiskNamespace(EntityName(subject), AuthKey())
+    val ns3 = newNS(EntityName(subject), AuthKey())
 
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns2, ns3))
     put(authStore, auth)
 
-    resultOk("user", "get", "--namespace", ns1.name.asString, subject) shouldBe ns1.authkey.compact
+    resultOk("user", "get", "--namespace", ns1.namespace.name.asString, subject) shouldBe ns1.authkey.compact
 
     val all = resultOk("user", "get", "--all", subject)
 
@@ -183,7 +183,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val subject = newSubject()
 
     val ns1 = newNS()
-    val ns3 = WhiskNamespace(EntityName(subject), AuthKey())
+    val ns3 = newNS(EntityName(subject), AuthKey())
 
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns3))
     put(authStore, auth)
@@ -191,7 +191,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val result = resultOk("user", "whois", ns1.authkey.compact)
 
     result should include(subject)
-    result should include(ns1.name.asString)
+    result should include(ns1.namespace.name.asString)
   }
 
   behavior of "list"
@@ -199,9 +199,9 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   it should "list keys associated with given namespace" in {
     implicit val tid = transid()
     def newWhiskAuth(ns: String*) =
-      WhiskAuth(Subject(newSubject()), ns.map(n => WhiskNamespace(EntityName(n), AuthKey())).toSet)
+      WhiskAuth(Subject(newSubject()), ns.map(n => newNS(EntityName(n), AuthKey())).toSet)
 
-    def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.name.asString == ns).map(_.authkey).get
+    def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.namespace.name.asString == ns).map(_.authkey).get
 
     val ns1 = randomString()
     val ns2 = randomString()
@@ -273,7 +273,9 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     super.cleanup()
   }
 
-  private def newNS() = WhiskNamespace(EntityName(randomString()), AuthKey())
+  private def newNS(): WhiskNamespace = newNS(EntityName(randomString()), AuthKey())
+
+  private def newNS(name: EntityName, authKey: AuthKey) = WhiskNamespace(Namespace(name, authKey.uuid), authKey)
 
   private def newSubject(): String = {
     val subject = randomString()

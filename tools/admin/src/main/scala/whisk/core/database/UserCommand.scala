@@ -33,6 +33,7 @@ import whisk.core.entity.{
   DocInfo,
   EntityName,
   Identity,
+  Namespace,
   Subject,
   WhiskAuth,
   WhiskDocumentReader,
@@ -84,7 +85,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
     def isUUID(u: String) = Try(UUID.fromString(u)).isSuccess
 
-    def desiredNamespace = EntityName(namespace.getOrElse(subject()).trim)
+    def desiredNamespace = Namespace(EntityName(namespace.getOrElse(subject()).trim), authKey.uuid)
 
     def authKey: AuthKey = auth.map(AuthKey(_)).getOrElse(AuthKey())
   }
@@ -173,7 +174,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     authStore.get[ExtendedAuth](DocInfo(create.subject())).flatMap { auth =>
       if (auth.isBlocked) {
         Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))
-      } else if (auth.namespaces.exists(_.name == create.desiredNamespace)) {
+      } else if (auth.namespaces.exists(_.namespace.name == create.desiredNamespace.name)) {
         Future.successful(Left(IllegalState(CommandMessages.namespaceExists)))
       } else {
         val newNS = auth.namespaces + WhiskNamespace(create.desiredNamespace, create.authKey)
@@ -195,7 +196,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       .flatMap { auth =>
         delete.namespace
           .map { namespaceToDelete =>
-            val newNS = auth.namespaces.filter(_.name.asString != namespaceToDelete)
+            val newNS = auth.namespaces.filter(_.namespace.name.asString != namespaceToDelete)
             if (newNS == auth.namespaces) {
               Future.successful(
                 Left(IllegalState(CommandMessages.namespaceMissing(namespaceToDelete, delete.subject()))))
@@ -220,12 +221,13 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       .get[ExtendedAuth](DocInfo(get.subject()))
       .map { auth =>
         if (get.all.isSupplied) {
-          val msg = auth.namespaces.map(ns => s"${ns.name}\t${ns.authkey.compact}").mkString(Properties.lineSeparator)
+          val msg =
+            auth.namespaces.map(ns => s"${ns.namespace.name}\t${ns.authkey.compact}").mkString(Properties.lineSeparator)
           Right(msg)
         } else {
           val ns = get.namespace.getOrElse(get.subject())
           auth.namespaces
-            .find(_.name.asString == ns)
+            .find(_.namespace.name.asString == ns)
             .map(n => Right(n.authkey.compact))
             .getOrElse(Left(IllegalState(CommandMessages.namespaceMissing(ns, get.subject()))))
         }
