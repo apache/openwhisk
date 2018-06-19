@@ -17,22 +17,6 @@
 
 package whisk.core.database.s3
 
-import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import whisk.core.database.memory.MemoryArtifactStoreBehaviorBase
-import whisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
-import whisk.core.database.{AttachmentStore, DocumentSerializer}
 
-import scala.reflect.ClassTag
-
-@RunWith(classOf[JUnitRunner])
-class S3MemoryArtifactStoreTests
-    extends FlatSpec
-    with MemoryArtifactStoreBehaviorBase
-    with ArtifactStoreAttachmentBehaviors
-    with S3Minio {
-
-  override def getAttachmentStore[D <: DocumentSerializer: ClassTag](): AttachmentStore =
-    makeS3Store[D]()
-}
+trait S3Aws extends FlatSpec {}
