@@ -23,6 +23,7 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.ConfigKeys
 import whisk.core.entity.DocumentReader
+import whisk.core.entity.size._
 import pureconfig._
 
 import scala.reflect.ClassTag
@@ -52,11 +53,21 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D] = makeArtifactStore(useBatching, getAttachmentStore())
+
+  def makeArtifactStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean,
+                                                           attachmentStore: Option[AttachmentStore])(
+    implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
+    actorSystem: ActorSystem,
+    logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
     val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
     require(
       dbConfig.provider == "Cloudant" || dbConfig.provider == "CouchDB",
       s"Unsupported db.provider: ${dbConfig.provider}")
+
+    val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
 
     new CouchDbRestStore[D](
       dbConfig.protocol,
@@ -65,6 +76,8 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.username,
       dbConfig.password,
       dbConfig.databaseFor[D],
-      useBatching)
+      useBatching,
+      inliningConfig,
+      attachmentStore)
   }
 }

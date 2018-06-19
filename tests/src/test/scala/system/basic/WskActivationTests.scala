@@ -26,6 +26,9 @@ import whisk.utils.retry
 
 import scala.concurrent.duration._
 
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+
 @RunWith(classOf[JUnitRunner])
 abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
@@ -42,7 +45,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
       action.create(name, Some(TestUtils.getTestActionFilename("log.js")))
     }
 
-    val run = wsk.action.invoke(name, blocking = true)
+    val run = wsk.action.invoke(name)
 
     // Even though the activation was blocking, the activation itself might not have appeared in the database.
     withActivation(wsk.activation, run) { activation =>
@@ -55,6 +58,22 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
         logs should include regex logFormat.format("stdout", "this is stdout")
         logs should include regex logFormat.format("stderr", "this is stderr")
       }, 60 * 5, Some(1.second)) // retry for 5 minutes
+    }
+  }
+
+  it should "fetch result using activation result API" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "hello"
+    val expectedResult = JsObject(
+      "result" -> JsObject("payload" -> "hello, undefined!".toJson),
+      "success" -> true.toJson,
+      "status" -> "success".toJson)
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
+    }
+
+    withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+      wsk.activation.result(Some(activation.activationId)).stdout.parseJson.asJsObject shouldBe expectedResult
     }
   }
 }

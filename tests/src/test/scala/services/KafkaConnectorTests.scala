@@ -18,6 +18,7 @@
 package services
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.util.Calendar
 
 import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
@@ -61,11 +62,9 @@ class KafkaConnectorTests
   val kafkaHosts: Array[String] = config.kafkaHosts.split(",")
   val replicationFactor: Int = kafkaHosts.length / 2 + 1
   System.setProperty("whisk.kafka.replication-factor", replicationFactor.toString)
-  println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
 
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
+  KafkaMessagingProvider.ensureTopic(config, topic, topic) shouldBe 'success
 
   val producer = new KafkaProducerConnector(config.kafkaHosts)
   val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
@@ -94,7 +93,8 @@ class KafkaConnectorTests
       val sent = Await.result(producer.send(topic, message), waitForSend)
       println(s"Successfully sent message to topic: $sent")
       println(s"Receiving message from topic.")
-      val received = consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+      val received =
+        consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, StandardCharsets.UTF_8) }
       val end = java.lang.System.currentTimeMillis
       val elapsed = end - start
       println(s"Received ${received.size}. Took $elapsed msec: $received")

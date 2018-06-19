@@ -71,11 +71,12 @@ class ContainerPoolTests
 
   /** Creates a `Run` message */
   def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
+    val uuid = UUID()
     val message = ActivationMessage(
       TransactionId.testing,
       action.fullyQualifiedName(true),
       action.rev,
-      Identity(Subject(), invocationNamespace, AuthKey(), Set()),
+      Identity(Subject(), Namespace(invocationNamespace, uuid), AuthKey(uuid, Secret()), Set()),
       ActivationId.generate(),
       InstanceId(0),
       blocking = false,

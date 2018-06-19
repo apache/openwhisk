@@ -187,6 +187,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     EntityPath.DEFAULT.resolveNamespace(EntityName("a")) shouldBe EntityPath("a")
     EntityPath("a").resolveNamespace(EntityName("b")) shouldBe EntityPath("a")
 
+    EntityPath.DEFAULT.resolveNamespace(Namespace(EntityName("a"), UUID())) shouldBe EntityPath("a")
+    EntityPath("a").resolveNamespace(Namespace(EntityName("b"), UUID())) shouldBe EntityPath("a")
+
     EntityPath("a").defaultPackage shouldBe true
     EntityPath("a/b").defaultPackage shouldBe false
 

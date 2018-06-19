@@ -21,7 +21,7 @@ import java.time.{Clock, Instant}
 
 import scala.collection.immutable.Map
 import scala.concurrent.Future
-import scala.util.{Failure, Try}
+import scala.util.Try
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -42,7 +42,7 @@ import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
-import whisk.core.entity.types.{ActivationStore, EntityStore}
+import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -138,7 +138,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
           val triggerActivationId = activationIdFactory.make()
           logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
           val triggerActivation = WhiskActivation(
-            namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
+            namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace,
             entityName.name,
             user.subject,
             triggerActivationId,
@@ -163,14 +163,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                   triggerActivation
               }
               .map { activation =>
-                logging.debug(
-                  this,
-                  s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
-                WhiskActivation.put(activationStore, activation)
-              }
-              .andThen {
-                case Failure(t) =>
-                  logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
+                activationStore.store(activation)
               }
             complete(Accepted, triggerActivationId.toJsObject)
           } else {

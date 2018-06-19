@@ -51,12 +51,8 @@ class WhiskConfig(requiredProperties: Map[String, String],
   }
 
   val servicePort = this(WhiskConfig.servicePort)
-  val dockerRegistry = this(WhiskConfig.dockerRegistry)
   val dockerEndpoint = this(WhiskConfig.dockerEndpoint)
   val dockerPort = this(WhiskConfig.dockerPort)
-
-  val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
-  val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
   val invokerName = this(WhiskConfig.invokerName)
 
@@ -77,6 +73,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbPrefix = this(WhiskConfig.dbPrefix)
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
+  val runtimesRegistry = this(WhiskConfig.runtimesRegistry)
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
@@ -149,7 +146,6 @@ object WhiskConfig {
   }
 
   val servicePort = "port"
-  val dockerRegistry = "docker.registry"
   val dockerPort = "docker.port"
 
   val dockerEndpoint = "main.docker.endpoint"
@@ -162,9 +158,6 @@ object WhiskConfig {
   val whiskVersionBuildno = "whisk.version.buildno"
 
   val whiskVersion = Map(whiskVersionDate -> null, whiskVersionBuildno -> null)
-
-  val dockerImagePrefix = "docker.image.prefix"
-  val dockerImageTag = "docker.image.tag"
 
   val invokerName = "invoker.name"
 
@@ -194,6 +187,7 @@ object WhiskConfig {
   val kafkaHosts = Map(kafkaHostList -> null)
   val zookeeperHosts = Map(zookeeperHostList -> null)
 
+  val runtimesRegistry = "runtimes.registry"
   val runtimesManifest = "runtimes.manifest"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"

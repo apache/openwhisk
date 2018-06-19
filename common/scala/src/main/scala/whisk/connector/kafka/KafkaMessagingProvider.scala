@@ -18,18 +18,18 @@
 package whisk.connector.kafka
 
 import java.util.Properties
-import java.util.concurrent.ExecutionException
 
 import akka.actor.ActorSystem
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
-import org.apache.kafka.common.errors.TopicExistsException
+import org.apache.kafka.common.errors.{RetriableException, TopicExistsException}
 import pureconfig._
-import whisk.common.Logging
+import whisk.common.{CausedBy, Logging}
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector.{MessageConsumer, MessageProducer, MessagingProvider}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 case class KafkaConfig(replicationFactor: Short)
 
@@ -47,31 +47,36 @@ object KafkaMessagingProvider extends MessagingProvider {
   def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer =
     new KafkaProducerConnector(config.kafkaHosts)
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
-    val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
-    val tc = KafkaConfiguration.configMapToKafkaConfig(
-      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String)(implicit logging: Logging): Try[Unit] = {
+    val kafkaConfig = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
+    val topicConfig = KafkaConfiguration.configMapToKafkaConfig(
+      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + "." + topicConfigKey))
 
-    val baseConfig = Map(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
-    val client = AdminClient.create(baseConfig ++ commonConfig)
-    val numPartitions = 1
-    val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.asJava)
-    val results = client.createTopics(List(nt).asJava)
-    try {
-      results.values().get(topic).get()
-      logging.info(this, s"created topic $topic")
-      true
-    } catch {
-      case e: ExecutionException if e.getCause.isInstanceOf[TopicExistsException] =>
-        logging.info(this, s"topic $topic already existed")
-        true
-      case e: Exception =>
-        logging.error(this, s"ensureTopic for $topic failed due to $e")
-        false
-    } finally {
-      client.close()
+    val client = AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts))
+    val partitions = 1
+    val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
+
+    def createTopic(retries: Int = 5): Try[Unit] = {
+      Try(client.createTopics(List(nt).asJava).values().get(topic).get())
+        .map(_ => logging.info(this, s"created topic $topic"))
+        .recoverWith {
+          case CausedBy(_: TopicExistsException) =>
+            Success(logging.info(this, s"topic $topic already existed"))
+          case CausedBy(t: RetriableException) if retries > 0 =>
+            logging.warn(this, s"topic $topic could not be created because of $t, retries left: $retries")
+            Thread.sleep(1.second.toMillis)
+            createTopic(retries - 1)
+          case t =>
+            logging.error(this, s"ensureTopic for $topic failed due to $t")
+            Failure(t)
+        }
     }
+
+    val result = createTopic()
+
+    client.close()
+    result
   }
 }
 

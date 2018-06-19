@@ -22,24 +22,28 @@ import scala.concurrent.duration._
 object retry {
 
   /**
-   * Retry a method which returns a value or throws an exception on failure, up to N times,
+   * Retries a method which returns a value or throws an exception on failure, up to N times,
    * and optionally sleeping up to specified duration between retries.
    *
-   * @param fn the method to retry, fn is expected to throw an exception if it fails, else should return a value of type T
+   * @param fn the function to retry; fn is expected to throw an exception if it fails, else should return a value of type T
    * @param N the maximum number of times to apply fn, must be >= 1
    * @param waitBeforeRetry an option specifying duration to wait before retrying method, will not wait if none given
+   * @param retryMessage an optional message to emit before retrying function
    * @return the result of fn iff it is successful
    * @throws Throwable exception from fn (or an illegal argument exception if N is < 1)
    */
-  def apply[T](fn: => T, N: Int = 3, waitBeforeRetry: Option[Duration] = Some(50.milliseconds)): T = {
+  def apply[T](fn: => T,
+               N: Int = 3,
+               waitBeforeRetry: Option[Duration] = Some(50.milliseconds),
+               retryMessage: Option[String] = None): T = {
     require(N >= 1, "maximum number of fn applications must be greater than 1")
-    waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis)) // initial wait if any
 
     try fn
     catch {
       case _ if N > 1 =>
+        retryMessage.foreach(println)
         waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis))
-        retry(fn, N - 1, waitBeforeRetry)
+        retry(fn, N - 1, waitBeforeRetry, retryMessage)
     }
   }
 }

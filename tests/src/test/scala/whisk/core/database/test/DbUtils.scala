@@ -17,31 +17,28 @@
 
 package whisk.core.database.test
 
+import java.util.Base64
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionId
-import whisk.core.database._
-import whisk.core.database.memory.MemoryArtifactStore
-import whisk.core.entity._
-import whisk.core.entity.types.AuthStore
-import whisk.core.entity.types.EntityStore
 import akka.http.scaladsl.model.ContentType
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import org.scalatest.Assertions
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.common.TransactionId
+import whisk.core.database._
+import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity.Attachments.Attached
+import whisk.core.entity._
+import whisk.core.entity.types.{AuthStore, EntityStore}
+
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, DurationInt}
+import scala.language.postfixOps
+import scala.util.{Failure, Random, Success, Try}
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -49,7 +46,7 @@ import whisk.core.entity.Attachments.Attached
  * operations with those that flow through the cache. To mitigate this, use unique asset
  * names in tests, and defer all cleanup to the end of a test suite.
  */
-trait DbUtils {
+trait DbUtils extends Assertions {
   implicit val dbOpTimeout = 15 seconds
   val instance = InstanceId(0)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
@@ -279,11 +276,59 @@ trait DbUtils {
    */
   def cleanup()(implicit timeout: Duration = 10 seconds) = {
     docsToDelete.map { e =>
-      Try(Await.result(e._1.del(e._2)(TransactionId.testing), timeout))
+      Try {
+        Await.result(e._1.del(e._2)(TransactionId.testing), timeout)
+        Await.result(e._1.deleteAttachments(e._2)(TransactionId.testing), timeout)
+      }
     }
     docsToDelete.clear()
   }
 
+  /**
+   * Generates a Base64 string for code which would not be inlined by the ArtifactStore
+   */
+  def nonInlinedCode(db: ArtifactStore[_]): String = {
+    encodedRandomBytes(nonInlinedAttachmentSize(db))
+  }
+
+  /**
+   * Size in bytes for attachments which would always be inlined.
+   */
+  def inlinedAttachmentSize(db: ArtifactStore[_]): Int = {
+    db match {
+      case inliner: AttachmentInliner =>
+        inliner.maxInlineSize.toBytes.toInt - 1
+      case _ =>
+        throw new IllegalStateException(s"ArtifactStore does not support attachment inlining $db")
+    }
+  }
+
+  /**
+   * Size in bytes for attachments which would never be inlined.
+   */
+  def nonInlinedAttachmentSize(db: ArtifactStore[_]): Int = {
+    db match {
+      case inliner: AttachmentInliner =>
+        val inlineSize = inliner.maxInlineSize.toBytes.toInt
+        val chunkSize = inliner.chunkSize.toBytes.toInt
+        Math.max(inlineSize, chunkSize) * 2
+      case _ =>
+        42
+    }
+  }
+
+  def assumeAttachmentInliningEnabled(db: ArtifactStore[_]): Unit = {
+    assume(inlinedAttachmentSize(db) > 0, "Attachment inlining is disabled")
+  }
+
+  protected def encodedRandomBytes(size: Int): String = Base64.getEncoder.encodeToString(randomBytes(size))
+
   def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
   def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
+
+  protected def randomBytes(size: Int): Array[Byte] = {
+    val arr = new Array[Byte](size)
+    Random.nextBytes(arr)
+    arr
+  }
 }

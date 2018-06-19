@@ -87,7 +87,7 @@ Vagrant.configure('2') do |config|
       echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
       cd ${OPENWHISK_HOME}
       cd tools/ubuntu-setup
-      su vagrant -c 'source all.sh'
+      su vagrant -c 'source all.sh oracle'
       echo "`date`: ubuntu-setup-end" >> /tmp/vagrant-times.txt
     SCRIPT
 

@@ -34,11 +34,13 @@ import scala.util.{Failure, Success}
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.{FlatSpec, Matchers}
 import akka.actor.ActorSystem
+import scala.concurrent.ExecutionContext
 import spray.json._
 import common.StreamLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Exec
+import common.WhiskProperties
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -47,6 +49,7 @@ import whisk.core.entity.Exec
 trait ActionContainer {
   def init(value: JsValue): (Int, Option[JsObject])
   def run(value: JsValue): (Int, Option[JsObject])
+  def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
@@ -90,8 +93,16 @@ object ActionContainer {
   private lazy val dockerCmd: String = {
     /*
      * The docker host is set to a provided property 'docker.host' if it's
-     * available; otherwise by the environment variable DOCKER_HOST
-     * (which is usually set, especially for DOCKER_MACHINE).
+     * available; otherwise we check with WhiskProperties to see whether we are
+     * running on a docker-machine.
+     *
+     * IMPLICATION:  The test must EITHER have the 'docker.host' system
+     * property set OR the 'OPENWHISK_HOME' environment variable set and a
+     * valid 'whisk.properties' file generated.  The 'docker.host' system
+     * property takes precedence.
+     *
+     * WARNING:  Adding a non-docker-machine environment that contains 'mac'
+     * (i.e. 'environments/local-mac') will likely break things.
      *
      * The plan is to move builds to using 'gradle-docker-plugin', which know
      * its docker socket and to have it pass the docker socket implicitly using
@@ -104,19 +115,25 @@ object ActionContainer {
       sys.props
         .get("docker.host")
         .orElse(sys.env.get("DOCKER_HOST"))
+        .orElse {
+          // Check if we are running on docker-machine env.
+          Option(WhiskProperties.getProperty("whisk.version.name")).filter(_.toLowerCase.contains("mac")).map {
+            case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
+          }
+        }
         .map(" --host " + _)
         .getOrElse("")
+
     // Test here that this actually works, otherwise throw a somewhat understandable error message
     proc(s"$dockerCmdString info").onComplete {
-      case Success((v, _, _)) if (v != 0) =>
-        throw new RuntimeException(s"""Unable to connect to docker host using $dockerCmdString as command string.
-          |The docker host is determined using the Java property 'docker.host' or
-          |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
-          |other is set for your build/test process.""".stripMargin)
-      case Success((v, _, _)) if (v == 0) =>
-      // Do nothing
-      case Failure(t) =>
-        throw t
+      case Success((v, _, _)) if v != 0 =>
+        throw new RuntimeException(s"""
+              |Unable to connect to docker host using $dockerCmdString as command string.
+              |The docker host is determined using the Java property 'docker.host' or
+              |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+              |other is set for your build/test process.""".stripMargin)
+      case Success((v, _, _)) if v == 0 => // Do nothing
+      case Failure(t)                   => throw t
     }
 
     dockerCmdString
@@ -189,6 +206,8 @@ object ActionContainer {
     val mock = new ActionContainer {
       def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
       def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
+        concurrentSyncPost(ip, port, "/run", values)
     }
 
     try {
@@ -210,5 +229,13 @@ object ActionContainer {
     implicit val transid = TransactionId.testing
 
     whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
+  }
+  private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
+    implicit logging: Logging,
+    ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+
+    implicit val transid = TransactionId.testing
+
+    whisk.core.containerpool.HttpUtils.concurrentPost(host, port, endPoint, contents, 30.seconds)
   }
 }

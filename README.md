@@ -29,13 +29,14 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 
 * [Quick Start](#quick-start) (Docker-Compose)
 * [Native development](#native-development) (Mac and Ubuntu)
+* [Kubernetes](#kubernetes-setup)
 * [Vagrant](#vagrant-setup)
 * [Learn concepts and commands](#learn-concepts-and-commands)
 * [Issues](#issues)
 * [Slack](#slack)
 
 ### Quick Start
-The easiest way to start using OpenWhisk is to get Docker installed on on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has details instructions on getting the tools installed. This does not give you a prodcution deployment but gives you enough of the pieces to start writing functions and seeing them run.
+The easiest way to start using OpenWhisk is to get Docker installed on on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has details instructions on getting the tools installed. This does not give you a production deployment but gives you enough of the pieces to start writing functions and seeing them run.
 
 ```
 git clone https://github.com/apache/incubator-openwhisk-devtools.git
@@ -45,6 +46,15 @@ make quick-start
 
 For more detailed instructions or if you encounter problems see the [OpenWhisk-dev tools](https://github.com/apache/incubator-openwhisk-devtools/blob/master/docker-compose/README.md) project.
 
+### Kubernetes Setup
+
+Another path to quickly starting to use OpenWhisk is to install it on a Kubernetes cluster.  OpenWhisk can be installed on Minikube, on a managed Kubernetes cluster provisioned from a public cloud provider, or on a Kubernetes cluster you manage yourself. To get started,
+
+```
+git clone https://github.com/apache/incubator-openwhisk-deploy-kube.git
+```
+
+Then follow the instructions in the [OpenWhisk on Kubernetes README.md](https://github.com/apache/incubator-openwhisk-deploy-kube/blob/master/README.md).
 
 ### Vagrant Setup
 A [Vagrant](http://vagrantup.com) machine is also available to run OpenWhisk on Mac, Windows PC or GNU/Linux but isn't used by as much of the dev team so sometimes lags behind.
@@ -74,6 +84,8 @@ wsk action invoke /whisk.system/utils/echo -p message hello --result
 
 These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
 For more information about using OpenWhisk on Vagrant see the [tools/vagrant/README.md](tools/vagrant/README.md)
+
+During the Vagrant setup, Open JDK 8 is used as the default Java environment. If you would like to use Oracle JDK 8, please change the line "su vagrant -c 'source all.sh'" into "su vagrant -c 'source all.sh oracle'" in tools/vagrant/Vagrantfile.
 
 ### Native development
 
@@ -111,3 +123,7 @@ Report bugs, ask questions and request features [here on GitHub](../../issues).
 ### Slack
 
 You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com](https://openwhisk-team.slack.com) and chat with developers. To get access to our public slack team, request an invite [https://openwhisk.incubator.apache.org/slack.html](https://openwhisk.incubator.apache.org/slack.html).
+
+# Disclaimer
+
+Apache OpenWhisk is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the Apache Incubator. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.

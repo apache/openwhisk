@@ -17,19 +17,21 @@
 
 package whisk.core.database.test.behavior
 
+import java.io.ByteArrayOutputStream
 import java.util.Base64
 
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.{ContentTypes, Uri}
+import akka.stream.IOResult
+import akka.stream.scaladsl.{Sink, StreamConverters}
+import akka.util.{ByteString, ByteStringBuilder}
 import whisk.common.TransactionId
-import whisk.core.database.CacheChangeNotification
+import whisk.core.database.{AttachmentInliner, CacheChangeNotification, NoDocumentException}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
-import whisk.core.entity.{CodeExec, EntityName, ExecManifest, WhiskAction}
-
-import scala.util.Random
+import whisk.core.entity.{CodeExec, DocInfo, EntityName, ExecManifest, WhiskAction}
 
 trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with ExecHelpers {
-  behavior of "Attachments"
+  behavior of s"${storeType}ArtifactStore attachments"
 
   private val namespace = newNS()
   private val attachmentHandler = Some(WhiskAction.attachmentHandler _)
@@ -37,7 +39,7 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
 
   it should "generate different attachment name on update" in {
     implicit val tid: TransactionId = transid()
-    val exec = javaDefault("ZHViZWU=", Some("hello"))
+    val exec = javaDefault(nonInlinedCode(entityStore), Some("hello"))
     val javaAction =
       WhiskAction(namespace, EntityName("attachment_unique"), exec)
 
@@ -58,11 +60,62 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
     attachmentUri.isAbsolute shouldBe true
   }
 
+  /**
+   * This test asserts that old attachments are deleted and cannot be read again
+   */
+  it should "fail on reading with old non inlined attachment" in {
+    implicit val tid: TransactionId = transid()
+    val code1 = nonInlinedCode(entityStore)
+    val exec = javaDefault(code1, Some("hello"))
+    val javaAction =
+      WhiskAction(namespace, EntityName("attachment_update_2"), exec)
+
+    val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
+
+    val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue
+    val code2 = nonInlinedCode(entityStore)
+    val exec2 = javaDefault(code2, Some("hello"))
+    val action2Updated = action2.copy(exec = exec2).revision[WhiskAction](i1.rev)
+
+    val i2 = WhiskAction.put(entityStore, action2Updated, old = Some(action2)).futureValue
+    val action3 = entityStore.get[WhiskAction](i2, attachmentHandler).futureValue
+
+    docsToDelete += ((entityStore, i2))
+    getAttachmentBytes(i2, attached(action3)).futureValue.result() shouldBe decode(code2)
+    getAttachmentBytes(i1, attached(action2)).failed.futureValue shouldBe a[NoDocumentException]
+  }
+
+  /**
+   * Variant of previous test where read with old attachment should still work
+   * if attachment is inlined
+   */
+  it should "work on reading with old inlined attachment" in {
+    assumeAttachmentInliningEnabled(entityStore)
+    implicit val tid: TransactionId = transid()
+    val code1 = encodedRandomBytes(inlinedAttachmentSize(entityStore))
+    val exec = javaDefault(code1, Some("hello"))
+    val javaAction =
+      WhiskAction(namespace, EntityName("attachment_update_2"), exec)
+
+    val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
+
+    val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue
+    val code2 = nonInlinedCode(entityStore)
+    val exec2 = javaDefault(code2, Some("hello"))
+    val action2Updated = action2.copy(exec = exec2).revision[WhiskAction](i1.rev)
+
+    val i2 = WhiskAction.put(entityStore, action2Updated, old = Some(action2)).futureValue
+    val action3 = entityStore.get[WhiskAction](i2, attachmentHandler).futureValue
+
+    docsToDelete += ((entityStore, i2))
+    getAttachmentBytes(i2, attached(action3)).futureValue.result() shouldBe decode(code2)
+    getAttachmentBytes(i2, attached(action2)).futureValue.result() shouldBe decode(code1)
+  }
+
   it should "put and read same attachment" in {
     implicit val tid: TransactionId = transid()
-    val size = 4000
-    val bytes = randomBytes(size)
-    val base64 = Base64.getEncoder.encodeToString(bytes)
+    val size = nonInlinedAttachmentSize(entityStore)
+    val base64 = encodedRandomBytes(size)
 
     val exec = javaDefault(base64, Some("hello"))
     val javaAction =
@@ -87,15 +140,83 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
     inlined(action3).value shouldBe base64
   }
 
+  it should "inline small attachments" in {
+    assumeAttachmentInliningEnabled(entityStore)
+    implicit val tid: TransactionId = transid()
+    val attachmentSize = inlinedAttachmentSize(entityStore) - 1
+    val base64 = encodedRandomBytes(attachmentSize)
+
+    val exec = javaDefault(base64, Some("hello"))
+    val javaAction = WhiskAction(namespace, EntityName("attachment_inline"), exec)
+
+    val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
+    val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue
+    val action3 = WhiskAction.get(entityStore, i1.id, i1.rev).futureValue
+
+    docsToDelete += ((entityStore, i1))
+
+    action3.exec shouldBe exec
+    inlined(action3).value shouldBe base64
+
+    val a = attached(action2)
+
+    val attachmentUri = Uri(a.attachmentName)
+    attachmentUri.scheme shouldBe AttachmentInliner.MemScheme
+    a.length shouldBe Some(attachmentSize)
+    a.digest should not be empty
+  }
+
+  it should "throw NoDocumentException for non existing attachment" in {
+    implicit val tid: TransactionId = transid()
+
+    val sink = StreamConverters.fromOutputStream(() => new ByteArrayOutputStream())
+    entityStore
+      .readAttachment[IOResult](
+        DocInfo ! ("non-existing-doc", "42"),
+        Attached("foo", ContentTypes.`application/octet-stream`),
+        sink)
+      .failed
+      .futureValue shouldBe a[NoDocumentException]
+  }
+
+  it should "delete attachment on document delete" in {
+    val attachmentStore = getAttachmentStore(entityStore)
+    assume(attachmentStore.isDefined, "ArtifactStore does not have attachmentStore configured")
+
+    implicit val tid: TransactionId = transid()
+    val size = nonInlinedAttachmentSize(entityStore)
+    val base64 = encodedRandomBytes(size)
+
+    val exec = javaDefault(base64, Some("hello"))
+    val javaAction =
+      WhiskAction(namespace, EntityName("attachment_unique"), exec)
+
+    val i1 = WhiskAction.put(entityStore, javaAction, old = None).futureValue
+    val action2 = entityStore.get[WhiskAction](i1, attachmentHandler).futureValue
+
+    WhiskAction.del(entityStore, i1).futureValue shouldBe true
+
+    val attachmentName = Uri(attached(action2).attachmentName).path.toString
+    attachmentStore.get
+      .readAttachment(i1.id, attachmentName, byteStringSink())
+      .failed
+      .futureValue shouldBe a[NoDocumentException]
+  }
+
   private def attached(a: WhiskAction): Attached =
     a.exec.asInstanceOf[CodeExec[Attachment[Nothing]]].code.asInstanceOf[Attached]
 
   private def inlined(a: WhiskAction): Inline[String] =
     a.exec.asInstanceOf[CodeExec[Attachment[String]]].code.asInstanceOf[Inline[String]]
 
-  private def randomBytes(size: Int): Array[Byte] = {
-    val arr = new Array[Byte](size)
-    Random.nextBytes(arr)
-    arr
+  private def getAttachmentBytes(docInfo: DocInfo, attached: Attached) = {
+    implicit val tid: TransactionId = transid()
+    entityStore.readAttachment(docInfo, attached, byteStringSink())
   }
+
+  private def byteStringSink() = {
+    Sink.fold[ByteStringBuilder, ByteString](new ByteStringBuilder)((builder, b) => builder ++= b)
+  }
+
+  private def decode(s: String): ByteString = ByteString(Base64.getDecoder.decode(s))
 }

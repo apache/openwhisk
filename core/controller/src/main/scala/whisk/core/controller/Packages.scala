@@ -172,7 +172,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
       'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
       'count ? false) { (skip, limit, count) =>
-      val viewName = if (user.namespace.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
+      val viewName = if (user.namespace.name.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
       if (!count) {
         listEntities {
           WhiskPackage

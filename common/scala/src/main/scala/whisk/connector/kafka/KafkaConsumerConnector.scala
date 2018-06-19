@@ -52,6 +52,10 @@ class KafkaConsumerConnector(
   // It is updated from one thread in "peek", no concurrent data structure is necessary
   private var offset: Long = 0
 
+  // Markers for metrics, initialized only once
+  private val queueMetric = LoggingMarkers.KAFKA_QUEUE(topic)
+  private val delayMetric = LoggingMarkers.KAFKA_MESSAGE_DELAY(topic)
+
   /**
    * Long poll for messages. Method returns once message are available but no later than given
    * duration.
@@ -65,11 +69,15 @@ class KafkaConsumerConnector(
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
     try {
-      val response = consumer.poll(duration.toMillis).asScala.map(r => (r.topic, r.partition, r.offset, r.value))
-      response.lastOption.foreach {
-        case (_, _, newOffset, _) => offset = newOffset + 1
+      val response = consumer.poll(duration.toMillis).asScala
+      val now = System.currentTimeMillis
+
+      response.lastOption.foreach(record => offset = record.offset + 1)
+      response.map { r =>
+        // record the time between producing the message and reading it
+        MetricEmitter.emitHistogramMetric(delayMetric, (now - r.timestamp).max(0))
+        (r.topic, r.partition, r.offset, r.value)
       }
-      response
     } catch {
       // Happens if the peek hangs.
       case _: WakeupException if retry > 0 =>
@@ -142,7 +150,7 @@ class KafkaConsumerConnector(
         consumer.endOffsets(Set(topicAndPartition).asJava).asScala.get(topicAndPartition).foreach { endOffset =>
           // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
           val queueSize = (endOffset - offset).max(0)
-          MetricEmitter.emitHistogramMetric(LoggingMarkers.KAFKA_QUEUE(topic), queueSize)
+          MetricEmitter.emitHistogramMetric(queueMetric, queueSize)
         }
       }
     }

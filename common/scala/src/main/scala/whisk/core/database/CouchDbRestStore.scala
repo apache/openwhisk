@@ -27,11 +27,11 @@ import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.database.StoreUtils._
 import whisk.core.entity.Attachments.Attached
-import whisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
+import whisk.core.entity.{BulkEntityResult, DocId, DocInfo, DocumentReader, UUID}
 import whisk.http.Messages
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 /**
@@ -51,18 +51,23 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                                                   dbUsername: String,
                                                                   dbPassword: String,
                                                                   dbName: String,
-                                                                  useBatching: Boolean = false)(
+                                                                  useBatching: Boolean = false,
+                                                                  val inliningConfig: InliningConfig,
+                                                                  val attachmentStore: Option[AttachmentStore])(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  materializer: ActorMaterializer,
+  val materializer: ActorMaterializer,
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
-    with DefaultJsonProtocol {
+    with DefaultJsonProtocol
+    with AttachmentInliner {
 
-  protected[core] implicit val executionContext = system.dispatcher
+  protected[core] implicit val executionContext = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
-  private val attachmentScheme = "couch"
+  private val couchScheme = "couch"
+  val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(couchScheme)
+
   private val client: CouchDbRestClient =
     new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
@@ -348,20 +353,94 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   }
 
   override protected[database] def putAndAttach[A <: DocumentAbstraction](
-    d: A,
+    doc: A,
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
-    val attachmentUri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
-    val attached = Attached(attachmentUri.toString(), contentType)
-    val updatedDoc = update(d, attached)
+    attachmentStore match {
+      case Some(_) =>
+        attachToExternalStore(doc, update, contentType, docStream, oldAttachment)
+      case None =>
+        attachToCouch(doc, update, contentType, docStream)
+    }
+  }
+
+  private def attachToCouch[A <: DocumentAbstraction](
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _])(implicit transid: TransactionId) = {
+
+    if (maxInlineSize.toBytes == 0) {
+      val uri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
+      for {
+        attached <- Future.successful(Attached(uri.toString, contentType))
+        i1 <- put(update(doc, attached))
+        i2 <- attach(i1, uri.path.toString, attached.attachmentType, docStream)
+      } yield (i2, attached)
+    } else {
+      for {
+        (bytes, tailSource) <- inlineAndTail(docStream)
+        uri <- Future.successful(uriOf(bytes, UUID().asString))
+        attached <- {
+          val a = if (isInlined(uri)) {
+            Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          } else {
+            Attached(uri.toString, contentType)
+          }
+          Future.successful(a)
+        }
+        i1 <- put(update(doc, attached))
+        i2 <- if (isInlined(uri)) {
+          Future.successful(i1)
+        } else {
+          attach(i1, uri.path.toString, attached.attachmentType, combinedSource(bytes, tailSource))
+        }
+      } yield (i2, attached)
+    }
+  }
+
+  private def attachToExternalStore[A <: DocumentAbstraction](
+    doc: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
+    val as = attachmentStore.get
+    val asJson = doc.toDocumentRecord
+    val id = asJson.fields("_id").convertTo[String].trim
 
     for {
-      i1 <- put(updatedDoc)
-      i2 <- attach(i1, attachmentUri.path.toString(), attached.attachmentType, docStream)
-    } yield (i2, attached)
+      (bytes, tailSource) <- inlineAndTail(docStream)
+      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      attached <- {
+        // Upload if cannot be inlined
+        if (isInlined(uri)) {
+          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          Future.successful(a)
+        } else {
+          as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
+            .map { r =>
+              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
+            }
+        }
+      }
+      i1 <- put(update(doc, attached))
+
+      //Remove old attachment if it was part of attachmentStore
+      _ <- oldAttachment
+        .map { old =>
+          val oldUri = Uri(old.attachmentName)
+          if (oldUri.scheme == as.scheme) {
+            as.deleteAttachment(DocId(id), oldUri.path.toString)
+          } else {
+            Future.successful(true)
+          }
+        }
+        .getOrElse(Future.successful(true))
+    } yield (i1, attached)
   }
 
   private def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
@@ -408,9 +487,28 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           ErrorLevel))
   }
 
-  override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = {
+  override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
+    implicit transid: TransactionId): Future[T] = {
+    val name = attached.attachmentName
+    val attachmentUri = Uri(name)
+    attachmentUri.scheme match {
+      case AttachmentInliner.MemScheme =>
+        memorySource(attachmentUri).runWith(sink)
+      case s if s == couchScheme || attachmentUri.isRelative =>
+        //relative case is for compatibility with earlier naming approach where attachment name would be like 'jarfile'
+        //Compared to current approach of '<scheme>:<name>'
+        readAttachmentFromCouch(doc, attachmentUri, sink)
+      case s if attachmentStore.isDefined && attachmentStore.get.scheme == s =>
+        attachmentStore.get.readAttachment(doc.id, attachmentUri.path.toString, sink)
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown attachment scheme in attachment uri $attachmentUri")
+    }
+  }
 
+  private def readAttachmentFromCouch[T](doc: DocInfo, attachmentUri: Uri, sink: Sink[ByteString, Future[T]])(
+    implicit transid: TransactionId): Future[T] = {
+
+    val name = attachmentUri.path
     val start = transid.started(
       this,
       LoggingMarkers.DATABASE_ATT_GET,
@@ -419,29 +517,28 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     require(doc != null, "doc undefined")
     require(doc.rev.rev != null, "doc revision must be specified")
 
-    val attachmentUri = Uri(name)
-    val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString(), sink)
-    val g = f.map { e =>
-      e match {
-        case Right((contentType, result)) =>
-          transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          (contentType, result)
+    val g =
+      client
+        .getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString, sink)
+        .map {
+          case Right((_, result)) =>
+            transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
+            result
 
-        case Left(StatusCodes.NotFound) =>
-          transid.finished(
-            this,
-            start,
-            s"[ATT_GET] '$dbName', retrieving attachment '$name' of document '$doc'; not found.")
-          throw NoDocumentException("Not found on 'readAttachment'.")
+          case Left(StatusCodes.NotFound) =>
+            transid.finished(
+              this,
+              start,
+              s"[ATT_GET] '$dbName', retrieving attachment '$name' of document '$doc'; not found.")
+            throw NoDocumentException("Not found on 'readAttachment'.")
 
-        case Left(code) =>
-          transid.failed(
-            this,
-            start,
-            s"[ATT_GET] '$dbName' failed to get attachment '$name' of document '$doc'; http status: '${code}'")
-          throw new Exception("Unexpected http response code: " + code)
-      }
-    }
+          case Left(code) =>
+            transid.failed(
+              this,
+              start,
+              s"[ATT_GET] '$dbName' failed to get attachment '$name' of document '$doc'; http status: '$code'")
+            throw new Exception("Unexpected http response code: " + code)
+        }
 
     reportFailure(
       g,
@@ -454,12 +551,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   }
 
   override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
-    // NOTE: this method is not intended for standalone use for CouchDB.
-    // To delete attachments, it is expected that the entire document is deleted.
-    Future.successful(true)
+    attachmentStore
+      .map(as => as.deleteAttachments(doc.id))
+      .getOrElse(Future.successful(true)) // For CouchDB it is expected that the entire document is deleted.
 
   override def shutdown(): Unit = {
     Await.ready(client.shutdown(), 1.minute)
+    attachmentStore.foreach(_.shutdown())
   }
 
   private def processAttachments[A <: DocumentAbstraction](doc: A,
@@ -478,7 +576,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
               }
               attachmentHandler(
                 doc,
-                Attached(getAttachmentName(name), contentType, Some(length.intValue()), Some(digest)))
+                Attached(getAttachmentName(name), contentType, Some(length.longValue()), Some(digest)))
             case x =>
               throw DeserializationException("Attachment json does not have required fields" + x)
 

@@ -13,18 +13,28 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: "pull runtime action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item}}:{{docker.image.tag}}"
-  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image.name') | list | unique }}"
-  when: docker_registry != ""
+###
+# This task assumes that the images are local to the invoker host already if there is no prefix or tag
+# which is usually the case for a local deployment. A distributed deployment will specify the prefix, or tag
+# to pull the images from the appropriate registry. If a runtimes_registry is optionally specified, pull images
+# from there; this permits a (private) registry to be used for caching the images. The registry if specified
+# must include a trailing '/'.
+#
+- name: "pull runtime action images per manifest"
+  shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
+  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
+  when: skip_pull_runtimes is not defined or skip_pull_runtimes == True
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: "pull blackboxes action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item.name}}:{{docker.image.tag}}"
+###
+# See comment above for pulling other runtime images.
+#
+- name: "pull blackboxes action images per manifest"
+  shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
   with_items:
     - "{{ runtimesManifest.blackboxes }}"
-  when: docker_registry != ""
+  when: skip_pull_runtimes is not defined or skip_pull_runtimes == True
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -179,14 +189,10 @@
       "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
       "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
       "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
+      "RUNTIMES_REGISTRY": "{{ runtimes_registry | default('') }}"
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
-      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
-      "DOCKER_REGISTRY": "{{ docker_registry }}"
-      "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}"
-      "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}"
       "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
       "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
       "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"

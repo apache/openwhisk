@@ -62,32 +62,44 @@ class NamespaceBlacklistTests
     dbConfig.databaseFor[WhiskAuth])
 
   /* Identities needed for the first test */
+  val uuid1 = UUID()
+  val uuid2 = UUID()
+  val uuid3 = UUID()
   val identities = Seq(
-    Identity(Subject(), EntityName("testnamespace1"), AuthKey(), Set.empty, UserLimits(invocationsPerMinute = Some(0))),
     Identity(
       Subject(),
-      EntityName("testnamespace2"),
-      AuthKey(),
+      Namespace(EntityName("testnamespace1"), uuid1),
+      AuthKey(uuid1, Secret()),
+      Set.empty,
+      UserLimits(invocationsPerMinute = Some(0))),
+    Identity(
+      Subject(),
+      Namespace(EntityName("testnamespace2"), uuid2),
+      AuthKey(uuid2, Secret()),
       Set.empty,
       UserLimits(concurrentInvocations = Some(0))),
     Identity(
       Subject(),
-      EntityName("testnamespace3"),
-      AuthKey(),
+      Namespace(EntityName("testnamespace3"), uuid3),
+      AuthKey(uuid3, Secret()),
       Set.empty,
       UserLimits(invocationsPerMinute = Some(1), concurrentInvocations = Some(1))))
 
   /* Subject document needed for the second test */
-  val subject = WhiskAuth(
-    Subject(),
-    Set(WhiskNamespace(EntityName("different1"), AuthKey()), WhiskNamespace(EntityName("different2"), AuthKey())))
+  val uuid4 = UUID()
+  val uuid5 = UUID()
+  val ak4 = AuthKey(uuid4, Secret())
+  val ak5 = AuthKey(uuid5, Secret())
+  val ns4 = Namespace(EntityName("different1"), uuid4)
+  val ns5 = Namespace(EntityName("different2"), uuid5)
+  val subject = WhiskAuth(Subject(), Set(WhiskNamespace(ns4, ak4), WhiskNamespace(ns5, ak5)))
   val blockedSubject = JsObject(subject.toJson.fields + ("blocked" -> true.toJson))
 
   val blockedNamespacesCount = 2 + subject.namespaces.size
 
   def authToIdentities(auth: WhiskAuth): Set[Identity] = {
     auth.namespaces.map { ns =>
-      Identity(auth.subject, ns.name, ns.authkey, Set(), UserLimits())
+      Identity(auth.subject, ns.namespace, ns.authkey, Set(), UserLimits())
     }
   }
 

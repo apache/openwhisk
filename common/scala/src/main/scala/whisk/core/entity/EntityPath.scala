@@ -82,6 +82,14 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
    * Replaces root of this path with given namespace iff the root is
    * the default namespace.
    */
+  def resolveNamespace(newNamespace: Namespace): EntityPath = {
+    resolveNamespace(newNamespace.name)
+  }
+
+  /**
+   * Replaces root of this path with given namespace iff the root is
+   * the default namespace.
+   */
   def resolveNamespace(newNamespace: EntityName): EntityPath = {
     // check if namespace is default
     if (root.toPath == EntityPath.DEFAULT) {

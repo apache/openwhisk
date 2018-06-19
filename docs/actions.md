@@ -274,7 +274,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   wsk action invoke --result weather --param location "Brooklyn, NY"
   ```
 
-  Using the `--result` flag means that the value returned from the action is shown as output on the commandline:
+  Using the `--result` flag means that the value returned from the action is shown as output on the command-line:
 
   ```json
   {
@@ -363,7 +363,7 @@ You can use a JavaScript module bundler such as [webpack](https://webpack.js.org
 
 Here is a quick example using webpack:
 
-Taking the previous example `package.json` add `webpack` as a development depency and add some npm script commands.
+Taking the previous example `package.json` add `webpack` as a development dependency and add some npm script commands.
 ```json
 {
   "name": "my-action",
@@ -431,7 +431,7 @@ To build and deploy an OpenWhisk Action using `npm` and `webpack`:
   ```
   npm run deploy
   ```
-  {: pre}
+
   Using the CLI:
   ```
   wsk action update my-action dist/bundle.js
@@ -643,6 +643,19 @@ and then create the action:
 ```bash
 wsk action create helloPHP --kind php:7.1 helloPHP.zip
 ```
+
+### Including Composer dependencies
+
+If your PHP action requires [Composer](https://getcomposer.org) dependencies, you can install them as usual using `composer require` which will create a `vendor` directory. Add this directory to your action's zip file and create the action:
+
+```bash
+zip -r helloPHP.zip index.php vendor
+wsk action create helloPHP --kind php:7.1 helloPHP.zip
+```
+
+The PHP runtime will automatically include Composer's autoloader for you, so you can immediately use the dependencies in your action code.
+
+Note that if you don't include your own `vendor` folder, then the runtime will include one for you. The packages included are listed in the [reference](https://github.com/apache/incubator-openwhisk/blob/master/docs/reference.md#composer-packages).
 
 
 ## Creating Swift actions
@@ -867,7 +880,7 @@ For Swift 3 here is an example:
   Notice that `CCurl`, `Kitura-net` and `SwiftyJSON` are provided in the standard Swift action
 and so you should include them in your own `Package.swift` only for Swift 3 actions.
 
-- Build the action by runing the following command for a Swift 3 action:
+- Build the action by running the following command for a Swift 3 action:
   ```
   bash compile.sh hello swift:3.1.1
   ```
@@ -894,11 +907,11 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
 
   The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-### Erro Handling in Swift 4
+### Error Handling in Swift 4
 
 With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
 [Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.
-The following example shows a an example on hanlding an error
+The following example shows a an example on handling an error
 ```swift
 enum VendingMachineError: Error {
     case invalidSelection

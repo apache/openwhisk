@@ -105,7 +105,6 @@ class Controller(val instance: InstanceId,
   // initialize datastores
   private implicit val authStore = WhiskAuthStore.datastore()
   private implicit val entityStore = WhiskEntityStore.datastore()
-  private implicit val activationStore = WhiskActivationStore.datastore()
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
     val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
     override def apply(k: CacheKey) = {
@@ -123,6 +122,8 @@ class Controller(val instance: InstanceId,
     new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  private implicit val activationStore =
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
   // register collections
   Collection.initialize(entityStore)
@@ -216,18 +217,16 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
-      abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
-    }
-    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
-      abort(s"failure during msgProvider.ensureTopic for topic health")
-    }
-    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
-      abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
-    }
 
-    if (!msgProvider.ensureTopic(config, topic = "events", topicConfig = "events")) {
-      abort(s"failure during msgProvider.ensureTopic for topic events")
+    Map(
+      "completed" + instance -> "completed",
+      "health" -> "health",
+      "cacheInvalidation" -> "cache-invalidation",
+      "events" -> "events").foreach {
+      case (topic, topicConfigurationKey) =>
+        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey).isFailure) {
+          abort(s"failure during msgProvider.ensureTopic for topic $topic")
+        }
     }
 
     ExecManifest.initialize(config) match {

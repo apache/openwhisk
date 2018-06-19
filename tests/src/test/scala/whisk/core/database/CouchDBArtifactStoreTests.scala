@@ -21,30 +21,6 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
-import whisk.core.entity._
-
-import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
-class CouchDBArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
-  override def storeType = "CouchDB"
-
-  override val authStore = {
-    implicit val docReader: DocumentReader = WhiskDocumentReader
-    CouchDbStoreProvider.makeStore[WhiskAuth]()
-  }
-
-  override val entityStore =
-    CouchDbStoreProvider.makeStore[WhiskEntity]()(
-      classTag[WhiskEntity],
-      WhiskEntityJsonFormat,
-      WhiskDocumentReader,
-      actorSystem,
-      logging,
-      materializer)
-
-  override val activationStore = {
-    implicit val docReader: DocumentReader = WhiskDocumentReader
-    CouchDbStoreProvider.makeStore[WhiskActivation]()
-  }
-}
+class CouchDBArtifactStoreTests extends FlatSpec with CouchDBStoreBehaviorBase with ArtifactStoreBehavior {}

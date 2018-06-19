@@ -245,7 +245,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
 
     // Needs some bytes grace since activation message is not only the payload.
-    val args = Map("p" -> ("a" * (allowedSize - 700).toInt).toJson)
+    val args = Map("p" -> ("a" * (allowedSize - 750).toInt).toJson)
     val rr = wsk.action.invoke(name, args, blocking = true, expectedExitCode = TestUtils.SUCCESS_EXIT)
     val activation = wsk.parseJsonString(rr.respData).convertTo[ActivationResult]
 

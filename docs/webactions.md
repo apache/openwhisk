@@ -146,12 +146,12 @@ The controller will pass along the action-specified headers, if any, to the HTTP
 
 All web actions, when invoked, receives additional HTTP request details as parameters to the action input argument. They are:
 
-1. `__ow_method` (type: string). the HTTP method of the request.
-2. `__ow_headers` (type: map string to string): A the request headers.
+1. `__ow_method` (type: string): the HTTP method of the request.
+2. `__ow_headers` (type: map string to string): the request headers.
 3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
-4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
-5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise
-6. `__ow_query` (type: string): the query parameters from the request as an unparsed string
+4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject.
+5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise.
+6. `__ow_query` (type: string): the query parameters from the request as an unparsed string.
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 

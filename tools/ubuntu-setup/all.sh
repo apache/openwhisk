@@ -25,6 +25,9 @@
 
 set -e
 set -x
+
+JAVA_SOURCE=${1:-"open"}
+
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( dirname "$SOURCE" )"
 
@@ -35,7 +38,7 @@ echo "*** installing python dependences"
 /bin/bash "$SCRIPTDIR/pip.sh"
 
 echo "*** installing java"
-/bin/bash "$SCRIPTDIR/java8.sh"
+/bin/bash "$SCRIPTDIR/java8.sh" $JAVA_SOURCE
 
 echo "*** installing ansible"
 /bin/bash "$SCRIPTDIR/ansible.sh"

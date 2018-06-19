@@ -42,11 +42,11 @@ class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity
    * Checks whether the operation should be allowed to proceed.
    */
   def check(user: Identity)(implicit tid: TransactionId): Future[RateLimit] = {
-    loadBalancer.activeActivationsFor(user.uuid).map { concurrentActivations =>
+    loadBalancer.activeActivationsFor(user.namespace.uuid).map { concurrentActivations =>
       val currentLimit = concurrencyLimit(user)
       logging.debug(
         this,
-        s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $currentLimit")
+        s"namespace = ${user.namespace.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $currentLimit")
       ConcurrentRateLimit(concurrentActivations, currentLimit)
     }
   }

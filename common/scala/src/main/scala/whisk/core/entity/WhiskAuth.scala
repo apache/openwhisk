@@ -25,18 +25,18 @@ import scala.util.Try
  * database. Each namespace has its own key which is used to determine
  * the {@ Identity} of the user calling.
  */
-protected[core] case class WhiskNamespace(name: EntityName, authkey: AuthKey)
+protected[core] case class WhiskNamespace(namespace: Namespace, authkey: AuthKey)
 
 protected[core] object WhiskNamespace extends DefaultJsonProtocol {
   implicit val serdes = new RootJsonFormat[WhiskNamespace] {
     def write(w: WhiskNamespace) =
-      JsObject("name" -> w.name.toJson, "uuid" -> w.authkey.uuid.toJson, "key" -> w.authkey.key.toJson)
+      JsObject("name" -> w.namespace.name.toJson, "uuid" -> w.namespace.uuid.toJson, "key" -> w.authkey.key.toJson)
 
     def read(value: JsValue) =
       Try {
         value.asJsObject.getFields("name", "uuid", "key") match {
           case Seq(JsString(n), JsString(u), JsString(k)) =>
-            WhiskNamespace(EntityName(n), AuthKey(UUID(u), Secret(k)))
+            WhiskNamespace(Namespace(EntityName(n), UUID(u)), AuthKey(UUID(u), Secret(k)))
         }
       } getOrElse deserializationError("namespace record malformed")
   }

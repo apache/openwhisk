@@ -138,7 +138,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
     val chosen = if (invokersToUse.nonEmpty) {
-      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
+      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
       ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
@@ -162,7 +162,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
                               instance: InstanceId): ActivationEntry = {
 
     totalActivations.increment()
-    activationsPerNamespace.getOrElseUpdate(msg.user.uuid, new LongAdder()).increment()
+    activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
     val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
@@ -178,7 +178,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,
-          msg.user.uuid,
+          msg.user.namespace.uuid,
           instance,
           timeoutHandler,
           Promise[Either[ActivationId, WhiskActivation]]())
@@ -424,12 +424,14 @@ case class ShardingContainerPoolBalancerState(
     val oldSize = _invokers.size
     val newSize = newInvokers.size
 
-    val blackboxes = Math.max(1, (newSize.toDouble * blackboxFraction).toInt)
-    val managed = Math.max(1, newSize - blackboxes)
+    // for small N, allow the managed invokers to overlap with blackbox invokers, and
+    // further assume that blackbox invokers << managed invokers
+    val managed = Math.max(1, Math.ceil(newSize.toDouble * (1 - blackboxFraction)).toInt)
+    val blackboxes = Math.max(1, Math.floor(newSize.toDouble * blackboxFraction).toInt)
 
     _invokers = newInvokers
-    _blackboxInvokers = _invokers.takeRight(blackboxes)
     _managedInvokers = _invokers.take(managed)
+    _blackboxInvokers = _invokers.takeRight(blackboxes)
 
     if (oldSize != newSize) {
       _managedStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)

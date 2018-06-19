@@ -264,7 +264,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       waitOnView(entityStore, WhiskPackage, namespaces(0), 1)
       waitOnView(entityStore, WhiskPackage, namespaces(1), 1)
       waitOnView(entityStore, WhiskPackage, namespaces(2), 1)
-      val expected = providers filter (_.namespace == creds.namespace.toPath)
+      val expected = providers filter (_.namespace == creds.namespace.name.toPath)
 
       Get(s"$collectionPath?public=true") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)

@@ -287,7 +287,7 @@ protected[core] abstract class EntitlementProvider(
   protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
-    val defaultNamespaces = Set(user.namespace.asString)
+    val defaultNamespaces = Set(user.namespace.name.asString)
     implicit val es: EntitlementProvider = this
 
     Future.sequence {
@@ -361,7 +361,7 @@ protected[core] abstract class EntitlementProvider(
   private def checkThrottleOverload(throttle: Future[RateLimit], user: Identity)(
     implicit transid: TransactionId): Future[Unit] = {
     throttle.flatMap { limit =>
-      val userId = user.authkey.uuid
+      val userId = user.namespace.uuid
       if (limit.ok) {
         limit match {
           case c: ConcurrentRateLimit => {
@@ -373,7 +373,7 @@ protected[core] abstract class EntitlementProvider(
                 s"controller${controllerInstance.instance}",
                 metric,
                 user.subject,
-                user.namespace.toString,
+                user.namespace.name.toString,
                 userId,
                 metric.typeName))
           }
@@ -381,7 +381,7 @@ protected[core] abstract class EntitlementProvider(
         }
         Future.successful(())
       } else {
-        logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
+        logging.info(this, s"'${user.namespace.name}' has exceeded its throttle limit, ${limit.errorMsg}")
         val metric = Metric(limit.limitName, 1)
         UserEvents.send(
           eventProducer,
@@ -389,7 +389,7 @@ protected[core] abstract class EntitlementProvider(
             s"controller${controllerInstance.instance}",
             metric,
             user.subject,
-            user.namespace.toString,
+            user.namespace.name.toString,
             userId,
             metric.typeName))
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))

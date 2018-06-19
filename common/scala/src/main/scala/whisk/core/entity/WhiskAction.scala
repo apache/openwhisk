@@ -59,7 +59,7 @@ case class WhiskActionPut(exec: Option[Exec] = None,
   /**
    * Resolves sequence components if they contain default namespace.
    */
-  protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
+  protected[core] def resolve(userNamespace: Namespace): WhiskActionPut = {
     exec map {
       case SequenceExec(components) =>
         val newExec = SequenceExec(components map { c =>
@@ -143,6 +143,13 @@ case class WhiskAction(namespace: EntityPath,
   /**
    * Resolves sequence components if they contain default namespace.
    */
+  protected[core] def resolve(userNamespace: Namespace): WhiskAction = {
+    resolve(userNamespace.name)
+  }
+
+  /**
+   * Resolves sequence components if they contain default namespace.
+   */
   protected[core] def resolve(userNamespace: EntityName): WhiskAction = {
     exec match {
       case SequenceExec(components) =>
@@ -202,11 +209,11 @@ case class WhiskActionMetaData(namespace: EntityPath,
   /**
    * Resolves sequence components if they contain default namespace.
    */
-  protected[core] def resolve(userNamespace: EntityName): WhiskActionMetaData = {
+  protected[core] def resolve(userNamespace: Namespace): WhiskActionMetaData = {
     exec match {
       case SequenceExecMetaData(components) =>
         val newExec = SequenceExecMetaData(components map { c =>
-          FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
+          FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace.name), c.name)
         })
         copy(exec = newExec).revision[WhiskActionMetaData](rev)
       case _ => this
@@ -371,11 +378,11 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     fa.flatMap { action =>
       action.exec match {
-        case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
+        case exec @ CodeExecAsAttachment(_, attached: Attached, _) =>
           val boas = new ByteArrayOutputStream()
           val b64s = Base64.getEncoder().wrap(boas)
 
-          getAttachment[A](db, action, attachmentName, b64s, Some { a: WhiskAction =>
+          getAttachment[A](db, action, attached, b64s, Some { a: WhiskAction =>
             b64s.close()
             val newAction = a.copy(exec = exec.inline(boas.toByteArray))
             newAction.revision(a.rev)

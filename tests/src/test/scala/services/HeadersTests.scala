@@ -60,7 +60,6 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
   implicit val materializer = ActorMaterializer()
 
   val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
-  println(loadConfigOrThrow[String]("whisk"))
   val whiskAuth = WhiskProperties.getBasicAuth
   val creds = BasicHttpCredentials(whiskAuth.fst, whiskAuth.snd)
   val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))

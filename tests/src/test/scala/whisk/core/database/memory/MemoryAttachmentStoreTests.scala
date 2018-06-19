@@ -15,17 +15,26 @@
  * limitations under the License.
  */
 
-package actionContainers
+package whisk.core.database.memory
 
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import common.WskActorSystem
+import org.junit.runner.RunWith
+import org.scalatest.FlatSpec
+import org.scalatest.junit.JUnitRunner
+import whisk.core.database.AttachmentStore
+import whisk.core.database.test.AttachmentStoreBehaviors
+import whisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
-class Python2ActionContainerTests extends PythonActionContainerTests with WskActorSystem {
+class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors with WskActorSystem {
 
-  override lazy val imageName = "python2action"
+  override val store: AttachmentStore = MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()
 
-  /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
-  override lazy val pythonStringAsUnicode = false
+  override def storeType: String = "Memory"
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    val count = store.asInstanceOf[MemoryAttachmentStore].attachmentCount
+    require(count == 0, s"AttachmentStore not empty after all runs - $count")
+  }
 }

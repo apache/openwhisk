@@ -20,12 +20,16 @@ package whisk.core.containerpool
 import java.net.NoRouteToHostException
 import java.nio.charset.StandardCharsets
 
-import scala.annotation.tailrec
 import scala.concurrent.duration._
+import scala.annotation.tailrec
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.control.NoStackTrace
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
@@ -35,6 +39,7 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -53,8 +58,9 @@ import whisk.core.entity.size.SizeLong
  * @param hostname the host name
  * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
+ * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
-protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize)(
+protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
   implicit logging: Logging) {
 
   def close() = Try(connection.close())
@@ -80,14 +86,14 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    execute(request, timeout, retry)
+    execute(request, timeout, maxConcurrent, retry)
   }
 
   // Used internally to wrap all exceptions for which the request can be retried
   private case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
 
   // Annotation will make the compiler complain if no tail recursion is possible
-  @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, retry: Boolean)(
+  @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, maxConcurrent: Int, retry: Boolean)(
     implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
@@ -126,14 +132,13 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     } match {
       case Success(response) => response
       case Failure(t: RetryableConnectionError) if retry =>
-        val sleepTime = 10.milliseconds
+        val sleepTime = 50.milliseconds
         if (timeout > Duration.Zero) {
-          logging.info(this, s"POST failed with ${t} - retrying after sleeping ${sleepTime}.")
           Thread.sleep(sleepTime.toMillis)
           val newTimeout = timeout - sleepTime
-          execute(request, newTimeout, retry = true)
+          execute(request, newTimeout, maxConcurrent, retry = true)
         } else {
-          logging.warn(this, s"POST failed with ${t} - no retry because timeout exceeded.")
+          logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
           Left(Timeout(t))
         }
       case Failure(t: Throwable) => Left(ConnectionError(t))
@@ -154,6 +159,15 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
 
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
+    .setConnectionManager(if (maxConcurrent > 1) {
+      // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
+      val cm = new PoolingHttpClientConnectionManager
+      // Increase default max connections per route (default is 2)
+      cm.setDefaultMaxPerRoute(maxConcurrent)
+      // Increase max total connections (default is 20)
+      cm.setMaxTotal(maxConcurrent)
+      cm
+    } else null) //set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
@@ -165,9 +179,27 @@ object HttpUtils {
   def post(host: String, port: Int, endPoint: String, content: JsValue)(implicit logging: Logging,
                                                                         tid: TransactionId): (Int, Option[JsObject]) = {
     val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
-    val response = connection.post(endPoint, content, retry = true)
+    val response = executeRequest(connection, endPoint, content)
     connection.close()
-    response match {
+    response
+  }
+
+  /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
+  def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: Duration)(
+    implicit logging: Logging,
+    tid: TransactionId,
+    ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, contents.size)
+    val futureResults = contents.map(content => Future { executeRequest(connection, endPoint, content) })
+    val results = Await.result(Future.sequence(futureResults), timeout)
+    connection.close()
+    results
+  }
+
+  private def executeRequest(connection: HttpUtils, endpoint: String, content: JsValue)(
+    implicit logging: Logging,
+    tid: TransactionId): (Int, Option[JsObject]) = {
+    connection.post(endpoint, content, retry = true) match {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
       case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
