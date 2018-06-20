@@ -57,7 +57,7 @@ class ElasticSearchLogStore(
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
   destinationDirectory: Path = Paths.get("logs"),
   elasticSearchConfig: ElasticSearchLogStoreConfig =
-    loadConfigOrThrow[ElasticSearchLogStoreConfig](ConfigKeys.elasticSearch))
+    loadConfigOrThrow[ElasticSearchLogStoreConfig](ConfigKeys.logStoreElasticSearch))
     extends DockerToActivationFileLogStore(system, destinationDirectory) {
 
   // Schema of resultant logs from ES
