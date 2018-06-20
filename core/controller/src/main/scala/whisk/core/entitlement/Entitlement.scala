@@ -28,7 +28,6 @@ import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.REJECT
 import whisk.common.{Logging, TransactionId, UserEvents}
-import whisk.connector.kafka.KafkaMessagingProvider
 import whisk.core.WhiskConfig
 import whisk.core.connector.{EventMessage, Metric}
 import whisk.core.controller.RejectRequest
@@ -37,6 +36,8 @@ import whisk.core.loadBalancer.{LoadBalancer, ShardingContainerPoolBalancer}
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 import whisk.http.Messages._
+import whisk.core.connector.MessagingProvider
+import whisk.spi.SpiLoader
 
 package object types {
   type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -143,7 +144,8 @@ protected[core] abstract class EntitlementProvider(
       activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations),
       config.actionInvokeSystemOverloadLimit.toInt)
 
-  private val eventProducer = KafkaMessagingProvider.getProducer(this.config)
+  private val messagingProvider = SpiLoader.get[MessagingProvider]
+  private val eventProducer = messagingProvider.getProducer(this.config)
 
   /**
    * Grants a subject the right to access a resources.
