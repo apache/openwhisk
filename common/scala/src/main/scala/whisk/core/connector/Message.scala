@@ -19,6 +19,7 @@ package whisk.core.connector
 
 import scala.util.Try
 import spray.json._
+import spray.json.DefaultJsonProtocol
 import whisk.common.TransactionId
 import whisk.core.entity._
 
@@ -51,6 +52,15 @@ case class ActivationMessage(override val transid: TransactionId,
                              content: Option[JsObject],
                              cause: Option[ActivationId] = None)
     extends Message {
+
+  def meta =
+    JsObject("meta" -> {
+      cause map { c =>
+        JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
+      } getOrElse {
+        activationId.toJsObject
+      }
+    })
 
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
@@ -115,6 +125,23 @@ case class PingMessage(instance: InstanceId) extends Message {
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
   implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+}
+
+case class OverflowMessage(override val transid: TransactionId,
+                           msg: ActivationMessage,
+                           actionTimeoutSeconds: Int,
+                           pull: Boolean,
+                           hash: Int)
+    extends Message {
+
+  override def serialize: String = {
+    OverflowMessage.serdes.write(this).compactPrint
+  }
+}
+
+object OverflowMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[OverflowMessage] = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat5(OverflowMessage.apply)
 }
 
 trait EventMessageBody extends Message {
