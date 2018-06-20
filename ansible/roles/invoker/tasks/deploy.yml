@@ -161,7 +161,7 @@
 
 - name: populate environment variables for invoker
   set_fact:
-    invoker_env:
+    env:
       "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
@@ -226,12 +226,12 @@
 
 - name: extend invoker dns env
   set_fact:
-    invoker_env: "{{ invoker_env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+    env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
 
 - name: merge extra env variables
   set_fact:
-    invoker_env: "{{ invoker_env | combine(invoker.extraEnv) }}"
+    env: "{{ env | combine(invoker.extraEnv) }}"
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"
@@ -261,7 +261,7 @@
     image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
     state: started
     recreate: true
-    env: "{{ invoker_env }}"
+    env: "{{ env }}"
     volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
