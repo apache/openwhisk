@@ -147,7 +147,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
 
     val chosen = if (invokersToUse.nonEmpty) {
-      // In case of the system isn't in overflow state or it's in the overflow state but the message is rescheduled 
+      // In case of the system isn't in overflow state or it's in the overflow state but the message is rescheduled
       // we want to call the schedule algorithm to choose an invoker
       if (!overflowState.get() || (overflowState.get() && isRescheduled)) {
         val homeInvoker = hash % invokersToUse.size
@@ -155,7 +155,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
       } else {
         // In case of the system is in overflow state and the ActivationMessage isn't rescheduled
-        // return -1 indicates as an index for the invoker 
+        // return -1 indicates as an index for the invoker
         Some(new InstanceId(-1))
       }
     } else {
@@ -170,7 +170,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           // TODO: requeue the ActivationMessage into the overflow topic agin?
           logging.error(this, "The re-scheduled ActivationMessage hasn't find any invoker that has capacity")
           Future.failed(LoadBalancerException("The rescheduled ActivationMessage hasn't find any invoker that has capacity"))
-        } 
+        }
 
         // this means that there is no invoker that has capacity for this non scheduled ActivationMessage (enter the overflow state)
         else if (invoker.toInt == -1 && !isRescheduled) {
@@ -185,8 +185,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
             .map{ _ =>
               entry.promise.future
             }
-          
-        } 
+        }
 
         // there is an invoker that has capacity to handle the action
         else {
@@ -335,7 +334,6 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         totalActivations.decrement()
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
-        
         if (!forced) {
           // if the balancer is in overflow state then consume an overflow message using consumer
           consumeOverflowMessage()
@@ -380,13 +378,13 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   /**
-   * Subscribes to overflow messages (In the case all invokers are overloaded but a 
-   * successful completion message has received indicating that their is capacity on 
+   * Subscribes to overflow messages (In the case all invokers are overloaded but a
+   * successful completion message has received indicating that their is capacity on
    * one of the invokers)
    */
 
   private val overflowTopic = "overflow"
-  private val maxOverflowPerPoll = 1      
+  private val maxOverflowPerPoll = 1
   private val overflowPollDuration = 1.second
   private val overflowConsumer =
     messagingProvider.getConsumer(config, overflowTopic, overflowTopic, maxPeek = maxOverflowPerPoll)
@@ -472,7 +470,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
       } else {
         // If we've gone through all invokers
         if (stepsDone == numInvokers + 1) {
-          // return -1 if there are invokers but no one is available 
+          // return -1 if there are invokers but no one is available
           // should enter in the overflow state
           Some(new InstanceId(-1))
 
