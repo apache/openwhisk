@@ -31,6 +31,7 @@ import pureconfig._
 import whisk.common.{LogMarkerToken, TransactionId}
 import whisk.core.ConfigKeys
 
+import scala.collection.mutable
 import scala.ref.WeakReference
 
 /**
@@ -95,22 +96,20 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    * @return
    */
   override def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
-    var contextMap: Option[Map[String, String]] = None
     TracingCacheProvider.spanMap.get(transactionId.meta.id) match {
       case Some(spanList) => {
-        var map: java.util.Map[String, String] = new java.util.HashMap()
+        val map: mutable.Map[String, String] = mutable.HashMap()
         //inject latest span context in map
         spanList.head.get match {
           case Some(span) => {
-            tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map))
-            contextMap = Some(map.asScala.toMap)
+            tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map.asJava))
+            Some(map.toMap)
           }
-          case _ =>
+          case _ => None
         }
       }
       case None => None
     }
-    contextMap
   }
 
   /**
