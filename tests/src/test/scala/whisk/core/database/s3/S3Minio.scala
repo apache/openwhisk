@@ -40,7 +40,6 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
                                                        materializer: ActorMaterializer): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
       |whisk {
-      |   db{
       |     s3 {
       |      alpakka {
       |         aws {
@@ -58,7 +57,6 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
       |      }
       |      bucket = "$bucket"
       |     }
-      |   }
       |}
       """.stripMargin).withFallback(ConfigFactory.load())
     S3AttachmentStoreProvider.makeStore[D](config)

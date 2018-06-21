@@ -32,7 +32,6 @@ trait S3Aws extends FlatSpec {
                                                        materializer: ActorMaterializer): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
        |whisk {
-       |  db {
        |   s3 {
        |      alpakka {
        |         aws {
@@ -49,7 +48,6 @@ trait S3Aws extends FlatSpec {
        |      }
        |      bucket = "$bucket"
        |    }
-       |  }
        |}
       """.stripMargin).withFallback(ConfigFactory.load())
     S3AttachmentStoreProvider.makeStore[D](config)
