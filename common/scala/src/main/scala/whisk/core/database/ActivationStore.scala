@@ -21,6 +21,7 @@ import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
 import whisk.core.entity._
@@ -48,7 +49,8 @@ trait ActivationStore {
    * @param transid transaction ID for request
    * @return Future containing the retrieved WhiskActivation
    */
-  def get(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
+  def get(activationId: ActivationId, user: Option[Identity] = None, request: Option[HttpRequest] = None)(
+    implicit transid: TransactionId): Future[WhiskActivation]
 
   /**
    * Deletes an activation corresponding to the provided activation ID.
@@ -58,8 +60,9 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing a Boolean value indication whether the activation was deleted
    */
-  def delete(activationId: ActivationId)(implicit transid: TransactionId,
-                                         notifier: Option[CacheChangeNotification]): Future[Boolean]
+  def delete(activationId: ActivationId, user: Option[Identity] = None, request: Option[HttpRequest] = None)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean]
 
   /**
    * Counts the number of activations in a namespace.
@@ -72,11 +75,14 @@ trait ActivationStore {
    * @param transid transaction ID for request
    * @return Future containing number of activations returned from query in JSON format
    */
-  def countActivationsInNamespace(namespace: EntityPath,
-                                  name: Option[EntityPath] = None,
-                                  skip: Int,
-                                  since: Option[Instant] = None,
-                                  upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject]
+  def countActivationsInNamespace(
+    namespace: EntityPath,
+    name: Option[EntityPath] = None,
+    skip: Int,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    user: Option[Identity] = None,
+    request: Option[HttpRequest] = None)(implicit transid: TransactionId): Future[JsObject]
 
   /**
    * Returns activations corresponding to provided entity name.
@@ -98,7 +104,9 @@ trait ActivationStore {
                                   limit: Int,
                                   includeDocs: Boolean = false,
                                   since: Option[Instant] = None,
-                                  upto: Option[Instant] = None)(
+                                  upto: Option[Instant] = None,
+                                  user: Option[Identity] = None,
+                                  request: Option[HttpRequest] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
   /**
@@ -119,7 +127,9 @@ trait ActivationStore {
                                  limit: Int,
                                  includeDocs: Boolean = false,
                                  since: Option[Instant] = None,
-                                 upto: Option[Instant] = None)(
+                                 upto: Option[Instant] = None,
+                                 user: Option[Identity] = None,
+                                 request: Option[HttpRequest] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 }
 
