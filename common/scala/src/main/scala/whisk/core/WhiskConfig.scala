@@ -231,8 +231,11 @@ object ConfigKeys {
   val transactions = "whisk.transactions"
 
   val logStore = "whisk.logstore"
+  val activationStore = "whisk.activationstore"
+
   val splunk = s"$logStore.splunk"
   val logStoreElasticSearch = s"$logStore.elasticsearch"
+  val elasticSearchActivationStore = s"$activationStore.elasticsearch"
 
   val mesos = "whisk.mesos"
 

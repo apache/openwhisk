@@ -1036,7 +1036,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("start").toString should not be JsObject.empty.toString
       result.getFieldJsValue("end").toString shouldBe JsObject.empty.toString
       result.getFieldJsValue("duration").toString shouldBe JsObject.empty.toString
-      result.getFieldListJsObject("annotations").length shouldBe 0
+      result.getFieldListJsObject("annotations").length shouldBe 1
     }
   }
 
