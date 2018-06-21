@@ -20,7 +20,10 @@ package whisk.core.database.cosmosdb
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+import whisk.core.entity.size._
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {}
+class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
+  override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
+}

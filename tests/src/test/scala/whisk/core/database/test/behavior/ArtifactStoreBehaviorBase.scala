@@ -30,6 +30,7 @@ import whisk.core.database.test.DbUtils
 import whisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
 import whisk.core.database.{ArtifactStore, AttachmentStore, StaleParameter}
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.utils.JsHelpers
 
 import scala.util.{Random, Try}
@@ -160,6 +161,13 @@ trait ArtifactStoreBehaviorBase
     case s: MemoryAttachmentStore => Some(s.attachmentCount)
     case _                        => None
   }
+
+  protected def getAttachmentSizeForTest(store: ArtifactStore[_]): Int = {
+    val mb = getAttachmentStore(store).map(_ => 5.MB).getOrElse(maxAttachmentSizeWithoutAttachmentStore)
+    mb.toBytes.toInt
+  }
+
+  protected def maxAttachmentSizeWithoutAttachmentStore: ByteSize = 5.MB
 
   private def assertAttachmentStoreIsEmpty(): Unit = {
     Seq(authStore, entityStore, activationStore).foreach { s =>
