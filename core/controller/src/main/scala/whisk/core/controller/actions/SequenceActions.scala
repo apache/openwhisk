@@ -34,6 +34,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskServices
 import whisk.core.database.ActivationStore
+import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.types._
@@ -250,13 +251,11 @@ protected[actions] trait SequenceActions {
     }
 
     // this holds the initial value of the accounting structure, including the input boxed as an ActivationResponse
-    val initialAccounting = Future.successful {
-      SequenceAccounting(atomicActionCnt, ActivationResponse.payloadPlaceholder(inputPayload))
-    }
+    val initialAccounting = SequenceAccounting(atomicActionCnt, ActivationResponse.payloadPlaceholder(inputPayload))
 
     // execute the actions in sequential blocking fashion
     resolvedFutureActions
-      .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
+      .foldLeft(Future.successful(initialAccounting)) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
             invokeNextAction(user, futureAction, accounting, cause).flatMap { accounting =>
@@ -278,6 +277,9 @@ protected[actions] trait SequenceActions {
         // since all throwables are recovered with a failed accounting instance and this is
         // in turned boxed to FailedSequenceActivation
         case FailedSequenceActivation(accounting) => Future.successful(accounting)
+        case e: NoDocumentException =>
+          Future.successful(
+            initialAccounting.fail(ActivationResponse.applicationError(sequenceComponentNotFound), None))
       }
   }
 
