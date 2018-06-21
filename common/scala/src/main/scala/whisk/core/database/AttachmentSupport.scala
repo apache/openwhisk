@@ -102,9 +102,12 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
   protected[database] def uriOf(bytesOrSource: Either[ByteString, Source[ByteString, _]], path: => String): Uri = {
     bytesOrSource match {
       case Left(bytes) => Uri.from(scheme = MemScheme, path = encode(bytes))
-      case Right(_)    => Uri.from(scheme = attachmentScheme, path = path)
+      case Right(_)    => uriFrom(scheme = attachmentScheme, path = path)
     }
   }
+
+  //Not using Uri.from due to https://github.com/akka/akka-http/issues/2080
+  protected[database] def uriFrom(scheme: String, path: String): Uri = Uri(s"$scheme:$path")
 
   /**
    * Constructs a source from inlined attachment contents

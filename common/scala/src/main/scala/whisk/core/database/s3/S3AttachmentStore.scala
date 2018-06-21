@@ -65,8 +65,7 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
                                                                           logging: Logging,
                                                                           materializer: ActorMaterializer)
     extends AttachmentStore {
-  //TODO Use 's3s' for now as due to some bug `Uri.from(scheme="s3") is causing issue
-  override val scheme = "s3s"
+  override val scheme = "s3"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
