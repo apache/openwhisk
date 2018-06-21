@@ -9,8 +9,6 @@ docker_dns: ""
 runtimes_bypass_pull_for_local_images: true
 invoker_use_runc: "{{ ansible_distribution != 'MacOSX' }}"
 
-environment_type: "distributed"
-
 db_prefix: whisk_local_
 
 # Auto lookup to find the db credentials
