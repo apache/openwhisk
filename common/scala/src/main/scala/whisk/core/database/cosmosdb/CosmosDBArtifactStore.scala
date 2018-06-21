@@ -56,7 +56,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     with DefaultJsonProtocol
     with DocumentProvider
     with CosmosDBSupport
-    with AttachmentInliner {
+    with AttachmentSupport[DocumentAbstraction] {
 
   private val cosmosScheme = "cosmos"
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
@@ -111,10 +111,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           true
         }, {
           case e: DocumentClientException if isNotFound(e) =>
-            transid.finished(this, start, s"[DEL] '$collName', document: '${doc}'; not found.")
+            transid.finished(this, start, s"[DEL] '$collName', document: '$doc'; not found.")
             NoDocumentException("not found on 'delete'")
           case e: DocumentClientException if isConflict(e) =>
-            transid.finished(this, start, s"[DEL] '$collName', document: '${doc}'; conflict.")
+            transid.finished(this, start, s"[DEL] '$collName', document: '$doc'; conflict.")
             DocumentConflictException("conflict on 'delete'")
           case e => e
         })
@@ -258,8 +258,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val id = asJson.fields("_id").convertTo[String].trim
 
     attachmentStore match {
-      case Some(_) =>
-        attachToExternalStore(id, doc, update, contentType, docStream, oldAttachment)
+      case Some(as) =>
+        attachToExternalStore(doc, update, contentType, docStream, oldAttachment, as)
       case None =>
         attachToCosmos(id, doc, update, contentType, docStream, oldAttachment)
     }
@@ -271,25 +271,23 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     update: (A, Attached) => A,
     contentType: ContentType,
     docStream: Source[ByteString, _],
-    oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
+    oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
     //Convert Source to ByteString as Cosmos API works with InputStream only
     for {
       allBytes <- toByteString(docStream)
-      (bytes, tailSource) <- inlineAndTail(Source.single(allBytes))
-      uri <- Future.successful(uriOf(bytes, UUID().asString))
+      bytesOrSource <- inlineOrAttach(Source.single(allBytes))
+      uri = uriOf(bytesOrSource, UUID().asString)
       attached <- {
-        val a = if (isInlined(uri)) {
-          Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-        } else {
-          Attached(uri.toString, contentType, Some(allBytes.size), Some(digest(allBytes)))
+        val a = bytesOrSource match {
+          case Left(bytes) => Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
+          case Right(_)    => Attached(uri.toString, contentType, Some(allBytes.size), Some(digest(allBytes)))
         }
         Future.successful(a)
       }
       i1 <- put(update(doc, attached))
-      i2 <- if (isInlined(uri)) {
-        Future.successful(i1)
-      } else {
-        attach(i1, uri.path.toString, attached.attachmentType, allBytes)
+      i2 <- bytesOrSource match {
+        case Left(_)  => Future.successful(i1)
+        case Right(s) => attach(i1, uri.path.toString, attached.attachmentType, allBytes)
       }
       //Remove old attachment if it was part of attachmentStore
       _ <- oldAttachment
@@ -305,46 +303,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
         }
         .getOrElse(Future.successful(true))
     } yield (i2, attached)
-  }
-
-  private def attachToExternalStore[A <: DocumentAbstraction](
-    id: String,
-    doc: A,
-    update: (A, Attached) => A,
-    contentType: ContentType,
-    docStream: Source[ByteString, _],
-    oldAttachment: Option[Attached])(implicit transid: TransactionId) = {
-    val as = attachmentStore.get
-
-    for {
-      (bytes, tailSource) <- inlineAndTail(docStream)
-      uri <- Future.successful(uriOf(bytes, UUID().asString))
-      attached <- {
-        // Upload if cannot be inlined
-        if (isInlined(uri)) {
-          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-          Future.successful(a)
-        } else {
-          as.attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-            .map { r =>
-              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
-            }
-        }
-      }
-      i1 <- put(update(doc, attached))
-
-      //Remove old attachment if it was part of attachmentStore
-      _ <- oldAttachment
-        .map { old =>
-          val oldUri = Uri(old.attachmentName)
-          if (oldUri.scheme == as.scheme) {
-            as.deleteAttachment(DocId(id), oldUri.path.toString)
-          } else {
-            Future.successful(true)
-          }
-        }
-        .getOrElse(Future.successful(true))
-    } yield (i1, attached)
   }
 
   private def attach(doc: DocInfo, name: String, contentType: ContentType, allBytes: ByteString)(
@@ -389,7 +347,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val name = attached.attachmentName
     val attachmentUri = Uri(name)
     attachmentUri.scheme match {
-      case AttachmentInliner.MemScheme =>
+      case AttachmentSupport.MemScheme =>
         memorySource(attachmentUri).runWith(sink)
       case s if s == cosmosScheme || attachmentUri.isRelative =>
         //relative case is for compatibility with earlier naming approach where attachment name would be like 'jarfile'
