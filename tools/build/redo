@@ -23,6 +23,7 @@ import platform
 import argparse
 import shlex
 import subprocess
+import re
 
 # the default openwhisk location in openwhisk checkouts
 defaultOpenwhisk = os.path.dirname(os.path.realpath(__file__)) + '/../../'
@@ -273,47 +274,16 @@ Components = [
                   yaml = 'postdeploy.yml'),
 
     # the following (re)build images via gradle
-
-    makeComponent('nodejs6action',
-                  'build node.js v6 action container',
+    makeComponent('runtime:([\w]+)',
+                  'build a runtime action container, matching name using the regex; NOTE: must use --dir for path to runtime directory',
                   yaml = False,
-                  gradle = 'actionRuntimes:nodejs6Action'),
-
-    makeComponent('actionproxy',
-                  'build action proxy container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:actionProxy'),
-
-    makeComponent('python2action',
-                  'build python v2.7 action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:python2Action'),
-
-    makeComponent('python3action',
-                  'build python action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:pythonAction'),
-
-    makeComponent('action-swift-v3.1.1',
-                  'build swift v3.1.1 action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:swift3.1.1Action'),
-
-    makeComponent('java8action',
-                  'build java action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:javaAction'),
-
-    makeComponent('action-php-v7.1',
-                  'build PHP v7.1 action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:php7.1Action'),
-
-    makeComponent('dockersdk',
-                  'build docker action SDK (to deploy, use edge component)',
-                  yaml = False,
-                  gradle = 'sdk:docker'),
-
+                  gradle = 'core:$1:distDocker'),
+    
+    makeComponent('actionproxy',	
+                  'build action proxy container',	
+                  yaml = False,	
+                  gradle = 'tools:actionProxy'),
+    
     # required for tests
     makeComponent('props',
                   'build whisk.properties file (required for tests)',
@@ -337,6 +307,15 @@ def getComponent(component):
     for c in Components:
         if c['name'] == component:
             return c
+        else:
+            parts = re.match(c['name'], component)
+            if parts:
+                name = parts.group(1)
+                return makeComponent('runtime:' + name,
+                          'build a ' + name + ' runtime action container',
+                          yaml = False,
+                          gradle = 'core:' + name)
+
     return False
 
 def bold(string):

@@ -42,9 +42,6 @@ tasks.withType(Test) {
 }
 
 def leanExcludes = [
-    '**/*Swift*',
-    '**/*Python*',
-    '**/*Java*',
     '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
 ]
@@ -52,7 +49,6 @@ def leanExcludes = [
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
-            "actionContainers/**",
             "ha/**",
             "whisk/**"
         ],
@@ -131,31 +127,7 @@ task testUnit(type: Test) {
     ]
 
     exclude couchDbExcludes
-    exclude "actionContainers/**"
 }
-
-task testLeanCli(type: Test) {
-    exclude '**/*Swift*'
-    exclude '**/*Python*'
-    exclude '**/*Java*'
-    exclude '**/*ThrottleTests*'
-    exclude '**/MaxActionDurationTests*'
-    exclude '**/*ApiGwRestBasicTests*'
-    exclude '**/*Rest*'
-}
-
-// Add all images needed for local testing here
-test.dependsOn([
-    ':actionRuntimes:nodejs6Action:distDocker',
-    ':actionRuntimes:actionProxy:distDocker',
-    ':actionRuntimes:pythonAction:distDocker',
-    ':actionRuntimes:python2Action:distDocker',
-    ':actionRuntimes:javaAction:distDocker',
-    ':actionRuntimes:swift3.1.1Action:distDocker',
-    ':sdk:docker:distDocker',
-    ':tests:dat:blackbox:badaction:distDocker',
-    ':tests:dat:blackbox:badproxy:distDocker'
-])
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
