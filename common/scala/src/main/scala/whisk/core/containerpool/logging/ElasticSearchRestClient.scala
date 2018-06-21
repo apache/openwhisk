@@ -59,7 +59,8 @@ case class EsQueryBoolMatch(key: String, value: String)
 case class EsQueryOrder(field: String, kind: EsOrder)
 case class EsQuerySize(size: Integer)
 case class EsQueryAll() extends EsQueryMethod
-case class EsQueryMust(matches: Vector[EsQueryBoolMatch], range: Option[EsQueryRange] = None) extends EsQueryMethod
+case class EsQueryMust(matches: Vector[EsQueryBoolMatch], range: Option[Vector[EsQueryRange]] = None)
+    extends EsQueryMethod
 case class EsQueryMatch(field: String, value: String, matchType: Option[EsMatch] = None) extends EsQueryMethod
 case class EsQueryTerm(key: String, value: String) extends EsQueryMethod
 case class EsQueryString(queryString: String) extends EsQueryMethod
