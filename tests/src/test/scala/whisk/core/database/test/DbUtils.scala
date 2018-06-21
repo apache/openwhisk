@@ -296,7 +296,7 @@ trait DbUtils extends Assertions {
    */
   def inlinedAttachmentSize(db: ArtifactStore[_]): Int = {
     db match {
-      case inliner: AttachmentInliner =>
+      case inliner: AttachmentSupport[_] =>
         inliner.maxInlineSize.toBytes.toInt - 1
       case _ =>
         throw new IllegalStateException(s"ArtifactStore does not support attachment inlining $db")
@@ -308,10 +308,8 @@ trait DbUtils extends Assertions {
    */
   def nonInlinedAttachmentSize(db: ArtifactStore[_]): Int = {
     db match {
-      case inliner: AttachmentInliner =>
-        val inlineSize = inliner.maxInlineSize.toBytes.toInt
-        val chunkSize = inliner.chunkSize.toBytes.toInt
-        Math.max(inlineSize, chunkSize) * 2
+      case inliner: AttachmentSupport[_] =>
+        inliner.maxInlineSize.toBytes.toInt * 2
       case _ =>
         42
     }

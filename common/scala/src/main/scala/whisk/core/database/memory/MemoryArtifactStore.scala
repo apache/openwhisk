@@ -94,7 +94,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
-    with AttachmentInliner {
+    with AttachmentSupport[DocumentAbstraction] {
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -288,38 +288,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
-
-    val asJson = d.toDocumentRecord
-    val id = asJson.fields(_id).convertTo[String].trim
-    //Inlined attachment with Memory storage is not required. However to validate the constructs
-    //inlined support is implemented
-    for {
-      (bytes, tailSource) <- inlineAndTail(docStream)
-      uri <- Future.successful(uriOf(bytes, UUID().asString))
-      attached <- {
-        if (isInlined(uri)) {
-          val a = Attached(uri.toString, contentType, Some(bytes.size), Some(digest(bytes)))
-          Future.successful(a)
-        } else {
-          attachmentStore
-            .attach(DocId(id), uri.path.toString, contentType, combinedSource(bytes, tailSource))
-            .map { r =>
-              Attached(uri.toString, contentType, Some(r.length), Some(r.digest))
-            }
-        }
-      }
-      i1 <- put(update(d, attached))
-      _ <- oldAttachment
-        .map { old =>
-          val oldUri = Uri(old.attachmentName)
-          if (oldUri.scheme == attachmentStore.scheme) {
-            attachmentStore.deleteAttachment(DocId(id), oldUri.path.toString)
-          } else {
-            Future.successful(true)
-          }
-        }
-        .getOrElse(Future.successful(true))
-    } yield (i1, attached)
+    attachToExternalStore(d, update, contentType, docStream, oldAttachment, attachmentStore)
   }
 
   override def shutdown(): Unit = {
