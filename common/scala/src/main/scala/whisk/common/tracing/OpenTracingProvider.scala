@@ -174,6 +174,8 @@ object WhiskTracerProvider {
 
           //register with OpenTracing
           GlobalTracer.register(BraveTracer.create(braveTracing))
+
+          sys.addShutdownHook({spanReporter.close()})
         }
       }
       case None =>
