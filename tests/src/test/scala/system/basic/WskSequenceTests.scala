@@ -56,17 +56,19 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
 
       wsk.action.create(seqCompName, Some(file))
 
-      assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
-        action.create(seqName, Some(seqCompName), kind = Some("sequence"))
-      }
-
-      wsk.action.delete(seqCompName)
+      retry({
+        assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
+          action.create(seqName, Some(seqCompName), kind = Some("sequence"))
+        }
+      })
 
       retry({
-        withActivation(wsk.activation, wsk.action.invoke(seqName)) { activation =>
-          activation.response.result shouldBe Some(JsObject("error" -> sequenceComponentNotFound.toJson))
-        }
-      }, 10)
+        wsk.action.delete(seqCompName)
+      })
+
+      withActivation(wsk.activation, wsk.action.invoke(seqName)) { activation =>
+        activation.response.result shouldBe Some(JsObject("error" -> sequenceComponentNotFound.toJson))
+      }
   }
 
   it should "invoke a sequence with normal payload and payload with error field" in withAssetCleaner(wskprops) {

@@ -277,7 +277,7 @@ protected[actions] trait SequenceActions {
         // since all throwables are recovered with a failed accounting instance and this is
         // in turned boxed to FailedSequenceActivation
         case FailedSequenceActivation(accounting) => Future.successful(accounting)
-        case e: NoDocumentException =>
+        case _: NoDocumentException =>
           Future.successful(
             initialAccounting.fail(ActivationResponse.applicationError(sequenceComponentNotFound), None))
       }
