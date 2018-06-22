@@ -222,7 +222,11 @@ object InvokerPool {
   val healthActionIdentity = {
     val whiskSystem = "whisk.system"
     val uuid = UUID()
-    Identity(Subject(whiskSystem), Namespace(EntityName(whiskSystem), uuid), AuthKey(uuid, Secret()), Set[Privilege]())
+    Identity(
+      Subject(whiskSystem),
+      Namespace(EntityName(whiskSystem), uuid),
+      BasicAuthenticationAuthKey(uuid, Secret()),
+      Set[Privilege]())
   }
 
   /** An action to use for monitoring invoker health. */

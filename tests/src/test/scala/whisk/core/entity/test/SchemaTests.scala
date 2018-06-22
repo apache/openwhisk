@@ -45,22 +45,6 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "AuthKey"
 
-  it should "accept well formed keys" in {
-    val uuid = UUID()
-    val secret = Secret()
-    Seq(s"$uuid:$secret", s" $uuid: $secret", s"$uuid:$secret ", s" $uuid : $secret ").foreach { i =>
-      val k = AuthKey(i)
-      assert(k.uuid == uuid)
-      assert(k.key == secret)
-    }
-  }
-
-  it should "reject malformed ids" in {
-    Seq("", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
-      an[IllegalArgumentException] should be thrownBy AuthKey(i)
-    }
-  }
-
   behavior of "Privilege"
 
   it should "serdes a right" in {

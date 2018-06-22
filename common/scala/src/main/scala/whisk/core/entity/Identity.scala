@@ -45,7 +45,7 @@ protected[core] object Namespace extends DefaultJsonProtocol {
 
 protected[core] case class Identity(subject: Subject,
                                     namespace: Namespace,
-                                    authkey: AuthKey,
+                                    authkey: GenericAuthKey,
                                     rights: Set[Privilege],
                                     limits: UserLimits = UserLimits())
 
@@ -86,7 +86,8 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
       })
   }
 
-  def get(datastore: AuthStore, authkey: AuthKey)(implicit transid: TransactionId): Future[Identity] = {
+  def get(datastore: AuthStore, authkey: BasicAuthenticationAuthKey)(
+    implicit transid: TransactionId): Future[Identity] = {
     implicit val logger: Logging = datastore.logging
     implicit val ec = datastore.executionContext
 
@@ -132,7 +133,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         Identity(
           subject,
           Namespace(EntityName(namespace), UUID(uuid)),
-          AuthKey(UUID(uuid), Secret(secret)),
+          BasicAuthenticationAuthKey(UUID(uuid), Secret(secret)),
           Privilege.ALL,
           limits)
       case _ =>

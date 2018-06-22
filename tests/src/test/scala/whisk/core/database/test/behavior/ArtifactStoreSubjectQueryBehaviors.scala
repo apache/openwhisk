@@ -35,8 +35,8 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
     val uuid2 = UUID()
-    val ak1 = AuthKey(uuid1, Secret())
-    val ak2 = AuthKey(uuid2, Secret())
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
     val ns1 = Namespace(aname(), uuid1)
     val ns2 = Namespace(aname(), uuid2)
     val subs =
@@ -57,7 +57,7 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
     val ns1 = Namespace(aname(), uuid1)
-    val ak1 = AuthKey()
+    val ak1 = BasicAuthenticationAuthKey()
     val auth = new ExtendedAuth(Subject(), Set(WhiskNamespace(ns1, ak1)), blocked = true)
     put(authStore, auth)
 
@@ -68,18 +68,20 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
     val uuid2 = UUID()
-    val ak1 = AuthKey(uuid1, Secret())
-    val ak2 = AuthKey(uuid2, Secret())
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
     val ns1 = Namespace(aname(), uuid1)
     val ns2 = Namespace(aname(), uuid2)
 
     val auth = WhiskAuth(
       Subject(),
-      Set(WhiskNamespace(ns1, AuthKey(ak1.uuid, ak2.key)), WhiskNamespace(ns2, AuthKey(ak2.uuid, ak1.key))))
+      Set(
+        WhiskNamespace(ns1, BasicAuthenticationAuthKey(ak1.uuid, ak2.key)),
+        WhiskNamespace(ns2, BasicAuthenticationAuthKey(ak2.uuid, ak1.key))))
 
     put(authStore, auth)
 
-    waitOnView(authStore, AuthKey(ak1.uuid, ak2.key), 1)
+    waitOnView(authStore, BasicAuthenticationAuthKey(ak1.uuid, ak2.key), 1)
     Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
@@ -87,8 +89,8 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
     val uuid2 = UUID()
-    val ak1 = AuthKey(uuid1, Secret())
-    val ak2 = AuthKey(uuid2, Secret())
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
     val name1 = Namespace(aname(), uuid1)
     val name2 = Namespace(aname(), uuid2)
     val subs = Array(
@@ -118,8 +120,8 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     val uuid1 = UUID()
     val uuid2 = UUID()
-    val ak1 = AuthKey(uuid1, Secret())
-    val ak2 = AuthKey(uuid2, Secret())
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
 
     //Create 3 limits entry where one has limits > 0 thus non blacklisted
     //And one blocked subject with 2 namespaces

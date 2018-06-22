@@ -15,23 +15,25 @@
  * limitations under the License.
  */
 
-package whisk.core.controller.test
+package whisk.core.entity
 
-import whisk.core.entity.EntityName
-import whisk.core.entity.BasicAuthenticationAuthKey
-import whisk.core.entity.WhiskNamespace
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
-import whisk.core.entitlement.Privilege
-import whisk.core.entity.Identity
-import whisk.core.entity.Namespace
+import akka.http.scaladsl.model.headers.HttpCredentials
+import spray.json._
 
-object WhiskAuthHelpers {
-  def newAuth(s: Subject = Subject(), k: BasicAuthenticationAuthKey = BasicAuthenticationAuthKey()) = {
-    WhiskAuth(s, Set(WhiskNamespace(Namespace(EntityName(s.asString), k.uuid), k)))
+/**
+ * Base class for Authentication
+ *
+ * provides methods to serialize variant forms of authkeys using a JsObject
+ */
+protected[core] class GenericAuthKey(val toEnvironment: JsObject) {
+  def getCredentials: Option[HttpCredentials] = None
+}
+
+protected[core] object GenericAuthKey {
+
+  protected[core] implicit val serdes: RootJsonFormat[GenericAuthKey] = new RootJsonFormat[GenericAuthKey] {
+    def write(k: GenericAuthKey) = k.toEnvironment
+    def read(value: JsValue) = new GenericAuthKey(value.asJsObject)
   }
 
-  def newIdentity(s: Subject = Subject(), k: BasicAuthenticationAuthKey = BasicAuthenticationAuthKey()) = {
-    Identity(s, Namespace(EntityName(s.asString), k.uuid), k, Privilege.ALL)
-  }
 }

@@ -39,8 +39,8 @@ object CacheKey extends DefaultJsonProtocol {
 
   def apply(key: Any): CacheKey = {
     key match {
-      case e: EntityName => CacheKey(e.asString, None)
-      case a: AuthKey    => CacheKey(a.uuid.asString, Some(a.key.asString))
+      case e: EntityName                 => CacheKey(e.asString, None)
+      case a: BasicAuthenticationAuthKey => CacheKey(a.uuid.asString, Some(a.key.asString))
       case d: DocInfo => {
         val revision = if (d.rev.empty) None else Some(d.rev.asString)
         CacheKey(d.id.asString, revision)

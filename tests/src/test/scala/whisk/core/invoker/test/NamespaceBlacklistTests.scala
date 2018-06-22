@@ -69,27 +69,27 @@ class NamespaceBlacklistTests
     Identity(
       Subject(),
       Namespace(EntityName("testnamespace1"), uuid1),
-      AuthKey(uuid1, Secret()),
+      BasicAuthenticationAuthKey(uuid1, Secret()),
       Set.empty,
       UserLimits(invocationsPerMinute = Some(0))),
     Identity(
       Subject(),
       Namespace(EntityName("testnamespace2"), uuid2),
-      AuthKey(uuid2, Secret()),
+      BasicAuthenticationAuthKey(uuid2, Secret()),
       Set.empty,
       UserLimits(concurrentInvocations = Some(0))),
     Identity(
       Subject(),
       Namespace(EntityName("testnamespace3"), uuid3),
-      AuthKey(uuid3, Secret()),
+      BasicAuthenticationAuthKey(uuid3, Secret()),
       Set.empty,
       UserLimits(invocationsPerMinute = Some(1), concurrentInvocations = Some(1))))
 
   /* Subject document needed for the second test */
   val uuid4 = UUID()
   val uuid5 = UUID()
-  val ak4 = AuthKey(uuid4, Secret())
-  val ak5 = AuthKey(uuid5, Secret())
+  val ak4 = BasicAuthenticationAuthKey(uuid4, Secret())
+  val ak5 = BasicAuthenticationAuthKey(uuid5, Secret())
   val ns4 = Namespace(EntityName("different1"), uuid4)
   val ns5 = Namespace(EntityName("different2"), uuid5)
   val subject = WhiskAuth(Subject(), Set(WhiskNamespace(ns4, ak4), WhiskNamespace(ns5, ak5)))

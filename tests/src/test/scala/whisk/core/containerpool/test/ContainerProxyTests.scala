@@ -85,7 +85,7 @@ class ContainerProxyTests
     messageTransId,
     action.fullyQualifiedName(true),
     action.rev,
-    Identity(Subject(), Namespace(invocationNamespace, uuid), AuthKey(uuid, Secret()), Set()),
+    Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set()),
     ActivationId.generate(),
     ControllerInstanceId("0"),
     blocking = false,
@@ -765,6 +765,9 @@ class ContainerProxyTests
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
+      message.user.authkey.toEnvironment.fields.keySet
+        .filter(environment.fields.contains(_))
+        .size shouldBe message.user.authkey.toEnvironment.fields.size
       val deadline = Instant.ofEpochMilli(environment.fields("deadline").convertTo[String].toLong)
       val maxDeadline = Instant.now.plusMillis(timeout.toMillis)
 

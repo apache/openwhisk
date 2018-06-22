@@ -387,13 +387,17 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       .map(pkg => Path / pkg.namespace / rule.action.name.asString)
       .getOrElse(Path / rule.action.name.asString)
 
-    val request = HttpRequest(
-      method = POST,
-      uri = url.withPath(actionUrl ++ actionPath),
-      headers = List(Authorization(user.authkey.getCredentials), transid.toHeader),
-      entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
+    user.authkey.getCredentials
+      .map { creds =>
+        val request = HttpRequest(
+          method = POST,
+          uri = url.withPath(actionUrl ++ actionPath),
+          headers = List(Authorization(creds), transid.toHeader),
+          entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
-    singleRequest(request)
+        singleRequest(request)
+      }
+      .getOrElse(Future.failed(new RuntimeException("invalid credentials passed")))
   }
 
   /** Contains the result of invoking a rule */

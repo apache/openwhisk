@@ -53,7 +53,8 @@ class ElasticSearchLogStoreTests
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val uuid = UUID()
-  private val user = Identity(Subject(), Namespace(EntityName("testSpace"), uuid), AuthKey(uuid, Secret()), Set())
+  private val user =
+    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set())
   private val activationId = ActivationId.generate()
 
   private val defaultLogSchema =
