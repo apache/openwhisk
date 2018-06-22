@@ -35,6 +35,7 @@ import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 import whisk.http.Messages.{sequenceComponentNotFound, sequenceIsTooLong}
 import whisk.utils.retry
+
 /**
  * Tests sequence execution
  */
@@ -52,9 +53,8 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
     (wp, assetHelper) =>
       val seqCompName = "seqComp"
       val seqName = "seq"
-      val file = TestUtils.getTestActionFilename("echo.js")
 
-      wsk.action.create(seqCompName, Some(file))
+      wsk.action.create(seqCompName, Some(TestUtils.getTestActionFilename("echo.js")))
 
       retry({
         assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
