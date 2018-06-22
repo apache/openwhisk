@@ -62,10 +62,10 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
           .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
 
       case _ =>
-        spanList.head.get
+        spanList.headOption
+          .flatMap(_.get)
           .map(spanBuilder.asChildOf(_).startActive(true).span())
           .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
-
     }
     //add active span to list
     TracingCacheProvider.spanMap.put(transactionId.meta.id, spanList.::(new WeakReference(activeSpan)))
@@ -96,20 +96,15 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    * @return
    */
   override def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
-    TracingCacheProvider.spanMap.get(transactionId.meta.id) match {
-      case Some(spanList) => {
-        val map: mutable.Map[String, String] = mutable.HashMap()
-        //inject latest span context in map
-        spanList.head.get match {
-          case Some(span) => {
-            tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map.asJava))
-            Some(map.toMap)
-          }
-          case _ => None
-        }
+    TracingCacheProvider.spanMap
+      .get(transactionId.meta.id)
+      .flatMap(_.headOption)
+      .flatMap(_.get)
+      .map { span =>
+        val map = mutable.Map.empty[String, String]
+        tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map.asJava))
+        map.toMap
       }
-      case None => None
-    }
   }
 
   /**
@@ -119,12 +114,9 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    * @return
    */
   override def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]) = {
-    context match {
-      case Some(scalaMap) => {
-        val ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(scalaMap.asJava))
-        TracingCacheProvider.contextMap.put(transactionId.meta.id, ctx)
-      }
-      case None =>
+    context.foreach { scalaMap =>
+      val ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(scalaMap.asJava))
+      TracingCacheProvider.contextMap.put(transactionId.meta.id, ctx)
     }
   }
 
@@ -175,7 +167,7 @@ object WhiskTracerProvider {
           //register with OpenTracing
           GlobalTracer.register(BraveTracer.create(braveTracing))
 
-          sys.addShutdownHook({spanReporter.close()})
+          sys.addShutdownHook({ spanReporter.close() })
         }
       }
       case None =>
