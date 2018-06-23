@@ -249,6 +249,7 @@ docker:
   pull:
     retries: 10
     delay: 10
+  tz_path: "{% if ansible_system == 'Darwin' %}/tmp/localtime{% else %}/etc/localtime{% endif %}"
 
 sdk:
   dir:

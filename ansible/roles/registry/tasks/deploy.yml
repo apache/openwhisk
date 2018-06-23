@@ -26,6 +26,14 @@
     dest: "{{ registry.confdir }}/certs"
   when: registry.gencert
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: (re)start registry with ssl enabled
   docker_container:
     name: whisk_docker_registry
@@ -40,6 +48,7 @@
       - "{{ registry.port }}:5000"
     volumes:
       - "{{ registry.confdir }}/certs:/certs"
+      - "{{ docker.tz_path }}:/etc/localtime"
   when: registry.gencert
 
 - name: (re)start registry with insecure ssl
@@ -51,6 +60,8 @@
     hostname: registry
     ports:
       - "{{ registry.port }}:5000"
+    volumes:
+      - "{{ docker.tz_path }}:/etc/localtime"
   when: not registry.gencert
 
 - name: wait until registry in this host is up and running

@@ -244,6 +244,14 @@
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
@@ -257,6 +265,7 @@
     volumes:
       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+      - "{{ docker.tz_path }}:/etc/localtime"
     ports: "{{ ports_to_expose }}"
     command:
       /bin/sh -c

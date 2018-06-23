@@ -8,6 +8,14 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: (re)start redis
   docker_container:
     name: redis
@@ -17,6 +25,8 @@
     restart_policy: "{{ docker.restart.policy }}"
     ports:
       - "{{ redis.port }}:6379"
+    volumes:
+      - "{{ docker.tz_path }}:/etc/localtime"
 
 - name: wait until redis is up and running
   action: shell (echo PING; sleep 1) | nc {{ ansible_host }} {{ redis.port }}

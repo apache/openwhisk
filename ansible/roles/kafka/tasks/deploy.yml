@@ -67,6 +67,14 @@
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: "(re)start kafka using '{{ kafka_image }}' "
   vars:
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
@@ -83,6 +91,7 @@
       - "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
+      - "{{ docker.tz_path }}:/etc/localtime"
     pull: true
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"

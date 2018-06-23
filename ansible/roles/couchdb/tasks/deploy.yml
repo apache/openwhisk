@@ -23,6 +23,14 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: (block_device is defined) and (block_device in disk_status.stdout)
 
+- name: copy the /etc/localtime to {{ docker.tz_path }}
+  copy:
+    src: /etc/localtime
+    dest: "{{ docker.tz_path }}"
+    remote_src: yes
+    force: no
+  when: ansible_system == 'Darwin'
+
 - name: "(re)start CouchDB from '{{ couchdb_image }} ' "
   vars:
     couchdb_image: "{{ couchdb.docker_image | default('apache/couchdb:' ~ couchdb.version ) }}"
@@ -32,7 +40,7 @@
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    volumes: "{{volume_dir | default([])}}"
+    volumes: "{{volume_dir | default([])}} + [ '{{ docker.tz_path }}:/etc/localtime' ]"
     ports:
       - "{{ db_port }}:5984"
       - "4369:4369"
