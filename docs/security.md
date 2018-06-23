@@ -28,8 +28,8 @@ There are several considerations to be mindful of when authoring actions:
 
 - **Sanitize Function Arguments:** Every invocation of the action receives input arguments which may be from untrusted sources.
 - **Check Dependencies for Vulnerabilities:** When bundling third party dependencies, you should be aware of any vulnerabilities you inherit.
-- **Authenticate Requests:** When using [webactions](webactions.md#securing-web-actions), you can enable built-in authentication to reject unwanted requests.
-- **Seal Parameters:** Parameters with pre-defined values may be sealed when used with [webactions](webactions.md#protected-parameters) to prevent parameter hijacking.
+- **Authenticate Requests:** When using [web actions](webactions.md#securing-web-actions), you can enable built-in authentication to reject unwanted requests.
+- **Seal Parameters:** Parameters with pre-defined values may be sealed when used with [web actions](webactions.md#protected-parameters) to prevent parameter hijacking.
 
 Actions which are vulnerable to code injection attacks or parameter hijacking could end up leaking bound
 action parameters, or worse persisting malicious code within the sandbox for the lifetime of the function
