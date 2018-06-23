@@ -372,7 +372,7 @@ $ wsk update create /guest/demo/hello hello.js --web false
 ### Decoding binary body content from Base64
 
 When using raw HTTP handling, the `__ow_body` content will be encoded in Base64 when the request content-type is binary.
-Below are functions demonstrating how to decode the body content in Node, Python, and Swift. Simply save a method shown
+Below are functions demonstrating how to decode the body content in Node, Python, Swift and PHP. Simply save a method shown
 below to file, create a raw HTTP web action utilizing the saved artifact, and invoke the web action.
 
 #### Node
