@@ -51,14 +51,18 @@ import scala.util.{Failure, Success}
  *
  * The loadbalancer schedules workload based on a hashing-algorithm. At first, for every namespace + action pair a hash
  * is calculated and then bounded to the number of invokers available. The determined index is the so called "home
- * invoker". This is the invoker where the following progression will **always** start. If this invoker is healthy and
- * if there is capacity on that invoker, the request is scheduled to it. If one of these prerequisites is not true,
- * the index is incremented by a step-size. The step-sizes available are the all coprime numbers smaller than the amount
- * of invokers available (coprime, to minimize collisions while progressing through the invokers). The step-size is
- * picked by the same hash calculated above, bounded to the number of step-sizes available. The home-invoker-index is
- * now incremented by the step-size and the checks (healthy + capacity) are done on the invoker we land on now. This
- * procedure is repeated until all invokers have been checked at which point the "overload" strategy will be employed,
- * which is to choose a healthy invoker randomly.
+ * invoker". This is the invoker where the following progression will **always** start. If this invoker is healthy (see
+ * "Invoker health checking") and if there is capacity on that invoker (see "Capacity checking"), the request is
+ * scheduled to it. If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes
+ * available are the all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions
+ * while progressing through the invokers). The step-size is picked by the same hash calculated above, bounded to the
+ * number of step-sizes available. The home-invoker-index is now incremented by the step-size and the checks
+ * (healthy + capacity) are done on the invoker we land on now.
+ * This procedure is repeated until all invokers have been checked at which point the "overload" strategy will be
+ * employed, which is to choose a healthy invoker randomly. In a steadily running system, that overload means that there
+ * is no capacity on any invoker left to schedule the current request to.
+ * If no invokers are available or if there are no healthy invokers in the system, the loadbalancer will return an error
+ * stating that no invokers are available to take any work. Requests are not queued anywhere in this case.
  *
  * An example:
  * - availableInvokers: 10 (all healthy)
@@ -70,7 +74,7 @@ import scala.util.{Failure, Success}
  * Progression to check the invokers: 3, 6, 9, 2, 5, 8, 1, 4, 7, 0 --> done
  *
  * This heuristic is based on the assumption, that the chance to get a warm container is the best on the home invoker
- * and degrades the more hops you make. The hashing makes sure that all loadbalancers in a cluster will always pick the
+ * and degrades the more steps you make. The hashing makes sure that all loadbalancers in a cluster will always pick the
  * same home invoker and do the same progression for a given action.
  *
  * Known caveats:
@@ -92,7 +96,7 @@ import scala.util.{Failure, Success}
  * - The same is true if an invoker gets slow due to whatever reason (docker getting slow, machine overloaded). The
  *   queue on this invoker will slowly rise if it gets slow to the point of still sending pings, but handling the load
  *   so slowly, that the active-acks time out. The loadbalancer again will think there is capacity, when there is none.
- *   Both caveats could be solved in future work by no queueing to invoker topics on overload, but to queue on a
+ *   Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
  *   centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
  *   following.
  *
@@ -107,7 +111,7 @@ import scala.util.{Failure, Success}
  *
  * ## Horizontal sharding
  *
- * Sharding is employed to avoid both loadbalancers to have to share any data, because the metrics used in scheduling
+ * Sharding is employed to avoid both loadbalancers having to share any data, because the metrics used in scheduling
  * are very fast changing.
  *
  * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
