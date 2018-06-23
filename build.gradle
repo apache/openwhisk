@@ -21,7 +21,7 @@ buildscript {
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-        classpath 'org.scoverage:gradle-scoverage:2.1.0'
+        classpath 'org.scoverage:gradle-scoverage:2.3.0'
     }
 }
 
