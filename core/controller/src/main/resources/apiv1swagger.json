@@ -1499,6 +1499,8 @@
                         "nodejs:8",
                         "python:2",
                         "python:3",
+                        "php:7.1",
+                        "php:7.2",
                         "swift:3.1.1",
                         "java",
                         "blackbox"
