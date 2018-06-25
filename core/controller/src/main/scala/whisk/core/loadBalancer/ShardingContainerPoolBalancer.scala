@@ -49,27 +49,30 @@ import scala.util.{Failure, Success}
  *
  * ## Algorithm
  *
- * The loadbalancer schedules workload based on a hashing-algorithm. At first, for every namespace + action pair a hash
- * is calculated and then bounded to the number of invokers available. The determined index is the so called "home
- * invoker". This is the invoker where the following progression will **always** start. If this invoker is healthy (see
- * "Invoker health checking") and if there is capacity on that invoker (see "Capacity checking"), the request is
- * scheduled to it. If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes
- * available are the all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions
- * while progressing through the invokers). The step-size is picked by the same hash calculated above, bounded to the
- * number of step-sizes available. The home-invoker-index is now incremented by the step-size and the checks
- * (healthy + capacity) are done on the invoker we land on now.
+ * At first, for every namespace + action pair a hash is calculated and then an invoker is picked based on that hash
+ * (`hash % numInvokers`). The determined index is the so called "home-invoker". This is the invoker where the following
+ * progression will **always** start. If this invoker is healthy (see "Invoker health checking") and if there is
+ * capacity on that invoker (see "Capacity checking"), the request is scheduled to it.
+ *
+ * If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes available are the
+ * all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions while progressing
+ * through the invokers). The step-size is picked by the same hash calculated above (`hash & numStepSizes`). The
+ * home-invoker-index is now incremented by the step-size and the checks (healthy + capacity) are done on the invoker
+ * we land on now.
+ *
  * This procedure is repeated until all invokers have been checked at which point the "overload" strategy will be
  * employed, which is to choose a healthy invoker randomly. In a steadily running system, that overload means that there
  * is no capacity on any invoker left to schedule the current request to.
+ *
  * If no invokers are available or if there are no healthy invokers in the system, the loadbalancer will return an error
  * stating that no invokers are available to take any work. Requests are not queued anywhere in this case.
  *
  * An example:
  * - availableInvokers: 10 (all healthy)
- * - stepSizes: 1, 3, 7 (note how 2 and 5 is not part of this because it's not coprime to 10)
  * - hash: 13
- * - homeInvoker: 13 % 10 = 3
- * - stepSizeIndex: 13 % 3 = 1 => stepSize = 3
+ * - homeInvoker: hash % availableInvokers = 13 % 10 = 3
+ * - stepSizes: 1, 3, 7 (note how 2 and 5 is not part of this because it's not coprime to 10)
+ * - stepSizeIndex: hash % numStepSizes = 13 % 3 = 1 => stepSize = 3
  *
  * Progression to check the invokers: 3, 6, 9, 2, 5, 8, 1, 4, 7, 0 --> done
  *
@@ -93,12 +96,13 @@ import scala.util.{Failure, Success}
  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
  *   unpredictable. Timing out active-acks in that case can cause the loadbalancer to prematurely assign new load to an
  *   overloaded invoker, which can cause uneven queues.
- * - The same is true if an invoker gets slow due to whatever reason (docker getting slow, machine overloaded). The
- *   queue on this invoker will slowly rise if it gets slow to the point of still sending pings, but handling the load
- *   so slowly, that the active-acks time out. The loadbalancer again will think there is capacity, when there is none.
- *   Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
- *   centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
- *   following.
+ * - The same is true if an invoker is extraordinarily slow in processing activations. The queue on this invoker will
+ *   slowly rise if it gets slow to the point of still sending pings, but handling the load so slowly, that the
+ *   active-acks time out. The loadbalancer again will think there is capacity, when there is none.
+ *
+ * Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
+ * centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
+ * following.
  *
  * ## Invoker health checking
  *
