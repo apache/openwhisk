@@ -222,6 +222,7 @@ object Controller {
       "completed" + instance -> "completed",
       "health" -> "health",
       "cacheInvalidation" -> "cache-invalidation",
+      "overflow" -> "overflow",
       "events" -> "events").foreach {
       case (topic, topicConfigurationKey) =>
         if (msgProvider.ensureTopic(config, topic, topicConfigurationKey).isFailure) {
