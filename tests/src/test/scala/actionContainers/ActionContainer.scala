@@ -117,7 +117,7 @@ object ActionContainer {
         .orElse(sys.env.get("DOCKER_HOST"))
         .orElse {
           // Check if we are running on docker-machine env.
-          Option(WhiskProperties.getProperty("whisk.version.name")).filter(_.toLowerCase.contains("mac")).map {
+          Option(WhiskProperties.getProperty("environment.type")).filter(_.toLowerCase.contains("docker-machine")).map {
             case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
           }
         }

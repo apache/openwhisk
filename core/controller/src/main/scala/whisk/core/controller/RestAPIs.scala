@@ -17,37 +17,29 @@
 
 package whisk.core.controller
 
-import scala.concurrent.ExecutionContext
-
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import akka.actor.ActorSystem
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.ActorMaterializer
-
-import spray.json._
+import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
-import whisk.core.database.CacheChangeNotification
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.whiskVersionBuildno
-import whisk.core.WhiskConfig.whiskVersionDate
-import whisk.common.Logging
-import whisk.common.TransactionId
+import spray.json._
+import whisk.common.{Logging, TransactionId}
 import whisk.core.containerpool.logging.LogStore
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
-import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.entity.WhiskAuthStore
+import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.http.Messages
+
+import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success, Try}
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -86,14 +78,12 @@ protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit
 protected[controller] object RestApiCommons {
   def requiredProperties =
     Map(WhiskConfig.servicePort -> 8080.toString) ++
-      WhiskConfig.whiskVersion ++
       EntitlementProvider.requiredProperties ++
       WhiskActionsApi.requiredProperties
 
   import akka.http.scaladsl.model.HttpCharsets
   import akka.http.scaladsl.model.MediaTypes.`application/json`
-  import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
-  import akka.http.scaladsl.unmarshalling.Unmarshaller
+  import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
 
   /**
    * Extract an empty entity into a JSON object. This is useful for the
@@ -162,6 +152,8 @@ protected[controller] trait RespondWithHeaders extends Directives {
   val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
 }
 
+case class WhiskInformation(buildNo: String, date: String)
+
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   implicit val activeAckTopicIndex: InstanceId,
   implicit val actorSystem: ActorSystem,
@@ -181,6 +173,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     with RespondWithHeaders {
   implicit val executionContext = actorSystem.dispatcher
   implicit val authStore = WhiskAuthStore.datastore()
+  val whiskInfo = loadConfigOrThrow[WhiskInformation](ConfigKeys.buildInformation)
 
   def prefix = pathPrefix(apiPath / apiVersion)
 
@@ -193,8 +186,8 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         "description" -> "OpenWhisk API".toJson,
         "api_version" -> SemVer(1, 0, 0).toJson,
         "api_version_path" -> apiVersion.toJson,
-        "build" -> whiskConfig(whiskVersionDate).toJson,
-        "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
+        "build" -> whiskInfo.date.toJson,
+        "buildno" -> whiskInfo.buildNo.toJson,
         "swagger_paths" -> JsObject("ui" -> s"/$swaggeruipath".toJson, "api-docs" -> s"/$swaggerdocpath".toJson)))
   }
 

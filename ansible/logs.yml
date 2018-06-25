@@ -44,7 +44,7 @@
   - name: set host flag when using docker remote API
     set_fact:
       docker_host_flag: "--host tcp://{{ ansible_host }}:{{ docker.port }}"
-    when: whisk_version_name != "local"
+    when: environmentInformation.type != "local"
   - name: get all docker containers
     local_action: shell docker {{ docker_host_flag }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
     register: container_names

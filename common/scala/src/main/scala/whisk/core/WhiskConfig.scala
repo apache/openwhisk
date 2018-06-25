@@ -154,10 +154,6 @@ object WhiskConfig {
   // in the invoker (they are part of the environment
   // passed to the user container)
   val edgeHostName = "edge.host"
-  val whiskVersionDate = "whisk.version.date"
-  val whiskVersionBuildno = "whisk.version.buildno"
-
-  val whiskVersion = Map(whiskVersionDate -> null, whiskVersionBuildno -> null)
 
   val invokerName = "invoker.name"
 
@@ -201,6 +197,7 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  val buildInformation = "whisk.info"
 
   val couchdb = "whisk.couchdb"
   val kafka = "whisk.kafka"
