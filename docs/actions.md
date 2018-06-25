@@ -19,23 +19,22 @@
 
 # Creating and invoking OpenWhisk actions
 
+Actions are stateless functions that run on the OpenWhisk platform. For example, an action can
+be used to detect the faces in an image, respond to a database change, respond to an API call,
+or post a Tweet. In general, an action is invoked in response to an event and produces some
+observable output.
 
-Actions are stateless code snippets that run on the OpenWhisk platform.
-For example, an action can be used to detect the faces in an image, respond to a database change,
-aggregate a set of API calls, or post a Tweet.
-An action can be written as a JavaScript, Swift, Python or PHP function, a Java method,
-any binary-compatible executable including Go programs and custom executables packaged as Docker containers.
+An action may be created from a function programmed using a number of supported languages, or
+from a binary-compatible executable, or even executables packaged as Docker containers.
 
-Actions can be explicitly invoked, or run in response to an event.
-In either case, each run of an action results in an activation record that is identified by a unique activation ID.
-The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value.
-Actions can also be composed of calls to other actions or a defined sequence of actions.
+_Prerequisite:_ The OpenWhisk CLI [`wsk`](https://github.com/apache/incubator-openwhisk-cli/releases)
+makes it easy to create and invoke actions. Instructions for configuring the CLI are available [here](???).
 
-## Prerequisites
-
-You will need to use OpenWhisk CLI. Read how to use it when running OpenWhisk from a VM [here](https://github.com/apache/incubator-openwhisk/blob/master/tools/vagrant/README.md#using-cli-from-outside-the-vm). Or download binaries for your platform [here](https://github.com/apache/incubator-openwhisk-cli/releases). You can also download the CLI directly from your local installation at the _https://<IP_ADDRESS>/cli/go/download/_ path.
-
-Learn how to create, invoke, and debug actions in your preferred development environment:
+Click on the language of your choice below to learn how to create and invoke an action using OpenWhisk for
+that language. If your preferred language isn't supported directly, you may find the
+[native binary](#creating-native-actions) or [Docker](#creating-docker-actions) action path more suitable.
+Multiple actions may be composed together to create a longer processing pipeline called a
+[sequence](#creating-action-sequences).
 
 * [JavaScript](#creating-and-invoking-javascript-actions)
 * [Swift](#creating-swift-actions)
@@ -46,13 +45,18 @@ Learn how to create, invoke, and debug actions in your preferred development env
 * [Go](#creating-go-actions)
 * [Native binaries](#creating-native-actions)
 
-In addition, learn about:
+Each invocation of an action results in an activation record that is identified by a unique
+activation ID. The input to an action and the result of an action are a dictionary of key-value
+pairs, where the key is a string and the value a valid JSON value.
+
+In addition, we recommend that you review the following topics:
 
 * [Watching action output](#watching-action-output)
 * [Getting actions](#getting-actions)
 * [Listing actions](#listing-actions)
 * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
+* [Securing your action](./security.md)
 
 ## Creating and invoking JavaScript actions
 
