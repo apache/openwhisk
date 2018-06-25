@@ -95,17 +95,17 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
   it should "not log key during validation" in {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
-    val pass = creds.authkey.getCredentials.asInstanceOf[BasicHttpCredentials]
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
+    val user = Await.result(validateCredentials(pass), dbOpTimeout)
     user should be(None)
-    stream.toString should not include pass.password
+    stream.toString should not include pass.get.password
   }
 
   it should "not authorize an unknown user" in {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
-    val pass = creds.authkey.getCredentials.asInstanceOf[BasicHttpCredentials]
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
+    val user = Await.result(validateCredentials(pass), dbOpTimeout)
     user should be(None)
   }
 

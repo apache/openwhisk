@@ -38,6 +38,26 @@ protected[core] case class BasicAuthenticationAuthKey(uuid: UUID, key: Secret)
 protected[core] object BasicAuthenticationAuthKey {
 
   /**
+   * Creates AuthKey from a string where the uuid and key are separated by a colon.
+   * If the string contains more than one colon, all values are ignored except for
+   * the first two hence "k:v*" produces ("k","v").
+   *
+   * @param str the string containing uuid and key separated by colon
+   * @return AuthKey if argument is properly formatted
+   * @throws IllegalArgumentException if argument is not well formed
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(str: String): BasicAuthenticationAuthKey = {
+    val (uuid, secret) = str.split(':').toList match {
+      case k :: v :: _ => (k, v)
+      case k :: Nil    => (k, "")
+      case Nil         => ("", "")
+    }
+
+    new BasicAuthenticationAuthKey(UUID(uuid.trim), Secret(secret.trim))
+  }
+
+  /**
    * Creates an auth key for a randomly generated UUID with a randomly generated secret.
    */
   protected[core] def apply(): BasicAuthenticationAuthKey = new BasicAuthenticationAuthKey(UUID(), Secret())

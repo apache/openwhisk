@@ -397,7 +397,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
         singleRequest(request)
       }
-      .getOrElse(Future.failed(new RuntimeException("invalid credentials passed")))
+      .getOrElse(Future.failed(new NoCredentialsAvailable()))
   }
 
   /** Contains the result of invoking a rule */
@@ -423,5 +423,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "skip" for "list" operations. */
   private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
+  private case class NoCredentialsAvailable() extends IllegalArgumentException
 
 }

@@ -22,7 +22,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.common.TransactionId
 import whisk.core.cli.{CommandMessages, Conf, WhiskAdmin}
-import whisk.core.entity.{AuthKey, DocId, DocInfo, EntityName, Identity, Namespace, Subject, WhiskAuth, WhiskNamespace}
+import whisk.core.entity._
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
@@ -56,7 +56,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   it should "create a user" in {
     val subject = newSubject()
-    val key = AuthKey()
+    val key = BasicAuthenticationAuthKey()
     val conf = new Conf(Seq("user", "create", "--auth", key.compact, subject))
     val admin = WhiskAdmin(conf)
     admin.executeCommand().futureValue.right.get shouldBe key.compact
@@ -70,13 +70,13 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   it should "add namespace to existing user" in {
     val subject = newSubject()
-    val key = AuthKey()
+    val key = BasicAuthenticationAuthKey()
 
     //Create user
     WhiskAdmin(new Conf(Seq("user", "create", "--auth", key.compact, subject))).executeCommand().futureValue
 
     //Add new namespace
-    val key2 = AuthKey()
+    val key2 = BasicAuthenticationAuthKey()
     resultOk("user", "create", "--auth", key2.compact, "--namespace", "foo", subject) shouldBe key2.compact
 
     //Adding same namespace should fail
@@ -91,7 +91,8 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   it should "not add namespace to a blocked user" in {
     val subject = newSubject()
     val ns = randomString()
-    val blockedAuth = new ExtendedAuth(Subject(subject), Set(newNS(EntityName(ns), AuthKey())), Some(true))
+    val blockedAuth =
+      new ExtendedAuth(Subject(subject), Set(newNS(EntityName(ns), BasicAuthenticationAuthKey())), Some(true))
     val authStore2 = UserCommand.createDataStore()
 
     implicit val tid = transid()
@@ -110,7 +111,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   it should "delete existing user" in {
     val subject = newSubject()
-    val key = AuthKey()
+    val key = BasicAuthenticationAuthKey()
 
     //Create user
     WhiskAdmin(new Conf(Seq("user", "create", "--auth", key.compact, subject))).executeCommand().futureValue
@@ -157,7 +158,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
     val ns1 = newNS()
     val ns2 = newNS()
-    val ns3 = newNS(EntityName(subject), AuthKey())
+    val ns3 = newNS(EntityName(subject), BasicAuthenticationAuthKey())
 
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns2, ns3))
     put(authStore, auth)
@@ -181,7 +182,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   behavior of "whois"
 
   it should "not get subject for missing subject" in {
-    resultNotOk("user", "whois", AuthKey().compact) shouldBe CommandMessages.subjectMissing
+    resultNotOk("user", "whois", BasicAuthenticationAuthKey().compact) shouldBe CommandMessages.subjectMissing
   }
 
   it should "get key for existing user" in {
@@ -189,7 +190,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val subject = newSubject()
 
     val ns1 = newNS()
-    val ns3 = newNS(EntityName(subject), AuthKey())
+    val ns3 = newNS(EntityName(subject), BasicAuthenticationAuthKey())
 
     val auth = WhiskAuth(Subject(subject), Set(ns1, ns3))
     put(authStore, auth)
@@ -205,7 +206,7 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
   it should "list keys associated with given namespace" in {
     implicit val tid = transid()
     def newWhiskAuth(ns: String*) =
-      WhiskAuth(Subject(newSubject()), ns.map(n => newNS(EntityName(n), AuthKey())).toSet)
+      WhiskAuth(Subject(newSubject()), ns.map(n => newNS(EntityName(n), BasicAuthenticationAuthKey())).toSet)
 
     def key(a: WhiskAuth, ns: String) = a.namespaces.find(_.namespace.name.asString == ns).map(_.authkey).get
 
@@ -279,9 +280,10 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     super.cleanup()
   }
 
-  private def newNS(): WhiskNamespace = newNS(EntityName(randomString()), AuthKey())
+  private def newNS(): WhiskNamespace = newNS(EntityName(randomString()), BasicAuthenticationAuthKey())
 
-  private def newNS(name: EntityName, authKey: AuthKey) = WhiskNamespace(Namespace(name, authKey.uuid), authKey)
+  private def newNS(name: EntityName, authKey: BasicAuthenticationAuthKey) =
+    WhiskNamespace(Namespace(name, authKey.uuid), authKey)
 
   private def newSubject(): String = {
     val subject = randomString()

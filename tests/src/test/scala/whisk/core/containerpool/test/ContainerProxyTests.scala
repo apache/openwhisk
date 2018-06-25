@@ -761,13 +761,11 @@ class ContainerProxyTests
     override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
       runCount += 1
-      environment.fields("api_key") shouldBe message.user.authkey.toEnvironment.fields("api_key")
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
-      message.user.authkey.toEnvironment.fields.keySet
-        .filter(environment.fields.contains(_))
-        .size shouldBe message.user.authkey.toEnvironment.fields.size
+      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
+      message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
       val deadline = Instant.ofEpochMilli(environment.fields("deadline").convertTo[String].toLong)
       val maxDeadline = Instant.now.plusMillis(timeout.toMillis)
 
