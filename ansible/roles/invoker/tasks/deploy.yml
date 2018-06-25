@@ -6,10 +6,10 @@
 - import_tasks: docker_login.yml
 
 - name: "pull invoker image with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{item}}:{{docker.image.tag}}"
-  with_items:
-    - '{{ docker.image.prefix }}/invoker'
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/invoker:{{docker.image.tag}}"
   when: docker_registry != ""
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -22,8 +22,10 @@
 #
 - name: "pull runtime action images per manifest"
   shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
-  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
+  loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
   when: skip_pull_runtimes is not defined or skip_pull_runtimes != True
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -32,9 +34,10 @@
 #
 - name: "pull blackboxes action images per manifest"
   shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
-  with_items:
-    - "{{ runtimesManifest.blackboxes }}"
+  loop: "{{ runtimesManifest.blackboxes }}"
   when: skip_pull_runtimes is not defined or skip_pull_runtimes != True
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 

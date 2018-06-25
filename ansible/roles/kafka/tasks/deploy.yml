@@ -84,8 +84,6 @@
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
     pull: true
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
 
 - name: wait until the kafka server started up
   shell:

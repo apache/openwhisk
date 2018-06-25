@@ -42,8 +42,6 @@
       COUCHDB_PASSWORD: "{{ db_password }}"
       NODENAME: "{{ ansible_host }}"
     pull: "{{ couchdb.pull_couchdb | default(true) }}"
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
 
 - name: wait until CouchDB in this host is up and running
   uri:
