@@ -88,9 +88,13 @@ import scala.util.{Failure, Success}
  *
  * ## Capacity checking
  *
- * Capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry is
- * made to update the books and a slot in a Semaphore is taken. That Semaphore is only released after the response from
- * the invoker (active-ack) arrives **or** after the active-ack times out.
+ * The maximum capacity per invoker is configured using `invoker-busy-threshold`, which is the maximum amount of actions
+ * running in parallel on that invoker.
+ *
+ * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
+ * is made to update the books and a slot in a Semaphore is taken. That slot is only released after the response from
+ * the invoker (active-ack) arrives **or** after the active-ack times out. The Semaphore has as many slots as are
+ * configured via `invoker-busy-threshold`.
  *
  * Known caveats:
  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
@@ -119,7 +123,8 @@ import scala.util.{Failure, Success}
  * are very fast changing.
  *
  * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
- * has at most 16 slots available, those will be divided to 8 slots for each loadbalancer (if there are 2).
+ * has at most 16 slots available (invoker-busy-threshold = 16), those will be divided to 8 slots for each loadbalancer
+ * (if there are 2).
  *
  * Known caveats:
  * - If a loadbalancer leaves or joins the cluster, all state is removed and created from scratch. Those events should
