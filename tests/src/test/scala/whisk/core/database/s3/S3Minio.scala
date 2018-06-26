@@ -17,16 +17,16 @@
 
 package whisk.core.database.s3
 
-import java.io.File
 import java.net.ServerSocket
 
+import actionContainers.ActionContainer
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.typesafe.config.ConfigFactory
-import common.{SimpleExec, StreamLogging, WhiskProperties}
+import common.{SimpleExec, StreamLogging}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import whisk.common.{Logging, TransactionId}
 import whisk.core.database.{AttachmentStore, DocumentSerializer}
@@ -96,31 +96,11 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
 
   private def dockerExec(cmd: String): String = {
     implicit val tid: TransactionId = TransactionId.testing
-    val command = s"$dockerCmd $cmd"
+    val command = s"${ActionContainer.dockerCmd} $cmd"
     val cmdSeq = command.split(" ").map(_.trim).filter(_.nonEmpty)
     val (out, err, code) = SimpleExec.syncRunCmd(cmdSeq)
     assert(code == 0, s"Error occurred for command '$command'. Exit code: $code, Error: $err")
     out
-  }
-
-  //Taken from ActionContainer
-  private lazy val dockerBin: String = {
-    List("/usr/bin/docker", "/usr/local/bin/docker")
-      .find { bin =>
-        new File(bin).isFile
-      }
-      .getOrElse(???) // This fails if the docker binary couldn't be located.
-  }
-
-  private lazy val dockerCmd: String = {
-    val version = WhiskProperties.getProperty("whisk.version.name")
-    // Check if we are running on docker-machine env.
-    val hostStr = if (version.toLowerCase().contains("mac")) {
-      s" --host tcp://${WhiskProperties.getMainDockerEndpoint} "
-    } else {
-      ""
-    }
-    s"$dockerBin $hostStr"
   }
 
   private def freePort(): Int = {

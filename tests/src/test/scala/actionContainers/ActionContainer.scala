@@ -91,7 +91,7 @@ object ActionContainer {
     }.get // This fails if the docker binary couldn't be located.
   }
 
-  private lazy val dockerCmd: String = {
+  lazy val dockerCmd: String = {
     /*
      * The docker host is set to a provided property 'docker.host' if it's
      * available; otherwise we check with WhiskProperties to see whether we are
