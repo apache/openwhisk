@@ -21,6 +21,7 @@ plugins {
 }
 
 apply plugin: 'org.scoverage'
+apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-admin-tools"
 
