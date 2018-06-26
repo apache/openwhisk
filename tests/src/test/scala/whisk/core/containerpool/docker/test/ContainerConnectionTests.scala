@@ -19,7 +19,6 @@ package whisk.core.containerpool.docker.test
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.concurrent.duration._
 import org.apache.http.HttpRequest
 import org.apache.http.HttpResponse
@@ -35,6 +34,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import spray.json.JsObject
 import common.StreamLogging
+import common.WskActorSystem
 import whisk.common.TransactionId
 import whisk.core.containerpool.HttpUtils
 import whisk.core.entity.size._
@@ -49,9 +49,11 @@ class ContainerConnectionTests
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll
-    with StreamLogging {
+    with StreamLogging
+    with WskActorSystem {
 
   implicit val transid = TransactionId.testing
+  implicit val ec = actorSystem.dispatcher
 
   var testHang: FiniteDuration = 0.second
   var testStatusCode: Int = 200

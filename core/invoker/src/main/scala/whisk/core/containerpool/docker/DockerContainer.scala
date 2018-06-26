@@ -166,7 +166,7 @@ class DockerContainer(protected val id: ContainerId,
                       protected val addr: ContainerAddress,
                       protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
                                                       runc: RuncApi,
-                                                      as: ActorSystem,
+                                                      override protected val as: ActorSystem,
                                                       protected val ec: ExecutionContext,
                                                       protected val logging: Logging)
     extends Container {
@@ -214,25 +214,26 @@ class DockerContainer(protected val id: ContainerId,
       httpConnection = Some(conn)
       conn
     }
-    Future {
-      http.post(path, body, retry)
-    }.flatMap { response =>
-      val finished = Instant.now()
 
-      response.left
-        .map {
-          // Only check for memory exhaustion if there was a
-          // terminal connection error.
-          case error: ConnectionError =>
-            isOomKilled().map {
-              case true  => MemoryExhausted()
-              case false => error
-            }
-          case other => Future.successful(other)
-        }
-        .fold(_.map(Left(_)), right => Future.successful(Right(right)))
-        .map(res => RunResult(Interval(started, finished), res))
-    }
+    http
+      .post(path, body, retry)
+      .flatMap { response =>
+        val finished = Instant.now()
+
+        response.left
+          .map {
+            // Only check for memory exhaustion if there was a
+            // terminal connection error.
+            case error: ConnectionError =>
+              isOomKilled().map {
+                case true  => MemoryExhausted()
+                case false => error
+              }
+            case other => Future.successful(other)
+          }
+          .fold(_.map(Left(_)), right => Future.successful(Right(right)))
+          .map(res => RunResult(Interval(started, finished), res))
+      }
   }
 
   /**

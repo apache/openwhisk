@@ -119,7 +119,7 @@ object MesosTask {
       log.info(this, s"launched task with state ${taskDetails.taskStatus.getState} at ${taskHost}:${taskPort}")
       val containerIp = new ContainerAddress(taskHost, taskPort)
       val containerId = new ContainerId(taskId);
-      new MesosTask(containerId, containerIp, ec, log, taskId, mesosClientActor, mesosConfig)
+      new MesosTask(containerId, containerIp, ec, log, as, taskId, mesosClientActor, mesosConfig)
     })
 
   }
@@ -134,6 +134,7 @@ class MesosTask(override protected val id: ContainerId,
                 override protected val addr: ContainerAddress,
                 override protected val ec: ExecutionContext,
                 override protected val logging: Logging,
+                override protected val as: ActorSystem,
                 taskId: String,
                 mesosClientActor: ActorRef,
                 mesosConfig: MesosConfig)

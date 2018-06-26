@@ -17,11 +17,11 @@
 
 package whisk.core.containerpool
 
+import akka.actor.ActorSystem
 import java.time.Instant
-
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-
+import pureconfig._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -41,6 +41,7 @@ import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
+import whisk.core.ConfigKeys
 
 /**
  * An OpenWhisk biased container abstraction. This is **not only** an abstraction
@@ -56,13 +57,16 @@ case class ContainerAddress(val host: String, val port: Int = 8080) {
 
 trait Container {
 
+  implicit protected val as: ActorSystem
   protected val id: ContainerId
   protected val addr: ContainerAddress
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
 
+  private val config: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
+
   /** HTTP connection to the container, will be lazily established by callContainer */
-  protected var httpConnection: Option[HttpUtils] = None
+  protected var httpConnection: Option[ContainerClient] = None
 
   /** Stops the container from consuming CPU cycles. */
   def suspend()(implicit transid: TransactionId): Future[Unit]
@@ -166,16 +170,20 @@ trait Container {
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)
+      val conn = if (config.poolingClient) {
+        new PoolingContainerClient(addr.host, addr.port, timeout, 1.MB, 1024)
+      } else {
+        new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)
+      }
       httpConnection = Some(conn)
       conn
     }
-    Future {
-      http.post(path, body, retry)
-    }.map { response =>
-      val finished = Instant.now()
-      RunResult(Interval(started, finished), response)
-    }
+    http
+      .post(path, body, retry)
+      .map { response =>
+        val finished = Instant.now()
+        RunResult(Interval(started, finished), response)
+      }
   }
 }
 

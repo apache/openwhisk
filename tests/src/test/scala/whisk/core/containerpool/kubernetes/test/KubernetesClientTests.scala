@@ -60,6 +60,7 @@ class KubernetesClientTests
   import KubernetesClientTests._
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val as = actorSystem
 
   val commandTimeout = 500.milliseconds
   def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
@@ -92,7 +93,7 @@ class KubernetesClientTests
   def kubernetesContainer(id: ContainerId) =
     new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
       Future.successful("")
-    }, global, logging)
+    }, as, global, logging)
 
   behavior of "KubernetesClient"
 
@@ -188,6 +189,7 @@ object KubernetesClientTests {
   implicit def strToInstant(str: String): Instant =
     strToDate(str).get
 
+  implicit val as = ActorSystem("kubernetes-client-tests-actor-system")
   class TestKubernetesClient extends KubernetesApi with StreamLogging {
     var runs = mutable.Buffer.empty[(String, String, Map[String, String], Map[String, String])]
     var rms = mutable.Buffer.empty[ContainerId]

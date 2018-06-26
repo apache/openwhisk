@@ -17,6 +17,7 @@
 
 package whisk.core.containerpool.logging.test
 
+import akka.actor.ActorSystem
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
@@ -25,14 +26,12 @@ import whisk.core.containerpool.logging.{DockerToActivationLogStoreProvider, Log
 import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
 import java.time.Instant
-
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import spray.json._
 import whisk.common.{Logging, TransactionId}
 import whisk.core.containerpool.{Container, ContainerAddress, ContainerId}
 import whisk.http.Messages
-
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
@@ -107,5 +106,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
     def resume()(implicit transid: TransactionId): Future[Unit] = ???
 
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId) = lines
+
+    override implicit protected val as: ActorSystem = actorSystem
   }
 }

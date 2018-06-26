@@ -57,7 +57,8 @@ import scala.util.control.NoStackTrace
  * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
 protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
-  implicit logging: Logging) {
+  implicit logging: Logging)
+    extends ContainerClient {
 
   /**
    * Closes the HttpClient and all resources allocated by it.
@@ -80,7 +81,8 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
   def post(endpoint: String, body: JsValue, retry: Boolean)(
-    implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
+    implicit tid: TransactionId,
+    ec: ExecutionContext): Future[Either[ContainerHttpError, ContainerResponse]] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
 
@@ -88,7 +90,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    execute(request, timeout, maxConcurrent, retry)
+    Future { execute(request, timeout, maxConcurrent, retry) }
   }
 
   // Used internally to wrap all exceptions for which the request can be retried
@@ -194,12 +196,16 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
 object HttpUtils {
 
   /** A helper method to post one single request to a connection. Used for container tests. */
-  def post(host: String, port: Int, endPoint: String, content: JsValue)(implicit logging: Logging,
-                                                                        tid: TransactionId): (Int, Option[JsObject]) = {
-    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
+  def post(host: String, port: Int, endPoint: String, content: JsValue)(
+    implicit logging: Logging,
+    tid: TransactionId,
+    ec: ExecutionContext): (Int, Option[JsObject]) = {
+    val timeout = 90.seconds
+    val connection = new HttpUtils(s"$host:$port", timeout, 1.MB)
     val response = executeRequest(connection, endPoint, content)
+    val result = Await.result(response, timeout)
     connection.close()
-    response
+    result
   }
 
   /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
@@ -208,7 +214,9 @@ object HttpUtils {
     tid: TransactionId,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
     val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, contents.size)
-    val futureResults = contents.map(content => Future { executeRequest(connection, endPoint, content) })
+    val futureResults = contents.map { content =>
+      executeRequest(connection, endPoint, content)
+    }
     val results = Await.result(Future.sequence(futureResults), timeout)
     connection.close()
     results
@@ -216,8 +224,9 @@ object HttpUtils {
 
   private def executeRequest(connection: HttpUtils, endpoint: String, content: JsValue)(
     implicit logging: Logging,
-    tid: TransactionId): (Int, Option[JsObject]) = {
-    connection.post(endpoint, content, retry = true) match {
+    tid: TransactionId,
+    ec: ExecutionContext): Future[(Int, Option[JsObject])] = {
+    connection.post(endpoint, content, retry = true) map {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
       case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
@@ -225,5 +234,6 @@ object HttpUtils {
         throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
     }
+
   }
 }

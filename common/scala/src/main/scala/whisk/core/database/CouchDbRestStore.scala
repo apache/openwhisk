@@ -30,8 +30,7 @@ import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
 import whisk.http.Messages
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -513,7 +512,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       .getOrElse(Future.successful(true)) // For CouchDB it is expected that the entire document is deleted.
 
   override def shutdown(): Unit = {
-    Await.ready(client.shutdown(), 1.minute)
+    client.shutdown()
     attachmentStore.foreach(_.shutdown())
   }
 
