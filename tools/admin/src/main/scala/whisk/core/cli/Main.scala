@@ -39,6 +39,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val configFile = opt[File](descr = "application.conf path")
   printedName = Main.printedName
 
+  def verboseEnabled: Boolean = verbose() > 0
+
   addSubcommand(new UserCommand)
   addSubcommand(new LimitsCommand)
   shortSubcommandsHelp()
@@ -98,9 +100,12 @@ object Main {
         e match {
           case _: ConfigReaderException[_] =>
             printErr("Incomplete config. Provide application.conf via '-c' option")
+            if (conf.verboseEnabled) {
+              e.printStackTrace()
+            }
           case _ =>
+            e.printStackTrace()
         }
-        e.printStackTrace()
         3
     }
   }
