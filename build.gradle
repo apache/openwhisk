@@ -61,6 +61,7 @@ subprojects {
             task testSourcesJar(type: Jar, dependsOn: testClasses) {
                 classifier = 'test-sources'
                 from sourceSets.test.allSource
+                file('bin/openwhisk-admin-tools-1.0.0-SNAPSHOT.jar')
                 exclude("logback-test.xml")
             }
 
