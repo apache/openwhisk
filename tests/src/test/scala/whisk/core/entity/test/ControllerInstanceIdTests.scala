@@ -26,7 +26,7 @@ import whisk.core.entity.ControllerInstanceId
 @RunWith(classOf[JUnitRunner])
 class ControllerInstanceIdTests extends FlatSpec with Matchers {
 
-  behavior of "StringInstanceId"
+  behavior of "ControllerInstanceId"
 
   it should "accept usable characters" in {
     Seq("a", "1", "a.1", "a_1").foreach { s =>
