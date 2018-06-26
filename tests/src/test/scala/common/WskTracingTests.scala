@@ -22,8 +22,10 @@ import io.opentracing.mock.{MockSpan, MockTracer}
 import io.opentracing.util.GlobalTracer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import pureconfig.loadConfigOrThrow
 import whisk.common.{LoggingMarkers, TransactionId}
-import whisk.common.tracing.{TracingCacheProvider, WhiskTracerProvider}
+import whisk.common.tracing.{TracingConfig, WhiskTracerProvider}
+import whisk.core.ConfigKeys
 
 import scala.ref.WeakReference
 
@@ -32,6 +34,7 @@ class WskTracingTests extends TestHelpers {
 
   val tracer: MockTracer = new MockTracer()
   val sleepTime = 10
+  val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
 
   {
     GlobalTracer.register(tracer)
@@ -42,23 +45,21 @@ class WskTracingTests extends TestHelpers {
     val transactionId: TransactionId = TransactionId.testing
     var list: List[WeakReference[Span]] = List()
 
-    val span = GlobalTracer.get().buildSpan("test").startActive(true).span()
-    list = list.::(new WeakReference(span))
-    TracingCacheProvider.spanMap.put(transactionId.meta.id, list)
-    TracingCacheProvider.contextMap.put(transactionId.meta.id, span.context())
-
-    var spanList = TracingCacheProvider.spanMap.get(transactionId.meta.id)
-    assert(spanList.isDefined)
-    var ctx = TracingCacheProvider.contextMap.get(transactionId.meta.id)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    var ctx = WhiskTracerProvider.tracer.getTraceContext(transactionId)
+    WhiskTracerProvider.tracer.setTraceContext(transactionId, ctx)
     assert(ctx.isDefined)
 
-    Thread.sleep((TracingCacheProvider.tracingConfig.cacheExpiry.toMillis + 5000))
-    spanList = TracingCacheProvider.spanMap.get(transactionId.meta.id)
-    assert(!spanList.isDefined)
-    ctx = TracingCacheProvider.contextMap.get(transactionId.meta.id)
+    Thread.sleep((tracingConfig.cacheExpiry.toMillis + 5000))
+    ctx = WhiskTracerProvider.tracer.getTraceContext(transactionId)
     assert(!ctx.isDefined)
-    TracingCacheProvider.spanMap.remove(transactionId.meta.id)
-    TracingCacheProvider.contextMap.remove(transactionId.meta.id)
+    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    Thread.sleep(sleepTime)
+    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    val finishedSpans = tracer.finishedSpans()
+    assert(finishedSpans.size() == 1)
+    //no parent for new span as cache expiry cleared spanMap and contextMap
+    assert(finishedSpans.get(0).parentId() == 0)
   }
 
   it should "create a finished span" in {
