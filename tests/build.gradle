@@ -147,6 +147,7 @@ dependencies {
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':tools:admin')
 
     scoverage gradle.scoverage.deps
 }
@@ -197,7 +198,8 @@ task reportCoverage(type: ScoverageReport) {
     dependsOn([
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
-        ':core:invoker:reportScoverage'
+        ':core:invoker:reportScoverage',
+        ':tools:admin:reportScoverage'
     ])
 }
 
@@ -228,7 +230,8 @@ def getScoverageClasspath(Project project) {
     def projectNames = [
         ':common:scala',
         ':core:controller',
-        ':core:invoker'
+        ':core:invoker',
+        ':tools:admin'
     ]
     def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         result + project.project(name).sourceSets.scoverage.runtimeClasspath
