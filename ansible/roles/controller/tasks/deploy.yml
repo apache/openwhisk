@@ -124,9 +124,8 @@
       "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
 
-      "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
-      "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
-      "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
+      "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
+      "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":

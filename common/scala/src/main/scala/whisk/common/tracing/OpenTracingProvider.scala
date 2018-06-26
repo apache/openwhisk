@@ -17,27 +17,31 @@
 
 package whisk.common.tracing
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+
 import brave.Tracing
 import brave.opentracing.BraveTracer
 import brave.sampler.Sampler
-import io.opentracing.{Span, SpanContext, Tracer}
-import io.opentracing.util.GlobalTracer
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.opentracing.propagation.{Format, TextMapExtractAdapter, TextMapInjectAdapter}
-import zipkin2.reporter.{AsyncReporter, Sender}
-import zipkin2.reporter.okhttp3.OkHttpSender
+import io.opentracing.util.GlobalTracer
+import io.opentracing.{Span, SpanContext, Tracer}
 import pureconfig._
 import whisk.common.{LogMarkerToken, TransactionId}
 import whisk.core.ConfigKeys
+import zipkin2.reporter.okhttp3.OkHttpSender
+import zipkin2.reporter.{AsyncReporter, Sender}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.ref.WeakReference
+import scala.concurrent.duration.Duration
 
 /**
  * OpenTracing based implementation for tracing
  */
-class OpenTracer(val tracer: Tracer) extends WhiskTracer {
+class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig) extends WhiskTracer {
+  val spanMap = configureCache[String, List[Span]]()
+  val contextMap = configureCache[String, SpanContext]()
 
   /**
    * Start a Trace for given service.
@@ -46,29 +50,28 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    * @return TracedRequest which provides details about current service being traced.
    */
   override def startSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
-
     //initialize list for this transactionId
-    val spanList: List[WeakReference[Span]] = TracingCacheProvider.spanMap.get(transactionId.meta.id).getOrElse(Nil)
+    val spanList = spanMap.getOrElse(transactionId.meta.id, Nil)
 
     val spanBuilder = tracer
       .buildSpan(logMarker.action)
       .withTag("transactionId", transactionId.meta.id)
 
-    val activeSpan: Span = spanList match {
+    val active = spanList match {
       case Nil =>
-        TracingCacheProvider.contextMap
+        //Check if any active context then resume from that else create a fresh span
+        contextMap
           .get(transactionId.meta.id)
-          .map(spanBuilder.asChildOf(_).startActive(true).span())
-          .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
-
-      case _ =>
-        spanList.headOption
-          .flatMap(_.get)
-          .map(spanBuilder.asChildOf(_).startActive(true).span())
-          .getOrElse(spanBuilder.ignoreActiveSpan().startActive(true).span())
+          .map(spanBuilder.asChildOf)
+          .getOrElse(spanBuilder.ignoreActiveSpan())
+          .startActive(true)
+          .span()
+      case head :: _ =>
+        //Create a child span of current head
+        spanBuilder.asChildOf(head).startActive(true).span()
     }
     //add active span to list
-    TracingCacheProvider.spanMap.put(transactionId.meta.id, spanList.::(new WeakReference(activeSpan)))
+    spanMap.put(transactionId.meta.id, active :: spanList)
   }
 
   /**
@@ -96,10 +99,9 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
    * @return
    */
   override def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
-    TracingCacheProvider.spanMap
+    spanMap
       .get(transactionId.meta.id)
       .flatMap(_.headOption)
-      .flatMap(_.get)
       .map { span =>
         val map = mutable.Map.empty[String, String]
         tracer.inject(span.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map.asJava))
@@ -116,24 +118,31 @@ class OpenTracer(val tracer: Tracer) extends WhiskTracer {
   override def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]) = {
     context.foreach { scalaMap =>
       val ctx: SpanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(scalaMap.asJava))
-      TracingCacheProvider.contextMap.put(transactionId.meta.id, ctx)
+      contextMap.put(transactionId.meta.id, ctx)
     }
   }
 
   private def clear(transactionId: TransactionId): Unit = {
-    TracingCacheProvider.spanMap.get(transactionId.meta.id).foreach {
+    spanMap.get(transactionId.meta.id).foreach {
+      case head :: Nil =>
+        head.finish()
+        spanMap.remove(transactionId.meta.id)
+        contextMap.remove(transactionId.meta.id)
       case head :: tail =>
-        head.get.foreach(_.finish)
-        if (tail.isEmpty) {
-          TracingCacheProvider.spanMap.remove(transactionId.meta.id)
-          TracingCacheProvider.contextMap.remove(transactionId.meta.id)
-        } else {
-          TracingCacheProvider.spanMap.put(transactionId.meta.id, tail)
-        }
-
-      case _ =>
+        head.finish()
+        spanMap.put(transactionId.meta.id, tail)
+      case Nil =>
     }
   }
+
+  private def configureCache[T, R](): collection.concurrent.Map[T, R] =
+    Caffeine
+      .newBuilder()
+      .expireAfterAccess(tracingConfig.cacheExpiry.toSeconds, TimeUnit.SECONDS)
+      .build()
+      .asMap()
+      .asScala
+      .asInstanceOf[collection.concurrent.Map[T, R]]
 }
 
 trait WhiskTracer {
@@ -153,7 +162,6 @@ object WhiskTracerProvider {
 
     tracingConfig.zipkin match {
       case Some(zipkinConfig) => {
-        val zipkinConfig = tracingConfig.zipkin.get
         if (!GlobalTracer.isRegistered) {
           val sender: Sender = OkHttpSender.create(zipkinConfig.getUrl)
           val spanReporter = AsyncReporter.create(sender)
@@ -162,7 +170,7 @@ object WhiskTracerProvider {
             .localServiceName(tracingConfig.component)
             .spanReporter(spanReporter)
             .sampler(Sampler.create(zipkinConfig.sampleRate.toFloat))
-            .build();
+            .build()
 
           //register with OpenTracing
           GlobalTracer.register(BraveTracer.create(braveTracing))
@@ -174,7 +182,7 @@ object WhiskTracerProvider {
     }
 
     if (GlobalTracer.isRegistered)
-      new OpenTracer(GlobalTracer.get())
+      new OpenTracer(GlobalTracer.get(), tracingConfig)
     else
       NoopTracer
   }

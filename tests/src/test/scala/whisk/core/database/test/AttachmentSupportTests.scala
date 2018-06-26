@@ -20,40 +20,38 @@ package whisk.core.database.test
 import akka.http.scaladsl.model.Uri
 import akka.stream.scaladsl.Source
 import akka.stream.{ActorMaterializer, Materializer}
-import akka.util.{ByteStringBuilder, CompactByteString}
+import akka.util.CompactByteString
 import common.WskActorSystem
 import org.junit.runner.RunWith
-import whisk.core.entity.size._
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.{AttachmentInliner, InliningConfig}
+import org.scalatest.{FlatSpec, Matchers}
+import whisk.common.TransactionId
+import whisk.core.database.{AttachmentSupport, InliningConfig}
+import whisk.core.entity.WhiskEntity
+import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class AttachmentInlinerTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
+class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
 
   behavior of "Attachment inlining"
 
   implicit val materializer: Materializer = ActorMaterializer()
 
   it should "not inline if maxInlineSize set to zero" in {
-    val inliner = new TestInliner(InliningConfig(maxInlineSize = 0.KB, chunkSize = 8.KB))
+    val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB))
     val bs = CompactByteString("hello world")
 
-    val (head, tail) = inliner.inlineAndTail(Source.single(bs)).futureValue
-    val uri = inliner.uriOf(head, "foo")
+    val bytesOrSource = inliner.inlineOrAttach(Source.single(bs)).futureValue
+    val uri = inliner.uriOf(bytesOrSource, "foo")
 
     uri shouldBe Uri("test:foo")
-
-    val bsResult = toByteString(inliner.combinedSource(head, tail)).futureValue
-    bsResult shouldBe bs
   }
 
-  private def toByteString(docStream: Source[Traversable[Byte], _]) =
-    docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b).map(_.result().compact)
-
-  class TestInliner(val inliningConfig: InliningConfig) extends AttachmentInliner {
+  class AttachmentSupportTestMock(val inliningConfig: InliningConfig) extends AttachmentSupport[WhiskEntity] {
     override protected[core] implicit val materializer: Materializer = ActorMaterializer()
     override protected def attachmentScheme: String = "test"
+    override protected def executionContext = actorSystem.dispatcher
+    override protected[database] def put(d: WhiskEntity)(implicit transid: TransactionId) = ???
   }
 }

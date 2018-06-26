@@ -22,7 +22,14 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
+# Type of your environment.
+# If you want to deploy everything on your local machine use 'local'.
+# If you use a docker-machine on a mac use 'docker-machine'
+# If you want to deploy Openwhisk to other machines use 'distributed'
+environmentInformation:
+  type: "{{ environment_type | default('local') }}"
+
+hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
 
 whisk:
   version:

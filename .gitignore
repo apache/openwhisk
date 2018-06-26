@@ -84,3 +84,6 @@ ansible/roles/controller/files/*.p12
 
 # dev
 intellij-run-config.groovy
+
+# VSCode
+.vscode/

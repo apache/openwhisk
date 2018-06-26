@@ -42,9 +42,6 @@ tasks.withType(Test) {
 }
 
 def leanExcludes = [
-    '**/*Swift*',
-    '**/*Python*',
-    '**/*Java*',
     '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
 ]
@@ -52,7 +49,6 @@ def leanExcludes = [
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
-            "actionContainers/**",
             "ha/**",
             "whisk/**"
         ],
@@ -131,31 +127,7 @@ task testUnit(type: Test) {
     ]
 
     exclude couchDbExcludes
-    exclude "actionContainers/**"
 }
-
-task testLeanCli(type: Test) {
-    exclude '**/*Swift*'
-    exclude '**/*Python*'
-    exclude '**/*Java*'
-    exclude '**/*ThrottleTests*'
-    exclude '**/MaxActionDurationTests*'
-    exclude '**/*ApiGwRestBasicTests*'
-    exclude '**/*Rest*'
-}
-
-// Add all images needed for local testing here
-test.dependsOn([
-    ':actionRuntimes:nodejs6Action:distDocker',
-    ':actionRuntimes:actionProxy:distDocker',
-    ':actionRuntimes:pythonAction:distDocker',
-    ':actionRuntimes:python2Action:distDocker',
-    ':actionRuntimes:javaAction:distDocker',
-    ':actionRuntimes:swift3.1.1Action:distDocker',
-    ':sdk:docker:distDocker',
-    ':tests:dat:blackbox:badaction:distDocker',
-    ':tests:dat:blackbox:badproxy:distDocker'
-])
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
@@ -175,6 +147,7 @@ dependencies {
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':tools:admin')
 
     compile group: 'io.opentracing', name: 'opentracing-mock', version: '0.31.0'
 
@@ -199,8 +172,13 @@ task createKeystore(dependsOn: deleteKeystore) {
     }
 }
 
-afterEvaluate {
-    task testCoverageLean(type:Test) {
+tasks.withType(Test) {
+    dependsOn createKeystore
+}
+createKeystore.mustRunAfter(testClasses)
+
+gradle.projectsEvaluated {
+    task testCoverageLean(type: Test) {
         doFirst {
             logTestSetInfo()
         }
@@ -209,11 +187,8 @@ afterEvaluate {
         include getPattern(testSetName, "includes")
     }
 
-    task testCoverage(type:Test) {
+    task testCoverage(type: Test) {
         classpath = getScoverageClasspath(project)
-    }
-    tasks.withType(Test) {
-        dependsOn createKeystore
     }
 }
 
@@ -225,7 +200,8 @@ task reportCoverage(type: ScoverageReport) {
     dependsOn([
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
-        ':core:invoker:reportScoverage'
+        ':core:invoker:reportScoverage',
+        ':tools:admin:reportScoverage'
     ])
 }
 
@@ -256,9 +232,10 @@ def getScoverageClasspath(Project project) {
     def projectNames = [
         ':common:scala',
         ':core:controller',
-        ':core:invoker'
+        ':core:invoker',
+        ':tools:admin'
     ]
-    def combinedClasspath = projectNames.inject(project.files([])){result, name ->
+    def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         result + project.project(name).sourceSets.scoverage.runtimeClasspath
     }
 

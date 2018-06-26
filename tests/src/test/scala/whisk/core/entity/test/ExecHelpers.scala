@@ -47,11 +47,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
   protected def imagename(name: String) = {
-    var image = s"${name}action".replace(":", "")
-    if (name.equals(SWIFT3)) {
-      image = SWIFT3_IMAGE
-    }
-    ExecManifest.ImageName(image, Some("openwhisk"), Some("latest"))
+    ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
   }
 
   protected def js(code: String, main: Option[String] = None) = {
