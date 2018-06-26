@@ -196,7 +196,8 @@ case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
 
   def timeout: Duration = {
     conf.subcommands match {
-      case _ => conf.timeout()
+      case List(_: DbCommand, _) => Duration.Inf
+      case _                     => conf.timeout()
     }
   }
 }
