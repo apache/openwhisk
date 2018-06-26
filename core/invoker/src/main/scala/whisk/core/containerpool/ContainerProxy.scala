@@ -95,10 +95,10 @@ case object RescheduleJob // job is sent back to parent and could not be process
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-  sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId, UUID) => Future[Any],
+  sendActiveAck: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-  instance: InstanceId,
+  instance: InvokerInstanceId,
   poolConfig: ContainerPoolConfig,
   unusedTimeout: FiniteDuration,
   pauseGrace: FiniteDuration)
@@ -428,10 +428,10 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-    ack: (TransactionId, WhiskActivation, Boolean, InstanceId, UUID) => Future[Any],
+    ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
     store: (TransactionId, WhiskActivation) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-    instance: InstanceId,
+    instance: InvokerInstanceId,
     poolConfig: ContainerPoolConfig,
     unusedTimeout: FiniteDuration = timeouts.idleContainer,
     pauseGrace: FiniteDuration = timeouts.pauseGrace) =
@@ -449,7 +449,7 @@ object ContainerProxy {
    * @param suffix the container name's suffix
    * @return a unique container name
    */
-  def containerName(instance: InstanceId, prefix: String, suffix: String): String = {
+  def containerName(instance: InvokerInstanceId, prefix: String, suffix: String): String = {
     def isAllowed(c: Char): Boolean = c.isLetterOrDigit || c == '_'
 
     val sanitizedPrefix = prefix.filter(isAllowed)

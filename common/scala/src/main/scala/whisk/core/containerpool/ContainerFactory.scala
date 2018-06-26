@@ -24,7 +24,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import whisk.spi.Spi
 
 case class ContainerArgsConfig(network: String,
@@ -74,7 +74,7 @@ object ContainerFactory {
   private def isAllowed(c: Char) = c.isLetterOrDigit || c == '_' || c == '.' || c == '-'
 
   /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
-  def containerNamePrefix(instanceId: InstanceId): String =
+  def containerNamePrefix(instanceId: InvokerInstanceId): String =
     s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
 }
 
@@ -86,6 +86,6 @@ trait ContainerFactoryProvider extends Spi {
   def getContainerFactory(actorSystem: ActorSystem,
                           logging: Logging,
                           config: WhiskConfig,
-                          instance: InstanceId,
+                          instance: InvokerInstanceId,
                           parameters: Map[String, Set[String]]): ContainerFactory
 }

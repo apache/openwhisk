@@ -55,7 +55,7 @@ protected[actions] trait PrimitiveActions {
    *  The index of the active ack topic, this controller is listening for.
    *  Typically this is also the instance number of the controller
    */
-  protected val activeAckTopicIndex: InstanceId
+  protected val activeAckTopicIndex: ControllerInstanceId
 
   /** Database service to CRUD actions. */
   protected val entityStore: EntityStore

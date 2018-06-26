@@ -39,7 +39,7 @@ import whisk.core.containerpool.docker.DockerContainerFactory
 import whisk.core.containerpool.docker.DockerContainerFactoryConfig
 import whisk.core.containerpool.docker.RuncApi
 import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
@@ -104,7 +104,7 @@ class DockerContainerFactoryTests
 
     val factory =
       new DockerContainerFactory(
-        InstanceId(0),
+        InvokerInstanceId(0),
         Map(),
         ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("env" -> Set("e1", "e2"))),
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])

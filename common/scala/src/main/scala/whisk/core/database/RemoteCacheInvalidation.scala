@@ -34,7 +34,7 @@ import whisk.core.connector.Message
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessagingProvider
 import whisk.core.entity.CacheKey
-import whisk.core.entity.InstanceId
+import whisk.core.entity.ControllerInstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionMetaData
 import whisk.core.entity.WhiskPackage
@@ -51,13 +51,14 @@ object CacheInvalidationMessage extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "instanceId")
 }
 
-class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging,
-                                                                                            as: ActorSystem) {
+class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: ControllerInstanceId)(
+  implicit logging: Logging,
+  as: ActorSystem) {
 
   implicit private val ec = as.dispatchers.lookup("dispatchers.kafka-dispatcher")
 
   private val topic = "cacheInvalidation"
-  private val instanceId = s"$component${instance.toInt}"
+  private val instanceId = s"$component${instance.asString}"
 
   private val msgProvider = SpiLoader.get[MessagingProvider]
   private val cacheInvalidationConsumer =

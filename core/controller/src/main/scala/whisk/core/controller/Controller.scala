@@ -74,7 +74,7 @@ import pureconfig.loadConfigOrThrow
  * @param verbosity logging verbosity
  * @param executionContext Scala runtime support for concurrent operations
  */
-class Controller(val instance: InstanceId,
+class Controller(val instance: ControllerInstanceId,
                  runtimes: Runtimes,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
@@ -84,8 +84,8 @@ class Controller(val instance: InstanceId,
 
   TransactionId.controller.mark(
     this,
-    LoggingMarkers.CONTROLLER_STARTUP(instance.toInt),
-    s"starting controller instance ${instance.toInt}",
+    LoggingMarkers.CONTROLLER_STARTUP(instance.asString),
+    s"starting controller instance ${instance.asString}",
     logLevel = InfoLevel)
 
   /**
@@ -203,7 +203,7 @@ object Controller {
 
     // if deploying multiple instances (scale out), must pass the instance number as the
     require(args.length >= 1, "controller instance required")
-    val instance = args(0).toInt
+    val instance = ControllerInstanceId(args(0))
 
     def abort(message: String) = {
       logger.error(this, message)
@@ -219,7 +219,7 @@ object Controller {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Map(
-      "completed" + instance -> "completed",
+      "completed" + instance.asString -> "completed",
       "health" -> "health",
       "cacheInvalidation" -> "cache-invalidation",
       "events" -> "events").foreach {
@@ -232,7 +232,7 @@ object Controller {
     ExecManifest.initialize(config) match {
       case Success(_) =>
         val controller = new Controller(
-          InstanceId(instance),
+          instance,
           ExecManifest.runtimesManifest,
           config,
           actorSystem,

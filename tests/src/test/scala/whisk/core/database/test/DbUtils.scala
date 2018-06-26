@@ -48,7 +48,7 @@ import scala.util.{Failure, Random, Success, Try}
  */
 trait DbUtils extends Assertions {
   implicit val dbOpTimeout = 15 seconds
-  val instance = InstanceId(0)
+  val instance = ControllerInstanceId("0")
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
   case class RetryOp() extends Throwable
 
