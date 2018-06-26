@@ -112,10 +112,16 @@ import scala.util.{Failure, Success}
  *
  * Invoker health is determined via a kafka-based protocol, where each invoker pings the loadbalancer every second. If
  * no ping is seen for a defined amount of time, the invoker is considered "Offline".
+ *
  * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
  * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
- * test-actions are sent by the loadbalancer. If the system-error-threshold-count in the last 10 activations falls
- * below 3, the invoker is considered "Healthy" again.
+ * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
+ * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
+ *
+ * To summarize:
+ * - "Offline": Ping missing for > 10 seconds
+ * - "Unhealthy": > 3 **system-errors** in the last 10 activations, pings arriving as usual
+ * - "Healthy": < 3 **system-errors** in the last 10 activations, pings arriving as usual
  *
  * ## Horizontal sharding
  *
