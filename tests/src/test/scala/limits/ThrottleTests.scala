@@ -34,7 +34,7 @@ import org.scalatest.junit.JUnitRunner
 import common._
 import common.TestUtils._
 import common.rest.WskRestOperations
-import WskAdmin.wskadmin
+import common.WskAdmin.wskadmin
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages._
