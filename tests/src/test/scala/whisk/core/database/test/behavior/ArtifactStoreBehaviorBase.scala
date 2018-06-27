@@ -28,12 +28,12 @@ import whisk.common.TransactionId
 import whisk.core.database.memory.MemoryAttachmentStore
 import whisk.core.database.test.DbUtils
 import whisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
-import whisk.core.database.{ArtifactStore, AttachmentStore, StaleParameter}
+import whisk.core.database.{ArtifactNamingHelper, ArtifactStore, AttachmentStore, StaleParameter}
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.utils.JsHelpers
 
-import scala.util.{Random, Try}
+import scala.util.Try
 
 trait ArtifactStoreBehaviorBase
     extends FlatSpec
@@ -44,14 +44,13 @@ trait ArtifactStoreBehaviorBase
     with WskActorSystem
     with IntegrationPatience
     with BeforeAndAfterEach
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with ArtifactNamingHelper {
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
 
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
-
-  protected val prefix = s"artifactTCK_${Random.alphanumeric.take(4).mkString}"
 
   def authStore: ArtifactStore[WhiskAuth]
   def entityStore: ArtifactStore[WhiskEntity]
@@ -114,22 +113,7 @@ trait ArtifactStoreBehaviorBase
     authStore.get[WhiskAuth](doc).futureValue
   }
 
-  protected def newAuth() = {
-    val subject = Subject()
-    val namespaces = Set(wskNS("foo"))
-    WhiskAuth(subject, namespaces)
-  }
-
-  protected def wskNS(name: String) = {
-    val uuid = UUID()
-    WhiskNamespace(Namespace(EntityName(name), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
-  }
-
   private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false, binary = false)
-
-  protected def newAction(ns: EntityPath): WhiskAction = {
-    WhiskAction(ns, aname(), exec)
-  }
 
   protected def newActivation(ns: String, actionName: String, start: Long): WhiskActivation = {
     WhiskActivation(
@@ -140,12 +124,6 @@ trait ArtifactStoreBehaviorBase
       Instant.ofEpochMilli(start),
       Instant.ofEpochMilli(start + 1000))
   }
-
-  protected def aname() = EntityName(s"${prefix}_name_${randomString()}")
-
-  protected def newNS() = EntityPath(s"${prefix}_ns_${randomString()}")
-
-  private def randomString() = Random.alphanumeric.take(5).mkString
 
   protected def getJsObject(js: JsObject, fields: String*): JsObject = {
     JsHelpers.getFieldPath(js, fields: _*).get.asJsObject
