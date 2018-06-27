@@ -45,6 +45,8 @@ inspecting the result. We recommend that you get familiar with the following top
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
 * [Securing your action](./security.md)
 
+## Languages and Runtimes
+
 Longer tutorials that are specific to a language of your choice are listed below.
 We recommend reading the basics in this document first, which are language agnostic, before getting deeper
 into a language-specific tutorial. If your preferred language isn't supported directly, you may find
@@ -63,15 +65,15 @@ paths more suitable. Multiple actions may be composed together to create a longe
 ## The basics
 
 To use a function as an action, it must conform to the following:
-- Accepts a dictionary as input and produces a dictionary as output. The input and output dictionaries are
+- The function accepts a dictionary as input and produces a dictionary as output. The input and output dictionaries are
 key-value pairs, where the key is a string and the value is any valid JSON value. The dictionaries are
 canonically represented as JSON objects when interfacing to an action via the REST API or the `wsk` CLI.
 - The function must be called `main` or otherwise must be explicitly exported to identify it as the entry point.
 The mechanics may vary depending on your choice of language, but in general the entry point can be specified using the
 `--main` flag when using the `wsk` CLI.
 
-In this section, you'll invoke a built-in action using the `wsk` CLI [installed and configured](cli.md), and
-how to expose the action as a REST API.
+In this section, you'll invoke a built-in action using the `wsk` CLI, which you should
+[download and configure](cli.md) first if necessary.
 
 ### Invoking a built-in action
 
@@ -90,8 +92,6 @@ You can learn more about [packages](./packages.md) after completing the basic tu
 Let's take a look at the action body by saving the function locally:
 ```
 wsk action get /whisk.system/samples/greeting --save
-```
-```
 ok: saved action code to /path/to/openwhisk/greeting.js
 ```
 
@@ -114,7 +114,7 @@ function main(params) {
   // if a value for name is provided, use it else use a default
   var name = params.name || 'stranger';
 
-  // if a vlaue for place is provided, use it else use a default
+  // if a value for place is provided, use it else use a default
   var place = params.place || 'somewhere';
 
   // construct the message using the values for name and place
@@ -220,9 +220,9 @@ Each action invocation results in an activation record which contains the follow
     - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed.
     - *"whisk internal error"*: the system was unable to invoke the action.
   - `success`: Is *true* if and only if the status is *"success"*.
-  - `result`: A dictionary that contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
+  - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
 
-Some common CLI commands for working with actions are:
+Some common CLI commands for working with activations are:
 - `wsk activation result <activationId>`: retrieves only the result of the activation.
 - `wsk activation logs <activationId>`: retrieves only the logs of the activation.
 - `wsk activation logs <activationId> --strip`: strips metadata from each log line so the logs are easier to read.
@@ -273,14 +273,14 @@ wsk action invoke greeting --result
 
 You may still provide additional parmaeters, as in the `place`:
 ```
-wsk -i action invoke greeting --result --param place Kansas
+wsk action invoke greeting --result --param place Kansas
 {
   "msg": "Hello, Toto from Kansas!"
 }
 ```
 and even override the `name`:
 ```
-wsk -i action invoke greeting --result --param place Kansas --param name Dorothy
+wsk action invoke greeting --result --param place Kansas --param name Dorothy
 {
   "msg": "Hello, Dorothy from Kansas!"
 }
@@ -333,21 +333,15 @@ Here we will use several utility actions that are provided in the `/whisk.system
   ```
   ```
   package /whisk.system/utils: Building blocks that format and assemble data
-   (parameters: none defined)
-     action /whisk.system/utils/namespace: Returns namespace for the authorization key used to invoke this action
-       (parameters: none defined)
-     action /whisk.system/utils/date: Current date and time
-       (parameters: none defined)
-     action /whisk.system/utils/sort: Sorts an array
-       (parameters: lines)
-     action /whisk.system/utils/split: Split a string into an array
-       (parameters: payload, separator)
-     action /whisk.system/utils/hosturl: Returns the URL to activation an action or trigger
-       (parameters: ext, path, trigger, web)
-     ...
+     (parameters: none defined)
+   action /whisk.system/utils/split: Split a string into an array
+     (parameters: payload, separator)
+   action /whisk.system/utils/sort: Sorts an array
+     (parameters: lines)
+   ...
   ```
 
-  You will be using the `split` and `sort` actions in this example.
+  You will be using the `split` and `sort` actions in this example shown here, although the package contains more actions.
 
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
 
@@ -421,7 +415,7 @@ Metadata that describes existing actions can be retrieved via the `wsk action ge
 wsk action get hello
 ok: got action hello
 {
-    "namespace": "user@email.com",
+    "namespace": "guest",
     "name": "hello",
     "version": "0.0.1",
     "exec": {
@@ -474,16 +468,12 @@ Code associated with an existing action may be retrieved and saved locally. Savi
 1. Save action code to a filename that corresponds with an existing action name in the current working directory. A file extension that corresponds to the action kind is used, or an extension of `.zip` will be used for action code that is a zip file.
   ```
   wsk action get actionName --save
-  ```
-  ```
   ok: saved action code to /absolutePath/currentDirectory/actionName.js
   ```
 
 2. Instead of allowing the CLI to determine the destination of the code to be saved, a custom file path, filename and extension can be provided by using the `--save-as` flag.
   ```
   wsk action get actionName --save-as codeFile.js
-  ```
-  ```
   ok: saved action code to /absolutePath/currentDirectory/codeFile.js
   ```
 
@@ -532,16 +522,12 @@ You can clean up by deleting actions that you do not want to use.
 1. Run the following command to delete an action:
   ```
   wsk action delete hello
-  ```
-  ```
   ok: deleted hello
   ```
 
 2. Verify that the action no longer appears in the list of actions.
   ```
   wsk action list
-  ```
-  ```
   actions
   ```
 
