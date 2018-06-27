@@ -48,8 +48,8 @@ import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.http.Messages
-
 import DockerContainerTests._
+import whisk.core.entity.ExecManifest.ImageName
 
 object DockerContainerTests {
 
@@ -142,7 +142,7 @@ class DockerContainerTests
     val name = "myContainer"
     val container = DockerContainer.create(
       transid = transid,
-      image = image,
+      image = Right(image),
       memory = memory,
       cpuShares = cpuShares,
       environment = environment,
@@ -180,11 +180,8 @@ class DockerContainerTests
     implicit val docker = new TestDockerClient
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(
-      transid = transid,
-      image = "image",
-      userProvidedImage = true,
-      dockerRunParameters = parameters)
+    val container =
+      DockerContainer.create(transid = transid, image = Left(ImageName("image")), dockerRunParameters = parameters)
     await(container)
 
     docker.pulls should have size 1
@@ -203,7 +200,7 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image", dockerRunParameters = parameters)
+    val container = DockerContainer.create(transid = transid, image = Right("image"), dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 0
@@ -222,11 +219,8 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(
-      transid = transid,
-      image = "image",
-      userProvidedImage = true,
-      dockerRunParameters = parameters)
+    val container =
+      DockerContainer.create(transid = transid, image = Left(ImageName("image")), dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 1
@@ -245,11 +239,8 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(
-      transid = transid,
-      image = "image",
-      userProvidedImage = false,
-      dockerRunParameters = parameters)
+    val container =
+      DockerContainer.create(transid = transid, image = Right("image"), dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 0
@@ -268,11 +259,8 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(
-      transid = transid,
-      image = "image",
-      userProvidedImage = true,
-      dockerRunParameters = parameters)
+    val container =
+      DockerContainer.create(transid = transid, image = Left(ImageName("image")), dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 1
@@ -281,7 +269,7 @@ class DockerContainerTests
     docker.rms should have size 1
   }
 
-  it should "return a specific error if pulling a user provided image failed" in {
+  it should "return a specific error if pulling a user provided image failed (given the image does not define a tag)" in {
     implicit val docker = new TestDockerClient {
       override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
         pulls += image
@@ -290,16 +278,64 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(
-      transid = transid,
-      image = "image",
-      userProvidedImage = true,
-      dockerRunParameters = parameters)
-    a[BlackboxStartupError] should be thrownBy await(container)
+    val imageName = "image"
+    val container =
+      DockerContainer.create(transid = transid, image = Left(ImageName(imageName)), dockerRunParameters = parameters)
+    val exception = the[BlackboxStartupError] thrownBy await(container)
+    exception.msg shouldBe Messages.imagePullError(imageName)
 
     docker.pulls should have size 1
-    docker.runs should have size 0
+    docker.runs should have size 0 // run is **not** called as a backup measure because no tag is defined
     docker.inspects should have size 0
+    docker.rms should have size 0
+  }
+
+  it should "recover a failed image pull if the subsequent docker run succeeds" in {
+    implicit val docker = new TestDockerClient {
+      override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+        pulls += image
+        Future.failed(new RuntimeException())
+      }
+    }
+    implicit val runc = stub[RuncApi]
+
+    val container =
+      DockerContainer.create(
+        transid = transid,
+        image = Left(ImageName("image", tag = Some("prod"))),
+        dockerRunParameters = parameters)
+
+    noException should be thrownBy await(container)
+
+    docker.pulls should have size 1
+    docker.runs should have size 1 // run is called as a backup measure in case the image is locally available
+    docker.inspects should have size 1
+    docker.rms should have size 0
+  }
+
+  it should "throw a pull exception if a recovering docker run fails as well" in {
+    implicit val docker = new TestDockerClient {
+      override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+        pulls += image
+        Future.failed(new RuntimeException())
+      }
+      override def run(image: String, args: Seq[String])(implicit transid: TransactionId): Future[ContainerId] = {
+        runs += ((image, args))
+        Future.failed(new RuntimeException())
+      }
+    }
+    implicit val runc = stub[RuncApi]
+
+    val imageName = ImageName("image", tag = Some("prod"))
+    val container =
+      DockerContainer.create(transid = transid, image = Left(imageName), dockerRunParameters = parameters)
+
+    val exception = the[BlackboxStartupError] thrownBy await(container)
+    exception.msg shouldBe Messages.imagePullError(imageName.publicImageName)
+
+    docker.pulls should have size 1
+    docker.runs should have size 1 // run is called as a backup measure in case the image is locally available
+    docker.inspects should have size 0 // inspect is never called because the run failed as well
     docker.rms should have size 0
   }
 
