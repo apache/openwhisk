@@ -19,12 +19,11 @@ package common
 
 import io.opentracing.Span
 import io.opentracing.mock.{MockSpan, MockTracer}
-import io.opentracing.util.GlobalTracer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import pureconfig.loadConfigOrThrow
 import whisk.common.{LoggingMarkers, TransactionId}
-import whisk.common.tracing.{TracingConfig, WhiskTracerProvider}
+import whisk.common.tracing.{OpenTracer, TracingConfig}
 import whisk.core.ConfigKeys
 
 import scala.ref.WeakReference
@@ -35,27 +34,24 @@ class WskTracingTests extends TestHelpers {
   val tracer: MockTracer = new MockTracer()
   val sleepTime = 10
   val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
-
-  {
-    GlobalTracer.register(tracer)
-  }
+  val openTracer = new OpenTracer(tracer, tracingConfig)
 
   it should "create span and context and invalidate cache after expiry" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     var list: List[WeakReference[Span]] = List()
 
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
-    var ctx = WhiskTracerProvider.tracer.getTraceContext(transactionId)
-    WhiskTracerProvider.tracer.setTraceContext(transactionId, ctx)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    var ctx = openTracer.getTraceContext(transactionId)
+    openTracer.setTraceContext(transactionId, ctx)
     assert(ctx.isDefined)
 
     Thread.sleep((tracingConfig.cacheExpiry.toMillis + 5000))
-    ctx = WhiskTracerProvider.tracer.getTraceContext(transactionId)
+    ctx = openTracer.getTraceContext(transactionId)
     assert(!ctx.isDefined)
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
     //no parent for new span as cache expiry cleared spanMap and contextMap
@@ -65,9 +61,9 @@ class WskTracingTests extends TestHelpers {
   it should "create a finished span" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
@@ -77,13 +73,13 @@ class WskTracingTests extends TestHelpers {
   it should "create a child span" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 2)
@@ -96,9 +92,9 @@ class WskTracingTests extends TestHelpers {
   it should "create a span with tag" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
@@ -111,16 +107,16 @@ class WskTracingTests extends TestHelpers {
   it should "create a valid trace context and use it" in {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     Thread.sleep(sleepTime)
-    val context = WhiskTracerProvider.tracer.getTraceContext(transactionId)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    val context = openTracer.getTraceContext(transactionId)
+    openTracer.finishSpan(transactionId)
     tracer.reset
     //use context for new span
-    WhiskTracerProvider.tracer.setTraceContext(transactionId, context)
-    WhiskTracerProvider.tracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
+    openTracer.setTraceContext(transactionId, context)
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     Thread.sleep(sleepTime)
-    WhiskTracerProvider.tracer.finishSpan(transactionId)
+    openTracer.finishSpan(transactionId)
     Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
