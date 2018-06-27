@@ -439,27 +439,47 @@ ok: got action hello
 
 ### Getting the URL for an action
 
-An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
+An action can be invoked through the REST interface via an HTTPS request.
+To get an action URL, execute the following command:
 
 ```
-wsk action get actionName --url
+wsk action get greeting --url
 ```
 
 A URL with the following format will be returned for standard actions:
 ```
 ok: got action actionName
-https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
+https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/greeting
 ```
 
-For [web actions](https://github.com/apache/incubator-openwhisk/blob/master/docs/webactions.md#web-actions), a URL will be returned in the the following format:
+Authentication is required when invoking an action via an HTTPS request using this resource path.
+For more information regarding action invocations using the REST interface, see [Using REST APIs with OpenWhisk](rest_api.md#actions).
+
+Another way of invoking an action which does not require authentication is via
+[web actions](https://github.com/apache/incubator-openwhisk/blob/master/docs/webactions.md#web-actions).
+
+Any action may be exposed as a web action, using the `--web true` command line option at action
+creation time (or later when updating the action).
+
 ```
-ok: got action actionName
-https://${APIHOST}/api/v1/web/${NAMESPACE}/${PACKAGE}/actionName
+wsk action update greeting --web true
+ok: updated action greeting
 ```
 
-**Note:** For standard actions, authentication must be provided when invoking an action via an HTTPS request. For more information regarding
-action invocations using the REST interface, see
-[Using REST APIs with OpenWhisk](rest_api.md#actions).
+The resource URL for a web action is different:
+```
+wsk action get greeting --url
+ok: got action greeting
+https://${APIHOST}/api/v1/web/${NAMESPACE}/${PACKAGE}/greeting
+```
+
+You can use `curl` or wget to invoke the action.
+```
+curl `wsk action get greeting --url | tail -1`.json
+{
+  "payload": "Hello, Toto from somewhere!"
+}
+```
 
 ### Saving action code
 
@@ -467,14 +487,14 @@ Code associated with an existing action may be retrieved and saved locally. Savi
 
 1. Save action code to a filename that corresponds with an existing action name in the current working directory. A file extension that corresponds to the action kind is used, or an extension of `.zip` will be used for action code that is a zip file.
   ```
-  wsk action get actionName --save
-  ok: saved action code to /absolutePath/currentDirectory/actionName.js
+  wsk action get /whisk.system/samples/greeting --save
+  ok: saved action code to /path/to/openwhisk/greeting.js
   ```
 
-2. Instead of allowing the CLI to determine the destination of the code to be saved, a custom file path, filename and extension can be provided by using the `--save-as` flag.
+2. You may provide your own file name and extension as well using the `--save-as` flag.
   ```
-  wsk action get actionName --save-as codeFile.js
-  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
+  wsk action get /whisk.system/samples/greeting --save-as hello.js
+  ok: saved action code to /path/to/openwhisk/hello.js
   ```
 
 ## Listing actions
@@ -483,36 +503,44 @@ You can list all the actions that you have created using `wsk action list`:
 
 ```
 wsk action list
+```
+```
 actions
-/guest/packageB/A                  private nodejs:6
-/guest/C                           private nodejs:6
-/guest/A                           private nodejs:6
-/guest/packageA/B                  private nodejs:6
-/guest/packageA/A                  private nodejs:6
-/guest/B                           private nodejs:6
+/guest/mySequence                  private sequence
+/guest/greeting                    private nodejs:6
 ```
 
 Here, we see actions listed in order from most to least recently updated. For easier browsing, you can use the flag `--name-sort` or `-n` to sort the list alphabetically:
 
 ```
 wsk action list --name-sort
+```
+```
 actions
-/guest/A                           private nodejs:6
-/guest/B                           private nodejs:6
-/guest/C                           private nodejs:6
-/guest/packageA/A                  private nodejs:6
-/guest/packageA/B                  private nodejs:6
-/guest/packageB/A                  private nodejs:6
+/guest/mySequence                  private sequence
+/guest/greeting                    private nodejs:6
 ```
 
-Notice that the list is now sorted alphabetically by namespace, then package name, and finally action name, with the default package (no specified package) listed at the top.
+Notice that the list is now sorted alphabetically by namespace, then package name if any, and finally action name, with the default package (no specified package) listed at the top.
 
-**Note**: The printed list is sorted alphabetically after it is received from the server. Other list flags such as `--limit` and `--skip` will be applied to the block of actions before they are received for sorting. To list actions in order by creation time, use the flag `--time`.
+**Note**: The printed list is sorted alphabetically after it is received from the platform. Other list flags such as `--limit` and `--skip` will be applied to the block of actions before they are received for sorting. To list actions in order by creation time, use the flag `--time`.
 
 As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just those within a specific package, you can use:
 
 ```
-wsk action list [PACKAGE NAME]
+wsk action list action list /whisk.system/utils
+```
+```
+actions
+/whisk.system/utils/hosturl        private nodejs:6
+/whisk.system/utils/namespace      private nodejs:6
+/whisk.system/utils/cat            private nodejs:6
+/whisk.system/utils/smash          private nodejs:6
+/whisk.system/utils/echo           private nodejs:6
+/whisk.system/utils/split          private nodejs:6
+/whisk.system/utils/date           private nodejs:6
+/whisk.system/utils/head           private nodejs:6
+/whisk.system/utils/sort           private nodejs:6
 ```
 
 ## Deleting actions
@@ -521,14 +549,17 @@ You can clean up by deleting actions that you do not want to use.
 
 1. Run the following command to delete an action:
   ```
-  wsk action delete hello
-  ok: deleted hello
+  wsk action delete greeting
+  ok: deleted greeting
   ```
 
 2. Verify that the action no longer appears in the list of actions.
   ```
   wsk action list
+  ```
+  ```
   actions
+  /guest/mySequence                private sequence
   ```
 
 ## Accessing action metadata within the action body
