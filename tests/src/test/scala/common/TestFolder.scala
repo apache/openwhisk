@@ -21,6 +21,8 @@ import java.io.File
 
 import org.scalatest._
 
+import scala.util.Properties
+
 /**
  * Creates a temporary folder for the lifetime of a single test.
  * The folder's name will exist in a `File` field named `testFolder`.
@@ -28,8 +30,7 @@ import org.scalatest._
 trait TestFolder extends TestSuite { self: Suite =>
   var testFolder: File = _
 
-  //Default value ensures that temp files are created under build dir
-  protected def parentFolder: File = new File("build/tmp/scalaTestFolder")
+  protected def parentFolder: File = new File(Properties.tmpDir)
 
   private def deleteFile(file: File) {
     if (!file.exists) return
