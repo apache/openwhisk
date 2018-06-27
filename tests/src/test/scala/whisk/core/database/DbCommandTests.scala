@@ -17,17 +17,57 @@
 
 package whisk.core.database
 
+import java.io.File
+
+import akka.stream.scaladsl.Sink
+import common.TestFolder
 import org.junit.runner.RunWith
+import org.scalactic.Uniformity
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.cli.CommandMessages
+import spray.json.{DefaultJsonProtocol, JsObject}
+import whisk.common.TransactionId
 
 @RunWith(classOf[JUnitRunner])
-class DbCommandTests extends FlatSpec with WhiskAdminCliTestBase {
-
+class DbCommandTests
+    extends FlatSpec
+    with WhiskAdminCliTestBase
+    with TestFolder
+    with ArtifactNamingHelper
+    with DefaultJsonProtocol {
   behavior of "db get"
 
   it should "get all artifacts" in {
-    resultOk("db", "get", "subjects") shouldBe CommandMessages.subjectDeleted
+    implicit val tid: TransactionId = transid()
+    val actions = List.tabulate(10)(_ => newAction(newNS()))
+    actions foreach (put(entityStore, _))
+    val actionIds = actions.map(_.docid.id).toSet
+    val actionJsons = actions.map(_.toDocumentRecord)
+
+    val outFile = newFile()
+
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
+
+    val idFilter: JsObject => Boolean = js => actionIds.contains(js.fields("_id").convertTo[String])
+    (collectedEntities(outFile, idFilter) should contain theSameElementsAs actionJsons)(after being strippedOfRevision)
+  }
+
+  private def collectedEntities(file: File, filter: JsObject => Boolean) =
+    DbCommand
+      .createJSStream(file)
+      .filter(filter)
+      .runWith(Sink.seq)
+      .futureValue
+
+  /**
+   * Strips of the '_rev' field to allow comparing jsons where only rev may differ
+   */
+  private object strippedOfRevision extends Uniformity[JsObject] {
+    override def normalizedOrSame(b: Any) = b match {
+      case s: JsObject => normalized(s)
+      case _           => b
+    }
+    override def normalizedCanHandle(b: Any) = b.isInstanceOf[JsObject]
+    override def normalized(js: JsObject) = JsObject(js.fields - "_rev")
   }
 }

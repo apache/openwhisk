@@ -26,6 +26,7 @@ import spray.json.{JsObject, _}
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.ConfigKeys
 import whisk.core.database.StoreUtils._
+import whisk.http.PoolingRestClient
 
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -75,7 +76,8 @@ class CouchDBStreamingStore(
     reportFailure(f, start, failure => s"[GET_ALL] '$dbName' internal error, failure: '${failure.getMessage}'")
   }
 
-  override protected[database] def getCount()(implicit transid: TransactionId): Future[Option[Long]] = ???
+  override protected[database] def getCount()(implicit transid: TransactionId): Future[Option[Long]] =
+    Future.successful(None)
 
 }
 
@@ -89,13 +91,13 @@ class StreamingCouchDbRestClient(protocol: String,
 
   def getAllDocs[T](sink: Sink[JsObject, Future[T]]): Future[Either[StatusCode, (Long, T)]] = {
     val url = uri(db, "_all_docs").withQuery(Uri.Query(Map("include_docs" -> "true")))
-    val request = mkRequest(HttpMethods.GET, url, baseHeaders)
+    val request = PoolingRestClient.mkRequest(HttpMethods.GET, url, headers = baseHeaders)
     requestStream[T](request, sink)
   }
 
   def requestStream[T](futureRequest: Future[HttpRequest],
                        sink: Sink[JsObject, Future[T]]): Future[Either[StatusCode, (Long, T)]] = {
-    request0(futureRequest) flatMap { response =>
+    request(futureRequest) flatMap { response =>
       if (response.status.isSuccess()) {
         val counter = Sink.fold[Long, JsValue](0)((acc, _) => acc + 1)
         val f = response.entity

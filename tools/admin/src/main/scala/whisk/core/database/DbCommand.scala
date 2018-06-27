@@ -20,20 +20,21 @@ package whisk.core.database
 import java.io.File
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{FileIO, Flow, Keep, StreamConverters}
+import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
-import spray.json.JsObject
+import spray.json.{JsObject, JsonParser, ParserInput}
 import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.{CommandError, CommandMessages, WhiskCommand}
-import whisk.core.entity.{WhiskActivation, WhiskAuth, WhiskEntity}
+import whisk.core.entity.{ByteSize, WhiskActivation, WhiskAuth, WhiskEntity}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.Properties
+import whisk.core.entity.size._
 
 class DbCommand extends Subcommand("db") with WhiskCommand {
   descr("work with dbs")
@@ -122,5 +123,13 @@ object DbCommand {
       CouchDBStreamingStoreProvider
     else
       throw new IllegalArgumentException(s"Unsupported ArtifactStore $storeClass")
+  }
+
+  def createJSStream(file: File, maxLineLength: ByteSize = 10.MB): Source[JsObject, Future[IOResult]] = {
+    //Use a large look ahead buffer as actions can be big
+    FileIO
+      .fromPath(file.toPath)
+      .via(Framing.delimiter(ByteString("\n"), maxLineLength.toBytes.toInt))
+      .map(bs => JsonParser(ParserInput.apply(bs.toArray)).asJsObject)
   }
 }

@@ -24,7 +24,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import whisk.core.cli.{Conf, WhiskAdmin}
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.WhiskAuthStore
+import whisk.core.entity.{WhiskAuthStore, WhiskEntityStore}
 
 import scala.util.Random
 
@@ -42,6 +42,7 @@ trait WhiskAdminCliTestBase
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
   protected val authStore = WhiskAuthStore.datastore()
+  protected val entityStore = WhiskEntityStore.datastore()
 
   //Ensure scalaop does not exit upon validation failure
   throwError.value = true
@@ -53,6 +54,7 @@ trait WhiskAdminCliTestBase
   override def afterAll(): Unit = {
     println("Shutting down store connections")
     authStore.shutdown()
+    entityStore.shutdown()
     super.afterAll()
   }
 
