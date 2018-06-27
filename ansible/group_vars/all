@@ -78,6 +78,8 @@ controller:
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   loadbalancer:
     spi: "{{ controller_loadbalancer_spi | default('') }}"
+  authentication:
+    spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"

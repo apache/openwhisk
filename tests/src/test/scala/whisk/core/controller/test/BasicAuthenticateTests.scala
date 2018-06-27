@@ -24,7 +24,7 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 
-import whisk.core.controller.Authenticate
+import whisk.core.controller.BasicAuthenticate
 import whisk.core.entity._
 import whisk.core.entitlement.Privilege
 
@@ -41,7 +41,7 @@ import whisk.core.entitlement.Privilege
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
 @RunWith(classOf[JUnitRunner])
-class AuthenticateTests extends ControllerTestCommon with Authenticate {
+class BasicAuthenticateTests extends ControllerTestCommon with BasicAuthenticate {
   behavior of "Authenticate"
 
   it should "authorize a known user using different namespaces and cache key, and reject invalid secret" in {

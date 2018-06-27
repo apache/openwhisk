@@ -33,7 +33,7 @@ import whisk.core.entity.Identity
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
 
-trait Authenticate {
+trait BasicAuthenticate {
   protected implicit val executionContext: ExecutionContext
   protected implicit val logging: Logging
 
