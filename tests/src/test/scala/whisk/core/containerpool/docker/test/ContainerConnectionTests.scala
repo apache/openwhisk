@@ -35,6 +35,7 @@ import org.scalatest.Matchers
 import spray.json.JsObject
 import common.StreamLogging
 import common.WskActorSystem
+import scala.concurrent.Await
 import whisk.common.TransactionId
 import whisk.core.containerpool.HttpUtils
 import whisk.core.entity.size._
@@ -98,7 +99,8 @@ class ContainerConnectionTests
     val connection = new HttpUtils(hostWithPort, timeout, 1.B)
     testHang = timeout * 2
     val start = Instant.now()
-    val result = connection.post("/init", JsObject.empty, retry = true)
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result shouldBe 'left
@@ -110,7 +112,7 @@ class ContainerConnectionTests
     val timeout = 5.seconds
     val connection = new HttpUtils(hostWithPort, timeout, 1.B)
     testStatusCode = 204
-    val result = connection.post("/init", JsObject.empty, retry = true)
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
   }
 
@@ -121,7 +123,7 @@ class ContainerConnectionTests
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (code) 200 else 500
         testResponse = r
-        val result = connection.post("/init", JsObject.empty, retry = true)
+        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = code, if (r != null) r else "", None)
         }
@@ -138,7 +140,7 @@ class ContainerConnectionTests
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (code) 200 else 500
         testResponse = r
-        val result = connection.post("/init", JsObject.empty, retry = true)
+        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
         }
