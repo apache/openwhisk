@@ -307,13 +307,21 @@ an action started running but the system failed before the action registered com
 - Functions should be stateless, or *idempotent*. While the system does not enforce this property,
 there is no guarantee that any state maintained by an action will be available across invocations. In some cases,
 deliberately leaking state across invocations may be advantageous for performance, but also exposes some risks.
-- Multiple instantiations of an action might exist, with each instantiation having its own state.
-An action invocation might be dispatched to any of these instantiations.
+- An action executes in a sandboxed environment, namely a container. At any given time, a single activation will
+execute inside the container. Subsequent invocations of the same action may reuse a previous container,
+and there may exist more than one container at any given time, each having its own state.
 - Invocations of an action are not ordered. If the user invokes an action twice from the command line or the REST API,
 the second invocation might run before the first. If the actions have side effects, they might be observed in any order.
 - There is no guarantee that actions will execute atomically. Two actions can run concurrently and their side effects
 can be interleaved. OpenWhisk does not ensure any particular concurrent consistency model for side effects.
 Any concurrency side effects will be implementation-dependent.
+- Actions have two phases: an initialization phase, and a run phase. During initialization, the function is loaded
+and prepared for execution. The run phase receives the action parameters provided at invocation time. Initialization
+is skipped if an action is dispatched to a previously initialized container --- this is referred to as a _warm start_.
+You can tell if an [invocation was a warm activation or a cold one requiring initialization](annotations.md#annotations-specific-to-activations)
+by inspecting the activation record.
+- An action runs for a bounded amount of time. This limit can be configured per action, and applies to both the
+initialization and the execution separately.
 - Functions should follow best practices to reduce [vulnerabilities](security.md) by treating input as untrusted,
 and be aware of vulnerabilities they may inherit from third-party dependencies.
 
