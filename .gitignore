@@ -1,6 +1,7 @@
 # Whisk
 nginx.conf
 whisk.properties
+whisk.conf
 default.props
 /tests/src/test/resources/application.conf
 

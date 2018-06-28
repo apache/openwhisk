@@ -54,7 +54,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     }
   }
   val verbose = tally()
-  val configFile = opt[File](descr = "application.conf path")(fileConverter)
+  val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")(fileConverter)
   val timeout =
     opt[Duration](descr = "time to wait for asynchronous task to finish", default = Some(30.seconds))(durationConverter)
   printedName = Main.printedName
@@ -132,7 +132,12 @@ object Main {
   }
 
   private def initConfig(conf: Conf): Unit = {
-    conf.configFile.foreach(f => System.setProperty("config.file", f.getAbsolutePath))
+    val file = conf.configFile.getOrElse {
+      new File("../whisk.conf")
+    }
+    if (file.exists()) {
+      System.setProperty("config.file", file.getAbsolutePath)
+    }
   }
 
   private def initLogging(conf: Conf): Unit = {
