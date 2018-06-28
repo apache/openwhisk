@@ -27,23 +27,23 @@ observable output.
 An action may be created from a function programmed using a number of [supported languages and runtimes](#languages-and-runtimes),
 or from a binary-compatible executable, or even executables packaged as Docker containers.
 
-While the actual function code will be specific to a language and runtime, the OpenWhisk operations to
-create, invoke and manage an action are the same regardless of the implementation choice.
-
 * The OpenWhisk CLI [`wsk`](https://github.com/apache/incubator-openwhisk-cli/releases)
 makes it easy to create and invoke actions. Instructions for configuring the CLI are available [here](cli.md).
 * You can also use the [REST API](rest_api.md).
 
-The rest of this document provides a [basic tutorial](#the-basics) for invoking an action, passing parameters to it, and
-inspecting the result. We recommend that you get familiar with the following topics first.
+While the actual function code will be specific to a [language and runtime](#languages-and-runtimes),
+the OpenWhisk operations to create, invoke and manage an action are the same regardless of the
+implementation choice. We recommend that you review [the basics](#the-basics) before moving on to
+advanced topics.
 
-* [The basics of working with actions](#the-basics)
-* [Watching action output](#watching-action-output)
-* [Getting actions](#getting-actions)
-* [Listing actions](#listing-actions)
-* [Deleting actions](#deleting-actions)
+* [The basics of working with actions](#the-basics) (_start here_)
+* Common `wsk` CLI operations and tips
+  * [Watching action output](#watching-action-output)
+  * [Getting actions](#getting-actions)
+  * [Listing actions](#listing-actions)
+  * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
-* [Securing your action](./security.md)
+* [Securing your action](security.md)
 
 ## Languages and Runtimes
 
@@ -54,13 +54,13 @@ the [Docker](docker-actions.md) action or [native binary](docker-actions.md#crea
 paths more suitable. Multiple actions may be composed together to create a longer processing pipeline called a
 [sequence](#creating-action-sequences). A more advanced form of composition is described [here](conductors.md).
 
-* [JavaScript](node-actions.md)
-* [Python](python-actions.md)
-* [Java](java-actions.md)
-* [PHP](php-actions.md)
-* [Swift](swift-actions.md)
-* [Docker and native binaries](docker-actions.md)
-* [Go](go-actions.md)
+* [JavaScript](actions-node.md)
+* [Python](actions-python.md)
+* [Java](actions-java.md)
+* [PHP](actions-php.md)
+* [Swift](actions-swift.md)
+* [Docker and native binaries](actions-docker.md)
+* [Go](actions-go.md)
 
 ## The basics
 
@@ -77,7 +77,7 @@ In this section, you'll invoke a built-in action using the `wsk` CLI, which you 
 
 ### Invoking a built-in action
 
-Actions are identified by [fully qualified names](./reference.md#fully-qualified-names) which generally have
+Actions are identified by [fully qualified names](reference.md#fully-qualified-names) which generally have
 three parts separated by a forward slash:
 1. a namespace
 2. a package name
@@ -87,7 +87,7 @@ As an example, we will work with a built-in sample action called `/whisk.system/
 The namespace for this action is `whisk.system`, the package name
 is `samples`, and the action name is `greeting`. There are other sample actions and
 utility actions, and later you'll learn how to explore the platform to discover more actions.
-You can learn more about [packages](./packages.md) after completing the basic tutorial.
+You can learn more about [packages](packages.md) after completing the basic tutorial.
 
 Let's take a look at the action body by saving the function locally:
 ```
@@ -212,7 +212,7 @@ Each action invocation results in an activation record which contains the follow
 - `namespace` and `name`: The namespace and name of the entity.
 - `start` and `end`: Timestamps recording the start and end of the activation. The values are in [UNIX time format](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_15).
 - `logs`: An array of strings with the logs that are produced by the action during its activation. Each array element corresponds to a line output to `stdout` or `stderr` by the action, and includes the time and stream of the log output. The structure is as follows: `TIMESTAMP` `STREAM:` `LOG LINE`.
-- `annotations`: An array of key-value pairs that record [metadata](./annotations.md#annotations-specific-to-activations) about the action activation.
+- `annotations`: An array of key-value pairs that record [metadata](annotations.md#annotations-specific-to-activations) about the action activation.
 - `response`: A dictionary that defines the following keys
   - `status`: The activation result, which might be one of the following values:
     - *"success"*: the action invocation completed successfully.
@@ -237,7 +237,7 @@ ok: created action greeting
 ```
 
 For convenience, you can omit the namespace when working with actions that belong to you. Also if there
-is no package, then you simply use the action name without a [package](./packages.md) name.
+is no package, then you simply use the action name without a [package](packages.md) name.
 If you modify the code and want to update the action, you can use `wsk action update` instead of
 `wsk action create`. The two commands are otherwise the same in terms of their command like parameters.
 
@@ -324,7 +324,7 @@ composition is a sequence of actions, where the result of one action becomes the
 the sequence.
 
 Here we will use several utility actions that are provided in the `/whisk.system/utils`
-[package](./packages.md) to create your first sequence.
+[package](packages.md) to create your first sequence.
 
 1. Display the actions in the `/whisk.system/utils` package.
 
@@ -374,7 +374,7 @@ Therefore parameters that are passed to the sequence action (e.g., `mySequence`)
 The result of the first action in the sequence becomes the input JSON object to the second action in the sequence (and so on).
 This object does not include any of the parameters originally passed to the sequence unless the first action explicitly includes them in its result.
 Input parameters to an action are merged with the action's default parameters, with the former taking precedence and overriding any matching default parameters.
-For more information about invoking action sequences with multiple named parameters, learn about [setting default parameters](./parameters.md#setting-default-parameters).
+For more information about invoking action sequences with multiple named parameters, learn about [setting default parameters](parameters.md#setting-default-parameters).
 
 A more advanced form of composition using *conductor* actions is described [here](conductors.md).
 
@@ -456,7 +456,7 @@ Authentication is required when invoking an action via an HTTPS request using th
 For more information regarding action invocations using the REST interface, see [Using REST APIs with OpenWhisk](rest_api.md#actions).
 
 Another way of invoking an action which does not require authentication is via
-[web actions](https://github.com/apache/incubator-openwhisk/blob/master/docs/webactions.md#web-actions).
+[web actions](webactions.md#web-actions).
 
 Any action may be exposed as a web action, using the `--web true` command line option at action
 creation time (or later when updating the action).
@@ -525,7 +525,7 @@ Notice that the list is now sorted alphabetically by namespace, then package nam
 
 **Note**: The printed list is sorted alphabetically after it is received from the platform. Other list flags such as `--limit` and `--skip` will be applied to the block of actions before they are received for sorting. To list actions in order by creation time, use the flag `--time`.
 
-As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just those within a specific package, you can use:
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](packages.md). To filter your list of actions to just those within a specific package, you can use:
 
 ```
 wsk action list action list /whisk.system/utils
