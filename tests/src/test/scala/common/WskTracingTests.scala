@@ -19,6 +19,7 @@ package common
 
 import io.opentracing.Span
 import io.opentracing.mock.{MockSpan, MockTracer}
+import com.github.benmanes.caffeine.cache.Ticker
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import pureconfig.loadConfigOrThrow
@@ -32,12 +33,13 @@ import scala.ref.WeakReference
 class WskTracingTests extends TestHelpers {
 
   val tracer: MockTracer = new MockTracer()
-  val sleepTime = 10
   val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
-  val openTracer = new OpenTracer(tracer, tracingConfig)
+  val ticker = new FakeTicker(System.nanoTime())
+  val openTracer = new OpenTracer(tracer, tracingConfig, ticker)
 
   it should "create span and context and invalidate cache after expiry" in {
     tracer.reset
+
     val transactionId: TransactionId = TransactionId.testing
     var list: List[WeakReference[Span]] = List()
 
@@ -46,11 +48,11 @@ class WskTracingTests extends TestHelpers {
     openTracer.setTraceContext(transactionId, ctx)
     assert(ctx.isDefined)
 
-    Thread.sleep((tracingConfig.cacheExpiry.toMillis + 5000))
+    //advance ticker
+    ticker.time = System.nanoTime() + (tracingConfig.cacheExpiry.toNanos + 100)
     ctx = openTracer.getTraceContext(transactionId)
     assert(!ctx.isDefined)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
@@ -62,9 +64,7 @@ class WskTracingTests extends TestHelpers {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
-    Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
 
@@ -74,13 +74,9 @@ class WskTracingTests extends TestHelpers {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
-    Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 2)
     val parent: MockSpan = finishedSpans.get(1)
@@ -93,9 +89,7 @@ class WskTracingTests extends TestHelpers {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
-    Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
     val mockSpan: MockSpan = finishedSpans.get(0)
@@ -108,20 +102,23 @@ class WskTracingTests extends TestHelpers {
     tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
-    Thread.sleep(sleepTime)
     val context = openTracer.getTraceContext(transactionId)
     openTracer.finishSpan(transactionId)
     tracer.reset
     //use context for new span
     openTracer.setTraceContext(transactionId, context)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
-    Thread.sleep(sleepTime)
     openTracer.finishSpan(transactionId)
-    Thread.sleep(sleepTime)
     val finishedSpans = tracer.finishedSpans()
     assert(finishedSpans.size() == 1)
     val child: MockSpan = finishedSpans.get(0)
     //This child span should have a parent as we have set trace context
     assert(child.parentId > 0)
+  }
+}
+
+class FakeTicker(var time: Long) extends Ticker {
+  override def read() = {
+    time
   }
 }

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 import brave.Tracing
 import brave.opentracing.BraveTracer
 import brave.sampler.Sampler
-import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.{Caffeine, Ticker}
 import io.opentracing.propagation.{Format, TextMapExtractAdapter, TextMapInjectAdapter}
 import io.opentracing.util.GlobalTracer
 import io.opentracing.{Span, SpanContext, Tracer}
@@ -39,7 +39,7 @@ import scala.concurrent.duration.Duration
 /**
  * OpenTracing based implementation for tracing
  */
-class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig) extends WhiskTracer {
+class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticker = SystemTicker) extends WhiskTracer {
   val spanMap = configureCache[String, List[Span]]()
   val contextMap = configureCache[String, SpanContext]()
 
@@ -138,6 +138,7 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig) extends Whisk
   private def configureCache[T, R](): collection.concurrent.Map[T, R] =
     Caffeine
       .newBuilder()
+      .ticker(ticker)
       .expireAfterAccess(tracingConfig.cacheExpiry.toSeconds, TimeUnit.SECONDS)
       .build()
       .asMap()
@@ -192,4 +193,9 @@ private object NoopTracer extends WhiskTracer
 case class TracingConfig(component: String, cacheExpiry: Duration, zipkin: Option[ZipkinConfig] = None)
 case class ZipkinConfig(url: String, sampleRate: String) {
   def getUrl = s"$url/api/v2/spans"
+}
+object SystemTicker extends Ticker {
+  override def read() = {
+    System.nanoTime()
+  }
 }
