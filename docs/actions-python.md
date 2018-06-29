@@ -17,13 +17,14 @@
 #
 -->
 
-## Creating Python actions
+## Creating and invoking Python actions
 
-The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and packaging your actions in zip files.
+The process of creating Python actions is similar to that of [other actions](actions.md#the-basics).
+The following sections guide you through creating and invoking a single Python action,
+and demonstrate how to bundle multiple Python files and third party dependencies.
 
-### Creating and invoking a Python action
-
-An action is simply a top-level Python function. For example, create a file called `hello.py` with the following source code:
+An example action Python action is simply a top-level function.
+For example, create a file called `hello.py` with the following source code:
 
 ```python
 def main(args):
@@ -33,16 +34,21 @@ def main(args):
     return {"greeting": greeting}
 ```
 
-Python actions always consume a dictionary and produce a dictionary. The entry method for the action is `main` by default but may be specified explicitly when creating the action with the `wsk` CLI using `--main`, as with any other action type.
+Python actions always consume a dictionary and produce a dictionary.
+The entry method for the action is `main` by default but may be specified explicitly when creating
+the action with the `wsk` CLI using `--main`, as with any other action type.
 
 You can create an OpenWhisk action called `helloPython` from this function as follows:
 
 ```
 wsk action create helloPython hello.py
 ```
-The CLI automatically infers the type of the action from the source file extension. For `.py` source files, the action runs using a Python 2.7 runtime. You can also create an action that runs with Python 3.6 by explicitly specifying the parameter `--kind python:3`. See the Python [reference](./reference.md#python-actions) for more information about Python 2.7 vs. 3.6.
+The CLI automatically infers the type of the action from the source file extension.
+For `.py` source files, the action runs using a Python 2.7 runtime.
+You can also create an action that runs with Python 3.6 by explicitly specifying the parameter
+`--kind python:3`.
 
-Action invocation is the same for Python actions as it is for JavaScript actions:
+Action invocation is the same for Python actions as it is for any other actions:
 
 ```
 wsk action invoke --result helloPython --param name World
@@ -56,7 +62,7 @@ wsk action invoke --result helloPython --param name World
 
 Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
-### Packaging Python actions in zip files
+## Packaging Python actions in zip files
 
 You can package a Python action and dependent modules in a zip file.
 The filename of the source file containing the entry point (e.g., `main`) must be `__main__.py`.
@@ -72,7 +78,7 @@ and then create the action:
 wsk action create helloPython --kind python:3 helloPython.zip
 ```
 
-### Packaging Python actions with a virtual environment in zip files
+## Packaging Python actions with a virtual environment in zip files
 
 Another way of packaging Python dependencies is using a virtual environment (`virtualenv`). This allows you to link additional packages
 that may be installed via [`pip`](https://packaging.python.org/installing/) for example.
@@ -100,11 +106,7 @@ wsk action create helloPython --kind python:3 helloPython.zip
 
 While the steps above are shown for Python 3.6, you can do the same for Python 2.7 as well.
 
-## Reference
-
-OpenWhisk supports running Python actions using two different runtime versions.
-
-### Python 3 actions
+## Python 3 actions
 
 Python 3 actions are executed using Python 3.6.1. To use this runtime, specify the `wsk` CLI parameter `--kind python:3` when creating or updating an action.
 The following packages are available for use by Python actions, in addition to the Python 3.6 standard libraries.
@@ -152,7 +154,7 @@ The following packages are available for use by Python actions, in addition to t
 - yarl v0.9.8
 - zope.interface v4.3.3
 
-### Python 2 actions
+## Python 2 actions
 
 Python 2 actions are executed using Python 2.7.12. This is the default runtime for Python actions, unless you specify the `--kind` flag when creating or updating an action. To explicitly select this runtime, use `--kind python:2`. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
 

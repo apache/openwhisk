@@ -17,13 +17,14 @@
 #
 -->
 
-## Creating Java actions
+## Creating and invoking Java actions
 
-The process of creating Java actions is similar to that of JavaScript and Swift actions. The following sections guide you through creating and invoking a single Java action, and adding parameters to that action.
+The process of creating Java actions is similar to that of [other actions](actions.md#the-basics).
+The following sections guide you through creating and invoking a single Java action,
+and demonstrate how to bundle multiple files and third party dependencies.
 
-In order to compile, test and archive Java files, you must have a [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed locally.
-
-### Creating and invoking an action
+In order to compile, test and archive Java files, you must have a
+[JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed locally.
 
 A Java action is a Java program with a method called `main` that has the exact signature as follows:
 ```java

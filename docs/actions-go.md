@@ -17,13 +17,16 @@
 #
 -->
 
-## Creating Go actions
+## Creating and invoking Go actions
 
-The `--native` option allows for packaging of any executable as an action. This works for Go as an example.
-As with Docker actions, the Go executable receives a single argument from the command line.
+Using OpenWhisk [native actions](actions-docker.md#creating-native-actions),
+you can package any executable as an action. This works for Go as an example.
+As with [Docker actions](actions-docker.md), the Go executable receives a single argument
+from the command line.
 It is a string serialization of the JSON object representing the arguments to the action.
 The program may log to `stdout` or `stderr`.
-By convention, the last line of output _must_ be a stringified JSON object which represents the result of the action.
+By convention, the last line of output _must_ be a stringified JSON object which represents
+the result of the action.
 
 Here is an example Go action.
 ```go
@@ -54,7 +57,8 @@ func main() {
 }
 ```
 
-Save the code above to a file `sample.go` and cross compile it for OpenWhisk. The executable must be called `exec`.
+Save the code above to a file `sample.go` and cross compile it for OpenWhisk.
+The executable must be called `exec`.
 ```bash
 GOOS=linux GOARCH=amd64 go build -o exec
 zip exec.zip exec

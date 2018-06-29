@@ -17,18 +17,20 @@
 #
 -->
 
-## Creating Swift actions
+## Creating and invoking Swift actions
 
-The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and packaging an action in a zip file.
+The process of creating Swift actions is similar to that of [other actions](actions.md#the-basics).
+The following sections guide you through creating and invoking a single Swift action,
+and demonstrate how to bundle multiple Swift files and third party dependencies.
 
-You can also use the online [Online Swift Playground](http://online.swiftplayground.run) to test your Swift code without having to install Xcode on your machine.
+**Tip:** You can use the [Online Swift Playground](http://online.swiftplayground.run) to test your Swift code without having to install Xcode on your machine.
 
-**Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
-development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of Xcode on MacOS.
+**Note:** Swift actions run in a Linux environment. Swift on Linux is still in development,
+and OpenWhisk usually uses the latest available release, which is not necessarily stable.
+In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions
+of Swift from stable releases of Xcode on MacOS.
 
-### Creating and invoking an action
-
-#### Swift 3
+### Swift 3
 An action is simply a top-level Swift function. For example, create a file called
 `hello.swift` with the following content:
 
@@ -50,7 +52,7 @@ follows:
 wsk action create helloSwift hello.swift --kind swift:3.1.1
 ```
 
-#### Swift 4
+### Swift 4
 
 New in Swift 4 in addition of the above main function signature there are two more signatures out of the box taking advantage of the [Codable](https://developer.apple.com/documentation/swift/codable) type. You can learn more about data types encodable and decodable for compatibility with external representations such as JSON [here](https://developer.apple.com/documentation/foundation/archives_and_serialization/encoding_and_decoding_custom_types).
 
@@ -89,7 +91,7 @@ wsk action create helloSwift hello.swift --kind swift:4.1
 ```
 
 
-See the Swift [reference](./reference.md#swift-actions) for more information about the Swift runtime.
+See the Swift [reference](#reference.md) for more information about the Swift runtime.
 
 Action invocation is the same for Swift actions as it is for JavaScript actions:
 
@@ -105,13 +107,13 @@ wsk action invoke --result helloSwift --param name World
 
 Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
-### Packaging an action as a Swift executable
+## Packaging an action as a Swift executable
 
 When you create an OpenWhisk Swift action with a Swift source file, it has to be compiled into a binary before the action is run. Once done, subsequent calls to the action are much faster until the container holding your action is purged. This delay is known as the cold-start delay.
 
 To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in.
 
-### Using a script to build Swift packaged action
+## Using a script to build Swift packaged action
 You can use a script to automate the packaging of the action. Create  script `compile.sh`h file the following.
 ```bash
 #!/bin/bash
@@ -266,7 +268,7 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
 
   The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-### Error Handling in Swift 4
+## Error Handling in Swift 4
 
 With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
 [Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.

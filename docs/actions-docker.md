@@ -17,28 +17,27 @@
 #
 -->
 
-Docker actions and native actions run a user-supplied binary in a Docker container.
-The binary runs in a Docker image based on [python:3.6.1-alpine](https://hub.docker.com/r/library/python), so the binary must be compatible with this distribution.
+## Creating and invoking Docker actions
 
-The Docker skeleton is a convenient way to build OpenWhisk-compatible Docker images.
-You can install the skeleton with the `wsk sdk install docker` CLI command.
+With OpenWhisk Docker actions, you can write your actions in any language, bundle larger
+or complex dependencies, and tailor the runtime environment to suite your needs.
 
-The main binary program must be located in `/action/exec` inside the container.
-The executable receives the input arguments via a single command-line argument string which can be deserialized as a `JSON` object. It must return a result via `stdout` as a single-line string of serialized `JSON`.
+- As a prerequisite, you must have a Docker Hub account.
+  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
+- The easiest way to get started with a Docker action is to use the OpenWhisk Docker skeleton.
+  - You can install the skeleton with the `wsk sdk install docker` CLI command.
+  - This is a a Docker image based on [python:3.6.1-alpine](https://hub.docker.com/r/library/python).
+  - The skeleton requires an entry point located at `/action/exec` inside the container.
+    This may be an executable script or binary compatible with this distribution.
+  - The executable receives the input arguments via a single command-line argument string
+    which can be deserialized as a `JSON` object.
+    It must return a result via `stdout` as a single-line string of serialized `JSON`.
+  - You may include any compilation steps or dependencies by modifying the `Dockerfile`
+    included in the `dockerSkeleton`.
 
-You may include any compilation steps or dependencies by modifying the `Dockerfile` included in the `dockerSkeleton`.
+The instructions that follow show you how to use the OpenWhisk Docker skeleton.
 
-## Creating Docker actions
-
-With OpenWhisk Docker actions, you can write your actions in any language.
-
-Your code is compiled into an executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
-
-As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
-
-For the instructions that follow, assume that the Docker user ID is `janesmith` and the password is `janes_password`.  Assuming that the CLI is already set up, three steps are required to set up a custom binary for use by OpenWhisk. After that, the uploaded Docker image can be used as an action.
-
-1. Download the Docker skeleton. You can download it by using the CLI as follows:
+1. Install the Docker skeleton.
 
   ```
   wsk sdk install docker
@@ -56,7 +55,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
 
   The skeleton is a Docker container template where you can inject your code in the form of custom binaries.
 
-2. Set up your custom binary in the blackbox skeleton. The skeleton already includes a C program that you can use.
+2. Create the executable. The Docker skeleton includes a C program that you can use as an example.
 
   ```
   cat dockerSkeleton/example.c
@@ -76,9 +75,11 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
 
   The executable receives a single argument from the command line. It is a string serialization of the JSON
   object representing the arguments to the action. The program may log to `stdout` or `stderr`.
-  By convention, the last line of output _must_ be a stringified JSON object which represents the result of the action.
+  By convention, the last line of output _must_ be a stringified JSON object which represents the result of
+  the action.
 
-3. Build the Docker image and upload it using a supplied script. You must first run `docker login` to authenticate, and then run the script with a chosen image name.
+3. Build the Docker image and upload it using a supplied script.
+  You must first run `docker login` to authenticate, and then run the script with a chosen image name.
 
   ```
   docker login -u janesmith -p janes_password
@@ -90,18 +91,23 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ./buildAndPush.sh janesmith/blackboxdemo
   ```
 
-  Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
-  In fact, unless you are compiling the binary on a compatible host machine, it may not run inside the container since formats will not match.
+  Notice that part of the example.c file is compiled as part of the Docker image build process,
+  so you do not need C compiled on your machine.
+  In fact, unless you are compiling the binary on a compatible host machine, it may not run inside
+  the container since formats will not match.
 
   Your Docker container may now be used as an OpenWhisk action.
-
 
   ```
   wsk action create example --docker janesmith/blackboxdemo
   ```
 
-  Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
-  The action may be invoked as any other OpenWhisk action.
+  Notice the use of `--docker` when creating an action. Currently all Docker images are assumed
+  to be hosted on Docker Hub.
+
+## Invoking a Docker action
+
+Docker actions are invoked as [any other OpenWhisk action](actions.md#the-basics).
 
   ```
   wsk action invoke --result example --param payload Rey
@@ -115,9 +121,14 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   }
   ```
 
-  To update the Docker action, run buildAndPush.sh to upload the latest image to Docker Hub. This will allow the system to pull your new Docker image the next time it runs the code for your action.
-  If there are no warm containers any new invocations will use the new Docker image.
-  However, if there is a warm container using a previous version of your Docker image, any new invocations will continue to use that image unless you run `wsk action update`. This will indicate to the system that for new invocations it should execute a docker pull to get your new Docker image.
+## Updating a Docker action
+
+To update the Docker action, run buildAndPush.sh again _and_ update your action.
+This will upload the latest image to Docker Hub and force the system to create a new container based on the image.
+If you do not update the action, then the image is pulled when there are no warm containers available for your action.
+A warm container will continue using a previous version of your Docker image,
+and any new invocations of the action will continue to use that image unless you run `wsk action update`.
+This will indicate to the system that for new invocations it should execute a docker pull to get your new Docker image.
 
   ```
   ./buildAndPush.sh janesmith/blackboxdemo
@@ -126,18 +137,12 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   wsk action update example --docker janesmith/blackboxdemo
   ```
 
-  You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
+## Creating native actions
 
-  *Note:* Previous version of the CLI supported `--docker` without a parameter and the image name was a positional argument.
-  In order to allow Docker actions to accept initialization data via a (zip) file, similar to other actions kinds, we have
-  normalized the user experience for Docker actions so that a positional argument if present must be a file (e.g., a zip file)
-  instead. The image name must be specified following the `--docker` option. Furthermore, due to user feedback, we have added
-  `--native` as shorthand for `--docker openwhisk/dockerskeleton` so that executables that run inside the standard Docker action
-  SDK are more convenient to create and deploy.
-
-  For example, the tutorial above created a binary executable inside the container locate at `/action/exec`. If you copy this file
-  to your local file system and zip it into `exec.zip` then you can use the following commands to create a docker action which receives
-  the executable as initialization data.
+Docker actions accept initialization data via a (zip) file, similar to other actions kinds.
+For example, the tutorial above created a binary executable inside the container located at `/action/exec`.
+If you copy this file to your local file system and zip it into `exec.zip` then you can use the following
+commands to create a docker action which receives the executable as initialization data.
 
   ```bash
   wsk action create example exec.zip --native
@@ -147,8 +152,6 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   wsk action create example exec.zip --docker openwhisk/dockerskeleton
   ```
 
-## Creating native actions
-
-Using `--native`, you can see that any executable may be run as an OpenWhisk action. This includes `bash` scripts,
-or cross compiled binaries. For the latter, the constraint is that the binary must be compatible with the
-`openwhisk/dockerskeleton` image.
+Using `--native`, you can see that any executable may be run as an OpenWhisk action.
+This includes `bash` scripts, or cross compiled binaries. For the latter, the constraint
+is that the binary must be compatible with the `openwhisk/dockerskeleton` image.

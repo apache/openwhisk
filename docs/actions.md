@@ -156,8 +156,9 @@ wsk action invoke /whisk.system/samples/greeting --result --param name Dorothy -
 
 ### Request-Response vs Fire-and-Forget
 
-The style of invocation shown above is synchronous in that the request from the CLI blocks until the activation completes and
-the result is available from the OpenWhisk platform. This is generally useful for rapid iteration and development.
+The style of invocation shown above is synchronous in that the request from the CLI _blocks_ until the
+activation completes and the result is available from the OpenWhisk platform. This is generally useful
+for rapid iteration and development.
 
 You can invoke an action asynchronously as well, by dropping the `--result` command line option. In this case
 the action is invoked, and the OpenWhisk platform returns an activation ID which you can use later to retrieve
@@ -204,6 +205,16 @@ ok: invoked /whisk.system/samples/greeting with id 5975c24de0114ef2b5c24de0118ef
 }
 ```
 
+### Blocking invocations and timeouts
+
+A blocking invocation request will _wait_ for the activation result to be available. The wait period
+is the lesser of 60 seconds or the action's configured
+[time limit](reference.md#per-action-timeout-ms-default-60s).
+The result of the activation is returned if it is available within the wait period.
+Otherwise, the activation continues processing in the system and an activation ID is returned
+so that one may check for the result later, as with non-blocking requests
+(see [here](#watching-action-output) for tips on monitoring activations).
+
 ### Understanding the activation record
 
 Each action invocation results in an activation record which contains the following fields:
@@ -223,7 +234,9 @@ Each action invocation results in an activation record which contains the follow
   - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
 
 Some common CLI commands for working with activations are:
-- `wsk activation result <activationId>`: retrieves only the result of the activation.
+- `wsk activation list`: lists all activations
+- `wsk activation get --last`: retrieves the most recent activation record
+- `wsk activation result <activationId>`: retrieves only the result of the activation (or use `--last` to get the most recent result).
 - `wsk activation logs <activationId>`: retrieves only the logs of the activation.
 - `wsk activation logs <activationId> --strip`: strips metadata from each log line so the logs are easier to read.
 
