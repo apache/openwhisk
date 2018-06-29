@@ -17,7 +17,7 @@
 
 /*
  * Cache base implementation:
- * Copyright (C) 2017 Lightbend Inc. <http://www.lightbend.com/>
+ * Copyright (C) 2011-2015 the spray project <http://spray.io>
  */
 
 package whisk.core.database
