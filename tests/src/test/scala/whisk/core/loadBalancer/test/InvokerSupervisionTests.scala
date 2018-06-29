@@ -42,7 +42,7 @@ import akka.testkit.TestFSMRef
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.Timeout
-import common.StreamLogging
+import common.{LoggedFunction, StreamLogging}
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -175,7 +175,9 @@ class InvokerSupervisionTests
     val invokerName = s"invoker${invokerInstance.toInt}"
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => invoker.ref
 
-    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val sendActivationToInvoker = LoggedFunction { (a: ActivationMessage, b: InvokerInstanceId) =>
+      Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, Long.box(0L), 0, 0))
+    }
 
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
@@ -196,18 +198,10 @@ class InvokerSupervisionTests
       content = None)
     val msg = ActivationRequest(activationMessage, invokerInstance)
 
-    sendActivationToInvoker
-      .when(activationMessage, invokerInstance)
-      .returns(
-        Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, Long.box(0L), 0, 0)))
-
     supervisor ! msg
 
     // Verify, that MessageProducer will receive a call to send the message
-    retry(
-      sendActivationToInvoker.verify(activationMessage, invokerInstance).once,
-      N = 3,
-      waitBeforeRetry = Some(500.milliseconds))
+    retry(sendActivationToInvoker.calls should have size 1, N = 3, waitBeforeRetry = Some(500.milliseconds))
   }
 
   behavior of "InvokerActor"

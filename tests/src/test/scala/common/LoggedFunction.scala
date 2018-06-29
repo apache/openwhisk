@@ -83,10 +83,11 @@ class LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) 
 }
 
 object LoggedFunction {
-  def apply[A1, B](body: (A1) => B) = new LoggedFunction1(body)
-  def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2(body)
-  def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3(body)
-  def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4(body)
-  def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5(body)
-  def apply[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B) = new LoggedFunction6(body)
+  def apply[A1, B](body: (A1) => B) = new LoggedFunction1[A1, B](body)
+  def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2[A1, A2, B](body)
+  def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3[A1, A2, A3, B](body)
+  def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4[A1, A2, A3, A4, B](body)
+  def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5[A1, A2, A3, A4, A5, B](body)
+  def apply[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B) =
+    new LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body)
 }
