@@ -28,9 +28,11 @@ import whisk.common.tracing.{OpenTracer, TracingConfig}
 import whisk.core.ConfigKeys
 
 import scala.ref.WeakReference
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 
 @RunWith(classOf[JUnitRunner])
-class WskTracingTests extends TestHelpers {
+class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
 
   val tracer: MockTracer = new MockTracer()
   val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
@@ -46,18 +48,18 @@ class WskTracingTests extends TestHelpers {
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     var ctx = openTracer.getTraceContext(transactionId)
     openTracer.setTraceContext(transactionId, ctx)
-    assert(ctx.isDefined)
+    ctx should be(defined)
 
     //advance ticker
     ticker.time = System.nanoTime() + (tracingConfig.cacheExpiry.toNanos + 100)
     ctx = openTracer.getTraceContext(transactionId)
-    assert(!ctx.isDefined)
+    ctx should not be (defined)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
-    assert(finishedSpans.size() == 1)
+    finishedSpans should have size 1
     //no parent for new span as cache expiry cleared spanMap and contextMap
-    assert(finishedSpans.get(0).parentId() == 0)
+    finishedSpans.get(0).parentId() should be(0)
   }
 
   it should "create a finished span" in {
@@ -66,7 +68,7 @@ class WskTracingTests extends TestHelpers {
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
-    assert(finishedSpans.size() == 1)
+    finishedSpans should have size 1
 
   }
 
@@ -78,10 +80,10 @@ class WskTracingTests extends TestHelpers {
     openTracer.finishSpan(transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
-    assert(finishedSpans.size() == 2)
+    finishedSpans should have size 2
     val parent: MockSpan = finishedSpans.get(1)
     val child: MockSpan = finishedSpans.get(0)
-    assert(child.parentId == parent.context().spanId)
+    child.parentId should be(parent.context().spanId)
 
   }
 
@@ -91,10 +93,10 @@ class WskTracingTests extends TestHelpers {
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
-    assert(finishedSpans.size() == 1)
+    finishedSpans should have size 1
     val mockSpan: MockSpan = finishedSpans.get(0)
-    assert(mockSpan.tags != null)
-    assert(mockSpan.tags.size == 1)
+    mockSpan.tags should not be null
+    mockSpan.tags should have size 1
 
   }
 
@@ -110,10 +112,10 @@ class WskTracingTests extends TestHelpers {
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
-    assert(finishedSpans.size() == 1)
+    finishedSpans should have size 1
     val child: MockSpan = finishedSpans.get(0)
     //This child span should have a parent as we have set trace context
-    assert(child.parentId > 0)
+    child.parentId should be > 0L
   }
 }
 

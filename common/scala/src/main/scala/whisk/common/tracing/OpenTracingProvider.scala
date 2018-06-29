@@ -164,7 +164,7 @@ object WhiskTracerProvider {
     tracingConfig.zipkin match {
       case Some(zipkinConfig) => {
         if (!GlobalTracer.isRegistered) {
-          val sender: Sender = OkHttpSender.create(zipkinConfig.getUrl)
+          val sender: Sender = OkHttpSender.create(zipkinConfig.generateUrl)
           val spanReporter = AsyncReporter.create(sender)
           val braveTracing = Tracing
             .newBuilder()
@@ -192,7 +192,7 @@ object WhiskTracerProvider {
 private object NoopTracer extends WhiskTracer
 case class TracingConfig(component: String, cacheExpiry: Duration, zipkin: Option[ZipkinConfig] = None)
 case class ZipkinConfig(url: String, sampleRate: String) {
-  def getUrl = s"$url/api/v2/spans"
+  def generateUrl = s"$url/api/v2/spans"
 }
 object SystemTicker extends Ticker {
   override def read() = {
