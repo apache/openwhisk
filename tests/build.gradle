@@ -28,6 +28,8 @@ repositories {
     mavenCentral()
 }
 
+install.dependsOn ':tools:admin:install'
+
 project.archivesBaseName = "openwhisk-tests"
 
 tasks.withType(Test) {
