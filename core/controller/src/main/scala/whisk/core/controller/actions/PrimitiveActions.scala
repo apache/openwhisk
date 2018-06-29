@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
+import whisk.common.tracing.WhiskTracerProvider
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
@@ -146,16 +147,7 @@ protected[actions] trait PrimitiveActions {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
-    val message = ActivationMessage(
-      transid,
-      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
-      action.rev,
-      user,
-      activationIdFactory.make(), // activation id created here
-      activeAckTopicIndex,
-      waitForResponse.isDefined,
-      args,
-      cause = cause)
+    val activationId = activationIdFactory.make()
 
     val startActivation = transid.started(
       this,
@@ -164,7 +156,20 @@ protected[actions] trait PrimitiveActions {
         .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
       logLevel = InfoLevel)
     val startLoadbalancer =
-      transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
+      transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
+
+    val message = ActivationMessage(
+      transid,
+      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
+      action.rev,
+      user,
+      activationId, // activation id created here
+      activeAckTopicIndex,
+      waitForResponse.isDefined,
+      args,
+      cause = cause,
+      WhiskTracerProvider.tracer.getTraceContext(transid))
+
     val postedFuture = loadBalancer.publish(action, message)
 
     postedFuture.flatMap { activeAckResponse =>

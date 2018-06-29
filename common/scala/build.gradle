@@ -64,6 +64,14 @@ dependencies {
     compile 'io.kamon:kamon-statsd_2.11:0.6.7'
     //for mesos
     compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.7'
+
+    //tracing support
+    compile 'io.opentracing:opentracing-api:0.31.0'
+    compile 'io.opentracing:opentracing-util:0.31.0'
+    compile 'io.opentracing.brave:brave-opentracing:0.31.0'
+    compile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1'
+    compile 'io.zipkin.reporter2:zipkin-reporter:2.6.1'
+
     scoverage gradle.scoverage.deps
 }
 

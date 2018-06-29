@@ -222,6 +222,9 @@ object ConfigKeys {
   val dockerContainerFactory = s"${docker}.container-factory"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
+
+  val tracing = "whisk.tracing"
+
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
   val containerPool = "whisk.container-pool"

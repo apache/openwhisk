@@ -24,6 +24,8 @@ import akka.http.scaladsl.model.headers.RawHeader
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.core.ConfigKeys
+import pureconfig._
+import whisk.common.tracing.WhiskTracerProvider
 
 import scala.util.Try
 
@@ -82,6 +84,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     }
 
     MetricEmitter.emitCounterMetric(marker)
+
+    //tracing support
+    WhiskTracerProvider.tracer.startSpan(marker, this)
     StartMarker(Instant.now, marker)
   }
 
@@ -116,6 +121,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     }
 
     MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+
+    //tracing support
+    WhiskTracerProvider.tracer.finishSpan(this)
   }
 
   /**
@@ -144,6 +152,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
 
     MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
     MetricEmitter.emitCounterMetric(endMarker)
+
+    //tracing support
+    WhiskTracerProvider.tracer.error(this)
   }
 
   /**
