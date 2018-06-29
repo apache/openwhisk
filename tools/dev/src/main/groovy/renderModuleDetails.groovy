@@ -34,8 +34,10 @@ packages = new Category("Packages", true)
 deployments = new Category("Deployments", true)
 utils = new Category("Utilities", false)
 others = new Category("Others", false)
+samples = new Category("Samples and Examples", false)
+devtools = new Category("Development Tools", false)
 
-def categories = [core, clients, runtimes, deployments, packages, utils, others]
+def categories = [core, clients, runtimes, deployments, packages, samples, devtools, utils, others]
 
 repos.each{ repo ->
     Category c = getCategory(repo.name)
@@ -58,8 +60,14 @@ def loadRepoJson(){
     parser.parseText(file.text)
 }
 
+
 def getCategory(String name){
-    if (name == 'incubator-openwhisk' || name.endsWith('-apigateway') || name.endsWith('-catalog') || name.endsWith('-cli')) {
+    def coreRepoSuffixes = ['openwhisk', 'apigateway', 'catalog', 'cli', 'wskdeploy']
+    def utilRepoSuffixes = ['utilities', 'release']
+    def samplesSuffixes = ['workshop', 'slackinvite', 'sample-slackbot', 'sample-matos', 'tutorial', 'GitHubSlackBot']
+    def devtoolsSuffixes = ['devtools', 'xcode', 'vscode', 'playground', 'debugger']
+
+    if (matchesAny(coreRepoSuffixes, name)) {
         core
     } else if (name.contains('-client-')){
         clients
@@ -69,11 +77,19 @@ def getCategory(String name){
         packages
     } else if (name.contains('-deploy-')){
         deployments
-    } else if (name.endsWith('--utilities') || name.endsWith('-release')){
+    } else if (matchesAny(utilRepoSuffixes, name)){
         utils
+    } else if (matchesAny(samplesSuffixes, name)){
+        samples
+    } else if (matchesAny(devtoolsSuffixes, name)){
+        devtools
     } else {
         others
     }
+}
+
+def matchesAny(suffixes, name){
+    suffixes.any {name.endsWith("-"+it)}
 }
 
 class Category {

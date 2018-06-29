@@ -28,6 +28,7 @@
 | [incubator-openwhisk-apigateway](https://github.com/apache/incubator-openwhisk-apigateway) | A performant API Gateway based on Openresty and NGINX | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-apigateway.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-apigateway) |
 | [incubator-openwhisk-catalog](https://github.com/apache/incubator-openwhisk-catalog) | Curated catalog of Apache OpenWhisk packages to interface with event producers and consumers | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-catalog.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-catalog) |
 | [incubator-openwhisk-cli](https://github.com/apache/incubator-openwhisk-cli) | OpenWhisk Command Line Interface (CLI) | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-cli.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-cli) |
+| [incubator-openwhisk-wskdeploy](https://github.com/apache/incubator-openwhisk-wskdeploy) | Utility for deploying and managing Apache OpenWhisk packages and projects | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-wskdeploy.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-wskdeploy) |
 
 
 ## Clients
@@ -75,34 +76,45 @@
 | [incubator-openwhisk-package-template](https://github.com/apache/incubator-openwhisk-package-template) | This is a template to be use when creating new packages for OpenWhisk | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-package-template.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-package-template) |
 
 
+## Samples and Examples
+
+| Module | Description |
+|---	|---	|
+| [incubator-openwhisk-GitHubSlackBot](https://github.com/apache/incubator-openwhisk-GitHubSlackBot) | Demonstration of integration of GitHub Pull Request management with Slack and using Alarms |
+| [incubator-openwhisk-sample-matos](https://github.com/apache/incubator-openwhisk-sample-matos) | sample application with Message Hub and Object Store |
+| [incubator-openwhisk-sample-slackbot](https://github.com/apache/incubator-openwhisk-sample-slackbot) | A proof-of-concept Slackbot to invoke OpenWhisk actions. |
+| [incubator-openwhisk-slackinvite](https://github.com/apache/incubator-openwhisk-slackinvite) | Invite for Apache OpenWhisk Team on Slack |
+| [incubator-openwhisk-tutorial](https://github.com/apache/incubator-openwhisk-tutorial) | An interactive learning environment for the Apache OpenWhisk command line |
+| [incubator-openwhisk-workshop](https://github.com/apache/incubator-openwhisk-workshop) | OpenWhisk workshop to help developers learn how to build serverless applications using the platform. |
+
+
+## Development Tools
+
+| Module | Description |
+|---	|---	|
+| [incubator-openwhisk-debugger](https://github.com/apache/incubator-openwhisk-debugger) | The OpenWhisk debugger project |
+| [incubator-openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools) | Development tools for building and deploying Apache OpenWhisk |
+| [incubator-openwhisk-playground](https://github.com/apache/incubator-openwhisk-playground) | This library provides functionality of executing a snippet of source code as OpenWhisk action for OpenWhisk Xcode Source Editor Extension |
+| [incubator-openwhisk-vscode](https://github.com/apache/incubator-openwhisk-vscode) | Visual Studio Code extension (prototype) for authoring OpenWhisk actions inside the editor. |
+| [incubator-openwhisk-xcode](https://github.com/apache/incubator-openwhisk-xcode) | Collection of OpenWhisk tools for OS X implemented in Swift 3. |
+
+
 ## Utilities
 
 | Module | Description |
 |---	|---	|
 | [incubator-openwhisk-release](https://github.com/apache/incubator-openwhisk-release) | Apache openwhisk release |
+| [incubator-openwhisk-utilities](https://github.com/apache/incubator-openwhisk-utilities) | Shared utilities used across Apache OpenWhisk project repositories. |
 
 
 ## Others
 
 | Module | Description |
 |---	|---	|
-| [incubator-openwhisk-GitHubSlackBot](https://github.com/apache/incubator-openwhisk-GitHubSlackBot) | Demonstration of integration of GitHub Pull Request management with Slack and using Alarms |
-| [incubator-openwhisk-debugger](https://github.com/apache/incubator-openwhisk-debugger) | The OpenWhisk debugger project |
-| [incubator-openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools) | Development tools for building and deploying Apache OpenWhisk |
 | [incubator-openwhisk-external-resources](https://github.com/apache/incubator-openwhisk-external-resources) | ? Curated list of awesome OpenWhisk things ? |
-| [incubator-openwhisk-playground](https://github.com/apache/incubator-openwhisk-playground) | This library provides functionality of executing a snippet of source code as OpenWhisk action for OpenWhisk Xcode Source Editor Extension |
 | [incubator-openwhisk-podspecs](https://github.com/apache/incubator-openwhisk-podspecs) | CocoaPods Podspecs repo for openwhisk-client-swift |
-| [incubator-openwhisk-sample-matos](https://github.com/apache/incubator-openwhisk-sample-matos) | sample application with Message Hub and Object Store |
-| [incubator-openwhisk-sample-slackbot](https://github.com/apache/incubator-openwhisk-sample-slackbot) | A proof-of-concept Slackbot to invoke OpenWhisk actions. |
 | [incubator-openwhisk-selfserve-test](https://github.com/apache/incubator-openwhisk-selfserve-test) | Apache openwhisk |
-| [incubator-openwhisk-slackinvite](https://github.com/apache/incubator-openwhisk-slackinvite) | Invite for Apache OpenWhisk Team on Slack |
 | [incubator-openwhisk-test](https://github.com/apache/incubator-openwhisk-test) | Test repo. for Apache OpenWhisk client-side tooling. |
-| [incubator-openwhisk-tutorial](https://github.com/apache/incubator-openwhisk-tutorial) | An interactive learning environment for the Apache OpenWhisk command line |
-| [incubator-openwhisk-utilities](https://github.com/apache/incubator-openwhisk-utilities) | Shared utilities used across Apache OpenWhisk project repositories. |
-| [incubator-openwhisk-vscode](https://github.com/apache/incubator-openwhisk-vscode) | Visual Studio Code extension (prototype) for authoring OpenWhisk actions inside the editor. |
 | [incubator-openwhisk-website](https://github.com/apache/incubator-openwhisk-website) | Apache OpenWhisk website (openwhisk.incubator.apache.org) code built using Jekyll |
-| [incubator-openwhisk-workshop](https://github.com/apache/incubator-openwhisk-workshop) | OpenWhisk workshop to help developers learn how to build serverless applications using the platform. |
-| [incubator-openwhisk-wskdeploy](https://github.com/apache/incubator-openwhisk-wskdeploy) | Utility for deploying and managing Apache OpenWhisk packages and projects |
-| [incubator-openwhisk-xcode](https://github.com/apache/incubator-openwhisk-xcode) | Collection of OpenWhisk tools for OS X implemented in Swift 3. |
 
 
