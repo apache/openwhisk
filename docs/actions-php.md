@@ -97,9 +97,14 @@ wsk action create helloPHP --kind php:7.1 helloPHP.zip
 ```
 
 The PHP runtime will automatically include Composer's autoloader for you, so you can immediately
-use the dependencies in your action code.
+use the dependencies in your action code. Note that if you don't include your own `vendor` folder,
+then the runtime will include one for you with the following Composer packages:
 
-Note that if you don't include your own `vendor` folder, then the runtime will include one for you.
+- guzzlehttp/guzzle       v6.7.3
+- ramsey/uuid             v3.6.3
+
+## Built-in PHP extensions
+
 The following PHP extensions are available in addition to the standard ones:
 
 - bcmath
@@ -113,8 +118,3 @@ The following PHP extensions are available in addition to the standard ones:
 - pdo_sqlite
 - soap
 - zip
-
-The following Composer packages are also available:
-
-- guzzlehttp/guzzle       v6.7.3
-- ramsey/uuid             v3.6.3
