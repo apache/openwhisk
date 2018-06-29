@@ -13,3 +13,8 @@
   template:
     src: "{{ openwhisk_home }}/tests/src/test/resources/application.conf.j2"
     dest: "{{ openwhisk_home }}/tests/src/test/resources/application.conf"
+
+- name: write whisk.conf template for wskadmin to openwhisk_home
+  template:
+    src: whisk.conf.j2
+    dest: "{{ openwhisk_home }}/whisk.conf"

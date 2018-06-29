@@ -38,7 +38,7 @@ import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -165,7 +165,7 @@ object Invoker {
         assignedId
       }
 
-    val invokerInstance = InstanceId(assignedInvokerId, invokerName)
+    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker").isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")

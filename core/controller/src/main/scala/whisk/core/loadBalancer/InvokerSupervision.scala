@@ -50,8 +50,8 @@ case object Offline extends InvokerState { val asString = "down" }
 case object Healthy extends InvokerState { val asString = "up" }
 case object UnHealthy extends InvokerState { val asString = "unhealthy" }
 
-case class ActivationRequest(msg: ActivationMessage, invoker: InstanceId)
-case class InvocationFinishedMessage(invokerInstance: InstanceId, successful: Boolean)
+case class ActivationRequest(msg: ActivationMessage, invoker: InvokerInstanceId)
+case class InvocationFinishedMessage(invokerInstance: InvokerInstanceId, successful: Boolean)
 
 // Sent to a monitor if the state changed
 case class CurrentInvokerPoolState(newState: IndexedSeq[InvokerHealth])
@@ -70,8 +70,8 @@ final case class InvokerInfo(buffer: RingBuffer[Boolean])
  * Note: An Invoker that never sends an initial Ping will not be considered
  * by the InvokerPool and thus might not be caught by monitoring.
  */
-class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
-                  sendActivationToInvoker: (ActivationMessage, InstanceId) => Future[RecordMetadata],
+class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef,
+                  sendActivationToInvoker: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
                   pingConsumer: MessageConsumer,
                   monitor: Option[ActorRef])
     extends Actor {
@@ -83,8 +83,8 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
   // State of the actor. Mutable vars with immutable collections prevents closures or messages
   // from leaking the state for external mutation
-  var instanceToRef = immutable.Map.empty[InstanceId, ActorRef]
-  var refToInstance = immutable.Map.empty[ActorRef, InstanceId]
+  var instanceToRef = immutable.Map.empty[InvokerInstanceId, ActorRef]
+  var refToInstance = immutable.Map.empty[ActorRef, InvokerInstanceId]
   var status = IndexedSeq[InvokerHealth]()
 
   def receive = {
@@ -152,10 +152,10 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   def padToIndexed[A](list: IndexedSeq[A], n: Int, f: (Int) => A) = list ++ (list.size until n).map(f)
 
   // Register a new invoker
-  def registerInvoker(instanceId: InstanceId): ActorRef = {
+  def registerInvoker(instanceId: InvokerInstanceId): ActorRef = {
     logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
 
-    status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InstanceId(i), Offline))
+    status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InvokerInstanceId(i), Offline))
 
     val ref = childFactory(context, instanceId)
 
@@ -196,7 +196,7 @@ object InvokerPool {
    * @param entityStore store to write the action to
    * @return throws an exception on failure to prepare
    */
-  def prepare(controllerInstance: InstanceId, entityStore: EntityStore): Unit = {
+  def prepare(controllerInstance: ControllerInstanceId, entityStore: EntityStore): Unit = {
     InvokerPool
       .healthAction(controllerInstance)
       .map {
@@ -211,8 +211,8 @@ object InvokerPool {
       }
   }
 
-  def props(f: (ActorRefFactory, InstanceId) => ActorRef,
-            p: (ActivationMessage, InstanceId) => Future[RecordMetadata],
+  def props(f: (ActorRefFactory, InvokerInstanceId) => ActorRef,
+            p: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
             pc: MessageConsumer,
             m: Option[ActorRef] = None) = {
     Props(new InvokerPool(f, p, pc, m))
@@ -226,11 +226,12 @@ object InvokerPool {
   }
 
   /** An action to use for monitoring invoker health. */
-  def healthAction(i: InstanceId) = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
-    new WhiskAction(
-      namespace = healthActionIdentity.namespace.name.toPath,
-      name = EntityName(s"invokerHealthTestAction${i.toInt}"),
-      exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None))
+  def healthAction(i: ControllerInstanceId) = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map {
+    manifest =>
+      new WhiskAction(
+        namespace = healthActionIdentity.namespace.name.toPath,
+        name = EntityName(s"invokerHealthTestAction${i.asString}"),
+        exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None))
   }
 }
 
@@ -240,7 +241,8 @@ object InvokerPool {
  * This finite state-machine represents an Invoker in its possible
  * states "Healthy" and "Offline".
  */
-class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) extends FSM[InvokerState, InvokerInfo] {
+class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: ControllerInstanceId)
+    extends FSM[InvokerState, InvokerInfo] {
   implicit val transid = TransactionId.invokerHealth
   implicit val logging = new AkkaLogging(context.system.log)
   val name = s"invoker${invokerInstance.toInt}"
@@ -391,7 +393,7 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
 }
 
 object InvokerActor {
-  def props(invokerInstance: InstanceId, controllerInstance: InstanceId) =
+  def props(invokerInstance: InvokerInstanceId, controllerInstance: ControllerInstanceId) =
     Props(new InvokerActor(invokerInstance, controllerInstance))
 
   val bufferSize = 10

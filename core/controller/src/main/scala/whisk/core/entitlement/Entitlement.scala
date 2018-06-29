@@ -78,7 +78,7 @@ protected[core] object EntitlementProvider {
 protected[core] abstract class EntitlementProvider(
   config: WhiskConfig,
   loadBalancer: LoadBalancer,
-  controllerInstance: InstanceId)(implicit actorSystem: ActorSystem, logging: Logging) {
+  controllerInstance: ControllerInstanceId)(implicit actorSystem: ActorSystem, logging: Logging) {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -372,7 +372,7 @@ protected[core] abstract class EntitlementProvider(
             UserEvents.send(
               eventProducer,
               EventMessage(
-                s"controller${controllerInstance.instance}",
+                s"controller${controllerInstance.asString}",
                 metric,
                 user.subject,
                 user.namespace.name.toString,
@@ -388,7 +388,7 @@ protected[core] abstract class EntitlementProvider(
         UserEvents.send(
           eventProducer,
           EventMessage(
-            s"controller${controllerInstance.instance}",
+            s"controller${controllerInstance.asString}",
             metric,
             user.subject,
             user.namespace.name.toString,

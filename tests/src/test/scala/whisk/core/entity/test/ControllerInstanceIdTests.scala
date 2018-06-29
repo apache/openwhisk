@@ -15,41 +15,32 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.springframework.boot' version '2.0.2.RELEASE'
-    id 'scala'
+package whisk.core.entity.test
+
+import org.junit.runner.RunWith
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
+import whisk.core.entity.ControllerInstanceId
+
+@RunWith(classOf[JUnitRunner])
+class ControllerInstanceIdTests extends FlatSpec with Matchers {
+
+  behavior of "ControllerInstanceId"
+
+  it should "accept usable characters" in {
+    Seq("a", "1", "a.1", "a_1").foreach { s =>
+      ControllerInstanceId(s).asString shouldBe s
+
+    }
+  }
+
+  it should "reject unusable characters" in {
+    Seq(" ", "!", "$", "a" * 129).foreach { s =>
+      an[IllegalArgumentException] shouldBe thrownBy {
+        ControllerInstanceId(s)
+      }
+    }
+  }
+
 }
-
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
-
-project.archivesBaseName = "openwhisk-admin-tools"
-
-repositories {
-    mavenCentral()
-}
-
-jar {
-    enabled = true
-}
-
-task copyBootJarToBin(type:Copy){
-    from ("${buildDir}/libs")
-    into file("${project.rootProject.projectDir}/bin")
-    rename("${project.archivesBaseName}-$version-cli.jar", "wskadmin-next")
-}
-
-bootJar {
-    classifier = 'cli'
-    mainClassName = 'whisk.core.cli.Main'
-    launchScript()
-    finalizedBy copyBootJarToBin
-}
-
-dependencies {
-    compile project(':common:scala')
-    compile 'org.rogach:scallop_2.11:3.1.2'
-    scoverage gradle.scoverage.deps
-}
-
-

@@ -155,7 +155,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
 case class WhiskInformation(buildNo: String, date: String)
 
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
-  implicit val activeAckTopicIndex: InstanceId,
+  implicit val activeAckTopicIndex: ControllerInstanceId,
   implicit val actorSystem: ActorSystem,
   implicit val materializer: ActorMaterializer,
   implicit val logging: Logging,
@@ -235,7 +235,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 
   class ActionsApi(val apiPath: String, val apiVersion: String)(
     implicit override val actorSystem: ActorSystem,
-    override val activeAckTopicIndex: InstanceId,
+    override val activeAckTopicIndex: ControllerInstanceId,
     override val entityStore: EntityStore,
     override val activationStore: ActivationStore,
     override val entitlementProvider: EntitlementProvider,
@@ -303,7 +303,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
                                             override val webApiDirectives: WebApiDirectives)(
     implicit override val authStore: AuthStore,
     implicit val entityStore: EntityStore,
-    override val activeAckTopicIndex: InstanceId,
+    override val activeAckTopicIndex: ControllerInstanceId,
     override val activationStore: ActivationStore,
     override val entitlementProvider: EntitlementProvider,
     override val activationIdFactory: ActivationIdGenerator,

@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 import whisk.common.ForcableSemaphore
-import whisk.core.entity.InstanceId
+import whisk.core.entity.InvokerInstanceId
 import whisk.core.loadBalancer._
 
 /**
@@ -35,9 +35,9 @@ import whisk.core.loadBalancer._
 class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with StreamLogging {
   behavior of "ShardingContainerPoolBalancerState"
 
-  def healthy(i: Int) = new InvokerHealth(InstanceId(i), Healthy)
-  def unhealthy(i: Int) = new InvokerHealth(InstanceId(i), UnHealthy)
-  def offline(i: Int) = new InvokerHealth(InstanceId(i), Offline)
+  def healthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), Healthy)
+  def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), UnHealthy)
+  def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i), Offline)
 
   def semaphores(count: Int, max: Int): IndexedSeq[ForcableSemaphore] =
     IndexedSeq.fill(count)(new ForcableSemaphore(max))

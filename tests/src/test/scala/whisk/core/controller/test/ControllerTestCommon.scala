@@ -55,7 +55,7 @@ protected trait ControllerTestCommon
     with WhiskServices
     with StreamLogging {
 
-  val activeAckTopicIndex = InstanceId(0)
+  val activeAckTopicIndex = ControllerInstanceId("0")
 
   implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 

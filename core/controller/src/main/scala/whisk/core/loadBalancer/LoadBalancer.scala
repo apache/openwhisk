@@ -33,7 +33,7 @@ import whisk.spi.Spi
  * @param id a unique instance identifier for the invoker
  * @param status it status (healthy, unhealthy, offline)
  */
-class InvokerHealth(val id: InstanceId, val status: InvokerState) {
+class InvokerHealth(val id: InvokerInstanceId, val status: InvokerState) {
   override def equals(obj: scala.Any): Boolean = obj match {
     case that: InvokerHealth => that.id == this.id && that.status == this.status
     case _                   => false
@@ -82,9 +82,10 @@ trait LoadBalancer {
 trait LoadBalancerProvider extends Spi {
   def requiredProperties: Map[String, String]
 
-  def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(implicit actorSystem: ActorSystem,
-                                                                   logging: Logging,
-                                                                   materializer: ActorMaterializer): LoadBalancer
+  def loadBalancer(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer
 }
 
 /** Exception thrown by the loadbalancer */

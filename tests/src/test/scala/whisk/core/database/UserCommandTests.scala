@@ -62,6 +62,12 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     admin.executeCommand().futureValue.right.get shouldBe key.compact
   }
 
+  it should "create a user with default key" in {
+    val subject = newSubject()
+    val generatedKey = resultOk("user", "create", subject)
+    resultOk("user", "get", subject) shouldBe generatedKey
+  }
+
   it should "add namespace to existing user" in {
     val subject = newSubject()
     val key = AuthKey()
