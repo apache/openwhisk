@@ -236,7 +236,8 @@ def getScoverageClasspath(Project project) {
         ':tools:admin'
     ]
     def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
-        result + project.project(name).sourceSets.scoverage.runtimeClasspath
+        def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
+        result + cp.filter {it.name.contains('scoverage')}
     }
 
     combinedClasspath + sourceSets.test.runtimeClasspath
