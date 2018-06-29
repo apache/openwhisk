@@ -132,7 +132,7 @@ to using this you specify a [Github Access Token][6] as otherwise requests will 
 can be specified by setting environment variable `GITHUB_ACCESS_TOKEN`
 
 ```bash
-$ ./gradlew :tools:dev:listRepos 
+$ ./gradlew :tools:dev:listRepos
 Found 44 repositories
 incubator-openwhisk
 incubator-openwhisk-GitHubSlackBot
@@ -147,7 +147,7 @@ Stored the json details in /openwhisk_home/build/repos/repos.json
 It generates 2 files
 
 * `repos.txt` - List repository names one per line.
-* `repos.json` - Stores an array of repository details json containing various repository related details. 
+* `repos.json` - Stores an array of repository details json containing various repository related details.
 
 ## OpenWhisk Module Status Generator
 
@@ -156,7 +156,7 @@ task. The rendered markdown file is stored in `docs/dev/modules.md`. This render
 
 ```bash
 $ ./gradlew :tools:dev:renderModuleDetails
-  
+
   > Task :tools:dev:renderModuleDetails
   Generated modules details at /openwhisk_home/docs/dev/modules.md
 

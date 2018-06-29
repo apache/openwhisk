@@ -21,7 +21,7 @@
 
 
 ## Main
- 
+
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [incubator-openwhisk](https://github.com/apache/incubator-openwhisk) | Apache OpenWhisk is a serverless event-based programming service and an Apache Incubator project. | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk) |
@@ -31,7 +31,7 @@
 
 
 ## Clients
- 
+
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [incubator-openwhisk-client-go](https://github.com/apache/incubator-openwhisk-client-go) | This project openwhisk-client-go is a Go client library to access Openwhisk API | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-client-go.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-client-go) |
@@ -41,7 +41,7 @@
 
 
 ## Runtimes
- 
+
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [incubator-openwhisk-runtime-docker](https://github.com/apache/incubator-openwhisk-runtime-docker) | Apache openwhisk | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-docker.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-docker) |
@@ -54,7 +54,7 @@
 
 
 ## Deployments
- 
+
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [incubator-openwhisk-deploy-kube](https://github.com/apache/incubator-openwhisk-deploy-kube) | This project can be used to deploy Apache OpenWhisk to a Kubernetes cluster | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-deploy-kube.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-deploy-kube) |
@@ -62,7 +62,7 @@
 
 
 ## Packages
- 
+
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [incubator-openwhisk-package-alarms](https://github.com/apache/incubator-openwhisk-package-alarms) | Apache OpenWhisk package that can be used to create periodic, time-based alarms | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-package-alarms.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-package-alarms) |

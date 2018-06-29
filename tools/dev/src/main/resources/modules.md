@@ -21,7 +21,7 @@
 
 <% categories.each { c -> %>
 ## ${c.name}
-<% if (c.travisEnabled) {%> 
+<% if (c.travisEnabled) {%>
 | Module | Description | Module Status |
 |---	|---	|---    |
 <% c.repos.each { repo -> %>| [${repo.name}](https://github.com/apache/${repo.name}) | ${repo.description} | [![Build Status](https://travis-ci.org/apache/${repo.name}.svg?branch=master)](https://travis-ci.org/apache/${repo.name}) |
