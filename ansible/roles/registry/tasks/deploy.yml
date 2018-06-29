@@ -5,6 +5,8 @@
 
 - name: "pull the {{ registry.version }} image of registry"
   shell: "docker pull registry:{{ registry.version }}"
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 

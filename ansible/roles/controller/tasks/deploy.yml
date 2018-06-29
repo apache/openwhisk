@@ -13,10 +13,10 @@
       "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
 
 - name: "pull the {{ docker.image.tag }} image of controller"
-  shell:
-    docker pull
-    {{ docker_registry~docker.image.prefix }}/controller:{{docker.image.tag}}
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/controller:{{docker.image.tag}}"
   when: docker_registry != ""
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 

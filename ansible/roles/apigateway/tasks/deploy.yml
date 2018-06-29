@@ -20,8 +20,6 @@
       - "{{ apigateway.port.mgmt }}:8080"
       - "{{ apigateway.port.api }}:9000"
     pull: "{{ apigateway_local_build is undefined }}"
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
 
 - name: wait until the API Gateway in this host is up and running
   uri:
