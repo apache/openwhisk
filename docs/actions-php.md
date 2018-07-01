@@ -101,8 +101,8 @@ The PHP runtime will automatically include Composer's autoloader for you, so you
 use the dependencies in your action code. Note that if you don't include your own `vendor` folder,
 then the runtime will include one for you with the following Composer packages:
 
-- guzzlehttp/guzzle       v6.7.3
-- ramsey/uuid             v3.6.3
+- guzzlehttp/guzzle       v6.3.3
+- ramsey/uuid             v3.7.3
 
 ## Built-in PHP extensions
 
