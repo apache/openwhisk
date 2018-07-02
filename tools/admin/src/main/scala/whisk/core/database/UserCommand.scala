@@ -28,17 +28,7 @@ import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
 import whisk.core.database.UserCommand.ExtendedAuth
 import whisk.core.entity.types._
-import whisk.core.entity.{
-  AuthKey,
-  DocInfo,
-  EntityName,
-  Identity,
-  Namespace,
-  Subject,
-  WhiskAuth,
-  WhiskDocumentReader,
-  WhiskNamespace
-}
+import whisk.core.entity._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
@@ -85,7 +75,8 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
     def isUUID(u: String) = Try(UUID.fromString(u)).isSuccess
 
-    def desiredNamespace(authKey: AuthKey) = Namespace(EntityName(namespace.getOrElse(subject()).trim), authKey.uuid)
+    def desiredNamespace(authKey: BasicAuthenticationAuthKey) =
+      Namespace(EntityName(namespace.getOrElse(subject()).trim), authKey.uuid)
   }
 
   val create = new CreateUserCmd
@@ -169,7 +160,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
   def createUser(authStore: AuthStore)(implicit transid: TransactionId,
                                        ec: ExecutionContext): Future[Either[CommandError, String]] = {
-    val authKey = create.auth.map(AuthKey(_)).getOrElse(AuthKey())
+    val authKey = create.auth.map(BasicAuthenticationAuthKey(_)).getOrElse(BasicAuthenticationAuthKey())
     authStore
       .get[ExtendedAuth](DocInfo(create.subject()))
       .flatMap { auth =>
@@ -242,7 +233,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   def whoIs(authStore: AuthStore)(implicit transid: TransactionId,
                                   ec: ExecutionContext): Future[Either[CommandError, String]] = {
     Identity
-      .get(authStore, AuthKey(whois.authkey()))
+      .get(authStore, BasicAuthenticationAuthKey(whois.authkey()))
       .map { i =>
         val msg = Seq(s"subject: ${i.subject}", s"namespace: ${i.namespace}").mkString(Properties.lineSeparator)
         Right(msg)

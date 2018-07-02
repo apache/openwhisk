@@ -45,22 +45,6 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "AuthKey"
 
-  it should "accept well formed keys" in {
-    val uuid = UUID()
-    val secret = Secret()
-    Seq(s"$uuid:$secret", s" $uuid: $secret", s"$uuid:$secret ", s" $uuid : $secret ").foreach { i =>
-      val k = AuthKey(i)
-      assert(k.uuid == uuid)
-      assert(k.key == secret)
-    }
-  }
-
-  it should "reject malformed ids" in {
-    Seq("", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
-      an[IllegalArgumentException] should be thrownBy AuthKey(i)
-    }
-  }
-
   behavior of "Privilege"
 
   it should "serdes a right" in {
@@ -108,16 +92,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "Identity"
 
-  it should "serdes an identity" in {
+  it should "serdes write an identity" in {
     val i = WhiskAuthHelpers.newIdentity()
     val expected = JsObject(
       "subject" -> i.subject.asString.toJson,
       "namespace" -> i.namespace.toJson,
-      "authkey" -> i.authkey.compact.toJson,
+      "authkey" -> i.authkey.toEnvironment,
       "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
       "limits" -> JsObject())
     Identity.serdes.write(i) shouldBe expected
-    Identity.serdes.read(expected) shouldBe i
+  }
+
+  it should "serdes read an generic identity" in {
+    val uuid = UUID()
+    val subject = Subject("test_subject")
+    val entity = EntityName("test_subject")
+    val genericAuthKey = new GenericAuthKey(JsObject("test_key" -> "test_value".toJson))
+    val i = WhiskAuthHelpers.newIdentity(subject, uuid, genericAuthKey)
+
+    val json = JsObject(
+      "subject" -> Subject("test_subject").toJson,
+      "namespace" -> Namespace(entity, uuid).toJson,
+      "authkey" -> JsObject("test_key" -> "test_value".toJson),
+      "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
+      "limits" -> JsObject())
+    Identity.serdes.read(json) shouldBe i
   }
 
   behavior of "DocInfo"

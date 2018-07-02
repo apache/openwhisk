@@ -157,7 +157,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val subject = Subject()
     val uuid = UUID()
     val someUser =
-      Identity(subject, Namespace(EntityName(subject.asString), uuid), AuthKey(uuid, Secret()), Set(Privilege.ACTIVATE))
+      Identity(
+        subject,
+        Namespace(EntityName(subject.asString), uuid),
+        BasicAuthenticationAuthKey(uuid, Secret()),
+        Set(Privilege.ACTIVATE))
     val collections = Seq(ACTIONS, RULES, TRIGGERS)
     val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>

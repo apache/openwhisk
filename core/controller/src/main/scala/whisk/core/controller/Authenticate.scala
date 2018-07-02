@@ -28,7 +28,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.types.AuthStore
-import whisk.core.entity.AuthKey
+import whisk.core.entity.BasicAuthenticationAuthKey
 import whisk.core.entity.Identity
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
@@ -49,7 +49,7 @@ trait Authenticate {
     credentials flatMap { pw =>
       Try {
         // authkey deserialization is wrapped in a try to guard against malformed values
-        val authkey = AuthKey(UUID(pw.username), Secret(pw.password))
+        val authkey = BasicAuthenticationAuthKey(UUID(pw.username), Secret(pw.password))
         logging.info(this, s"authenticate: ${authkey.uuid}")
         val future = Identity.get(authStore, authkey) map { result =>
           if (authkey == result.authkey) {

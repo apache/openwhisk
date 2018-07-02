@@ -190,7 +190,7 @@ class InvokerSupervisionTests
       user = Identity(
         Subject("unhealthyInvokerCheck"),
         Namespace(EntityName("unhealthyInvokerCheck"), uuid),
-        AuthKey(uuid, Secret()),
+        BasicAuthenticationAuthKey(uuid, Secret()),
         Set[Privilege]()),
       activationId = new ActivationIdGenerator {}.make(),
       rootControllerIndex = ControllerInstanceId("0"),

@@ -123,7 +123,7 @@ class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTe
 trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
   val uuid = UUID()
   val systemId = Subject()
-  val systemKey = AuthKey(uuid, Secret())
+  val systemKey = BasicAuthenticationAuthKey(uuid, Secret())
   val systemIdentity =
     Future.successful(Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, Privilege.ALL))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
@@ -354,7 +354,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"reject requests when identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
+    it should s"reject requests when Identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       // the first of these fails in the identity lookup,

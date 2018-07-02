@@ -17,42 +17,25 @@
 
 package whisk.core.entity
 
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpCredentials}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 /**
- * Authentication key, consisting of a UUID and Secret.
+ * Authentication key for Basic Authentication, consisting of a UUID and Secret.
  *
- * It is a value type (hence == is .equals, immutable and cannot be assigned null).
- * The constructor is private so that argument requirements are checked and normalized
- * before creating a new instance.
- *
- * @param k (uuid, key) the uuid and key, assured to be non-null because both types are values
+ * @param uuid the uuid assured to be non-null because both types are values
+ * @param key the key assured to be non-null because both types are values
  */
-protected[core] class AuthKey private (private val k: (UUID, Secret)) extends AnyVal {
-  def uuid: UUID = k._1
-  def key: Secret = k._2
-  def revoke = new AuthKey(uuid, Secret())
+protected[core] case class BasicAuthenticationAuthKey(uuid: UUID, key: Secret)
+    extends GenericAuthKey(JsObject("api_key" -> s"$uuid:$key".toJson)) {
+  def revoke = new BasicAuthenticationAuthKey(uuid, Secret())
   def compact: String = s"$uuid:$key"
   override def toString: String = uuid.toString
+  override def getCredentials: Option[HttpCredentials] = Some(BasicHttpCredentials(uuid.asString, key.asString))
 }
 
-protected[core] object AuthKey {
-
-  /**
-   * Creates AuthKey.
-   *
-   * @param uuid the uuid, assured to be non-null because UUID is a value
-   * @param key the key, assured to be non-null because Secret is a value
-   */
-  protected[core] def apply(uuid: UUID, key: Secret): AuthKey = new AuthKey(uuid, key)
-
-  /**
-   * Creates an auth key for a randomly generated UUID with a randomly generated secret.
-   *
-   * @return AuthKey
-   */
-  protected[core] def apply(): AuthKey = new AuthKey(UUID(), Secret())
+protected[core] object BasicAuthenticationAuthKey {
 
   /**
    * Creates AuthKey from a string where the uuid and key are separated by a colon.
@@ -64,18 +47,19 @@ protected[core] object AuthKey {
    * @throws IllegalArgumentException if argument is not well formed
    */
   @throws[IllegalArgumentException]
-  protected[core] def apply(str: String): AuthKey = {
+  protected[core] def apply(str: String): BasicAuthenticationAuthKey = {
     val (uuid, secret) = str.split(':').toList match {
       case k :: v :: _ => (k, v)
       case k :: Nil    => (k, "")
       case Nil         => ("", "")
     }
 
-    new AuthKey(UUID(uuid.trim), Secret(secret.trim))
+    new BasicAuthenticationAuthKey(UUID(uuid.trim), Secret(secret.trim))
   }
 
-  protected[core] implicit val serdes: RootJsonFormat[AuthKey] = new RootJsonFormat[AuthKey] {
-    def write(k: AuthKey) = JsString(k.compact)
-    def read(value: JsValue) = AuthKey(value.convertTo[String])
-  }
+  /**
+   * Creates an auth key for a randomly generated UUID with a randomly generated secret.
+   */
+  protected[core] def apply(): BasicAuthenticationAuthKey = new BasicAuthenticationAuthKey(UUID(), Secret())
+
 }

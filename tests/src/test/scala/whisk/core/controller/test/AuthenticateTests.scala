@@ -52,8 +52,12 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     val uuid2 = UUID()
 
     val namespaces = Set(
-      WhiskNamespace(Namespace(MakeName.next("authenticatev_tests"), uuid1), AuthKey(uuid1, Secret())),
-      WhiskNamespace(Namespace(MakeName.next("authenticatev_tests"), uuid2), AuthKey(uuid2, Secret())))
+      WhiskNamespace(
+        Namespace(MakeName.next("authenticatev_tests"), uuid1),
+        BasicAuthenticationAuthKey(uuid1, Secret())),
+      WhiskNamespace(
+        Namespace(MakeName.next("authenticatev_tests"), uuid2),
+        BasicAuthenticationAuthKey(uuid2, Secret())))
     val entry = WhiskAuth(subject, namespaces)
     put(authStore, entry) // this test entry is reclaimed when the test completes
 
@@ -81,7 +85,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     // check that invalid keys are rejected
     val ns = namespaces.head
     val key = ns.authkey.key.asString
-    Seq(key.drop(1), key.dropRight(1), key + "x", AuthKey().key.asString).foreach { k =>
+    Seq(key.drop(1), key.dropRight(1), key + "x", BasicAuthenticationAuthKey().key.asString).foreach { k =>
       val pass = BasicHttpCredentials(ns.authkey.uuid.asString, k)
       val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
       user shouldBe empty
@@ -91,17 +95,17 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
   it should "not log key during validation" in {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
-    val pass = BasicHttpCredentials(creds.authkey.uuid.asString, creds.authkey.key.asString)
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
+    val user = Await.result(validateCredentials(pass), dbOpTimeout)
     user should be(None)
-    stream.toString should not include creds.authkey.key.asString
+    stream.toString should not include pass.get.password
   }
 
   it should "not authorize an unknown user" in {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
-    val pass = BasicHttpCredentials(creds.authkey.uuid.asString, creds.authkey.key.asString)
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
+    val user = Await.result(validateCredentials(pass), dbOpTimeout)
     user should be(None)
   }
 

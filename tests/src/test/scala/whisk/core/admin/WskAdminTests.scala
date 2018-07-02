@@ -29,7 +29,7 @@ import common.TestHelpers
 import common.rest.WskRest
 import common.WskAdmin
 import common.WskProps
-import whisk.core.entity.AuthKey
+import whisk.core.entity.BasicAuthenticationAuthKey
 import whisk.core.entity.Subject
 import common.TestUtils
 import scala.util.Try
@@ -61,7 +61,7 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
 
   it should "CRD a subject" in {
     val wskadmin = new RunWskAdminCmd {}
-    val auth = AuthKey()
+    val auth = BasicAuthenticationAuthKey()
     val subject = Subject().asString
     try {
       println(s"CRD subject: $subject")
@@ -104,7 +104,7 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
 
   it should "list all namespaces for a subject" in {
     val wskadmin = new RunWskAdminCmd {}
-    val auth = AuthKey()
+    val auth = BasicAuthenticationAuthKey()
     val subject = Subject().asString
     try {
       println(s"CRD subject: $subject")
@@ -131,7 +131,7 @@ class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
 
   it should "block and unblock a user respectively" in {
     val wskadmin = new RunWskAdminCmd {}
-    val auth = AuthKey()
+    val auth = BasicAuthenticationAuthKey()
     val subject1 = Subject().asString
     val subject2 = Subject().asString
     val commonNamespace = "testspace"

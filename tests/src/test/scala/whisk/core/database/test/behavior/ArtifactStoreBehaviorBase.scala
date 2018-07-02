@@ -109,7 +109,7 @@ trait ArtifactStoreBehaviorBase
 
   protected def wskNS(name: String) = {
     val uuid = UUID()
-    WhiskNamespace(Namespace(EntityName(name), uuid), AuthKey(uuid, Secret()))
+    WhiskNamespace(Namespace(EntityName(name), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   }
 
   private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false)

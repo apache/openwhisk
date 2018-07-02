@@ -28,7 +28,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, NoContent, OK, ServerError}
 import akka.http.scaladsl.model.Uri.Path
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
+import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
@@ -387,15 +387,17 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       .map(pkg => Path / pkg.namespace / rule.action.name.asString)
       .getOrElse(Path / rule.action.name.asString)
 
-    val request = HttpRequest(
-      method = POST,
-      uri = url.withPath(actionUrl ++ actionPath),
-      headers = List(
-        Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString)),
-        transid.toHeader),
-      entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
+    user.authkey.getCredentials
+      .map { creds =>
+        val request = HttpRequest(
+          method = POST,
+          uri = url.withPath(actionUrl ++ actionPath),
+          headers = List(Authorization(creds), transid.toHeader),
+          entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
-    singleRequest(request)
+        singleRequest(request)
+      }
+      .getOrElse(Future.failed(new NoCredentialsAvailable()))
   }
 
   /** Contains the result of invoking a rule */
@@ -421,5 +423,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "skip" for "list" operations. */
   private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
+  private case class NoCredentialsAvailable() extends IllegalArgumentException
 
 }

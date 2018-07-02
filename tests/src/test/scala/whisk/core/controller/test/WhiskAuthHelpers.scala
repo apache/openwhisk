@@ -17,21 +17,15 @@
 
 package whisk.core.controller.test
 
-import whisk.core.entity.EntityName
-import whisk.core.entity.AuthKey
-import whisk.core.entity.WhiskNamespace
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
+import whisk.core.entity._
 import whisk.core.entitlement.Privilege
-import whisk.core.entity.Identity
-import whisk.core.entity.Namespace
 
 object WhiskAuthHelpers {
-  def newAuth(s: Subject = Subject(), k: AuthKey = AuthKey()) = {
+  def newAuth(s: Subject = Subject(), k: BasicAuthenticationAuthKey = BasicAuthenticationAuthKey()) = {
     WhiskAuth(s, Set(WhiskNamespace(Namespace(EntityName(s.asString), k.uuid), k)))
   }
 
-  def newIdentity(s: Subject = Subject(), k: AuthKey = AuthKey()) = {
-    Identity(s, Namespace(EntityName(s.asString), k.uuid), k, Privilege.ALL)
+  def newIdentity(s: Subject = Subject(), uuid: UUID = UUID(), k: GenericAuthKey = BasicAuthenticationAuthKey()) = {
+    Identity(s, Namespace(EntityName(s.asString), uuid), k, Privilege.ALL)
   }
 }
