@@ -90,7 +90,10 @@ sealed abstract class CodeExec[+T <% SizeConversion] extends Exec {
    */
   val binary: Boolean
 
-  override def size = code.sizeInBytes + entryPoint.map(_.sizeInBytes).getOrElse(0.B)
+  private val rawCodeSize = code.sizeInBytes
+  // The overhead of the base64-encoding is 1/3. To allow the full limit for decoded actions, the overhead has to be
+  // removed in calculation of size.
+  override def size = (if (binary) rawCodeSize / 4 * 3 else rawCodeSize) + entryPoint.map(_.sizeInBytes).getOrElse(0.B)
 }
 
 sealed abstract class ExecMetaData extends ExecMetaDataBase {
