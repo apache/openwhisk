@@ -214,6 +214,8 @@ object ConfigKeys {
   val activationPayload = s"$activation.payload"
   val userEvents = "whisk.user-events"
 
+  val limits = "whisk.limits"
+
   val runtimes = "whisk.runtimes"
 
   val db = "whisk.db"

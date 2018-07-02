@@ -56,6 +56,8 @@ limits:
   concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
+  actionCodeMb: "{{ limit_action_code_mb | default(48) }}"
+  parametersMb: "{{ limit_parameters_mb | default(1) }}"
 
 # port means outer port
 controller:

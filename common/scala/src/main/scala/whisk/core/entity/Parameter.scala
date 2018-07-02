@@ -17,12 +17,14 @@
 
 package whisk.core.entity
 
-import scala.util.Try
+import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+import whisk.core.ConfigKeys
+import whisk.core.entity.size._
+
 import scala.language.postfixOps
-import whisk.core.entity.size.SizeInt
-import whisk.core.entity.size.SizeString
+import scala.util.Try
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a
@@ -159,7 +161,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
   /** Name of parameter that indicates if action is a feed. */
   protected[core] val Feed = "feed"
-  protected[core] val sizeLimit = 1 MB
+  protected[core] val sizeLimit = loadConfigOrThrow[EntityLimits](ConfigKeys.limits).parameterSize
 
   protected[core] def apply(): Parameters = new Parameters(Map.empty)
 

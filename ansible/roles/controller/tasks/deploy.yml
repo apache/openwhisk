@@ -126,6 +126,9 @@
       "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
 
+      # Allow base64 overhead of action-code, parameters and annotations.
+      "CONFIG_akka_http_server_parsing_maxContentLength": "{{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}m"
+
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
       "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
 
@@ -190,6 +193,9 @@
       "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+
+      "CONFIG_whisk_limits_actionCodeSize": "{{ limits.actionCodeMb }} m"
+      "CONFIG_whisk_limits_parameterSize": "{{ limits.parametersMb }} m"
 
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"

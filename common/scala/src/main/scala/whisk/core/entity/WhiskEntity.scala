@@ -209,3 +209,5 @@ case class LimitedWhiskEntityPut(exec: Option[Exec] = None,
     }
   }
 }
+
+case class EntityLimits(actionCodeSize: ByteSize, parameterSize: ByteSize)

@@ -10,7 +10,8 @@ events {
 
 http {
 {# allow large uploads, need to thread proper limit into here #}
-    client_max_body_size 66M;
+    # Allow base64 overhead of action-code, parameters and annotations.
+    client_max_body_size {{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}M;
 
     rewrite_log on;
 {# change log format to display the upstream information #}
