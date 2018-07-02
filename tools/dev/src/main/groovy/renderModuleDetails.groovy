@@ -50,7 +50,7 @@ def binding = ["categories":categories]
 def result = engine.createTemplate(template).make(binding)
 
 def file = getModuleOutputFile()
-file.text = result
+file.setText(result.toString(), 'UTF-8')
 println "Generated modules details at ${file.getAbsolutePath()}"
 
 def loadRepoJson(){

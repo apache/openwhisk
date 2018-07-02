@@ -111,7 +111,7 @@
 
 | Module | Description |
 |---	|---	|
-| [incubator-openwhisk-external-resources](https://github.com/apache/incubator-openwhisk-external-resources) | ? Curated list of awesome OpenWhisk things ? |
+| [incubator-openwhisk-external-resources](https://github.com/apache/incubator-openwhisk-external-resources) | ✨ Curated list of awesome OpenWhisk things ✨ |
 | [incubator-openwhisk-podspecs](https://github.com/apache/incubator-openwhisk-podspecs) | CocoaPods Podspecs repo for openwhisk-client-swift |
 | [incubator-openwhisk-selfserve-test](https://github.com/apache/incubator-openwhisk-selfserve-test) | Apache openwhisk |
 | [incubator-openwhisk-test](https://github.com/apache/incubator-openwhisk-test) | Test repo. for Apache OpenWhisk client-side tooling. |
