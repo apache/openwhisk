@@ -386,7 +386,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         totalActivations.decrement()
         totalActivationMemory.add(entry.memory.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
-        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
+        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release(entry.memory.toMB.toInt))
 
         if (!forced) {
           entry.timeoutHandler.cancel()
