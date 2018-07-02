@@ -27,7 +27,7 @@ import akka.stream.{Graph, SinkShape, UniformFanOutShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, MergeHub, Sink, Source}
 import akka.util.ByteString
 
-import whisk.common.TransactionId
+import whisk.common.{AkkaLogging, TransactionId}
 import whisk.core.containerpool.Container
 import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import whisk.core.entity.size._
@@ -49,6 +49,8 @@ import scala.concurrent.Future
  */
 class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: Path = Paths.get("logs"))
     extends DockerToActivationLogStore(system) {
+
+  private val logging = new AkkaLogging(system.log)
 
   /**
    * End of an event as written to a file. Closes the json-object and also appends a newline.
@@ -83,7 +85,9 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
           val size = element.size
           if (bytesRead + size > maxSize) {
             bytesRead = size
-            Some(destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log"))
+            val newLogFile = destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log")
+            logging.info(this, s"Rotating log file to '$newLogFile'")
+            Some(newLogFile)
           } else {
             bytesRead += size
             None
