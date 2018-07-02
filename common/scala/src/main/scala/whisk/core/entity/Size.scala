@@ -69,6 +69,14 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
     ByteSize(commonSize, commonUnit)
   }
 
+  def *(other: Int): ByteSize = {
+    ByteSize(toBytes * other, SizeUnits.BYTE)
+  }
+
+  def /(other: Int): ByteSize = {
+    ByteSize((toBytes / other).toInt, SizeUnits.BYTE)
+  }
+
   def compare(other: ByteSize) = toBytes compare other.toBytes
 
   override def equals(that: Any): Boolean = that match {
