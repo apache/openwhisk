@@ -77,7 +77,7 @@ The address of your docker host has to be configured in the `metrics_kamon_stats
 
 ## User specific metrics
 ### Configuration
-User metrics are enabled by default and could be explicitly be disabled by setting the following property in one of the Ansible configuration files:
+User metrics are enabled by default and could be explicitly disabled by setting the following property in one of the Ansible configuration files:
 ```
 user_events: false
 ```
