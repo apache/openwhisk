@@ -29,17 +29,16 @@ import scala.util.control.NoStackTrace
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.client.methods.HttpRequestBase
-import org.apache.http.client.utils.URIBuilder
+import org.apache.http.client.utils.{HttpClientUtils, URIBuilder}
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import org.apache.http.impl.conn.{BasicHttpClientConnectionManager, PoolingHttpClientConnectionManager}
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -116,7 +115,8 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
           Left(NoResponseReceived())
         }
 
-      response.close()
+      // Fully consumes the entity and closes the response
+      HttpClientUtils.closeQuietly(response)
       containerResponse
     } recoverWith {
       // The route to target socket as well as the target socket itself may need some time to be available -
@@ -167,7 +167,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
       // Increase max total connections (default is 20)
       cm.setMaxTotal(maxConcurrent)
       cm
-    } else null) //set the Pooling connection manager IFF maxConcurrent > 1
+    } else new BasicHttpClientConnectionManager()) // set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
