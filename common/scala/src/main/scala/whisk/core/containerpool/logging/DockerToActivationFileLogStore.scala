@@ -37,7 +37,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 
 /**
  * Docker based implementation of a LogStore.
@@ -78,7 +78,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
   protected val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
     .batchWeighted(bufferSize.toBytes, _.length, identity)(_ ++ _)
-    .to(RestartSink.withBackoff(1.seconds, 60.seconds, 0.2) { () =>
+    .to(RestartSink.withBackoff(minBackoff = 1.seconds, maxBackoff = 60.seconds, randomFactor = 0.2) { () =>
       LogRotatorSink(() => {
         val maxSize = bufferSize.toBytes
         var bytesRead = maxSize
