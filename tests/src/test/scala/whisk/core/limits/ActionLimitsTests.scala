@@ -328,6 +328,25 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     actionCode.delete
   }
 
+  it should "succeed on creating an binary-action with binary exec which is not too big before encoding" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val name = "testactionBinaryNotTooBig"
+
+    val actionCode = new File(s"$testActionsDir${File.separator}$name.zip")
+    actionCode.createNewFile()
+    val pw = new PrintWriter(actionCode)
+    // Create a file, that has 5/6 of the allowed size.
+    // Due to the overhead of base64, the encoded request will be bigger than the allowed limit.
+    pw.write("a" * (actionCodeLimit.toBytes * 5 / 6).toInt)
+    pw close ()
+
+    assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
+      action.create(name, Some(actionCode.getAbsolutePath), kind = Some("nodejs:default"))
+    }
+
+    actionCode.delete
+  }
+
   /**
    * Test an action that does not exceed the allowed number of open files.
    */

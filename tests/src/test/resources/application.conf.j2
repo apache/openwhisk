@@ -8,6 +8,7 @@ whisk.spi {
 akka.http.client.idle-timeout = 90 s
 akka.http.host-connection-pool.idle-timeout = 90 s
 akka.http.host-connection-pool.client.idle-timeout = 90 s
+akka.http.client.parsing.max-content-length = "{{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}m"
 
 whisk {
     # kafka related configuration
@@ -66,5 +67,10 @@ whisk {
     }
     user-events {
         enabled = {{ user_events }}
+    }
+
+    limits {
+        action-code-size = "{{ limits.actionCodeMb }} m"
+        parameter-size = "{{ limits.parametersMb }} m"
     }
 }
