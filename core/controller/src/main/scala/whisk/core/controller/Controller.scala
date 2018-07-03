@@ -43,7 +43,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.LoadBalancerProvider
+import whisk.core.loadBalancer.{Healthy, LoadBalancerProvider}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
@@ -99,7 +99,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ internalInvokerHealthCount
   }
 
   // initialize datastores
@@ -147,6 +147,25 @@ class Controller(val instance: ControllerInstanceId,
           .map(_.map {
             case i => s"invoker${i.id.toInt}" -> i.status.asString
           }.toMap.toJson.asJsObject)
+      }
+    }
+  }
+
+  /**
+   * Handles GET /numHealthyInvokers URI.
+   *
+   * @return number of healthy invokers
+   */
+  private val internalInvokerHealthCount = {
+    implicit val executionContext = actorSystem.dispatcher
+    (path("numHealthyInvokers") & get) {
+      complete {
+        loadBalancer
+          .invokerHealth()
+          .map(_.foldLeft(0) { (r, i) =>
+            if (i.status == Healthy) { r + 1 } else { r }
+          })
+          .map { _.toJson }
       }
     }
   }
