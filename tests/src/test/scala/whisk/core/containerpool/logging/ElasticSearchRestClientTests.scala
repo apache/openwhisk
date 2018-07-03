@@ -95,7 +95,7 @@ class ElasticSearchRestClientTests
         val queryRange1 = EsQueryRange("someKey1", rangeArg, "someValue1")
         val queryRange2 = EsQueryRange("someKey2", rangeArg, "someValue2")
         val queryTerms = Vector(EsQueryBoolMatch("someKey1", "someValue1"), EsQueryBoolMatch("someKey2", "someValue2"))
-        val queryMust = EsQueryMust(queryTerms, Some(Vector(queryRange1, queryRange2)))
+        val queryMust = EsQueryMust(queryTerms, Vector(queryRange1, queryRange2))
 
         EsQuery(queryMust).toJson shouldBe JsObject(
           "query" ->
