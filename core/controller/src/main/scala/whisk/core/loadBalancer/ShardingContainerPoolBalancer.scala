@@ -35,6 +35,7 @@ import whisk.common._
 import whisk.core.WhiskConfig._
 import whisk.core.connector._
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
 
@@ -159,12 +160,14 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
   private val activations = TrieMap[ActivationId, ActivationEntry]()
   private val activationsPerNamespace = TrieMap[UUID, LongAdder]()
   private val totalActivations = new LongAdder()
+  private val totalActivationMemory = new LongAdder()
 
   /** State needed for scheduling. */
   private val schedulingState = ShardingContainerPoolBalancerState()()
 
   actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
     MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
+    MetricEmitter.emitHistogramMetric(LOADBALANCER_MEMORY_INFLIGHT(controllerInstance), totalActivationMemory.longValue)
   }
 
   /**
@@ -248,6 +251,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
                               instance: InvokerInstanceId): ActivationEntry = {
 
     totalActivations.increment()
+    totalActivationMemory.add(action.limits.memory.megabytes)
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
     val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
@@ -266,6 +270,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
           msg.activationId,
           msg.user.namespace.uuid,
           instance,
+          action.limits.memory.megabytes.MB,
           timeoutHandler,
           Promise[Either[ActivationId, WhiskActivation]]())
       })
@@ -347,6 +352,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
     activations.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
+        totalActivationMemory.add(entry.memory.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
 
@@ -427,7 +433,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
                dispatched: IndexedSeq[ForcableSemaphore],
                index: Int,
                step: Int,
-               stepsDone: Int = 0)(implicit logging: Logging): Option[InvokerInstanceId] = {
+               stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -588,5 +594,6 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invoker
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
                            invokerName: InvokerInstanceId,
+                           memory: ByteSize,
                            timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]])

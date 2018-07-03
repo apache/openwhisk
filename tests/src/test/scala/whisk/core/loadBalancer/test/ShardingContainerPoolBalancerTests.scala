@@ -21,7 +21,7 @@ import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
-import whisk.common.ForcableSemaphore
+import whisk.common.{ForcableSemaphore, TransactionId}
 import whisk.core.entity.InvokerInstanceId
 import whisk.core.loadBalancer._
 
@@ -152,6 +152,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   }
 
   behavior of "schedule"
+
+  implicit val transId = TransactionId.testing
 
   it should "return None on an empty invoker list" in {
     ShardingContainerPoolBalancer.schedule(IndexedSeq.empty, IndexedSeq.empty, index = 0, step = 2) shouldBe None
