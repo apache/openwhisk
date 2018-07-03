@@ -51,16 +51,21 @@ Longer tutorials that are specific to a language of your choice are listed below
 We recommend reading the basics in this document first, which are language agnostic, before getting deeper
 into a language-specific tutorial. If your preferred language isn't supported directly, you may find
 the [Docker](docker-actions.md) action or [native binary](docker-actions.md#creating-native-actions)
-paths more suitable. Multiple actions may be composed together to create a longer processing pipeline called a
-[sequence](#creating-action-sequences). A more advanced form of composition is described [here](conductors.md).
+paths more suitable. Or, you can [create a new runtime](#actions-new.md).
 
-* [JavaScript](actions-node.md)
-* [Python](actions-python.md)
+* [Go](actions-go.md)
 * [Java](actions-java.md)
+* [JavaScript](actions-node.md)
 * [PHP](actions-php.md)
+* [Python](actions-python.md)
 * [Swift](actions-swift.md)
 * [Docker and native binaries](actions-docker.md)
-* [Go](actions-go.md)
+
+Multiple actions from different languages may be composed together to create a longer processing
+pipeline called a [sequence](#creating-action-sequences). The polyglot nature of the composition is
+powerful in that it affords you the ability to use the right language for the problem you're solving,
+and separates the orchestration of the dataflow between functions from the choice of language.
+A more advanced form of composition is described [here](conductors.md).
 
 ## The basics
 
