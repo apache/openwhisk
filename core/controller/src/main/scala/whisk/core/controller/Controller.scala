@@ -152,20 +152,18 @@ class Controller(val instance: ControllerInstanceId,
   }
 
   /**
-   * Handles GET /numHealthyInvokers URI.
+   * Handles GET /invokers/healthy/count URI.
    *
    * @return number of healthy invokers
    */
   private val internalInvokerHealthCount = {
     implicit val executionContext = actorSystem.dispatcher
-    (path("numHealthyInvokers") & get) {
+    (path("invokers" / "healthy" / "count") & get) {
       complete {
         loadBalancer
           .invokerHealth()
-          .map(_.foldLeft(0) { (r, i) =>
-            if (i.status == Healthy) { r + 1 } else { r }
-          })
-          .map { _.toJson }
+          .map(_.count(_.status == Healthy))
+          .map(_.toJson)
       }
     }
   }
