@@ -185,6 +185,7 @@ class ElasticSearchRestClientTests
 
     response shouldBe 'right
     response.right.get.hits.hits should have size 1
+    response.right.get.hits.total shouldBe 1375
     response.right.get.hits.hits(0).source shouldBe defaultResponseSource.parseJson.asJsObject
   }
 

@@ -70,7 +70,7 @@ case class EsQuery(query: EsQueryMethod,
 
 // Schema of ES query results
 case class EsSearchHit(source: JsObject)
-case class EsSearchHits(hits: Vector[EsSearchHit])
+case class EsSearchHits(hits: Vector[EsSearchHit], total: Int)
 case class EsSearchResult(hits: EsSearchHits)
 
 object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
@@ -148,7 +148,7 @@ object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
 
   implicit val esQueryFormat = jsonFormat4(EsQuery.apply)
   implicit val esSearchHitFormat = jsonFormat(EsSearchHit.apply _, "_source")
-  implicit val esSearchHitsFormat = jsonFormat1(EsSearchHits.apply)
+  implicit val esSearchHitsFormat = jsonFormat2(EsSearchHits.apply)
   implicit val esSearchResultFormat = jsonFormat1(EsSearchResult.apply)
 }
 
