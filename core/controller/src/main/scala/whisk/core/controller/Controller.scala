@@ -43,7 +43,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.LoadBalancerProvider
+import whisk.core.loadBalancer.{Healthy, LoadBalancerProvider}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
@@ -134,19 +134,26 @@ class Controller(val instance: ControllerInstanceId,
   private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
   /**
-   * Handles GET /invokers URI.
+   * Handles GET /invokers
+   *             /invokers/healthy/count
    *
-   * @return JSON of invoker health
+   * @return JSON with details of invoker health or count of healthy invokers respectively.
    */
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
-    (path("invokers") & get) {
-      complete {
-        loadBalancer
-          .invokerHealth()
-          .map(_.map {
-            case i => s"invoker${i.id.toInt}" -> i.status.asString
-          }.toMap.toJson.asJsObject)
+    (pathPrefix("invokers") & get) {
+      pathEndOrSingleSlash {
+        complete {
+          loadBalancer
+            .invokerHealth()
+            .map(_.map(i => s"invoker${i.id.toInt}" -> i.status.asString).toMap.toJson.asJsObject)
+        }
+      } ~ path("healthy" / "count") {
+        complete {
+          loadBalancer
+            .invokerHealth()
+            .map(_.count(_.status == Healthy).toJson)
+        }
       }
     }
   }
