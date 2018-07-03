@@ -23,9 +23,10 @@ The process of creating PHP actions is similar to that of [other actions](action
 The following sections guide you through creating and invoking a single PHP action,
 and demonstrate how to bundle multiple PHP files and third party dependencies.
 
-PHP actions are executed using PHP 7.1.18.
-To use this runtime, specify the `wsk` CLI parameter `--kind php:7.1` when creating or updating an action.
+PHP actions are executed using PHP 7.2.6, with PHP 7.1.18 also available.
+To use the PHP 7.2 runtime, specify the `wsk` CLI parameter `--kind php:7.2` when creating or updating an action.
 This is the default when creating an action with file that has a `.php` extension.
+You can use `-- kind php:7.1 to use the PHP 7.1 runtime.
 
 An action is simply a top-level PHP function. For example, create a file called `hello.php`
 with the following source code:
@@ -52,7 +53,7 @@ wsk action create helloPHP hello.php
 ```
 
 The CLI automatically infers the type of the action from the source file extension.
-For `.php` source files, the action runs using a PHP 7.1 runtime.
+For `.php` source files, the action runs using a PHP 7.2 runtime.
 
 Action invocation is the same for PHP actions as it is for [any other action](actions.md#the-basics).
 
@@ -100,8 +101,8 @@ The PHP runtime will automatically include Composer's autoloader for you, so you
 use the dependencies in your action code. Note that if you don't include your own `vendor` folder,
 then the runtime will include one for you with the following Composer packages:
 
-- guzzlehttp/guzzle       v6.7.3
-- ramsey/uuid             v3.6.3
+- guzzlehttp/guzzle       v6.3.3
+- ramsey/uuid             v3.7.3
 
 ## Built-in PHP extensions
 

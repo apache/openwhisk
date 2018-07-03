@@ -125,11 +125,21 @@
         "php": [
             {
                 "kind": "php:7.1",
-                "default": true,
+                "default": false,
                 "deprecated": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v7.1",
+                    "tag": "latest"
+                }
+            },
+            {
+                "kind": "php:7.2",
+                "default": true,
+                "deprecated": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-php-v7.2",
                     "tag": "latest"
                 }
             }
