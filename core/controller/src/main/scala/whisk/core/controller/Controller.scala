@@ -99,7 +99,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ internalInvokerHealthCount
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
   }
 
   // initialize datastores
@@ -134,36 +134,26 @@ class Controller(val instance: ControllerInstanceId,
   private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
   /**
-   * Handles GET /invokers URI.
+   * Handles GET /invokers
+   *             /invokers/healthy/count
    *
-   * @return JSON of invoker health
+   * @return JSON with details of invoker health or count of healthy invokers respectively.
    */
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
-    (path("invokers") & get) {
-      complete {
-        loadBalancer
-          .invokerHealth()
-          .map(_.map {
-            case i => s"invoker${i.id.toInt}" -> i.status.asString
-          }.toMap.toJson.asJsObject)
-      }
-    }
-  }
-
-  /**
-   * Handles GET /invokers/healthy/count URI.
-   *
-   * @return number of healthy invokers
-   */
-  private val internalInvokerHealthCount = {
-    implicit val executionContext = actorSystem.dispatcher
-    (path("invokers" / "healthy" / "count") & get) {
-      complete {
-        loadBalancer
-          .invokerHealth()
-          .map(_.count(_.status == Healthy))
-          .map(_.toJson)
+    (pathPrefix("invokers") & get) {
+      pathEndOrSingleSlash {
+        complete {
+          loadBalancer
+            .invokerHealth()
+            .map(_.map(i => s"invoker${i.id.toInt}" -> i.status.asString).toMap.toJson.asJsObject)
+        }
+      } ~ path("healthy" / "count") {
+        complete {
+          loadBalancer
+            .invokerHealth()
+            .map(_.count(_.status == Healthy).toJson)
+        }
       }
     }
   }
