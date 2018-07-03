@@ -38,7 +38,7 @@ import org.apache.http.client.utils.{HttpClientUtils, URIBuilder}
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-import org.apache.http.impl.conn.{BasicHttpClientConnectionManager, PoolingHttpClientConnectionManager}
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -62,6 +62,12 @@ import whisk.core.entity.size.SizeLong
 protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
   implicit logging: Logging) {
 
+  /**
+   * Closes the HttpClient and all resources allocated by it.
+   *
+   * This will close the HttpClient that is generated for this instance of HttpUtils. That will also cause the
+   * ConnectionManager to be closed alongside.
+   */
   def close() = Try(connection.close())
 
   /**
@@ -159,15 +165,21 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
 
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
-    .setConnectionManager(if (maxConcurrent > 1) {
-      // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
-      val cm = new PoolingHttpClientConnectionManager
-      // Increase default max connections per route (default is 2)
+    .setConnectionManager({
+      // A PoolingHttpClientConnectionManager is the default when not specifying any ConnectionManager.
+      // The PoolingHttpClientConnectionManager has the benefit of actively checking if a connection has become stale,
+      // which is very important because pausing/resuming containers can cause a connection to become silently broken.
+      // This causes very subtle bugs, especially when containers are reused after a pretty long time (like > 5 minutes).
+      //
+      // The BasicHttpClientConnectionManager (which would be alternative here) doesn't have such a mechanism and thus
+      // isn't suitable for our usage.
+      val cm = new PoolingHttpClientConnectionManager()
+      // perRoute effectively means per host in our use-case, which means setting it to the same value as the maximum
+      // total of all connections in the pool is appropriate here.
       cm.setDefaultMaxPerRoute(maxConcurrent)
-      // Increase max total connections (default is 20)
       cm.setMaxTotal(maxConcurrent)
       cm
-    } else new BasicHttpClientConnectionManager()) // set the Pooling connection manager IFF maxConcurrent > 1
+    })
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
