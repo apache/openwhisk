@@ -100,9 +100,9 @@ wsk action invoke --result helloSwift --param name World
 ```
 
 ```json
-  {
-      "greeting": "Hello World!"
-  }
+{
+  "greeting": "Hello World!"
+}
 ```
 
 Find out more about parameters in the [Working with parameters](./parameters.md) section.
@@ -120,12 +120,12 @@ You can use a script to automate the packaging of the action. Create  script `co
 set -ex
 
 if [ -z "$1" ] ; then
-    echo 'Error: Missing action name'
-    exit 1
+  echo 'Error: Missing action name'
+  exit 1
 fi
 if [ -z "$2" ] ; then
-    echo 'Error: Missing kind, for example swift:4.1'
-    exit 2
+  echo 'Error: Missing kind, for example swift:4.1'
+  exit 2
 fi
 OUTPUT_DIR="build"
 if [ ${2} == "swift:3.1.1" ]; then
@@ -144,14 +144,14 @@ DEST_PACKAGE_SWIFT="$BASE_PATH/spm-build/Package.swift"
 
 BUILD_FLAGS=""
 if [ -n "$3" ] ; then
-    BUILD_FLAGS=${3}
+  BUILD_FLAGS=${3}
 fi
 
 echo "Using runtime $RUNTIME to compile swift"
 docker run --rm --name=compile-ow-swift -it -v "$(pwd):/owexec" $RUNTIME bash -ex -c "
 
 if [ -f \"/owexec/$OUTPUT_DIR/$1.zip\" ] ; then
-    rm \"/owexec/$OUTPUT_DIR/$1.zip\"
+  rm \"/owexec/$OUTPUT_DIR/$1.zip\"
 fi
 
 echo 'Setting up build...'
@@ -159,8 +159,8 @@ cp /owexec/actions/$1/Sources/*.swift $DEST_SOURCE/
 
 # action file can be either {action name}.swift or main.swift
 if [ -f \"$DEST_SOURCE/$1.swift\" ] ; then
-    echo 'renaming $DEST_SOURCE/$1.swift $DEST_SOURCE/main.swift'
-    mv \"$DEST_SOURCE/$1.swift\" $DEST_SOURCE/main.swift
+  echo 'renaming $DEST_SOURCE/$1.swift $DEST_SOURCE/main.swift'
+  mv \"$DEST_SOURCE/$1.swift\" $DEST_SOURCE/main.swift
 fi
 # Add in the OW specific bits
 cat $BASE_PATH/epilogue.swift >> $DEST_SOURCE/main.swift
@@ -202,14 +202,14 @@ For Swift 3 here is an example:
   import PackageDescription
 
   let package = Package(
-    name: "Action",
-        dependencies: [
-            .Package(url: "https://github.com/apple/example-package-deckofplayingcards.git", majorVersion: 3),
-            .Package(url: "https://github.com/IBM-Swift/CCurl.git", "0.2.3"),
-            .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.10"),
-            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
-            .Package(url: "https://github.com/watson-developer-cloud/swift-sdk.git", "0.16.0")
-        ]
+      name: "Action",
+          dependencies: [
+              .Package(url: "https://github.com/apple/example-package-deckofplayingcards.git", majorVersion: 3),
+              .Package(url: "https://github.com/IBM-Swift/CCurl.git", "0.2.3"),
+              .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.10"),
+              .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
+              .Package(url: "https://github.com/watson-developer-cloud/swift-sdk.git", "0.16.0")
+          ]
   )
   ```
   For Swift 4 here is an example:
@@ -220,20 +220,20 @@ For Swift 3 here is an example:
   let package = Package(
       name: "Action",
       products: [
-        .executable(
-          name: "Action",
-          targets:  ["Action"]
-        )
+          .executable(
+              name: "Action",
+              targets:  ["Action"]
+          )
       ],
       dependencies: [
-        .package(url: "https://github.com/apple/example-package-deckofplayingcards.git", .upToNextMajor(from: "3.0.0"))
+          .package(url: "https://github.com/apple/example-package-deckofplayingcards.git", .upToNextMajor(from: "3.0.0"))
       ],
       targets: [
-        .target(
-          name: "Action",
-          dependencies: ["DeckOfPlayingCards"],
-          path: "."
-        )
+          .target(
+              name: "Action",
+              dependencies: ["DeckOfPlayingCards"],
+              path: "."
+          )
       ]
   )
   ```
@@ -281,7 +281,7 @@ enum VendingMachineError: Error {
 }
 func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
     // Return real error
-    do{
+    do {
         throw VendingMachineError.insufficientFunds(coinsNeeded: 5)
     } catch {
         completion(nil, error)
