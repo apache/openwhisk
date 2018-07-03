@@ -20,7 +20,7 @@ package whisk.core.database
 import java.io.File
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Source, StreamConverters}
+import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -28,7 +28,7 @@ import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import spray.json.{JsObject, JsonParser, ParserInput}
 import whisk.common.{Logging, TransactionId}
-import whisk.core.cli.{CommandError, CommandMessages, WhiskCommand}
+import whisk.core.cli.{CommandError, CommandMessages, NoopTicker, ProgressTicker, Ticker, WhiskCommand}
 import whisk.core.entity.{ByteSize, WhiskActivation, WhiskAuth, WhiskEntity}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -87,12 +87,15 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    val ticker = createTicker()
     val outputSink = Flow[JsObject]
       .map(js => ByteString(js.compactPrint + Properties.lineSeparator))
+      .via(tick(ticker))
       .toMat(createSink())(Keep.right)
     val store = DbCommand.createStore(get.dbType)
 
     val f = store.getAll[IOResult](outputSink)
+    f.onComplete(_ => ticker.close())
     f.map {
       case (count, r) =>
         if (r.wasSuccessful)
@@ -106,6 +109,13 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       .map(f => FileIO.toPath(f.toPath))
       .getOrElse(StreamConverters.fromOutputStream(() => new CloseShieldOutputStream(System.out)))
 
+  private def tick[T](ticker: Ticker) = {
+    Flow[T].wireTap(Sink.foreach(_ => ticker.tick()))
+  }
+
+  private def createTicker() = {
+    if (get.out.isDefined) new ProgressTicker else NoopTicker
+  }
 }
 
 object DbCommand {
