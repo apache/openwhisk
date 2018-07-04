@@ -34,6 +34,7 @@ import whisk.core.cli.{CommandError, CommandMessages, IllegalState, NoopTicker, 
 import whisk.core.database.DbCommand._
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.cli.ConsoleUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
@@ -170,8 +171,6 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
   private def tick[T](ticker: Ticker) = {
     Flow[T].wireTap(Sink.foreach(_ => ticker.tick()))
   }
-
-  private def showProgressBar(): Boolean = true
 
   private object PutResultState extends Enumeration {
     type PutResultState = Value

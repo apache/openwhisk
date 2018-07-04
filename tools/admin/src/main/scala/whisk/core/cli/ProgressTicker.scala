@@ -74,3 +74,7 @@ class ProgressTicker extends Ticker {
 
   private def status() = s"$count docs $speed [$watch]"
 }
+
+object ConsoleUtil {
+  def showProgressBar(): Boolean = System.console() != null
+}
