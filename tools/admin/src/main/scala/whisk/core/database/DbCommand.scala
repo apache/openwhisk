@@ -42,8 +42,6 @@ import scala.util.Properties
 class DbCommand extends Subcommand("db") with WhiskCommand {
   descr("work with dbs")
 
-  private val log = LoggerFactory.getLogger(getClass.getName)
-
   val databases = Set("whisks", "activations", "subjects")
 
   abstract class DbSubcommand(commandNameAndAliases: String*) extends Subcommand(commandNameAndAliases: _*) {
@@ -202,6 +200,8 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 }
 
 object DbCommand {
+  private val log = LoggerFactory.getLogger(getClass.getName)
+
   def createStreamingStore[D <: DocumentSerializer](classTag: ClassTag[D])(
     implicit system: ActorSystem,
     logging: Logging,
@@ -226,8 +226,14 @@ object DbCommand {
     FileIO
       .fromPath(file.toPath)
       .via(Framing.delimiter(ByteString("\n"), maxLineLength.toBytes.toInt))
-      .map(bs => JsonParser(ParserInput.apply(bs.toArray)).asJsObject)
+      .map(_.utf8String)
+      .map(stripEndComma)
+      .map(JsonParser(_).asJsObject)
   }
+
+  //Some dumps create an array of json objects where each line ends with ','
+  //To avoid failure in parsing later the comma would be stripped
+  private def stripEndComma(s: String) = if (s.last == ',') s.substring(0, s.length - 1) else s
 
   def jsToStringLine(js: JsObject): ByteString = ByteString(js.compactPrint + Properties.lineSeparator)
 
