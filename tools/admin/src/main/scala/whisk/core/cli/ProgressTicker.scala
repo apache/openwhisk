@@ -17,6 +17,8 @@
 
 package whisk.core.cli
 
+import java.util.concurrent.TimeUnit
+
 import com.google.common.base.Stopwatch
 
 trait Ticker {
@@ -59,6 +61,8 @@ class ProgressTicker extends Ticker {
     s"${barBase * pos}$barCurrent${barBase * (width - pos)}"
   }
 
+  private def speed(): String = "%.0f/s".format(count * 1.0 / watch.elapsed(TimeUnit.SECONDS))
+
   private def move(): Unit = {
     if (count % nextDrawDelta == 0) {
       if (movingRight) pos += 1 else pos -= 1
@@ -68,5 +72,5 @@ class ProgressTicker extends Ticker {
     }
   }
 
-  private def status() = s"$count docs [$watch]"
+  private def status() = s"$count docs $speed [$watch]"
 }
