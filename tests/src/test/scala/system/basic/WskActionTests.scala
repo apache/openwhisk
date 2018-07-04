@@ -273,7 +273,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     }
   }
 
-  ignore should "support UTF-8 as input and output format" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "support UTF-8 as input and output format" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "utf8Test"
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
