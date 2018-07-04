@@ -174,10 +174,10 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     it should "fail to initialize a second time" in {
       val (out, err) = withActionContainer() { c =>
         val (initCode1, _) = c.init(initPayload(code))
-        initCode1 should be (200)
+        initCode1 should be(200)
 
         val (initCode2, error2) = c.init(initPayload(code))
-        initCode2 should be (403)
+        initCode2 should be(403)
         error2 shouldBe a[Some[_]]
         error2.get shouldBe a[JsObject]
         error2.get.fields("error").toString should include("Cannot initialize the action more than once.")
@@ -185,9 +185,8 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
       checkStreams(out, err, {
         case (o, e) =>
-            (o + e) should include("Cannot initialize the action more than once")
+          (o + e) should include("Cannot initialize the action more than once")
       })
     }
   }
-
 }
