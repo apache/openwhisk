@@ -23,25 +23,13 @@ import java.util.Date
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.ActivationResult
-import common.StreamLogging
-import common.TestHelpers
-import common.TestUtils
+import common._
 import common.TestUtils._
-import common.WskOperations
-import common.WskProps
-import common.RuleActivationResult
-import common.WskTestHelpers
-
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-
+import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.core.WhiskConfig
 import whisk.http.Messages.sequenceIsTooLong
 
@@ -49,14 +37,15 @@ import whisk.http.Messages.sequenceIsTooLong
  * Tests sequence execution
  */
 @RunWith(classOf[JUnitRunner])
-abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestHelpers with StreamLogging {
+class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLogging with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk: WskOperations
+  val wsk: WskOperations = new WskRestOperations
+  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
 
-  val whiskConfig: WhiskConfig
+  assert(whiskConfig.isValid)
 
   behavior of "Wsk Sequence"
 
