@@ -34,7 +34,7 @@ import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.client.methods.HttpRequestBase
-import org.apache.http.client.utils.{HttpClientUtils, URIBuilder}
+import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
@@ -121,8 +121,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
           Left(NoResponseReceived())
         }
 
-      // Fully consumes the entity and closes the response
-      HttpClientUtils.closeQuietly(response)
+      response.close()
       containerResponse
     } recoverWith {
       // The route to target socket as well as the target socket itself may need some time to be available -
@@ -165,7 +164,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
 
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
-    .setConnectionManager({
+    .setConnectionManager(if (maxConcurrent > 1) {
       // A PoolingHttpClientConnectionManager is the default when not specifying any ConnectionManager.
       // The PoolingHttpClientConnectionManager has the benefit of actively checking if a connection has become stale,
       // which is very important because pausing/resuming containers can cause a connection to become silently broken.
@@ -179,7 +178,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
       cm.setDefaultMaxPerRoute(maxConcurrent)
       cm.setMaxTotal(maxConcurrent)
       cm
-    })
+    } else null)
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
