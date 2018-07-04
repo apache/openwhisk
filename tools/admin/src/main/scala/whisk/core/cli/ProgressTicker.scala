@@ -30,9 +30,15 @@ trait Ticker {
 object NoopTicker extends Ticker
 
 class ProgressTicker extends Ticker {
-  private var count = 0
-  private val anim = Array('|', '/', '-', '\\')
+  private val width = 10
+  private val nextDrawDelta = 10
   private val watch = Stopwatch.createStarted()
+  private val barBase = "-"
+  private val barCurrent = "*"
+
+  private var count = 0
+  private var pos = 0
+  private var movingRight = true
 
   override def tick(): Unit = {
     count += 1
@@ -44,8 +50,22 @@ class ProgressTicker extends Ticker {
   }
 
   private def draw() = {
-    val msg = s"\r[${anim(count % anim.size)}] ${status()}"
+    move()
+    val msg = s"\r[${animation()}] ${status()}"
     print(msg)
+  }
+
+  private def animation() = {
+    s"${barBase * pos}$barCurrent${barBase * (width - pos)}"
+  }
+
+  private def move(): Unit = {
+    if (count % nextDrawDelta == 0) {
+      if (movingRight) pos += 1 else pos -= 1
+
+      if (pos == 0) movingRight = true
+      if (pos == width) movingRight = false
+    }
   }
 
   private def status() = s"$count docs [$watch]"
