@@ -33,7 +33,7 @@ object NoopTicker extends Ticker
 
 class ProgressTicker extends Ticker {
   private val width = 10
-  private val nextDrawDelta = 10
+  private val nextDrawDelta = 200 //Redraw ever this millis
   private val watch = Stopwatch.createStarted()
   private val barBase = "-"
   private val barCurrent = "*"
@@ -41,6 +41,8 @@ class ProgressTicker extends Ticker {
   private var count = 0
   private var pos = 0
   private var movingRight = true
+  private var lastDrawTime = 0L
+  private var maxStatusLength = 0
 
   override def tick(): Unit = {
     count += 1
@@ -52,27 +54,39 @@ class ProgressTicker extends Ticker {
   }
 
   private def draw() = {
-    move()
-    val msg = s"\r[${animation()}] ${status()}"
-    print(msg)
+    if (move()) {
+      val msg = s"\r[${animation()}] ${status()}"
+      print(msg)
+    }
   }
 
   private def animation() = {
     s"${barBase * pos}$barCurrent${barBase * (width - pos)}"
   }
 
-  private def speed(): String = "%.0f/s".format(count * 1.0 / watch.elapsed(TimeUnit.SECONDS))
+  private def speed(): String = "%.0f/s".format(count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1))
 
-  private def move(): Unit = {
-    if (count % nextDrawDelta == 0) {
+  private def move(): Boolean = {
+    val elapsesMillis = watch.elapsed(TimeUnit.MILLISECONDS)
+    if (elapsesMillis - lastDrawTime >= nextDrawDelta) {
+      lastDrawTime = elapsesMillis
       if (movingRight) pos += 1 else pos -= 1
 
       if (pos == 0) movingRight = true
       if (pos == width) movingRight = false
-    }
+      true
+    } else false
   }
 
-  private def status() = s"$count docs $speed [$watch]"
+  private def status(): String = {
+    val s = s"$count docs ${speed()} [$watch]"
+    if (s.length > maxStatusLength) {
+      maxStatusLength = s.length
+      s
+    } else {
+      s + " " * (maxStatusLength - s.length)
+    } //Add padding
+  }
 }
 
 object ConsoleUtil {
