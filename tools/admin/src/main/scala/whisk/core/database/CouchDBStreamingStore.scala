@@ -87,7 +87,8 @@ class StreamingCouchDbRestClient(protocol: String,
                                  username: String,
                                  password: String,
                                  db: String)(implicit system: ActorSystem, logging: Logging)
-    extends CouchDbRestClient(protocol, host, port, username, password, db) {
+    extends CouchDbRestClient(protocol, host, port, username, password, db)
+    with DefaultJsonProtocol {
 
   def getAllDocs[T](sink: Sink[JsObject, Future[T]]): Future[Either[StatusCode, (Long, T)]] = {
     val url = uri(db, "_all_docs").withQuery(Uri.Query(Map("include_docs" -> "true")))
@@ -105,6 +106,7 @@ class StreamingCouchDbRestClient(protocol: String,
           .dataBytes
           .via(JsonReader.select("$.rows[*].doc"))
           .map(bs => JsonParser(ParserInput.apply(bs.toArray)).asJsObject) //Better to use SprayJsonByteStringParserInput ... its private :(
+          .filter(whiskDocs)
           .alsoToMat(counter)(Keep.right)
           .toMat(sink)(Keep.both)
           .run()
@@ -118,4 +120,6 @@ class StreamingCouchDbRestClient(protocol: String,
       }
     }
   }
+
+  private def whiskDocs(js: JsObject) = !js.fields("_id").convertTo[String].startsWith("_design/")
 }

@@ -50,4 +50,9 @@ object CommandMessages {
 
   def invalidDatabase(db: String, dbs: Iterable[String]) = s"Database type '$db' not found in $dbs"
 
+  def putDocs(count: Long) = s"Put $count docs"
+
+  def putDocsFailed(success: Long, failed: Long, exists: Long) =
+    s"Put result : Failed = $failed, Already Exists = $exists, Put Successful = $success"
+
 }

@@ -19,7 +19,7 @@ package whisk.core.database
 
 import java.io.File
 
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{FileIO, Sink}
 import common.TestFolder
 import org.junit.runner.RunWith
 import org.scalactic.Uniformity
@@ -27,6 +27,11 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import spray.json.{DefaultJsonProtocol, JsObject}
 import whisk.common.TransactionId
+import whisk.core.cli.CommandMessages
+import whisk.core.database.DbCommand._
+import whisk.core.entity.{DocInfo, WhiskDocument, WhiskEntity}
+
+import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class DbCommandTests
@@ -48,9 +53,36 @@ class DbCommandTests
 
     resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
 
-    val idFilter: JsObject => Boolean = js => actionIds.contains(js.fields("_id").convertTo[String])
-    (collectedEntities(outFile, idFilter) should contain theSameElementsAs actionJsons)(after being strippedOfRevision)
+    (collectedEntities(outFile, idFilter(actionIds)) should contain theSameElementsAs actionJsons)(
+      after being strippedOfRevision)
+
+    collectedEntities(outFile, js => idOf(js).startsWith("_design/")) shouldBe empty
   }
+
+  behavior of "db put"
+
+  it should "put all entities" in {
+    implicit val tid: TransactionId = transid()
+    val actions = List.tabulate(10)(_ => newAction(newNS()))
+    actions foreach (put(entityStore, _))
+
+    val actionIds = actions.map(_.docid.id).toSet
+    val actionJsons = actions.map(_.toDocumentRecord)
+
+    val outFile = newFile()
+
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
+    cleanup()
+
+    val inFile = copyEntities(outFile, idFilter(actionIds))
+    resultOk("db", "put", "--in", inFile.getAbsolutePath, "whisks") shouldBe CommandMessages.putDocs(10)
+
+    cleanup[WhiskEntity](actionIds, entityStore)
+  }
+
+  private def idFilter(ids: Set[String]): JsObject => Boolean = js => ids.contains(idOf(js))
+
+  private def idOf(js: JsObject) = js.fields("_id").convertTo[String]
 
   private def collectedEntities(file: File, filter: JsObject => Boolean) =
     DbCommand
@@ -58,6 +90,27 @@ class DbCommandTests
       .filter(filter)
       .runWith(Sink.seq)
       .futureValue
+
+  private def copyEntities(file: File, filter: JsObject => Boolean): File = {
+    val out = newFile()
+    DbCommand
+      .createJSStream(file)
+      .filter(filter)
+      .map(jsToStringLine)
+      .runWith(FileIO.toPath(out.toPath))
+      .futureValue
+    out
+  }
+
+  private def cleanup[A <: WhiskDocument: Manifest](ids: TraversableOnce[String], store: ArtifactStore[A]): Unit = {
+    implicit val tid = TransactionId.testing
+    ids.map { u =>
+      Try {
+        val doc = store.get[A](DocInfo(u)).futureValue
+        delete(store, doc.docinfo)
+      }
+    }
+  }
 
   /**
    * Strips of the '_rev' field to allow comparing jsons where only rev may differ
