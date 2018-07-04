@@ -31,12 +31,15 @@ trait Ticker {
 
 object NoopTicker extends Ticker
 
-class ProgressTicker extends Ticker {
+class ProgressTicker(val colored: Boolean = true) extends Ticker {
   private val width = 10
   private val nextDrawDelta = 200 //Redraw ever this millis
   private val watch = Stopwatch.createStarted()
   private val barBase = "-"
   private val barCurrent = "*"
+
+  private val colCur = color("\u001B[1;92m") //Green
+  private val colNorm = color("\u001B[0m") //Normal
 
   private var count = 0
   private var pos = 0
@@ -61,7 +64,7 @@ class ProgressTicker extends Ticker {
   }
 
   private def animation() = {
-    s"${barBase * pos}$barCurrent${barBase * (width - pos)}"
+    s"${barBase * pos}$colCur$barCurrent$colNorm${barBase * (width - pos)}"
   }
 
   private def speed(): String = "%.0f/s".format(count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1))
@@ -87,6 +90,8 @@ class ProgressTicker extends Ticker {
       s + " " * (maxStatusLength - s.length)
     } //Add padding
   }
+
+  private def color(code: String) = if (colored) code else ""
 }
 
 object ConsoleUtil {
