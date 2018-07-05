@@ -19,13 +19,25 @@ package actionContainers
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit): (String, String)
+
+  /**
+   * Runs tests for actions which receive an empty initializer (no source or exec).
+   */
+  def testNoSourceOrExec() = {
+    it should "report an error when no code is present for initialization" in {
+      val (out, err) = withActionContainer() { c =>
+        val (initCode, out) = c.init(initPayload(""))
+        initCode should not be (200)
+        out should be(Some(JsObject("error" -> JsString("The action did not initialize."))))
+      }
+    }
+  }
 
   /**
    * Runs tests for actions which do not return a dictionary and confirms expected error messages.
@@ -55,8 +67,10 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   }
 
   /**
-   * Runs tests for code samples which are expected to echo the input arguments
-   * and print hello [stdout, stderr].
+   * Tests the echo action for different input parameters.
+   * The test actions must also print hello [stdout, stderr] to the respective streams.
+   * @param stdCodeSamples a sequence of tuples, where each tuple provide a test name in the first component
+   *                       and the identity/echo function in the second component.
    */
   def testEcho(stdCodeSamples: Seq[(String, String)]) = {
     stdCodeSamples.foreach { s =>
@@ -88,6 +102,13 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     }
   }
 
+  /**
+   * Tests a unicode action. The action must properly handle unicode characters in the executable,
+   * receive a unicode character, and construct a response with a unicode character. It must also
+   * emit unicode characters correctly to stdout.
+   * @param stdUnicodeSamples a sequence of tuples, where each tuple provide a test name in the first component
+   *                          a function in the second component: { delimiter } => { winter: "❄ " + delimiter + " ❄"}
+   */
   def testUnicode(stdUnicodeSamples: Seq[(String, String)]) = {
     stdUnicodeSamples.foreach { s =>
       it should s"run a ${s._1} action and handle unicode in source, input params, logs, and result" in {
@@ -107,7 +128,21 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     }
   }
 
-  /** Runs tests for code samples which are expected to return the expected standard environment {auth, edge}. */
+  /**
+   * Tests the action constructs the activation context correctly.
+   *
+   * @param stdEnvSamples a sequence of tuples, where each tuple provide a test name in the first component
+   *                      and a function returning the activation context consisting of the following dictionary
+   *                      {
+   *                        "api_host": process.env.__OW_API_HOST,
+   *                        "api_key": process.env__OW_API_KEY,
+   *                        "namespace": process.env.__OW_NAMESPACE,
+   *                        "action_name": process.env.__OW_ACTION_NAME,
+   *                        "activation_id": process.env.__OW_ACTIVATION_ID,
+   *                        "deadline": process.env.__OW_DEADLINE
+   *                      }
+   *
+   */
   def testEnv(stdEnvSamples: Seq[(String, String)],
               enforceEmptyOutputStream: Boolean = true,
               enforceEmptyErrorStream: Boolean = true) = {
@@ -148,7 +183,9 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   }
 
   /**
-   * Large param samples, echo the input args with input larger than 128K and using STDIN
+   * Tests the action to confirm it can handle a large parameter (larger than 128K) when using STDIN.
+   * @param stdLargeInputSamples a sequence of tuples, where each tuple provide a test name in the first component
+   *                             and the identity/echo function in the second component.
    */
   def testLargeInput(stdLargeInputSamples: Seq[(String, String)]) = {
     stdLargeInputSamples.foreach { s =>
@@ -161,31 +198,29 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
           val (_, runRes) = c.run(runPayload(arg))
           runRes.get shouldBe arg
         }
-
       }
     }
   }
 
   /**
-   * Runs tests for actions which do not allow more than one initialisation and confirms expected error messages.
-   * @param code the code to execute, should be valid
+   * Tests that an action will not allow more than one initialization and confirms expected error messages.
+   * @param code the code to execute, the identity/echo function is sufficient.
    */
   def testInitCannotBeCalledMoreThanOnce(code: String) = {
     it should "fail to initialize a second time" in {
+      val errorMessage = "Cannot initialize the action more than once."
       val (out, err) = withActionContainer() { c =>
         val (initCode1, _) = c.init(initPayload(code))
         initCode1 should be(200)
 
         val (initCode2, error2) = c.init(initPayload(code))
         initCode2 should be(403)
-        error2 shouldBe a[Some[_]]
-        error2.get shouldBe a[JsObject]
-        error2.get.fields("error").toString should include("Cannot initialize the action more than once.")
+        error2 should be(Some(JsObject("error" -> JsString(errorMessage))))
       }
 
       checkStreams(out, err, {
         case (o, e) =>
-          (o + e) should include("Cannot initialize the action more than once")
+          (o + e) should include(errorMessage)
       })
     }
   }
