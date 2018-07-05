@@ -92,9 +92,10 @@ class ElasticSearchRestClientTests
     // Test must with ranges
     Seq((EsRangeGte, "gte"), (EsRangeGt, "gt"), (EsRangeLte, "lte"), (EsRangeLt, "lt")).foreach {
       case (rangeArg, rangeValue) =>
-        val queryRange = EsQueryRange("someKey", rangeArg, "someValue")
+        val queryRange1 = EsQueryRange("someKey1", rangeArg, "someValue1")
+        val queryRange2 = EsQueryRange("someKey2", rangeArg, "someValue2")
         val queryTerms = Vector(EsQueryBoolMatch("someKey1", "someValue1"), EsQueryBoolMatch("someKey2", "someValue2"))
-        val queryMust = EsQueryMust(queryTerms, Some(queryRange))
+        val queryMust = EsQueryMust(queryTerms, Vector(queryRange1, queryRange2))
 
         EsQuery(queryMust).toJson shouldBe JsObject(
           "query" ->
@@ -106,9 +107,9 @@ class ElasticSearchRestClientTests
                       JsObject("match" -> JsObject("someKey1" -> JsString("someValue1"))),
                       JsObject("match" -> JsObject("someKey2" -> JsString("someValue2")))),
                   "filter" ->
-                    JsObject("range" ->
-                      JsObject("someKey" ->
-                        JsObject(rangeValue -> "someValue".toJson))))))
+                    JsArray(
+                      JsObject("range" -> JsObject("someKey1" -> JsObject(rangeValue -> "someValue1".toJson))),
+                      JsObject("range" -> JsObject("someKey2" -> JsObject(rangeValue -> "someValue2".toJson)))))))
     }
   }
 
