@@ -181,3 +181,25 @@ to denote the end of the log stream for an activation. This is done by emitting 
 [`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
 as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
 or truncated activation logs.
+
+### Testing the new runtime
+
+There is a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
+harness and suite for validating a new runtime. It tests
+* Tests the proxy can handle the identity functions (initialize and run).
+* Tests the error handling for an action returning an invalid response.
+* Tests the proxy can properly handle functions with unicode characters.
+* Tests the proxy properly constructs the activation context.
+* Tests the proxy can handle large payloads (more than 1MB).
+* Tests the proxy does not permit re-initialization.
+
+The canonical test suite should be extended by the new runtime tests. Additional
+tests will be required depending on the feature set provided by the runtime.
+
+Since the OpenWhisk platform is language and runtime agnostic, it is generally not
+necessary to add integration tests. That is the unit tests verifying the protocol are
+sufficient. However, it may be necessary in some cases to modify the `wsk` CLI or
+other OpenWhisk clients. In which case, appropriate tests should be added as necessary.
+The OpenWhisk platform will perform a generic integration tests as part of its basic
+system tests. This integration test will require an echo action to be available so that
+the test harness can create, invoke, and delete the action.
