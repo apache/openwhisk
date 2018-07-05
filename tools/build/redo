@@ -274,7 +274,7 @@ Components = [
                   yaml = 'postdeploy.yml'),
 
     # the following (re)build images via gradle
-    makeComponent('runtime:([\w]+)',
+    makeComponent('runtime:([\w.-]+)',
                   'build a runtime action container, matching name using the regex; NOTE: must use --dir for path to runtime directory',
                   yaml = False,
                   gradle = 'core:$1:distDocker'),
