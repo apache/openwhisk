@@ -29,7 +29,7 @@ The canonical unit of execution is a container which implements a specific inter
 3. prepares the activation context,
 4. flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
 
-Any container which implements the interface may be used as an action.
+Any container which implements [the interface](#action-interface) may be used as an action.
 It is in this way that you can add support for other languages or customized runtimes.
 
 The interface is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
@@ -43,13 +43,10 @@ additions:
 1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
 2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
-4. add an "echo" action to the [tests artifacts](../tests/dat/actions).
+4. add an "echo" action to the [tests artifacts](../tests/dat/actions),
+5. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json).,
 
-For some languages, it may also be necessary to
-5. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),
-6. add the file extension of your runtime to the [test helpers](../tests/src/test/scala/common/rest/WskRest.scala).
-
-**Note:** Steps 3-6 are ripe for automation and should further reduce the touch-points
+**Note:** Steps 3-5 are ripe for automation and should further reduce the touch-points
 for adding a new runtime to the OpenWhisk platform in the future.
 
 ### Canonical runtime repository
@@ -70,3 +67,117 @@ The runtime repository should follow the canonical structure used by other runti
 
 The [Docker skeleton repository](https://github.com/apache/incubator-openwhisk-runtime-docker)
 is an example starting point to fork and modify for your new runtime.
+
+### Action Interface
+
+An action consists of the user function (and its dependencies) along with a _proxy_ that implements a
+canonical protocol to integrate with the OpenWhisk platform.
+
+The proxy is a web server with two endpoints.
+* It listens on port `8080`.
+* It implements `/init` to initialize the container.
+* It also implements `/run` to activate the function.
+
+The proxy also prepares the
+[execution context](actions.md#accessing-action-metadata-within-the-action-body),
+and flushes the logs produced by the function to stdout and stderr.
+
+#### Initialization
+
+The intialization route is `/init`. It must accept a `POST` request with a JSON object as follows:
+```
+{
+  "value": {
+    "name" : String,
+    "main" : String,
+    "code" : String,
+    "binary": Boolean
+  }
+}
+```
+
+* `name` is the name of the action.
+* `main` is the name of the function to execute.
+* `code` is either plain text or a base64 encoded string for binary functions (i.e., a compiled executable).
+* `binary` is false if `code` is in plain text, and true if `code` is base64 encoded.
+
+The initialization route is called exactly once by the OpenWhisk platform, before executing a function.
+The route should report an error if called more than once. It is possible however that a single initialization
+will be followed by many activations (via `/run`).
+
+**Successful initialization:** The route should respond with `200 OK` if the initialization is successful and
+the function is ready to execute. Any content provided in the response is ignored.
+
+**Failures to initialize:** Any response other than `200 OK` is treated as an error to initialize. The response
+from the handler if provided must be a JSON object with a single field called `error` describing the failure.
+The value of the error field may be any valid JSON value. The proxy should make sure to generate meaningful log
+message on failure to aid the end user in understanding the failure.
+
+**Time limit:** Every action in OpenWhisk has a defined time limit (e.g., 60 seconds). The initialization
+must complete within the allowed duration. Failure to complete initialization within the allowed time frame
+will destroy the container.
+
+**Limitation:** The proxy does not currently receive any of the activation context at initialization time.
+There are scenarios where the context is convenient if present during initialization. This will require a
+change in the OpenWhisk platform itself. Note that even if the context is available during initialization,
+it must be reset with every new activation since the information will change with every execution.
+
+#### Activation
+
+The proxy is ready to execute a function once it has successfully completed initialization. The OpenWhisk
+platform will invoke the function by posting an HTTP request to `/run` with a JSON object providing a new
+activation context and the input parameters for the function. There may be many activations of the same
+function against the same proxy (viz. container). Currently, the activations are guaranteed not to overlap
+--- that is, at any given time, there is at most one request to `/run` from the OpenWhisk platform.
+
+The route must accept a JSON object and respond with a JSON object, otherwise the OpenWhisk platform will
+treat the activation as a failure and proceed to destroy the container. The JSON object provided by the
+platform follows the following schema:
+```
+{
+  "value": JSON,
+  "namespace": String,
+  "action_name": String,
+  "api_host": String,
+  "api_key": String,
+  "activation_id": String,
+  "deadline": Number
+}
+```
+
+* `value` is a JSON object and contains all the parameters for the function activation.
+* `namespace` is the OpenWhisk namespace for the action (e.g., `whisk.system`).
+* `action_name` is the [fully qualified name](reference.md#fully-qualified-names) of the action.
+* `activation_id` is a unique ID for this activation.
+* `deadline` is the deadline for the function.
+* `api_key` is the API key used to invoke the action.
+
+Currently the OpenWhisk API host (which must be part of the activation context) is provided as an
+environment variable called `__OW_API_HOST` defined at container startup time.
+
+The `value` is the function parameters. The rest of the properties become part of the activation context
+which is a set of environment variables constructed by capitalizing each of the property names, and prefixing
+the result with `__OW_`.
+
+**Successful activation:** The route must respond with `200 OK` if the activation is successful and
+the function has produced a JSON object as its result. The response body is recorded as the [result
+of the activation](actions.md#understanding-the-activation-record).
+
+**Failed activation:** Any response other than `200 OK` is treated as an activation error. The response
+from the handler must be a JSON object with a single field called `error` describing the failure.
+The value of the error field may be any valid JSON value. Should the proxy fail to respond with a JSON
+object, the OpenWhisk platform will treat the failure as an uncaught exception. These two failures modes are
+distinguished by the value of the `response.status` in the [activation record](actions.md#understanding-the-activation-record)
+which is "application error" if the proxy returned an "error" object, and "action developer error" otherwise.
+
+**Time limit:** Every action in OpenWhisk has a defined time limit (e.g., 60 seconds). The activation
+must complete within the allowed duration. Failure to complete activation within the allowed time frame
+will destroy the container.
+
+#### Logs
+
+The proxy must flush all the logs produced during initialization and execution and add a frame marker
+to denote the end of the log stream for an activation. This is done by emitting the token
+[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
+as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
+or truncated activation logs.
