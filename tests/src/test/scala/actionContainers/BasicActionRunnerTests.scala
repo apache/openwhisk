@@ -166,4 +166,27 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     }
   }
 
+  /**
+   * Runs tests for actions which do not allow more than one initialisation and confirms expected error messages.
+   * @param code the code to execute, should be valid
+   */
+  def testInitCannotBeCalledMoreThanOnce(code: String) = {
+    it should "fail to initialize a second time" in {
+      val (out, err) = withActionContainer() { c =>
+        val (initCode1, _) = c.init(initPayload(code))
+        initCode1 should be(200)
+
+        val (initCode2, error2) = c.init(initPayload(code))
+        initCode2 should be(403)
+        error2 shouldBe a[Some[_]]
+        error2.get shouldBe a[JsObject]
+        error2.get.fields("error").toString should include("Cannot initialize the action more than once.")
+      }
+
+      checkStreams(out, err, {
+        case (o, e) =>
+          (o + e) should include("Cannot initialize the action more than once")
+      })
+    }
+  }
 }
