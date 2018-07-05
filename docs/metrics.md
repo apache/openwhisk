@@ -16,18 +16,18 @@
 # limitations under the License.
 #
 -->
-# Openwhisk Metric Support
+# OpenWhisk Metric Support
 
-Openwhisk distinguishes between system and user metrics (events).
+OpenWhisk distinguishes between system and user metrics (events).
 
-System metrics typically contain information about system performance and provide a possibility to send them to Kamon or write them to log files in logmarker format. This metrics are typically used by OpenWhisk providers/operators.
+System metrics typically contain information about system performance and provide a possibility to send them to Kamon or write them to log files in logmarker format. These metrics are typically used by OpenWhisk providers/operators.
 
-User metrics encompass information about action performance which is sent to Kafka in a form of events. These metrics are to be consumed by OpenWhisk users, however they could be also used for billing or audit purpose. It is to be noted that at the moment the events are not directly exposed to the users and require an additional Kakfa Consumer based micro-service for data processing.
+User metrics encompass information about action performance which is sent to Kafka in a form of events. These metrics are to be consumed by OpenWhisk users, however they could be also used for billing or audit purposes. It is to be noted that at the moment the events are not directly exposed to the users and require an additional Kafka Consumer based micro-service for data processing.
 
 ## System specific metrics
 ### Configuration
 
-Both capabilties can be enabled or disabled separately during deployment via Ansible configuration in the 'goup_vars/all' file of an  environment.
+Both capabilities can be enabled or disabled separately during deployment via Ansible configuration in the 'group_vars/all' file of an environment.
 
 There are four configurations options available:
 
@@ -35,26 +35,25 @@ There are four configurations options available:
 
   Enable/disable whether the metric information is written out to the log files in logmarker format.
 
-  *Beware: Even if set to false all messages adjourning the log markers are still written out to the log*
+  *Beware: Even if set to false all messages using the log markers are still written out to the log*
 
 - **metrics_kamon** [true / false (default: false)]
 
-  Enable/disable whther metric information is send the configured statsd server.
+  Enable/disable whether metric information is sent to the configured StatsD server.
 
 - **metrics_kamon_tags: false** [true / false  (default: false)]
 
   Enable/disable whether to use the Kamon tags when sending metrics.
 
-  *Notice: Tag is supported in some kamon-backend. (OpenTSDB, Datadog, InfluxDB)*
+  *Notice: Tags are supported in only some Kamon backends. (OpenTSDB, Datadog, InfluxDB)*
 
 - **metrics_kamon_statsd_host** [hostname or ip address]
 
-  Hostname or ip address of the statsd server
+  Hostname or ip address of the StatsD server
 
 - **metrics_kamon_statsd_port** [port number (default:8125)]
 
-  Port number of the statsd server
-
+  Port number of the StatsD server
 
 Example configuration:
 
@@ -66,13 +65,13 @@ metrics_kamon_statsd_port: '8125'
 metrics_log: true
 ```
 
-### Testing the statsd metric support
+### Testing the StatsD metric support
 
-The Kamon project privides an integrated docker image containing statsd and a connected Grafana dashboard via [this Github project](https://github.com/kamon-io/docker-grafana-graphite). This image is helpful for testing the metrices sent via statsd.
+The Kamon project provides an integrated docker image containing StatsD and a connected Grafana dashboard via [this Github project](https://github.com/kamon-io/docker-grafana-graphite). This image is helpful for testing the metrics sent via StatsD.
 
 Please follow these [instructions](https://github.com/kamon-io/docker-grafana-graphite/blob/master/README.md) to start the docker image in your local docker environment.
 
-The docker image exposes statsd via the (standard) port 8125 and a Graphana dashboard via port 8080 on your docker host.
+The docker image exposes StatsD via the (standard) port 8125 and a Grafana dashboard via port 8080 on your docker host.
 
 The address of your docker host has to be configured in the `metrics_kamon_statsd_host` configuration property.
 
@@ -87,10 +86,10 @@ user_events: false
 Activation is an event that occurs after after each activation. It includes the following execution metadata:
 ```
 waitTime - internal system hold time
-initTime - time it took to initialise an action, e.g. docker init
+initTime - time it took to initialize an action, e.g. docker init
 statusCode - status code of the invocation: 0 - success, 1 - application error, 2 - action developer error, 3 - internal OpenWhisk error
 duration - actual time the action code was running
-kind - action flavor, e.g. nodejs
+kind - action flavor, e.g. Node.js
 conductor - true for conductor backed actions
 memory - maximum memory allowed for action container
 causedBy - true for sequence actions
