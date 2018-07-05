@@ -110,7 +110,7 @@ object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
     def read(query: JsValue) = ???
     def write(query: EsQueryMust) = {
       val boolQuery = Map("must" -> query.matches.toJson) ++ Map("filter" -> query.range.toJson)
-        .filter(_._2 != JsArray())
+        .filter(_._2 != JsArray.empty)
       JsObject("bool" -> boolQuery.toJson)
     }
   }
