@@ -290,47 +290,25 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actName) = getNamespaceEntityName(name)
-    val (kindTypeByAction, code, artifactName) = artifact match {
-      case Some(artifactFile) => {
-        val ext = getExt(artifactFile)
-        ext match {
-          case ".jar" => {
-            val jar = FileUtils.readFileToByteArray(new File(artifactFile))
-            ("java:default", Base64.getEncoder.encodeToString(jar), artifactFile)
-          }
-          case ".zip" => {
-            val zip = FileUtils.readFileToByteArray(new File(artifactFile))
-            ("", Base64.getEncoder.encodeToString(zip), artifactFile)
-          }
-          case ".js" => {
-            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".py" => {
-            ("python:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".swift" => {
-            ("swift:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".php" => {
-            ("php:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case _ => ("", "", artifactFile)
-        }
-      }
-      case None => ("", "", "")
-    }
-
-    val kindType = docker map { d =>
-      "blackbox"
-    } getOrElse kindTypeByAction
-
     val (paramsInput, annosInput) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, web = web)
+
+    val code = artifact.map { file =>
+      val ext = getExt(file)
+      val isBinary = ext == ".zip" || ext == ".jar" || ext == ".bin"
+      if (!isBinary) {
+        FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8)
+      } else {
+        val zip = FileUtils.readFileToByteArray(new File(file))
+        Base64.getEncoder.encodeToString(zip)
+      }
+    } getOrElse ""
 
     val (params, annos, execByKind) = kind match {
       case Some(k) => {
         k match {
           case "copy" => {
-            val actName = entityName(artifactName)
+            require(artifact.isDefined, "copy requires an artifact name")
+            val actName = entityName(artifact.get)
             val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
             val resp = requestEntity(GET, actionPath)
             if (resp == None)
@@ -344,7 +322,8 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
             }
           }
           case "sequence" => {
-            val comps = convertIntoComponents(artifactName)
+            require(artifact.isDefined, "sequence requires a component list")
+            val comps = convertIntoComponents(artifact.get)
             val exec =
               if (comps.size > 0) Map("components" -> comps.toJson, "kind" -> k.toJson)
               else
@@ -362,7 +341,22 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
           }
         }
       }
-      case None => (paramsInput, annosInput, Map("code" -> code.toJson, "kind" -> kindType.toJson))
+      case None =>
+        val dockerOrElse = docker.map(_ => "blackbox").getOrElse {
+          artifact.map { file =>
+            getExt(file) match {
+              case ".js"    => "nodejs:default"
+              case ".py"    => "python:default"
+              case ".swift" => "swift:default"
+              case ".jar"   => "java:default"
+              case _        => throw new IllegalStateException("kind not recognized and cannot be inferred.")
+            }
+          } getOrElse {
+            throw new IllegalStateException("kind not recognized and cannot be inferred.")
+          }
+        }
+
+        (paramsInput, annosInput, Map("code" -> code.toJson, "kind" -> dockerOrElse.toJson))
     }
 
     val exec = execByKind ++ {
