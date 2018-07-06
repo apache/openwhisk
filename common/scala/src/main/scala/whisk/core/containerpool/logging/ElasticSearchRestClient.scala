@@ -134,7 +134,7 @@ object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
 
   implicit object EsQueryAllJsonFormat extends RootJsonFormat[EsQueryAll] {
     def read(query: JsValue) = ???
-    def write(query: EsQueryAll) = JsObject("match_all" -> JsObject())
+    def write(query: EsQueryAll) = JsObject("match_all" -> JsObject.empty)
   }
 
   implicit object EsQueryMethod extends RootJsonFormat[EsQueryMethod] {

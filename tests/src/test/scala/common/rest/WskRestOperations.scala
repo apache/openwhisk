@@ -1425,15 +1425,15 @@ object RestResult {
   }
 
   def getFieldJsObject(obj: JsObject, key: String): JsObject = {
-    obj.fields.get(key).map(_.asJsObject).getOrElse(JsObject())
+    obj.fields.get(key).map(_.asJsObject).getOrElse(JsObject.empty)
   }
 
   def getFieldJsValue(obj: JsObject, key: String): JsValue = {
-    obj.fields.get(key).getOrElse(JsObject())
+    obj.fields.get(key).getOrElse(JsObject.empty)
   }
 
   def getFieldListJsObject(obj: JsObject, key: String): Vector[JsObject] = {
-    obj.fields.get(key).map(_.convertTo[Vector[JsObject]]).getOrElse(Vector(JsObject()))
+    obj.fields.get(key).map(_.convertTo[Vector[JsObject]]).getOrElse(Vector(JsObject.empty))
   }
 
   def convertStausCodeToExitCode(statusCode: StatusCode, blocking: Boolean = false): Int = {

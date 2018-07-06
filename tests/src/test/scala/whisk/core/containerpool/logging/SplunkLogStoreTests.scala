@@ -75,7 +75,7 @@ class SplunkLogStoreTests
     method = POST,
     uri = "https://some.url",
     headers = List(RawHeader("key", "value")),
-    entity = HttpEntity(MediaTypes.`application/json`, JsObject().compactPrint))
+    entity = HttpEntity(MediaTypes.`application/json`, JsObject.empty.compactPrint))
 
   val activation = WhiskActivation(
     namespace = EntityPath("ns"),

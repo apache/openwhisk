@@ -1384,7 +1384,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     put(entityStore, action)
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", JsObject()) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${action.name}?overwrite=true", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
       status shouldBe BadRequest
       responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
     }

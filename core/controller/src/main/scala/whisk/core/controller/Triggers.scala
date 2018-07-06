@@ -144,7 +144,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             triggerActivationId,
             Instant.now(Clock.systemUTC()),
             Instant.EPOCH,
-            response = ActivationResponse.success(payload orElse Some(JsObject())),
+            response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
             version = trigger.version,
             duration = None)
 
@@ -153,7 +153,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             trigger.rules.map(_.filter(_._2.status == Status.ACTIVE)).getOrElse(Map.empty)
 
           if (activeRules.nonEmpty) {
-            val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject())
+            val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
 
             activateRules(user, args, trigger.rules.getOrElse(Map.empty))
               .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))

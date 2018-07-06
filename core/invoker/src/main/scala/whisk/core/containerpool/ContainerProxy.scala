@@ -352,7 +352,7 @@ class ContainerProxy(
 
     val activation: Future[WhiskActivation] = initialize
       .flatMap { initInterval =>
-        val parameters = job.msg.content getOrElse JsObject()
+        val parameters = job.msg.content getOrElse JsObject.empty
 
         val authEnvironment = job.msg.user.authkey.toEnvironment
 

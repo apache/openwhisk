@@ -177,7 +177,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getField("name") shouldBe name
       result.getField("version") shouldBe "0.0.1"
       result.getFieldJsValue("publish") shouldBe JsBoolean(false)
-      result.getFieldJsValue("binding") shouldBe JsObject()
+      result.getFieldJsValue("binding") shouldBe JsObject.empty
       result.getField("invalid") shouldBe ""
   }
 
@@ -473,7 +473,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       }
 
       val result = wsk.action.invoke(name, blocking = true, result = true)
-      result.stdout.parseJson.asJsObject shouldBe JsObject()
+      result.stdout.parseJson.asJsObject shouldBe JsObject.empty
   }
 
   it should "create, and invoke an action that times out to ensure the proper response is received" in withAssetCleaner(
@@ -563,7 +563,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
     val runWithNoParams = wsk.trigger.fire(triggerName, Map())
     withActivation(wsk.activation, runWithNoParams) { activation =>
-      activation.response.result shouldBe Some(JsObject())
+      activation.response.result shouldBe Some(JsObject.empty)
       activation.duration shouldBe 0L // shouldn't exist but CLI generates it
       activation.end shouldBe Instant.EPOCH // shouldn't exist but CLI generates it
     }
@@ -658,7 +658,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("annotations").toString shouldBe "[]"
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
-      result.getFieldJsValue("limits") shouldBe JsObject()
+      result.getFieldJsValue("limits") shouldBe JsObject.empty
       result.getField("invalid") shouldBe ""
   }
 
@@ -681,7 +681,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
     val run = wsk.trigger.fire(triggerName)
     withActivation(wsk.activation, run) { activation =>
-      activation.response.result shouldBe Some(JsObject())
+      activation.response.result shouldBe Some(JsObject.empty)
     }
   }
 
@@ -1036,9 +1036,9 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("publish") shouldBe JsBoolean(false)
       result.getField("subject") shouldBe ns
       result.getField("activationId") shouldBe activation.activationId
-      result.getFieldJsValue("start").toString should not be JsObject().toString
-      result.getFieldJsValue("end").toString shouldBe JsObject().toString
-      result.getFieldJsValue("duration").toString shouldBe JsObject().toString
+      result.getFieldJsValue("start").toString should not be JsObject.empty.toString
+      result.getFieldJsValue("end").toString shouldBe JsObject.empty.toString
+      result.getFieldJsValue("duration").toString shouldBe JsObject.empty.toString
       result.getFieldListJsObject("annotations").length shouldBe 0
     }
   }

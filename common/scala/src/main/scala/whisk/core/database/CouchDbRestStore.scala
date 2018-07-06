@@ -299,7 +299,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
             assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
             rows.head.fields("value").convertTo[List[JsObject]]
           } else if (reduce) {
-            List(JsObject())
+            List(JsObject.empty)
           } else {
             rows
           }

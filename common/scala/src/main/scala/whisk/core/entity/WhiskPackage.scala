@@ -232,14 +232,14 @@ object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
 
   protected[entity] val optionalBindingDeserializer = new JsonReader[Option[Binding]] {
     override def read(js: JsValue) = {
-      if (js == JsObject()) None else Some(serdes.read(js))
+      if (js == JsObject.empty) None else Some(serdes.read(js))
     }
 
   }
 
   protected[entity] val optionalBindingSerializer = new JsonWriter[Option[Binding]] {
     override def write(b: Option[Binding]) = b match {
-      case None    => JsObject()
+      case None    => JsObject.empty
       case Some(n) => Binding.serdes.write(n)
     }
   }

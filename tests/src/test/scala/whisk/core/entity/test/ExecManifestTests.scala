@@ -118,7 +118,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       ImageName("???", Some("ppp"), Some("ttt")),
       ImageName("???", None, Some("ttt")))
 
-    val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
+    val mf = JsObject("runtimes" -> JsObject.empty, "blackboxes" -> imgs.toJson)
     val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
     runtimes.blackboxImages shouldBe imgs
@@ -133,7 +133,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       ImageName("???", Some("ppp"), Some("ttt")),
       ImageName("???", None, Some("ttt")))
 
-    val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
+    val mf = JsObject("runtimes" -> JsObject.empty, "blackboxes" -> imgs.toJson)
     val rmc = RuntimeManifestConfig()
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
@@ -182,7 +182,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
   }
 
   it should "indicate image is local if it matches deployment docker prefix" in {
-    val mf = JsObject()
+    val mf = JsObject.empty
     val rmc = RuntimeManifestConfig(bypassPullForLocalImages = Some(true), localImagePrefix = Some("localpre"))
     val manifest = ExecManifest.runtimes(mf, rmc)
 

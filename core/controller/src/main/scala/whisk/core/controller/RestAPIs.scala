@@ -93,7 +93,7 @@ protected[controller] object RestApiCommons {
   implicit val emptyEntityToJsObject: FromEntityUnmarshaller[JsObject] = {
     Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
       if (data.size == 0) {
-        JsObject()
+        JsObject.empty
       } else {
         val input = {
           if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)

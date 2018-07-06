@@ -247,7 +247,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
         val code = b.code.filter(_.trim.nonEmpty).map("code" -> JsString(_))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ code ++ main)
-      case _ => JsObject()
+      case _ => JsObject.empty
     }
 
     override def read(v: JsValue) = {

@@ -242,7 +242,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         activation.end should be > Instant.EPOCH
         activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
         activation.response.success shouldBe true
-        activation.response.result shouldBe Some(JsObject())
+        activation.response.result shouldBe Some(JsObject.empty)
         activation.logs shouldBe Some(List())
         activation.annotations shouldBe defined
       }
