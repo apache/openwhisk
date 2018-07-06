@@ -371,7 +371,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "desiarilize legacy format" in {
     val names =
-      Seq(JsObject("namespace" -> "a".toJson, "name" -> "b".toJson), JsObject.empty, JsObject("name" -> "b".toJson), JsNull)
+      Seq(
+        JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
+        JsObject.empty,
+        JsObject("name" -> "b".toJson),
+        JsNull)
 
     Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityName("a"), EntityName("b")))
     Binding.optionalBindingDeserializer.read(names(1)) shouldBe None
