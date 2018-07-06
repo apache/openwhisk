@@ -276,6 +276,19 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "reject create or update of a sequence with no components" in {
+    implicit val tid = transid()
+    val content = JsObject("exec" -> JsObject("kind" -> Exec.SEQUENCE.toJson))
+    Seq(true, false).foreach { overwrite =>
+      Put(s"$collectionPath/${aname()}?overwrite=$overwrite", content) ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+        // the content will fail to deserialize on the route directive,
+        // and without a custom rejection, the response will be a string
+        responseAs[String] shouldBe "The request content was malformed:\n'components' must be defined for sequence kind"
+      }
+    }
+  }
+
   it should "reject update of a sequence with components that don't have at least namespace and action name" in {
     implicit val tid = transid()
     val content = JsObject("exec" -> JsObject("kind" -> Exec.SEQUENCE.toJson, "components" -> Vector("a", "b").toJson))

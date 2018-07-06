@@ -21,27 +21,23 @@ import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
-
 import java.io.ByteArrayInputStream
 import java.util.Base64
+
 import akka.stream.scaladsl._
 
 /**
@@ -449,6 +445,19 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
+      }
+    }
+  }
+
+  it should "reject exec with unknown or missing kind" in {
+    implicit val tid = transid()
+    Seq("", "foobar").foreach { kind =>
+      val content = s"""{"exec":{"kind": "$kind", "code":"??"}}""".stripMargin.parseJson.asJsObject
+      Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+        responseAs[String] should include {
+          s"kind '$kind' not in Set"
+        }
       }
     }
   }
