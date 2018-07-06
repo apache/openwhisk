@@ -119,7 +119,7 @@ class ElasticSearchRestClientTests
         val queryAgg = EsQueryAggs("someAgg", aggArg, "someField")
 
         EsQuery(EsQueryAll(), aggs = Some(queryAgg)).toJson shouldBe JsObject(
-          "query" -> JsObject("match_all" -> JsObject()),
+          "query" -> JsObject("match_all" -> JsObject.empty),
           "aggs" -> JsObject("someAgg" -> JsObject(aggValue -> JsObject("field" -> "someField".toJson))))
     }
   }
@@ -160,7 +160,7 @@ class ElasticSearchRestClientTests
         val queryOrder = EsQueryOrder("someField", orderArg)
 
         EsQuery(EsQueryAll(), Some(queryOrder)).toJson shouldBe JsObject(
-          "query" -> JsObject("match_all" -> JsObject()),
+          "query" -> JsObject("match_all" -> JsObject.empty),
           "sort" -> JsArray(JsObject("someField" -> JsObject("order" -> orderValue.toJson))))
     }
   }
@@ -169,7 +169,7 @@ class ElasticSearchRestClientTests
     val querySize = EsQuerySize(1)
 
     EsQuery(EsQueryAll(), size = Some(querySize)).toJson shouldBe JsObject(
-      "query" -> JsObject("match_all" -> JsObject()),
+      "query" -> JsObject("match_all" -> JsObject.empty),
       "size" -> JsNumber(1))
   }
 

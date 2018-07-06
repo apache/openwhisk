@@ -145,7 +145,7 @@ class DockerClientWithFileAccessTestsOom
   }
 
   it should "default to 'false' if the json structure is unparseable" in {
-    val dc = dockerClient(Future.successful(JsObject()))
+    val dc = dockerClient(Future.successful(JsObject.empty))
     await(dc.isOomKilled(id)) shouldBe false
   }
 }

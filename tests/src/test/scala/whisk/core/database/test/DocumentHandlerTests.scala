@@ -43,7 +43,7 @@ class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with
   behavior of "WhisksHandler computeFields"
 
   it should "return empty object when namespace does not exist" in {
-    WhisksHandler.computedFields(JsObject()) shouldBe JsObject.empty
+    WhisksHandler.computedFields(JsObject.empty) shouldBe JsObject.empty
   }
 
   it should "return JsObject when namespace is simple name" in {

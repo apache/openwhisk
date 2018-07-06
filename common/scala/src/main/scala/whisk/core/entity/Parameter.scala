@@ -89,7 +89,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
    * In case of overlap, the keys in the payload supersede.
    */
   protected[core] def merge(payload: Option[JsObject]): Some[JsObject] = {
-    val args = payload getOrElse JsObject()
+    val args = payload getOrElse JsObject.empty
     Some { (toJsObject.fields ++ args.fields).toJson.asJsObject }
   }
 

@@ -215,7 +215,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(interval, Right(ContainerResponse(true, "", None))))
     }
 
-    val initInterval = container.initialize(JsObject(), initTimeout)
+    val initInterval = container.initialize(JsObject.empty, initTimeout)
     await(initInterval, initTimeout) shouldBe interval
 
     // assert the starting log is there
@@ -238,7 +238,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(interval, Left(Timeout(new Throwable()))))
     }
 
-    val init = container.initialize(JsObject(), initTimeout)
+    val init = container.initialize(JsObject.empty, initTimeout)
 
     val error = the[InitializationError] thrownBy await(init, initTimeout)
     error.interval shouldBe interval
@@ -259,12 +259,12 @@ class KubernetesContainerTests
     implicit val kubernetes = stub[KubernetesApi]
 
     val interval = intervalOf(1.millisecond)
-    val result = JsObject()
+    val result = JsObject.empty
     val container = kubernetesContainer() {
       Future.successful(RunResult(interval, Right(ContainerResponse(true, result.compactPrint, None))))
     }
 
-    val runResult = container.run(JsObject(), JsObject(), 1.second)
+    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second)
     await(runResult) shouldBe (interval, ActivationResponse.success(Some(result)))
 
     // assert the starting log is there
@@ -287,7 +287,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(interval, Left(Timeout(new Throwable()))))
     }
 
-    val runResult = container.run(JsObject(), JsObject(), runTimeout)
+    val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout)
     await(runResult) shouldBe (interval, ActivationResponse.applicationError(
       Messages.timedoutActivation(runTimeout, false)))
 
@@ -305,10 +305,10 @@ class KubernetesContainerTests
     val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
     val logChunk = 10.kilobytes
 
-    await(container.forwardLogs(logChunk, false, Map.empty, JsObject()))
-    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject()))
-    await(container.forwardLogs(logChunk, false, Map.empty, JsObject()))
-    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject()))
+    await(container.forwardLogs(logChunk, false, Map.empty, JsObject.empty))
+    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject.empty))
+    await(container.forwardLogs(logChunk, false, Map.empty, JsObject.empty))
+    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject.empty))
 
     kubernetes.forwardLogs(0) shouldBe (id, 0)
     kubernetes.forwardLogs(1) shouldBe (id, logChunk.toBytes)

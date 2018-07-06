@@ -88,7 +88,7 @@ class PoolingRestClientTests
   }
 
   it should "return payload from a request" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val httpRequest = HttpRequest()
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse)))
 
@@ -96,7 +96,7 @@ class PoolingRestClientTests
   }
 
   it should "send headers when making a request" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val httpRequest = HttpRequest(headers = List(RawHeader("key", "value")))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
@@ -104,7 +104,7 @@ class PoolingRestClientTests
   }
 
   it should "send uri when making a request" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val httpRequest = HttpRequest(uri = Uri("/some/where"))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
@@ -112,7 +112,7 @@ class PoolingRestClientTests
   }
 
   it should "send a payload when making a request" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val httpRequest = HttpRequest(POST, entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "payload"))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
@@ -120,37 +120,37 @@ class PoolingRestClientTests
   }
 
   it should "return JSON when making a request" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
-    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)
 
-    await(poolingRestClient.requestJson[JsObject](request)) shouldBe Right(JsObject())
+    await(poolingRestClient.requestJson[JsObject](request)) shouldBe Right(JsObject.empty)
   }
 
   it should "throw timeout exception when Future fails in httpFlow" in {
-    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(failFlow(httpResponse, httpRequest)))
-    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)
 
     a[TimeoutException] should be thrownBy await(poolingRestClient.requestJson[JsObject](request))
   }
 
   it should "return a status code on request failure" in {
     val httpResponse = HttpResponse(NotFound)
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
-    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)
 
     await(poolingRestClient.requestJson[JsObject](request)) shouldBe Left(NotFound)
   }
 
   it should "throw an unsupported content-type exception when unexpected content-type is returned" in {
     val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "plain text"))
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
-    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)
 
     a[UnsupportedContentTypeException] should be thrownBy await(poolingRestClient.requestJson[JsObject](request))
   }
@@ -162,17 +162,17 @@ class PoolingRestClientTests
   }
 
   it should "create an HttpRequest with a JSON payload" in {
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
 
-    await(mkJsonRequest(GET, Uri./, JsObject(), List.empty)) shouldBe httpRequest
+    await(mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)) shouldBe httpRequest
   }
 
   it should "create an HttpRequest with a payload" in {
-    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val request = mkRequest(
       GET,
       Uri./,
-      Future.successful(HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint)),
+      Future.successful(HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint)),
       List.empty)
 
     await(request) shouldBe httpRequest

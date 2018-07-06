@@ -49,7 +49,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       val (out, err) = withActionContainer() { c =>
         val (initCode, _) = c.init(initPayload(codeNotReturningJson))
         initCode should be(200)
-        val (runCode, out) = c.run(JsObject())
+        val (runCode, out) = c.run(JsObject.empty)
         runCode should be(502)
         out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
       }
@@ -161,7 +161,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
           val (initCode, _) = c.init(initPayload(s._2))
           initCode should be(200)
 
-          val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
+          val (runCode, out) = c.run(runPayload(JsObject.empty, Some(props.toMap.toJson.asJsObject)))
           runCode should be(200)
           out shouldBe defined
           props.map {

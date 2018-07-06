@@ -56,7 +56,7 @@ case class ActivationMessage(override val transid: TransactionId,
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
   override def toString = {
-    val value = (content getOrElse JsObject()).compactPrint
+    val value = (content getOrElse JsObject.empty).compactPrint
     s"$action?message=$value"
   }
 

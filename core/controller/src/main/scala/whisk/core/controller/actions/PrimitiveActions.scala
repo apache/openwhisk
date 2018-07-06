@@ -312,7 +312,7 @@ protected[actions] trait PrimitiveActions {
     } else {
       // inject state into payload if any
       val params = session.state
-        .map(state => Some(JsObject(payload.getOrElse(JsObject()).fields ++ state.fields)))
+        .map(state => Some(JsObject(payload.getOrElse(JsObject.empty).fields ++ state.fields)))
         .getOrElse(payload)
 
       // invoke conductor action
