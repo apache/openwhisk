@@ -59,7 +59,13 @@ class ProgressTicker(val colored: Boolean = true) extends Ticker {
   private def draw() = {
     if (move()) {
       val msg = s"\r[${animation()}] ${status()}"
-      print(msg)
+      val msgToPrint = if (msg.length > maxStatusLength) {
+        maxStatusLength = msg.length
+        msg
+      } else {
+        msg + " " * (maxStatusLength - msg.length) //Add padding
+      }
+      print(msgToPrint)
     }
   }
 
@@ -81,15 +87,7 @@ class ProgressTicker(val colored: Boolean = true) extends Ticker {
     } else false
   }
 
-  private def status(): String = {
-    val s = s"$count docs ${speed()} [$watch]"
-    if (s.length > maxStatusLength) {
-      maxStatusLength = s.length
-      s
-    } else {
-      s + " " * (maxStatusLength - s.length)
-    } //Add padding
-  }
+  private def status() = s"$count docs ${speed()} [$watch]"
 
   private def color(code: String) = if (colored) code else ""
 }
