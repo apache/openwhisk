@@ -43,11 +43,53 @@ additions:
 1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
 2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
-4. add an "echo" action to the [tests artifacts](../tests/dat/actions),
-5. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json).,
+4. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),
+5. add a standard test action to the [tests artifacts](../tests/dat/actions/unicode.tests).
 
-**Note:** Steps 3-5 are ripe for automation and should further reduce the touch-points
-for adding a new runtime to the OpenWhisk platform in the future.
+### The runtime manifest
+
+Actions when created specify the desired runtime for the function via a property called "kind".
+When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is a typically
+a string describing the language (e.g., `nodejs`) followed by a colon and the version for the runtime
+as in `nodejs:8` or `php:7.2`.
+
+The manifest is a map of runtime family names to an array of specific kinds. The details of the
+schema are found in the [Exec Manifest](../common/scala/src/main/scala/whisk/core/entity/ExecManifest.scala).
+As an example, the following entry add a new runtime family called `nodejs` with a single kind
+`nodejs:6`.
+
+```json
+{ "nodejs": [{
+    "kind": "nodejs:6",
+    "default": true,
+    "image": {
+        "prefix": "openwhisk",
+        "name": "nodejs6action",
+        "tag": "latest"
+    }
+  }]
+}
+```
+
+The `default` property indicates if the corresponding kind should be treated as the
+default for the runtime family. The `image` structure defines the Docker image name
+that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` here).
+
+### The test action
+
+The standard test action is shown below in JavaScript. It should be adapted for the
+new runtime and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
+with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
+a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
+runtime manifest entry.
+
+```js
+function main(args) {
+    var str = args.delimiter + " ☃ " + args.delimiter;
+    console.log(str);
+    return { "winter": str };
+}
+```
 
 ### Canonical runtime repository
 
