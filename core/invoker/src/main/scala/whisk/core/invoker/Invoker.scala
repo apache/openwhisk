@@ -164,11 +164,15 @@ object Invoker {
         zkClient.close()
         assignedId
       }
+    val topicBaseName = "invoker"
+    val topicName = topicBaseName + assignedInvokerId
 
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName)
+    // Define invoker hostname for the health protocol to match invoker topics in Kafka with actual container names
+    val invokerHostname = scala.util.Properties.envOrNone("HOSTNAME").filter(name => name != topicName)
+    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerHostname)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker").isFailure) {
-      abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
+    if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
+      abort(s"failure during msgProvider.ensureTopic for topic $topicName")
     }
     val producer = msgProvider.getProducer(config)
     val invoker = try {

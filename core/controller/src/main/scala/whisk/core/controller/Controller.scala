@@ -146,7 +146,14 @@ class Controller(val instance: ControllerInstanceId,
         complete {
           loadBalancer
             .invokerHealth()
-            .map(_.map(i => s"invoker${i.id.toInt}" -> i.status.asString).toMap.toJson.asJsObject)
+            .map(_.map(i => {
+              i.id.hostname
+                .map(hostname => s"invoker${i.id.toInt}/$hostname" -> i.status.asString)
+                .orElse(Some(s"invoker${i.id.toInt}" -> i.status.asString))
+                .toMap
+                .toJson
+                .asJsObject
+            }))
         }
       } ~ path("healthy" / "count") {
         complete {

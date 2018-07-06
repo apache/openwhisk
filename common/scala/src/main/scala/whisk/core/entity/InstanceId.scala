@@ -21,7 +21,7 @@ import spray.json.DefaultJsonProtocol
 import whisk.core.entity.ControllerInstanceId.LEGAL_CHARS
 import whisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
 
-case class InvokerInstanceId(val instance: Int, name: Option[String] = None) {
+case class InvokerInstanceId(val instance: Int, name: Option[String] = None, hostname: Option[String] = None) {
   def toInt: Int = instance
 }
 
@@ -32,7 +32,7 @@ case class ControllerInstanceId(val asString: String) {
 }
 
 object InvokerInstanceId extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat2(InvokerInstanceId.apply)
+  implicit val serdes = jsonFormat3(InvokerInstanceId.apply)
 }
 
 object ControllerInstanceId extends DefaultJsonProtocol {
