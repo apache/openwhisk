@@ -8,5 +8,3 @@
 - hosts: apigateway
   roles:
   - apigateway
-
-- import_playbook: routemgmt.yml

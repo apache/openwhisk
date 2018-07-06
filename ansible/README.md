@@ -157,17 +157,18 @@ ansible-playbook -i environments/<environment> postdeploy.yml
 
 # to use the API gateway
 ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
 ```
 
 - You need to run `initdb.yml` **every time** you do a fresh deploy CouchDB to initialize the subjects database.
 - The `wipe.yml` playbook should be run on a fresh deployment only, otherwise actions and activations will be lost.
 - Run `postdeploy.yml` after deployment to install a catalog of useful packages.
-- To use the API Gateway, you'll need to run `apigateway.yml`.
+- To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 #### Limitation
 
-You can not run multiple CouchDB nodes on a single machine. This limitation comes from Erlang EPMD which CouchDB relies on to find other nodes.
+You cannot run multiple CouchDB nodes on a single machine. This limitation comes from Erlang EPMD which CouchDB relies on to find other nodes.
 To deploy multiple CouchDB nodes, they should be placed on different machines respectively otherwise their ports will clash.
 
 
@@ -189,13 +190,14 @@ ansible-playbook -i environments/<environment> postdeploy.yml
 
 # to use the API gateway
 ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
 ```
 
 - You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the subjects database.
 - The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
 - The `wipe.yml` playbook should be run on a fresh deployment only, otherwise actions and activations will be lost.
 - Run `postdeploy.yml` after deployment to install a catalog of useful packages.
-- To use the API Gateway, you'll need to run `apigateway.yml`.
+- To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 ### Configuring the installation of `wsk` CLI
