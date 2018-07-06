@@ -170,7 +170,15 @@ class ElasticSearchRestClientTests
 
     EsQuery(EsQueryAll(), size = Some(querySize)).toJson shouldBe JsObject(
       "query" -> JsObject("match_all" -> JsObject.empty),
-      "size" -> JsNumber(1))
+      "size" -> 1.toJson)
+  }
+
+  it should "construct query with from" in {
+    val queryFrom = EsQueryFrom(1)
+
+    EsQuery(EsQueryAll(), from = Some(queryFrom)).toJson shouldBe JsObject(
+      "query" -> JsObject("match_all" -> JsObject.empty),
+      "from" -> 1.toJson)
   }
 
   it should "error when search response does not match expected type" in {
