@@ -57,8 +57,8 @@ case class EsQueryAggs(aggField: String, agg: EsAgg, field: String)
 case class EsQueryRange(key: String, range: EsRange, value: String)
 case class EsQueryBoolMatch(key: String, value: String)
 case class EsQueryOrder(field: String, kind: EsOrder)
-case class EsQuerySize(size: Integer)
-case class EsQueryFrom(from: Integer)
+case class EsQuerySize(size: Int)
+case class EsQueryFrom(from: Int)
 case class EsQueryAll() extends EsQueryMethod
 case class EsQueryMust(matches: Vector[EsQueryBoolMatch], range: Vector[EsQueryRange] = Vector.empty)
     extends EsQueryMethod
