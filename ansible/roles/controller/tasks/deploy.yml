@@ -109,7 +109,7 @@
 
 - name: populate environment variables for controller
   set_fact:
-    controller_env:
+    env:
       "JAVA_OPTS":
         -Xmx{{ controller.heap }}
         -XX:+CrashOnOutOfMemoryError
@@ -237,7 +237,7 @@
 
 - name: merge extra env variables
   set_fact:
-    controller_env: "{{ controller_env | combine(controller.extraEnv) }}"
+    env: "{{ env | combine(controller.extraEnv) }}"
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"
@@ -252,7 +252,7 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "{{ controller_name }}"
-    env: "{{ controller_env }}"
+    env: "{{ env }}"
     volumes:
       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
       - "{{ controller.confdir }}/{{ controller_name }}:/conf"

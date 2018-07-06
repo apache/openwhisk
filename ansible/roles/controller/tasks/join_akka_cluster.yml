@@ -15,8 +15,8 @@
 
 - name: add seed nodes to controller environment
   set_fact:
-    controller_env: >-
-      {{ controller_env | combine({
+    env: >-
+      {{ env | combine({
         'CONFIG_akka_cluster_seedNodes_' ~ item.0:
           'akka.tcp://controller-actor-system@'~item.1~':'~(controller.akka.cluster.basePort+item.0)
       }) }}
@@ -33,4 +33,4 @@
       "CONFIG_akka_remote_netty_tcp_bindPort":
         "{{ controller.akka.cluster.bindPort }}"
   set_fact:
-    controller_env: "{{ controller_env | combine(akka_env) }}"
+    env: "{{ env | combine(akka_env) }}"
