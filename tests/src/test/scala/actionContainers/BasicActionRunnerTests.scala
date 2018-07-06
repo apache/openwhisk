@@ -24,204 +24,287 @@ import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
+
+  /**
+   * Must be defined by the runtime test suites. A typical implementation looks like this:
+   *      withContainer("container-image-name", env)(code)
+   * See [[ActionContainer.withContainer]] for details.
+   *
+   * @param env the environment to pass to the container
+   * @param code the code to initialize with
+   */
   def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit): (String, String)
 
   /**
    * Runs tests for actions which receive an empty initializer (no source or exec).
+   *
+   * @param stub true if the proxy provides a stub
    */
-  def testNoSourceOrExec() = {
-    it should "report an error when no code is present for initialization" in {
-      val (out, err) = withActionContainer() { c =>
-        val (initCode, out) = c.init(initPayload(""))
-        initCode should not be (200)
-        out should be(Some(JsObject("error" -> JsString("The action did not initialize."))))
-      }
-    }
-  }
+  def testNoSourceOrExec: TestConfig
 
   /**
    * Runs tests for actions which do not return a dictionary and confirms expected error messages.
-   * @param codeNotReturningJson code to execute, should not return a JSON object
+   *
+   * @param code code to execute, should not return a JSON object
+   * @param main the main function
    * @param checkResultInLogs should be true iff the result of the action is expected to appear in stdout or stderr
    */
-  def testNotReturningJson(codeNotReturningJson: String, checkResultInLogs: Boolean = true) = {
-    it should "run and report an error for script not returning a json object" in {
-      val (out, err) = withActionContainer() { c =>
-        val (initCode, _) = c.init(initPayload(codeNotReturningJson))
-        initCode should be(200)
-        val (runCode, out) = c.run(JsObject.empty)
-        runCode should be(502)
-        out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
-      }
+  def testNotReturningJson: TestConfig
 
-      checkStreams(out, err, {
-        case (o, e) =>
-          if (checkResultInLogs) {
-            (o + e) should include("not a json object")
-          } else {
-            o shouldBe empty
-            e shouldBe empty
-          }
-      })
-    }
-  }
+  /**
+   * Tests that an action will not allow more than one initialization and confirms expected error messages.
+   *
+   * @param code the code to execute, the identity/echo function is sufficient.
+   * @param main the main function
+   */
+  def testInitCannotBeCalledMoreThanOnce: TestConfig
+
+  /**
+   * Tests the echo action for an entry point other than "main".
+   *
+   * @param code the code to execute, must be the identity/echo function.
+   * @param main the main function to run, must not be "main"
+   */
+  def testEntryPointOtherThanMain: TestConfig
 
   /**
    * Tests the echo action for different input parameters.
    * The test actions must also print hello [stdout, stderr] to the respective streams.
-   * @param stdCodeSamples a sequence of tuples, where each tuple provide a test name in the first component
-   *                       and the identity/echo function in the second component.
+   *
+   * @param code the code to execute, must be the identity/echo function.
+   * @param main the main function
    */
-  def testEcho(stdCodeSamples: Seq[(String, String)]) = {
-    stdCodeSamples.foreach { s =>
-      it should s"run a ${s._1} script" in {
-        val argss = List(
-          JsObject("string" -> JsString("hello")),
-          JsObject("string" -> JsString("❄ ☃ ❄")),
-          JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
-          // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
-          JsObject("object" -> JsObject("a" -> JsString("A"))))
-
-        val (out, err) = withActionContainer() { c =>
-          val (initCode, _) = c.init(initPayload(s._2))
-          initCode should be(200)
-
-          for (args <- argss) {
-            val (runCode, out) = c.run(runPayload(args))
-            runCode should be(200)
-            out should be(Some(args))
-          }
-        }
-
-        checkStreams(out, err, {
-          case (o, e) =>
-            o should include("hello stdout")
-            e should include("hello stderr")
-        }, argss.length)
-      }
-    }
-  }
+  def testEcho: TestConfig
 
   /**
    * Tests a unicode action. The action must properly handle unicode characters in the executable,
    * receive a unicode character, and construct a response with a unicode character. It must also
    * emit unicode characters correctly to stdout.
-   * @param stdUnicodeSamples a sequence of tuples, where each tuple provide a test name in the first component
-   *                          a function in the second component: { delimiter } => { winter: "❄ " + delimiter + " ❄"}
+   *
+   * @param code a function { delimiter } => { winter: "❄ " + delimiter + " ❄"}
+   * @param main the main function
    */
-  def testUnicode(stdUnicodeSamples: Seq[(String, String)]) = {
-    stdUnicodeSamples.foreach { s =>
-      it should s"run a ${s._1} action and handle unicode in source, input params, logs, and result" in {
-        val (out, err) = withActionContainer() { c =>
-          val (initCode, _) = c.init(initPayload(s._2))
-          initCode should be(200)
-
-          val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
-          runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
-        }
-
-        checkStreams(out, err, {
-          case (o, _) =>
-            o.toLowerCase should include("❄ ☃ ❄")
-        })
-      }
-    }
-  }
+  def testUnicode: TestConfig
 
   /**
    * Tests the action constructs the activation context correctly.
    *
-   * @param stdEnvSamples a sequence of tuples, where each tuple provide a test name in the first component
-   *                      and a function returning the activation context consisting of the following dictionary
-   *                      {
-   *                        "api_host": process.env.__OW_API_HOST,
-   *                        "api_key": process.env__OW_API_KEY,
-   *                        "namespace": process.env.__OW_NAMESPACE,
-   *                        "action_name": process.env.__OW_ACTION_NAME,
-   *                        "activation_id": process.env.__OW_ACTIVATION_ID,
-   *                        "deadline": process.env.__OW_DEADLINE
-   *                      }
-   *
+   * @param code a function returning the activation context consisting of the following dictionary
+   *             { "api_host": process.env.__OW_API_HOST,
+   *               "api_key": process.env__OW_API_KEY,
+   *               "namespace": process.env.__OW_NAMESPACE,
+   *               "action_name": process.env.__OW_ACTION_NAME,
+   *               "activation_id": process.env.__OW_ACTIVATION_ID,
+   *               "deadline": process.env.__OW_DEADLINE
+   *             }
+   * @param main the main function
+   * @param enforceEmptyOutputStream true to check empty stdout stream
+   * @param enforceEmptyErrorStream true to check empty stderr stream
    */
-  def testEnv(stdEnvSamples: Seq[(String, String)],
-              enforceEmptyOutputStream: Boolean = true,
-              enforceEmptyErrorStream: Boolean = true) = {
-    stdEnvSamples.foreach { s =>
-      it should s"run a ${s._1} script and confirm expected environment variables" in {
-        val props = Seq(
-          "api_host" -> "xyz",
-          "api_key" -> "abc",
-          "namespace" -> "zzz",
-          "action_name" -> "xxx",
-          "activation_id" -> "iii",
-          "deadline" -> "123")
-        val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
-
-        val (out, err) = withActionContainer(env.take(1).toMap) { c =>
-          val (initCode, _) = c.init(initPayload(s._2))
-          initCode should be(200)
-
-          val (runCode, out) = c.run(runPayload(JsObject.empty, Some(props.toMap.toJson.asJsObject)))
-          runCode should be(200)
-          out shouldBe defined
-          props.map {
-            case (k, v) =>
-              withClue(k) {
-                out.get.fields(k) shouldBe JsString(v)
-              }
-
-          }
-        }
-
-        checkStreams(out, err, {
-          case (o, e) =>
-            if (enforceEmptyOutputStream) o shouldBe empty
-            if (enforceEmptyErrorStream) e shouldBe empty
-        })
-      }
-    }
-  }
+  def testEnv: TestConfig
 
   /**
    * Tests the action to confirm it can handle a large parameter (larger than 128K) when using STDIN.
-   * @param stdLargeInputSamples a sequence of tuples, where each tuple provide a test name in the first component
-   *                             and the identity/echo function in the second component.
+   *
+   * @param code the identity/echo function.
+   * @param main the main function
    */
-  def testLargeInput(stdLargeInputSamples: Seq[(String, String)]) = {
-    stdLargeInputSamples.foreach { s =>
-      it should s"run a ${s._1} script with large input" in {
-        val (out, err) = withActionContainer() { c =>
-          val (initCode, _) = c.init(initPayload(s._2))
-          initCode should be(200)
+  def testLargeInput: TestConfig
 
-          val arg = JsObject("arg" -> JsString(("a" * 1048561)))
-          val (_, runRes) = c.run(runPayload(arg))
-          runRes.get shouldBe arg
-        }
+  behavior of "runtime proxy"
+
+  it should "handle initialization with no code" in {
+    val config = testNoSourceOrExec
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, out) = c.init(initPayload("", ""))
+      if (config.hasCodeStub) {
+        initCode should be(200)
+      } else {
+        initCode should not be (200)
       }
     }
   }
 
-  /**
-   * Tests that an action will not allow more than one initialization and confirms expected error messages.
-   * @param code the code to execute, the identity/echo function is sufficient.
-   */
-  def testInitCannotBeCalledMoreThanOnce(code: String) = {
-    it should "fail to initialize a second time" in {
-      val errorMessage = "Cannot initialize the action more than once."
-      val (out, err) = withActionContainer() { c =>
-        val (initCode1, _) = c.init(initPayload(code))
-        initCode1 should be(200)
+  it should "handle initialization with no content" in {
+    val config = testNoSourceOrExec
 
-        val (initCode2, error2) = c.init(initPayload(code))
-        initCode2 should be(403)
-        error2 should be(Some(JsObject("error" -> JsString(errorMessage))))
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, out) = c.init(JsObject.empty)
+      if (!config.hasCodeStub) {
+        initCode should not be (200)
+        out should {
+          be(Some(JsObject("error" -> JsString("Missing main/no code to execute.")))) or
+            be(Some(
+              JsObject("error" -> JsString("The action failed to generate or locate a binary. See logs for details."))))
+        }
+      } else {
+        initCode should be(200)
+      }
+    }
+  }
+
+  it should "run and report an error for function not returning a json object" in {
+    val config = testNotReturningJson
+    if (!config.skipTest) { // this may not be possible in types languages
+      val (out, err) = withActionContainer() { c =>
+        val (initCode, _) = c.init(initPayload(config.code, config.main))
+        initCode should be(200)
+        val (runCode, out) = c.run(JsObject.empty)
+        runCode should not be (200)
+        out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
       }
 
       checkStreams(out, err, {
         case (o, e) =>
-          (o + e) should include(errorMessage)
+          // some runtimes may emita an error message,
+          // or for native runtimes emit the result to stdout
+          if (config.enforceEmptyOutputStream) o shouldBe empty
+          if (config.enforceEmptyErrorStream) e shouldBe empty
       })
     }
   }
+
+  it should "fail to initialize a second time" in {
+    val config = testInitCannotBeCalledMoreThanOnce
+
+    val errorMessage = "Cannot initialize the action more than once."
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode1, _) = c.init(initPayload(config.code, config.main))
+      initCode1 should be(200)
+
+      val (initCode2, error2) = c.init(initPayload(config.code, config.main))
+      initCode2 should not be (200)
+      error2 should be(Some(JsObject("error" -> JsString(errorMessage))))
+    }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e) should include(errorMessage)
+    }, sentinelCount = if (config.skipTest) 1 else 0)
+  }
+
+  it should s"invoke non-standard entry point" in {
+    val config = testEntryPointOtherThanMain
+    config.main should not be ("main")
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(config.code, config.main))
+      initCode should be(200)
+
+      val arg = JsObject("string" -> JsString("hello"))
+      val (runCode, out) = c.run(runPayload(arg))
+      runCode should be(200)
+      out should be(Some(arg))
+    }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        // some native runtimes will emit the result to stdout
+        if (config.enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should s"echo arguments and print message to stdout/stderr" in {
+    val config = testEcho
+
+    val argss = List(
+      JsObject("string" -> JsString("hello")),
+      JsObject("string" -> JsString("❄ ☃ ❄")),
+      JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
+      // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
+      JsObject("object" -> JsObject("a" -> JsString("A"))))
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(config.code, config.main))
+      initCode should be(200)
+
+      for (args <- argss) {
+        val (runCode, out) = c.run(runPayload(args))
+        runCode should be(200)
+        out should be(Some(args))
+      }
+    }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        o should include("hello stdout")
+        e should include("hello stderr")
+    }, argss.length)
+  }
+
+  it should s"handle unicode in source, input params, logs, and result" in {
+    val config = testUnicode
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(config.code, config.main))
+      initCode should be(200)
+
+      val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+      runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+    }
+
+    checkStreams(out, err, {
+      case (o, _) =>
+        o.toLowerCase should include("❄ ☃ ❄")
+    })
+  }
+
+  it should s"confirm expected environment variables" in {
+    val config = testEnv
+
+    val props = Seq(
+      "api_host" -> "xyz",
+      "api_key" -> "abc",
+      "namespace" -> "zzz",
+      "action_name" -> "xxx",
+      "activation_id" -> "iii",
+      "deadline" -> "123")
+
+    val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
+
+    val (out, err) = withActionContainer(env.take(1).toMap) { c =>
+      val (initCode, _) = c.init(initPayload(config.code, config.main))
+      initCode should be(200)
+
+      val (runCode, out) = c.run(runPayload(JsObject.empty, Some(props.toMap.toJson.asJsObject)))
+      runCode should be(200)
+      out shouldBe defined
+      props.map {
+        case (k, v) =>
+          withClue(k) {
+            out.get.fields(k) shouldBe JsString(v)
+          }
+
+      }
+    }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (config.enforceEmptyOutputStream) o shouldBe empty
+        if (config.enforceEmptyErrorStream) e shouldBe empty
+    })
+  }
+
+  it should s"echo a large input" in {
+    val config = testLargeInput
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(config.code, config.main))
+      initCode should be(200)
+
+      val arg = JsObject("arg" -> JsString(("a" * 1048561)))
+      val (_, runRes) = c.run(runPayload(arg))
+      runRes.get shouldBe arg
+    }
+  }
+
+  case class TestConfig(code: String,
+                        main: String = "main",
+                        enforceEmptyOutputStream: Boolean = true,
+                        enforceEmptyErrorStream: Boolean = true,
+                        hasCodeStub: Boolean = false,
+                        skipTest: Boolean = false)
 }

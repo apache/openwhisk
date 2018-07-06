@@ -236,8 +236,10 @@ for validating a new runtime. The harness will performing the following:
 * Test the proxy can properly handle functions with Unicode characters.
 * Test the proxy properly constructs the activation context.
 * Test the proxy can handle large payloads (more than 1MB).
+* Test the proxy can handle an entry point other than "main".
 * Test the proxy does not permit re-initialization.
 * Test the error handling for an action returning an invalid response.
+* Test the proxy when initialized with no content.
 
 The canonical test suite should be extended by the new runtime tests. Additional
 tests will be required depending on the feature set provided by the runtime.
