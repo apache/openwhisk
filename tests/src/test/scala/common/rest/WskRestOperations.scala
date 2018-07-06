@@ -74,6 +74,7 @@ import java.nio.charset.StandardCharsets
 import java.security.KeyStore
 
 import akka.actor.ActorSystem
+import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
 import whisk.common.Https.HttpsConfig
 
@@ -1132,7 +1133,7 @@ class RestGatewayOperations(implicit val actorSystem: ActorSystem) extends Gatew
   }
 }
 
-trait RunRestCmd extends Matchers with ScalaFutures {
+trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
 
   val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
@@ -1188,7 +1189,20 @@ trait RunRestCmd extends Matchers with ScalaFutures {
       hostWithScheme.withPath(path).withQuery(Query(params)),
       List(Authorization(creds)),
       entity = body.map(b => HttpEntity(ContentTypes.`application/json`, b)).getOrElse(HttpEntity.Empty))
-    Http().singleRequest(request, connectionContext).futureValue
+    val response = Http().singleRequest(request, connectionContext).futureValue
+
+    // Copy the response so we can validate the body while also allowing
+    // callers to read the body
+    val responseBody = getRespData(response)
+    val responseCopy = response.withEntity(response.entity.contentType, ByteString(responseBody))
+
+    val validationErrors = validateRequestAndResponse(request, body, response, responseBody)
+    if (validationErrors.nonEmpty) {
+      fail(
+        s"HTTP request or response did not match the Swagger spec.\nRequest: $request\n" +
+          s"Response: $response\nValidation Error: $validationErrors")
+    }
+    responseCopy
   }
 
   private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
