@@ -5,6 +5,11 @@
 
 - import_tasks: docker_login.yml
 
+- name: get invoker name and index
+  set_fact:
+    invoker_name: "{{ name_prefix ~ ((invoker_index_base | int) + host_group.index(inventory_hostname)) }}"
+    invoker_index: "{{ (invoker_index_base | int) + host_group.index(inventory_hostname) }}"
+
 - name: "pull invoker image with tag {{docker.image.tag}}"
   shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/invoker:{{docker.image.tag}}"
   when: docker_registry != ""
@@ -63,14 +68,14 @@
 
 - name: ensure invoker log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
 
 - name: ensure invoker config directory is created with permissions
   file:
-    path: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    path: "{{ invoker.confdir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
   become: "{{ invoker.dir.become }}"
@@ -79,7 +84,7 @@
   when: kafka.protocol == 'SSL'
   copy:
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
-    dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    dest: "{{ invoker.confdir }}/{{ invoker_name }}"
 
 - name: check, that required databases exist
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
@@ -124,20 +129,20 @@
   fail:
     msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
   with_items: "{{ invokerInfo }}"
-  when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+  when: not invoker.allowMultipleInstances and item.Names[0] != "/{{ invoker_name }}"
 
 - name: copy jmxremote password file
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.password"
+    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.access"
+    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.access"
     mode: 0777
 
 - name: add additional jvm params if jmxremote is enabled
@@ -147,20 +152,20 @@
 
 - name: prepare invoker ports
   set_fact:
-    ports_to_expose: ["{{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080"]
+    ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ]"
+    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
 
-- name: prepare invoker env
+- name: populate environment variables for invoker
   set_fact:
-    invoker_env:
+    env:
       "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
-      "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+      "COMPONENT_NAME": "{{ invoker_name }}"
       "PORT": 8080
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
@@ -201,7 +206,7 @@
       "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
       "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
       "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
-      "INVOKER_NAME": "{{ groups['invokers'].index(inventory_hostname) }}"
+      "INVOKER_NAME": "{{ invoker_index }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
@@ -221,18 +226,22 @@
 
 - name: extend invoker dns env
   set_fact:
-    invoker_env: "{{ invoker_env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+    env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
 
 - name: merge extra env variables
   set_fact:
-    invoker_env: "{{ invoker_env | combine(invoker.extraEnv) }}"
+    env: "{{ env | combine(invoker.extraEnv) }}"
+
+- name: include plugins
+  include_tasks: "{{ item }}.yml"
+  with_items: "{{ invoker_plugins | default([]) }}"
 
 - name: set invoker volumes
   set_fact:
     volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
-      {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs,\
-      {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf,\
+      {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
+      {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
       {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
 
@@ -246,20 +255,20 @@
     userns_mode: "host"
     pid_mode: "host"
     privileged: "yes"
-    name: invoker{{ groups['invokers'].index(inventory_hostname) }}
-    hostname: "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    name: "{{ invoker_name }}"
+    hostname: "{{ invoker_name }}"
     restart_policy: "{{ docker.restart.policy }}"
     image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
     state: started
     recreate: true
-    env: "{{ invoker_env }}"
+    env: "{{ env }}"
     volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
-    command: /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
+    command: /bin/sh -c "exec /init.sh {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
 
 - name: wait until Invoker is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/ping"
+    url: "http://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
   register: result
   until: result.status == 200
   retries: 12
