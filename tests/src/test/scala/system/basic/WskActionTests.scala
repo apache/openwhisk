@@ -283,7 +283,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     val run = wsk.action.invoke(name, Map("payload" -> utf8.toJson))
     withActivation(wsk.activation, run) { activation =>
       activation.response.status shouldBe "success"
-      activation.logs.get.mkString(" ") should include(s"hello $utf8")
+      activation.logs.get.mkString(" ") should include(s"hello, $utf8")
     }
   }
 }
