@@ -90,14 +90,11 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     implicit actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): (String, DocumentHandler, CosmosDBViewMapper) = {
-    entityType.runtimeClass match {
-      case x if x == classOf[WhiskEntity] =>
-        ("whisks", WhisksHandler, WhisksViewMapper)
-      case x if x == classOf[WhiskActivation] =>
-        ("activations", ActivationHandler, ActivationViewMapper)
-      case x if x == classOf[WhiskAuth] =>
-        ("subjects", SubjectHandler, SubjectViewMapper)
-    }
+    val entityClass = entityType.runtimeClass
+    if (entityClass == classOf[WhiskEntity]) ("whisks", WhisksHandler, WhisksViewMapper)
+    else if (entityClass == classOf[WhiskActivation]) ("activations", ActivationHandler, ActivationViewMapper)
+    else if (entityClass == classOf[WhiskAuth]) ("subjects", SubjectHandler, SubjectViewMapper)
+    else throw new IllegalArgumentException(s"Unsupported entity type $entityType")
   }
 
   private def getOrCreateReference(config: CosmosDBConfig) = synchronized {
