@@ -26,8 +26,9 @@ private[cosmosdb] case class ReferenceCounted[T <: AutoCloseable](private val in
 
   private def dec(): Unit = {
     val newCount = count.decrementAndGet()
-    if (newCount == 0) {
+    if (newCount <= 0) {
       inner.close()
+      //Turn count to negative to ensure future reference call fail
       count.decrementAndGet()
     }
   }
