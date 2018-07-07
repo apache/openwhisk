@@ -58,7 +58,7 @@ private[cosmosdb] trait CosmosDBUtil {
   }
 
   private def addToMap(name: String, map: Map[String, _]): Map[String, Any] = name.split('.').toList match {
-    case Nil     => sys.error(s"Should not reach here $name")
+    case Nil     => throw new IllegalStateException(s"'$name' split on '.' should not result in empty list")
     case x :: xs => addToMap(x, xs, Nil, map)
   }
 
