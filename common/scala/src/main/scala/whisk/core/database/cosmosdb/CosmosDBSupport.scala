@@ -78,6 +78,9 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
     databaseDefinition
   }
 
+  /**
+   * Prepares a query for fetching any resource by id
+   */
   protected def querySpec(id: String) =
     new SqlQuerySpec("SELECT * FROM root r WHERE r.id=@id", new SqlParameterCollection(new SqlParameter("@id", id)))
 
