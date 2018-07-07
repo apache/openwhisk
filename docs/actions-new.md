@@ -18,16 +18,20 @@
 -->
 
 OpenWhisk supports [several languages and runtimes](actions.md#languages-and-runtimes) but
-there may be other languages or runtimes that are important for your organization, for which
-you want tighter integration with the platform. Adding a new language, or runtime with bespoke
-packages and third party dependencies is the same from the OpenWhisk platform which is language
-and runtime agnostic.
+there may be other languages or runtimes that are important for your organization, and for
+which you want tighter integration with the platform. The OpenWhisk platform is extensible
+and you can add new languages or runtimes (with custom packages and third-party dependencies)
+following the guide described here.
 
-The canonical unit of execution is a container which implements a specific interface:
-1. accepts an initialization payload (the code),
-2. accepts runtime payload (the input parameters) and return a result,
-3. prepares the activation context,
-4. flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
+### Unit of execution
+The unit of execution for all functions is a [Docker container](https://docs.docker.com).
+The container implements a specific interface which:
+1. accepts an initialization payload (the code) and prepared for execution,
+2. accepts runtime payload (the input parameters) and
+   - prepares the activation context,
+   - runs the function,
+   - returns the function result,
+3. flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
 
 Any container which implements [the interface](#action-interface) may be used as an action.
 It is in this way that you can add support for other languages or customized runtimes.
@@ -38,13 +42,13 @@ and that the logs are properly framed. Your runtime should extend this test suit
 as needed.
 
 The runtime support is best implemented in its own repository to permit a management
-lifecycle independent of the rest of the OpenWhisk platform which only requires the following
+lifecycle independent of the rest of the OpenWhisk platform which requires the following
 additions:
 1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
 2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
 4. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),
-5. add a standard test action to the [tests artifacts](../tests/dat/actions/unicode.tests).
+5. add a standard test action to the [tests artifacts directory](../tests/dat/actions/unicode.tests).
 
 ### The runtime manifest
 
@@ -59,13 +63,14 @@ As an example, the following entry add a new runtime family called `nodejs` with
 `nodejs:6`.
 
 ```json
-{ "nodejs": [{
+{
+  "nodejs": [{
     "kind": "nodejs:6",
     "default": true,
     "image": {
-        "prefix": "openwhisk",
-        "name": "nodejs6action",
-        "tag": "latest"
+      "prefix": "openwhisk",
+      "name": "nodejs6action",
+      "tag": "latest"
     }
   }]
 }
@@ -78,7 +83,7 @@ that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` he
 ### The test action
 
 The standard test action is shown below in JavaScript. It should be adapted for the
-new runtime and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
+new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
 with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
 a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
 runtime manifest entry.
@@ -126,7 +131,7 @@ and flushes the logs produced by the function to stdout and stderr.
 
 #### Initialization
 
-The intialization route is `/init`. It must accept a `POST` request with a JSON object as follows:
+The initialization route is `/init`. It must accept a `POST` request with a JSON object as follows:
 ```
 {
   "value": {
@@ -170,7 +175,7 @@ The proxy is ready to execute a function once it has successfully completed init
 platform will invoke the function by posting an HTTP request to `/run` with a JSON object providing a new
 activation context and the input parameters for the function. There may be many activations of the same
 function against the same proxy (viz. container). Currently, the activations are guaranteed not to overlap
---- that is, at any given time, there is at most one request to `/run` from the OpenWhisk platform.
+— that is, at any given time, there is at most one request to `/run` from the OpenWhisk platform.
 
 The route must accept a JSON object and respond with a JSON object, otherwise the OpenWhisk platform will
 treat the activation as a failure and proceed to destroy the container. The JSON object provided by the
@@ -194,12 +199,11 @@ platform follows the following schema:
 * `deadline` is the deadline for the function.
 * `api_key` is the API key used to invoke the action.
 
-Currently the OpenWhisk API host (which must be part of the activation context) is provided as an
-environment variable called `__OW_API_HOST` defined at container startup time.
-
 The `value` is the function parameters. The rest of the properties become part of the activation context
 which is a set of environment variables constructed by capitalizing each of the property names, and prefixing
-the result with `__OW_`.
+the result with `__OW_`. Additionally, the context must define `__OW_API_HOST` whose value
+is the OpenWhisk API host. This value is currently provided as an environment variable defined at container
+startup time and hence already available in the context.
 
 **Successful activation:** The route must respond with `200 OK` if the activation is successful and
 the function has produced a JSON object as its result. The response body is recorded as the [result
@@ -226,14 +230,14 @@ or truncated activation logs.
 
 ### Testing the new runtime
 
-There is a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
-harness and suite for validating a new runtime. It tests
-* Tests the proxy can handle the identity functions (initialize and run).
-* Tests the error handling for an action returning an invalid response.
-* Tests the proxy can properly handle functions with unicode characters.
-* Tests the proxy properly constructs the activation context.
-* Tests the proxy can handle large payloads (more than 1MB).
-* Tests the proxy does not permit re-initialization.
+There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
+for validating a new runtime. The harness will performing the following:
+* Test the proxy can handle the identity functions (initialize and run).
+* Test the proxy can properly handle functions with Unicode characters.
+* Test the proxy properly constructs the activation context.
+* Test the proxy can handle large payloads (more than 1MB).
+* Test the proxy does not permit re-initialization.
+* Test the error handling for an action returning an invalid response.
 
 The canonical test suite should be extended by the new runtime tests. Additional
 tests will be required depending on the feature set provided by the runtime.
@@ -242,6 +246,6 @@ Since the OpenWhisk platform is language and runtime agnostic, it is generally n
 necessary to add integration tests. That is the unit tests verifying the protocol are
 sufficient. However, it may be necessary in some cases to modify the `wsk` CLI or
 other OpenWhisk clients. In which case, appropriate tests should be added as necessary.
-The OpenWhisk platform will perform a generic integration tests as part of its basic
-system tests. This integration test will require an echo action to be available so that
-the test harness can create, invoke, and delete the action.
+The OpenWhisk platform will perform a generic integration test as part of its basic
+system tests. This integration test will require a [test function](#the-test-action) to
+be available so that the test harness can create, invoke, and delete the action.
