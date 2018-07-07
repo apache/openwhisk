@@ -97,6 +97,10 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     else throw new IllegalArgumentException(s"Unsupported entity type $entityType")
   }
 
+  /*
+   * This method ensures that all store instances share same client instance and thus the underlying connection pool.
+   * Synchronization is required to ensure concurrent init of various store instances share same ref instance
+   */
   private def getOrCreateReference(config: CosmosDBConfig) = synchronized {
     if (clientRef == null || clientRef.isClosed) {
       clientRef = createReference(config)
