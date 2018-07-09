@@ -290,6 +290,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   it should s"echo a large input" in {
     val config = testLargeInput
+    var passed = true
 
     val (out, err) = withActionContainer() { c =>
       val (initCode, _) = c.init(initPayload(config.code, config.main))
@@ -299,8 +300,14 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       val (_, runRes) = c.run(runPayload(arg))
       if (runRes.get != arg) {
         println(s"result did not match: ${runRes.get}")
-        assert(false)
+        passed = false
       }
+    }
+
+    if (!passed) {
+      println(out)
+      println(err)
+      assert(false)
     }
   }
 
