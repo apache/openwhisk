@@ -21,17 +21,12 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import com.jayway.restassured.RestAssured
-
 import common.StreamLogging
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.core.WhiskConfig
-import whisk.core.entity.ExecManifest
-
+import whisk.core.entity.{ExecManifest, LogLimit, MemoryLimit, TimeLimit}
 import system.rest.RestUtil
 
 /**
@@ -47,8 +42,10 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
         WhiskConfig.actionInvokePerMinuteLimit -> null,
         WhiskConfig.triggerFirePerMinuteLimit -> null,
         WhiskConfig.actionInvokeConcurrentLimit -> null,
-        WhiskConfig.runtimesManifest -> null))
+        WhiskConfig.runtimesManifest -> null,
+        WhiskConfig.actionSequenceMaxLimit -> null))
     ExecManifest.initialize(config) should be a 'success
+
     val expectedJson = JsObject(
       "support" -> JsObject(
         "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
@@ -59,7 +56,14 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
       "limits" -> JsObject(
         "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
-        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson))
+        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
+        "sequence_length" -> config.actionSequenceLimit.toInt.toJson,
+        "min_action_duration" -> TimeLimit.config.min.toMillis.toJson,
+        "max_action_duration" -> TimeLimit.config.max.toMillis.toJson,
+        "min_action_memory" -> MemoryLimit.config.min.toBytes.toJson,
+        "max_action_memory" -> MemoryLimit.config.max.toBytes.toJson,
+        "min_action_logs" -> LogLimit.config.min.toBytes.toJson,
+        "max_action_logs" -> LogLimit.config.max.toBytes.toJson))
     response.statusCode should be(200)
     response.body.asString.parseJson shouldBe (expectedJson)
   }

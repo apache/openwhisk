@@ -41,8 +41,6 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
     }
-    val rr = wsk.action.get(name)
-    wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
   }
 
   it should "invoke an action returning a promise" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

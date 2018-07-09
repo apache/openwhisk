@@ -159,7 +159,13 @@ class Controller(val instance: ControllerInstanceId,
   }
 
   // controller top level info
-  private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))
+  private val info = Controller.info(
+    whiskConfig,
+    TimeLimit.config,
+    MemoryLimit.config,
+    LogLimit.config,
+    runtimes,
+    List(apiV1.basepath()))
 }
 
 /**
@@ -179,7 +185,12 @@ object Controller {
       SpiLoader.get[LoadBalancerProvider].requiredProperties ++
       EntitlementProvider.requiredProperties
 
-  private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
+  private def info(config: WhiskConfig,
+                   timeLimit: TimeLimitConfig,
+                   memLimit: MemoryLimitConfig,
+                   logLimit: MemoryLimitConfig,
+                   runtimes: Runtimes,
+                   apis: List[String]) =
     JsObject(
       "description" -> "OpenWhisk".toJson,
       "support" -> JsObject(
@@ -189,7 +200,14 @@ object Controller {
       "limits" -> JsObject(
         "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
-        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
+        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
+        "sequence_length" -> config.actionSequenceLimit.toInt.toJson,
+        "min_action_duration" -> timeLimit.min.toMillis.toJson,
+        "max_action_duration" -> timeLimit.max.toMillis.toJson,
+        "min_action_memory" -> memLimit.min.toBytes.toJson,
+        "max_action_memory" -> memLimit.max.toBytes.toJson,
+        "min_action_logs" -> logLimit.min.toBytes.toJson,
+        "max_action_logs" -> logLimit.max.toBytes.toJson),
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {

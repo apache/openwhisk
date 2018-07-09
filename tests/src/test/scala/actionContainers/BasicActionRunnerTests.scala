@@ -43,6 +43,13 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   def testNoSourceOrExec: TestConfig
 
   /**
+   * Runs tests for actions which receive an empty code initializer (exec with code equal to the empty string).
+   *
+   * @param stub true if the proxy provides a stub
+   */
+  def testNoSource = testNoSourceOrExec
+
+  /**
    * Runs tests for actions which do not return a dictionary and confirms expected error messages.
    *
    * @param code code to execute, should not return a JSON object
@@ -114,7 +121,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   behavior of "runtime proxy"
 
   it should "handle initialization with no code" in {
-    val config = testNoSourceOrExec
+    val config = testNoSource
 
     val (out, err) = withActionContainer() { c =>
       val (initCode, out) = c.init(initPayload("", ""))
@@ -182,7 +189,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     checkStreams(out, err, {
       case (o, e) =>
         (o + e) should include(errorMessage)
-    }, sentinelCount = if (config.skipTest) 1 else 0)
+    }, sentinelCount = 0)
   }
 
   it should s"invoke non-standard entry point" in {
@@ -290,6 +297,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   it should s"echo a large input" in {
     val config = testLargeInput
+    var passed = true
 
     val (out, err) = withActionContainer() { c =>
       val (initCode, _) = c.init(initPayload(config.code, config.main))
@@ -297,7 +305,16 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
       val arg = JsObject("arg" -> JsString(("a" * 1048561)))
       val (_, runRes) = c.run(runPayload(arg))
-      runRes.get shouldBe arg
+      if (runRes.get != arg) {
+        println(s"result did not match: ${runRes.get}")
+        passed = false
+      }
+    }
+
+    if (!passed) {
+      println(out)
+      println(err)
+      assert(false)
     }
   }
 

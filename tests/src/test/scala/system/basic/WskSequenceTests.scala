@@ -20,6 +20,8 @@ package system.basic
 import java.time.Instant
 import java.util.Date
 
+import com.jayway.restassured.RestAssured
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -30,22 +32,19 @@ import common.TestUtils._
 import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
+import system.rest.RestUtil
 import whisk.http.Messages.sequenceIsTooLong
 
 /**
  * Tests sequence execution
  */
 @RunWith(classOf[JUnitRunner])
-class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLogging with WskActorSystem {
+class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLogging with RestUtil with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk: WskOperations = new WskRestOperations
-  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
-
-  assert(whiskConfig.isValid)
 
   behavior of "Wsk Sequence"
 
@@ -189,7 +188,11 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       result.fields.get("payload") shouldBe Some(argsJson)
     }
     // update x with limit echo
-    val limit = whiskConfig.actionSequenceLimit.toInt
+    val limit: Int = {
+      val response = RestAssured.given.config(sslconfig).get(getServiceURL)
+      response.statusCode should be(200)
+      response.body.asString.parseJson.asJsObject.fields("limits").asJsObject.fields("sequence_length").convertTo[Int]
+    }
     val manyEcho = for (i <- 1 to limit) yield echo
 
     wsk.action.create(xName, Some(manyEcho.mkString(",")), kind = Some("sequence"), update = true)
