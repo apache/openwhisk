@@ -594,13 +594,15 @@ case class ShardingContainerPoolBalancerState(
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
     if (_clusterSize != actualSize) {
       _clusterSize = actualSize
-      if (totalInvokerThreshold / actualSize < MemoryLimit.minMemory) {
+      val newTreshold = if (totalInvokerThreshold / actualSize < MemoryLimit.minMemory) {
         logging.warn(
           this,
           s"registered controllers: ${_clusterSize}: the slots per invoker fall below the min memory of one action.")(
           TransactionId.loadbalancer)
+        MemoryLimit.minMemory // letting this fall below minMemory doesn't make sense
+      } else {
+        totalInvokerThreshold / actualSize
       }
-      val newTreshold = (totalInvokerThreshold / actualSize) max MemoryLimit.minMemory // letting this fall below minMemory doesn't make sense
       currentInvokerThreshold = newTreshold
       _invokerSlots = _invokerSlots.map(_ => new ForcibleSemaphore(currentInvokerThreshold.toMB.toInt))
 

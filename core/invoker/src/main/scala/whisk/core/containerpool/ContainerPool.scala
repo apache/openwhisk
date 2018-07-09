@@ -58,12 +58,15 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                     prewarmConfig: List[PrewarmingConfig] = List.empty,
                     poolConfig: ContainerPoolConfig)
     extends Actor {
+  import ContainerPool.memoryConsumptionOf
+
   implicit val logging = new AkkaLogging(context.system.log)
 
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
-  // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be buffered here to keep order of computation.
+  // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
+  // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
   var runBuffer = immutable.Queue.empty[Run]
   val logMessageInterval = 10.seconds
@@ -98,7 +101,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       val isFirstMessageOnBuffer = runBuffer.dequeueOption.exists(_._1.msg == r.msg)
       val isResentFromBuffer = runBuffer.nonEmpty && isFirstMessageOnBuffer
 
-      // Only process request, if there are no other requests waiting for free slots, or if the current request is the next request to process
+      // Only process request, if there are no other requests waiting for free slots, or if the current request is the
+      // next request to process
       if (runBuffer.isEmpty || isFirstMessageOnBuffer) {
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
@@ -120,9 +124,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 // Remove a container and create a new one for the given job
                 ContainerPool
                 // Only free up the amount, that is really needed to free up
-                  .remove(
-                    freePool,
-                    Math.min(r.action.limits.memory.megabytes, freePool.map(_._2.memoryLimit.toMB).sum).MB)
+                  .remove(freePool, Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
                   .map(removeContainer)
                   // If the list had at least one entry, enough containers were removed to start the new container. After
                   // removing the containers, we are not interested anymore in the containers that have been removed.
@@ -139,8 +141,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             freePool = freePool - actor
             // Remove the action that get's executed now from the buffer and execute the next one afterwards.
             if (isResentFromBuffer) {
-              // It is guaranteed that the currently executed messages is the head of the queue, if the message comes from the buffer
-              runBuffer = runBuffer.dequeue._2
+              // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
+              // from the buffer
+              val (_, newBuffer) = runBuffer.dequeue
+              runBuffer = newBuffer
               runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
             }
             actor ! r // forwards the run request to the container
@@ -154,8 +158,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               logging.error(
                 this,
                 s"Rescheduling Run message, too many message in the pool, " +
-                  s"freePoolSize: ${freePool.size} containers and ${freePool.map(_._2.memoryLimit.toMB).sum} MB, " +
-                  s"busyPoolSize: ${busyPool.size} containers and ${busyPool.map(_._2.memoryLimit.toMB).sum} MB, " +
+                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
+                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
                   s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
                   s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                   s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
@@ -240,7 +244,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           freePool = freePool + (ref -> data)
           prewarmedPool = prewarmedPool - ref
           // Create a new prewarm container
-          // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the factory
+          // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the
+          // factory
           prewarmContainer(action.exec, memory)
           (ref, data)
       }
@@ -254,11 +259,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   def hasPoolSpaceFor[A](pool: Map[A, ContainerData], memory: ByteSize): Boolean = {
-    pool.map(_._2.memoryLimit.toMB).sum + memory.toMB <= poolConfig.userMemory.toMB
+    memoryConsumptionOf(pool) + memory.toMB <= poolConfig.userMemory.toMB
   }
 }
 
 object ContainerPool {
+
+  /**
+   * Calculate the memory of a given pool.
+   *
+   * @param pool The pool with the containers.
+   * @return The memory consumption of all containers in the pool in Megabytes.
+   */
+  protected[containerpool] def memoryConsumptionOf[A](pool: Map[A, ContainerData]): Long = {
+    pool.map(_._2.memoryLimit.toMB).sum
+  }
 
   /**
    * Finds the best container for a given job to run on.
@@ -299,7 +314,7 @@ object ContainerPool {
       case (ref, w: WarmedData) => ref -> w
     }
 
-    if (memory > 0.B && freeContainers.nonEmpty && freeContainers.map(_._2.memoryLimit.toMB).sum >= memory.toMB) {
+    if (memory > 0.B && freeContainers.nonEmpty && memoryConsumptionOf(freeContainers) >= memory.toMB) {
       // Remove the oldest container if:
       // - there is more memory required
       // - there are still containers that can be removed
@@ -309,8 +324,10 @@ object ContainerPool {
       val remainingMemory = Try(memory - data.memoryLimit).getOrElse(0.B)
       List(ref) ++ remove(freeContainers.filterKeys(_ != ref), remainingMemory)
     } else {
-      // If this is the first call: All containers are in use currently, or there is more memory needed than containers can be removed.
-      // Or, if this is one of the recurstions: Enough containers are found to get the memory, that is necessary. -> Abort recursion
+      // If this is the first call: All containers are in use currently, or there is more memory needed than
+      // containers can be removed.
+      // Or, if this is one of the recurstions: Enough containers are found to get the memory, that is
+      // necessary. -> Abort recursion
       List.empty
     }
   }

@@ -156,15 +156,6 @@ class SizeTests extends FlatSpec with Matchers {
     (1 MB).toKB should be(1024)
   }
 
-  // max
-  it should "5B max 6B = 6B" in {
-    (5 B) max (6 B) should be(6 B)
-  }
-
-  it should "3MB max 5B = 3MB" in {
-    (3 MB) max (5 B) should be(3 MB)
-  }
-
   // Create ObjectSize from String
   it should "create ObjectSize from String 3B" in {
     ByteSize.fromString("3b") should be(3 B)
