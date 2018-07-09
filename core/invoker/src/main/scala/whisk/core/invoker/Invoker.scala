@@ -167,7 +167,7 @@ object Invoker {
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
 
-    // Define invoker hostname for the health protocol to match invoker topics in Kafka with actual container names
+    // Define invoker hostname for the health protocol to distinguish invoker topics in Kafka from the actual container names
     val invokerHostname = scala.util.Properties.envOrNone("HOSTNAME").filter(name => name != topicName)
     val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerHostname)
     val msgProvider = SpiLoader.get[MessagingProvider]

@@ -150,10 +150,8 @@ class Controller(val instance: ControllerInstanceId,
               i.id.hostname
                 .map(hostname => s"invoker${i.id.toInt}/$hostname" -> i.status.asString)
                 .orElse(Some(s"invoker${i.id.toInt}" -> i.status.asString))
-                .toMap
-                .toJson
-                .asJsObject
-            }))
+                .get
+            }).toMap.toJson.asJsObject)
         }
       } ~ path("healthy" / "count") {
         complete {
