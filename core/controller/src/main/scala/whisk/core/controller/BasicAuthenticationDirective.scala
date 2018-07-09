@@ -23,19 +23,19 @@ import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.{AuthenticationDirective, AuthenticationResult}
 import akka.stream.ActorMaterializer
-
 import whisk.common.{Logging, TransactionId}
 import whisk.core.entity._
+import whisk.core.entity.types.AuthStore
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class AuthenticatedRouteBasicAuth(implicit val actorSystem: ActorSystem,
+class AuthenticatedRouteBasicAuth(implicit val authStore: AuthStore,
+                                  implicit val actorSystem: ActorSystem,
                                   implicit val httpRequest: HttpRequest,
                                   implicit val materializer: ActorMaterializer,
                                   implicit val logging: Logging)
     extends BasicAuthenticate {
   protected implicit val executionContext = actorSystem.dispatcher
-  protected val authStore = WhiskAuthStore.datastore
 
   /** Creates HTTP BasicAuth handler */
   def basicAuth[A](verify: Option[BasicHttpCredentials] => Future[Option[A]])(
@@ -53,7 +53,9 @@ class AuthenticatedRouteBasicAuth(implicit val actorSystem: ActorSystem,
 }
 
 object BasicAuthenticationDirectiveProvider extends AuthenticationDirectiveProvider {
+
   override def authenticationDirective(implicit transid: TransactionId,
+                                       authStore: AuthStore,
                                        httpRequest: HttpRequest,
                                        actorSystem: ActorSystem,
                                        materializer: ActorMaterializer,

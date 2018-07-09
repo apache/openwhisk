@@ -194,13 +194,14 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         "swagger_paths" -> JsObject("ui" -> s"/$swaggeruipath".toJson, "api-docs" -> s"/$swaggerdocpath".toJson)))
   }
 
-  def routes(implicit transid: TransactionId): Route = {
+  def routes(implicit transid: TransactionId, authStore: AuthStore): Route = {
     prefix {
       extractRequest { httpRequest =>
         sendCorsHeaders {
           info ~
             authenticationDirectiveProvider.authenticationDirective(
               transid,
+              authStore,
               httpRequest,
               actorSystem,
               materializer,
@@ -220,6 +221,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
           // and allow the actions themselves to respond to options
           authenticationDirectiveProvider.authenticationDirective(
             transid,
+            authStore,
             httpRequest,
             actorSystem,
             materializer,
@@ -333,6 +335,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 
 trait AuthenticationDirectiveProvider extends Spi {
   def authenticationDirective(implicit transid: TransactionId,
+                              authStore: AuthStore,
                               httpRequest: HttpRequest,
                               actorSystem: ActorSystem,
                               materializer: ActorMaterializer,
