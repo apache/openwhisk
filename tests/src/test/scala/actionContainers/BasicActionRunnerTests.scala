@@ -43,6 +43,13 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   def testNoSourceOrExec: TestConfig
 
   /**
+   * Runs tests for actions which receive an empty code initializer (exec with code equal to the empty string).
+   *
+   * @param stub true if the proxy provides a stub
+   */
+  def testNoSource = testNoSourceOrExec
+
+  /**
    * Runs tests for actions which do not return a dictionary and confirms expected error messages.
    *
    * @param code code to execute, should not return a JSON object
@@ -114,7 +121,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   behavior of "runtime proxy"
 
   it should "handle initialization with no code" in {
-    val config = testNoSourceOrExec
+    val config = testNoSource
 
     val (out, err) = withActionContainer() { c =>
       val (initCode, out) = c.init(initPayload("", ""))
