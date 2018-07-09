@@ -221,7 +221,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       checkStreams(out, err, {
         case (o, e) =>
           (o + e) should include(errorMessage)
-      })
+      }, 0)
     }
   }
 }
