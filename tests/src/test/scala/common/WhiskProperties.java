@@ -47,11 +47,6 @@ public class WhiskProperties {
     protected static final String WHISK_PROPS_FILE = "whisk.properties";
 
     /**
-     * Default concurrency level if otherwise unspecified
-     */
-    private static final int DEFAULT_CONCURRENCY = 20;
-
-    /**
      * If true, then tests will direct to the router rather than the edge
      * components.
      */
