@@ -182,7 +182,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     checkStreams(out, err, {
       case (o, e) =>
         (o + e) should include(errorMessage)
-    }, sentinelCount = if (config.skipTest) 1 else 0)
+    }, sentinelCount = 0)
   }
 
   it should s"invoke non-standard entry point" in {

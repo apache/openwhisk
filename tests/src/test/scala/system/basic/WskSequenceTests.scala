@@ -39,9 +39,9 @@ import whisk.http.Messages.sequenceIsTooLong
 @RunWith(classOf[JUnitRunner])
 class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLogging with WskActorSystem {
 
+  lazy val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
   implicit val wskprops = WskProps()
   val wsk: WskOperations = new WskRestOperations
-  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
 
