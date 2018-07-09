@@ -47,7 +47,7 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
 case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
-  private val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
+  val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
 
   protected[core] val MIN_DURATION: FiniteDuration = config.min
   protected[core] val MAX_DURATION: FiniteDuration = config.max

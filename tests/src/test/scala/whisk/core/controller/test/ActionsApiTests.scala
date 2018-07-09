@@ -525,8 +525,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept request with missing optional properties" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"))
-    val content = WhiskActionPut(Some(action.exec))
+    val action = WhiskAction(namespace, aname(), jsDefault(""))
+    // only a kind must be defined (code otherwise could be empty)
+    val content = JsObject("exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson))
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)

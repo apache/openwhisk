@@ -297,7 +297,10 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
       val arg = JsObject("arg" -> JsString(("a" * 1048561)))
       val (_, runRes) = c.run(runPayload(arg))
-      runRes.get shouldBe arg
+      if (runRes.get != arg) {
+        println(s"result did not match: ${runRes.get}")
+        assert(false)
+      }
     }
   }
 

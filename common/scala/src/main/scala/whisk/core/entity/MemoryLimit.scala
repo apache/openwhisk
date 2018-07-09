@@ -42,11 +42,11 @@ case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
-  private val memoryConfig = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
+  val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
 
-  protected[core] val minMemory: ByteSize = memoryConfig.min
-  protected[core] val maxMemory: ByteSize = memoryConfig.max
-  protected[core] val stdMemory: ByteSize = memoryConfig.std
+  protected[core] val minMemory: ByteSize = config.min
+  protected[core] val maxMemory: ByteSize = config.max
+  protected[core] val stdMemory: ByteSize = config.std
 
   /** Gets MemoryLimit with default value */
   protected[core] def apply(): MemoryLimit = MemoryLimit(stdMemory)
