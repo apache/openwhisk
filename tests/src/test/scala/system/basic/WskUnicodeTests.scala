@@ -17,50 +17,87 @@
 
 package system.basic
 
+import java.io.File
+import com.jayway.restassured.RestAssured
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+
 import scala.concurrent.duration.DurationInt
-import common.JsHelpers
-import common.TestHelpers
-import common.TestUtils
-import common.WskOperations
-import common.WskProps
-import common.WskTestHelpers
+import common._
+import common.rest.WskRestOperations
 import spray.json._
+import system.rest.RestUtil
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers {
-
-  val actionKind: String
-  val actionSource: String
+class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers with WskActorSystem with RestUtil {
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: WskOperations
+  val wsk: WskOperations = new WskRestOperations
+
   val activationMaxDuration = 2.minutes
   val activationPollDuration = 3.minutes
 
-  s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
-    wskprops) { (wp, assetHelper) =>
-    val name = s"unicodeGalore.${actionKind.replace(":", "")}"
+  import WskUnicodeTests._
 
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(
-        name,
-        Some(TestUtils.getTestActionFilename(actionSource)),
-        main = if (actionKind == "java") Some("Unicode") else None,
-        kind = Some(actionKind),
-        timeout = Some(activationMaxDuration))
-    }
+  val actionKinds: Iterable[Kind] = {
+    val response = RestAssured.given.config(sslconfig).get(getServiceURL)
+    response.statusCode should be(200)
 
-    withActivation(
-      wsk.activation,
-      wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄"))),
-      totalWait = activationPollDuration) { activation =>
-      val response = activation.response
-      response.result.get.fields.get("error") shouldBe empty
-      response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+    val mf = response.body.asString.parseJson.asJsObject.fields("runtimes").asJsObject
+    mf.fields.values.map(_.convertTo[Vector[Kind]]).flatten.filter(!_.deprecated)
+  }
 
-      activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+  println(s"Kinds to test: ${actionKinds.map(_.kind).mkString(", ")}")
+
+  def main(kind: String): Option[String] = {
+    kind match {
+      case "java" => Some("Unicode")
+      case _      => None
     }
   }
+
+  def getFileLocation(kind: String): Option[String] = {
+    // the test file is either named kind.txt or kind.bin
+    // one of the two must exist otherwise, fail the test.
+    val prefix = "unicode.tests" + File.separator + kind
+    val txt = new File(TestUtils.getTestActionFilename(s"$prefix.txt"))
+    val bin = new File(TestUtils.getTestActionFilename(s"$prefix.bin"))
+    if (txt.exists) Some(txt.toString)
+    else if (bin.exists) Some(bin.toString)
+    else throw new IllegalStateException(s"did not find text or binary action for kind $kind")
+  }
+
+  actionKinds.foreach { k =>
+    val actionKind = k.kind
+
+    s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
+      wskprops) { (wp, assetHelper) =>
+      val name = s"unicodeGalore.${actionKind.replace(":", "")}"
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(
+          name,
+          getFileLocation(actionKind),
+          main = main(actionKind),
+          kind = Some(actionKind),
+          timeout = Some(activationMaxDuration))
+      }
+
+      withActivation(
+        wsk.activation,
+        wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄"))),
+        totalWait = activationPollDuration) { activation =>
+        val response = activation.response
+        response.result.get.fields.get("error") shouldBe empty
+        response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+
+        activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+      }
+    }
+  }
+}
+
+protected[basic] object WskUnicodeTests extends DefaultJsonProtocol {
+  case class Kind(kind: String, deprecated: Boolean)
+  implicit val serdes: RootJsonFormat[Kind] = jsonFormat2(Kind)
 }

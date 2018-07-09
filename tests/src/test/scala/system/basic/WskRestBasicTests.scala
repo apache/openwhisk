@@ -22,22 +22,14 @@ import akka.http.scaladsl.model.StatusCodes.BadGateway
 import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.Unauthorized
 import akka.http.scaladsl.model.StatusCodes.NotFound
-
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.TestHelpers
-import common.TestUtils
+import common._
 import common.rest.WskRestOperations
 import common.rest.RestResult
-import common.WskProps
-import common.WskTestHelpers
-import common.WskActorSystem
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages
@@ -47,6 +39,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations
+
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
   /**

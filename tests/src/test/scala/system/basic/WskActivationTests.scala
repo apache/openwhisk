@@ -17,23 +17,21 @@
 
 package system.basic
 
+import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.{TestHelpers, TestUtils, WskOperations, WskProps, WskTestHelpers}
-
+import common._
 import whisk.utils.retry
 
 import scala.concurrent.duration._
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
-  implicit val wskprops = WskProps()
+class WskActivationTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
-  val wsk: WskOperations
+  implicit val wskprops = WskProps()
+  val wsk: WskOperations = new WskRestOperations
 
   behavior of "Whisk activations"
 

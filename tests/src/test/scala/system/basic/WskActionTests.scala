@@ -19,27 +19,31 @@ package system.basic
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import common.ActivationResult
-import common.JsHelpers
-import common.TestHelpers
-import common.TestUtils
-import common.WskOperations
-import common.WskProps
-import common.WskTestHelpers
+import common._
+import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
+class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk: WskOperations
+  val wsk: WskOperations = new WskRestOperations
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
   val guestNamespace = wskprops.namespace
 
   behavior of "Whisk actions"
+
+  it should "create an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "empty"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
+    }
+    val rr = wsk.action.get(name)
+    wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
+  }
 
   it should "invoke an action returning a promise" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "hello promise"
@@ -269,7 +273,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
     }
   }
 
-  ignore should "support UTF-8 as input and output format" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "support UTF-8 as input and output format" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "utf8Test"
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
@@ -279,7 +283,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
     val run = wsk.action.invoke(name, Map("payload" -> utf8.toJson))
     withActivation(wsk.activation, run) { activation =>
       activation.response.status shouldBe "success"
-      activation.logs.get.mkString(" ") should include(s"hello $utf8")
+      activation.logs.get.mkString(" ") should include(s"hello, $utf8")
     }
   }
 }

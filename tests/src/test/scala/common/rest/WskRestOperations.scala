@@ -22,7 +22,7 @@ import java.time.Instant
 import java.util.Base64
 import java.security.cert.X509Certificate
 
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
@@ -36,7 +36,6 @@ import scala.util.{Failure, Success}
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Accepted
 import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpMethod
@@ -289,160 +288,106 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     websecure: Option[String] = None,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
-    val (namespace, actName) = getNamespaceEntityName(name)
-    val (kindTypeByAction, code, artifactName) = artifact match {
-      case Some(artifactFile) => {
-        val ext = getExt(artifactFile)
-        ext match {
-          case ".jar" => {
-            val jar = FileUtils.readFileToByteArray(new File(artifactFile))
-            ("java:default", Base64.getEncoder.encodeToString(jar), artifactFile)
-          }
-          case ".zip" => {
-            val zip = FileUtils.readFileToByteArray(new File(artifactFile))
-            ("", Base64.getEncoder.encodeToString(zip), artifactFile)
-          }
-          case ".js" => {
-            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".py" => {
-            ("python:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".swift" => {
-            ("swift:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case ".php" => {
-            ("php:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
-          }
-          case _ => ("", "", artifactFile)
-        }
-      }
-      case None => ("", "", "")
-    }
-
-    val kindType = docker map { d =>
-      "blackbox"
-    } getOrElse kindTypeByAction
-
+    val (namespace, actionName) = getNamespaceEntityName(name)
     val (paramsInput, annosInput) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, web = web)
-
-    val (params, annos, execByKind) = kind match {
-      case Some(k) => {
+    val (params: Array[JsValue], annos: Array[JsValue], exec: Map[String, JsValue]) = kind match {
+      case Some(k) =>
         k match {
-          case "copy" => {
-            val actName = entityName(artifactName)
-            val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
+          case "copy" =>
+            require(artifact.isDefined, "copy requires an artifact name")
+            val actionName = entityName(artifact.get)
+            val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actionName")
             val resp = requestEntity(GET, actionPath)
-            if (resp == None)
-              return new RestResult(NotFound)
+            if (resp == None) return new RestResult(NotFound) // NOTE return, aborts the method
             else {
               val result = new RestResult(resp.status, getRespData(resp))
               val params = result.getFieldListJsObject("parameters").toArray[JsValue]
               val annos = result.getFieldListJsObject("annotations").toArray[JsValue]
               val exec = result.getFieldJsObject("exec").fields
-              (params, annos, exec)
+              (paramsInput ++ params, annosInput ++ annos, exec)
             }
-          }
-          case "sequence" => {
-            val comps = convertIntoComponents(artifactName)
+
+          case "sequence" =>
+            require(artifact.isDefined, "sequence requires a component list")
+            val comps = convertIntoComponents(artifact.get)
             val exec =
               if (comps.size > 0) Map("components" -> comps.toJson, "kind" -> k.toJson)
-              else
-                Map("kind" -> k.toJson)
+              else Map("kind" -> k.toJson)
             (paramsInput, annosInput, exec)
-          }
-          case "native" => {
-            val exec =
-              Map("code" -> code.toJson, "kind" -> "blackbox".toJson, "image" -> "openwhisk/dockerskeleton".toJson)
+
+          case _ =>
+            val code = readCodeFromFile(artifact).map(c => Map("code" -> c.toJson)).getOrElse(Map.empty)
+            val exec: Map[String, JsValue] = if (k == "native" || k == "docker") {
+              require(k == "native" && docker.isEmpty || k == "docker" && docker.isDefined)
+              Map("kind" -> "blackbox".toJson, "image" -> docker.getOrElse("openwhisk/dockerskeleton").toJson) ++ code
+            } else {
+              require(artifact.isDefined, "file name required as an artifact")
+              Map("kind" -> k.toJson) ++ code
+            }
+
             (paramsInput, annosInput, exec)
-          }
-          case _ => {
-            val exec = Map("code" -> code.toJson, "kind" -> k.toJson)
-            (paramsInput, annosInput, exec)
-          }
         }
-      }
-      case None => (paramsInput, annosInput, Map("code" -> code.toJson, "kind" -> kindType.toJson))
-    }
 
-    val exec = execByKind ++ {
-      main map { m =>
-        Map("main" -> m.toJson)
-      } getOrElse Map.empty
-    } ++ {
-      docker map { d =>
-        Map("kind" -> "blackbox".toJson, "image" -> d.toJson)
-      } getOrElse Map.empty
-    }
-
-    val bodyHead = Map("name" -> name.toJson, "namespace" -> namespace.toJson)
-
-    val (updateExistence, resultExistence) = update match {
-      case true => {
-        val (ns, entity) = getNamespaceEntityName(name)
-        val entPath = Path(s"$basePath/namespaces/$ns/$noun/$entity")
-        val resp = requestEntity(GET, entPath)(wp)
-        val result = if (resp == None) new RestResult(NotFound) else new RestResult(resp.status, getRespData(resp))
-        if (result.statusCode == NotFound) (false, result) else (true, result)
-      }
-      case _ => (false, new RestResult(NotFound))
-    }
-
-    val bodyWithParamsAnnos = if (updateExistence) {
-      val oldAnnos = resultExistence.getFieldListJsObject("annotations")
-      val inputParams = convertMapIntoKeyValue(parameters)
-      val inputAnnos = convertMapIntoKeyValue(annotations, web = web, oldParams = oldAnnos.toList)
-
-      bodyHead ++ {
-        kind match {
-          case Some(k) if (k == "sequence" || k == "native") => {
-            Map("exec" -> exec.toJson)
+      case None =>
+        docker
+          .map(_ => "blackbox")
+          .orElse {
+            artifact.map { file =>
+              getExt(file) match {
+                case "js"    => "nodejs:default"
+                case "py"    => "python:default"
+                case "swift" => "swift:default"
+                case "jar"   => "java:default"
+                case _ =>
+                  throw new IllegalStateException(s"Extension for $file not recognized and kind cannot be inferred.")
+              }
+            }
           }
-          case _ => Map.empty
-        }
-      } ++ {
-        shared map { s =>
-          Map("publish" -> s.toJson)
-        } getOrElse Map.empty
-      } ++ {
-        if (inputParams.size > 0) {
-          Map("parameters" -> params.toJson)
-        } else Map.empty
-      } ++ {
-        if (inputAnnos.size > 0) {
-          Map("annotations" -> inputAnnos.toJson)
-        } else Map.empty
-      }
-    } else {
-      bodyHead ++ Map("exec" -> exec.toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
+          .map { k =>
+            val code = readCodeFromFile(artifact).map(c => Map("code" -> c.toJson)).getOrElse(Map.empty)
+            val image = docker.map(i => Map("image" -> i.toJson)).getOrElse(Map.empty)
+            (paramsInput, annosInput, Map("kind" -> k.toJson) ++ code ++ image)
+          }
+          .getOrElse {
+            if (!update && artifact.isDefined)
+              throw new IllegalStateException(
+                s"Extension for ${artifact.get} not recognized and kind cannot be inferred.")
+            else (paramsInput, annosInput, Map.empty)
+          }
     }
 
     val limits: Map[String, JsValue] = {
-      timeout map { t =>
-        Map("timeout" -> t.toMillis.toJson)
-      } getOrElse Map.empty
-    } ++ {
-      logsize map { log =>
-        Map("logs" -> log.toMB.toJson)
-      } getOrElse Map.empty
-    } ++ {
-      memory map { m =>
-        Map("memory" -> m.toMB.toJson)
-      } getOrElse Map.empty
+      timeout.map(t => Map("timeout" -> t.toMillis.toJson)).getOrElse(Map.empty) ++
+        logsize.map(log => Map("logs" -> log.toMB.toJson)).getOrElse(Map.empty) ++
+        memory.map(m => Map("memory" -> m.toMB.toJson)).getOrElse(Map.empty)
     }
 
-    val bodyContent =
-      if (!limits.isEmpty)
-        bodyWithParamsAnnos ++ Map("limits" -> limits.toJson)
-      else bodyWithParamsAnnos
+    val body: Map[String, JsValue] = if (!update) {
+      require(exec.nonEmpty, "exec cannot be empty on create")
+      Map(
+        "exec" -> main.map(m => exec ++ Map("main" -> m.toJson)).getOrElse(exec).toJson,
+        "parameters" -> params.toJson,
+        "annotations" -> annos.toJson) ++ Map("limits" -> limits.toJson)
+    } else {
+      var content: Map[String, JsValue] = Map.empty
+      if (exec.nonEmpty)
+        content = Map("exec" -> main.map(m => exec ++ Map("main" -> m.toJson)).getOrElse(exec).toJson)
+      if (params.length > 0)
+        content = content + ("parameters" -> params.toJson)
+      if (annos.length > 0)
+        content = content + ("annotations" -> annos.toJson)
+      if (limits.nonEmpty)
+        content = content + ("limits" -> limits.toJson)
+      content
+    }
 
-    val path = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
+    val path = Path(s"$basePath/namespaces/$namespace/$noun/$actionName")
     val resp =
-      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(bodyContent).toString))
-      else requestEntity(PUT, path, body = Some(JsObject(bodyContent).toString))
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(body).toString))
+      else requestEntity(PUT, path, body = Some(JsObject(body).toString))
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   override def invoke(name: String,
@@ -452,6 +397,19 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
                       result: Boolean = false,
                       expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     super.invokeAction(name, parameters, parameterFile, blocking, result, expectedExitCode = expectedExitCode)
+  }
+
+  private def readCodeFromFile(artifact: Option[String]): Option[String] = {
+    artifact.map { file =>
+      val ext = getExt(file)
+      val isBinary = ext == "zip" || ext == "jar" || ext == "bin"
+      if (!isBinary) {
+        FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8)
+      } else {
+        val zip = FileUtils.readFileToByteArray(new File(file))
+        Base64.getEncoder.encodeToString(zip)
+      }
+    }
   }
 }
 
@@ -480,42 +438,40 @@ class RestTriggerOperations(implicit val actorSystem: ActorSystem)
                       update: Boolean = false,
                       expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
-    val (ns, triggerName) = this.getNamespaceEntityName(name)
+    val (ns, triggerName) = getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$triggerName")
     val (params, annos) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, feed)
-    var bodyContent = JsObject("name" -> name.toJson, "namespace" -> s"$ns".toJson)
+    var bodyContent: Map[String, JsValue] = Map.empty
 
     if (!update) {
-      val published = shared.getOrElse(false)
-      bodyContent = JsObject(
-        bodyContent.fields + ("publish" -> published.toJson,
-        "parameters" -> params.toJson, "annotations" -> annos.toJson))
+      bodyContent =
+        Map("publish" -> shared.getOrElse(false).toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
     } else {
-      bodyContent = shared map { s =>
-        JsObject(bodyContent.fields + ("publish" -> s.toJson))
-      } getOrElse bodyContent
+      shared.foreach { p =>
+        bodyContent = Map("publish" -> p.toJson)
+      }
 
       val inputParams = convertMapIntoKeyValue(parameters)
       if (inputParams.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params.toJson))
+        bodyContent = bodyContent + ("parameters" -> params.toJson)
       }
       val inputAnnos = convertMapIntoKeyValue(annotations)
       if (inputAnnos.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos.toJson))
+        bodyContent = bodyContent + ("annotations" -> annos.toJson)
       }
     }
 
     val resp =
-      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(bodyContent.toString))
-      else requestEntity(PUT, path, body = Some(bodyContent.toString))
+      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(bodyContent).toString))
+      else requestEntity(PUT, path, body = Some(JsObject(bodyContent).toString))
     val result = new RestResult(resp.status, getRespData(resp))
     if (result.statusCode != OK) {
       validateStatusCode(expectedExitCode, result.statusCode.intValue)
       result
     }
-    val r = feed map { f =>
+    val rr = feed map { f =>
       // Invoke the feed
-      val (nsFeed, feedName) = this.getNamespaceEntityName(f)
+      val (nsFeed, feedName) = getNamespaceEntityName(f)
       val path = Path(s"$basePath/namespaces/$nsFeed/actions/$feedName")
       val paramMap = Map("blocking" -> "true", "result" -> "false")
       var body: Map[String, JsValue] = Map(
@@ -529,7 +485,7 @@ class RestTriggerOperations(implicit val actorSystem: ActorSystem)
         expectedExitCode shouldBe resultInvoke.statusCode.intValue
       if (resultInvoke.statusCode != OK) {
         // Remove the trigger, because the feed failed to invoke.
-        this.delete(triggerName)
+        delete(triggerName)
         new RestResult(NotFound)
       } else {
         result
@@ -538,7 +494,7 @@ class RestTriggerOperations(implicit val actorSystem: ActorSystem)
       validateStatusCode(expectedExitCode, result.statusCode.intValue)
       result
     }
-    r
+    rr
   }
 
   /**
@@ -552,7 +508,7 @@ class RestTriggerOperations(implicit val actorSystem: ActorSystem)
                     parameters: Map[String, JsValue] = Map.empty,
                     parameterFile: Option[String] = None,
                     expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
-    val path = getNamePath(noun, name)
+    val path = getNamePath(wp.namespace, noun, name)
     val params = parameterFile map { l =>
       val input = FileUtils.readFileToString(new File(l), StandardCharsets.UTF_8)
       input.parseJson.convertTo[Map[String, JsValue]]
@@ -588,14 +544,13 @@ class RestRuleOperations(implicit val actorSystem: ActorSystem)
                       shared: Option[Boolean] = None,
                       update: Boolean = false,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
-    val path = getNamePath(noun, name)
+    val path = getNamePath(wp.namespace, noun, name)
     val annos = convertMapIntoKeyValue(annotations)
     val published = shared.getOrElse(false)
     val bodyContent = JsObject(
       "trigger" -> fullEntityName(trigger).toJson,
       "action" -> fullEntityName(action).toJson,
       "publish" -> published.toJson,
-      "name" -> name.toJson,
       "status" -> "".toJson,
       "annotations" -> annos.toJson)
 
@@ -640,7 +595,7 @@ class RestRuleOperations(implicit val actorSystem: ActorSystem)
 
   def changeRuleState(ruleName: String, state: String = "active")(implicit wp: WskProps): RestResult = {
     val enName = entityName(ruleName)
-    val path = getNamePath(noun, enName)
+    val path = getNamePath(wp.namespace, noun, enName)
     val bodyContent = JsObject("status" -> state.toJson)
     val resp = requestEntity(POST, path, body = Some(bodyContent.toString))
     new RestResult(resp.status, getRespData(resp))
@@ -668,9 +623,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
     require(duration > 1.second, "duration must be at least 1 second")
     val sinceTime = {
       val now = System.currentTimeMillis()
-      since map { s =>
-        now - s.toMillis
-      } getOrElse now
+      since.map(s => now - s.toMillis).getOrElse(now)
     }
 
     retry({
@@ -694,19 +647,10 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")
-    val paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++ {
-      limit map { l =>
-        Map("limit" -> l.toString)
-      } getOrElse Map.empty
-    } ++ {
-      filter map { f =>
-        Map("name" -> f.toString)
-      } getOrElse Map.empty
-    } ++ {
-      since map { s =>
-        Map("since" -> s.toEpochMilli.toString)
-      } getOrElse Map.empty
-    }
+    val paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++
+      limit.map(l => Map("limit" -> l.toString)).getOrElse(Map.empty) ++
+      filter.map(f => Map("name" -> f.toString)).getOrElse(Map.empty) ++
+      since.map(s => Map("since" -> s.toEpochMilli.toString)).getOrElse(Map.empty)
     val resp = requestEntity(GET, entityPath, paramMap)
     new RestResult(resp.status, getRespData(resp))
   }
@@ -731,9 +675,9 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   def activationLogs(activationId: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
     val path = Path(s"${basePath}/namespaces/${wp.namespace}/$noun/$activationId/logs")
     val resp = requestEntity(GET, path)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   /**
@@ -746,9 +690,9 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   def activationResult(activationId: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
     val path = Path(s"${basePath}/namespaces/${wp.namespace}/$noun/$activationId/result")
     val resp = requestEntity(GET, path)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   /**
@@ -788,17 +732,16 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                    fieldFilter: Option[String] = None,
                    last: Option[Boolean] = None,
                    summary: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val r = activationId match {
-      case Some(id) => {
-        val resp = requestEntity(GET, getNamePath(noun, id))
+    val rr = activationId match {
+      case Some(id) =>
+        val resp = requestEntity(GET, getNamePath(wp.namespace, noun, id))
         new RestResult(resp.status, getRespData(resp))
-      }
-      case None => {
+
+      case None =>
         new RestResult(NotFound)
-      }
     }
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   /**
@@ -830,33 +773,31 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   override def logs(activationId: Option[String] = None,
                     expectedExitCode: Int = OK.intValue,
                     last: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val r = activationId match {
-      case Some(id) => {
-        val resp = requestEntity(GET, getNamePath(noun, s"$id/logs"))
+    val rr = activationId match {
+      case Some(id) =>
+        val resp = requestEntity(GET, getNamePath(wp.namespace, noun, s"$id/logs"))
         new RestResult(resp.status, getRespData(resp))
-      }
-      case None => {
+
+      case None =>
         new RestResult(NotFound)
-      }
     }
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   override def result(activationId: Option[String] = None,
                       expectedExitCode: Int = OK.intValue,
                       last: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val r = activationId match {
-      case Some(id) => {
-        val resp = requestEntity(GET, getNamePath(noun, s"$id/result"))
+    val rr = activationId match {
+      case Some(id) =>
+        val resp = requestEntity(GET, getNamePath(wp.namespace, noun, s"$id/result"))
         new RestResult(resp.status, getRespData(resp))
-      }
-      case None => {
+
+      case None =>
         new RestResult(NotFound)
-      }
     }
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
   /** Used in polling for activations to record partial results from retry poll. */
@@ -916,34 +857,31 @@ class RestPackageOperations(implicit val actorSystem: ActorSystem)
                       shared: Option[Boolean] = None,
                       update: Boolean = false,
                       expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
-    val path = getNamePath(noun, name)
-    var bodyContent = JsObject("namespace" -> s"${wp.namespace}".toJson, "name" -> name.toJson)
+    val path = getNamePath(wp.namespace, noun, name)
+    var bodyContent: Map[String, JsValue] = Map.empty
 
-    val (params, annos) = this.getParamsAnnos(parameters, annotations, parameterFile, annotationFile)
+    val (params, annos) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile)
     if (!update) {
       val published = shared.getOrElse(false)
-      bodyContent = JsObject(
-        bodyContent.fields + ("publish" -> published.toJson,
-        "parameters" -> params.toJson, "annotations" -> annos.toJson))
+      bodyContent = Map("publish" -> published.toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
     } else {
-      if (shared != None)
-        bodyContent = shared map { s =>
-          JsObject(bodyContent.fields + ("publish" -> s.toJson))
-        } getOrElse bodyContent
+      shared.foreach { s =>
+        bodyContent = bodyContent + ("publish" -> s.toJson)
+      }
 
       val inputParams = convertMapIntoKeyValue(parameters)
       if (inputParams.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params.toJson))
+        bodyContent = bodyContent + ("parameters" -> params.toJson)
       }
       val inputAnnos = convertMapIntoKeyValue(annotations)
       if (inputAnnos.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos.toJson))
+        bodyContent = bodyContent + ("annotations" -> annos.toJson)
       }
     }
 
     val resp =
-      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(bodyContent.toString))
-      else requestEntity(PUT, path, body = Some(bodyContent.toString))
+      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(bodyContent).toString))
+      else requestEntity(PUT, path, body = Some(JsObject(bodyContent).toString))
     val r = new RestResult(resp.status, getRespData(resp))
     validateStatusCode(expectedExitCode, r.statusCode.intValue)
     r
@@ -964,15 +902,15 @@ class RestPackageOperations(implicit val actorSystem: ActorSystem)
     val params = convertMapIntoKeyValue(parameters)
     val annos = convertMapIntoKeyValue(annotations)
 
-    val (ns, packageName) = this.getNamespaceEntityName(provider)
-    val path = getNamePath(noun, name)
+    val (ns, packageName) = getNamespaceEntityName(provider)
+    val path = getNamePath(wp.namespace, noun, name)
     val binding = JsObject("namespace" -> ns.toJson, "name" -> packageName.toJson)
     val bodyContent =
       JsObject("binding" -> binding.toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
     val resp = requestEntity(PUT, path, Map("overwrite" -> "false"), Some(bodyContent.toString))
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
+    val rr = new RestResult(resp.status, getRespData(resp))
+    validateStatusCode(expectedExitCode, rr.statusCode.intValue)
+    rr
   }
 
 }
@@ -997,7 +935,7 @@ class RestGatewayOperations(implicit val actorSystem: ActorSystem) extends Gatew
                       cliCfgFile: Option[String] = None)(implicit wp: WskProps): RestResult = {
     val r = action match {
       case Some(action) => {
-        val (ns, actionName) = this.getNamespaceEntityName(action)
+        val (ns, actionName) = getNamespaceEntityName(action)
         val actionUrl = s"${WhiskProperties.getApiHostForAction}$basePath/web/$ns/default/$actionName.http"
         val actionAuthKey = wp.authKey
         val testaction = Some(
@@ -1227,15 +1165,9 @@ trait RunRestCmd extends Matchers with ScalaFutures {
       }
   }
 
-  def getNamePath(noun: String, name: String)(implicit wp: WskProps): Path = {
-    Path(s"$basePath/namespaces/${wp.namespace}/$noun/$name")
-  }
+  def getNamePath(ns: String, noun: String, name: String) = Path(s"$basePath/namespaces/$ns/$noun/$name")
 
-  def getExt(filePath: String)(implicit wp: WskProps) = {
-    val sep = "."
-    if (filePath.contains(sep)) filePath.substring(filePath.lastIndexOf(sep), filePath.length)
-    else ""
-  }
+  def getExt(filePath: String) = Option(FilenameUtils.getExtension(filePath)).getOrElse("")
 
   def requestEntity(method: HttpMethod,
                     path: Path,
@@ -1251,16 +1183,11 @@ trait RunRestCmd extends Matchers with ScalaFutures {
       Uri().withScheme("https").withHost(wp.apihost)
     }
 
-    val entity = body map { b =>
-      HttpEntity(ContentTypes.`application/json`, b)
-    } getOrElse HttpEntity.Empty
-
-    val request =
-      HttpRequest(
-        method,
-        hostWithScheme.withPath(path).withQuery(Query(params)),
-        List(Authorization(creds)),
-        entity = entity)
+    val request = HttpRequest(
+      method,
+      hostWithScheme.withPath(path).withQuery(Query(params)),
+      List(Authorization(creds)),
+      entity = body.map(b => HttpEntity(ContentTypes.`application/json`, b)).getOrElse(HttpEntity.Empty))
     Http().singleRequest(request, connectionContext).futureValue
   }
 
@@ -1354,11 +1281,7 @@ trait RunRestCmd extends Matchers with ScalaFutures {
 
   def getRespData(resp: HttpResponse): String = {
     val timeout = 5.seconds
-    Try {
-      resp.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue
-    } getOrElse {
-      ""
-    }
+    Try(resp.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue).getOrElse("")
   }
 
   def getNamespaceEntityName(name: String)(implicit wp: WskProps): (String, String) = {
@@ -1386,7 +1309,7 @@ trait RunRestCmd extends Matchers with ScalaFutures {
                    result: Boolean = false,
                    web: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, actName) = this.getNamespaceEntityName(name)
+    val (ns, actName) = getNamespaceEntityName(name)
 
     val path =
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
@@ -1417,9 +1340,6 @@ trait RunRestCmd extends Matchers with ScalaFutures {
 }
 
 object RestResult {
-
-  val codeConversion = 256
-
   def getField(obj: JsObject, key: String): String = {
     obj.fields.get(key).map(_.convertTo[String]).getOrElse("")
   }
@@ -1438,16 +1358,11 @@ object RestResult {
 
   def convertStausCodeToExitCode(statusCode: StatusCode, blocking: Boolean = false): Int = {
     if ((statusCode == OK) || (!blocking && (statusCode == Accepted))) 0
-    else if (statusCode.intValue < BadRequest.intValue) statusCode.intValue
-    else statusCode.intValue - codeConversion
+    else statusCode.intValue % 256
   }
 
   def convertHttpResponseToStderr(respData: String): String = {
-    Try {
-      getField(respData.parseJson.asJsObject, "error")
-    } getOrElse {
-      ""
-    }
+    Try(getField(respData.parseJson.asJsObject, "error")).getOrElse("")
   }
 }
 
