@@ -5,3 +5,11 @@ db_password={{ lookup('env', 'OW_DB_PASSWORD')|default('some_passw0rd', true) }}
 db_protocol={{ lookup('env', 'OW_DB_PROTOCOL')|default('http', true) }}
 db_host={{ lookup('env', 'OW_DB_HOST')|default(groups['db']|first, true) }}
 db_port={{ lookup('env', 'OW_DB_PORT')|default('5984', true) }}
+
+[controller]
+db_username={{ lookup('env', 'OW_DB_CONTROLLER_USERNAME') | default(db_prefix + 'controller0', true) }}
+db_password={{ lookup('env', 'OW_DB_CONTROLLER_PASSWORD') | default('some_controller_passw0rd', true) }}
+
+[invoker]
+db_username={{ lookup('env', 'OW_DB_INVOKER_USERNAME') | default(db_prefix + 'invoker0', true) }}
+db_password={{ lookup('env', 'OW_DB_INVOKER_PASSWORD') | default('some_invoker_passw0rd', true) }}

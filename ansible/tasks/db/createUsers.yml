@@ -1,0 +1,25 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# Create all required users in _users-database
+# http://docs.couchdb.org/en/2.0.0/intro/security.html#users-documents
+
+- name: create required users
+  uri:
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/_users/org.couchdb.user:{{ item.value.user }}"
+    method: PUT
+    status_code: 201,409
+    body_format: json
+    body: |
+      {
+        "name": "{{ item.value.user }}",
+        "password": "{{ item.value.pass }}",
+        "roles": [],
+        "type": "user"
+      }
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
+    force_basic_auth: yes
+  with_dict: "{{ db.credentials }}"
+  # Don't create the admin user again, if a component is using admin access.
+  when: item.value.user != db.credentials.admin.user
