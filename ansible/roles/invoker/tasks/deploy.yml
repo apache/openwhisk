@@ -179,7 +179,7 @@
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
-      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
+      "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db_host }}"
       "CONFIG_whisk_couchdb_port": "{{ db_port }}"
       "CONFIG_whisk_couchdb_username": "{{ db.credentials.admin.user }}"
