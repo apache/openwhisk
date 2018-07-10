@@ -38,7 +38,7 @@ whisk {
         port     = "{{ db_port }}"
         username = "{{ db.credentials.admin.user }}"
         password = "{{ db.credentials.admin.pass }}"
-        provider = "{{ db_provider }}"
+        provider = "{{ db.provider }}"
         databases {
           WhiskAuth       = "{{ db.whisk.auth }}"
           WhiskEntity     = "{{ db.whisk.actions }}"

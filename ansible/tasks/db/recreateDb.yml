@@ -5,7 +5,7 @@
 # dbName - name of the database to (re)create
 # forceRecreation - if true, the databases will be deleted (if it exists) and recreated. If false, it will not be recreated.
 
-- name: check if {{ dbName }} with {{ db_provider }} exists
+- name: check if {{ dbName }} with {{ db.provider }} exists
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
     method: HEAD
@@ -15,7 +15,7 @@
     force_basic_auth: yes
   register: response
 
-- name: delete the {{ dbName }} with {{ db_provider }}
+- name: delete the {{ dbName }} with {{ db.provider }}
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
     method: DELETE
@@ -25,7 +25,7 @@
     force_basic_auth: yes
   when: forceRecreation == True and response.status == 200
 
-- name: create {{ dbName }} with {{ db_provider }}
+- name: create {{ dbName }} with {{ db.provider }}
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
     method: PUT
