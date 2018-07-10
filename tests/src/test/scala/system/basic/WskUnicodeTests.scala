@@ -64,36 +64,35 @@ class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers wit
     val bin = new File(TestUtils.getTestActionFilename(s"$prefix.bin"))
     if (txt.exists) Some(txt.toString)
     else if (bin.exists) Some(bin.toString)
-    else throw new IllegalStateException(s"did not find text or binary action for kind $kind")
+    else {
+      println(s"WARNING: did not find text or binary action for kind $kind, skipping it")
+      None
+    }
   }
 
-  actionKinds.foreach { k =>
-    val actionKind = k.kind
+  // tolerate missing files rather than throw an exception
+  actionKinds.map(k => (k.kind, getFileLocation(k.kind))).collect {
+    case (actionKind, file @ Some(_)) =>
+      s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
+        wskprops) { (wp, assetHelper) =>
+        val name = s"unicodeGalore.${actionKind.replace(":", "")}"
 
-    s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
-      wskprops) { (wp, assetHelper) =>
-      val name = s"unicodeGalore.${actionKind.replace(":", "")}"
+        assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+          action
+            .create(name, file, main = main(actionKind), kind = Some(actionKind), timeout = Some(activationMaxDuration))
+        }
 
-      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(
-          name,
-          getFileLocation(actionKind),
-          main = main(actionKind),
-          kind = Some(actionKind),
-          timeout = Some(activationMaxDuration))
+        withActivation(
+          wsk.activation,
+          wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄"))),
+          totalWait = activationPollDuration) { activation =>
+          val response = activation.response
+          response.result.get.fields.get("error") shouldBe empty
+          response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+
+          activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+        }
       }
-
-      withActivation(
-        wsk.activation,
-        wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄"))),
-        totalWait = activationPollDuration) { activation =>
-        val response = activation.response
-        response.result.get.fields.get("error") shouldBe empty
-        response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
-
-        activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
-      }
-    }
   }
 }
 
