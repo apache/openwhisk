@@ -63,6 +63,7 @@ To change the Travis (or Jenkins) host URL, use `-u`.
 - monitor a Travis CI build with job number `N`: `citool monitor N`
 - monitor same job `N` until completion: `citool monitor -p N`
 - save job output to a file: `citool -o monitor N`
+- for Travis CI matrix builds, use the matrix index after the job number as in `citool monitor N.i` where 1 <= i <= matrix buidls.
 
 To monitor a Jenkins build `B` with job number `N` on host `https://jenkins.host:port`:
 ```
