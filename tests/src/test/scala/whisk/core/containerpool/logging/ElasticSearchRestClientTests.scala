@@ -175,9 +175,7 @@ class ElasticSearchRestClientTests
   }
 
   it should "construct query with size" in {
-    val querySize = EsQuerySize(1)
-
-    EsQuery(EsQueryAll(), size = Some(querySize)).toJson shouldBe JsObject(
+    EsQuery(EsQueryAll(), size = Some(1)).toJson shouldBe JsObject(
       "query" -> JsObject("match_all" -> JsObject.empty),
       "size" -> 1.toJson,
       "from" -> 0.toJson)
