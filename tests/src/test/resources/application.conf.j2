@@ -35,7 +35,7 @@ whisk {
     couchdb {
         protocol = "{{ db.protocol }}"
         host     = "{{ db_host }}"
-        port     = "{{ db_port }}"
+        port     = "{{ db.port }}"
         username = "{{ db.credentials.admin.user }}"
         password = "{{ db.credentials.admin.pass }}"
         provider = "{{ db.provider }}"

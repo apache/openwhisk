@@ -7,7 +7,7 @@
 
 - name: check if {{ dbName }} with {{ db.provider }} exists
   uri:
-    url: "{{ db.protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db_host }}:{{ db.port }}/{{ dbName }}"
     method: HEAD
     status_code: 200,404
     user: "{{ db.credentials.admin.user }}"
@@ -17,7 +17,7 @@
 
 - name: delete the {{ dbName }} with {{ db.provider }}
   uri:
-    url: "{{ db.protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db_host }}:{{ db.port }}/{{ dbName }}"
     method: DELETE
     status_code: 200,404
     user: "{{ db.credentials.admin.user }}"
@@ -27,7 +27,7 @@
 
 - name: create {{ dbName }} with {{ db.provider }}
   uri:
-    url: "{{ db.protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db_host }}:{{ db.port }}/{{ dbName }}"
     method: PUT
     status_code: 200,201
     user: "{{ db.credentials.admin.user }}"
