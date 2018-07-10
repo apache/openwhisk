@@ -86,7 +86,8 @@ The standard test action is shown below in JavaScript. It should be adapted for 
 new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
 with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
 a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
-runtime manifest entry.
+runtime manifest entry, replacing `:` in the kind with a `-`.
+For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
 
 ```js
 function main(args) {
