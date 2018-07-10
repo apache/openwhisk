@@ -6,7 +6,7 @@
 
 - name: check if {{ dbName }} with {{ db.provider }} exists
   uri:
-    url: "{{ db.protocol }}://{{ db_host }}:{{ db.port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: HEAD
     status_code: 200
     user: "{{ db.credentials.admin.user }}"
