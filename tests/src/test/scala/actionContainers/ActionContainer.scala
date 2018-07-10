@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintWriter
 
+import scala.util.Try
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -116,10 +117,14 @@ object ActionContainer {
         .get("docker.host")
         .orElse(sys.env.get("DOCKER_HOST"))
         .orElse {
-          // Check if we are running on docker-machine env.
-          Option(WhiskProperties.getProperty("environment.type")).filter(_.toLowerCase.contains("docker-machine")).map {
-            case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
-          }
+          Try { // whisk.properties file may not exist
+            // Check if we are running on docker-machine env.
+            Option(WhiskProperties.getProperty("environment.type"))
+              .filter(_.toLowerCase.contains("docker-machine"))
+              .map {
+                case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
+              }
+          }.toOption.flatten
         }
         .map(" --host " + _)
         .getOrElse("")
