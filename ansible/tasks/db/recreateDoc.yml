@@ -17,8 +17,8 @@
     return_content: yes
     method: GET
     status_code: 200, 404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   register: response
 
@@ -49,7 +49,7 @@
     status_code: 200, 201
     body_format: json
     body: "{{ document }}"
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: create == True

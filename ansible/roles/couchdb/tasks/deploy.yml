@@ -38,8 +38,8 @@
       - "4369:4369"
       - "9100:9100"
     env:
-      COUCHDB_USER: "{{ db_username }}"
-      COUCHDB_PASSWORD: "{{ db_password }}"
+      COUCHDB_USER: "{{ db.credentials.admin.user }}"
+      COUCHDB_PASSWORD: "{{ db.credentials.admin.pass }}"
       NODENAME: "{{ ansible_host }}"
     pull: "{{ couchdb.pull_couchdb | default(true) }}"
 
@@ -56,8 +56,8 @@
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_users"
     method: PUT
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (couchdb.version|version_compare('2.0','>=')) and (db.instances|int == 1)
 
@@ -66,11 +66,11 @@
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
     method: POST
     body: >
-        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db_username }}", "password":"{{ db_password }}", "port": {{ db_port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db_username }}", "remote_current_password": "{{ db_password }}"}
+        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db.credentials.admin.user }}", "password":"{{ db.credentials.admin.pass }}", "port": {{ db_port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db.credentials.admin.user }}", "remote_current_password": "{{ db.credentials.admin.pass }}"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
 
@@ -79,11 +79,11 @@
     url: "{{ db_protocol }}://{{ coordinator }}:{{ db_port }}/_cluster_setup"
     method: POST
     body: >
-        {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db_port }}, "username": "{{ db_username }}", "password":"{{ db_password }}"}
+        {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db_port }}, "username": "{{ db.credentials.admin.user }}", "password":"{{ db.credentials.admin.pass }}"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname != coordinator) and (db.instances|int >= 2)
 
@@ -95,7 +95,7 @@
         {"action": "finish_cluster"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2)

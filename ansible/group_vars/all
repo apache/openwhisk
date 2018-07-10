@@ -225,6 +225,10 @@ db:
     actions: "{{ db_prefix }}whisks"
     activations: "{{ db_prefix }}activations"
     auth: "{{ db_prefix }}subjects"
+  credentials:
+    admin:
+      user: "{{ db_username | default(lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+      pass: "{{ db_password | default(lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
 
 apigateway:
   port:
