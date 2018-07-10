@@ -98,12 +98,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val isFirstMessageOnBuffer = runBuffer.dequeueOption.exists(_._1.msg == r.msg)
-      val isResentFromBuffer = runBuffer.nonEmpty && isFirstMessageOnBuffer
+      // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
+      val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
 
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
       // next request to process
-      if (runBuffer.isEmpty || isFirstMessageOnBuffer) {
+      // It is guaranteed, that only the first message on the buffer is resent.
+      if (runBuffer.isEmpty || isResentFromBuffer) {
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
@@ -220,14 +221,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize) =
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit =
     childFactory(context) ! Start(exec, memoryLimit)
 
   /**
    * Takes a prewarm container out of the prewarmed pool
-   * iff a container with a matching kind is found.
+   * iff a container with a matching kind and memory is found.
    *
-   * @param kind the kind you want to invoke
+   * @param action the action that holds the kind and the required memory.
    * @return the container iff found
    */
   def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
@@ -258,6 +259,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     busyPool = busyPool - toDelete
   }
 
+  /**
+   * Calculate if there is enough free memory within a given pool.
+   *
+   * @param pool The pool, that has to be checked, if there is enough free memory.
+   * @param memory The amount of memory to check.
+   * @return true, if there is enough space for the given amount of memory.
+   */
   def hasPoolSpaceFor[A](pool: Map[A, ContainerData], memory: ByteSize): Boolean = {
     memoryConsumptionOf(pool) + memory.toMB <= poolConfig.userMemory.toMB
   }
@@ -301,12 +309,14 @@ object ContainerPool {
 
   /**
    * Finds the oldest previously used container to remove to make space for the job passed to run.
+   * Depending on the space that has to be allocated, several containers might be removed.
    *
    * NOTE: This method is never called to remove an action that is in the pool already,
    * since this would be picked up earlier in the scheduler and the container reused.
    *
    * @param pool a map of all free containers in the pool
-   * @return a container to be removed iff found
+   * @param memory the amount of memory that has to be freed up
+   * @return a list of containers to be removed iff found
    */
   protected[containerpool] def remove[A](pool: Map[A, ContainerData], memory: ByteSize): List[A] = {
     val freeContainers = pool.collect {
@@ -322,11 +332,11 @@ object ContainerPool {
       val (ref, data) = freeContainers.minBy(_._2.lastUsed)
       // Catch exception if remaining memory will be negative
       val remainingMemory = Try(memory - data.memoryLimit).getOrElse(0.B)
-      List(ref) ++ remove(freeContainers.filterKeys(_ != ref), remainingMemory)
+      List(ref) ++ remove(freeContainers - ref, remainingMemory)
     } else {
       // If this is the first call: All containers are in use currently, or there is more memory needed than
       // containers can be removed.
-      // Or, if this is one of the recurstions: Enough containers are found to get the memory, that is
+      // Or, if this is one of the recursions: Enough containers are found to get the memory, that is
       // necessary. -> Abort recursion
       List.empty
     }
