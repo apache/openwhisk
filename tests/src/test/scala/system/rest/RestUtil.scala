@@ -31,11 +31,16 @@ import spray.json._
  */
 trait RestUtil {
 
+  private val skipKeyStore = false // set this to true for convenient local testing
   private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
   // force RestAssured to allow all hosts in SSL certificates
   protected val sslconfig = {
-    new RestAssuredConfig().sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames())
+    new RestAssuredConfig().sslConfig(if (!skipKeyStore) {
+      new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames()
+    } else {
+      new SSLConfig().relaxedHTTPSValidation().allowAllHostnames()
+    })
   }
 
   /**
