@@ -295,7 +295,9 @@ public class WhiskProperties {
      */
     public static File getVCAPServicesFile() {
         String vcapServices = whiskProperties.getProperty("vcap.services.file");
-        if (vcapServices.startsWith(File.separator)) {
+        if (vcapServices == null) {
+            return null;
+        } else if (vcapServices.startsWith(File.separator)) {
             return new File(vcapServices);
         } else {
             return WhiskProperties.getFileRelativeToWhiskHome(vcapServices);
