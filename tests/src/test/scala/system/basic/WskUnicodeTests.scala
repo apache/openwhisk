@@ -59,7 +59,7 @@ class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers wit
   def getFileLocation(kind: String): Option[String] = {
     // the test file is either named kind.txt or kind.bin
     // one of the two must exist otherwise, fail the test.
-    val prefix = "unicode.tests" + File.separator + kind
+    val prefix = "unicode.tests" + File.separator + kind.replace(":", "-")
     val txt = new File(TestUtils.getTestActionFilename(s"$prefix.txt"))
     val bin = new File(TestUtils.getTestActionFilename(s"$prefix.bin"))
     if (txt.exists) Some(txt.toString)
