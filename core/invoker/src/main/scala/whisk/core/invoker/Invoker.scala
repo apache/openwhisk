@@ -123,7 +123,7 @@ object Invoker {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
-        InstanceIdAssigner.getId(invokerUniqueName.get, config)
+        new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId

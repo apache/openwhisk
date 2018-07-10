@@ -21,14 +21,18 @@ import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
 import org.apache.curator.retry.RetryUntilElapsed
 import whisk.common.Logging
-import whisk.core.WhiskConfig
 
-private[invoker] object InstanceIdAssigner {
+/**
+ * Computes the instanceId for invoker
+ *
+ * @param connectionString zooKeeper connection string
+ */
+private[invoker] class InstanceIdAssigner(connectionString: String)(implicit logger: Logging) {
 
-  def getId(name: String, config: WhiskConfig)(implicit logger: Logging): Int = {
-    logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHosts}")
+  def getId(name: String): Int = {
+    logger.info(this, s"invokerReg: creating zkClient to $connectionString")
     val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
-    val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHosts, retryPolicy)
+    val zkClient = CuratorFrameworkFactory.newClient(connectionString, retryPolicy)
     zkClient.start()
     zkClient.blockUntilConnected()
     logger.info(this, "invokerReg: connected to zookeeper")
