@@ -49,7 +49,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   val allowedActionDuration = 120 seconds
 
-  it should "produce proper error when sequence component does not exist" in {
+  it should "produce proper error when sequence component is missing during sequence invocation" in {
     implicit val tid = transid()
     val seqName = s"${aname()}_seq"
     val compName = s"${aname()}_comp"
