@@ -33,8 +33,7 @@ import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
-import whisk.http.Messages.{sequenceComponentNotFound, sequenceIsTooLong}
-import whisk.utils.retry
+import whisk.http.Messages.sequenceIsTooLong
 
 /**
  * Tests sequence execution
@@ -48,26 +47,6 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
   val shortDuration = 10 seconds
 
   behavior of "Wsk Sequence"
-
-  it should "produce proper error when sequence component does not exist" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val seqCompName = "seqComp"
-      val seqName = "seq"
-
-      wsk.action.create(seqCompName, Some(TestUtils.getTestActionFilename("echo.js")))
-
-      assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
-        action.create(seqName, Some(seqCompName), kind = Some("sequence"))
-      }
-
-      wsk.action.delete(seqCompName)
-
-      retry {
-        (withActivation(wsk.activation, wsk.action.invoke(seqName)) { activation =>
-          activation.response.result shouldBe Some(JsObject("error" -> sequenceComponentNotFound.toJson))
-        })
-      }
-  }
 
   it should "invoke a sequence with normal payload and payload with error field" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>

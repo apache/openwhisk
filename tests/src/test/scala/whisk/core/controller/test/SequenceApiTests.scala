@@ -19,22 +19,18 @@ package whisk.core.controller.test
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
-import whisk.http.ErrorResponse
-import whisk.http.Messages
+import whisk.http.{ErrorResponse, Messages}
+import whisk.http.Messages.sequenceComponentNotFound
 
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
@@ -52,6 +48,22 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("sequence_tests")
 
   val allowedActionDuration = 120 seconds
+
+  it should "produce proper error when sequence component does not exist" in {
+    implicit val tid = transid()
+    val seqName = s"${aname()}_seq"
+    val compName = s"${aname()}_comp"
+
+    putSimpleSequenceInDB(seqName, namespace, Vector(compName))
+    deleteAction(DocId(s"$namespace/$compName"))
+
+    Post(s"$collectionPath/$seqName?blocking=true&result=true") ~> Route.seal(routes(creds)) ~> check {
+      deleteAction(DocId(s"$namespace/$seqName"))
+      status should be(BadGateway)
+      val response = responseAs[JsObject]
+      response shouldBe JsObject("error" -> sequenceComponentNotFound.toJson)
+    }
+  }
 
   it should "reject creation of sequence with more actions than allowed limit" in {
     implicit val tid = transid()
