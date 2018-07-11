@@ -291,9 +291,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      invoker.hostname
-        .map(h => s"posting topic '$topic' to invoker '$h' with activation id '${msg.activationId}'")
-        .getOrElse(s"posting topic '$topic' with activation id '${msg.activationId}'"),
+      s"posting topic '$topic' to '${invoker.toString}' with activation id '${msg.activationId}'",
       logLevel = InfoLevel)
 
     producer.send(topic, msg).andThen {

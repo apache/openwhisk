@@ -109,7 +109,8 @@ object Invoker {
     }
     val cmdLineArgs = parse(args.toList, CmdLineArgs())
     logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-    val invokerName = cmdLineArgs.name.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
+    val invokerUniqueName =
+      cmdLineArgs.name.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
     val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
@@ -119,7 +120,7 @@ object Invoker {
         if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
-        if (invokerName.isEmpty || invokerName.get.trim.isEmpty) {
+        if (invokerUniqueName.isEmpty || invokerUniqueName.get.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
@@ -130,11 +131,11 @@ object Invoker {
         zkClient.blockUntilConnected()
         logger.info(this, "invokerReg: connected to zookeeper")
 
-        val myIdPath = "/invokers/idAssignment/mapping/" + invokerName
+        val myIdPath = "/invokers/idAssignment/mapping/" + invokerUniqueName
         val assignedId = Option(zkClient.checkExists().forPath(myIdPath)) match {
           case None =>
             // path doesn't exist -> no previous mapping for this invoker
-            logger.info(this, s"invokerReg: no prior assignment of id for invoker $invokerName")
+            logger.info(this, s"invokerReg: no prior assignment of id for invoker $invokerUniqueName")
             val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
             idCounter.start()
 
@@ -150,14 +151,14 @@ object Invoker {
             val newId = assignId()
             idCounter.close()
             zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
-            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
+            logger.info(this, s"invokerReg: invoker ${invokerUniqueName} was assigned invokerId ${newId}")
             newId
 
           case Some(_) =>
             // path already exists -> there is a previous mapping for this invoker we should use
             val rawOldId = zkClient.getData().forPath(myIdPath)
             val oldId = BigInt(rawOldId).intValue
-            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned its previous invokerId ${oldId}")
+            logger.info(this, s"invokerReg: invoker ${invokerUniqueName} was assigned its previous invokerId ${oldId}")
             oldId
         }
 
@@ -168,8 +169,8 @@ object Invoker {
     val topicName = topicBaseName + assignedInvokerId
 
     // Define invoker hostname for the health protocol to distinguish invoker topics in Kafka from the actual container names
-    val invokerHostname = scala.util.Properties.envOrNone("HOSTNAME").filter(name => name != topicName)
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerHostname)
+    val invokerDisplayedName = scala.util.Properties.envOrNone("HOSTNAME").filter(name => name != topicName)
+    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerUniqueName, invokerDisplayedName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic $topicName")

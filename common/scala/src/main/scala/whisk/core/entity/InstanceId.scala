@@ -21,8 +21,17 @@ import spray.json.DefaultJsonProtocol
 import whisk.core.entity.ControllerInstanceId.LEGAL_CHARS
 import whisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
 
-case class InvokerInstanceId(val instance: Int, name: Option[String] = None, hostname: Option[String] = None) {
+// instance - a numeric value used for the load balancing and Kafka topic creation
+// uniqueName - is used for dynamic instance assignment by Zookeeper
+// displayedName - is used in health protocol to correlate Kafka topics with invoker container names
+case class InvokerInstanceId(val instance: Int,
+                             uniqueName: Option[String] = None,
+                             displayedName: Option[String] = None) {
   def toInt: Int = instance
+
+  def getOrEmpty(str: Option[String]): String = str.map(n => "/" + n).getOrElse("")
+
+  override def toString: String = "invoker" + instance + getOrEmpty(uniqueName) + getOrEmpty(displayedName)
 }
 
 case class ControllerInstanceId(val asString: String) {
