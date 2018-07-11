@@ -71,7 +71,7 @@ private object LocalEntitlementProvider extends EntitlementSpiProvider {
 
   /** Poor mans entitlement matrix. Must persist to datastore eventually. */
   private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
-  override def entitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
+  override def instance(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
     implicit actorSystem: ActorSystem,
     logging: Logging) =
     new LocalEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, instance)

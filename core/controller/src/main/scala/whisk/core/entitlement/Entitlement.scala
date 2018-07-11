@@ -64,7 +64,7 @@ protected[core] case class Resource(namespace: EntityPath,
 }
 
 trait EntitlementSpiProvider extends Spi {
-  def entitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
+  def instance(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
     implicit actorSystem: ActorSystem,
     logging: Logging): EntitlementProvider
 }
