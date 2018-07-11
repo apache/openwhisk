@@ -84,7 +84,7 @@ cd /your/path/to/openwhisk
 **Tip** Using `gradlew` handles the installation of the correct version of gradle to use.
 
 # Deploy
-Follow instructions in [ansible/README.md](../../ansible/README.md)
+Follow instructions in [ansible/README.md](../../ansible/README.md#docker-for-mac-users)
 
 ### Configure the CLI
 Follow instructions in [Configure CLI](../../docs/cli.md)
