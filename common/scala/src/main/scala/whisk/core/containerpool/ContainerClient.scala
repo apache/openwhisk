@@ -24,6 +24,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.MessageEntity
+import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -94,7 +95,10 @@ protected class PoolingContainerClient(
 
     //create the request
     val req = Marshal(body).to[MessageEntity].map { b =>
-      HttpRequest(HttpMethods.POST, endpoint, entity = b)
+      //For details on Connection: Close handling, see:
+      // - https://doc.akka.io/docs/akka-http/current/common/http-model.html#http-headers
+      // - http://github.com/akka/akka-http/tree/v10.1.3/akka-http-core/src/test/scala/akka/http/impl/engine/rendering/ResponseRendererSpec.scala#L470-L571
+      HttpRequest(HttpMethods.POST, endpoint, entity = b).withHeaders(Connection("close"))
     }
 
     //Begin retry handling
