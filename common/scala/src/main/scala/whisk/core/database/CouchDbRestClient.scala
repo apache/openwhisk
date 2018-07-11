@@ -17,7 +17,6 @@
 
 package whisk.core.database
 
-import scala.concurrent.Future
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -26,32 +25,32 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.Logging
 import whisk.http.PoolingRestClient
 import whisk.http.PoolingRestClient._
 
+import scala.concurrent.{ExecutionContext, Future}
+
 /**
- * This class only handles the basic communication to the proper endpoints
- *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
- *  It is built on akka-http host-level connection pools; compared to single
- *  requests, it saves some time on each request because it doesn't need to look
- *  up the pool corresponding to the host. It is also easier to add an extra
- *  queueing mechanism.
+ * A client implementing the CouchDb API.
+ *
+ * This client only handles communication to the respective endpoints and works in a Json-in -> Json-out fashion. It's
+ * up to the client to interpret the results accordingly.
  */
 class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(
   implicit system: ActorSystem,
   logging: Logging)
     extends PoolingRestClient(protocol, host, port, 16 * 1024) {
 
-  implicit override val context = system.dispatchers.lookup("dispatchers.couch-dispatcher")
+  protected implicit override val context: ExecutionContext = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
   // Headers common to all requests.
-  val baseHeaders: List[HttpHeader] =
+  protected val baseHeaders: List[HttpHeader] =
     List(Authorization(BasicHttpCredentials(username, password)), Accept(MediaTypes.`application/json`))
 
-  def revHeader(forRev: String) = List(`If-Match`(EntityTagRange(EntityTag(forRev))))
+  private def revHeader(forRev: String) = List(`If-Match`(EntityTagRange(EntityTag(forRev))))
 
   // Properly encodes the potential slashes in each segment.
   protected def uri(segments: Any*): Uri = {
@@ -162,11 +161,11 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
                        sink: Sink[ByteString, Future[T]]): Future[Either[StatusCode, (ContentType, T)]] = {
     val httpRequest = mkRequest(HttpMethods.GET, uri(db, id, attName), headers = baseHeaders ++ revHeader(rev))
 
-    request(httpRequest) flatMap { response =>
-      if (response.status.isSuccess()) {
+    request(httpRequest).flatMap { response =>
+      if (response.status.isSuccess) {
         response.entity.withoutSizeLimit().dataBytes.runWith(sink).map(r => Right(response.entity.contentType, r))
       } else {
-        response.entity.withoutSizeLimit().dataBytes.runWith(Sink.ignore).map(_ => Left(response.status))
+        response.discardEntityBytes().future.map(_ => Left(response.status))
       }
     }
   }
