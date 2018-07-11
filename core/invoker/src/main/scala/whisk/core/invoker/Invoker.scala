@@ -44,7 +44,7 @@ import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
 
-case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
+case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
 
 object Invoker {
 
@@ -96,11 +96,14 @@ object Invoker {
     // process command line arguments
     // We accept the command line grammar of:
     // Usage: invoker [options] [<proposedInvokerId>]
-    //    --name <value>   a unique name to use for this invoker
+    //    --uniqueName <value>   a unique name to dynamically assign Kafka topics from Zookeeper
+    //    --displayedName <value> a name to identify this invoker via invoker health protocol
     //    --id <value>     proposed invokerId
+
     def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
       ls match {
-        case "--name" :: name :: tail                        => parse(tail, c.copy(name = Some(name)))
+        case "--uniqueName" :: uniqueName :: tail            => parse(tail, c.copy(uniqueName = Some(uniqueName)))
+        case "--displayedName" :: displayedName :: tail      => parse(tail, c.copy(displayedName = Some(displayedName)))
         case "--id" :: id :: tail if Try(id.toInt).isSuccess => parse(tail, c.copy(id = Some(id.toInt)))
         case id :: Nil if Try(id.toInt).isSuccess            => c.copy(id = Some(id.toInt))
         case Nil                                             => c
@@ -110,7 +113,7 @@ object Invoker {
     val cmdLineArgs = parse(args.toList, CmdLineArgs())
     logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
     val invokerUniqueName =
-      cmdLineArgs.name.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
+      cmdLineArgs.uniqueName.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
     val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
@@ -167,9 +170,7 @@ object Invoker {
       }
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
-
-    // Define invoker hostname for the health protocol to distinguish invoker topics in Kafka from the actual container names
-    val invokerDisplayedName = scala.util.Properties.envOrNone("HOSTNAME").filter(name => name != topicName)
+    val invokerDisplayedName = cmdLineArgs.displayedName
     val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerUniqueName, invokerDisplayedName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
