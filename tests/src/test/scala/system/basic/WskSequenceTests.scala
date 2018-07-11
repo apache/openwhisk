@@ -56,18 +56,16 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
 
       wsk.action.create(seqCompName, Some(TestUtils.getTestActionFilename("echo.js")))
 
-      retry({
-        assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
-          action.create(seqName, Some(seqCompName), kind = Some("sequence"))
-        }
-      })
+      assetHelper.withCleaner(wsk.action, seqName) { (action, seqName) =>
+        action.create(seqName, Some(seqCompName), kind = Some("sequence"))
+      }
 
-      retry({
-        wsk.action.delete(seqCompName)
-      })
+      wsk.action.delete(seqCompName)
 
-      withActivation(wsk.activation, wsk.action.invoke(seqName)) { activation =>
-        activation.response.result shouldBe Some(JsObject("error" -> sequenceComponentNotFound.toJson))
+      retry {
+        (withActivation(wsk.activation, wsk.action.invoke(seqName)) { activation =>
+          activation.response.result shouldBe Some(JsObject("error" -> sequenceComponentNotFound.toJson))
+        })
       }
   }
 
