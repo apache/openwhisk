@@ -46,8 +46,7 @@ import whisk.http.PoolingRestClient
 trait ContainerClient {
   def close(): Unit
   def post(endpoint: String, body: JsValue, retry: Boolean)(
-    implicit tid: TransactionId,
-    ec: ExecutionContext): Future[Either[ContainerHttpError, ContainerResponse]]
+    implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]]
 
 }
 
@@ -90,8 +89,7 @@ protected class PoolingContainerClient(
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
   def post(endpoint: String, body: JsValue, retry: Boolean)(
-    implicit tid: TransactionId,
-    ec: ExecutionContext): Future[Either[ContainerHttpError, ContainerResponse]] = {
+    implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
 
     //create the request
     val req = Marshal(body).to[MessageEntity].map { b =>

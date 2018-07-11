@@ -57,7 +57,8 @@ import scala.util.control.NoStackTrace
  * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
 protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
-  implicit logging: Logging)
+  implicit logging: Logging,
+  ec: ExecutionContext)
     extends ContainerClient {
 
   /**
@@ -81,8 +82,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
   def post(endpoint: String, body: JsValue, retry: Boolean)(
-    implicit tid: TransactionId,
-    ec: ExecutionContext): Future[Either[ContainerHttpError, ContainerResponse]] = {
+    implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
 
