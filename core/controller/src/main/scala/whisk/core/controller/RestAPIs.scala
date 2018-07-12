@@ -20,7 +20,7 @@ package whisk.core.controller
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.{HttpRequest, Uri}
+import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.directives.AuthenticationDirective
 import akka.http.scaladsl.server.{Directives, Route}
@@ -194,43 +194,34 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         "swagger_paths" -> JsObject("ui" -> s"/$swaggeruipath".toJson, "api-docs" -> s"/$swaggerdocpath".toJson)))
   }
 
-  def routes(implicit transid: TransactionId, authStore: AuthStore): Route = {
+  def routes(implicit transid: TransactionId): Route = {
     prefix {
-      extractRequest { httpRequest =>
-        sendCorsHeaders {
-          info ~
-            authenticationDirectiveProvider.instance(
-              transid,
-              authStore,
-              httpRequest,
-              actorSystem,
-              materializer,
-              logging) { user =>
-              namespaces.routes(user) ~
-                pathPrefix(Collection.NAMESPACES) {
-                  actions.routes(user) ~
-                    triggers.routes(user) ~
-                    rules.routes(user) ~
-                    activations.routes(user) ~
-                    packages.routes(user)
-                }
-            } ~
-            swaggerRoutes
-        } ~ {
-          // web actions are distinct to separate the cors header
-          // and allow the actions themselves to respond to options
-          authenticationDirectiveProvider.instance(transid, authStore, httpRequest, actorSystem, materializer, logging) {
-            user =>
-              web.routes(user)
-          } ~ {
-            web.routes()
-          } ~
-            options {
-              sendCorsHeaders {
-                complete(OK)
+      sendCorsHeaders {
+        info ~
+          authenticationDirectiveProvider.authenticate(transid, authStore, logging) { user =>
+            namespaces.routes(user) ~
+              pathPrefix(Collection.NAMESPACES) {
+                actions.routes(user) ~
+                  triggers.routes(user) ~
+                  rules.routes(user) ~
+                  activations.routes(user) ~
+                  packages.routes(user)
               }
+          } ~
+          swaggerRoutes
+      } ~ {
+        // web actions are distinct to separate the cors header
+        // and allow the actions themselves to respond to options
+        authenticationDirectiveProvider.authenticate(transid, authStore, logging) { user =>
+          web.routes(user)
+        } ~ {
+          web.routes()
+        } ~
+          options {
+            sendCorsHeaders {
+              complete(OK)
             }
-        }
+          }
       }
     }
   }
@@ -329,10 +320,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 }
 
 trait AuthenticationDirectiveProvider extends Spi {
-  def instance(implicit transid: TransactionId,
-               authStore: AuthStore,
-               httpRequest: HttpRequest,
-               actorSystem: ActorSystem,
-               materializer: ActorMaterializer,
-               logging: Logging): AuthenticationDirective[Identity]
+  def authenticate(implicit transid: TransactionId,
+                   authStore: AuthStore,
+                   logging: Logging): AuthenticationDirective[Identity]
 }
