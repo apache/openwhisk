@@ -132,7 +132,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   .headOption
                   .map(_ =>
                     takePrewarmContainer(r.action)
-                      .map(container => (container, "recreated prewarm"))
+                      .map(container => (container, "recreatedPrewarm"))
                       .getOrElse(createContainer(r.action.limits.memory.megabytes.MB), "recreated")))
           } else None
 
