@@ -353,8 +353,18 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
                                 invoker: InvokerInstanceId): Unit = {
     val aid = response.fold(l => l, r => r.activationId)
 
-    // treat left as success (as it is the result of a message exceeding the bus limit)
-    val isSuccess = response.fold(_ => true, r => !r.response.isWhiskError)
+    val invocationResult = if (forced) {
+      InvocationFinishedResult.Timeout
+    } else {
+      // If the response contains a system error, report that, otherwise report Success
+      // Left generally is considered a Success, since that could be a message not fitting into Kafka
+      val isSystemError = response.fold(_ => false, _.response.isWhiskError)
+      if (isSystemError) {
+        InvocationFinishedResult.SystemError
+      } else {
+        InvocationFinishedResult.Success
+      }
+    }
 
     activations.remove(aid) match {
       case Some(entry) =>
@@ -373,12 +383,12 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
-        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
+        invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
       case None if !forced =>
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
         // for activations that already timed out.
-        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
+        invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
         // the entry has already been removed by an active ack. This part of the code is reached by the timeout.
@@ -446,12 +456,12 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     if (numInvokers > 0) {
       val invoker = invokers(index)
       // If the current invoker is healthy and we can get a slot
-      if (invoker.status == Healthy && dispatched(invoker.id.toInt).tryAcquire()) {
+      if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquire()) {
         Some(invoker.id)
       } else {
         // If we've gone through all invokers
         if (stepsDone == numInvokers + 1) {
-          val healthyInvokers = invokers.filter(_.status == Healthy)
+          val healthyInvokers = invokers.filter(_.status.isUsable)
           if (healthyInvokers.nonEmpty) {
             // Choose a healthy invoker randomly
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id

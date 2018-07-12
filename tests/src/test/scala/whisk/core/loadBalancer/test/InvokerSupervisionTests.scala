@@ -51,13 +51,12 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._
 import whisk.core.loadBalancer.ActivationRequest
 import whisk.core.loadBalancer.GetStatus
-import whisk.core.loadBalancer.Healthy
+import whisk.core.loadBalancer.InvokerState._
+import whisk.core.loadBalancer.InvocationFinishedResult
 import whisk.core.loadBalancer.InvocationFinishedMessage
 import whisk.core.loadBalancer.InvokerActor
 import whisk.core.loadBalancer.InvokerPool
 import whisk.core.loadBalancer.InvokerState
-import whisk.core.loadBalancer.Offline
-import whisk.core.loadBalancer.UnHealthy
 import whisk.core.loadBalancer.InvokerHealth
 import whisk.utils.retry
 import whisk.core.connector.test.TestConnector
@@ -163,7 +162,7 @@ class InvokerSupervisionTests
       allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Healthy))
 
       // Send message and expect receive in invoker
-      val msg = InvocationFinishedMessage(invokerInstance, true)
+      val msg = InvocationFinishedMessage(invokerInstance, InvocationFinishedResult.Success)
       supervisor ! msg
       invoker.expectMsg(msg)
     }
@@ -214,12 +213,12 @@ class InvokerSupervisionTests
 
     within(timeout.duration) {
       pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
-      pool.expectMsg(CurrentState(invoker, UnHealthy))
+      pool.expectMsg(CurrentState(invoker, Unhealthy))
       timeout(invoker)
-      pool.expectMsg(Transition(invoker, UnHealthy, Offline))
+      pool.expectMsg(Transition(invoker, Unhealthy, Offline))
 
       invoker ! PingMessage(InvokerInstanceId(0))
-      pool.expectMsg(Transition(invoker, Offline, UnHealthy))
+      pool.expectMsg(Transition(invoker, Offline, Unhealthy))
     }
   }
 
@@ -230,18 +229,18 @@ class InvokerSupervisionTests
 
     within(timeout.duration) {
       pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
-      pool.expectMsg(CurrentState(invoker, UnHealthy))
+      pool.expectMsg(CurrentState(invoker, Unhealthy))
 
       // Fill buffer with errors
       (1 to InvokerActor.bufferSize).foreach { _ =>
-        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), false)
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.SystemError)
       }
 
       // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
       (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
-        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), true)
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
       }
-      pool.expectMsg(Transition(invoker, UnHealthy, Healthy))
+      pool.expectMsg(Transition(invoker, Unhealthy, Healthy))
     }
   }
 
@@ -253,25 +252,25 @@ class InvokerSupervisionTests
 
     within(timeout.duration) {
       pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
-      pool.expectMsg(CurrentState(invoker, UnHealthy))
+      pool.expectMsg(CurrentState(invoker, Unhealthy))
 
       timeout(invoker)
-      pool.expectMsg(Transition(invoker, UnHealthy, Offline))
+      pool.expectMsg(Transition(invoker, Unhealthy, Offline))
 
       invoker ! PingMessage(InvokerInstanceId(0))
-      pool.expectMsg(Transition(invoker, Offline, UnHealthy))
+      pool.expectMsg(Transition(invoker, Offline, Unhealthy))
     }
   }
 
   it should "start timer to send testactions when unhealthy" in {
     val invoker = TestFSMRef(new InvokerActor(InvokerInstanceId(0), ControllerInstanceId("0")))
-    invoker.stateName shouldBe UnHealthy
+    invoker.stateName shouldBe Unhealthy
 
     invoker.isTimerActive(InvokerActor.timerName) shouldBe true
 
     // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
     (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
-      invoker ! InvocationFinishedMessage(InvokerInstanceId(0), true)
+      invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
     }
     invoker.stateName shouldBe Healthy
 
