@@ -26,12 +26,6 @@ import whisk.core.WhiskConfig
 import whisk.core.entity.{ControllerInstanceId, Subject}
 import whisk.core.loadBalancer.LoadBalancer
 
-private object LocalEntitlementProvider {
-
-  /** Poor mans entitlement matrix. Must persist to datastore eventually. */
-  private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
-}
-
 protected[core] class LocalEntitlementProvider(
   private val config: WhiskConfig,
   private val loadBalancer: LoadBalancer,
@@ -71,4 +65,14 @@ protected[core] class LocalEntitlementProvider(
     lazy val any = matrix.get((subject, resource.parent)) map { _ contains right } getOrElse false
     one || any
   }
+}
+
+private object LocalEntitlementProvider extends EntitlementSpiProvider {
+
+  /** Poor mans entitlement matrix. Must persist to datastore eventually. */
+  private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
+  override def instance(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging) =
+    new LocalEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, instance)
 }

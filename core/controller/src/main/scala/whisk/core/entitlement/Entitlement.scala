@@ -38,6 +38,7 @@ import whisk.http.Messages
 import whisk.http.Messages._
 import whisk.core.connector.MessagingProvider
 import whisk.spi.SpiLoader
+import whisk.spi.Spi
 
 package object types {
   type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -60,6 +61,12 @@ protected[core] case class Resource(namespace: EntityPath,
   def id: String = parent + entity.map(EntityPath.PATHSEP + _).getOrElse("")
   def fqname: String = namespace.asString + entity.map(EntityPath.PATHSEP + _).getOrElse("")
   override def toString: String = id
+}
+
+trait EntitlementSpiProvider extends Spi {
+  def instance(config: WhiskConfig, loadBalancer: LoadBalancer, instance: ControllerInstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging): EntitlementProvider
 }
 
 protected[core] object EntitlementProvider {
