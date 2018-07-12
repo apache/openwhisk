@@ -35,8 +35,7 @@ import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.controller.RestApiCommons
 import whisk.core.controller.WhiskServices
-import whisk.core.database.DocumentFactory
-import whisk.core.database.CacheChangeNotification
+import whisk.core.database.{ActivationStoreProvider, CacheChangeNotification, DocumentFactory}
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -87,7 +86,7 @@ protected trait ControllerTestCommon
 
   val entityStore = WhiskEntityStore.datastore()
   val authStore = WhiskAuthStore.datastore()
-  val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {

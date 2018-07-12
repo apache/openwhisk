@@ -80,7 +80,7 @@ trait LogStore {
 }
 
 trait LogStoreProvider extends Spi {
-  def logStore(actorSystem: ActorSystem): LogStore
+  def instance(actorSystem: ActorSystem): LogStore
 }
 
 /** Indicates reading logs has failed either terminally or truncated logs */

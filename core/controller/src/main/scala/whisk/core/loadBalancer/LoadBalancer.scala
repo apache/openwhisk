@@ -82,10 +82,9 @@ trait LoadBalancer {
 trait LoadBalancerProvider extends Spi {
   def requiredProperties: Map[String, String]
 
-  def loadBalancer(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer
+  def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                         logging: Logging,
+                                                                         materializer: ActorMaterializer): LoadBalancer
 }
 
 /** Exception thrown by the loadbalancer */

@@ -58,7 +58,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
 
   val tid = TransactionId.testing
 
-  def createStore() = DockerToActivationLogStoreProvider.logStore(actorSystem)
+  def createStore() = DockerToActivationLogStoreProvider.instance(actorSystem)
 
   behavior of "DockerLogStore"
 

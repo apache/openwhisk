@@ -84,10 +84,10 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
 }
 
 object KubernetesContainerFactoryProvider extends ContainerFactoryProvider {
-  override def getContainerFactory(actorSystem: ActorSystem,
-                                   logging: Logging,
-                                   config: WhiskConfig,
-                                   instance: InvokerInstanceId,
-                                   parameters: Map[String, Set[String]]): ContainerFactory =
+  override def instance(actorSystem: ActorSystem,
+                        logging: Logging,
+                        config: WhiskConfig,
+                        instance: InvokerInstanceId,
+                        parameters: Map[String, Set[String]]): ContainerFactory =
     new KubernetesContainerFactory(s"invoker${instance.toInt}", config)(actorSystem, actorSystem.dispatcher, logging)
 }

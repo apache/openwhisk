@@ -36,8 +36,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.controller.actions.PostActionActivation
-import whisk.core.database.CacheChangeNotification
-import whisk.core.database.NoDocumentException
+import whisk.core.database.{ActivationStore, CacheChangeNotification, NoDocumentException}
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore

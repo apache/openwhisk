@@ -144,7 +144,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 }
 
 object DockerToActivationFileLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = new DockerToActivationFileLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem): LogStore = new DockerToActivationFileLogStore(actorSystem)
 }
 
 object OwSink {

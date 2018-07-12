@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package whisk.core.entity
+package whisk.core.database
 
 import java.time.Instant
 
@@ -23,7 +23,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
-import whisk.core.database.CacheChangeNotification
+import whisk.core.entity._
 import whisk.spi.Spi
 
 import scala.concurrent.Future

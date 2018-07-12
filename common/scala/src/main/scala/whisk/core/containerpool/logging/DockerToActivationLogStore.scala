@@ -94,5 +94,5 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
 }
 
 object DockerToActivationLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = new DockerToActivationLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem): LogStore = new DockerToActivationLogStore(actorSystem)
 }

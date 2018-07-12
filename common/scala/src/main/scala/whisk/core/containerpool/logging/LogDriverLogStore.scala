@@ -54,5 +54,5 @@ class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
 }
 
 object LogDriverLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem) = new LogDriverLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem) = new LogDriverLogStore(actorSystem)
 }
