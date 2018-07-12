@@ -30,13 +30,13 @@ do
     flake8 "$i" --select=E999,F821 --statistics
     RETURN_CODE=$?
     if [ $RETURN_CODE != 0 ]; then
-        echo 'Flake8 found Python 3 syntax errors above.  See: https://docs.python.org/3/howto/pyporting.html'
+        echo 'Flake8 found Python 3 syntax errors above. See: https://docs.python.org/3/howto/pyporting.html'
         exit $RETURN_CODE
     fi
 done
 
-echo 'Flake8: second round uses the --exit-zero flag to treat _every_ message as a warning...'
+echo 'Flake8: second round to find any other stylistic issues...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --ignore=E --max-line-length=127 --statistics --exit-zero
+    flake8 "$i" --ignore=E --max-line-length=127 --statistics
 done
