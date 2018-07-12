@@ -169,6 +169,7 @@
       "JMX_REMOTE": "{{ jmx.enabled }}"
       "COMPONENT_NAME": "{{ invoker_name }}"
       "PORT": 8080
+      "CONFIG_akka_http_client_parsing_maxChunkSize": "{{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}m"
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
