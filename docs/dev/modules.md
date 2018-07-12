@@ -16,6 +16,10 @@
 # limitations under the License.
 #
 -->
+<!--
+DO NOT EDIT. 
+This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. See tools/dev/README.md for details
+-->
 
 # Modules
 
@@ -60,6 +64,7 @@
 |---	|---	|---    |
 | [incubator-openwhisk-deploy-kube](https://github.com/apache/incubator-openwhisk-deploy-kube) | This project can be used to deploy Apache OpenWhisk to a Kubernetes cluster | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-deploy-kube.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-deploy-kube) |
 | [incubator-openwhisk-deploy-mesos](https://github.com/apache/incubator-openwhisk-deploy-mesos) | Apache OpenWhisk deployment scripts and configuration files for running under Apache Mesos. | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-deploy-mesos.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-deploy-mesos) |
+| [incubator-openwhisk-deploy-openshift](https://github.com/apache/incubator-openwhisk-deploy-openshift) | This project can be used to deploy Apache OpenWhisk to the OpenShift platform | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-deploy-openshift.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-deploy-openshift) |
 
 
 ## Packages
