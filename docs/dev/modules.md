@@ -17,8 +17,8 @@
 #
 -->
 <!--
-DO NOT EDIT. 
-This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. See tools/dev/README.md for details
+DO NOT EDIT.
+This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. See tools/dev/README.md for details.
 -->
 
 # Modules
