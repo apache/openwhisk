@@ -244,7 +244,17 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
           entry.promise.future
         }
       }
-      .getOrElse(Future.failed(LoadBalancerException("No invokers available")))
+      .getOrElse {
+        // report the state of all invokers
+        val actionType = if (!action.exec.pull) "non-blackbox" else "blackbox"
+        val invokerStates = invokersToUse.foldLeft(Map.empty[InvokerState, Int]) { (agg, curr) =>
+          val count = agg.getOrElse(curr.status, 0) + 1
+          agg + (curr.status -> count)
+        }
+
+        logging.error(this, s"failed to schedule $actionType action, invokers to use: $invokerStates")
+        Future.failed(LoadBalancerException("No invokers available"))
+      }
   }
 
   /** 2. Update local state with the to be executed activation */
