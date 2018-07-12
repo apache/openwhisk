@@ -72,6 +72,9 @@ dependencies {
     compile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1'
     compile 'io.zipkin.reporter2:zipkin-reporter:2.6.1'
 
+    compile 'io.reactivex:rxscala_2.11:0.26.5'
+    compile 'io.reactivex:rxjava-reactive-streams:1.2.1'
+    compile 'com.microsoft.azure:azure-cosmosdb:2.0.0'
     scoverage gradle.scoverage.deps
 }
 

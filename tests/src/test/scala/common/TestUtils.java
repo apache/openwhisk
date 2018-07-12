@@ -27,10 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -198,6 +195,19 @@ public class TestUtils {
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
         return sdf.format(date);
+    }
+
+    /**
+     * Determines if the test build is running for main repo and not on any fork or PR
+     */
+    public static boolean isBuildingOnMainRepo(){
+        //Based on https://docs.travis-ci.com/user/environment-variables/#Default-Environment-Variables
+        String repoName = System.getenv("TRAVIS_REPO_SLUG");
+        if (repoName == null) {
+            return false; //Not a travis build
+        } else {
+            return repoName.startsWith("apache/") && "false".equals(System.getenv("TRAVIS_PULL_REQUEST"));
+        }
     }
 
     /**

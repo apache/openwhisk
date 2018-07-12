@@ -27,11 +27,13 @@ import spray.json.{JsObject, JsValue}
 import whisk.common.TransactionId
 import whisk.core.database.memory.MemoryAttachmentStore
 import whisk.core.database.test.DbUtils
+import whisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
 import whisk.core.database.{ArtifactStore, AttachmentStore, StaleParameter}
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.utils.JsHelpers
 
-import scala.util.Random
+import scala.util.{Random, Try}
 
 trait ArtifactStoreBehaviorBase
     extends FlatSpec
@@ -59,6 +61,7 @@ trait ArtifactStoreBehaviorBase
 
   override def afterEach(): Unit = {
     cleanup()
+    stream.reset()
   }
 
   override def afterAll(): Unit = {
@@ -71,6 +74,16 @@ trait ArtifactStoreBehaviorBase
     assertAttachmentStoresAreClosed()
   }
 
+  override protected def withFixture(test: NoArgTest) = {
+    assume(storeAvailable(storeAvailableCheck), s"$storeType not configured or available")
+    val outcome = super.withFixture(test)
+    if (outcome.isFailed) {
+      println(logLines.mkString("\n"))
+    }
+    outcome
+  }
+
+  protected def storeAvailableCheck: Try[Any] = Try(true)
   //~----------------------------------------< utility methods >
 
   protected def query[A <: WhiskEntity](
@@ -148,6 +161,13 @@ trait ArtifactStoreBehaviorBase
     case s: MemoryAttachmentStore => Some(s.attachmentCount)
     case _                        => None
   }
+
+  protected def getAttachmentSizeForTest(store: ArtifactStore[_]): Int = {
+    val mb = getAttachmentStore(store).map(_ => 5.MB).getOrElse(maxAttachmentSizeWithoutAttachmentStore)
+    mb.toBytes.toInt
+  }
+
+  protected def maxAttachmentSizeWithoutAttachmentStore: ByteSize = 5.MB
 
   private def assertAttachmentStoreIsEmpty(): Unit = {
     Seq(authStore, entityStore, activationStore).foreach { s =>

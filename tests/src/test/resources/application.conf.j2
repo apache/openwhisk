@@ -46,6 +46,12 @@ whisk {
         }
     }
 
+    cosmosdb {
+        endpoint = ${?COSMOSDB_ENDPOINT}
+        key      = ${?COSMOSDB_KEY}
+        db       = ${?COSMOSDB_NAME}
+    }
+
     controller {
       protocol = {{ controller.protocol }}
       https {
