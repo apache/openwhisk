@@ -222,7 +222,7 @@ class InvokerSupervisionTests
     }
   }
 
-  // unhealthy -> healthy
+  // unhealthy -> healthy -> unhealthy -> healthy
   it should "goto healthy again, if unhealthy and error buffer has enough successful invocations" in {
     val pool = TestProbe()
     val invoker = pool.system.actorOf(InvokerActor.props(InvokerInstanceId(0), ControllerInstanceId("0")))
@@ -231,16 +231,50 @@ class InvokerSupervisionTests
       pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
       pool.expectMsg(CurrentState(invoker, Unhealthy))
 
+      (1 to InvokerActor.bufferSize).foreach { _ =>
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
+      }
+      pool.expectMsg(Transition(invoker, Unhealthy, Healthy))
+
       // Fill buffer with errors
       (1 to InvokerActor.bufferSize).foreach { _ =>
         invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.SystemError)
       }
+      pool.expectMsg(Transition(invoker, Healthy, Unhealthy))
 
       // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
       (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
         invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
       }
       pool.expectMsg(Transition(invoker, Unhealthy, Healthy))
+    }
+  }
+
+  // unhealthy -> healthy -> overloaded -> healthy
+  it should "goto healthy again, if overloaded and error buffer has enough successful invocations" in {
+    val pool = TestProbe()
+    val invoker = pool.system.actorOf(InvokerActor.props(InvokerInstanceId(0), ControllerInstanceId("0")))
+
+    within(timeout.duration) {
+      pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
+      pool.expectMsg(CurrentState(invoker, Unhealthy))
+
+      (1 to InvokerActor.bufferSize).foreach { _ =>
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
+      }
+      pool.expectMsg(Transition(invoker, Unhealthy, Healthy))
+
+      // Fill buffer with errors
+      (1 to InvokerActor.bufferSize).foreach { _ =>
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Timeout)
+      }
+      pool.expectMsg(Transition(invoker, Healthy, Overloaded))
+
+      // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
+      (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
+        invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
+      }
+      pool.expectMsg(Transition(invoker, Overloaded, Healthy))
     }
   }
 
