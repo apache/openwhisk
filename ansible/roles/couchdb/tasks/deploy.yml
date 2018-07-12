@@ -8,8 +8,8 @@
     coordinator: "{{ groups['db'][0] }}"
 
 - name: check if db credentials are valid for CouchDB
-  fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
-  when: db_provider != "CouchDB"
+  fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db.provider }}, it has to be CouchDB, pls double check"
+  when: db.provider != "CouchDB"
 
 - name: check for persistent disk
   shell: df -h
@@ -34,18 +34,18 @@
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
     ports:
-      - "{{ db_port }}:5984"
+      - "{{ db.port }}:5984"
       - "4369:4369"
       - "9100:9100"
     env:
-      COUCHDB_USER: "{{ db_username }}"
-      COUCHDB_PASSWORD: "{{ db_password }}"
+      COUCHDB_USER: "{{ db.credentials.admin.user }}"
+      COUCHDB_PASSWORD: "{{ db.credentials.admin.pass }}"
       NODENAME: "{{ ansible_host }}"
     pull: "{{ couchdb.pull_couchdb | default(true) }}"
 
 - name: wait until CouchDB in this host is up and running
   uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_utils/"
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_utils/"
   register: result
   until: result.status == 200
   retries: 12
@@ -53,49 +53,49 @@
 
 - name: create '_users' database for singleton mode
   uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_users"
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_users"
     method: PUT
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (couchdb.version|version_compare('2.0','>=')) and (db.instances|int == 1)
 
 - name: enable the cluster setup mode
   uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_cluster_setup"
     method: POST
     body: >
-        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db_username }}", "password":"{{ db_password }}", "port": {{ db_port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db_username }}", "remote_current_password": "{{ db_password }}"}
+        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db.credentials.admin.user }}", "password":"{{ db.credentials.admin.pass }}", "port": {{ db.port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db.credentials.admin.user }}", "remote_current_password": "{{ db.credentials.admin.pass }}"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
 
 - name: add remote nodes to the cluster
   uri:
-    url: "{{ db_protocol }}://{{ coordinator }}:{{ db_port }}/_cluster_setup"
+    url: "{{ db.protocol }}://{{ coordinator }}:{{ db.port }}/_cluster_setup"
     method: POST
     body: >
-        {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db_port }}, "username": "{{ db_username }}", "password":"{{ db_password }}"}
+        {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db.port }}, "username": "{{ db.credentials.admin.user }}", "password":"{{ db.credentials.admin.pass }}"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname != coordinator) and (db.instances|int >= 2)
 
 - name: finish the cluster setup mode
   uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_cluster_setup"
     method: POST
     body: >
         {"action": "finish_cluster"}
     body_format: json
     status_code: 201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2)

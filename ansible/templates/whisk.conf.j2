@@ -2,12 +2,12 @@ include classpath("application.conf")
 
 whisk {
   couchdb {
-    protocol = "{{ db_protocol }}"
-    host     = "{{ db_host }}"
-    port     = "{{ db_port }}"
-    username = "{{ db_username }}"
-    password = "{{ db_password }}"
-    provider = "{{ db_provider }}"
+    protocol = "{{ db.protocol }}"
+    host     = "{{ db.host }}"
+    port     = "{{ db.port }}"
+    username = "{{ db.credentials.admin.user }}"
+    password = "{{ db.credentials.admin.pass }}"
+    provider = "{{ db.provider }}"
     databases {
       WhiskAuth       = "{{ db.whisk.auth }}"
       WhiskEntity     = "{{ db.whisk.actions }}"

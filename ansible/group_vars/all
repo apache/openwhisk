@@ -217,6 +217,10 @@ nginx:
 # The key db.whisk.auth is the name of the authentication database where all keys of all users are stored.
 # The db_prefix is defined for each environment on its own. The CouchDb credentials are also defined for each environment on its own.
 db:
+  provider: "{{ db_provider | default(lookup('ini', 'db_provider section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+  protocol: "{{ db_protocol | default(lookup('ini', 'db_protocol section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+  port: "{{ dp_port | default(lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+  host: "{{ db_host | default(lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
   instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
@@ -225,6 +229,10 @@ db:
     actions: "{{ db_prefix }}whisks"
     activations: "{{ db_prefix }}activations"
     auth: "{{ db_prefix }}subjects"
+  credentials:
+    admin:
+      user: "{{ db_username | default(lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+      pass: "{{ db_password | default(lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
 
 apigateway:
   port:

@@ -19,14 +19,6 @@ whisk_api_localhost_name: "openwhisk"
 # Hardcoded for docker-machine since db init runs on host not inside VM
 db_prefix: whisk_dockermachine_
 
-# Auto lookup to find the db credentials
-db_provider: "{{ lookup('ini', 'db_provider section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-db_username: "{{ lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-db_password: "{{ lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-db_protocol: "{{ lookup('ini', 'db_protocol section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-db_host: "{{ lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
-
 # API GW connection configuration
 apigw_auth_user: ""
 apigw_auth_pwd: ""

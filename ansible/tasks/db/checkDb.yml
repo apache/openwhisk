@@ -4,11 +4,11 @@
 # Checks, that the Database exists
 # dbName - name of the database to check
 
-- name: check if {{ dbName }} with {{ db_provider }} exists
+- name: check if {{ dbName }} with {{ db.provider }} exists
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: HEAD
     status_code: 200
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
