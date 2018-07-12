@@ -199,7 +199,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
       extractRequest { httpRequest =>
         sendCorsHeaders {
           info ~
-            authenticationDirectiveProvider.authenticationDirective(
+            authenticationDirectiveProvider.instance(
               transid,
               authStore,
               httpRequest,
@@ -219,14 +219,9 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         } ~ {
           // web actions are distinct to separate the cors header
           // and allow the actions themselves to respond to options
-          authenticationDirectiveProvider.authenticationDirective(
-            transid,
-            authStore,
-            httpRequest,
-            actorSystem,
-            materializer,
-            logging) { user =>
-            web.routes(user)
+          authenticationDirectiveProvider.instance(transid, authStore, httpRequest, actorSystem, materializer, logging) {
+            user =>
+              web.routes(user)
           } ~ {
             web.routes()
           } ~
@@ -334,10 +329,10 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 }
 
 trait AuthenticationDirectiveProvider extends Spi {
-  def authenticationDirective(implicit transid: TransactionId,
-                              authStore: AuthStore,
-                              httpRequest: HttpRequest,
-                              actorSystem: ActorSystem,
-                              materializer: ActorMaterializer,
-                              logging: Logging): AuthenticationDirective[Identity]
+  def instance(implicit transid: TransactionId,
+               authStore: AuthStore,
+               httpRequest: HttpRequest,
+               actorSystem: ActorSystem,
+               materializer: ActorMaterializer,
+               logging: Logging): AuthenticationDirective[Identity]
 }

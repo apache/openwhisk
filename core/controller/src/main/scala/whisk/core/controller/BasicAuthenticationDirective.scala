@@ -54,11 +54,11 @@ class AuthenticatedRouteBasicAuth(implicit val authStore: AuthStore,
 
 object BasicAuthenticationDirectiveProvider extends AuthenticationDirectiveProvider {
 
-  override def authenticationDirective(implicit transid: TransactionId,
-                                       authStore: AuthStore,
-                                       httpRequest: HttpRequest,
-                                       actorSystem: ActorSystem,
-                                       materializer: ActorMaterializer,
-                                       logging: Logging): AuthenticationDirective[Identity] =
+  override def instance(implicit transid: TransactionId,
+                        authStore: AuthStore,
+                        httpRequest: HttpRequest,
+                        actorSystem: ActorSystem,
+                        materializer: ActorMaterializer,
+                        logging: Logging): AuthenticationDirective[Identity] =
     new AuthenticatedRouteBasicAuth().getDirective
 }
