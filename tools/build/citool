@@ -38,10 +38,10 @@ import time
 import traceback
 import argparse
 if sys.version_info.major >= 3:
-    from http.client import HTTPConnection, HTTPSConnection, IncompleteRead, TEMPORARY_REDIRECT, OK
+    from http.client import HTTPConnection, HTTPSConnection, TEMPORARY_REDIRECT, OK
     from urllib.parse import urlparse
 else:
-    from httplib import HTTPConnection, HTTPSConnection, IncompleteRead, TEMPORARY_REDIRECT, OK
+    from httplib import HTTPConnection, HTTPSConnection, TEMPORARY_REDIRECT, OK
     from urlparse import urlparse
 import re
 import threading
