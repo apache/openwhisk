@@ -24,6 +24,7 @@ include 'tests'
 include 'tests:performance:gatling_tests'
 
 include 'tools:actionProxy'
+include 'tools:dev'
 
 include 'tools:admin'
 

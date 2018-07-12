@@ -112,7 +112,7 @@ interested in:
 
 ### Repository Structure
 
-The OpenWhisk system is built from a number of components.  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
+The OpenWhisk system is built from a [number of components](docs/dev/modules.md).  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
 
 ![component/repo mapping](docs/images/components_to_repos.png)
 
