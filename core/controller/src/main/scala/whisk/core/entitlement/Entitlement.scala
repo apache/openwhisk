@@ -73,8 +73,7 @@ protected[core] object EntitlementProvider {
   val requiredProperties = Map(
     WhiskConfig.actionInvokePerMinuteLimit -> null,
     WhiskConfig.actionInvokeConcurrentLimit -> null,
-    WhiskConfig.triggerFirePerMinuteLimit -> null,
-    WhiskConfig.actionInvokeSystemOverloadLimit -> null)
+    WhiskConfig.triggerFirePerMinuteLimit -> null)
 }
 
 /**
