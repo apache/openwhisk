@@ -23,9 +23,6 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Try
 import kamon.Kamon
-import org.apache.curator.retry.RetryUntilElapsed
-import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.framework.recipes.shared.SharedCount
 import akka.Done
 import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown
@@ -36,7 +33,6 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
-import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InvokerInstanceId
 import whisk.http.{BasicHttpService, BasicRasService}
@@ -127,46 +123,7 @@ object Invoker {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
-        logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHosts}")
-        val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
-        val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHosts, retryPolicy)
-        zkClient.start()
-        zkClient.blockUntilConnected()
-        logger.info(this, "invokerReg: connected to zookeeper")
-
-        val myIdPath = "/invokers/idAssignment/mapping/" + invokerUniqueName
-        val assignedId = Option(zkClient.checkExists().forPath(myIdPath)) match {
-          case None =>
-            // path doesn't exist -> no previous mapping for this invoker
-            logger.info(this, s"invokerReg: no prior assignment of id for invoker $invokerUniqueName")
-            val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
-            idCounter.start()
-
-            def assignId(): Int = {
-              val current = idCounter.getVersionedValue()
-              if (idCounter.trySetCount(current, current.getValue() + 1)) {
-                current.getValue()
-              } else {
-                assignId()
-              }
-            }
-
-            val newId = assignId()
-            idCounter.close()
-            zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
-            logger.info(this, s"invokerReg: invoker ${invokerUniqueName} was assigned invokerId ${newId}")
-            newId
-
-          case Some(_) =>
-            // path already exists -> there is a previous mapping for this invoker we should use
-            val rawOldId = zkClient.getData().forPath(myIdPath)
-            val oldId = BigInt(rawOldId).intValue
-            logger.info(this, s"invokerReg: invoker ${invokerUniqueName} was assigned its previous invokerId ${oldId}")
-            oldId
-        }
-
-        zkClient.close()
-        assignedId
+        new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
