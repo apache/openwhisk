@@ -278,12 +278,12 @@ Components = [
                   'build a runtime action container, matching name using the regex; NOTE: must use --dir for path to runtime directory',
                   yaml = False,
                   gradle = 'core:$1:distDocker'),
-    
-    makeComponent('actionproxy',	
-                  'build action proxy container',	
-                  yaml = False,	
+
+    makeComponent('actionproxy',
+                  'build action proxy container',
+                  yaml = False,
                   gradle = 'tools:actionProxy'),
-    
+
     # required for tests
     makeComponent('props',
                   'build whisk.properties file (required for tests)',
