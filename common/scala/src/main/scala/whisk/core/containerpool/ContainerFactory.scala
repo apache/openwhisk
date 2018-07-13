@@ -75,7 +75,7 @@ object ContainerFactory {
 
   /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
   def containerNamePrefix(instanceId: InvokerInstanceId): String =
-    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
+    s"wsk${instanceId.uniqueName.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
 }
 
 /**
