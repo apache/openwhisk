@@ -45,7 +45,7 @@ import whisk.core.entity.size._
  * Unit tests for HttpUtils which communicate with containers.
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerClientTests
+class PoolingContainerClientTests
     extends FlatSpec
     with Matchers
     with BeforeAndAfter

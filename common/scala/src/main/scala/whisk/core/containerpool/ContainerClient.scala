@@ -24,8 +24,12 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.MessageEntity
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -93,6 +97,7 @@ protected class PoolingContainerClient(
 
     //create the request
     val req = Marshal(body).to[MessageEntity].map { b =>
+      //DO NOT reuse the connection (in case of paused containers)
       //For details on Connection: Close handling, see:
       // - https://doc.akka.io/docs/akka-http/current/common/http-model.html#http-headers
       // - http://github.com/akka/akka-http/tree/v10.1.3/akka-http-core/src/test/scala/akka/http/impl/engine/rendering/ResponseRendererSpec.scala#L470-L571
@@ -137,24 +142,53 @@ protected class PoolingContainerClient(
     //End retry handling
 
     //map the HttpResponse to ContainerResponse
-    promise.future
+    val r = promise.future
       .flatMap({ response =>
-        if (response.status.isSuccess()) {
-          Unmarshal(response.entity.withoutSizeLimit()).to[JsObject].map { o =>
-            Right(ContainerResponse(true, o.toString))
+        val contentLength = response.entity.contentLengthOption.getOrElse(0l)
+        if (contentLength <= maxResponse.toBytes) {
+          Unmarshal(response.entity.withSizeLimit(maxResponse.toBytes)).to[String].map { o =>
+            //handle all 20x responses as "OK", everything else gets the actual status value
+            if (response.status == StatusCodes.NoContent) {
+
+              Left(NoResponseReceived())
+            } else {
+              Right(ContainerResponse(response.status.intValue, o, None))
+            }
           }
         } else {
-          // This is important, as it drains the entity stream.
-          // Otherwise the connection stays open and the pool dries up.
-          Unmarshal(response.entity.withoutSizeLimit()).to[JsObject].map { o =>
-            Right(new ContainerResponse(response.status.intValue(), o.toString(), None))
+          truncated(response.entity.dataBytes).map { s =>
+            Right(ContainerResponse(response.status.intValue, s, Some(contentLength.B, maxResponse)))
           }
-
         }
-      })
-  }
 
+      })
+      .recover {
+        case t: TimeoutException => Left(Timeout(t))
+        case t: Throwable        => Left(ConnectionError(t))
+      }
+    r
+  }
+  private def truncated(responseBytes: Source[ByteString, _],
+                        previouslyCaptured: ByteString = ByteString.empty): Future[String] = {
+    responseBytes.prefixAndTail(1).runWith(Sink.head).flatMap {
+      case (Nil, tail) =>
+        //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
+        tail.runWith(Sink.ignore)
+        Future.successful(previouslyCaptured.utf8String)
+      case (Seq(prefix), tail) =>
+        val truncatedResponse = previouslyCaptured ++ prefix
+        if (truncatedResponse.size < maxResponse.toBytes) {
+          truncated(tail, truncatedResponse)
+        } else {
+          //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
+          tail.runWith(Sink.ignore)
+          //captured string MAY be larger than the max response, so take only maxResponse bytes to get the exact length
+          Future.successful(truncatedResponse.take(maxResponse.toBytes.toInt).utf8String)
+        }
+    }
+  }
 }
+
 // Used internally to wrap all exceptions for which the request can be retried
 private case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
 
