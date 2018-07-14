@@ -147,9 +147,8 @@ protected class PoolingContainerClient(
         val contentLength = response.entity.contentLengthOption.getOrElse(0l)
         if (contentLength <= maxResponse.toBytes) {
           Unmarshal(response.entity.withSizeLimit(maxResponse.toBytes)).to[String].map { o =>
-            //handle all 20x responses as "OK", everything else gets the actual status value
+            //handle 204 as NoResponseReceived for parity with HttpUtils client
             if (response.status == StatusCodes.NoContent) {
-
               Left(NoResponseReceived())
             } else {
               Right(ContainerResponse(response.status.intValue, o, None))
