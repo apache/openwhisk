@@ -25,9 +25,10 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.{Flow, _}
+import org.squbs.streams.TimeoutBidiFlowUnordered
 import spray.json._
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -50,6 +51,7 @@ class PoolingRestClient(
   protected implicit val context: ExecutionContext = system.dispatcher
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
+  val timeout = TimeoutBidiFlowUnordered[HttpRequest, Try[HttpResponse], Promise[HttpResponse]](5.seconds)
   // Creates or retrieves a connection pool for the host.
   private val pool = if (protocol == "http") {
     Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port)
@@ -57,15 +59,19 @@ class PoolingRestClient(
     Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port)
   }
 
-  // Additional queue in case all connections are busy. Should hardly ever be
-  // filled in practice but can be useful, e.g., in tests starting many
-  // asynchronous requests in a very short period of time.
   private val requestQueue = Source
     .queue(queueSize, OverflowStrategy.dropNew)
-    .via(httpFlow.getOrElse(pool))
+    .via(timeout.join(pool))
     .toMat(Sink.foreach({
-      case ((Success(response), p)) => p.success(response)
-      case ((Failure(error), p))    => p.failure(error)
+      //case (a, b) =>
+      case (Success(Success(response)), p) =>
+        p.success(response)
+      case (Success(Failure(response)), p) =>
+        //non-timeout failure
+        p.failure(response)
+      case (Failure(error), p) =>
+        //timeout failure
+        p.failure(error)
     }))(Keep.left)
     .run
 

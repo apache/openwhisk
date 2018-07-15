@@ -114,10 +114,6 @@ protected class PoolingContainerClient(
 
     val promise = Promise[HttpResponse]
 
-    // Timeout includes all retries.
-    as.scheduler.scheduleOnce(timeout) {
-      promise.tryFailure(new TimeoutException(s"Request to ${endpoint} could not be completed in time."))
-    }
     def tryOnce(): Unit =
       if (!promise.isCompleted) {
         val res = request(req)
@@ -142,7 +138,7 @@ protected class PoolingContainerClient(
     //End retry handling
 
     //map the HttpResponse to ContainerResponse
-    val r = promise.future
+    promise.future
       .flatMap({ response =>
         val contentLength = response.entity.contentLengthOption.getOrElse(0l)
         if (contentLength <= maxResponse.toBytes) {
@@ -165,7 +161,6 @@ protected class PoolingContainerClient(
         case t: TimeoutException => Left(Timeout(t))
         case t: Throwable        => Left(ConnectionError(t))
       }
-    r
   }
   private def truncated(responseBytes: Source[ByteString, _],
                         previouslyCaptured: ByteString = ByteString.empty): Future[String] = {
