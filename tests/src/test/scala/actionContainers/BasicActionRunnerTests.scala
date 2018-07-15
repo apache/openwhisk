@@ -239,7 +239,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       case (o, e) =>
         o should include("hello stdout")
         // some languages may not support printing to stderr
-        if (config.enforceEmptyErrorStream) e should include("hello stderr")
+        if (!config.skipTest) e should include("hello stderr")
     }, argss.length)
   }
 
