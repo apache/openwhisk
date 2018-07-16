@@ -462,7 +462,9 @@ trait WhiskWebActionsApi
    */
   protected def getAction(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    WhiskActionMetaData.get(entityStore, actionName.toDocId)
+    WhiskAction.resolveAction(entityStore, actionName) flatMap { resolvedAction =>
+      WhiskActionMetaData.get(entityStore, resolvedAction.toDocId)
+    }
   }
 
   /**
