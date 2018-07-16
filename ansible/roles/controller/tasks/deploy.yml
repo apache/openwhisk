@@ -233,6 +233,7 @@
         "{{ controller.loadbalancer.spi }}"
       "CONFIG_whisk_spi_EntitlementSpiProvider": "{{ controller.entitlement.spi }}"
 
+      "CONFIG_whisk_spi_AuthenticationDirectiveProvider": "{{ controller.authentication.spi }}"
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"

@@ -17,35 +17,23 @@
 
 package whisk.core.controller
 
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.directives.{AuthenticationDirective, AuthenticationResult}
+import whisk.common.{Logging, TransactionId}
+import whisk.core.database.NoDocumentException
+import whisk.core.entity._
+import whisk.core.entity.types.AuthStore
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.database.NoDocumentException
-import whisk.core.entity.types.AuthStore
-import whisk.core.entity.BasicAuthenticationAuthKey
-import whisk.core.entity.Identity
-import whisk.core.entity.Secret
-import whisk.core.entity.UUID
+object BasicAuthenticationDirective extends AuthenticationDirectiveProvider {
 
-trait Authenticate {
-  protected implicit val executionContext: ExecutionContext
-  protected implicit val logging: Logging
-
-  /** Database service to lookup credentials */
-  protected val authStore: AuthStore
-
-  /**
-   * Validates credentials against the authentication database; may be used in
-   * authentication directive.
-   */
-  def validateCredentials(credentials: Option[BasicHttpCredentials])(
-    implicit transid: TransactionId): Future[Option[Identity]] = {
+  def validateCredentials(credentials: Option[BasicHttpCredentials])(implicit transid: TransactionId,
+                                                                     ec: ExecutionContext,
+                                                                     logging: Logging,
+                                                                     authStore: AuthStore): Future[Option[Identity]] = {
     credentials flatMap { pw =>
       Try {
         // authkey deserialization is wrapped in a try to guard against malformed values
@@ -70,6 +58,26 @@ trait Authenticate {
     } getOrElse {
       credentials.foreach(_ => logging.debug(this, s"credentials are malformed"))
       Future.successful(None)
+    }
+  }
+
+  /** Creates HTTP BasicAuth handler */
+  def basicAuth[A](verify: Option[BasicHttpCredentials] => Future[Option[A]]): AuthenticationDirective[A] = {
+    extractExecutionContext.flatMap { implicit ec =>
+      authenticateOrRejectWithChallenge[BasicHttpCredentials, A] { creds =>
+        verify(creds).map {
+          case Some(t) => AuthenticationResult.success(t)
+          case None    => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
+        }
+      }
+    }
+  }
+
+  def authenticate(implicit transid: TransactionId,
+                   authStore: AuthStore,
+                   logging: Logging): AuthenticationDirective[Identity] = {
+    extractExecutionContext.flatMap { implicit ec =>
+      basicAuth(validateCredentials)
     }
   }
 }

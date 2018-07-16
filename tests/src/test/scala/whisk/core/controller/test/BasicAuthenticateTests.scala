@@ -24,7 +24,7 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 
-import whisk.core.controller.Authenticate
+import whisk.core.controller.BasicAuthenticationDirective
 import whisk.core.entity._
 import whisk.core.entitlement.Privilege
 
@@ -41,7 +41,7 @@ import whisk.core.entitlement.Privilege
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
 @RunWith(classOf[JUnitRunner])
-class AuthenticateTests extends ControllerTestCommon with Authenticate {
+class BasicAuthenticateTests extends ControllerTestCommon {
   behavior of "Authenticate"
 
   it should "authorize a known user using different namespaces and cache key, and reject invalid secret" in {
@@ -66,7 +66,10 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
       withClue(s"Trying to login to $ns") {
         waitOnView(authStore, ns.authkey, 1) // wait for the view to be updated
         val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
-        val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+        val user = Await.result(
+          BasicAuthenticationDirective
+            .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+          dbOpTimeout)
         user.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
 
         // first lookup should have been from datastore
@@ -74,7 +77,10 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         stream.reset()
 
         // repeat query, now should be served from cache
-        val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+        val cachedUser = Await.result(
+          BasicAuthenticationDirective
+            .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+          dbOpTimeout)
         cachedUser.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
 
         stream.toString should include(s"serving from cache: ${CacheKey(ns.authkey)}")
@@ -87,7 +93,10 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     val key = ns.authkey.key.asString
     Seq(key.drop(1), key.dropRight(1), key + "x", BasicAuthenticationAuthKey().key.asString).foreach { k =>
       val pass = BasicHttpCredentials(ns.authkey.uuid.asString, k)
-      val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+      val user = Await.result(
+        BasicAuthenticationDirective
+          .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+        dbOpTimeout)
       user shouldBe empty
     }
   }
@@ -96,7 +105,9 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
     val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
-    val user = Await.result(validateCredentials(pass), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective.validateCredentials(pass)(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
     stream.toString should not include pass.get.password
   }
@@ -105,34 +116,47 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     implicit val tid = transid()
     val creds = WhiskAuthHelpers.newIdentity()
     val pass = creds.authkey.getCredentials.asInstanceOf[Option[BasicHttpCredentials]]
-    val user = Await.result(validateCredentials(pass), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective.validateCredentials(pass)(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
   }
 
   it should "not authorize when no user creds are provided" in {
     implicit val tid = transid()
-    val user = Await.result(validateCredentials(None), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective.validateCredentials(None)(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
   }
 
   it should "not authorize when malformed user is provided" in {
     implicit val tid = transid()
     val pass = BasicHttpCredentials("x", Secret().asString)
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective
+        .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
   }
 
   it should "not authorize when malformed secret is provided" in {
     implicit val tid = transid()
     val pass = BasicHttpCredentials(UUID().asString, "x")
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective
+        .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
   }
 
   it should "not authorize when malformed creds are provided" in {
     implicit val tid = transid()
     val pass = BasicHttpCredentials("x", "y")
-    val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+    val user = Await.result(
+      BasicAuthenticationDirective
+        .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
+      dbOpTimeout)
     user should be(None)
   }
 }
