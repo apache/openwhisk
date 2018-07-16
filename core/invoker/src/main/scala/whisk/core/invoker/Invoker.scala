@@ -27,6 +27,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigValueFactory
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.core.WhiskConfig
@@ -55,8 +56,6 @@ object Invoker {
       wskApiHost
 
   def main(args: Array[String]): Unit = {
-    Kamon.start()
-
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
@@ -125,6 +124,14 @@ object Invoker {
 
         new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
+
+    // Replace the hostname of the invoker to the assigned id of the invoker.
+    val newKamonConfig = Kamon.config
+      .withValue(
+        "kamon.statsd.simple-metric-key-generator.hostname-override",
+        ConfigValueFactory.fromAnyRef(s"invoker$assignedInvokerId"))
+    Kamon.start(newKamonConfig)
+
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
     val invokerDisplayedName = cmdLineArgs.displayedName
