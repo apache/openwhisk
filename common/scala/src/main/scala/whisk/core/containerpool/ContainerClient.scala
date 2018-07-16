@@ -75,7 +75,7 @@ protected class PoolingContainerClient(
   maxResponse: ByteSize,
   queueSize: Int,
   retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
-    extends PoolingRestClient("http", hostname, port, queueSize)
+    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
     with ContainerClient {
 
   def close() = shutdown()
@@ -108,7 +108,6 @@ protected class PoolingContainerClient(
 
     //Handle retries by:
     // - tracking request as a promise
-    // - attaching a timeout to fail the promise
     // - create a function to enqueue the request
     // - retry (using same function) on StreamTcpException (only if retry == true)
 
