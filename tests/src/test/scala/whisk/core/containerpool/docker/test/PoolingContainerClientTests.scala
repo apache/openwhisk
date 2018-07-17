@@ -17,6 +17,7 @@
 
 package whisk.core.containerpool.docker.test
 
+import akka.stream.StreamTcpException
 import common.StreamLogging
 import common.WskActorSystem
 import java.nio.charset.StandardCharsets
@@ -114,6 +115,21 @@ class PoolingContainerClientTests
     testStatusCode = 204
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
+  }
+
+  it should "retry till timeout on HttpHostConnectException" in {
+    val timeout = 5.seconds
+    val connection = new PoolingContainerClient("0.0.0.0", 12345, timeout, 1.B, 100)
+    val start = Instant.now()
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val end = Instant.now()
+    val waited = end.toEpochMilli - start.toEpochMilli
+    result should be('left)
+    result.left.get shouldBe a[Timeout]
+    result.left.get.asInstanceOf[Timeout].t shouldBe a[StreamTcpException]
+
+    waited should be > timeout.toMillis
+    waited should be < (timeout * 2).toMillis
   }
 
   it should "not truncate responses within limit" in {

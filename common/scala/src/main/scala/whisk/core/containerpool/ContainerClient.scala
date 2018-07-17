@@ -27,6 +27,7 @@ import akka.http.scaladsl.model.MessageEntity
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.StreamTcpException
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -37,7 +38,6 @@ import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Try
-import scala.util.control.NoStackTrace
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -113,7 +113,7 @@ protected class PoolingContainerClient(
 
     val promise = Promise[HttpResponse]
 
-    def tryOnce(): Unit =
+    def tryOnce(timeout: FiniteDuration): Unit =
       if (!promise.isCompleted) {
         val res = request(req)
         res.onSuccess {
@@ -123,17 +123,24 @@ protected class PoolingContainerClient(
         }
 
         res.onFailure {
-          case _: akka.stream.StreamTcpException if retry =>
+          case t: akka.stream.StreamTcpException if retry =>
             // TCP error (e.g. connection couldn't be opened)
             // Note: this is REQUIRED since the container may start, but ports are not listening before requests are made.
-            as.scheduler.scheduleOnce(retryInterval) { tryOnce() }
+            val newTimeout = timeout - retryInterval
+            if (newTimeout > Duration.Zero) {
+              //execute(request, newTimeout, maxConcurrent, retry = true)
+              as.scheduler.scheduleOnce(retryInterval) { tryOnce(newTimeout) }
+            } else {
+              logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
+              promise.tryFailure(t)
+            }
           case t: Throwable =>
             // Other error. We fail the promise.
             promise.tryFailure(t)
         }
       }
 
-    tryOnce()
+    tryOnce(timeout)
     //End retry handling
 
     //map the HttpResponse to ContainerResponse
@@ -157,8 +164,9 @@ protected class PoolingContainerClient(
 
       })
       .recover {
-        case t: TimeoutException => Left(Timeout(t))
-        case t: Throwable        => Left(ConnectionError(t))
+        case t: StreamTcpException => Left(Timeout(t))
+        case t: TimeoutException   => Left(Timeout(t))
+        case t: Throwable          => Left(ConnectionError(t))
       }
   }
   private def truncated(responseBytes: Source[ByteString, _],
@@ -181,9 +189,6 @@ protected class PoolingContainerClient(
     }
   }
 }
-
-// Used internally to wrap all exceptions for which the request can be retried
-private case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
 
 object PoolingContainerClient {
 

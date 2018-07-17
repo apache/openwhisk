@@ -43,6 +43,9 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
+// Used internally to wrap all exceptions for which the request can be retried
+protected[containerpool] case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
+
 /**
  * This HTTP client is used only in the invoker to communicate with the action container.
  * It allows to POST a JSON object and receive JSON object back; that is the
@@ -92,9 +95,6 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
 
     Future { execute(request, timeout, maxConcurrent, retry) }
   }
-
-  // Used internally to wrap all exceptions for which the request can be retried
-  private case class RetryableConnectionError(t: Throwable) extends Exception(t) with NoStackTrace
 
   // Annotation will make the compiler complain if no tail recursion is possible
   @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, maxConcurrent: Int, retry: Boolean)(
