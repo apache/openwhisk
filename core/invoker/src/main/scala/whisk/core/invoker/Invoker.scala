@@ -118,7 +118,7 @@ object Invoker {
         new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
 
-    MetricSupport.initKamon(s"invoker$assignedInvokerId")
+    MetricSupport.init(s"invoker$assignedInvokerId")
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId

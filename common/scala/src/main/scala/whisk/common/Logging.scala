@@ -211,7 +211,7 @@ object LogMarkerToken {
 }
 
 object MetricSupport {
-  def initKamon(instanceName: String): Unit = {
+  def init(instanceName: String): Unit = {
     // Replace the hostname of the invoker to the assigned id of the invoker.
     val newKamonConfig = Kamon.config
       .withValue(
