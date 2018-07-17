@@ -117,7 +117,7 @@ class PoolingContainerClientTests
     result shouldBe Left(NoResponseReceived())
   }
 
-  it should "retry till timeout on HttpHostConnectException" in {
+  it should "retry till timeout on StreamTcpException" in {
     val timeout = 5.seconds
     val connection = new PoolingContainerClient("0.0.0.0", 12345, timeout, 1.B, 100)
     val start = Instant.now()

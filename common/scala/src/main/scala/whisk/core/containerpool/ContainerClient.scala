@@ -34,7 +34,6 @@ import akka.util.ByteString
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Try
@@ -76,7 +75,8 @@ protected class PoolingContainerClient(
   queueSize: Int,
   retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
     extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
-    with ContainerClient {
+    with ContainerClient
+    with AutoCloseable {
 
   def close() = shutdown()
 
@@ -104,64 +104,23 @@ protected class PoolingContainerClient(
       HttpRequest(HttpMethods.POST, endpoint, entity = b).withHeaders(Connection("close"))
     }
 
-    //Begin retry handling
-
-    //Handle retries by:
-    // - tracking request as a promise
-    // - create a function to enqueue the request
-    // - retry (using same function) on StreamTcpException (only if retry == true)
-
-    val promise = Promise[HttpResponse]
-
-    def tryOnce(timeout: FiniteDuration): Unit =
-      if (!promise.isCompleted) {
-        val res = request(req)
-        res.onSuccess {
-          //todo: handle retries for non-200 status codes
-          case r =>
-            promise.trySuccess(r)
-        }
-
-        res.onFailure {
-          case t: akka.stream.StreamTcpException if retry =>
-            // TCP error (e.g. connection couldn't be opened)
-            // Note: this is REQUIRED since the container may start, but ports are not listening before requests are made.
-            val newTimeout = timeout - retryInterval
-            if (newTimeout > Duration.Zero) {
-              //execute(request, newTimeout, maxConcurrent, retry = true)
-              as.scheduler.scheduleOnce(retryInterval) { tryOnce(newTimeout) }
+    retryingRequest(req, timeout, retry)
+      .flatMap(response =>
+        response.entity.contentLengthOption match {
+          case Some(contentLength) if response.status != StatusCodes.NoContent =>
+            if (contentLength <= maxResponse.toBytes) {
+              Unmarshal(response.entity.withSizeLimit(maxResponse.toBytes)).to[String].map { o =>
+                Right(ContainerResponse(response.status.intValue, o, None))
+              }
             } else {
-              logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
-              promise.tryFailure(t)
+              truncated(response.entity.dataBytes).map { s =>
+                Right(ContainerResponse(response.status.intValue, s, Some(contentLength.B, maxResponse)))
+              }
             }
-          case t: Throwable =>
-            // Other error. We fail the promise.
-            promise.tryFailure(t)
-        }
-      }
-
-    tryOnce(timeout)
-    //End retry handling
-
-    //map the HttpResponse to ContainerResponse
-    promise.future
-      .flatMap({ response =>
-        val contentLength = response.entity.contentLengthOption.getOrElse(0l)
-        if (contentLength <= maxResponse.toBytes) {
-          Unmarshal(response.entity.withSizeLimit(maxResponse.toBytes)).to[String].map { o =>
-            //handle 204 as NoResponseReceived for parity with HttpUtils client
-            if (response.status == StatusCodes.NoContent) {
-              Left(NoResponseReceived())
-            } else {
-              Right(ContainerResponse(response.status.intValue, o, None))
-            }
-          }
-        } else {
-          truncated(response.entity.dataBytes).map { s =>
-            Right(ContainerResponse(response.status.intValue, s, Some(contentLength.B, maxResponse)))
-          }
-        }
-
+          case _ =>
+            //handle missing Content-Length as NoResponseReceived
+            //also handle 204 as NoResponseReceived, for parity with HttpUtils client
+            Future { Left(NoResponseReceived()) }
       })
       .recover {
         case t: StreamTcpException => Left(Timeout(t))
@@ -169,22 +128,36 @@ protected class PoolingContainerClient(
         case t: Throwable          => Left(ConnectionError(t))
       }
   }
+  private def retryingRequest(req: Future[HttpRequest],
+                              timeout: FiniteDuration,
+                              retry: Boolean): Future[HttpResponse] = {
+    request(req).recoverWith {
+      case t: akka.stream.StreamTcpException if retry =>
+        val newTimeout = timeout - retryInterval
+        if (newTimeout > Duration.Zero) {
+          akka.pattern.after(retryInterval, as.scheduler)(retryingRequest(req, newTimeout, retry))
+        } else {
+          logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
+          Future.failed(t)
+        }
+      case t => Future.failed(t)
+    }
+  }
+
   private def truncated(responseBytes: Source[ByteString, _],
                         previouslyCaptured: ByteString = ByteString.empty): Future[String] = {
     responseBytes.prefixAndTail(1).runWith(Sink.head).flatMap {
       case (Nil, tail) =>
         //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
-        tail.runWith(Sink.ignore)
-        Future.successful(previouslyCaptured.utf8String)
+        tail.runWith(Sink.ignore).map(_ => previouslyCaptured.utf8String)
       case (Seq(prefix), tail) =>
         val truncatedResponse = previouslyCaptured ++ prefix
         if (truncatedResponse.size < maxResponse.toBytes) {
           truncated(tail, truncatedResponse)
         } else {
           //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
-          tail.runWith(Sink.ignore)
           //captured string MAY be larger than the max response, so take only maxResponse bytes to get the exact length
-          Future.successful(truncatedResponse.take(maxResponse.toBytes.toInt).utf8String)
+          tail.runWith(Sink.ignore).map(_ => truncatedResponse.take(maxResponse.toBytes.toInt).utf8String)
         }
     }
   }
