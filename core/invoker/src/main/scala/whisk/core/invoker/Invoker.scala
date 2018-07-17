@@ -17,29 +17,22 @@
 
 package whisk.core.invoker
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Try
-import kamon.Kamon
 import akka.Done
-import akka.actor.ActorSystem
-import akka.actor.CoordinatedShutdown
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigValueFactory
-import whisk.common.AkkaLogging
-import whisk.common.Scheduler
+import kamon.Kamon
+import whisk.common.{AkkaLogging, MetricEmitter, Scheduler, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.MessagingProvider
-import whisk.core.connector.PingMessage
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InvokerInstanceId
+import whisk.core.connector.{MessagingProvider, PingMessage}
+import whisk.core.entity.{ExecManifest, InvokerInstanceId}
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
-import whisk.common.TransactionId
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.util.{Failure, Try}
 
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
 
@@ -125,12 +118,7 @@ object Invoker {
         new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
 
-    // Replace the hostname of the invoker to the assigned id of the invoker.
-    val newKamonConfig = Kamon.config
-      .withValue(
-        "kamon.statsd.simple-metric-key-generator.hostname-override",
-        ConfigValueFactory.fromAnyRef(s"invoker$assignedInvokerId"))
-    Kamon.start(newKamonConfig)
+    MetricEmitter.initKamon(s"invoker$assignedInvokerId")
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId

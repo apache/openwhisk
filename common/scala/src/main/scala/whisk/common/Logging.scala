@@ -18,10 +18,12 @@
 package whisk.common
 
 import java.io.PrintStream
-import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.time.{Clock, Instant, ZoneId}
+
 import akka.event.Logging._
 import akka.event.LoggingAdapter
+import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import whisk.core.entity.ControllerInstanceId
 
@@ -211,6 +213,15 @@ object LogMarkerToken {
 object MetricEmitter {
 
   val metrics = Kamon.metrics
+
+  def initKamon(instanceName: String): Unit = {
+    // Replace the hostname of the invoker to the assigned id of the invoker.
+    val newKamonConfig = Kamon.config
+      .withValue(
+        "kamon.statsd.simple-metric-key-generator.hostname-override",
+        ConfigValueFactory.fromAnyRef(instanceName))
+    Kamon.start(newKamonConfig)
+  }
 
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
