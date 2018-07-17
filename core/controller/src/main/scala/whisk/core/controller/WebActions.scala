@@ -50,6 +50,7 @@ import RestApiCommons.{jsonPrettyResponsePrinter => jsonPrettyPrinter}
 import whisk.common.TransactionId
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerException
@@ -462,8 +463,8 @@ trait WhiskWebActionsApi
    */
   protected def getAction(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    WhiskAction.resolveAction(entityStore, actionName) flatMap { resolvedAction =>
-      WhiskActionMetaData.get(entityStore, resolvedAction.toDocId)
+    WhiskActionMetaData.resolveAction(entityStore, actionName) flatMap { resolvedName =>
+      WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
     }
   }
 
@@ -562,8 +563,13 @@ trait WhiskWebActionsApi
         if (a.namespace.defaultPackage) {
           Future.successful(a)
         } else {
-          pkgLookup(a.namespace.toFullyQualifiedEntityName) map { pkg =>
-            (a.inherit(pkg.parameters))
+          // if action is not in default package and not exported, then check entitlement
+          val resource = Resource(a.namespace.root.toPath, Collection(Collection.PACKAGES), Some(a.namespace.last.toString))
+          entitlementProvider
+            .check(actionOwnerIdentity, Privilege.READ, resource) flatMap { _ =>
+            pkgLookup(a.namespace.toFullyQualifiedEntityName) map { pkg =>
+              (a.inherit(pkg.parameters))
+            }
           }
         }
       }
