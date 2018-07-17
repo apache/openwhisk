@@ -35,9 +35,13 @@ import org.scalatest.Matchers
 import spray.json.JsObject
 import common.StreamLogging
 import common.WskActorSystem
+import org.apache.http.HttpHost
+import org.apache.http.conn.HttpHostConnectException
 import scala.concurrent.Await
 import whisk.common.TransactionId
 import whisk.core.containerpool.HttpUtils
+import whisk.core.containerpool.RetryableConnectionError
+import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.core.entity.ActivationResponse._
 
@@ -114,6 +118,27 @@ class ContainerConnectionTests
     testStatusCode = 204
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
+  }
+
+  it should "retry till timeout on HttpHostConnectException" in {
+    val timeout = 5.seconds
+    val badHostAndPort = "0.0.0.0:12345"
+    val connection = new HttpUtils(badHostAndPort, timeout, 1.B)
+    testStatusCode = 204
+    val start = Instant.now()
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val end = Instant.now()
+    val waited = end.toEpochMilli - start.toEpochMilli
+    result should be('left)
+    result.left.get shouldBe a[Timeout]
+    result.left.get.asInstanceOf[Timeout].t shouldBe a[RetryableConnectionError]
+    result.left.get
+      .asInstanceOf[Timeout]
+      .t
+      .asInstanceOf[RetryableConnectionError]
+      .t shouldBe a[HttpHostConnectException]
+    waited should be > timeout.toMillis
+    waited should be < (timeout * 2).toMillis
   }
 
   it should "not truncate responses within limit" in {
