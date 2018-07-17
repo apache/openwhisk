@@ -37,6 +37,7 @@ import scala.concurrent.Future
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Try
+import scala.util.control.NonFatal
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -125,7 +126,7 @@ protected class PoolingContainerClient(
       .recover {
         case t: StreamTcpException => Left(Timeout(t))
         case t: TimeoutException   => Left(Timeout(t))
-        case t: Throwable          => Left(ConnectionError(t))
+        case NonFatal(t)           => Left(ConnectionError(t))
       }
   }
   private def retryingRequest(req: Future[HttpRequest],
