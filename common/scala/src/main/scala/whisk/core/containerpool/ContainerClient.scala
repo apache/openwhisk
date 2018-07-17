@@ -106,7 +106,11 @@ protected class PoolingContainerClient(
     }
 
     retryingRequest(req, timeout, retry)
-      .flatMap(response =>
+      .flatMap(r => {
+        if (r._2 > 0) {
+          logging.info(this, s"completed after ${r._2} retries")
+        }
+        val response = r._1
         response.entity.contentLengthOption match {
           case Some(contentLength) if response.status != StatusCodes.NoContent =>
             if (contentLength <= maxResponse.toBytes) {
@@ -122,6 +126,7 @@ protected class PoolingContainerClient(
             //handle missing Content-Length as NoResponseReceived
             //also handle 204 as NoResponseReceived, for parity with HttpUtils client
             Future { Left(NoResponseReceived()) }
+        }
       })
       .recover {
         case t: StreamTcpException => Left(Timeout(t))
@@ -129,20 +134,25 @@ protected class PoolingContainerClient(
         case NonFatal(t)           => Left(ConnectionError(t))
       }
   }
+  //returns a Future HttpResponse -> Int (where Int is the retryCount)
   private def retryingRequest(req: Future[HttpRequest],
                               timeout: FiniteDuration,
-                              retry: Boolean): Future[HttpResponse] = {
-    request(req).recoverWith {
-      case t: akka.stream.StreamTcpException if retry =>
-        val newTimeout = timeout - retryInterval
-        if (newTimeout > Duration.Zero) {
-          akka.pattern.after(retryInterval, as.scheduler)(retryingRequest(req, newTimeout, retry))
-        } else {
-          logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
-          Future.failed(t)
-        }
-      case t => Future.failed(t)
-    }
+                              retry: Boolean,
+                              retryCount: Int = 0): Future[(HttpResponse, Int)] = {
+    request(req)
+      .map((_, retryCount))
+      .recoverWith {
+        case t: akka.stream.StreamTcpException if retry =>
+          val newTimeout = timeout - retryInterval
+          if (newTimeout > Duration.Zero) {
+            akka.pattern.after(retryInterval, as.scheduler)(retryingRequest(req, newTimeout, retry, retryCount + 1))
+          } else {
+            logging.warn(
+              this,
+              s"POST failed after $retryCount retries with $t - no more retries because timeout exceeded.")
+            Future.failed(t)
+          }
+      }
   }
 
   private def truncated(responseBytes: Source[ByteString, _],

@@ -60,21 +60,31 @@ class PoolingContainerClientTests
   var testHang: FiniteDuration = 0.second
   var testStatusCode: Int = 200
   var testResponse: String = null
+  var testConnectionFailCount: Int = 0
 
   val mockServer = new LocalServerTestBase {
+    var failcount = 0
     override def setUp() = {
       super.setUp()
-      this.serverBootstrap.registerHandler("/init", new HttpRequestHandler() {
-        override def handle(request: HttpRequest, response: HttpResponse, context: HttpContext) = {
-          if (testHang.length > 0) {
-            Thread.sleep(testHang.toMillis)
-          }
-          response.setStatusCode(testStatusCode);
-          if (testResponse != null) {
-            response.setEntity(new StringEntity(testResponse, StandardCharsets.UTF_8))
-          }
-        }
-      })
+      this.serverBootstrap
+        .registerHandler(
+          "/init",
+          new HttpRequestHandler() {
+            override def handle(request: HttpRequest, response: HttpResponse, context: HttpContext) = {
+              if (testHang.length > 0) {
+                Thread.sleep(testHang.toMillis)
+              }
+              if (testConnectionFailCount > 0 && failcount < testConnectionFailCount) {
+                failcount += 1
+                println("failing in test")
+                throw new RuntimeException("failing...")
+              }
+              response.setStatusCode(testStatusCode);
+              if (testResponse != null) {
+                response.setEntity(new StringEntity(testResponse, StandardCharsets.UTF_8))
+              }
+            }
+          })
     }
   }
 
@@ -86,6 +96,7 @@ class PoolingContainerClientTests
     testHang = 0.second
     testStatusCode = 200
     testResponse = null
+    testConnectionFailCount = 0
     stream.reset()
   }
 
@@ -130,6 +141,25 @@ class PoolingContainerClientTests
 
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
+  }
+
+  it should "retry till success within timeout limit" in {
+    val timeout = 5.seconds
+    val retryInterval = 500.milliseconds
+    val connection =
+      new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 100, retryInterval)
+    val start = Instant.now()
+    testConnectionFailCount = 5
+    testResponse = ""
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val end = Instant.now()
+    val waited = end.toEpochMilli - start.toEpochMilli
+    result shouldBe Right {
+      ContainerResponse(true, "", None)
+    }
+
+    waited should be > (testConnectionFailCount * retryInterval).toMillis
+    waited should be < timeout.toMillis
   }
 
   it should "not truncate responses within limit" in {
