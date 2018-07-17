@@ -106,7 +106,7 @@ Metrics below are emitted from with a Controller instance.
 
 ##### Controller Startup
 
-* `openwhisk.counter.controller_startup<controller_id>_count` (counter) 
+* `openwhisk.counter.controller_startup<controller_id>_count` (counter)
   * Example _openwhisk.counter.controller_startup0_count_
   * Records count of controller instance startup
 
@@ -117,10 +117,10 @@ Following metrics record stats around activation handling within Controller
 * Normal actions
   * `openwhisk.counter.controller_activation_start` (counter) - Records the count of non blocking activations started.
   * `openwhisk.histogram.controller_activation_finish` (histogram) - Records the overall time taken for non blocking activation to be submitted to Load balancer.
-* Blocking actions 
+* Blocking actions
   * `openwhisk.counter.controller_blockingActivation_start` (counter) - Records the count of blocking activations started.
   * `openwhisk.histogram.controller_blockingActivation_finish` (histogram) - Records the time taken for a blocking activation to finish or timeout.
-  
+
 ##### Load Balancer
 
 Aggregate metrics for inflight activations.
@@ -207,11 +207,11 @@ Following metrics capture stats around various docker command executions.
   * `openwhisk.counter.invoker_docker.unpause_start`
   * `openwhisk.counter.invoker_docker.unpause_error`
   * `openwhisk.histogram.invoker_docker.unpause_finish`
-  * `openwhisk.histogram.invoker_docker.unpause_error`  
-  
+  * `openwhisk.histogram.invoker_docker.unpause_error`
+
 #### Kafka Metrics
 
-Metrics below are emitted per kafka topic. 
+Metrics below are emitted per kafka topic.
 
 * `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to kafka and when it is read within a consumer.
 * `openwhisk.histogram.kafka_<topic name>_count` - Queue size as seen when messages were fetched from kafka queue.
@@ -229,7 +229,7 @@ Metrics per topic
 * `invoker<invokerId>` - Topic to receive activations to complete. This is emitted per invoker for its own topic. For example for invoker id 0 metric names would be
   * `openwhisk.histogram.kafka_invoker0_count`
   * `openwhisk.histogram.kafka_invoker0.delay_start`
-  
+
 #### Database Metrics
 
 ##### Cache Metrics
@@ -251,7 +251,7 @@ Operation Types
 * `queryView`
 * `saveDocument`
 * `saveDocumentBulk`
-  
+
 ## User specific metrics
 ### Configuration
 User metrics are enabled by default and could be explicitly disabled by setting the following property in one of the Ansible configuration files:
