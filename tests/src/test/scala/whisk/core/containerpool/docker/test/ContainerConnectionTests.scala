@@ -35,7 +35,6 @@ import org.scalatest.Matchers
 import spray.json.JsObject
 import common.StreamLogging
 import common.WskActorSystem
-import org.apache.http.HttpHost
 import org.apache.http.conn.HttpHostConnectException
 import scala.concurrent.Await
 import whisk.common.TransactionId
