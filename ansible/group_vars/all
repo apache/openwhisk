@@ -131,6 +131,8 @@ kafka:
     - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
     - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    protocols:
+    - TLSv1.2
   protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
   port: 9072
