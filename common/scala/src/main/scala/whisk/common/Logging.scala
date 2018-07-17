@@ -210,10 +210,7 @@ object LogMarkerToken {
 
 }
 
-object MetricEmitter {
-
-  val metrics = Kamon.metrics
-
+object MetricSupport {
   def initKamon(instanceName: String): Unit = {
     // Replace the hostname of the invoker to the assigned id of the invoker.
     val newKamonConfig = Kamon.config
@@ -222,6 +219,11 @@ object MetricEmitter {
         ConfigValueFactory.fromAnyRef(instanceName))
     Kamon.start(newKamonConfig)
   }
+}
+
+object MetricEmitter {
+
+  val metrics = Kamon.metrics
 
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
