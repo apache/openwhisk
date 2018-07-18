@@ -27,7 +27,7 @@ import akka.http.scaladsl.model.MessageEntity
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.StreamTcpException
+//import akka.stream.StreamTcpException
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -79,7 +79,7 @@ protected class PoolingContainerClient(
     with ContainerClient
     with AutoCloseable {
 
-  def close() = shutdown()
+  def close() = Await.result(shutdown(), 30.seconds)
 
   /**
    * Posts to hostname/endpoint the given JSON object.
@@ -125,13 +125,13 @@ protected class PoolingContainerClient(
           case _ =>
             //handle missing Content-Length as NoResponseReceived
             //also handle 204 as NoResponseReceived, for parity with HttpUtils client
-            Future { Left(NoResponseReceived()) }
+            Future.successful(Left(NoResponseReceived()))
         }
       })
       .recover {
-        case t: StreamTcpException => Left(Timeout(t))
-        case t: TimeoutException   => Left(Timeout(t))
-        case NonFatal(t)           => Left(ConnectionError(t))
+        //case t: StreamTcpException => Left(Timeout(t))
+        case t: TimeoutException => Left(Timeout(t))
+        case NonFatal(t)         => Left(ConnectionError(t))
       }
   }
   //returns a Future HttpResponse -> Int (where Int is the retryCount)

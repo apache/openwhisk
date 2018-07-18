@@ -38,6 +38,7 @@ import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
 
 import scala.annotation.tailrec
+import scala.concurrent._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -93,7 +94,11 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
     request.addHeader(HttpHeaders.ACCEPT, "application/json")
     request.setEntity(entity)
 
-    Future { execute(request, timeout, maxConcurrent, retry) }
+    Future {
+      blocking {
+        execute(request, timeout, maxConcurrent, retry)
+      }
+    }
   }
 
   // Annotation will make the compiler complain if no tail recursion is possible

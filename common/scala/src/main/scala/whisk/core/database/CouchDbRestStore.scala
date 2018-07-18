@@ -23,6 +23,8 @@ import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.database.StoreUtils._
@@ -512,7 +514,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       .getOrElse(Future.successful(true)) // For CouchDB it is expected that the entire document is deleted.
 
   override def shutdown(): Unit = {
-    client.shutdown()
+    Await.result(client.shutdown(), 30.seconds)
     attachmentStore.foreach(_.shutdown())
   }
 

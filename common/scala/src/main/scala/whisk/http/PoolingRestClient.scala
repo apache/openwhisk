@@ -18,7 +18,6 @@
 package whisk.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.settings.ClientConnectionSettings
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
@@ -53,12 +52,10 @@ class PoolingRestClient(
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   //if specified, override the ClientConnection idle-timeout value
-  private val timeoutSettings =
-    ConnectionPoolSettings(system.settings.config)
-      .withConnectionSettings(if (timeout.isDefined) {
-        ClientConnectionSettings(system.settings.config)
-          .withIdleTimeout(timeout.get)
-      } else { ClientConnectionSettings(system.settings.config) })
+  private val timeoutSettings = {
+    val ps = ConnectionPoolSettings(system.settings.config)
+    timeout.map(t => ps.withUpdatedConnectionSettings(_.withIdleTimeout(t))).getOrElse(ps)
+  }
 
   // Creates or retrieves a connection pool for the host.
   private val pool = if (protocol == "http") {
@@ -67,6 +64,9 @@ class PoolingRestClient(
     Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port, settings = timeoutSettings)
   }
 
+  // Additional queue in case all connections are busy. Should hardly ever be
+  // filled in practice but can be useful, e.g., in tests starting many
+  // asynchronous requests in a very short period of time.
   private val requestQueue = Source
     .queue(queueSize, OverflowStrategy.dropNew)
     .via(httpFlow.getOrElse(pool))
