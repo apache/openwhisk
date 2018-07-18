@@ -467,7 +467,7 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Resolve action if it is binding
+   * Resolves an action name if it is contained in a package
    * This method is factored out to allow mock testing
    */
   protected def resolveAction(actionName: FullyQualifiedEntityName)(
