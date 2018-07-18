@@ -468,6 +468,7 @@ trait WhiskWebActionsApi
 
   /**
    * Resolve action if it is binding
+   * This method is factored out to allow mock testing
    */
   protected def resolveAction(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[FullyQualifiedEntityName] = {
@@ -735,7 +736,7 @@ trait WhiskWebActionsApi
   private def actionLookup(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     resolveAction(actionName) flatMap { resolveAction =>
-      getAction(actionName) recoverWith {
+      getAction(resolveAction) recoverWith {
         case _: ArtifactStoreException | DeserializationException(_, _, _) =>
           Future.failed(RejectRequest(NotFound))
       }

@@ -60,6 +60,8 @@ import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
+import scala.collection.immutable.Set
+
 /**
  * Tests web actions API.
  *
@@ -134,6 +136,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var failActionLookup = false // toggle to cause action lookup to fail
   var failActivation = 0 // toggle to cause action to fail
   var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
+  var failCheckEntitlement = false // toggle to cause entitlement to fail
   var actionResult: Option[JsObject] = None
   var requireAuthentication = false // toggle require-whisk-auth annotation on action
   var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or  requireAuthenticationKey)
@@ -151,6 +154,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     failActionLookup = false
     failActivation = 0
     failThrottleForSubject = None
+    failCheckEntitlement = false
     actionResult = None
     requireAuthentication = false
     requireAuthenticationAsBoolean = true
@@ -244,6 +248,12 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     } else {
       Future.failed(NoDocumentException("doesn't exist"))
     }
+  }
+
+  // it doesn't resolve an action name, just toggle failCheckEntitlement to test entitlement
+  override protected def resolveAction(fullyQualifiedActionName: FullyQualifiedEntityName)(
+    implicit transid: TransactionId): Future[FullyQualifiedEntityName] = {
+    Future.successful(fullyQualifiedActionName)
   }
 
   // there is only one identity defined for the fully qualified name of the web action: 'systemId'
@@ -1646,6 +1656,19 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
+    it should s"reject invocation of web action which has no entitlement (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        actionResult = Some(JsObject("body" -> "Plain text".toJson))
+        failCheckEntitlement = true
+
+        Get(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+          status should be(Forbidden)
+        }
+      }
+    }
+
     it should s"not invoke an action more than once when determining entity type (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
@@ -1753,6 +1776,16 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         case Some(subject) if subject == user.subject =>
           Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests(2, 1)))
         case _ => Future.successful({})
+      }
+    }
+
+    protected[core] override def check(user: Identity, right: Privilege, resource: Resource)(
+      implicit transid: TransactionId): Future[Unit] = {
+
+      if (failCheckEntitlement) {
+        Future.failed(RejectRequest(Forbidden))
+      } else {
+        Future.successful({})
       }
     }
 
