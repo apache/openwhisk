@@ -51,6 +51,7 @@
       "KAFKA_SSL_TRUSTSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
       "KAFKA_SSL_CLIENT_AUTH": "{{ kafka.ssl.client_authentication }}"
       "KAFKA_SSL_CIPHER_SUITES": "{{ kafka.ssl.cipher_suites | join(',') }}"
+      "KAFKA_SSL_ENABLED_PROTOCOLS": "{{ kafka.ssl.protocols | join(',') }}"
     # The sed script passed in CUSTOM_INIT_SCRIPT fixes a bug in the wurstmeister dcoker image
     # by patching the server.configuration file right before kafka is started.
     # The script adds the missing advertized hostname to the advertised.listener property
