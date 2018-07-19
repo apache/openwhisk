@@ -156,9 +156,6 @@ protected class PoolingContainerClient(
   private def truncated(responseBytes: Source[ByteString, _],
                         previouslyCaptured: ByteString = ByteString.empty): Future[String] = {
     responseBytes.prefixAndTail(1).runWith(Sink.head).flatMap {
-      case (Nil, tail) =>
-        //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
-        tail.runWith(Sink.ignore).map(_ => previouslyCaptured.utf8String)
       case (Seq(prefix), tail) =>
         val truncatedResponse = previouslyCaptured ++ prefix
         if (truncatedResponse.size < maxResponse.toBytes) {

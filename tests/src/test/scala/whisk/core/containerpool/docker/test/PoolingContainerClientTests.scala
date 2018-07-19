@@ -180,10 +180,27 @@ class PoolingContainerClientTests
   it should "truncate responses that exceed limit" in {
     val timeout = 1.minute.toMillis
     val limit = 1.B
-    val excess = limit + 1.B
     val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
     Seq(true, false).foreach { code =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
+        testStatusCode = if (code) 200 else 500
+        testResponse = r
+        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+        result shouldBe Right {
+          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+        }
+      }
+    }
+  }
+
+  it should "truncate large responses that exceed limit" in {
+    val timeout = 1.minute.toMillis
+    //use a limit large enough to not fit into a single ByteString as response entity is parsed into multiple ByteStrings
+    //seems like this varies, but often is ~64k or ~128k
+    val limit = 300.KB
+    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
+    Seq(true, false).foreach { code =>
+      Seq("0123456789" * 100000).foreach { r =>
         testStatusCode = if (code) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
