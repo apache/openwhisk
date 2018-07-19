@@ -20,6 +20,7 @@ package whisk.core.invoker
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import whisk.common._
 import whisk.core.WhiskConfig
@@ -47,6 +48,15 @@ object Invoker {
       kafkaHosts ++
       zookeeperHosts ++
       wskApiHost
+
+  def initKamon(instance: Int): Unit = {
+    // Replace the hostname of the invoker to the assigned id of the invoker.
+    val newKamonConfig = Kamon.config
+      .withValue(
+        "kamon.statsd.simple-metric-key-generator.hostname-override",
+        ConfigValueFactory.fromAnyRef(s"invoker$instance"))
+    Kamon.start(newKamonConfig)
+  }
 
   def main(args: Array[String]): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
@@ -118,7 +128,7 @@ object Invoker {
         new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
 
-    MetricSupport.init(s"invoker$assignedInvokerId")
+    initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
