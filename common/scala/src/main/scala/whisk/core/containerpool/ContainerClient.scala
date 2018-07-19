@@ -27,7 +27,6 @@ import akka.http.scaladsl.model.MessageEntity
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
-//import akka.stream.StreamTcpException
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -129,7 +128,6 @@ protected class PoolingContainerClient(
         }
       })
       .recover {
-        //case t: StreamTcpException => Left(Timeout(t))
         case t: TimeoutException => Left(Timeout(t))
         case NonFatal(t)         => Left(ConnectionError(t))
       }
@@ -150,7 +148,7 @@ protected class PoolingContainerClient(
             logging.warn(
               this,
               s"POST failed after $retryCount retries with $t - no more retries because timeout exceeded.")
-            Future.failed(t)
+            Future.failed(new TimeoutException(t.getMessage))
           }
       }
   }
