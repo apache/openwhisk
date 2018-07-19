@@ -17,28 +17,23 @@
 
 package whisk.core.invoker
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Try
-import kamon.Kamon
 import akka.Done
-import akka.actor.ActorSystem
-import akka.actor.CoordinatedShutdown
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
-import whisk.common.AkkaLogging
-import whisk.common.Scheduler
+import com.typesafe.config.ConfigValueFactory
+import kamon.Kamon
+import whisk.common._
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.MessagingProvider
-import whisk.core.connector.PingMessage
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InvokerInstanceId
+import whisk.core.connector.{MessagingProvider, PingMessage}
+import whisk.core.entity.{ExecManifest, InvokerInstanceId}
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
-import whisk.common.TransactionId
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Try}
 
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
 
@@ -54,9 +49,16 @@ object Invoker {
       zookeeperHosts ++
       wskApiHost
 
-  def main(args: Array[String]): Unit = {
-    Kamon.start()
+  def initKamon(instance: Int): Unit = {
+    // Replace the hostname of the invoker to the assigned id of the invoker.
+    val newKamonConfig = Kamon.config
+      .withValue(
+        "kamon.statsd.simple-metric-key-generator.hostname-override",
+        ConfigValueFactory.fromAnyRef(s"invoker$instance"))
+    Kamon.start(newKamonConfig)
+  }
 
+  def main(args: Array[String]): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
@@ -125,6 +127,9 @@ object Invoker {
 
         new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
       }
+
+    initKamon(assignedInvokerId)
+
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
     val invokerDisplayedName = cmdLineArgs.displayedName
