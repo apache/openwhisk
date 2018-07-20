@@ -207,17 +207,17 @@ protected[core] object ExecManifest {
     // digest-algorithm-separator      := /[+.-_]/
     // digest-algorithm-component      := /[A-Za-z][A-Za-z0-9]*/
     // digest-hex                      := /[0-9a-fA-F]{32,}/ ; At least 128 bit digest value
-
     private val lowercaseLetters = P(CharIn('a' to 'z'))
     private val uppercaseLetters = P(CharIn('A' to 'Z'))
+    private val letters = P(lowercaseLetters | uppercaseLetters)
     private val digits = P(CharIn('0' to '9'))
 
     private val alphaNumeric = P(lowercaseLetters | digits)
-    private val alphaNumericWithUpper = P(alphaNumeric | uppercaseLetters)
+    private val alphaNumericWithUpper = P(letters | digits)
     private val word = P(alphaNumericWithUpper | "_")
 
     private val digestHex = P((digits | CharIn(('a' to 'f') ++ ('A' to 'F'))).rep(min = 32))
-    private val digestAlgorithmComponent = P((uppercaseLetters | lowercaseLetters) ~ alphaNumericWithUpper.rep)
+    private val digestAlgorithmComponent = P(letters ~ alphaNumericWithUpper.rep)
     private val digestAlgorithmSeperator = P("+" | "." | "-" | "_")
     private val digestAlgorithm = P(digestAlgorithmComponent.rep(min = 1, sep = digestAlgorithmSeperator))
     private val digest = P(digestAlgorithm ~ ":" ~ digestHex)
@@ -228,7 +228,7 @@ protected[core] object ExecManifest {
     private val pathComponent = P(alphaNumeric.rep(min = 1, sep = separator))
     private val portNumber = P(digits.rep(min = 1))
     // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
-    private val domainComponent = P((alphaNumericWithUpper | "-").rep(min = 1))
+    private val domainComponent = P(alphaNumericWithUpper | "-").rep
     private val domain = P(domainComponent.rep(min = 1, sep = ".") ~ (":" ~ portNumber).?)
     private val name = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
 
@@ -248,7 +248,8 @@ protected[core] object ExecManifest {
           val imageName = imagePathParts.last
 
           Success(ImageName(imageName, if (prefix.nonEmpty) Some(prefix) else None, imageTag))
-        case _ => Failure(DeserializationException("could not parse image name"))
+        case Parsed.Failure(_, _, _) =>
+          Failure(DeserializationException("could not parse image name"))
       }
     }
   }
