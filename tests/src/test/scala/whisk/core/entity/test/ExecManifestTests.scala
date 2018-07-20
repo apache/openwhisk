@@ -51,12 +51,15 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       "pre/img" -> ImageName("img", Some("pre")),
       "pre/img:t" -> ImageName("img", Some("pre"), Some("t")),
       "pre1/pre2/img:t" -> ImageName("img", Some("pre1/pre2"), Some("t")),
-      "pre1/pre2/img" -> ImageName("img", Some("pre1/pre2")))
+      "pre1/pre2/img" -> ImageName("img", Some("pre1/pre2")),
+      "hostname.com:3121/pre1/pre2/img:t" -> ImageName("img", Some("hostname.com:3121/pre1/pre2"), Some("t")),
+      "hostname.com:3121/pre1/pre2/img:t@sha256:77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182" ->
+        ImageName("img", Some("hostname.com:3121/pre1/pre2"), Some("t")))
       .foreach {
         case (s, v) => ImageName.fromString(s) shouldBe Success(v)
       }
 
-    Seq("ABC", "x:8080/abc", "p/a:x:y").foreach { s =>
+    Seq("ABC", "x:8080:10/abc", "p/a:x:y", "p/a:t@sha256:77af4d6b9").foreach { s =>
       a[DeserializationException] should be thrownBy ImageName.fromString(s).get
     }
   }
