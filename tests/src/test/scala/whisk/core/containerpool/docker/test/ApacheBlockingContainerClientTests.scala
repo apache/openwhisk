@@ -17,10 +17,9 @@
 
 package whisk.core.containerpool.docker.test
 
-import common.StreamLogging
-import common.WskActorSystem
 import java.nio.charset.StandardCharsets
 import java.time.Instant
+import scala.concurrent.duration._
 import org.apache.http.HttpRequest
 import org.apache.http.HttpResponse
 import org.apache.http.entity.StringEntity
@@ -28,25 +27,28 @@ import org.apache.http.localserver.LocalServerTestBase
 import org.apache.http.protocol.HttpContext
 import org.apache.http.protocol.HttpRequestHandler
 import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-import scala.concurrent.Await
-import scala.concurrent.TimeoutException
-import scala.concurrent.duration._
 import spray.json.JsObject
+import common.StreamLogging
+import common.WskActorSystem
+import org.apache.http.conn.HttpHostConnectException
+import scala.concurrent.Await
 import whisk.common.TransactionId
-import whisk.core.containerpool.PoolingContainerClient
-import whisk.core.entity.ActivationResponse._
+import whisk.core.containerpool.ApacheBlockingContainerClient
+import whisk.core.containerpool.RetryableConnectionError
+import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
+import whisk.core.entity.ActivationResponse._
 
 /**
- * Unit tests for HttpUtils which communicate with containers.
+ * Unit tests for ApacheBlockingContainerClient which communicate with containers.
  */
 @RunWith(classOf[JUnitRunner])
-class PoolingContainerClientTests
+class ApacheBlockingContainerClientTests
     extends FlatSpec
     with Matchers
     with BeforeAndAfter
@@ -60,31 +62,21 @@ class PoolingContainerClientTests
   var testHang: FiniteDuration = 0.second
   var testStatusCode: Int = 200
   var testResponse: String = null
-  var testConnectionFailCount: Int = 0
 
   val mockServer = new LocalServerTestBase {
-    var failcount = 0
     override def setUp() = {
       super.setUp()
-      this.serverBootstrap
-        .registerHandler(
-          "/init",
-          new HttpRequestHandler() {
-            override def handle(request: HttpRequest, response: HttpResponse, context: HttpContext) = {
-              if (testHang.length > 0) {
-                Thread.sleep(testHang.toMillis)
-              }
-              if (testConnectionFailCount > 0 && failcount < testConnectionFailCount) {
-                failcount += 1
-                println("failing in test")
-                throw new RuntimeException("failing...")
-              }
-              response.setStatusCode(testStatusCode);
-              if (testResponse != null) {
-                response.setEntity(new StringEntity(testResponse, StandardCharsets.UTF_8))
-              }
-            }
-          })
+      this.serverBootstrap.registerHandler("/init", new HttpRequestHandler() {
+        override def handle(request: HttpRequest, response: HttpResponse, context: HttpContext) = {
+          if (testHang.length > 0) {
+            Thread.sleep(testHang.toMillis)
+          }
+          response.setStatusCode(testStatusCode);
+          if (testResponse != null) {
+            response.setEntity(new StringEntity(testResponse, StandardCharsets.UTF_8))
+          }
+        }
+      })
     }
   }
 
@@ -96,7 +88,6 @@ class PoolingContainerClientTests
     testHang = 0.second
     testStatusCode = 200
     testResponse = null
-    testConnectionFailCount = 0
     stream.reset()
   }
 
@@ -104,11 +95,11 @@ class PoolingContainerClientTests
     mockServer.shutDown()
   }
 
-  behavior of "PoolingContainerClient"
+  behavior of "Container HTTP Utils"
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 100)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
     testHang = timeout * 2
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
@@ -122,49 +113,36 @@ class PoolingContainerClientTests
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 100)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
     testStatusCode = 204
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
   }
 
-  it should "retry till timeout on StreamTcpException" in {
+  it should "retry till timeout on HttpHostConnectException" in {
     val timeout = 5.seconds
-    val connection = new PoolingContainerClient("0.0.0.0", 12345, timeout, 1.B, 100)
+    val badHostAndPort = "0.0.0.0:12345"
+    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
+    testStatusCode = 204
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result should be('left)
     result.left.get shouldBe a[Timeout]
-    result.left.get.asInstanceOf[Timeout].t shouldBe a[TimeoutException]
-
+    result.left.get.asInstanceOf[Timeout].t shouldBe a[RetryableConnectionError]
+    result.left.get
+      .asInstanceOf[Timeout]
+      .t
+      .asInstanceOf[RetryableConnectionError]
+      .t shouldBe a[HttpHostConnectException]
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
   }
 
-  it should "retry till success within timeout limit" in {
-    val timeout = 5.seconds
-    val retryInterval = 500.milliseconds
-    val connection =
-      new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 100, retryInterval)
-    val start = Instant.now()
-    testConnectionFailCount = 5
-    testResponse = ""
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
-    val end = Instant.now()
-    val waited = end.toEpochMilli - start.toEpochMilli
-    result shouldBe Right {
-      ContainerResponse(true, "", None)
-    }
-
-    waited should be > (testConnectionFailCount * retryInterval).toMillis
-    waited should be < timeout.toMillis
-  }
-
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 50.B, 100)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, 50.B)
     Seq(true, false).foreach { code =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (code) 200 else 500
@@ -180,27 +158,10 @@ class PoolingContainerClientTests
   it should "truncate responses that exceed limit" in {
     val timeout = 1.minute.toMillis
     val limit = 1.B
-    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
+    val excess = limit + 1.B
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, limit)
     Seq(true, false).foreach { code =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
-        testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
-        result shouldBe Right {
-          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
-        }
-      }
-    }
-  }
-
-  it should "truncate large responses that exceed limit" in {
-    val timeout = 1.minute.toMillis
-    //use a limit large enough to not fit into a single ByteString as response entity is parsed into multiple ByteStrings
-    //seems like this varies, but often is ~64k or ~128k
-    val limit = 300.KB
-    val connection = new PoolingContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
-    Seq(true, false).foreach { code =>
-      Seq("0123456789" * 100000).foreach { r =>
         testStatusCode = if (code) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)

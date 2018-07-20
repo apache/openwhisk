@@ -60,15 +60,16 @@ protected[containerpool] case class RetryableConnectionError(t: Throwable) exten
  * @param maxResponse the maximum size in bytes the connection will accept
  * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
-protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize, maxConcurrent: Int = 1)(
-  implicit logging: Logging,
-  ec: ExecutionContext)
+protected class ApacheBlockingContainerClient(hostname: String,
+                                              timeout: FiniteDuration,
+                                              maxResponse: ByteSize,
+                                              maxConcurrent: Int = 1)(implicit logging: Logging, ec: ExecutionContext)
     extends ContainerClient {
 
   /**
    * Closes the HttpClient and all resources allocated by it.
    *
-   * This will close the HttpClient that is generated for this instance of HttpUtils. That will also cause the
+   * This will close the HttpClient that is generated for this instance of ApacheBlockingContainerClient. That will also cause the
    * ConnectionManager to be closed alongside.
    */
   def close(): Unit = HttpClientUtils.closeQuietly(connection)
@@ -198,7 +199,7 @@ protected class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse
     .build
 }
 
-object HttpUtils {
+object ApacheBlockingContainerClient {
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue)(
@@ -206,7 +207,7 @@ object HttpUtils {
     tid: TransactionId,
     ec: ExecutionContext): (Int, Option[JsObject]) = {
     val timeout = 90.seconds
-    val connection = new HttpUtils(s"$host:$port", timeout, 1.MB)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", timeout, 1.MB)
     val response = executeRequest(connection, endPoint, content)
     val result = Await.result(response, timeout)
     connection.close()
@@ -218,7 +219,7 @@ object HttpUtils {
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB, contents.size)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", 90.seconds, 1.MB, contents.size)
     val futureResults = contents.map { content =>
       executeRequest(connection, endPoint, content)
     }
@@ -227,7 +228,7 @@ object HttpUtils {
     results
   }
 
-  private def executeRequest(connection: HttpUtils, endpoint: String, content: JsValue)(
+  private def executeRequest(connection: ApacheBlockingContainerClient, endpoint: String, content: JsValue)(
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Future[(Int, Option[JsObject])] = {

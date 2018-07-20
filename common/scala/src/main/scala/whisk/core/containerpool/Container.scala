@@ -170,10 +170,10 @@ trait Container {
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = if (config.poolingClient) {
-        new PoolingContainerClient(addr.host, addr.port, timeout, 1.MB, 1024)
+      val conn = if (config.akkaClient) {
+        new AkkaContainerClient(addr.host, addr.port, timeout, 1.MB, 1024)
       } else {
-        new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)
+        new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, 1.MB)
       }
       httpConnection = Some(conn)
       conn
