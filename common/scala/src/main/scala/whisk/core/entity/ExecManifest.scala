@@ -218,7 +218,7 @@ protected[core] object ExecManifest {
 
     private val digestHex = P((digits | CharIn(('a' to 'f') ++ ('A' to 'F'))).rep(min = 32))
     private val digestAlgorithmComponent = P((uppercaseLetters | lowercaseLetters) ~ alphaNumericWithUpper.rep)
-    private val digestAlgorithmSeperator = P("+" | "." | "-" | "+")
+    private val digestAlgorithmSeperator = P("+" | "." | "-" | "_")
     private val digestAlgorithm = P(digestAlgorithmComponent.rep(min = 1, sep = digestAlgorithmSeperator))
     private val digest = P(digestAlgorithm ~ ":" ~ digestHex)
 
