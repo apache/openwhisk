@@ -108,7 +108,7 @@ trait BasicHttpService extends Directives {
     extract { req =>
       val tid =
         req.request.headers
-          .find(_.name == TransactionId.generatorConfig.header)
+          .find(_.name.toLowerCase == TransactionId.generatorConfig.header.toLowerCase)
           .map(_.value)
           .filterNot(_.startsWith(TransactionId.systemPrefix))
           .getOrElse {
