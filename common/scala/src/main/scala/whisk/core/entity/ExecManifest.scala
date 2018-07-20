@@ -226,7 +226,7 @@ protected[core] object ExecManifest {
 
     private val separator = P("_" | "." | "__" | "-".rep)
     private val pathComponent = P(alphaNumeric.rep(min = 1, sep = separator))
-    private val portNumber = P(CharIn('0' to '9').rep(min = 1))
+    private val portNumber = P(digits.rep(min = 1))
     // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
     private val domainComponent = P((alphaNumericWithUpper | "-").rep(min = 1))
     private val domain = P(domainComponent.rep(min = 1, sep = ".") ~ (":" ~ portNumber).?)
