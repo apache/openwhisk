@@ -42,6 +42,8 @@ import scala.util.Try
 import scala.util.control.NonFatal
 import spray.json._
 import whisk.common.Logging
+import whisk.common.LoggingMarkers.CONTAINER_CLIENT_RETRIES
+import whisk.common.MetricEmitter
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationResponse.ContainerHttpError
 import whisk.core.entity.ActivationResponse._
@@ -103,7 +105,8 @@ protected class AkkaContainerClient(
       .flatMap {
         case (response, retries) => {
           if (retries > 0) {
-            logging.info(this, s"completed after ${retries} retries")
+            logging.debug(this, s"completed request to $endpoint after $retries retries")
+            MetricEmitter.emitHistogramMetric(CONTAINER_CLIENT_RETRIES, retries)
           }
 
           response.entity.contentLengthOption match {
@@ -153,6 +156,9 @@ protected class AkkaContainerClient(
   private def truncated(responseBytes: Source[ByteString, _],
                         previouslyCaptured: ByteString = ByteString.empty): Future[String] = {
     responseBytes.prefixAndTail(1).runWith(Sink.head).flatMap {
+      case (Nil, tail) =>
+        //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
+        tail.runWith(Sink.ignore).map(_ => previouslyCaptured.utf8String)
       case (Seq(prefix), tail) =>
         val truncatedResponse = previouslyCaptured ++ prefix
         if (truncatedResponse.size < maxResponse.toBytes) {

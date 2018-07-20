@@ -250,6 +250,7 @@ object LoggingMarkers {
   private val activation = "activation"
   private val kafka = "kafka"
   private val loadbalancer = "loadbalancer"
+  private val containerClient = "containerClient"
 
   /*
    * Controller related markers
@@ -297,6 +298,8 @@ object LoggingMarkers {
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String) =
     LogMarkerToken(invoker, "containerStart", count, Some(containerState), Map("containerState" -> containerState))
+  val CONTAINER_CLIENT_RETRIES =
+    LogMarkerToken(containerClient, "retries", count)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)

@@ -95,7 +95,7 @@ class ApacheBlockingContainerClientTests
     mockServer.shutDown()
   }
 
-  behavior of "Container HTTP Utils"
+  behavior of "ApacheBlockingContainerClient"
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
@@ -128,14 +128,12 @@ class ApacheBlockingContainerClientTests
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
-    result should be('left)
-    result.left.get shouldBe a[Timeout]
-    result.left.get.asInstanceOf[Timeout].t shouldBe a[RetryableConnectionError]
-    result.left.get
-      .asInstanceOf[Timeout]
-      .t
-      .asInstanceOf[RetryableConnectionError]
-      .t shouldBe a[HttpHostConnectException]
+    result match {
+      case Left(Timeout(RetryableConnectionError(_: HttpHostConnectException))) => // all good
+      case _ =>
+        fail(s"$result was not a Timeout(RetryableConnectionError(HttpHostConnectException)))")
+    }
+
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
   }
@@ -143,13 +141,13 @@ class ApacheBlockingContainerClientTests
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
     val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, 50.B)
-    Seq(true, false).foreach { code =>
+    Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, if (r != null) r else "", None)
+          ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
       }
     }
@@ -160,13 +158,13 @@ class ApacheBlockingContainerClientTests
     val limit = 1.B
     val excess = limit + 1.B
     val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, limit)
-    Seq(true, false).foreach { code =>
+    Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+          ContainerResponse(okStatus = success, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
         }
       }
     }

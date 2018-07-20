@@ -38,10 +38,10 @@ import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ActivationResponse.ContainerConnectionError
 import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ByteSize
-import whisk.core.entity.size._
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
 import whisk.core.ConfigKeys
+import whisk.core.entity.ActivationEntityLimit
 
 /**
  * An OpenWhisk biased container abstraction. This is **not only** an abstraction
@@ -63,7 +63,8 @@ trait Container {
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
 
-  private val config: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
+  protected[containerpool] val config: ContainerPoolConfig =
+    loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
 
   /** HTTP connection to the container, will be lazily established by callContainer */
   protected var httpConnection: Option[ContainerClient] = None
@@ -171,9 +172,12 @@ trait Container {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (config.akkaClient) {
-        new AkkaContainerClient(addr.host, addr.port, timeout, 1.MB, 1024)
+        new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
       } else {
-        new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, 1.MB)
+        new ApacheBlockingContainerClient(
+          s"${addr.host}:${addr.port}",
+          timeout,
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
       }
       httpConnection = Some(conn)
       conn

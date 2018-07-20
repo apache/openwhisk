@@ -20,12 +20,10 @@ package whisk.core.containerpool.docker
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
-
 import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl.Framing.FramingException
 import spray.json._
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import whisk.common.Logging
@@ -210,10 +208,14 @@ class DockerContainer(protected val id: ContainerId,
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = new ApacheBlockingContainerClient(
-        s"${addr.host}:${addr.port}",
-        timeout,
-        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
+      val conn = if (config.akkaClient) {
+        new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
+      } else {
+        new ApacheBlockingContainerClient(
+          s"${addr.host}:${addr.port}",
+          timeout,
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
+      }
       httpConnection = Some(conn)
       conn
     }

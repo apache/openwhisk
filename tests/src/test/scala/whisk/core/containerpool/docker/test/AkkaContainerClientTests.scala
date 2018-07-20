@@ -104,7 +104,7 @@ class AkkaContainerClientTests
     mockServer.shutDown()
   }
 
-  behavior of "PoolingContainerClient"
+  behavior of "AkkaContainerClient"
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
@@ -135,10 +135,10 @@ class AkkaContainerClientTests
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
-    result should be('left)
-    result.left.get shouldBe a[Timeout]
-    result.left.get.asInstanceOf[Timeout].t shouldBe a[TimeoutException]
-
+    result match {
+      case Left(Timeout(_: TimeoutException)) => // good
+      case _                                  => fail(s"$result was not a Timeout(TimeoutException)")
+    }
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
   }
@@ -165,13 +165,13 @@ class AkkaContainerClientTests
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
     val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 50.B, 100)
-    Seq(true, false).foreach { code =>
+    Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, if (r != null) r else "", None)
+          ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
       }
     }
@@ -181,13 +181,13 @@ class AkkaContainerClientTests
     val timeout = 1.minute.toMillis
     val limit = 1.B
     val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
-    Seq(true, false).foreach { code =>
+    Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+          ContainerResponse(okStatus = success, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
         }
       }
     }
@@ -199,15 +199,16 @@ class AkkaContainerClientTests
     //seems like this varies, but often is ~64k or ~128k
     val limit = 300.KB
     val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, 100)
-    Seq(true, false).foreach { code =>
-      Seq("0123456789" * 100000).foreach { r =>
-        testStatusCode = if (code) 200 else 500
-        testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
-        result shouldBe Right {
-          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
-        }
+    Seq(true, false).foreach { success =>
+      // Generate a response that's 1MB
+      val response = "0" * 1024 * 1024
+      testStatusCode = if (success) 200 else 500
+      testResponse = response
+      val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+      result shouldBe Right {
+        ContainerResponse(okStatus = success, response.take(limit.toBytes.toInt), Some((response.length.B, limit)))
       }
+
     }
   }
 }
