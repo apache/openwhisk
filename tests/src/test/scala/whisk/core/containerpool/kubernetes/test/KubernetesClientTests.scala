@@ -92,7 +92,7 @@ class KubernetesClientTests
   def kubernetesContainer(id: ContainerId) =
     new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
       Future.successful("")
-    }, as, global, logging)
+    }, actorSystem, global, logging)
 
   behavior of "KubernetesClient"
 
@@ -188,7 +188,6 @@ object KubernetesClientTests {
   implicit def strToInstant(str: String): Instant =
     strToDate(str).get
 
-  implicit val as = ActorSystem("kubernetes-client-tests-actor-system")
   class TestKubernetesClient(implicit as: ActorSystem) extends KubernetesApi with StreamLogging {
     var runs = mutable.Buffer.empty[(String, String, Map[String, String], Map[String, String])]
     var rms = mutable.Buffer.empty[ContainerId]
@@ -239,7 +238,9 @@ object KubernetesClientTests {
     }
   }
 
-  class TestKubernetesClientWithInvokerAgent extends TestKubernetesClient with KubernetesApiWithInvokerAgent {
+  class TestKubernetesClientWithInvokerAgent(implicit as: ActorSystem)
+      extends TestKubernetesClient
+      with KubernetesApiWithInvokerAgent {
     var agentCommands = mutable.Buffer.empty[(ContainerId, String, Option[Map[String, JsValue]])]
     var forwardLogs = mutable.Buffer.empty[(ContainerId, Long)]
 
