@@ -171,7 +171,7 @@ object ActionContainer {
   val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
   def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
 
-  def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
+  def withContainer(imageName: String, environment: Map[String, String] = Map.empty, useAkkaClient: Boolean = false)(
     code: ActionContainer => Unit)(implicit actorSystem: ActorSystem, logging: Logging): (String, String) = {
     val rand = { val r = Random.nextInt; if (r < 0) -r else r }
     val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
@@ -209,10 +209,10 @@ object ActionContainer {
 
     // ...we create an instance of the mock container interface...
     val mock = new ActionContainer {
-      def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
-      def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value, useAkkaClient)
+      def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value, useAkkaClient)
       def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
-        concurrentSyncPost(ip, port, "/run", values)
+        concurrentSyncPost(ip, port, "/run", values, useAkkaClient)
     }
 
     try {
@@ -228,19 +228,27 @@ object ActionContainer {
     }
   }
 
-  private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
-    implicit logging: Logging): (Int, Option[JsObject]) = {
-
-    implicit val transid = TransactionId.testing
-
-    whisk.core.containerpool.ApacheBlockingContainerClient.post(host, port, endPoint, content)
-  }
-  private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
+  def syncPost(host: String, port: Int, endPoint: String, content: JsValue, useAkkaClient: Boolean)(
     implicit logging: Logging,
-    ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
+    as: ActorSystem): (Int, Option[JsObject]) = {
+    implicit val transid = TransactionId.testing
+    if (useAkkaClient) {
+      whisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content)
+    } else {
+      whisk.core.containerpool.ApacheBlockingContainerClient.post(host, port, endPoint, content)
+    }
+  }
+  def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], useAkkaClient: Boolean)(
+    implicit logging: Logging,
+    ec: ExecutionContext,
+    as: ActorSystem): Seq[(Int, Option[JsObject])] = {
 
     implicit val transid = TransactionId.testing
-
-    whisk.core.containerpool.ApacheBlockingContainerClient.concurrentPost(host, port, endPoint, contents, 30.seconds)
+    if (useAkkaClient) {
+      whisk.core.containerpool.AkkaContainerClient.concurrentPost(host, port, endPoint, contents, 30.seconds)
+    } else {
+      whisk.core.containerpool.ApacheBlockingContainerClient.concurrentPost(host, port, endPoint, contents, 30.seconds)
+    }
   }
+
 }
