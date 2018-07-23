@@ -234,7 +234,7 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    whisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content)
+    whisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
   }
   private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
     implicit logging: Logging,

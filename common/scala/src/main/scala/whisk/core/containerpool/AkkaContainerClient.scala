@@ -175,27 +175,27 @@ protected class AkkaContainerClient(
 object AkkaContainerClient {
 
   /** A helper method to post one single request to a connection. Used for container tests. */
-  def post(host: String, port: Int, endPoint: String, content: JsValue, timeout: Duration = 30.seconds)(
+  def post(host: String, port: Int, endPoint: String, content: JsValue, timeout: FiniteDuration)(
     implicit logging: Logging,
     as: ActorSystem,
     ec: ExecutionContext,
     tid: TransactionId): (Int, Option[JsObject]) = {
-    val connection = new AkkaContainerClient(host, port, 90.seconds, 1.MB, 1)
+    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1)
     val response = executeRequest(connection, endPoint, content)
-    val result = Await.result(response, timeout)
+    val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
     result
   }
 
   /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
-  def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: Duration)(
+  def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: FiniteDuration)(
     implicit logging: Logging,
     tid: TransactionId,
     as: ActorSystem,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new AkkaContainerClient(host, port, 90.seconds, 1.MB, 1)
+    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1)
     val futureResults = contents.map { executeRequest(connection, endPoint, _) }
-    val results = Await.result(Future.sequence(futureResults), timeout)
+    val results = Await.result(Future.sequence(futureResults), timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
     results
   }
