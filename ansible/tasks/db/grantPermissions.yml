@@ -23,7 +23,7 @@
     body: |
       {
         "admins": {
-          "names": [ {{ adminList | join('", "') }} ],
+          "names": [ "{{ adminList | join('", "') }}" ],
           "roles": []
         },
         "members": {
