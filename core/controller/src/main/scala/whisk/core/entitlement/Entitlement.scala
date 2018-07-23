@@ -162,7 +162,7 @@ protected[core] abstract class EntitlementProvider(
    * @param resource the resource to grant the subject access to
    * @return a promise that completes with true iff the subject is granted the right to access the requested resource
    */
-  protected[core] def grant(subject: Subject, right: Privilege, resource: Resource)(
+  protected[core] def grant(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId): Future[Boolean]
 
   /**
@@ -173,7 +173,7 @@ protected[core] abstract class EntitlementProvider(
    * @param resource the resource to revoke the subject access to
    * @return a promise that completes with true iff the subject is revoked the right to access the requested resource
    */
-  protected[core] def revoke(subject: Subject, right: Privilege, resource: Resource)(
+  protected[core] def revoke(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId): Future[Boolean]
 
   /**
@@ -184,7 +184,7 @@ protected[core] abstract class EntitlementProvider(
    * @param resource the resource the subject requests access to
    * @return a promise that completes with true iff the subject is permitted to access the request resource
    */
-  protected def entitled(subject: Subject, right: Privilege, resource: Resource)(
+  protected def entitled(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId): Future[Boolean]
 
   /**
@@ -305,7 +305,7 @@ protected[core] abstract class EntitlementProvider(
           case true => Future.successful(resource -> true)
           case false =>
             logging.debug(this, "checking explicit grants")
-            entitled(user.subject, right, resource).flatMap(b => Future.successful(resource -> b))
+            entitled(user, right, resource).flatMap(b => Future.successful(resource -> b))
         }
       }
     }

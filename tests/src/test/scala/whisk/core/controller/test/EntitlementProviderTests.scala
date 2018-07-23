@@ -229,10 +229,10 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val one = Resource(someUser.namespace.name.toPath, ACTIONS, Some("xyz"))
     Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
     Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
-    Await.result(entitlementProvider.grant(adminUser.subject, READ, all), requestTimeout) // granted
+    Await.result(entitlementProvider.grant(adminUser, READ, all), requestTimeout) // granted
     Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get shouldBe Right({})
     Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
-    Await.result(entitlementProvider.revoke(adminUser.subject, READ, all), requestTimeout) // revoked
+    Await.result(entitlementProvider.revoke(adminUser, READ, all), requestTimeout) // revoked
   }
 
   it should "grant access to specific resource to a user" in {
@@ -245,14 +245,14 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       .ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout)
       .eitherValue
       .get should not be Right({})
-    Await.result(entitlementProvider.grant(adminUser.subject, READ, one), requestTimeout) // granted
+    Await.result(entitlementProvider.grant(adminUser, READ, one), requestTimeout) // granted
     Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
     Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
     Await
       .ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout)
       .eitherValue
       .get should not be Right({})
-    Await.result(entitlementProvider.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
+    Await.result(entitlementProvider.revoke(adminUser, READ, one), requestTimeout) // revoked
   }
 
   behavior of "Package Collection"

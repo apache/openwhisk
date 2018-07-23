@@ -23,7 +23,7 @@ import akka.actor.ActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.entity.{ControllerInstanceId, Subject}
+import whisk.core.entity.{ControllerInstanceId, Identity, Subject}
 import whisk.core.loadBalancer.LoadBalancer
 
 protected[core] class LocalEntitlementProvider(
@@ -37,8 +37,9 @@ protected[core] class LocalEntitlementProvider(
   private val matrix = LocalEntitlementProvider.matrix
 
   /** Grants subject right to resource by adding them to the entitlement matrix. */
-  protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(
+  protected[core] override def grant(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId) = Future {
+    val subject = user.subject
     synchronized {
       val key = (subject, resource.id)
       matrix.put(key, matrix.get(key) map { _ + right } getOrElse Set(right))
@@ -48,8 +49,9 @@ protected[core] class LocalEntitlementProvider(
   }
 
   /** Revokes subject right to resource by removing them from the entitlement matrix. */
-  protected[core] override def revoke(subject: Subject, right: Privilege, resource: Resource)(
+  protected[core] override def revoke(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId) = Future {
+    val subject = user.subject
     synchronized {
       val key = (subject, resource.id)
       val newrights = matrix.get(key) map { _ - right } map { matrix.put(key, _) }
@@ -59,8 +61,9 @@ protected[core] class LocalEntitlementProvider(
   }
 
   /** Checks if subject has explicit grant for a resource. */
-  protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(
+  protected override def entitled(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId) = Future.successful {
+    val subject = user.subject
     lazy val one = matrix.get((subject, resource.id)) map { _ contains right } getOrElse false
     lazy val any = matrix.get((subject, resource.parent)) map { _ contains right } getOrElse false
     one || any
