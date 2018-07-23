@@ -73,7 +73,7 @@ object BasicAuthenticationDirective extends AuthenticationDirectiveProvider {
     }
   }
 
-  def namespaceIdentity(namespace: EntityName)(implicit transid: TransactionId, authStore: AuthStore) = {
+  def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId, authStore: AuthStore) = {
     Identity.get(authStore, namespace)
   }
 

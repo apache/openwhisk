@@ -320,9 +320,28 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 }
 
 trait AuthenticationDirectiveProvider extends Spi {
+
+  /**
+   * Returns an authentication directive used to validate the
+   * passed user credentials.
+   * At runtime the directive returns an user identity
+   * which is passed to the following routes
+   *
+   * @return autehtication directive used to verify the user credentials
+   */
   def authenticate(implicit transid: TransactionId,
                    authStore: AuthStore,
                    logging: Logging): AuthenticationDirective[Identity]
 
-  def namespaceIdentity(namespace: EntityName)(implicit transid: TransactionId, authStore: AuthStore): Future[Identity]
+  /**
+   * Retrieves an Identity based on a given namespace name.
+   *
+   * For use-cases of anonymous invocation (i.e. WebActions),
+   * we need to an identity based on a given namespace-name to
+   * give the invocation all the context needed.
+   * @param namespace the namespace that the identity will be based on
+   * @return identity based on the given namespace
+   */
+  def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId,
+                                                 authStore: AuthStore): Future[Identity]
 }
