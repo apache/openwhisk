@@ -19,12 +19,13 @@ package whisk.core.entity
 
 import pureconfig.loadConfigOrThrow
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.entity.Attachments._
 import whisk.core.entity.Attachments.Attached._
+import fastparse.all._
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -185,8 +186,53 @@ protected[core] object ExecManifest {
 
   protected[core] object ImageName {
     private val defaultImageTag = "latest"
-    private val componentRegex = """([a-z0-9._-]+)""".r
-    private val tagRegex = """([\w.-]{0,128})""".r
+
+    // docker image name grammar, taken from: https://github.com/docker/distribution/blob/master/reference/reference.go
+    //
+    // Grammar
+    //
+    // reference                       := name [ ":" tag ] [ "@" digest ]
+    // name                            := [domain '/'] path-component ['/' path-component]*
+    // domain                          := domain-component ['.' domain-component]* [':' port-number]
+    // domain-component                := /([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])/
+    // port-number                     := /[0-9]+/
+    // path-component                  := alpha-numeric [separator alpha-numeric]*
+    // alpha-numeric                   := /[a-z0-9]+/
+    // separator                       := /[_.]|__|[-]*/
+    //
+    // tag                             := /[\w][\w.-]{0,127}/
+    //
+    // digest                          := digest-algorithm ":" digest-hex
+    // digest-algorithm                := digest-algorithm-component [ digest-algorithm-separator digest-algorithm-component ]*
+    // digest-algorithm-separator      := /[+.-_]/
+    // digest-algorithm-component      := /[A-Za-z][A-Za-z0-9]*/
+    // digest-hex                      := /[0-9a-fA-F]{32,}/ ; At least 128 bit digest value
+    private val lowercaseLetters = P(CharIn('a' to 'z'))
+    private val uppercaseLetters = P(CharIn('A' to 'Z'))
+    private val letters = P(lowercaseLetters | uppercaseLetters)
+    private val digits = P(CharIn('0' to '9'))
+
+    private val alphaNumeric = P(lowercaseLetters | digits)
+    private val alphaNumericWithUpper = P(letters | digits)
+    private val word = P(alphaNumericWithUpper | "_")
+
+    private val digestHex = P(digits | CharIn(('a' to 'f') ++ ('A' to 'F'))).rep(min = 32)
+    private val digestAlgorithmComponent = P(letters ~ alphaNumericWithUpper.rep)
+    private val digestAlgorithmSeperator = P("+" | "." | "-" | "_")
+    private val digestAlgorithm = P(digestAlgorithmComponent.rep(min = 1, sep = digestAlgorithmSeperator))
+    private val digest = P(digestAlgorithm ~ ":" ~ digestHex)
+
+    private val tag = P(word ~ (word | "." | "-").rep(max = 127))
+
+    private val separator = P("_" | "." | "__" | "-".rep)
+    private val pathComponent = P(alphaNumeric.rep(min = 1, sep = separator))
+    private val portNumber = P(digits.rep(min = 1))
+    // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
+    private val domainComponent = P(alphaNumericWithUpper | "-").rep
+    private val domain = P(domainComponent.rep(min = 1, sep = ".") ~ (":" ~ portNumber).?)
+    private val name = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
+
+    private val reference = P(Start ~ name ~ (":" ~ tag.!).? ~ ("@" ~ digest.!).? ~ End)
 
     /**
      * Constructs an ImageName from a string. This method checks that the image name conforms
@@ -194,27 +240,18 @@ protected[core] object ExecManifest {
      * which fails the Try. Callers could use this to short-circuit operations (CRUD or activation).
      * Internal container names use the proper constructor directly.
      */
-    def fromString(s: String): Try[ImageName] =
-      Try {
-        val parts = s.split("/")
+    def fromString(s: String): Try[ImageName] = {
+      reference.parse(s) match {
+        case Parsed.Success((registry, imagePathParts, imageTag, _), _) =>
+          // imagePathParts has at least one element per the parser above
+          val prefix = (registry ++ imagePathParts.dropRight(1)).mkString("/")
+          val imageName = imagePathParts.last
 
-        val (name, tag) = parts.last.split(":") match {
-          case Array(componentRegex(s))              => (s, None)
-          case Array(componentRegex(s), tagRegex(t)) => (s, Some(t))
-          case _                                     => throw DeserializationException("image name is not valid")
-        }
-
-        val prefixParts = parts.dropRight(1)
-        if (!prefixParts.forall(componentRegex.pattern.matcher(_).matches)) {
-          throw DeserializationException("image prefix not is not valid")
-        }
-        val prefix = if (prefixParts.nonEmpty) Some(prefixParts.mkString("/")) else None
-
-        ImageName(name, prefix, tag)
-      } recoverWith {
-        case t: DeserializationException => Failure(t)
-        case t                           => Failure(DeserializationException("could not parse image name"))
+          Success(ImageName(imageName, if (prefix.nonEmpty) Some(prefix) else None, imageTag))
+        case Parsed.Failure(_, _, _) =>
+          Failure(DeserializationException("could not parse image name"))
       }
+    }
   }
 
   /**
