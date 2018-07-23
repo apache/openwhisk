@@ -245,4 +245,6 @@ object TransactionId {
   }
 }
 
-case class TransactionGeneratorConfig(header: String)
+case class TransactionGeneratorConfig(header: String) {
+  val lowerCaseHeader = header.toLowerCase //to cache the lowercase version of the header name
+}
