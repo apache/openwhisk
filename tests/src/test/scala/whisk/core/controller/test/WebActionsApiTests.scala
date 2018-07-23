@@ -1768,15 +1768,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(
+    protected[core] override def grant(user: Identity, right: Privilege, resource: Resource)(
       implicit transid: TransactionId) = ???
 
     /** Revokes subject right to resource by removing them from the entitlement matrix. */
-    protected[core] override def revoke(subject: Subject, right: Privilege, resource: Resource)(
+    protected[core] override def revoke(user: Identity, right: Privilege, resource: Resource)(
       implicit transid: TransactionId) = ???
 
     /** Checks if subject has explicit grant for a resource. */
-    protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(
+    protected override def entitled(user: Identity, right: Privilege, resource: Resource)(
       implicit transid: TransactionId) = ???
   }
 
