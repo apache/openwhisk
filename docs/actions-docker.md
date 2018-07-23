@@ -105,6 +105,10 @@ The instructions that follow show you how to use the OpenWhisk Docker skeleton.
   Notice the use of `--docker` when creating an action. Currently all Docker images are assumed
   to be hosted on Docker Hub.
 
+  *Note:* It is considered best-practice for production images to be versioned via docker image tags. The tag "latest" or no tag will guarantee to always be on the latest state when creating new containers, but that contains the possibility of failing because pulling the image fails. For tagged images however, the system will allow a failing pull and gracefully recover it by using the image that is already locally available, making it much more resilient against Dockerhub outages etc.
+
+  The "latest" tag should therefore only be used for rapid prototyping where guaranteeing the latest code state is more important than runtime stability at scale.
+
 ## Invoking a Docker action
 
 Docker actions are invoked as [any other OpenWhisk action](actions.md#the-basics).
@@ -136,6 +140,10 @@ This will indicate to the system that for new invocations it should execute a do
   ```
   wsk action update example --docker janesmith/blackboxdemo
   ```
+
+**Note:** As noted above, only images with the tag "latest" or no tag will guarantee to be pulled again, even after updating the action. Any other tag might fall back to use the old image for stability reasons.
+
+To force an updated image after an action update, consider using versioned tags on the image.
 
 ## Creating native actions
 
