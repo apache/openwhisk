@@ -43,7 +43,7 @@ object Invoker {
    * An object which records the environment variables required for this component to run.
    */
   def requiredProperties =
-    Map(servicePort -> 8080.toString, invokerName -> "", runtimesRegistry -> "") ++
+    Map(servicePort -> 8080.toString, runtimesRegistry -> "") ++
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
@@ -111,36 +111,34 @@ object Invoker {
           parse(tail, c.copy(displayedName = nonEmptyString(displayedName)))
         case "--id" :: id :: tail if Try(id.toInt).isSuccess =>
           parse(tail, c.copy(id = Some(id.toInt)))
-        case id :: Nil if Try(id.toInt).isSuccess =>
-          c.copy(id = Some(id.toInt))
         case Nil => c
         case _   => abort(s"Error processing command line arguments $ls")
       }
     }
     val cmdLineArgs = parse(args.toList, CmdLineArgs())
     logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-    val invokerUniqueName = cmdLineArgs.uniqueName.orElse(nonEmptyString(config.invokerName))
-    val assignedInvokerId = cmdLineArgs.id
-      .map { id =>
+
+    val assignedInvokerId = cmdLineArgs match {
+      // --id is defined with a valid value, use this id directly.
+      case CmdLineArgs(_, Some(id), _) =>
         logger.info(this, s"invokerReg: using proposedInvokerId $id")
         id
-      }
-      .getOrElse {
+
+      // --uniqueName is defined with a valid value, id is empty, assign an id via zookeeper
+      case CmdLineArgs(Some(unique), None, _) =>
         if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
+        new InstanceIdAssigner(config.zookeeperHosts).getId(unique)
 
-        invokerUniqueName match {
-          case None       => abort("Invoker name can't be empty to use dynamicId assignment.")
-          case Some(name) => new InstanceIdAssigner(config.zookeeperHosts).getId(name)
-        }
-      }
+      case _ => abort(s"Either --id or --uniqueName must be configured with correct values")
+    }
 
     initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerUniqueName, cmdLineArgs.displayedName)
+    val invokerInstance = InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic $topicName")
