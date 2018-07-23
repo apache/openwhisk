@@ -237,6 +237,12 @@ db:
     admin:
       user: "{{ db_username | default(lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_password | default(lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
+    controller:
+      user: "{{ db_controller_user | default(lookup('ini', 'db_username section=controller file={{ playbook_dir }}/db_local.ini')) }}"
+      pass: "{{ db_controller_pass | default(lookup('ini', 'db_password section=controller file={{ playbook_dir }}/db_local.ini')) }}"
+    invoker:
+      user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
+      pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
 
 apigateway:
   port:

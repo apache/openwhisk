@@ -9,6 +9,13 @@
     dbName: "{{ db.whisk.auth }}"
     forceRecreation: False
 
+- include_tasks: db/grantPermissions.yml
+  vars:
+    dbName: "{{ db.whisk.auth }}"
+    readers:
+    - "{{ db.credentials.controller.user }}"
+    - "{{ db.credentials.invoker.user }}"
+
 - include_tasks: db/recreateDoc.yml
   vars:
     dbName: "{{ db.whisk.auth }}"
