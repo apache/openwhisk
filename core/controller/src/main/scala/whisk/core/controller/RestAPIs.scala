@@ -325,9 +325,9 @@ trait AuthenticationDirectiveProvider extends Spi {
    * Returns an authentication directive used to validate the
    * passed user credentials.
    * At runtime the directive returns an user identity
-   * which is passed to the following routes
+   * which is passed to the following routes.
    *
-   * @return autehtication directive used to verify the user credentials
+   * @return authentication directive used to verify the user credentials
    */
   def authenticate(implicit transid: TransactionId,
                    authStore: AuthStore,
@@ -339,6 +339,7 @@ trait AuthenticationDirectiveProvider extends Spi {
    * For use-cases of anonymous invocation (i.e. WebActions),
    * we need to an identity based on a given namespace-name to
    * give the invocation all the context needed.
+   *
    * @param namespace the namespace that the identity will be based on
    * @return identity based on the given namespace
    */
