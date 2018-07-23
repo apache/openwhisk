@@ -401,7 +401,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .map(as => as.deleteAttachments(doc.id))
       .getOrElse(Future.successful(true)) // For CosmosDB it is expected that the entire document is deleted.
 
-  override def shutdown(): Unit = clientRef.close()
+  override def shutdown(): Unit = {
+    attachmentStore.foreach(_.shutdown())
+    clientRef.close()
+  }
 
   private def isNotFound[A <: DocumentAbstraction](e: DocumentClientException) =
     e.getStatusCode == StatusCodes.NotFound.intValue
