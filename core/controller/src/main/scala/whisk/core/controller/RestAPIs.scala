@@ -40,7 +40,7 @@ import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.http.Messages
 import whisk.spi.{Spi, SpiLoader}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -323,4 +323,6 @@ trait AuthenticationDirectiveProvider extends Spi {
   def authenticate(implicit transid: TransactionId,
                    authStore: AuthStore,
                    logging: Logging): AuthenticationDirective[Identity]
+
+  def namespaceIdentity(namespace: EntityName)(implicit transid: TransactionId, authStore: AuthStore): Future[Identity]
 }

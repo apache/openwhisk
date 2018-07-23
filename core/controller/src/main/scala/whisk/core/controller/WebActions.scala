@@ -55,6 +55,7 @@ import whisk.core.entity.types._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.http.LenientSprayJsonSupport._
+import whisk.spi.SpiLoader
 import whisk.utils.JsHelpers._
 
 protected[controller] sealed class WebApiDirectives(prefix: String = "__ow_") {
@@ -457,7 +458,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
    * This method is factored out to allow mock testing.
    */
   protected def getIdentity(namespace: EntityName)(implicit transid: TransactionId): Future[Identity] = {
-    Identity.get(authStore, namespace)
+    SpiLoader.get[AuthenticationDirectiveProvider].namespaceIdentity(namespace)(transid, authStore)
   }
 
   private def handleMatch(namespaceSegment: String,
