@@ -115,7 +115,11 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
 
     wsk.action.create(packageName + "/" + actionName, defaultAction, annotations = actionAnnots)
-    val result = wsk.pkg.get(packageName)
+    val result = cacheRetry({
+      val p = wsk.pkg.get(packageName)
+      p.getFieldListJsObject("actions") should have size 1
+      p
+    })
     val ns = wsk.namespace.whois()
     wsk.action.delete(packageName + "/" + actionName)
 
