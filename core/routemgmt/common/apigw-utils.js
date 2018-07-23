@@ -41,7 +41,7 @@ function generateTargetUrlMap(ibmConfig) {
         var execs = element['execute'];
         //each nth element of execs and operations go together, so lets add those to the map.
         for (var i = 0; i < operations.length ; ++i) {
-          if(i < execs.length && execs[i] && execs[i]['invoke']['target-url']) {
+          if(i < execs.length && execs[i] && execs[i]['invoke'] && execs[i]['invoke']['target-url']) {
             targetUrls[operations[i]] = execs[i]['invoke']['target-url'];
           }
         }
