@@ -195,10 +195,10 @@ object MesosContainerFactory {
 }
 
 object MesosContainerFactoryProvider extends ContainerFactoryProvider {
-  override def getContainerFactory(actorSystem: ActorSystem,
-                                   logging: Logging,
-                                   config: WhiskConfig,
-                                   instance: InvokerInstanceId,
-                                   parameters: Map[String, Set[String]]): ContainerFactory =
+  override def instance(actorSystem: ActorSystem,
+                        logging: Logging,
+                        config: WhiskConfig,
+                        instance: InvokerInstanceId,
+                        parameters: Map[String, Set[String]]): ContainerFactory =
     new MesosContainerFactory(config, actorSystem, logging, parameters)
 }

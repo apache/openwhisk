@@ -26,11 +26,11 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarsha
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
-
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.LogStore
 import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
+import whisk.core.database.ActivationStore
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entity._

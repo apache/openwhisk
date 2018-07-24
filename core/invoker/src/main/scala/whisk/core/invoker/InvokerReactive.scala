@@ -54,7 +54,7 @@ class InvokerReactive(
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   implicit val cfg: WhiskConfig = config
 
-  private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  private val logsProvider = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
 
   /**
@@ -67,7 +67,7 @@ class InvokerReactive(
   private val containerFactory =
     SpiLoader
       .get[ContainerFactoryProvider]
-      .getContainerFactory(
+      .instance(
         actorSystem,
         logging,
         config,

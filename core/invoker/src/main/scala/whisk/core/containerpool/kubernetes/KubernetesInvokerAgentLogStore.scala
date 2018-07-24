@@ -72,5 +72,5 @@ class KubernetesInvokerAgentLogStore(system: ActorSystem) extends LogDriverLogSt
 }
 
 object KubernetesInvokerAgentLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = new KubernetesInvokerAgentLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem): LogStore = new KubernetesInvokerAgentLogStore(actorSystem)
 }

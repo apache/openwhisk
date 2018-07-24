@@ -126,11 +126,11 @@ class DockerContainerFactory(instance: InvokerInstanceId,
 }
 
 object DockerContainerFactoryProvider extends ContainerFactoryProvider {
-  override def getContainerFactory(actorSystem: ActorSystem,
-                                   logging: Logging,
-                                   config: WhiskConfig,
-                                   instanceId: InvokerInstanceId,
-                                   parameters: Map[String, Set[String]]): ContainerFactory = {
+  override def instance(actorSystem: ActorSystem,
+                        logging: Logging,
+                        config: WhiskConfig,
+                        instanceId: InvokerInstanceId,
+                        parameters: Map[String, Set[String]]): ContainerFactory = {
 
     new DockerContainerFactory(instanceId, parameters)(
       actorSystem,

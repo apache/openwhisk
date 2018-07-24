@@ -117,5 +117,5 @@ class ElasticSearchLogStore(
 }
 
 object ElasticSearchLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = new ElasticSearchLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem): LogStore = new ElasticSearchLogStore(actorSystem)
 }

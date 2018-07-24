@@ -26,7 +26,7 @@ import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.common.tracing.WhiskTracerProvider
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
-import whisk.core.database.NoDocumentException
+import whisk.core.database.{ActivationStore, NoDocumentException}
 import whisk.core.entitlement.{Resource, _}
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt

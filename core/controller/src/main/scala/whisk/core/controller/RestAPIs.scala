@@ -30,7 +30,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.{Logging, TransactionId}
 import whisk.core.containerpool.logging.LogStore
-import whisk.core.database.CacheChangeNotification
+import whisk.core.database.{ActivationStore, CacheChangeNotification}
 import whisk.core.entitlement._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._

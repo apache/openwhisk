@@ -83,9 +83,9 @@ object ContainerFactory {
  * All impls should use the parameters specified as additional args to "docker run" commands
  */
 trait ContainerFactoryProvider extends Spi {
-  def getContainerFactory(actorSystem: ActorSystem,
-                          logging: Logging,
-                          config: WhiskConfig,
-                          instance: InvokerInstanceId,
-                          parameters: Map[String, Set[String]]): ContainerFactory
+  def instance(actorSystem: ActorSystem,
+               logging: Logging,
+               config: WhiskConfig,
+               instance: InvokerInstanceId,
+               parameters: Map[String, Set[String]]): ContainerFactory
 }

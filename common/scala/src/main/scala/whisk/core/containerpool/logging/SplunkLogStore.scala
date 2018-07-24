@@ -162,5 +162,5 @@ class SplunkLogStore(
 }
 
 object SplunkLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem) = new SplunkLogStore(actorSystem)
+  override def instance(actorSystem: ActorSystem) = new SplunkLogStore(actorSystem)
 }

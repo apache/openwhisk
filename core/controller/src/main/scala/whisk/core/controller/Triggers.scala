@@ -39,7 +39,7 @@ import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.common.{Https, TransactionId}
 import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
-import whisk.core.database.CacheChangeNotification
+import whisk.core.database.{ActivationStore, CacheChangeNotification}
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
