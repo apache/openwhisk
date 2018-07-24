@@ -77,7 +77,7 @@ The address of your docker host has to be configured in the `metrics_kamon_stats
 
 ### Metric Names
 
-All metric names have to prefixed by a prefix that you specify and are subject to modification by graphite, datadog, or statsd. For example if prefix used is `openwhisk` then metric names would be like `openwhisk.counter.controller_activation_start`. This document assumes that metric name prefix is `openwhisk`
+All metric names have to be prefixed by a prefix that you specify and are subject to modification by graphite, datadog, or statsd. For example if prefix used is `openwhisk` then metric names would be like `openwhisk.counter.controller_activation_start`. This document assumes that metric name prefix is `openwhisk`
 
 Currently OpenWhisk emits following types of metrics
 
@@ -102,7 +102,7 @@ Below are some of the important metrics emitted by OpenWhisk setup
 
 #### Controller metrics
 
-Metrics below are emitted from with a Controller instance.
+Metrics below are emitted from within a Controller instance.
 
 ##### Controller Startup
 
@@ -213,8 +213,8 @@ Following metrics capture stats around various docker command executions.
 
 Metrics below are emitted per kafka topic.
 
-* `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to kafka and when it is read within a consumer.
-* `openwhisk.histogram.kafka_<topic name>_count` - Queue size as seen when messages were fetched from kafka queue.
+* `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to kafka and when it is read within a consumer. This metric is recorded for every message read.
+* `openwhisk.histogram.kafka_<topic name>_count` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
 
 Metrics per topic
 * `cacheInvalidation` - Emitted per controller while reading the cache invalidation messages.
