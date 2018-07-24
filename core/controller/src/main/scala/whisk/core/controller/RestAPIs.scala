@@ -40,7 +40,7 @@ import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.http.Messages
 import whisk.spi.{Spi, SpiLoader}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -320,7 +320,29 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 }
 
 trait AuthenticationDirectiveProvider extends Spi {
+
+  /**
+   * Returns an authentication directive used to validate the
+   * passed user credentials.
+   * At runtime the directive returns an user identity
+   * which is passed to the following routes.
+   *
+   * @return authentication directive used to verify the user credentials
+   */
   def authenticate(implicit transid: TransactionId,
                    authStore: AuthStore,
                    logging: Logging): AuthenticationDirective[Identity]
+
+  /**
+   * Retrieves an Identity based on a given namespace name.
+   *
+   * For use-cases of anonymous invocation (i.e. WebActions),
+   * we need to an identity based on a given namespace-name to
+   * give the invocation all the context needed.
+   *
+   * @param namespace the namespace that the identity will be based on
+   * @return identity based on the given namespace
+   */
+  def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId,
+                                                 authStore: AuthStore): Future[Identity]
 }
