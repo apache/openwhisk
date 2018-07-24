@@ -22,7 +22,7 @@
       "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
       "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
-      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
+      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.offsetsTopicReplicationFactor }}"
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
       "KAFKA_NUM_NETWORK_THREADS": "{{ kafka.networkThreads }}"
 
