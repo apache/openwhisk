@@ -39,6 +39,7 @@ import akka.stream.stage._
 import akka.util.ByteString
 import spray.json._
 import whisk.core.containerpool.logging.LogLine
+import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 
 object DockerContainer {
@@ -54,9 +55,7 @@ object DockerContainer {
    * Creates a container running on a docker daemon.
    *
    * @param transid transaction creating the container
-   * @param image image to create the container from
-   * @param userProvidedImage whether the image is provided by the user
-   *     or is an OpenWhisk provided image
+   * @param image either a user provided (Left) or OpenWhisk provided (Right) image
    * @param memory memorylimit of the container
    * @param cpuShares sharefactor for the container
    * @param environment environment variables to set on the container
@@ -67,8 +66,7 @@ object DockerContainer {
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
   def create(transid: TransactionId,
-             image: String,
-             userProvidedImage: Boolean = false,
+             image: Either[ImageName, String],
              memory: ByteSize = 256.MB,
              cpuShares: Int = 0,
              environment: Map[String, String] = Map.empty,
@@ -104,22 +102,44 @@ object DockerContainer {
       dnsServers.flatMap(d => Seq("--dns", d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
       params
-    val pulled = if (userProvidedImage) {
-      docker.pull(image).recoverWith {
-        case _ => Future.failed(BlackboxStartupError(Messages.imagePullError(image)))
-      }
-    } else Future.successful(())
+
+    val imageToUse = image.fold(_.publicImageName, identity)
+
+    val pulled = image match {
+      case Left(userProvided) if userProvided.tag.map(_ == "latest").getOrElse(true) =>
+        // Iff the image tag is "latest" explicitly (or implicitly because no tag is given at all), failing to pull will
+        // fail the whole container bringup process, because it is expected to pick up the very latest "untagged"
+        // version every time.
+        docker.pull(imageToUse).map(_ => true).recoverWith {
+          case _ => Future.failed(BlackboxStartupError(Messages.imagePullError(imageToUse)))
+        }
+      case Left(_) =>
+        // Iff the image tag is something else than latest, we tolerate an outdated image if one is available locally.
+        // A `docker run` will be tried nonetheless to try to start a container (which will succeed if the image is
+        // already available locally)
+        docker.pull(imageToUse).map(_ => true).recover { case _ => false }
+      case Right(_) =>
+        // Iff we're not pulling at all (OpenWhisk provided image) we act as if the pull was successful.
+        Future.successful(true)
+    }
 
     for {
-      _ <- pulled
-      id <- docker.run(image, args).recoverWith {
-        case BrokenDockerContainer(brokenId, message) =>
+      pullSuccessful <- pulled
+      id <- docker.run(imageToUse, args).recoverWith {
+        case BrokenDockerContainer(brokenId, _) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           docker.rm(brokenId)
           Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
         case _ =>
-          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+          // Iff the pull was successful, we assume that the error is not due to an image pull error, otherwise
+          // the docker run was a backup measure to try and start the container anyway. If it fails again, we assume
+          // the image could still not be pulled and wasn't available locally.
+          if (pullSuccessful) {
+            Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+          } else {
+            Future.failed(BlackboxStartupError(Messages.imagePullError(imageToUse)))
+          }
       }
       ip <- docker.inspectIPAddress(id, network).recoverWith {
         // remove the container immediately if inspect failed as
