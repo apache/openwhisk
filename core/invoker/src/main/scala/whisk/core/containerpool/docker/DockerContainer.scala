@@ -108,8 +108,8 @@ object DockerContainer {
     val pulled = image match {
       case Left(userProvided) if userProvided.tag.map(_ == "latest").getOrElse(true) =>
         // Iff the image tag is "latest" explicitly (or implicitly because no tag is given at all), failing to pull will
-        // fail the whole container bringup process, because it is expected to pick up the very latest version every
-        // time.
+        // fail the whole container bringup process, because it is expected to pick up the very latest "untagged"
+        // version every time.
         docker.pull(imageToUse).map(_ => true).recoverWith {
           case _ => Future.failed(BlackboxStartupError(Messages.imagePullError(imageToUse)))
         }
