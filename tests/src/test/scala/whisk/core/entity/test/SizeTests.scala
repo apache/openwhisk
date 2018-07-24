@@ -118,11 +118,15 @@ class SizeTests extends FlatSpec with Matchers {
   }
 
   it should "5 Byte / 2 = 2 Byte" in {
-    5.B / 2 should be(2 B)
+    5.B / 2 should be(2.B)
   }
 
   it should "1 MB / 512 = 2 Byte" in {
-    1.MB / 512 should be(2 KB)
+    1.MB / 512 should be(2.KB)
+  }
+
+  it should "not go into integer overflow for a few GB" in {
+    4096.MB / 2 should be(2048.MB)
   }
 
   it should "throw an exception if division is through 0" in {

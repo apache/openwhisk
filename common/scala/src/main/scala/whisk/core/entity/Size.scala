@@ -83,7 +83,7 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
   }
 
   def /(other: Int): ByteSize = {
-    ByteSize((toBytes / other).toInt, SizeUnits.BYTE)
+    ByteSize(toBytes / other, SizeUnits.BYTE)
   }
 
   def compare(other: ByteSize) = toBytes compare other.toBytes
