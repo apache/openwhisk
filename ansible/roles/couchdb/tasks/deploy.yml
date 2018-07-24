@@ -7,6 +7,10 @@
   set_fact:
     coordinator: "{{ groups['db'][0] }}"
 
+- name: "Set the volumes"
+  set_fact:
+    volumes: []
+
 - name: check if db credentials are valid for CouchDB
   fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db.provider }}, it has to be CouchDB, pls double check"
   when: db.provider != "CouchDB"
@@ -20,8 +24,16 @@
   vars:
     instance: "{{instances | selectattr('name', 'equalto', 'db') | list | first}}"
   set_fact:
-    volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
+    volumes: "{{ volumes }} + [ '{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb' ]"
   when: (block_device is defined) and (block_device in disk_status.stdout)
+
+- include_tasks: gen_erl_cookie.yml
+  when: (db.instances|int >= 2)
+
+- name: "set the erlang cookie volume"
+  set_fact:
+    volumes: "{{ volumes }} + [ '{{ config_root_dir }}/erlang.cookie:/opt/couchdb/.erlang.cookie' ]"
+  when: (db.instances|int >= 2)
 
 - name: "(re)start CouchDB from '{{ couchdb_image }} ' "
   vars:
@@ -32,7 +44,7 @@
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    volumes: "{{volume_dir | default([])}}"
+    volumes: "{{ volumes }}"
     ports:
       - "{{ db.port }}:5984"
       - "4369:4369"
