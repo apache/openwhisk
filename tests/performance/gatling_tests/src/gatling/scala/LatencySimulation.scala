@@ -33,6 +33,8 @@ class LatencySimulation extends Simulation {
   // Specify authentication
   val Array(uuid, key) = sys.env("API_KEY").split(":")
 
+  val pauseBetweenInvokes: Int = sys.env.getOrElse("PAUSE_BETWEEN_INVOKES", "0").toInt
+
   // Specify thresholds
   val meanResponseTime: Int = sys.env("MEAN_RESPONSE_TIME").toInt
   val maximalMeanResponseTime: Int = sys.env.getOrElse("MAX_MEAN_RESPONSE_TIME", meanResponseTime.toString).toInt
@@ -79,7 +81,7 @@ class LatencySimulation extends Simulation {
         .repeat(100) {
           // Add a pause of 100 milliseconds. Reason for this pause is, that collecting of logs runs asynchronously in
           // invoker. If this is not finished before the next request arrives, a new cold-start has to be done.
-          pause(100.milliseconds)
+          pause(pauseBetweenInvokes.milliseconds)
             .exec(openWhisk("Warm ${action._1} invocation").authenticate(uuid, key).action("${action._3}").invoke())
         }
         .exec(openWhisk("Delete ${action._1} action").authenticate(uuid, key).action("${action._3}").delete())
