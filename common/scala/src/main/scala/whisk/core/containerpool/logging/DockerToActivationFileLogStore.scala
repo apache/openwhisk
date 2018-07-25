@@ -21,14 +21,7 @@ import java.nio.file.{Path, Paths}
 import java.time.Instant
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
-import java.nio.file.attribute.PosixFilePermission.{
-  GROUP_READ,
-  GROUP_WRITE,
-  OTHERS_READ,
-  OTHERS_WRITE,
-  OWNER_READ,
-  OWNER_WRITE
-}
+import java.nio.file.attribute.PosixFilePermission.{GROUP_READ, GROUP_WRITE, OTHERS_READ, OWNER_READ, OWNER_WRITE}
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -85,7 +78,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
    * once the defined limit is reached.
    */
   val bufferSize = 100.MB
-  val perms = java.util.EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
+  val perms = java.util.EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ)
   val attr = PosixFilePermissions.asFileAttribute(perms)
   protected val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
