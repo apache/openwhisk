@@ -60,15 +60,6 @@ An expedient workaround is to add alias for `docker0` network to loopback interf
 sudo ifconfig lo0 alias 172.17.0.1/24
 ```
 
-##### Preserving configuration and log directories on reboot
-By default configuration and log data is stored in `/tmp`. However, Mac cleans the `/tmp` directory on reboot,
-resulting in failures when OpenWhisk tries to start up again. To avoid this problem, export the `OPENWHISK_TMP_DIR`
-variable with a value of `/Users/Shared`.
-
-```
-export OPENWHISK_TMP_DIR="/Users/Shared"
-```
-
 ### Using Ansible
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
@@ -77,9 +68,13 @@ In all instructions, replace `<environment>` with your target environment. The d
 Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
 use `-i environments/docker-machine`.
 
-
-
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
+
+#### Preserving configuration and log directories on reboot
+When using the local Ansible environment, configuration and log data is stored in `/tmp` by default. However, operating
+system such as Linux and Mac clean the `/tmp` directory on reboot, resulting in failures when OpenWhisk tries to start
+up again. To avoid this problem, export the `OPENWHISK_TMP_DIR` variable assigning it the path to a persistent
+directory before deploying OpenWhisk.
 
 #### Setup
 
