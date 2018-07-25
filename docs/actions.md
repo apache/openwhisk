@@ -50,8 +50,8 @@ advanced topics.
 Longer tutorials that are specific to a language of your choice are listed below.
 We recommend reading the basics in this document first, which are language agnostic, before getting deeper
 into a language-specific tutorial. If your preferred language isn't supported directly, you may find
-the [Docker](docker-actions.md) action or [native binary](docker-actions.md#creating-native-actions)
-paths more suitable. Or, you can [create a new runtime](#actions-new.md).
+the [Docker](actions-docker.md) action or [native binary](actions-docker.md#creating-native-actions)
+paths more suitable. Or, you can [create a new runtime](actions-new.md).
 
 * [Go](actions-go.md)
 * [Java](actions-java.md)
