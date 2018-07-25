@@ -17,6 +17,7 @@
 
 package whisk.core.controller
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.{AuthenticationDirective, AuthenticationResult}
@@ -73,7 +74,11 @@ object BasicAuthenticationDirective extends AuthenticationDirectiveProvider {
     }
   }
 
-  def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId, authStore: AuthStore) = {
+  def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId,
+                                                 system: ActorSystem,
+                                                 ec: ExecutionContext,
+                                                 authStore: AuthStore,
+                                                 logging: Logging) = {
     Identity.get(authStore, namespace)
   }
 

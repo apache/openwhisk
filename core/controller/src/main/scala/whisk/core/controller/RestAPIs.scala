@@ -344,5 +344,8 @@ trait AuthenticationDirectiveProvider extends Spi {
    * @return identity based on the given namespace
    */
   def identityByNamespace(namespace: EntityName)(implicit transid: TransactionId,
-                                                 authStore: AuthStore): Future[Identity]
+                                                 system: ActorSystem,
+                                                 ec: ExecutionContext,
+                                                 authStore: AuthStore,
+                                                 logging: Logging): Future[Identity]
 }
