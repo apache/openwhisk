@@ -88,7 +88,7 @@ This simulation creates actions of the following four kinds: `nodejs:default`, `
 `python:default`.
 Afterwards the action is invoked once. This is the cold-start and will not be part of the thresholds.
 Next, the action will be invoked 100 times blocking and one after each other. Between each invoke is a pause of
-`PAUSE_BETWEEN_INVOKES` milliseconds. The last step is, that the action will be deleted.
+`PAUSE_BETWEEN_INVOKES` milliseconds. The last step is to delete the action.
 
 Once one language is finished, the next kind will be taken. They are not running in parallel. There are never more than
 1 activations in the system, as we only want to meassure latency of warm activations.
