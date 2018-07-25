@@ -28,6 +28,7 @@ import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.{ActivationStore, NoDocumentException}
 import whisk.core.entitlement.{Resource, _}
+import whisk.core.entity.ActivationResponse.ERROR_FIELD
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.types.EntityStore
@@ -354,10 +355,17 @@ protected[actions] trait PrimitiveActions {
                   tryInvokeNext(user, fqn, params, session)
 
                 case Some(_) => // composition is too long
-                  Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
+                  invokeConductor(
+                    user,
+                    payload = Some(JsObject(ERROR_FIELD -> JsString(compositionIsTooLong))),
+                    session = session)
 
                 case None => // parsing failure
-                  Future.successful(ActivationResponse.applicationError(compositionComponentInvalid(next)))
+                  invokeConductor(
+                    user,
+                    payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentInvalid(next)))),
+                    session = session)
+
               }
           }
       }
@@ -388,16 +396,22 @@ protected[actions] trait PrimitiveActions {
               // successful resolution
               invokeComponent(user, action = next, payload = params, session)
           }
-          .recover {
+          .recoverWith {
             case _ =>
               // resolution failure
-              ActivationResponse.applicationError(compositionComponentNotFound(fqn.asString))
+              invokeConductor(
+                user,
+                payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotFound(fqn.asString)))),
+                session = session)
           }
       }
-      .recover {
+      .recoverWith {
         case _ =>
           // failed entitlement check
-          ActivationResponse.applicationError(compositionComponentNotAccessible(fqn.asString))
+          invokeConductor(
+            user,
+            payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotAccessible(fqn.asString)))),
+            session = session)
       }
   }
 

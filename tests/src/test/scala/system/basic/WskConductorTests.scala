@@ -105,7 +105,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
         activation.response.status shouldBe "application error"
         activation.response.result.get.fields.get("error") shouldBe Some(
           JsString(compositionComponentInvalid(JsString(invalid))))
-        checkConductorLogsAndAnnotations(activation, 1) // echo
+        checkConductorLogsAndAnnotations(activation, 2) // echo
       }
 
       // an undefined action
@@ -116,7 +116,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
         activation.response.status shouldBe "application error"
         activation.response.result.get.fields.get("error") shouldBe Some(
           JsString(compositionComponentNotFound(s"$namespace/$missing")))
-        checkConductorLogsAndAnnotations(activation, 1) // echo
+        checkConductorLogsAndAnnotations(activation, 2) // echo
       }
   }
 
