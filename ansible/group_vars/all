@@ -66,6 +66,7 @@ controller:
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
+  timeoutFactor: "{{ controller_timeout_factor | default(2) }}"
   instances: "{{ groups['controllers'] | length }}"
   localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:

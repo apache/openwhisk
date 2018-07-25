@@ -42,10 +42,13 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   def semaphores(count: Int, max: Int): IndexedSeq[ForcableSemaphore] =
     IndexedSeq.fill(count)(new ForcableSemaphore(max))
 
+  def lbConfig(blackboxFraction: Double, invokerBusyThreshold: Int) =
+    ShardingContainerPoolBalancerConfig(blackboxFraction, invokerBusyThreshold, 1)
+
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty
     val slots = 10
-    val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, slots))
     state.invokers shouldBe 'empty
     state.blackboxInvokers shouldBe 'empty
     state.managedInvokers shouldBe 'empty
@@ -85,7 +88,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "allow managed partition to overlap with blackbox for small N" in {
     Seq(0.1, 0.2, 0.3, 0.4, 0.5).foreach { bf =>
-      val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(bf, 1))
+      val state = ShardingContainerPoolBalancerState()(lbConfig(bf, 1))
 
       (1 to 100).toSeq.foreach { i =>
         state.updateInvokers((1 to i).map(_ => healthy(1)))
@@ -112,7 +115,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "update the cluster size, adjusting the invoker slots accordingly" in {
     val slots = 10
-    val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, slots))
     state.updateInvokers(IndexedSeq(healthy(0)))
 
     state.invokerSlots.head.tryAcquire()
@@ -124,7 +127,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "fallback to a size of 1 (alone) if cluster size is < 1" in {
     val slots = 10
-    val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, slots))
     state.updateInvokers(IndexedSeq(healthy(0)))
 
     state.invokerSlots.head.availablePermits shouldBe slots
@@ -141,7 +144,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "set the threshold to 1 if the cluster is bigger than there are slots on 1 invoker" in {
     val slots = 10
-    val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, slots))
     state.updateInvokers(IndexedSeq(healthy(0)))
 
     state.invokerSlots.head.availablePermits shouldBe slots
