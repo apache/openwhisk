@@ -56,7 +56,10 @@ limits:
   concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
+  # The parameter limits.actionCodeMb is the net action code. It might to be increased in some places to allow base64 overhead.
   actionCodeMb: "{{ limit_action_code_mb | default(48) }}"
+  # The parameter limits.parametersMb are applied for parameters and annotations. As no encoding is used on sending the
+  # annotations, it can be taken everywhere as it is.
   parametersMb: "{{ limit_parameters_mb | default(1) }}"
 
 # port means outer port

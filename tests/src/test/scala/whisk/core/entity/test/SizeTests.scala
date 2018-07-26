@@ -102,6 +102,10 @@ class SizeTests extends FlatSpec with Matchers {
     40.MB * 2 should be(80.MB)
   }
 
+  it should "56 MB * 0 = 0 MB" in {
+    56.MB * 0 should be(0.B)
+  }
+
   // Division
   it should "5 Byte / 2 = 2 Byte" in {
     5.B / 2 should be(2 B)
@@ -111,7 +115,7 @@ class SizeTests extends FlatSpec with Matchers {
     1.MB / 512 should be(2 KB)
   }
 
-  it should "throw an exception if division is through 0" in {
+  it should "throw an exception if division is by 0" in {
     an[ArithmeticException] should be thrownBy {
       1.MB / 0
     }

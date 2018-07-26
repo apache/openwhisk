@@ -126,7 +126,10 @@
       "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
 
-      # Allow base64 overhead of action-code, parameters and annotations.
+      # Allow parameters, annotations and base64 overhead of action-code.
+      # We calculate the limit out of the maximum size of annotations, the maximum size of paramters and the maximum size of action code (including base64 overhead).
+      # A valid message might still be too large, e.g. on choosing a very long name. But we are only considering the parameters, the annotations and the code here,
+      # as these are the largest parts of the message.
       "CONFIG_akka_http_server_parsing_maxContentLength": "{{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}m"
       "CONFIG_akka_http_client_parsing_maxChunkSize": "{{ (limits.actionCodeMb | int * 4 / 3 + limits.parametersMb | int * 2) | round(0, 'ceil') | int }}m"
 

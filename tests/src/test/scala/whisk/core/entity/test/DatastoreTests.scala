@@ -18,23 +18,21 @@
 package whisk.core.entity.test
 
 import java.time.Instant
+import java.util.Base64
 
-import scala.concurrent.Await
-import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
 import akka.stream.ActorMaterializer
-import common.StreamLogging
-import common.WskActorSystem
-import org.scalatest.mockito.MockitoSugar
+import common.{StreamLogging, WskActorSystem}
+import org.junit.runner.RunWith
 import org.mockito.Mockito._
-import whisk.core.database.DocumentConflictException
-import whisk.core.database.CacheChangeNotification
-import whisk.core.database.NoDocumentException
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec}
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.mockito.MockitoSugar
+import whisk.core.database.{CacheChangeNotification, DocumentConflictException, NoDocumentException}
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests
@@ -204,6 +202,17 @@ class DatastoreTests
     val revAction =
       WhiskAction(namespace, action.name, exec, Parameters(), ActionLimits()).revision[WhiskAction](docinfo.rev)
     putGetCheck(datastore, revAction, WhiskAction)
+  }
+
+  it should "create a large action" in {
+    implicit val tid = transid()
+    implicit val basename = EntityName("create large action")
+    val code = "a" * (Exec.sizeLimit.toBytes * 0.95).toInt
+    val parameter = Parameters("a", "b" * (Parameters.sizeLimit.toBytes * 0.95).toInt)
+    val encodedCode = Base64.getEncoder.encodeToString(code.getBytes())
+    val exec = jsDefault(encodedCode, Some("main"))
+    val action = WhiskAction(namespace, aname, exec, parameter, ActionLimits(), annotations = parameter)
+    putGetCheck(datastore, action, WhiskAction)(tid, 2.minutes, manifest)
   }
 
   it should "delete action attachments" in {

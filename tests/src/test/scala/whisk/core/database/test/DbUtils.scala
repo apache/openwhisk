@@ -262,7 +262,7 @@ trait DbUtils extends Assertions {
                                                           gc: Boolean = true)(implicit transid: TransactionId,
                                                                               timeout: Duration = 10 seconds,
                                                                               ma: Manifest[A]): (DocInfo, A) = {
-    val doc = put(db, entity, gc)
+    val doc = put(db, entity, gc)(transid, timeout)
     assert(doc != null && doc.id.asString != null && doc.rev.asString != null)
     val future = factory.get(db, doc.id, doc.rev)
     val dbEntity = Await.result(future, timeout)

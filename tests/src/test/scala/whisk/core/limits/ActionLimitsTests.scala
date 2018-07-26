@@ -338,7 +338,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     // Create a file, that has 5/6 of the allowed size.
     // Due to the overhead of base64, the encoded request will be bigger than the allowed limit.
     pw.write("a" * (actionCodeLimit.toBytes * 5 / 6).toInt)
-    pw close ()
+    pw.close()
 
     assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
       action.create(name, Some(actionCode.getAbsolutePath), kind = Some("nodejs:default"))
