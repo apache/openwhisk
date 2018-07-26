@@ -45,6 +45,7 @@ import whisk.http.Messages
 import whisk.http.Messages._
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Collection
+import whisk.core.loadBalancer.LoadBalancerException
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -280,6 +281,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       case Failure(RejectRequest(code, message)) =>
         logging.debug(this, s"[POST] action rejected with code $code: $message")
         terminate(code, message)
+      case Failure(t: LoadBalancerException) =>
+        logging.error(this, s"[POST] failed in loadbalancer: ${t.getMessage}")
+        terminate(ServiceUnavailable)
       case Failure(t: Throwable) =>
         logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
         terminate(InternalServerError)

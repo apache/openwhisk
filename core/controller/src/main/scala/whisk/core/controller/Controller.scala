@@ -42,7 +42,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.{Healthy, LoadBalancerProvider}
+import whisk.core.loadBalancer.{InvokerState, LoadBalancerProvider}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
@@ -151,7 +151,7 @@ class Controller(val instance: ControllerInstanceId,
         complete {
           loadBalancer
             .invokerHealth()
-            .map(_.count(_.status == Healthy).toJson)
+            .map(_.count(_.status == InvokerState.Healthy).toJson)
         }
       }
     }

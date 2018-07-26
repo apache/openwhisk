@@ -35,7 +35,6 @@ import whisk.core.entity._
 import whisk.core.loadBalancer.{LoadBalancer, ShardingContainerPoolBalancer}
 import whisk.http.ErrorResponse
 import whisk.http.Messages
-import whisk.http.Messages._
 import whisk.core.connector.MessagingProvider
 import whisk.spi.SpiLoader
 import whisk.spi.Spi
@@ -74,8 +73,7 @@ protected[core] object EntitlementProvider {
   val requiredProperties = Map(
     WhiskConfig.actionInvokePerMinuteLimit -> null,
     WhiskConfig.actionInvokeConcurrentLimit -> null,
-    WhiskConfig.triggerFirePerMinuteLimit -> null,
-    WhiskConfig.actionInvokeSystemOverloadLimit -> null)
+    WhiskConfig.triggerFirePerMinuteLimit -> null)
 }
 
 /**
@@ -148,8 +146,7 @@ protected[core] abstract class EntitlementProvider(
   private val concurrentInvokeThrottler =
     new ActivationThrottler(
       loadBalancer,
-      activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations),
-      config.actionInvokeSystemOverloadLimit.toInt)
+      activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations))
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
   private val eventProducer = messagingProvider.getProducer(this.config)
@@ -196,8 +193,7 @@ protected[core] abstract class EntitlementProvider(
   protected[core] def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
 
     logging.debug(this, s"checking user '${user.subject}' has not exceeded activation quota")
-    checkSystemOverload(ACTIVATE)
-      .flatMap(_ => checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user))
+    checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user)
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user), user))
   }
 
@@ -257,8 +253,7 @@ protected[core] abstract class EntitlementProvider(
         val throttleCheck =
           if (noThrottle) Future.successful(())
           else
-            checkSystemOverload(right)
-              .flatMap(_ => checkUserThrottle(user, right, resources))
+            checkUserThrottle(user, right, resources)
               .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
         throttleCheck
           .flatMap(_ => checkPrivilege(user, right, resources))
@@ -308,22 +303,6 @@ protected[core] abstract class EntitlementProvider(
             entitled(user, right, resource).flatMap(b => Future.successful(resource -> b))
         }
       }
-    }
-  }
-
-  /**
-   * Limits activations if the system is overloaded.
-   *
-   * @param right the privilege, if ACTIVATE then check quota else return None
-   * @return future completing successfully if system is not overloaded else failing with a rejection
-   */
-  protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Future[Unit] = {
-    concurrentInvokeThrottler.isOverloaded.flatMap { isOverloaded =>
-      val systemOverload = right == ACTIVATE && isOverloaded
-      if (systemOverload) {
-        logging.error(this, "system is overloaded")
-        Future.failed(RejectRequest(TooManyRequests, systemOverloaded))
-      } else Future.successful(())
     }
   }
 

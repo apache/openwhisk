@@ -348,12 +348,10 @@ The default system throttling limits are configured in this file [./group_vars/a
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
   concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
-  concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 ```
 - The `limits.invocationsPerMinute` represents the allowed namespace action invocations per minute.
 - The `limits.concurrentInvocations` represents the maximum concurrent invocations allowed per namespace.
-- The `limits.concurrentInvocationsSystem` represents the maximum concurrent invocations the system will allow across all namespaces.
 - The `limits.firesPerMinute` represents the allowed namespace trigger firings per minute.
 - The `limits.sequenceMaxLength` represents the maximum length of a sequence action.

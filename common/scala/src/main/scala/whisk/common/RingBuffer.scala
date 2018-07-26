@@ -28,5 +28,5 @@ class RingBuffer[T](size: Int) {
 
   def add(el: T) = inner.add(el)
 
-  def toList() = inner.toArray().asInstanceOf[Array[T]].toList
+  def toList = inner.toArray().asInstanceOf[Array[T]].toList
 }

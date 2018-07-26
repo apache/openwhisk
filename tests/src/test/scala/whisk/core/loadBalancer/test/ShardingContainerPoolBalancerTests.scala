@@ -24,6 +24,7 @@ import org.scalatest.junit.JUnitRunner
 import whisk.common.{ForcableSemaphore, TransactionId}
 import whisk.core.entity.InvokerInstanceId
 import whisk.core.loadBalancer._
+import whisk.core.loadBalancer.InvokerState._
 
 /**
  * Unit tests for the ContainerPool object.
@@ -36,7 +37,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   behavior of "ShardingContainerPoolBalancerState"
 
   def healthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), Healthy)
-  def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), UnHealthy)
+  def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), Unhealthy)
   def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i), Offline)
 
   def semaphores(count: Int, max: Int): IndexedSeq[ForcableSemaphore] =

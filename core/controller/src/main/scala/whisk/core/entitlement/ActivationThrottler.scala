@@ -30,13 +30,10 @@ import scala.concurrent.{ExecutionContext, Future}
  *
  * @param loadBalancer contains active quotas
  * @param concurrencyLimit a calculated limit relative to the user using the system
- * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity => Int, systemOverloadLimit: Int)(
+class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity => Int)(
   implicit logging: Logging,
   executionContext: ExecutionContext) {
-
-  logging.info(this, s"systemOverloadLimit = $systemOverloadLimit")(TransactionId.controller)
 
   /**
    * Checks whether the operation should be allowed to proceed.
@@ -48,20 +45,6 @@ class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity
         this,
         s"namespace = ${user.namespace.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $currentLimit")
       ConcurrentRateLimit(concurrentActivations, currentLimit)
-    }
-  }
-
-  /**
-   * Checks whether the system is in a generally overloaded state.
-   */
-  def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
-    loadBalancer.totalActiveActivations.map { concurrentActivations =>
-      val overloaded = concurrentActivations > systemOverloadLimit
-      if (overloaded)
-        logging.info(
-          this,
-          s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
-      overloaded
     }
   }
 }

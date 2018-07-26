@@ -52,6 +52,7 @@ import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
 import whisk.core.entity._
 import whisk.core.entity.types._
+import whisk.core.loadBalancer.LoadBalancerException
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.http.LenientSprayJsonSupport._
@@ -672,6 +673,10 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         terminate(Accepted, Messages.responseNotReady)
 
       case Failure(t: RejectRequest) => terminate(t.code, t.message)
+
+      case Failure(t: LoadBalancerException) =>
+        logging.error(this, s"failed in loadbalancer: $t")
+        terminate(ServiceUnavailable)
 
       case Failure(t) =>
         logging.error(this, s"exception in completeRequest: $t")
