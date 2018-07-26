@@ -19,7 +19,6 @@ package whisk.core.containerpool.docker.test
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.concurrent.duration._
 import org.apache.http.HttpRequest
 import org.apache.http.HttpResponse
@@ -35,23 +34,30 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import spray.json.JsObject
 import common.StreamLogging
+import common.WskActorSystem
+import org.apache.http.conn.HttpHostConnectException
+import scala.concurrent.Await
 import whisk.common.TransactionId
-import whisk.core.containerpool.HttpUtils
+import whisk.core.containerpool.ApacheBlockingContainerClient
+import whisk.core.containerpool.RetryableConnectionError
+import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.core.entity.ActivationResponse._
 
 /**
- * Unit tests for HttpUtils which communicate with containers.
+ * Unit tests for ApacheBlockingContainerClient which communicate with containers.
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerConnectionTests
+class ApacheBlockingContainerClientTests
     extends FlatSpec
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll
-    with StreamLogging {
+    with StreamLogging
+    with WskActorSystem {
 
   implicit val transid = TransactionId.testing
+  implicit val ec = actorSystem.dispatcher
 
   var testHang: FiniteDuration = 0.second
   var testStatusCode: Int = 200
@@ -89,14 +95,15 @@ class ContainerConnectionTests
     mockServer.shutDown()
   }
 
-  behavior of "Container HTTP Utils"
+  behavior of "ApacheBlockingContainerClient"
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new HttpUtils(hostWithPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
     testHang = timeout * 2
     val start = Instant.now()
-    val result = connection.post("/init", JsObject.empty, retry = true)
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result shouldBe 'left
@@ -106,22 +113,41 @@ class ContainerConnectionTests
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new HttpUtils(hostWithPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
     testStatusCode = 204
-    val result = connection.post("/init", JsObject.empty, retry = true)
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
+  }
+
+  it should "retry till timeout on HttpHostConnectException" in {
+    val timeout = 5.seconds
+    val badHostAndPort = "0.0.0.0:12345"
+    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
+    testStatusCode = 204
+    val start = Instant.now()
+    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val end = Instant.now()
+    val waited = end.toEpochMilli - start.toEpochMilli
+    result match {
+      case Left(Timeout(RetryableConnectionError(_: HttpHostConnectException))) => // all good
+      case _ =>
+        fail(s"$result was not a Timeout(RetryableConnectionError(HttpHostConnectException)))")
+    }
+
+    waited should be > timeout.toMillis
+    waited should be < (timeout * 2).toMillis
   }
 
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new HttpUtils(hostWithPort, timeout.millis, 50.B)
-    Seq(true, false).foreach { code =>
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, 50.B)
+    Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = connection.post("/init", JsObject.empty, retry = true)
+        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, if (r != null) r else "", None)
+          ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
       }
     }
@@ -131,14 +157,14 @@ class ContainerConnectionTests
     val timeout = 1.minute.toMillis
     val limit = 1.B
     val excess = limit + 1.B
-    val connection = new HttpUtils(hostWithPort, timeout.millis, limit)
-    Seq(true, false).foreach { code =>
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, limit)
+    Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusCode = if (code) 200 else 500
+        testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = connection.post("/init", JsObject.empty, retry = true)
+        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+          ContainerResponse(okStatus = success, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
         }
       }
     }

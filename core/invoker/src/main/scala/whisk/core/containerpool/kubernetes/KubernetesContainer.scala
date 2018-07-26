@@ -17,15 +17,14 @@
 
 package whisk.core.containerpool.kubernetes
 
+import akka.actor.ActorSystem
 import java.time.Instant
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
-
 import akka.stream.StreamLimitReachedException
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import spray.json._
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -91,6 +90,7 @@ class KubernetesContainer(protected[core] val id: ContainerId,
                           protected[core] val addr: ContainerAddress,
                           protected[core] val workerIP: String,
                           protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
+                                                                         override protected val as: ActorSystem,
                                                                          protected val ec: ExecutionContext,
                                                                          protected val logging: Logging)
     extends Container {

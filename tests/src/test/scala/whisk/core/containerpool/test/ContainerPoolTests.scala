@@ -113,6 +113,8 @@ class ContainerPoolTests
     (containers, factory)
   }
 
+  def poolConfig(numCore: Int, coreShare: Int) = ContainerPoolConfig(numCore, coreShare, false)
+
   behavior of "ContainerPool"
 
   /*
@@ -124,7 +126,7 @@ class ContainerPoolTests
   it should "reuse a warm container" in within(timeout) {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(2, 2), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(2, 2), feed.ref))
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
@@ -138,7 +140,7 @@ class ContainerPoolTests
   it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(2, 2), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(2, 2), feed.ref))
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
@@ -153,7 +155,7 @@ class ContainerPoolTests
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
 
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(2, 2), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(2, 2), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     // Note that the container doesn't respond, thus it's not free to take work
@@ -167,7 +169,7 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     // a pool with only 1 slot
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(1, 1), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(1, 1), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     containers(0).send(pool, NeedWork(warmedData()))
@@ -182,7 +184,7 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     // a pool with only 1 active slot but 2 slots in total
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(1, 2), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(1, 2), feed.ref))
 
     // Run the first container
     pool ! runMessage
@@ -208,7 +210,7 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     // a pool with only 1 slot
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(1, 1), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(1, 1), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     containers(0).send(pool, NeedWork(warmedData()))
@@ -223,7 +225,7 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     // a pool with only 1 slot
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(1, 1), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(1, 1), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     containers(0).send(pool, RescheduleJob) // emulate container failure ...
@@ -241,7 +243,8 @@ class ContainerPoolTests
 
     val pool =
       system.actorOf(
-        ContainerPool.props(factory, ContainerPoolConfig(0, 0), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+        ContainerPool
+          .props(factory, poolConfig(0, 0), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
   }
 
@@ -251,7 +254,8 @@ class ContainerPoolTests
 
     val pool =
       system.actorOf(
-        ContainerPool.props(factory, ContainerPoolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+        ContainerPool
+          .props(factory, poolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
     pool ! runMessage
@@ -266,7 +270,7 @@ class ContainerPoolTests
 
     val pool = system.actorOf(
       ContainerPool
-        .props(factory, ContainerPoolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, alternativeExec, memoryLimit))))
+        .props(factory, poolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, alternativeExec, memoryLimit))))
     containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
     containers(0).send(pool, NeedWork(preWarmedData(alternativeExec.kind)))
     pool ! runMessage
@@ -282,7 +286,7 @@ class ContainerPoolTests
     val pool =
       system.actorOf(
         ContainerPool
-          .props(factory, ContainerPoolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, exec, alternativeLimit))))
+          .props(factory, poolConfig(1, 1), feed.ref, List(PrewarmingConfig(1, exec, alternativeLimit))))
     containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind, alternativeLimit)))
     pool ! runMessage
@@ -296,7 +300,7 @@ class ContainerPoolTests
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
 
-    val pool = system.actorOf(ContainerPool.props(factory, ContainerPoolConfig(2, 2), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(2, 2), feed.ref))
 
     // container0 is created and used
     pool ! runMessage

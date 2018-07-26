@@ -167,7 +167,7 @@ class ContainerProxyTests
     Future.successful(())
   }
 
-  val poolConfig = ContainerPoolConfig(1, 2)
+  val poolConfig = ContainerPoolConfig(1, 2, false)
 
   behavior of "ContainerProxy"
 
@@ -732,6 +732,7 @@ class ContainerProxyTests
     protected val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher
+    override implicit protected val as: ActorSystem = system
     var suspendCount = 0
     var resumeCount = 0
     var destroyCount = 0

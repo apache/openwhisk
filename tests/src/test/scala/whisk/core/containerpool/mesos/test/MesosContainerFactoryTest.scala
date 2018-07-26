@@ -78,7 +78,7 @@ class MesosContainerFactoryTest
     lastTaskId
   }
 
-  val poolConfig = ContainerPoolConfig(8, 10)
+  val poolConfig = ContainerPoolConfig(8, 10, false)
   val dockerCpuShares = poolConfig.cpuShare
   val mesosCpus = poolConfig.cpuShare / 1024.0
 

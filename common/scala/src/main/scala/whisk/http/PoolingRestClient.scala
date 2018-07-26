@@ -22,12 +22,13 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.{Flow, _}
 import spray.json._
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -43,18 +44,24 @@ class PoolingRestClient(
   host: String,
   port: Int,
   queueSize: Int,
-  httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None)(
-  implicit system: ActorSystem) {
+  httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
+  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
   protected implicit val context: ExecutionContext = system.dispatcher
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
+  //if specified, override the ClientConnection idle-timeout value
+  private val timeoutSettings = {
+    val ps = ConnectionPoolSettings(system.settings.config)
+    timeout.map(t => ps.withUpdatedConnectionSettings(_.withIdleTimeout(t))).getOrElse(ps)
+  }
+
   // Creates or retrieves a connection pool for the host.
   private val pool = if (protocol == "http") {
-    Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port)
+    Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port, settings = timeoutSettings)
   } else {
-    Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port)
+    Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port, settings = timeoutSettings)
   }
 
   // Additional queue in case all connections are busy. Should hardly ever be
@@ -64,8 +71,10 @@ class PoolingRestClient(
     .queue(queueSize, OverflowStrategy.dropNew)
     .via(httpFlow.getOrElse(pool))
     .toMat(Sink.foreach({
-      case ((Success(response), p)) => p.success(response)
-      case ((Failure(error), p))    => p.failure(error)
+      case (Success(response), p) =>
+        p.success(response)
+      case (Failure(error), p) =>
+        p.failure(error)
     }))(Keep.left)
     .run
 
