@@ -461,7 +461,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
    */
   protected def getIdentity(namespace: EntityName)(implicit transid: TransactionId): Future[Identity] = {
     // ask auth provider to create an identity for the given namespace
-    authenticationProvider.identityByNamespace(namespace)(transid, actorSystem, executionContext, authStore, logging)
+    authenticationProvider.identityByNamespace(namespace)(transid, actorSystem, authStore)
   }
 
   private def handleMatch(namespaceSegment: String,
