@@ -24,12 +24,16 @@ import io.gatling.core.session.Expression
 import io.gatling.core.util.Resource
 import org.apache.commons.io.FileUtils
 
+import scala.concurrent.duration._
+
 class LatencySimulation extends Simulation {
   // Specify parameters for the run
   val host = sys.env("OPENWHISK_HOST")
 
   // Specify authentication
   val Array(uuid, key) = sys.env("API_KEY").split(":")
+
+  val pauseBetweenInvokes: Int = sys.env.getOrElse("PAUSE_BETWEEN_INVOKES", "0").toInt
 
   // Specify thresholds
   val meanResponseTime: Int = sys.env("MEAN_RESPONSE_TIME").toInt
@@ -75,7 +79,10 @@ class LatencySimulation extends Simulation {
           .create(code, "${action._1}", "${action._4}"))
         .exec(openWhisk("Cold ${action._1} invocation").authenticate(uuid, key).action("${action._3}").invoke())
         .repeat(100) {
-          exec(openWhisk("Warm ${action._1} invocation").authenticate(uuid, key).action("${action._3}").invoke())
+          // Add a pause of 100 milliseconds. Reason for this pause is, that collecting of logs runs asynchronously in
+          // invoker. If this is not finished before the next request arrives, a new cold-start has to be done.
+          pause(pauseBetweenInvokes.milliseconds)
+            .exec(openWhisk("Warm ${action._1} invocation").authenticate(uuid, key).action("${action._3}").invoke())
         }
         .exec(openWhisk("Delete ${action._1} action").authenticate(uuid, key).action("${action._3}").delete())
     }

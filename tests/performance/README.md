@@ -87,7 +87,8 @@ OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" .
 This simulation creates actions of the following four kinds: `nodejs:default`, `swift:default`, `java:default` and
 `python:default`.
 Afterwards the action is invoked once. This is the cold-start and will not be part of the thresholds.
-Next, the action will be invoked 100 times blocking and one after each other. The last step is, that the action will be deleted.
+Next, the action will be invoked 100 times blocking and one after each other. Between each invoke is a pause of
+`PAUSE_BETWEEN_INVOKES` milliseconds. The last step is to delete the action.
 
 Once one language is finished, the next kind will be taken. They are not running in parallel. There are never more than
 1 activations in the system, as we only want to meassure latency of warm activations.
@@ -102,6 +103,7 @@ Available environment variables:
 ```
 OPENWHISK_HOST          (required)
 API_KEY                 (required, format: UUID:KEY)
+PAUSE_BETWEEN_INVOKES   (default: 0)
 MEAN_RESPONSE_TIME      (required)
 MAX_MEAN_RESPONSE_TIME  (default: MEAN_RESPONSE_TIME)
 EXCLUDED_KINDS          (default: "", format: "python:default,java:default,swift:default")
