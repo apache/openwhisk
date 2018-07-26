@@ -394,15 +394,20 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
-      case None if !forced =>
-        // the entry has already been removed but we receive an active ack for this activation Id.
-        // This happens for health actions, because they don't have an entry in Loadbalancerdata or
-        // for activations that already timed out.
+      case None if tid == TransactionId.invokerHealth =>
+        // Health actions do not have an ActivationEntry as they are written on the message bus directly. Their result
+        // is important to pass to the invokerPool because they are used to determine if the invoker can be considered
+        // healthy again.
+        logging.info(this, s"received active ack for health action on $invoker")(tid)
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
+      case None if !forced =>
+        // Received an active-ack that has already been taken out of the state because of a timeout (forced active-ack).
+        // The result is ignored because a timeout has already been reported to the invokerPool per the force.
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
-        // the entry has already been removed by an active ack. This part of the code is reached by the timeout.
-        // As the active ack is already processed we don't have to do anything here.
+        // The entry has already been removed by an active ack. This part of the code is reached by the timeout and can
+        // happen if active-ack and timeout happen roughly at the same time (the timeout was triggered before the active
+        // ack canceled the timer). As the active ack is already processed we don't have to do anything here.
         logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
     }
   }
