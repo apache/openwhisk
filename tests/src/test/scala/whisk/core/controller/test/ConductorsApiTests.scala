@@ -117,7 +117,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentInvalid(invalid.toJson).toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
     }
 
     // an undefined action
@@ -128,7 +128,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentNotFound(s"$namespace/$missing").toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
     }
   }
 
@@ -180,7 +180,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentNotAccessible(forbidden.drop(1)).toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
     }
 
     // dynamically invoke step action twice, forwarding state
