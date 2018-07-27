@@ -375,7 +375,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
     if (maxInlineSize.toBytes == 0) {
-      val uri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
+      val uri = uriFrom(scheme = attachmentScheme, path = UUID().asString)
       for {
         attached <- Future.successful(Attached(uri.toString, contentType))
         i1 <- put(update(doc, attached))
@@ -550,7 +550,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
    */
   private def getAttachmentName(name: String): String = {
     Try(java.util.UUID.fromString(name))
-      .map(_ => Uri.from(scheme = attachmentScheme, path = name).toString)
+      .map(_ => uriFrom(scheme = attachmentScheme, path = name).toString)
       .getOrElse(name)
   }
 

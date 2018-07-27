@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
-package whisk.core.database.memory
+package whisk.core.database.s3
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.test.behavior.ArtifactStoreBehavior
+import whisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior
+class S3AttachmentStoreAwsTests extends S3AttachmentStoreBehaviorBase with S3Aws {
+  override lazy val store = makeS3Store[WhiskEntity]
+
+  override def storeType: String = "S3"
+}

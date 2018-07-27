@@ -243,4 +243,6 @@ object ConfigKeys {
   val containerProxy = "whisk.container-proxy"
   val containerProxyTimeouts = s"$containerProxy.timeouts"
 
+  val s3 = "whisk.s3"
+
 }

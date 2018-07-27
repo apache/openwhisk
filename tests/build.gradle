@@ -148,6 +148,8 @@ dependencies {
     compile 'io.opentracing:opentracing-mock:0.31.0'
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
 
+    compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
+
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
