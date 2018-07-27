@@ -230,13 +230,13 @@ protected[actions] trait SequenceActions {
    * @return a future which resolves with the accounting for a sequence, including the last result, duration, and activation ids
    */
   private def invokeSequenceComponents(
-    user: Identity,
-    seqAction: WhiskActionMetaData,
-    seqActivationId: ActivationId,
-    inputPayload: Option[JsObject],
-    components: Vector[FullyQualifiedEntityName],
-    cause: Option[ActivationId],
-    atomicActionCnt: Int)(implicit transid: TransactionId): Future[SequenceAccounting] = {
+                                        user: Identity,
+                                        seqAction: WhiskActionMetaData,
+                                        seqActivationId: ActivationId,
+                                        inputPayload: Option[JsObject],
+                                        components: Vector[FullyQualifiedEntityName],
+                                        cause: Option[ActivationId],
+                                        atomicActionCnt: Int)(implicit transid: TransactionId): Future[SequenceAccounting] = {
 
     // For each action in the sequence, fetch any of its associated parameters (including package or binding).
     // We do this for all of the actions in the sequence even though it may be short circuited. This is to
@@ -246,47 +246,41 @@ protected[actions] trait SequenceActions {
     //
     // This action/parameter resolution is done in futures; the execution starts as soon as the first component
     // is resolved.
-    val resolvedFutureActions: Seq[Future[WhiskActionMetaData]] = resolveDefaultNamespace(components, user) map { c =>
+    val resolvedFutureActions = resolveDefaultNamespace(components, user) map { c =>
       WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, c)
     }
 
     // this holds the initial value of the accounting structure, including the input boxed as an ActivationResponse
     val initialAccounting = SequenceAccounting(atomicActionCnt, ActivationResponse.payloadPlaceholder(inputPayload))
 
-    Future
-      .sequence(resolvedFutureActions)
-      .flatMap(actions =>
-        actions
-          .foldLeft(Future.successful(initialAccounting)) { (accountingFuture, futureAction) =>
-            accountingFuture.flatMap {
-              accounting =>
-                if (accounting.atomicActionCnt < actionSequenceLimit) {
-                  invokeNextAction(user, Future.successful(futureAction), accounting, cause).flatMap { accounting =>
-                    if (!accounting.shortcircuit) {
-                      Future.successful(accounting)
-                    } else {
-                      // this is to short circuit the fold
-                      Future.failed(FailedSequenceActivation(accounting)) // terminates the fold
-                    }
-                  }
-                } else {
-                  val updatedAccount = accounting.fail(ActivationResponse.applicationError(sequenceIsTooLong), None)
-                  Future.failed(FailedSequenceActivation(updatedAccount)) // terminates the fold
-                }
+    // execute the actions in sequential blocking fashion
+    resolvedFutureActions
+      .foldLeft(Future.successful(initialAccounting)) { (accountingFuture, futureAction) =>
+        accountingFuture.flatMap { accounting =>
+          if (accounting.atomicActionCnt < actionSequenceLimit) {
+            invokeNextAction(user, futureAction, accounting, cause).flatMap { accounting =>
+              if (!accounting.shortcircuit) {
+                Future.successful(accounting)
+              } else {
+                // this is to short circuit the fold
+                Future.failed(FailedSequenceActivation(accounting)) // terminates the fold
+              }
+            }.recoverWith {
+              case _: NoDocumentException =>
+                Future.successful(initialAccounting.fail(ActivationResponse.applicationError(sequenceComponentNotFound), None))
             }
+          } else {
+            val updatedAccount = accounting.fail(ActivationResponse.applicationError(sequenceIsTooLong), None)
+            Future.failed(FailedSequenceActivation(updatedAccount)) // terminates the fold
           }
-          .recoverWith {
-            // turn the failed accounting back to success; this is the only possible failure
-            // since all throwables are recovered with a failed accounting instance and this is
-            // in turned boxed to FailedSequenceActivation
-            case FailedSequenceActivation(accounting) => Future.successful(accounting)
-        })
-      .recoverWith {
-        case _: NoDocumentException =>
-          Future.successful(
-            initialAccounting.fail(ActivationResponse.applicationError(sequenceComponentNotFound), None))
+        }
       }
-
+      .recoverWith {
+        // turn the failed accounting back to success; this is the only possible failure
+        // since all throwables are recovered with a failed accounting instance and this is
+        // in turned boxed to FailedSequenceActivation
+        case FailedSequenceActivation(accounting) => Future.successful(accounting)
+      }
   }
 
   /**
