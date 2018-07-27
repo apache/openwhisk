@@ -253,6 +253,11 @@
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"
 
+- name: merge mongodb env variables
+  set_fact:
+    env: "{{ env | combine(mongodb.commonEnv) | combine(mongodb.envForController) }}"
+  when: db.backend == "MongoDB"
+
 - name: populate volumes for controller
   set_fact:
     controller_volumes:

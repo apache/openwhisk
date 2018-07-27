@@ -268,6 +268,11 @@
   set_fact:
     env: "{{ env | combine(invoker.extraEnv) }}"
 
+- name: merge mongodb env variables
+  set_fact:
+    env: "{{ env | combine(mongodb.commonEnv) | combine(mongodb.envForInvoker) }}"
+  when: db.backend == "MongoDB"
+
 - name: include plugins
   include_tasks: "{{ inv_item }}.yml"
   with_items: "{{ invoker_plugins | default([]) }}"

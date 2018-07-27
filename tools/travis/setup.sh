@@ -51,6 +51,9 @@ pip install --user ansible==2.5.2
 # Azure CosmosDB
 pip install --user pydocumentdb
 
+# MongoDB
+pip install --user pymongo
+
 # Support the revises log upload script
 pip install --user humanize requests
 

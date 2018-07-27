@@ -58,6 +58,21 @@ whisk {
         db       = ${?COSMOSDB_NAME}
     }
 
+    {% if enable_mongodb is defined and enable_mongodb == 'true' %}
+    mongodb {
+        host        = "{{ db.host }}"
+        port        = "{{ mongodb_port| default(db.port) }}"
+        database    = "{{ db.mongodb.database }}"
+        username    = "{{ db.credentials.admin.user }}"
+        password    = "{{ db.credentials.admin.pass }}"
+        collections {
+          WhiskAuth       = "{{ db.whisk.auth }}"
+          WhiskEntity     = "{{ db.whisk.actions }}"
+          WhiskActivation = "{{ db.whisk.activations }}"
+        }
+    }
+    {% endif %}
+        
     controller {
       protocol = {{ controller.protocol }}
       https {

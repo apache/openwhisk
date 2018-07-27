@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This playbook will initialize the immortal DBs in the database account.
+# This step is usually done only once per deployment.
+
+- hosts: ansible
+  tasks:
+  - name: "create user in {{ db.mongodb.database }}"
+    mongodb:
+      database: "{{ db.mongodb.database }}"
+      login_user: "{{ db.credentials.admin.user }}"
+      login_password: "{{ db.credentials.admin.pass }}"
+      login_host: "{{ db.host }}"
+      login_port: "{{ db.port }}"
+      login_database: "{{ db.mongodb.database }}"
+      user: "{{ item.user }}"
+      password: "{{ item.pass }}"
+      mode: "user"
+      roles: "readWrite"
+      force_update: True
+    with_items:
+      - "{{ db.credentials.controller }}"
+      - "{{ db.credentials.invoker }}"
+
+  - name: create necessary auth keys
+    mongodb:
+      database: "{{ db.mongodb.database }}"
+      login_user: "{{ db.credentials.admin.user }}"
+      login_password: "{{ db.credentials.admin.pass }}"
+      login_host: "{{ db.host }}"
+      login_port: "{{ db.port }}"
+      login_database: "{{ db.mongodb.database }}"
+      collection: "{{ db.whisk.auth }}"
+      doc:
+        _id: "{{ item }}"
+        subject: "{{ item }}"
+        namespaces:
+          - name: "{{ item }}"
+            uuid: "{{ key.split(':')[0] }}"
+            key: "{{ key.split(':')[1] }}"
+      mode: "doc"
+      force_update: True
+    vars:
+      key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
+    with_items: "{{ db.authkeys }}"
+
+  - name: create necessary indexes on {{ db.whisk.auth }}
+    mongodb:
+      database: "{{ db.mongodb.database }}"
+      login_user: "{{ db.credentials.admin.user }}"
+      login_password: "{{ db.credentials.admin.pass }}"
+      login_host: "{{ db.host }}"
+      login_port: "{{ db.port }}"
+      login_database: "{{ db.mongodb.database }}"
+      collection: "{{ db.whisk.auth }}"
+      indexes:
+        - index:
+            - field: "namespaces.name"
+              direction: -1
+        - index:
+            - field: "namespaces.uuid"
+              direction: -1
+            - field: "namespaces.key"
+              direction: -1
+      mode: "index"

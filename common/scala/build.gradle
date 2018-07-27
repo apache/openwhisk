@@ -87,12 +87,16 @@ dependencies {
     compile 'io.reactivex:rxjava-reactive-streams:1.2.1'
     compile 'com.microsoft.azure:azure-cosmosdb:2.3.0'
 
+    //for mongo
+    compile 'org.mongodb.scala:mongo-scala-driver_2.12:2.6.0'
+
     compile ('com.lightbend.akka:akka-stream-alpakka-s3_2.12:0.19') {
         exclude group: 'commons-logging'
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
+
     scoverage gradle.scoverage.deps
 }
 

@@ -32,5 +32,10 @@ $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
 
-$ANSIBLE_CMD properties.yml -e manifest_file="$RUNTIMES_MANIFEST"
+# deploy mongodb for unit tests
+$ANSIBLE_CMD mongodb.yml -e db_port=27017 # use a different port other than 5984
+$ANSIBLE_CMD initMongoDB.yml -e db_port=27017
+$ANSIBLE_CMD wipeMongoDB.yml -e db_port=27017
+
+$ANSIBLE_CMD properties.yml -e enable_mongodb=true -e mongodb_port=27017 -e manifest_file="$RUNTIMES_MANIFEST"
 echo "Time taken for ${0##*/} is $SECONDS secs"

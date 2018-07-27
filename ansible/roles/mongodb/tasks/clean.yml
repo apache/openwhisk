@@ -1,0 +1,26 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# Remove MongoDB server
+
+- name: remove MongoDB
+  docker_container:
+    name: mongodb
+    state: absent
+    keep_volumes: False
+
+- name: remove MongoDB data volume
+  docker_volume:
+    name: "{{ db.mongodb.data_volume }}"
+    state: absent
+
+- name: remove MongoDB log directory
+  file:
+    path: "{{ whisk_logs_dir }}/mongodb"
+    state: absent
+  become: "{{ logs.dir.become }}"
+
+- name: remove MongoDB conf directory
+  file:
+    path: "{{ db.confdir }}"
+    state: absent
