@@ -100,7 +100,18 @@ db_password=
 db_protocol=
 db_host=
 db_port=
+
+[controller]
+db_username=
+db_password=
+
+[invoker]
+db_username=
+db_password=
 ```
+
+The section [db_creds] is to configure the admin access. The sections controller and invoker are for the authentication that these components are using.
+You can use any username and password you like here. They will be generated automatically later, using the admin credentials from above.
 
 This file is generated automatically if you are using an ephermeral CouchDB instance. Otherwise, you must create it explicitly.
 For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
