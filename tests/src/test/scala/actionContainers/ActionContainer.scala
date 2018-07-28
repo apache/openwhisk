@@ -35,6 +35,7 @@ import scala.util.{Failure, Success}
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.{FlatSpec, Matchers}
 import akka.actor.ActorSystem
+
 import scala.concurrent.ExecutionContext
 import spray.json._
 import common.StreamLogging
@@ -42,6 +43,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Exec
 import common.WhiskProperties
+import whisk.core.containerpool.Container
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -167,8 +169,8 @@ object ActionContainer {
     Await.result(proc(docker(cmd)), t)
   }
 
-  // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
-  val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+  // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker)
+  val sentinel = Container.ACTIVATION_LOG_SENTINEL
   def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
 
   def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(

@@ -42,11 +42,22 @@ import scala.util.{Failure, Success}
  * for different container providers, but the implementation also needs to include
  * OpenWhisk specific behavior, especially for initialize and run.
  */
-case class ContainerId(val asString: String) {
+case class ContainerId(asString: String) {
   require(asString.nonEmpty, "ContainerId must not be empty")
 }
-case class ContainerAddress(val host: String, val port: Int = 8080) {
+case class ContainerAddress(host: String, port: Int = 8080) {
   require(host.nonEmpty, "ContainerIp must not be empty")
+}
+
+object Container {
+
+  /**
+   * The action proxies insert this line in the logs at the end of each activation for stdout/stderr.
+   *
+   * Note: Blackbox containers might not add this sentinel, as we cannot be sure the action developer actually does this.
+   */
+  val ACTIVATION_LOG_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+
 }
 
 trait Container {

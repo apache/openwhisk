@@ -42,12 +42,7 @@ import whisk.http.Messages
 
 object DockerContainer {
 
-  /**
-   * The action proxies insert this line in the logs at the end of each activation for stdout/stderr
-   *
-   * Note: Blackbox containers might not add this sentinel, as we cannot be sure the action developer actually does this.
-   */
-  val ActivationSentinel = ByteString("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX")
+  private val byteStringSentinel = ByteString(Container.ACTIVATION_LOG_SENTINEL)
 
   /**
    * Creates a container running on a docker daemon.
@@ -272,7 +267,7 @@ class DockerContainer(protected val id: ContainerId,
         logFileOffset.addAndGet(size)
         size
       }
-      .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.ActivationSentinel), 2, waitForSentinel))
+      .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.byteStringSentinel), 2, waitForSentinel))
       // As we're reading the logs after the activation has finished the invariant is that all loglines are already
       // written and we mostly await them being flushed by the docker daemon. Therefore we can timeout based on the time
       // between two loglines appear without relying on the log frequency in the action itself.
