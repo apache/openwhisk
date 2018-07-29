@@ -28,7 +28,7 @@
 - name: "pull runtime action images per manifest"
   shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
   loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
-  when: skip_pull_runtimes is not defined or skip_pull_runtimes != True
+  when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
   register: result
   until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
@@ -40,7 +40,7 @@
 - name: "pull blackboxes action images per manifest"
   shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
   loop: "{{ runtimesManifest.blackboxes }}"
-  when: skip_pull_runtimes is not defined or skip_pull_runtimes != True
+  when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
   register: result
   until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
