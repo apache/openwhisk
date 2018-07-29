@@ -6,3 +6,7 @@
   shell: ./installRouteMgmt.sh {{ catalog_auth_key }} {{ whisk_api_host_name | default(groups['edge'] | first) }} {{ catalog_namespace }} {{ cli.path }} chdir="{{ openwhisk_home }}/ansible/roles/routemgmt/files"
   environment:
     OPENWHISK_HOME: "{{ openwhisk_home }}"
+  register: result
+  until: result.rc == 0
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
