@@ -149,8 +149,8 @@
                 "default": true,
                 "deprecated": false,
                 "image": {
-                    "prefix": "remore",
-                    "name": "openwhisk-runtime-ruby",
+                    "prefix": "openwhisk",
+                    "name": "action-ruby-v2.5",
                     "tag": "latest"
                 }
             }
