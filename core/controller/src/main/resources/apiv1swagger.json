@@ -1495,15 +1495,17 @@
                 "kind": {
                     "type": "string",
                     "enum": [
+                        "blackbox",
+                        "java",
                         "nodejs:6",
                         "nodejs:8",
-                        "python:2",
-                        "python:3",
                         "php:7.1",
                         "php:7.2",
+                        "python:2",
+                        "python:3",
+                        "ruby:2.5",
                         "swift:3.1.1",
-                        "java",
-                        "blackbox"
+                        "swift:4.1"
                     ],
                     "description": "the type of action"
                 },
