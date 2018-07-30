@@ -27,6 +27,7 @@ import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
 import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
+import whisk.utils.TimeHelpers._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -69,7 +70,7 @@ class KafkaConsumerConnector(
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
     try {
-      val response = consumer.poll(duration.toMillis).asScala
+      val response = consumer.poll(duration).asScala
       val now = System.currentTimeMillis
 
       response.lastOption.foreach(record => offset = record.offset + 1)
