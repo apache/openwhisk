@@ -529,8 +529,6 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
   responsetype = responsetype || 'json';
   console.log('addEndpointToSwaggerApi: operationid = '+operationId);
   try {
-    var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
-
     // If the relative path already exists, append to it; otherwise create it
     if (!swaggerApi.paths[endpoint.gatewayPath]) {
       swaggerApi.paths[endpoint.gatewayPath] = {};
@@ -890,7 +888,7 @@ function replaceNamespaceInUrl(url, namespace) {
  *     {
  *        statusCode: 502,    <- signifies an application error
  *        headers: {'Content-Type': 'application/json'},
- *        body: Base64 encoded JSON error string
+ *        body: JSON object or JSON string
  *     }
  * Otherwise, the action was invoked as a regular OpenWhisk action
  * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
@@ -909,18 +907,16 @@ function makeErrorResponseObject(err, isWebAction) {
     return err;
   }
 
-  var bodystr;
+  var bodystr = err;
   if (typeof err === 'string') {
-    bodystr = JSON.stringify({
+    bodystr = {
       "error": JSON.parse(makeJsonString(err)),  // Make sure err is plain old string to avoid duplicate JSON escaping
-    });
-  } else {
-    bodystr = JSON.stringify(err);
+    };
   }
   return {
     statusCode: 502,
     headers: { 'Content-Type': 'application/json' },
-    body: new Buffer(bodystr).toString('base64'),
+    body: bodystr
   };
 }
 
@@ -935,7 +931,7 @@ function makeErrorResponseObject(err, isWebAction) {
  *     {
  *        statusCode: 200,    <- signifies a successful action
  *        headers: {'Content-Type': 'application/json'},
- *        body: Base64 encoded JSON error string
+ *        body: JSON object or JSON string
  *     }
  * Otherwise, the action was invoked as a regular OpenWhisk action
  * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
@@ -950,20 +946,18 @@ function makeErrorResponseObject(err, isWebAction) {
 function makeResponseObject(resp, isWebAction) {
   console.log('makeResponseObject: isWebAction: '+isWebAction);
   if (!isWebAction) {
-    console.log('makeErrorResponseObject: not called as a web action');
+    console.log('makeResponseObject: not called as a web action');
     return resp;
   }
 
-  var bodystr;
+  var bodystr = resp;
   if (typeof resp === 'string') {
-    bodystr = makeJsonString(resp);
-  } else {
-    bodystr = JSON.stringify(resp);
+    bodystr = JSON.parse(makeJsonString(resp));
   }
   retobj = {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: new Buffer(bodystr).toString('base64')
+    body: bodystr
   };
   return retobj;
 }

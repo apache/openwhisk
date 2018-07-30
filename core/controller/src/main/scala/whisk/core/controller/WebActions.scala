@@ -324,12 +324,10 @@ protected[core] object WhiskWebActionsApi extends Directives {
     findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
       val ct = ContentType(mediaType, () => HttpCharsets.`UTF-8`)
       ct match {
-        // base64 encoded json will appear as non-binary but it is excluded here for legacy reasons
-        case nonbinary: ContentType.NonBinary if !isJsonFamily(mediaType) => Success(HttpEntity(nonbinary, str))
+        case nonbinary: ContentType.NonBinary => Success(HttpEntity(nonbinary, str))
 
         // because of the default charset provided to the content type constructor
-        // the remaining content types to match against are binary at this point, or
-        // the legacy base64 encoded json
+        // the remaining content types to match against are binary at this point
         case _ /* ContentType.Binary */ => Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
       }
     } match {
@@ -592,7 +590,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
           }
 
         case HttpEntity.Strict(contentType, data) =>
-          // application/json is not a binary type in Akka, but is binary in Spray
+          // for legacy, we are encoding application/json still
           if (contentType.mediaType.binary || contentType.mediaType == `application/json`) {
             Try(JsString(Base64.getEncoder.encodeToString(data.toArray))) match {
               case Success(bytes) => process(Some(bytes), isRawHttpAction)

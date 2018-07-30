@@ -168,6 +168,12 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     allowedMethodsWithEntity ++ Seq(Head)
   }
 
+  val pngSample = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAA/klEQVQYGWNgAAEHBxaG//+ZQMyyn581Pfas+cRQnf1LfF" +
+    "Ljf+62smUgcUbt0FA2Zh7drf/ffMy9vLn3RurrW9e5hCU11i2azfD4zu1/DHz8TAy/foUxsXBrFzHzC7r8+M9S1vn1qxQT07dDjL" +
+    "9fdemrqKxlYGT6z8AIMo6hgeUfA0PUvy9fGFh5GWK3z7vNxSWt++jX99+8SoyiGQwsW38w8PJEM7x5v5SJ8f+/xv8MDAzffv9hev" +
+    "fkWjiXBGMpMx+j2awovjcMjFztDO8+7GF49LkbZDCDeXLTWnZO7qDfn1/+5jbw/8pjYWS4wZLztXnuEuYTk2M+MzIw/AcA36Vewa" +
+    "D6fzsAAAAASUVORK5CYII="
+
   // there is only one package that is predefined 'proxy'
   val packages = Seq(
     WhiskPackage(
@@ -840,7 +846,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         }
     }
 
-    it should s"handle http web action with base64 encoded JSON response (auth? ${creds.isDefined})" in {
+    it should s"handle http web action with JSON object as string response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.http").foreach { path =>
@@ -851,12 +857,11 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
               JsObject(
                 "headers" -> JsObject("content-type" -> "application/json".toJson),
                 webApiDirectives.statusCode -> statusCode.intValue.toJson,
-                "body" -> Base64.getEncoder.encodeToString {
-                  JsObject("field" -> "value".toJson).compactPrint.getBytes
-                }.toJson))
+                "body" -> JsObject("field" -> "value".toJson).compactPrint.toJson))
 
             m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
+              mediaType shouldBe MediaTypes.`application/json`
               responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
             }
           }
@@ -874,9 +879,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           actionResult = Some(
             JsObject(
               "headers" -> JsObject("content-type" -> "application/json".toJson),
-              "body" -> Base64.getEncoder.encodeToString {
-                JsObject("field" -> "value".toJson).compactPrint.getBytes
-              }.toJson))
+              "body" -> JsObject("field" -> "value".toJson)))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
@@ -887,9 +890,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         // omit status code and headers
         allowedMethods.foreach { m =>
           invocationsAllowed += 1
-          actionResult = Some(JsObject("body" -> Base64.getEncoder.encodeToString {
-            JsObject("field" -> "value".toJson).compactPrint.getBytes
-          }.toJson))
+          actionResult = Some(JsObject("body" -> JsObject("field" -> "value".toJson).compactPrint.toJson))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
@@ -904,9 +905,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           actionResult = Some(
             JsObject(
               webApiDirectives.statusCode -> Created.intValue.toJson,
-              "body" -> Base64.getEncoder.encodeToString {
-                JsObject("field" -> "value".toJson).compactPrint.getBytes
-              }.toJson))
+              "body" -> JsObject("field" -> "value".toJson).compactPrint.toJson))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(Created)
@@ -985,53 +984,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"handle http web action with base64 encoded known '+json' response (auth? ${creds.isDefined})" in {
-      implicit val tid = transid()
-
-      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          actionResult = Some(
-            JsObject(
-              "headers" -> JsObject("content-type" -> "application/json-patch+json".toJson),
-              webApiDirectives.statusCode -> OK.intValue.toJson,
-              "body" -> Base64.getEncoder.encodeToString {
-                JsObject("field" -> "value".toJson).compactPrint.getBytes
-              }.toJson))
-
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            mediaType.value shouldBe "application/json-patch+json"
-            responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
-          }
-        }
-      }
-    }
-
-    it should s"handle http web action with base64 encoded unknown '+json' response (auth? ${creds.isDefined})" in {
-      implicit val tid = transid()
-
-      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          actionResult = Some(
-            JsObject(
-              "headers" -> JsObject("content-type" -> "application/hal+json".toJson),
-              webApiDirectives.statusCode -> OK.intValue.toJson,
-              "body" -> Base64.getEncoder.encodeToString {
-                JsObject("field" -> "value".toJson).compactPrint.getBytes
-              }.toJson))
-
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            mediaType.value shouldBe "application/hal+json"
-            responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
-          }
-        }
-      }
-    }
-
-    it should s"handle http web action without base64 encoded JSON response (auth? ${creds.isDefined})" in {
+    it should s"handle http web action with JSON object response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(
@@ -1063,7 +1016,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"handle http web action without base64 encoded known '+json' response (auth? ${creds.isDefined})" in {
+    it should s"handle http web action for known '+json' response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(
@@ -1094,7 +1047,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"handle http web action without base64 encoded unknown '+json' response (auth? ${creds.isDefined})" in {
+    it should s"handle http web action for unknown '+json' response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(
@@ -1140,12 +1093,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
     it should s"handle http web action with base64 encoded binary response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
-      val png = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAA/klEQVQYGWNgAAEHBxaG//+ZQMyyn581Pfas+cRQnf1LfF" +
-        "Ljf+62smUgcUbt0FA2Zh7drf/ffMy9vLn3RurrW9e5hCU11i2azfD4zu1/DHz8TAy/foUxsXBrFzHzC7r8+M9S1vn1qxQT07dDjL" +
-        "9fdemrqKxlYGT6z8AIMo6hgeUfA0PUvy9fGFh5GWK3z7vNxSWt++jX99+8SoyiGQwsW38w8PJEM7x5v5SJ8f+/xv8MDAzffv9hev" +
-        "fkWjiXBGMpMx+j2awovjcMjFztDO8+7GF49LkbZDCDeXLTWnZO7qDfn1/+5jbw/8pjYWS4wZLztXnuEuYTk2M+MzIw/AcA36Vewa" +
-        "D6fzsAAAAASUVORK5CYII="
-      val expectedEntity = HttpEntity(ContentType(MediaTypes.`image/png`), Base64.getDecoder().decode(png))
+      val expectedEntity = HttpEntity(ContentType(MediaTypes.`image/png`), Base64.getDecoder().decode(pngSample))
 
       Seq(s"$systemId/proxy/export_c.http").foreach { path =>
         allowedMethods.foreach { m =>
@@ -1153,7 +1101,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           actionResult = Some(
             JsObject(
               "headers" -> JsObject(`Content-Type`.lowercaseName -> MediaTypes.`image/png`.toString.toJson),
-              "body" -> png.toJson))
+              "body" -> pngSample.toJson))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
@@ -1180,7 +1128,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"reject http web action with mismatch between header and response (auth? ${creds.isDefined})" in {
+    it should s"allow web action with incorrect application/json header and text response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.http").foreach { path =>
@@ -1193,8 +1141,10 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
               "body" -> "hello world".toJson))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(BadRequest)
-            confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+            status should be(OK)
+            mediaType shouldBe MediaTypes.`application/json`
+            headers shouldBe empty
+            responseAs[String] shouldBe "hello world"
           }
         }
       }
@@ -1416,16 +1366,6 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       implicit val tid = transid()
       val str = "1,2,3"
       invocationsAllowed = 3
-
-      /*
-       * Now supporting all content types with inlined "body".
-       *
-             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", "1,2,3") ~> Route.seal(routes(creds)) ~> check {
-                 status should be(BadRequest)
-                 confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
-             }
-       *
-       */
 
       Post(s"$testRoutePath/$systemId/proxy/export_c.json", HttpEntity(ContentTypes.`text/html(UTF-8)`, str)) ~> Route
         .seal(routes(creds)) ~> check {
@@ -1697,7 +1637,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke web action ensuring JSON value body arguments are not Base64 encoded (auth? ${creds.isDefined})" in {
+    it should s"invoke web action ensuring JSON value body arguments are received as is (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq("this is a string".toJson, JsArray(1.toJson, "str str".toJson, false.toJson), true.toJson, 99.toJson)
@@ -1719,6 +1659,26 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                 headers = List(`Content-Type`(ContentTypes.`application/json`))))
           }
         }
+    }
+
+    it should s"invoke web action ensuring binary body is base64 encoded (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+      val entity = HttpEntity(ContentType(MediaTypes.`image/png`), Base64.getDecoder().decode(pngSample))
+
+      invocationsAllowed += 1
+      Post(s"$testRoutePath/$systemId/proxy/export_c.json", entity) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response shouldBe JsObject(
+          "pkg" -> s"$systemId/proxy".toJson,
+          "action" -> "export_c".toJson,
+          "content" -> metaPayload(
+            Post.method.name.toLowerCase,
+            Map(webApiDirectives.body -> pngSample.toJson).toJson.asJsObject,
+            creds,
+            pkgName = "proxy",
+            headers = List(RawHeader(`Content-Type`.lowercaseName, MediaTypes.`image/png`.toString))))
+      }
     }
 
     it should s"allowed string based status code (auth? ${creds.isDefined})" in {
