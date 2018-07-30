@@ -198,7 +198,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   }
 
   // action names that start with 'export_' will automatically have an web-export annotation added by the test harness
-  override protected def getAction(actionName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+  // it doesn't resolve an action name, just toggle failCheckEntitlement to test entitlement
+  override protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     if (!failActionLookup) {
       def theAction = {
         val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
@@ -248,12 +249,6 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     } else {
       Future.failed(NoDocumentException("doesn't exist"))
     }
-  }
-
-  // it doesn't resolve an action name, just toggle failCheckEntitlement to test entitlement
-  override protected def resolveAction(fullyQualifiedActionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[FullyQualifiedEntityName] = {
-    Future.successful(fullyQualifiedActionName)
   }
 
   // there is only one identity defined for the fully qualified name of the web action: 'systemId'
@@ -1768,24 +1763,22 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   class TestingEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)
       extends EntitlementProvider(config, loadBalancer, ControllerInstanceId("0")) {
 
-    protected[core] override def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
-      val subject = user.subject
-      logging.debug(this, s"test throttle is checking user '$subject' has not exceeded activation quota")
-
-      failThrottleForSubject match {
-        case Some(subject) if subject == user.subject =>
-          Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests(2, 1)))
-        case _ => Future.successful({})
-      }
-    }
-
+    // The check method checks both throttle and entitlement.
     protected[core] override def check(user: Identity, right: Privilege, resource: Resource)(
       implicit transid: TransactionId): Future[Unit] = {
+      val subject = user.subject
 
+      // first, check entitlement
       if (failCheckEntitlement) {
         Future.failed(RejectRequest(Forbidden))
       } else {
-        Future.successful({})
+        // then, check throttle
+        logging.debug(this, s"test throttle is checking user '$subject' has not exceeded activation quota")
+        failThrottleForSubject match {
+          case Some(subject) if subject == user.subject =>
+            Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests(2, 1)))
+          case _ => Future.successful({})
+        }
       }
     }
 

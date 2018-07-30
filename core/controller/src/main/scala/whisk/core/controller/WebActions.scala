@@ -459,20 +459,12 @@ trait WhiskWebActionsApi
 
   /**
    * Gets action from datastore.
-   * This method is factored out to allow mock testing.
-   */
-  protected def getAction(actionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    WhiskActionMetaData.get(entityStore, actionName.toDocId)
-  }
-
-  /**
-   * Resolves an action name if it is contained in a package
+   * if it is contained in the package, then resolve and merge parameters
    * This method is factored out to allow mock testing
    */
-  protected def resolveAction(actionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[FullyQualifiedEntityName] = {
-    WhiskActionMetaData.resolveAction(entityStore, actionName)
+  protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
+    implicit transid: TransactionId): Future[WhiskActionMetaData] = {
+    WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, actionName)
   }
 
   /**
@@ -557,9 +549,7 @@ trait WhiskWebActionsApi
     implicit transid: TransactionId) = {
     for {
       // lookup the identity for the action namespace
-      actionOwnerIdentity <- identityLookup(actionName.path.root) flatMap { i =>
-        entitlementProvider.checkThrottles(i) map (_ => i)
-      }
+      actionOwnerIdentity <- identityLookup(actionName.path.root)
 
       // lookup the action - since actions are stored relative to package name
       // the lookup will fail if the package name for the action refers to a binding instead
@@ -735,11 +725,9 @@ trait WhiskWebActionsApi
    */
   private def actionLookup(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    resolveAction(actionName) flatMap { resolveAction =>
-      getAction(resolveAction) recoverWith {
-        case _: ArtifactStoreException | DeserializationException(_, _, _) =>
-          Future.failed(RejectRequest(NotFound))
-      }
+    resolveActionAndMergeParameters(actionName) recoverWith {
+      case _: ArtifactStoreException | DeserializationException(_, _, _) =>
+        Future.failed(RejectRequest(NotFound))
     }
   }
 
