@@ -199,7 +199,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
   // action names that start with 'export_' will automatically have an web-export annotation added by the test harness
   // it doesn't resolve an action name, just toggle failCheckEntitlement to test entitlement
-  override protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+  override protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
+    implicit transid: TransactionId) = {
     if (!failActionLookup) {
       def theAction = {
         val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
