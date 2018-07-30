@@ -49,12 +49,14 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 
 | Module | Description | Module Status |
 |---	|---	|---    |
+| [incubator-openwhisk-runtime-ballerina](https://github.com/apache/incubator-openwhisk-runtime-ballerina) | Apache OpenWhisk Ballerina runtime| [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-ballerina.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-ballerina) |
 | [incubator-openwhisk-runtime-docker](https://github.com/apache/incubator-openwhisk-runtime-docker) | Apache openwhisk | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-docker.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-docker) |
 | [incubator-openwhisk-runtime-go](https://github.com/apache/incubator-openwhisk-runtime-go) | Apache openwhisk runtime for go actions | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-go.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-go) |
 | [incubator-openwhisk-runtime-java](https://github.com/apache/incubator-openwhisk-runtime-java) | Apache Openwhisk java runtimes | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-java.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-java) |
 | [incubator-openwhisk-runtime-nodejs](https://github.com/apache/incubator-openwhisk-runtime-nodejs) | Apache openwhisk nodejs runtime | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-nodejs.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-nodejs) |
 | [incubator-openwhisk-runtime-php](https://github.com/apache/incubator-openwhisk-runtime-php) | Apache openwhisk php runtime | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-php.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-php) |
 | [incubator-openwhisk-runtime-python](https://github.com/apache/incubator-openwhisk-runtime-python) | Apache openwhisk python runtime | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-python.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-python) |
+| [incubator-openwhisk-runtime-ruby](https://github.com/apache/incubator-openwhisk-runtime-ruby) | Apache OpenWhisk Ruby runtime | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-ruby.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-ruby) |
 | [incubator-openwhisk-runtime-swift](https://github.com/apache/incubator-openwhisk-runtime-swift) | Apache openwhisk swift runtime | [![Build Status](https://travis-ci.org/apache/incubator-openwhisk-runtime-swift.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk-runtime-swift) |
 
 
