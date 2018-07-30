@@ -55,6 +55,7 @@ class KafkaConnectorTests
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
   val maxPollInterval = 10.seconds
+  System.setProperty("whisk.kafka.consumer.max-poll-interval-ms", maxPollInterval.toMillis.toString)
 
   // Need to overwrite replication factor for tests that shut down and start
   // Kafka instances intentionally. These tests will fail if there is more than

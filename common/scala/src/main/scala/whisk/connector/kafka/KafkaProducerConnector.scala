@@ -29,6 +29,7 @@ import whisk.core.ConfigKeys
 import whisk.core.connector.{Message, MessageProducer}
 import whisk.core.entity.UUIDs
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -95,6 +96,8 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
     val config = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahosts) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
+
+    verifyConfig(config, ProducerConfig.configNames().asScala.toSet)
 
     new KafkaProducer(config, new StringSerializer, new StringSerializer)
   }

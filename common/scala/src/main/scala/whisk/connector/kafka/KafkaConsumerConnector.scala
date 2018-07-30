@@ -127,6 +127,8 @@ class KafkaConsumerConnector(
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaConsumer))
 
+    verifyConfig(config, ConsumerConfig.configNames().asScala.toSet)
+
     val consumer = new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
     consumer.subscribe(Seq(topic).asJavaCollection)
     consumer
