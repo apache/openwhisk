@@ -92,8 +92,14 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
               bytesRead = size
               val logFilePath = destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log")
               logging.info(this, s"Rotating log file to '$logFilePath'")
-              Files.createFile(logFilePath)
-              Files.setPosixFilePermissions(logFilePath, perms)
+              try {
+                Files.createFile(logFilePath)
+                Files.setPosixFilePermissions(logFilePath, perms)
+              } catch {
+                case t: Throwable =>
+                  logging.error(this, s"Couldn't create userlogs file: $t")
+                  throw t
+              }
               Some(logFilePath)
             } else {
               bytesRead += size
