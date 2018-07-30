@@ -268,13 +268,13 @@ class InvokerSupervisionTests
       (1 to InvokerActor.bufferSize).foreach { _ =>
         invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Timeout)
       }
-      pool.expectMsg(Transition(invoker, Healthy, Unresponsible))
+      pool.expectMsg(Transition(invoker, Healthy, Unresponsive))
 
       // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
       (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
         invoker ! InvocationFinishedMessage(InvokerInstanceId(0), InvocationFinishedResult.Success)
       }
-      pool.expectMsg(Transition(invoker, Unresponsible, Healthy))
+      pool.expectMsg(Transition(invoker, Unresponsive, Healthy))
     }
   }
 

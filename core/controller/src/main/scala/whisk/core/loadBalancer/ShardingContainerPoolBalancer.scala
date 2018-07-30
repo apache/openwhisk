@@ -462,7 +462,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    */
   @tailrec
   def schedule(invokers: IndexedSeq[InvokerHealth],
-               dispatched: IndexedSeq[ForcableSemaphore],
+               dispatched: IndexedSeq[ForcibleSemaphore],
                index: Int,
                step: Int,
                stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
@@ -513,7 +513,7 @@ case class ShardingContainerPoolBalancerState(
   private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
   private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore],
+  private var _invokerSlots: IndexedSeq[ForcibleSemaphore] = IndexedSeq.empty[ForcibleSemaphore],
   private var _clusterSize: Int = 1)(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
@@ -530,7 +530,7 @@ case class ShardingContainerPoolBalancerState(
   def blackboxInvokers: IndexedSeq[InvokerHealth] = _blackboxInvokers
   def managedStepSizes: Seq[Int] = _managedStepSizes
   def blackboxStepSizes: Seq[Int] = _blackboxStepSizes
-  def invokerSlots: IndexedSeq[ForcableSemaphore] = _invokerSlots
+  def invokerSlots: IndexedSeq[ForcibleSemaphore] = _invokerSlots
   def clusterSize: Int = _clusterSize
 
   /**
@@ -564,7 +564,7 @@ case class ShardingContainerPoolBalancerState(
       if (oldSize < newSize) {
         // Keeps the existing state..
         _invokerSlots = _invokerSlots ++ IndexedSeq.fill(newSize - oldSize) {
-          new ForcableSemaphore(currentInvokerThreshold)
+          new ForcibleSemaphore(currentInvokerThreshold)
         }
       }
     }
@@ -589,7 +589,7 @@ case class ShardingContainerPoolBalancerState(
       _clusterSize = actualSize
       val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
       currentInvokerThreshold = newTreshold
-      _invokerSlots = _invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))
+      _invokerSlots = _invokerSlots.map(_ => new ForcibleSemaphore(currentInvokerThreshold))
 
       logging.info(
         this,

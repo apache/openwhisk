@@ -61,7 +61,7 @@ object InvokerState {
   // Pings are arriving fine, the invoker returns system errors though
   case object Unhealthy extends Unusable { val asString = "unhealthy" }
   // Pings are arriving fine, the invoker does not respond with active-acks in the expected time though
-  case object Unresponsible extends Unusable { val asString = "unresponsible" }
+  case object Unresponsive extends Unusable { val asString = "unresponsive" }
   // Pings are not arriving for this invoker
   case object Offline extends Unusable { val asString = "down" }
 }
@@ -313,8 +313,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   /** An Unhealthy invoker represents an invoker that was not able to handle actions successfully. */
   when(Unhealthy, stateTimeout = healthyTimeout)(healthPingingState)
 
-  /** An Unresponsible invoker represents an invoker that is not responding with active acks in a timely manner */
-  when(Unresponsible, stateTimeout = healthyTimeout)(healthPingingState)
+  /** An Unresponsive invoker represents an invoker that is not responding with active acks in a timely manner */
+  when(Unresponsive, stateTimeout = healthyTimeout)(healthPingingState)
 
   /**
    * A Healthy invoker is characterized by continuously getting pings. It will go offline if that state is not confirmed
@@ -350,7 +350,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   }
 
   onTransition(healthPingingTransitionHandler(Unhealthy))
-  onTransition(healthPingingTransitionHandler(Unresponsible))
+  onTransition(healthPingingTransitionHandler(Unresponsive))
 
   initialize()
 
@@ -380,11 +380,11 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
       stay
     } else {
       val entries = buffer.toList
-      // Goto Unhealthy or Unresponsible respectively if there are more errors than accepted in buffer, else goto Healthy
+      // Goto Unhealthy or Unresponsive respectively if there are more errors than accepted in buffer, else goto Healthy
       if (entries.count(_ == InvocationFinishedResult.SystemError) > InvokerActor.bufferErrorTolerance) {
         gotoIfNotThere(Unhealthy)
       } else if (entries.count(_ == InvocationFinishedResult.Timeout) > InvokerActor.bufferErrorTolerance) {
-        gotoIfNotThere(Unresponsible)
+        gotoIfNotThere(Unresponsive)
       } else {
         gotoIfNotThere(Healthy)
       }

@@ -34,7 +34,7 @@ import scala.annotation.tailrec
  *
  * @param maxAllowed maximum number of permits given away by `tryAcquire`
  */
-class ForcableSemaphore(maxAllowed: Int) {
+class ForcibleSemaphore(maxAllowed: Int) {
   class Sync extends AbstractQueuedSynchronizer {
     setState(maxAllowed)
 
