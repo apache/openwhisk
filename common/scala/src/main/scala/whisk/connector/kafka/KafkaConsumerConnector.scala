@@ -30,7 +30,7 @@ import whisk.core.connector.MessageConsumer
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, ExecutionContext, Future}
+import scala.concurrent.{blocking, Await, ExecutionContext, Future}
 
 case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricFlushIntervalS: Int)
 
@@ -69,7 +69,7 @@ class KafkaConsumerConnector(
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
     try {
-      val response = consumer.poll(duration.toMillis).asScala
+      val response = Await.result(Future(consumer.poll(duration.toMillis).asScala), 30.seconds)
       val now = System.currentTimeMillis
 
       response.lastOption.foreach(record => offset = record.offset + 1)
