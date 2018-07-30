@@ -19,6 +19,7 @@ package whisk.core.controller.test
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import java.time.Instant
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import akka.http.scaladsl.model.StatusCodes._
@@ -49,19 +50,32 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   val allowedActionDuration = 120 seconds
 
-  it should "produce proper error when sequence component is missing during sequence invocation" in {
+  it should "partially invoke a sequence with missing component and produce component missing error" in {
     implicit val tid = transid()
     val seqName = s"${aname()}_seq"
-    val compName = s"${aname()}_comp"
+    val compName1 = s"${aname()}_comp1"
+    val compName2 = s"${aname()}_comp2"
+    val comp1Activation = WhiskActivation(
+      namespace,
+      EntityName(compName1),
+      creds.subject,
+      activationIdFactory.make(),
+      start = Instant.now,
+      end = Instant.now)
 
-    putSimpleSequenceInDB(seqName, namespace, Vector(compName))
-    deleteAction(DocId(s"$namespace/$compName"))
+    putSimpleSequenceInDB(seqName, namespace, Vector(compName1, compName2))
+    deleteAction(DocId(s"$namespace/$compName2"))
+    loadBalancer.whiskActivationStub = Some((1.milliseconds, comp1Activation))
 
-    Post(s"$collectionPath/$seqName?blocking=true&result=true") ~> Route.seal(routes(creds)) ~> check {
+    Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
       deleteAction(DocId(s"$namespace/$seqName"))
+      deleteAction(DocId(s"$namespace/$compName1"))
       status should be(BadGateway)
       val response = responseAs[JsObject]
-      response shouldBe JsObject("error" -> sequenceComponentNotFound.toJson)
+      response.fields("response") shouldBe ActivationResponse.applicationError(sequenceComponentNotFound).toExtendedJson
+      val logs = response.fields("logs").convertTo[JsArray]
+      logs.elements.size shouldBe 1
+      logs.elements.head shouldBe comp1Activation.activationId.toJson
     }
   }
 
