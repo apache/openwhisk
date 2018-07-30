@@ -22,11 +22,11 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class ForcableSemaphoreTests extends FlatSpec with Matchers {
+class ForcibleSemaphoreTests extends FlatSpec with Matchers {
   behavior of "ForcableSemaphore"
 
   it should "not allow to acquire, force or release negative amounts of permits" in {
-    val s = new ForcableSemaphore(2)
+    val s = new ForcibleSemaphore(2)
     an[IllegalArgumentException] should be thrownBy s.tryAcquire(0)
     an[IllegalArgumentException] should be thrownBy s.tryAcquire(-1)
 
@@ -38,12 +38,12 @@ class ForcableSemaphoreTests extends FlatSpec with Matchers {
   }
 
   it should "allow to acquire the defined amount of permits only" in {
-    val s = new ForcableSemaphore(2)
+    val s = new ForcibleSemaphore(2)
     s.tryAcquire() shouldBe true // 1 permit left
     s.tryAcquire() shouldBe true // 0 permits left
     s.tryAcquire() shouldBe false
 
-    val s2 = new ForcableSemaphore(4)
+    val s2 = new ForcibleSemaphore(4)
     s2.tryAcquire(5) shouldBe false // only 4 permits available
     s2.tryAcquire(3) shouldBe true // 1 permit left
     s2.tryAcquire(2) shouldBe false // only 1 permit available
@@ -51,7 +51,7 @@ class ForcableSemaphoreTests extends FlatSpec with Matchers {
   }
 
   it should "allow to release permits again" in {
-    val s = new ForcableSemaphore(2)
+    val s = new ForcibleSemaphore(2)
     s.tryAcquire() shouldBe true // 1 permit left
     s.tryAcquire() shouldBe true // 0 permits left
     s.tryAcquire() shouldBe false
@@ -62,7 +62,7 @@ class ForcableSemaphoreTests extends FlatSpec with Matchers {
   }
 
   it should "allow to force permits, delaying the acceptance of 'usual' permits until all of forced permits are released" in {
-    val s = new ForcableSemaphore(2)
+    val s = new ForcibleSemaphore(2)
     s.tryAcquire(2) shouldBe true // 0 permits left
     s.forceAcquire(5) // -5 permits left
     s.tryAcquire() shouldBe false
@@ -77,7 +77,7 @@ class ForcableSemaphoreTests extends FlatSpec with Matchers {
   it should "not give away more permits even under concurrent load" in {
     // 100 iterations of this test
     (0 until 100).foreach { _ =>
-      val s = new ForcableSemaphore(32)
+      val s = new ForcibleSemaphore(32)
       // try to acquire more permits than allowed in parallel
       val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
 
