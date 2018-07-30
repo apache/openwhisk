@@ -19,22 +19,19 @@ package whisk.core.controller.test
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
+import java.time.Instant
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
-import whisk.http.ErrorResponse
-import whisk.http.Messages
+import whisk.http.{ErrorResponse, Messages}
+import whisk.http.Messages.sequenceComponentNotFound
 
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
@@ -52,6 +49,35 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("sequence_tests")
 
   val allowedActionDuration = 120 seconds
+
+  it should "partially invoke a sequence with missing component and produce component missing error" in {
+    implicit val tid = transid()
+    val seqName = s"${aname()}_seq"
+    val compName1 = s"${aname()}_comp1"
+    val compName2 = s"${aname()}_comp2"
+    val comp1Activation = WhiskActivation(
+      namespace,
+      EntityName(compName1),
+      creds.subject,
+      activationIdFactory.make(),
+      start = Instant.now,
+      end = Instant.now)
+
+    putSimpleSequenceInDB(seqName, namespace, Vector(compName1, compName2))
+    deleteAction(DocId(s"$namespace/$compName2"))
+    loadBalancer.whiskActivationStub = Some((1.milliseconds, comp1Activation))
+
+    Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
+      deleteAction(DocId(s"$namespace/$seqName"))
+      deleteAction(DocId(s"$namespace/$compName1"))
+      status should be(BadGateway)
+      val response = responseAs[JsObject]
+      response.fields("response") shouldBe ActivationResponse.applicationError(sequenceComponentNotFound).toExtendedJson
+      val logs = response.fields("logs").convertTo[JsArray]
+      logs.elements.size shouldBe 1
+      logs.elements.head shouldBe comp1Activation.activationId.toJson
+    }
+  }
 
   it should "reject creation of sequence with more actions than allowed limit" in {
     implicit val tid = transid()
