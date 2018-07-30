@@ -112,10 +112,10 @@ object KafkaConfiguration {
   def verifyConfig(config: Map[String, String], validKeys: Set[String])(implicit logging: Logging): Boolean = {
     val passedKeys = config.keySet
     val knownKeys = validKeys intersect passedKeys
-    val unknownSettings = config -- knownKeys
+    val unknownKeys = passedKeys -- knownKeys
 
-    if (unknownSettings.nonEmpty) {
-      logging.warn(this, s"potential misconfiguration, unknown settings: ${unknownSettings.mkString(",")}")
+    if (unknownKeys.nonEmpty) {
+      logging.warn(this, s"potential misconfiguration, unknown settings: ${unknownKeys.mkString(",")}")
       false
     } else {
       true
