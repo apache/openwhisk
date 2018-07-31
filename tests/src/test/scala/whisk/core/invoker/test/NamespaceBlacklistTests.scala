@@ -99,7 +99,7 @@ class NamespaceBlacklistTests
 
   def authToIdentities(auth: WhiskAuth): Set[Identity] = {
     auth.namespaces.map { ns =>
-      Identity(auth.subject, ns.namespace, ns.authkey, Set(), UserLimits())
+      Identity(auth.subject, ns.namespace, ns.authkey, Set.empty, UserLimits())
     }
   }
 

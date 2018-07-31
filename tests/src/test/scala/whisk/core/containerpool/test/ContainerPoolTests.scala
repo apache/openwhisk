@@ -76,7 +76,7 @@ class ContainerPoolTests
       TransactionId.testing,
       action.fullyQualifiedName(true),
       action.rev,
-      Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set()),
+      Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty),
       ActivationId.generate(),
       ControllerInstanceId("0"),
       blocking = false,
