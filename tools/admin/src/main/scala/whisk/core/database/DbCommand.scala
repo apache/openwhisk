@@ -24,17 +24,16 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import org.slf4j.LoggerFactory
-import spray.json.{JsObject, JsonParser, ParserInput}
+import spray.json.{JsObject, JsonParser}
 import whisk.common.{Logging, TransactionId}
+import whisk.core.cli.ConsoleUtil._
 import whisk.core.cli.{CommandError, CommandMessages, IllegalState, NoopTicker, ProgressTicker, Ticker, WhiskCommand}
 import whisk.core.database.DbCommand._
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.cli.ConsoleUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
@@ -107,10 +106,14 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       .map(jsToStringLine)
       .via(tick(ticker))
       .toMat(createSink())(Keep.right)
-    val store = DbCommand.createStreamingStore(get.dbType)
+    val artifactStore = getStore(get.dbType)
+    val store = createStreamingStore(get.dbType, artifactStore)
 
     val f = store.getAll[IOResult](outputSink)
-    f.onComplete(_ => ticker.close())
+    f.onComplete { _ =>
+      ticker.close()
+      artifactStore.shutdown()
+    }
     f.map {
       case (count, r) =>
         if (r.wasSuccessful)
@@ -201,23 +204,28 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 object DbCommand {
   private val log = LoggerFactory.getLogger(getClass.getName)
 
-  def createStreamingStore[D <: DocumentSerializer](classTag: ClassTag[D])(
+  def createStreamingStore[T <: DocumentSerializer](classTag: ClassTag[T], store: ArtifactStore[_])(
     implicit system: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): StreamingArtifactStore = {
     implicit val tag = classTag
-    getStoreProvider().makeStore[D]()
+    store match {
+      case _: CouchDbRestStore[_]    => CouchDBStreamingStoreProvider.makeStore[T]()
+      case s: StreamingArtifactStore => s
+      case _                         => throw new IllegalArgumentException(s"Unsupported ArtifactStore $store")
+    }
   }
 
   def retainProperFields(js: JsObject): JsObject =
     JsObject(js.fields.filterKeys(key => key == "_id" || !key.startsWith("_")))
 
-  def getStoreProvider(): StreamingArtifactStoreProvider = {
-    val storeClass = ConfigFactory.load().getString("whisk.spi.ArtifactStoreProvider") + "$"
-    if (storeClass == CouchDbStoreProvider.getClass.getName)
-      CouchDBStreamingStoreProvider
-    else
-      throw new IllegalArgumentException(s"Unsupported ArtifactStore $storeClass")
+  def getStore[D](classTag: ClassTag[D])(implicit system: ActorSystem,
+                                         logging: Logging,
+                                         materializer: ActorMaterializer): ArtifactStore[_] = {
+    if (classTag.runtimeClass == classOf[WhiskEntity]) WhiskEntityStore.datastore()
+    else if (classTag.runtimeClass == classOf[WhiskAuth]) WhiskAuthStore.datastore()
+    else if (classTag.runtimeClass == classOf[WhiskActivation]) WhiskActivationStore.datastore()
+    else throw new IllegalArgumentException(s"Unsupported ArtifactStore $classTag")
   }
 
   def createJSStream(file: File, maxLineLength: ByteSize = 10.MB): Source[JsObject, Future[IOResult]] = {
