@@ -375,7 +375,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       n.toInt should be >= minExpectedOpenFiles
 
       activation.logs
-        .getOrElse(List())
+        .getOrElse(List.empty)
         .count(_.contains("ERROR: opened files = ")) shouldBe 1
     }
   }

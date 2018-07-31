@@ -75,8 +75,8 @@ class ReplicatorTests
                     dbPrefix: String,
                     expires: FiniteDuration,
                     continuous: Boolean = false,
-                    exclude: List[String] = List(),
-                    excludeBaseName: List[String] = List()) = {
+                    exclude: List[String] = List.empty,
+                    excludeBaseName: List[String] = List.empty) = {
     println(
       s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous, $exclude, $excludeBaseName")
 

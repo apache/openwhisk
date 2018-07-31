@@ -43,7 +43,7 @@ class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
     tracer.reset
 
     val transactionId: TransactionId = TransactionId.testing
-    var list: List[WeakReference[Span]] = List()
+    var list: List[WeakReference[Span]] = List.empty
 
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     var ctx = openTracer.getTraceContext(transactionId)
