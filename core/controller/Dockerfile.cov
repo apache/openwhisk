@@ -1,0 +1,15 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
+FROM controller
+
+ARG OW_ROOT_DIR
+
+RUN mkdir -p /coverage/common && \
+    mkdir -p /coverage/controller && \
+    mkdir -p "${OW_ROOT_DIR}/common/scala/build" && \
+    mkdir -p "${OW_ROOT_DIR}/core/controller/build" && \
+    ln -s /coverage/common "${OW_ROOT_DIR}/common/scala/build/scoverage" && \
+    ln -s /coverage/controller "${OW_ROOT_DIR}/core/controller/build/scoverage"
+
+COPY build/tmp/docker-coverage /controller/

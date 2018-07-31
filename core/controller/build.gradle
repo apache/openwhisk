@@ -27,6 +27,12 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-controller"
 
+ext.coverageJars = [
+    "${buildDir}/libs/${project.archivesBaseName}-$version-scoverage.jar",
+    "${project(':common:scala').buildDir.absolutePath}/libs/openwhisk-common-$version-scoverage.jar"
+]
+distDockerCoverage.dependsOn ':common:scala:jarScoverage', 'jarScoverage'
+
 repositories {
     mavenCentral()
 }

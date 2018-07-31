@@ -252,6 +252,27 @@
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
+- name: ensure invoker coverage directory is created with permissions
+  file:
+    path: "{{ coverage_logs_dir }}/invoker/{{ item }}"
+    state: directory
+    mode: 0777
+  with_items:
+    - invoker
+    - common
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
+- name: extend invoker volume for coverage
+  set_fact:
+    volumes: "{{ volumes|default('') }},{{ coverage_logs_dir }}/invoker:/coverage"
+  when: coverage_enabled
+
 - name: start invoker using docker cli
   docker_container:
     userns_mode: "host"
@@ -260,7 +281,7 @@
     name: "{{ invoker_name }}"
     hostname: "{{ invoker_name }}"
     restart_policy: "{{ docker.restart.policy }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
     state: started
     recreate: true
     env: "{{ env }}"
