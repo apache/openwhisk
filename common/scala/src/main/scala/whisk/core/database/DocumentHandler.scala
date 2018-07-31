@@ -449,7 +449,7 @@ object SubjectHandler extends DocumentHandler {
             case _ => None
           })
 
-        case _ => Seq()
+        case _ => Seq.empty
       }
       namespaces.flatMap(_.filter(matches)).headOption
     }
