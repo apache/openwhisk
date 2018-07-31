@@ -69,14 +69,16 @@ class KafkaConsumerConnector(
     // poll can be infinitely blocked in edge-cases, so we need to wakeup explicitly.
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second) {
       consumer.wakeup()
-      logging.info(this, s"woke up consumer for topic '${topic}'")
+      logging.info(this, s"woke up consumer for topic '$topic'")
     }
 
     try {
       val response = consumer.poll(duration.toMillis).asScala
-      val now = System.currentTimeMillis
 
+      // Cancel the scheduled wake-up task immediately.
       wakeUpTask.cancel()
+
+      val now = System.currentTimeMillis
 
       response.lastOption.foreach(record => offset = record.offset + 1)
       response.map { r =>
@@ -100,13 +102,13 @@ class KafkaConsumerConnector(
       case e: RetriableException if retry > 0 =>
         // Happens if something goes wrong with 'poll()' and 'poll()' can be retried.
         wakeUpTask.cancel()
-        logging.error(this, s"poll returned with failure. Retrying $retry more times. Exception: ${e}")
+        logging.error(this, s"poll returned with failure. Retrying $retry more times. Exception: $e")
         Thread.sleep(gracefulWaitTime.toMillis) // using Thread.sleep is okay, since `poll` is blocking anyway
         peek(duration, retry - 1)
       case e: Throwable =>
         // Every other error results in a restart of the consumer
         wakeUpTask.cancel()
-        logging.error(this, s"poll returned with failure. Retrying $retry more times. Exception: ${e}")
+        logging.error(this, s"poll returned with failure. Recreating the consumer. Exception: $e")
         recreateConsumer()
         throw e
     }
@@ -159,11 +161,10 @@ class KafkaConsumerConnector(
       // According to documentation, the consumer is force closed if it cannot be closed gracefully.
       // See https://kafka.apache.org/11/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
       //
-      // For the moment, we are ignoring 'InterruptException' which indicates that the thread has been
-      // interrupted while running 'close()'.
-      //
+      // For the moment, we have no special handling of 'InterruptException' - it may be possible or even
+      // needed to re-try the 'close()' when being interrupted.
       case t: Throwable =>
-        logging.error(this, s"failed to close old consumer while recreating: ${t}")
+        logging.error(this, s"failed to close old consumer while recreating: $t")
     }
     logging.info(this, s"old consumer closed for '$topic'")
     consumer = createConsumer(topic)
@@ -188,7 +189,7 @@ class KafkaConsumerConnector(
     }.andThen {
       case Failure(e) =>
         // Only log level info because failed metric reporting is not critical
-        logging.info(this, s"lag metric reporting failed for topic '${topic}': ${e}")
+        logging.info(this, s"lag metric reporting failed for topic '$topic': $e")
     }
   }
 }
