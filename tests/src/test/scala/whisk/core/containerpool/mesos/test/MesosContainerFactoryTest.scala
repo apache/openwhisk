@@ -91,7 +91,7 @@ class MesosContainerFactoryTest
   behavior of "MesosContainerFactory"
 
   it should "send Subscribe on init" in {
-    val wskConfig = new WhiskConfig(Map())
+    val wskConfig = new WhiskConfig(Map.empty)
     val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
     new MesosContainerFactory(
       wskConfig,
