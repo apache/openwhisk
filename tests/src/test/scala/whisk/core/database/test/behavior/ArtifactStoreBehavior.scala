@@ -25,3 +25,4 @@ trait ArtifactStoreBehavior
     with ArtifactStoreWhisksQueryBehaviors
     with ArtifactStoreActivationsQueryBehaviors
     with ArtifactStoreAttachmentBehaviors
+    with StreamingArtifactStoreBehavior

@@ -21,6 +21,9 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
+import whisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
-class CouchDBArtifactStoreTests extends FlatSpec with CouchDBStoreBehaviorBase with ArtifactStoreBehavior {}
+class CouchDBArtifactStoreTests extends FlatSpec with CouchDBStoreBehaviorBase with ArtifactStoreBehavior {
+  override def entityStreamingStore = CouchDBStreamingStoreProvider.makeStore[WhiskEntity]()
+}

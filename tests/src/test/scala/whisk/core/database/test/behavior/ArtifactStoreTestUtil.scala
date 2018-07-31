@@ -18,10 +18,12 @@
 package whisk.core.database.test.behavior
 
 import common.TestUtils
+import org.scalactic.Uniformity
+import spray.json.{DefaultJsonProtocol, JsObject}
 
 import scala.util.{Failure, Success, Try}
 
-object ArtifactStoreTestUtil {
+object ArtifactStoreTestUtil extends DefaultJsonProtocol {
 
   def storeAvailable(storeAvailableCheck: Try[Any]): Boolean = {
     storeAvailableCheck match {
@@ -33,4 +35,20 @@ object ArtifactStoreTestUtil {
         if (TestUtils.isBuildingOnMainRepo) throw x else false
     }
   }
+
+  /**
+   * Strips of the '_rev' field to allow comparing jsons where only rev may differ
+   */
+  object strippedOfRevision extends Uniformity[JsObject] {
+    override def normalizedOrSame(b: Any) = b match {
+      case s: JsObject => normalized(s)
+      case _           => b
+    }
+    override def normalizedCanHandle(b: Any) = b.isInstanceOf[JsObject]
+    override def normalized(js: JsObject) = JsObject(js.fields - "_rev")
+  }
+
+  def idOf(js: JsObject) = js.fields("_id").convertTo[String]
+
+  def idFilter(ids: Set[String]): JsObject => Boolean = js => ids.contains(idOf(js))
 }

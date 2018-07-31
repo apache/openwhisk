@@ -23,7 +23,7 @@ import _root_.rx.RxReactiveStreams
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, StatusCodes, Uri}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source, StreamConverters}
+import akka.stream.scaladsl.{Keep, Sink, Source, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
@@ -56,7 +56,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     with DefaultJsonProtocol
     with DocumentProvider
     with CosmosDBSupport
-    with AttachmentSupport[DocumentAbstraction] {
+    with AttachmentSupport[DocumentAbstraction]
+    with StreamingArtifactStore {
 
   private val cosmosScheme = "cosmos"
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
@@ -417,6 +418,40 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     attachmentStore
       .map(as => as.deleteAttachments(doc.id))
       .getOrElse(Future.successful(true)) // For CosmosDB it is expected that the entire document is deleted.
+
+  override protected[database] def getAll[T](sink: Sink[JsObject, Future[T]])(
+    implicit transid: TransactionId): Future[(Long, T)] = {
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY_ALL] '$collName'")
+    val counter = Sink.fold[Long, JsValue](0)((acc, _) => acc + 1)
+    val querySpec = new SqlQuerySpec("SELECT * FROM root r")
+    val publisher =
+      RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, newFeedOptions()))
+    val f = Source
+      .fromPublisher(publisher)
+      .mapConcat(asSeq)
+      .map(queryResultToWhiskJsonDoc)
+      .alsoToMat(counter)(Keep.right)
+      .toMat(sink)(Keep.both)
+      .run()
+    val g = for (count <- f._1; t <- f._2) yield (count, t)
+    reportFailure(g, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
+  }
+
+  override protected[database] def getCount()(implicit transid: TransactionId): Future[Option[Long]] = {
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT_ALL] '$collName'")
+    val querySpec = new SqlQuerySpec("SELECT TOP 1 VALUE COUNT(r) FROM root r")
+    val f = client
+      .queryDocuments(collection.getSelfLink, querySpec, newFeedOptions())
+      .head()
+      .map { r =>
+        val count = r.getResults.asScala.head.getLong(aggregate).longValue()
+        transid.finished(this, start, s"[COUNT_ALL] '$collName' completed: count $count")
+        count
+      }
+      .map(Some(_))
+
+    reportFailure(f, start, failure => s"[COUNT_ALL] '$collName' internal error, failure: '${failure.getMessage}'")
+  }
 
   override def shutdown(): Unit = {
     attachmentStore.foreach(_.shutdown())

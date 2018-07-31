@@ -94,7 +94,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
-    with AttachmentSupport[DocumentAbstraction] {
+    with AttachmentSupport[DocumentAbstraction]
+    with StreamingArtifactStore {
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -314,6 +315,15 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     reportFailure(f, start, failure => s"[GET] '$dbName' internal error, doc: '$id', failure: '${failure.getMessage}'")
   }
+
+  override protected[database] def getAll[T](sink: Sink[JsObject, Future[T]])(
+    implicit transid: TransactionId): Future[(Long, T)] = {
+    val map = artifacts.toMap
+    Source(map).map { case (_, v) => v.doc }.runWith(sink).map(t => (map.size, t))
+  }
+
+  override protected[database] def getCount()(implicit transid: TransactionId): Future[Option[Long]] =
+    Future.successful(Some(artifacts.size))
 
   private def getRevision(asJson: JsObject) = {
     asJson.fields.get(_rev) match {

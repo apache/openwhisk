@@ -20,7 +20,10 @@ package whisk.core.database.memory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+import whisk.core.database.StreamingArtifactStore
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
 
 @RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior
+class MemoryArtifactStoreTests extends FlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior {
+  override lazy val entityStreamingStore = entityStore.asInstanceOf[StreamingArtifactStore]
+}
