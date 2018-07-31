@@ -193,8 +193,8 @@ class CliActionOperations(override val wsk: RunCliCmd)
     kind: Option[String] = None, // one of docker, copy, sequence or none for autoselect else an explicit type
     main: Option[String] = None,
     docker: Option[String] = None,
-    parameters: Map[String, JsValue] = Map(),
-    annotations: Map[String, JsValue] = Map(),
+    parameters: Map[String, JsValue] = Map.empty,
+    annotations: Map[String, JsValue] = Map.empty,
     parameterFile: Option[String] = None,
     annotationFile: Option[String] = None,
     timeout: Option[Duration] = None,
@@ -272,7 +272,7 @@ class CliActionOperations(override val wsk: RunCliCmd)
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def invoke(name: String,
-                      parameters: Map[String, JsValue] = Map(),
+                      parameters: Map[String, JsValue] = Map.empty,
                       parameterFile: Option[String] = None,
                       blocking: Boolean = false,
                       result: Boolean = false,
@@ -306,8 +306,8 @@ class CliTriggerOperations(override val wsk: RunCliCmd)
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def create(name: String,
-                      parameters: Map[String, JsValue] = Map(),
-                      annotations: Map[String, JsValue] = Map(),
+                      parameters: Map[String, JsValue] = Map.empty,
+                      annotations: Map[String, JsValue] = Map.empty,
                       parameterFile: Option[String] = None,
                       annotationFile: Option[String] = None,
                       feed: Option[String] = None,
@@ -350,7 +350,7 @@ class CliTriggerOperations(override val wsk: RunCliCmd)
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def fire(name: String,
-                    parameters: Map[String, JsValue] = Map(),
+                    parameters: Map[String, JsValue] = Map.empty,
                     parameterFile: Option[String] = None,
                     expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "fire", "--auth", wp.authKey, fqn(name)) ++ {
@@ -386,7 +386,7 @@ class CliRuleOperations(override val wsk: RunCliCmd)
   override def create(name: String,
                       trigger: String,
                       action: String,
-                      annotations: Map[String, JsValue] = Map(),
+                      annotations: Map[String, JsValue] = Map.empty,
                       shared: Option[Boolean] = None,
                       update: Boolean = false,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
@@ -736,8 +736,8 @@ class CliPackageOperations(override val wsk: RunCliCmd)
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def create(name: String,
-                      parameters: Map[String, JsValue] = Map(),
-                      annotations: Map[String, JsValue] = Map(),
+                      parameters: Map[String, JsValue] = Map.empty,
+                      annotations: Map[String, JsValue] = Map.empty,
                       parameterFile: Option[String] = None,
                       annotationFile: Option[String] = None,
                       shared: Option[Boolean] = None,
@@ -776,8 +776,8 @@ class CliPackageOperations(override val wsk: RunCliCmd)
    */
   override def bind(provider: String,
                     name: String,
-                    parameters: Map[String, JsValue] = Map(),
-                    annotations: Map[String, JsValue] = Map(),
+                    parameters: Map[String, JsValue] = Map.empty,
+                    annotations: Map[String, JsValue] = Map.empty,
                     expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "bind", "--auth", wp.authKey, fqn(provider), fqn(name)) ++ {
       parameters flatMap { p =>

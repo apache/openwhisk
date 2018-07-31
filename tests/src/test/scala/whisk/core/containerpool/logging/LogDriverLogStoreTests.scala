@@ -36,6 +36,6 @@ class LogDriverLogStoreTests extends TestKit(ActorSystem("LogDriverLogStore")) w
 
   it should "set the container parameters from the config" in {
     val logDriverLogStore = new LogDriverLogStore(system)
-    logDriverLogStore.containerParameters shouldBe Map()
+    logDriverLogStore.containerParameters shouldBe Map.empty
   }
 }

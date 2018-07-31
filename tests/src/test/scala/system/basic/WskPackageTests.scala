@@ -43,7 +43,7 @@ class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSyste
   it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "simplepackage"
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
-      pkg.create(name, Map())
+      pkg.create(name, Map.empty)
     }
   }
 
