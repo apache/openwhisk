@@ -33,7 +33,7 @@ import whisk.common.TransactionId
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with WskActorSystem with BeforeAndAfterEach {
+class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndAfterEach with WskActorSystem {
 
   println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
 
