@@ -182,8 +182,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       val copiedAction = wsk.parseJsonString(wsk.action.get(copiedName).stdout)
 
       // CLI does not guarantee order of annotations and parameters so do a diff to compare the values
-      copiedAction.fields("parameters").convertTo[Seq[JsObject]] diff resParams shouldBe List()
-      copiedAction.fields("annotations").convertTo[Seq[JsObject]] diff resAnnots shouldBe List()
+      copiedAction.fields("parameters").convertTo[Seq[JsObject]] diff resParams shouldBe List.empty
+      copiedAction.fields("annotations").convertTo[Seq[JsObject]] diff resAnnots shouldBe List.empty
   }
 
   it should "recreate and invoke a new action with different code" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -254,7 +254,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     withClue(s"check failed for activation: $activation") {
       activation.response.status shouldBe "success"
       activation.response.result shouldBe Some(testResult)
-      activation.logs shouldBe Some(List())
+      activation.logs shouldBe Some(List.empty)
     }
   }
 
