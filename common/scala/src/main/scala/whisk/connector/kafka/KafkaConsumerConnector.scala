@@ -132,7 +132,7 @@ class KafkaConsumerConnector(
         }
     }
 
-  override def close(): Unit = {
+  override def close(): Unit = synchronized {
     logging.info(this, s"closing consumer for '$topic'")
     consumer.close()
   }
@@ -149,6 +149,9 @@ class KafkaConsumerConnector(
     verifyConfig(config, ConsumerConfig.configNames().asScala.toSet)
 
     val consumer = new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
+
+    // subscribe does not need to be synchronized, because the reference to the consumer hasn't been returned yet and
+    // thus this is guaranteed only to be called by the calling thread.
     consumer.subscribe(Seq(topic).asJavaCollection)
     consumer
   }
