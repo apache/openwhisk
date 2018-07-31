@@ -155,8 +155,7 @@ class KafkaConsumerConnector(
   private def recreateConsumer(): Unit = {
     logging.info(this, s"recreating consumer for '$topic'")
     try {
-      val oldConsumer = consumer
-      oldConsumer.close()
+      consumer.close()
     } catch {
       // According to documentation, the consumer is force closed if it cannot be closed gracefully.
       // See https://kafka.apache.org/11/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
