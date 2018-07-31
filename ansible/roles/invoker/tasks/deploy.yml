@@ -208,7 +208,6 @@
       "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
       "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
       "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
-      "INVOKER_NAME": "{{ invoker_index }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
@@ -287,7 +286,7 @@
     env: "{{ env }}"
     volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
-    command: /bin/sh -c "exec /init.sh {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
+    command: /bin/sh -c "exec /init.sh --id {{ invoker_index }} --uniqueName {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
 
 - name: wait until Invoker is up and running
   uri:
