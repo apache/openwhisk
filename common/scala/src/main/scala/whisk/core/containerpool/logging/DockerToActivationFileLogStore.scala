@@ -17,7 +17,9 @@
 
 package whisk.core.containerpool.logging
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
+import java.nio.file.attribute.PosixFilePermission.{GROUP_READ, GROUP_WRITE, OTHERS_READ, OWNER_READ, OWNER_WRITE}
+import java.util.EnumSet
 import java.time.Instant
 
 import akka.NotUsed
@@ -75,6 +77,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
    * once the defined limit is reached.
    */
   val bufferSize = 100.MB
+  val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ)
   protected val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
     .batchWeighted(bufferSize.toBytes, _.length, identity)(_ ++ _)
@@ -87,9 +90,17 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
             val size = element.size
             if (bytesRead + size > maxSize) {
               bytesRead = size
-              val newLogFile = destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log")
-              logging.info(this, s"Rotating log file to '$newLogFile'")
-              Some(newLogFile)
+              val logFilePath = destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log")
+              logging.info(this, s"Rotating log file to '$logFilePath'")
+              try {
+                Files.createFile(logFilePath)
+                Files.setPosixFilePermissions(logFilePath, perms)
+              } catch {
+                case t: Throwable =>
+                  logging.error(this, s"Couldn't create userlogs file: $t")
+                  throw t
+              }
+              Some(logFilePath)
             } else {
               bytesRead += size
               None
