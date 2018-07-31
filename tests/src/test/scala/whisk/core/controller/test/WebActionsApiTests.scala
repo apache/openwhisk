@@ -539,7 +539,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"invoke action which receives an empty entity (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      Seq("", JsArray().compactPrint, JsObject.empty.compactPrint, JsNull.compactPrint).foreach { arg =>
+      Seq("", JsArray.empty.compactPrint, JsObject.empty.compactPrint, JsNull.compactPrint).foreach { arg =>
         Seq(s"$systemId/proxy/export_c.json").foreach { path =>
           allowedMethodsWithEntity.foreach { m =>
             invocationsAllowed += 1
