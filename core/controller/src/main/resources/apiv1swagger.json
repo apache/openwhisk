@@ -1867,6 +1867,7 @@
                     "enum": [
                         "blackbox",
                         "java",
+                        "java:default",
                         "nodejs:6",
                         "nodejs:8",
                         "nodejs:default",
@@ -1876,12 +1877,9 @@
                         "python:3",
                         "python:default",
                         "ruby:2.5",
+                        "sequence",
                         "swift:3.1.1",
-                        "swift:4.1",
-                        "java",
-                        "java:default",
-                        "blackbox",
-                        "sequence"
+                        "swift:4.1"
                     ],
                     "description": "the type of action"
                 },
