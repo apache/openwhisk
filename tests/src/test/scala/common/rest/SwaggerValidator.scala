@@ -22,7 +22,6 @@ import scala.collection.JavaConverters._
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
-import akka.util.ByteString
 import com.atlassian.oai.validator.SwaggerRequestResponseValidator
 import com.atlassian.oai.validator.model.SimpleRequest
 import com.atlassian.oai.validator.model.SimpleResponse
@@ -68,36 +67,38 @@ trait SwaggerValidator {
    * and response, which would prevent callers from later consuming it.
    *
    * @param request the HttpRequest
-   * @param requestBody the request body
    * @param response the HttpResponse
-   * @param responseBody the response body
    * @return The list of validation error messages, if any
    */
-  def validateRequestAndResponse(request: HttpRequest,
-                                 requestBody: Option[String],
-                                 response: HttpResponse,
-                                 responseBody: String): Seq[String] = {
-    var specRequestBuilder = new SimpleRequest.Builder(request.method.value, request.uri.path.toString())
-    for (header <- request.headers) {
-      specRequestBuilder = specRequestBuilder.withHeader(header.name, header.value)
+  def validateRequestAndResponse(request: HttpRequest, response: HttpResponse): Seq[String] = {
+    val specRequest = {
+      val builder = new SimpleRequest.Builder(request.method.value, request.uri.path.toString())
+      val body = strictEntityBodyAsString(request.entity)
+      val withBody =
+        if (body.isEmpty) builder
+        else
+          builder
+            .withBody(body)
+            .withHeader("content-type", request.entity.contentType.value)
+      val withHeaders = request.headers.foldLeft(builder)((b, header) => b.withHeader(header.name, header.value))
+      val andQuery =
+        request.uri.query().foldLeft(withHeaders) { case (b, (key, value)) => b.withQueryParam(key, value) }
+      andQuery.build()
     }
-    for ((key, value) <- request.uri.query().toMap) {
-      specRequestBuilder = specRequestBuilder.withQueryParam(key, value)
+
+    val specResponse = {
+      val builder = SimpleResponse.Builder
+        .status(response.status.intValue())
+      val body = strictEntityBodyAsString(response.entity)
+      val withBody =
+        if (body.isEmpty) builder
+        else
+          builder
+            .withBody(body)
+            .withHeader("content-type", response.entity.contentType.value)
+      val withHeaders = response.headers.foldLeft(builder)((b, header) => b.withHeader(header.name, header.value))
+      withHeaders.build()
     }
-    if (requestBody.nonEmpty) {
-      specRequestBuilder = specRequestBuilder
-        .withBody(requestBody.get)
-        .withHeader("content-type", request.entity.contentType.value)
-    }
-    val responseCopy = response.copy(entity = HttpEntity.Strict(response.entity.contentType, ByteString(responseBody)))
-    var specResponseBuilder = SimpleResponse.Builder
-      .status(response.status.intValue())
-      .withBody(responseBody)
-    for (header <- response.headers) {
-      specResponseBuilder = specResponseBuilder.withHeader(header.name, header.value)
-    }
-    val specRequest = specRequestBuilder.build()
-    val specResponse = specResponseBuilder.build()
 
     specValidator
       .validate(specRequest, specResponse)
@@ -105,5 +106,10 @@ trait SwaggerValidator {
       .asScala
       .filter(m => m.getLevel == ValidationReport.Level.ERROR)
       .map(_.toString)
+  }
+
+  def strictEntityBodyAsString(entity: HttpEntity): String = entity match {
+    case s: HttpEntity.Strict => s.data.utf8String
+    case _                    => ""
   }
 }

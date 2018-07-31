@@ -1137,6 +1137,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
 
   val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
+  val toStrictTimeout = 5 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
@@ -1188,21 +1189,17 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
       method,
       hostWithScheme.withPath(path).withQuery(Query(params)),
       List(Authorization(creds)),
-      entity = body.map(b => HttpEntity(ContentTypes.`application/json`, b)).getOrElse(HttpEntity.Empty))
-    val response = Http().singleRequest(request, connectionContext).futureValue
+      entity =
+        body.map(b => HttpEntity.Strict(ContentTypes.`application/json`, ByteString(b))).getOrElse(HttpEntity.Empty))
+    val response = Http().singleRequest(request, connectionContext).flatMap { _.toStrict(toStrictTimeout) }.futureValue
 
-    // Copy the response so we can validate the body while also allowing
-    // callers to read the body
-    val responseBody = getRespData(response)
-    val responseCopy = response.withEntity(response.entity.contentType, ByteString(responseBody))
-
-    val validationErrors = validateRequestAndResponse(request, body, response, responseBody)
+    val validationErrors = validateRequestAndResponse(request, response)
     if (validationErrors.nonEmpty) {
       fail(
         s"HTTP request or response did not match the Swagger spec.\nRequest: $request\n" +
           s"Response: $response\nValidation Error: $validationErrors")
     }
-    responseCopy
+    response
   }
 
   private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
@@ -1294,7 +1291,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   }
 
   def getRespData(resp: HttpResponse): String = {
-    val timeout = 5.seconds
+    val timeout = toStrictTimeout
     Try(resp.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue).getOrElse("")
   }
 

@@ -926,7 +926,8 @@
                     }
                 ],
                 "produces": [
-                    "application/json"
+                    "application/json",
+                    "text/plain"
                 ],
                 "responses": {
                     "200": {
