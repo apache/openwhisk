@@ -74,7 +74,7 @@ object MesosTask {
              cpuShares: Int = 0,
              environment: Map[String, String] = Map(),
              network: String = "bridge",
-             dnsServers: Seq[String] = Seq(),
+             dnsServers: Seq[String] = Seq.empty,
              name: Option[String] = None,
              parameters: Map[String, Set[String]] = Map(),
              constraints: Seq[Constraint] = Seq.empty)(implicit ec: ExecutionContext,
