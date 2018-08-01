@@ -84,7 +84,13 @@ abstract class ProgressBarBase(val colored: Boolean = true) extends Ticker {
     s"$colStart${barCurrent * pos}$colCur$barCurrentN$colNorm${barRemain * (width - pos)}"
   }
 
-  protected def speed(): String = "%.0f/s".format(count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1))
+  protected def speed(): String = "%.0f/s".format(rate())
+
+  protected def rate(): Double = count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1)
+
+  protected def elapsedTime(): String = formatTime(watch.elapsed(TimeUnit.SECONDS))
+
+  protected def formatTime(s: Long) = "%d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
 
   private def move(): Boolean = {
     val elapsesMillis = watch.elapsed(TimeUnit.MILLISECONDS)
@@ -115,7 +121,7 @@ class InfiniteProgressBar(action: String, override val colored: Boolean = true) 
     if (pos == width) movingRight = false
   }
 
-  override protected def statusSuffix() = s"$count docs ${speed()} [$watch]"
+  override protected def statusSuffix() = s"$count docs ${speed()} (${elapsedTime()})"
   override protected def statusPrefix() = s"$action "
 }
 
@@ -132,11 +138,12 @@ class FiniteProgressBar(action: String, total: Long, override val colored: Boole
     pos = progress(width)
   }
 
-  override protected def statusSuffix() = s"$count/$total docs ${speed()} [$watch]"
+  override protected def statusSuffix() = s"$count/$total docs ${speed()} (${elapsedTime()} / ${eta()})"
   override protected def statusPrefix() = s"$action ${progressPercent()}% "
 
   private def progressPercent() = progress(100)
   private def progress(n: Int) = Math.ceil((count.toFloat / total) * n).toInt
+  private def eta() = formatTime(((total - count) / rate()).toLong)
 }
 
 object ConsoleUtil {
