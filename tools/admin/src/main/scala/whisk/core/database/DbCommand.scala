@@ -18,6 +18,7 @@
 package whisk.core.database
 
 import java.io.File
+import java.nio.file.Files
 import java.time.Instant
 
 import akka.actor.ActorSystem
@@ -30,7 +31,7 @@ import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsString, JsonParser}
 import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.ConsoleUtil._
-import whisk.core.cli.{CommandError, CommandMessages, IllegalState, NoopTicker, ProgressTicker, Ticker, WhiskCommand}
+import whisk.core.cli._
 import whisk.core.database.DbCommand._
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -101,7 +102,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
-    val ticker = if (get.out.isDefined && showProgressBar()) new ProgressTicker else NoopTicker
+    val ticker = if (get.out.isDefined && showProgressBar()) new InfiniteProgressBar("Exporting") else NoopTicker
     val outputSink = Flow[JsObject]
       .map(jsToStringLine)
       .via(tick(ticker))
@@ -133,7 +134,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val entityStore = WhiskEntityStore.datastore()
     val activationStore = WhiskActivationStore.datastore()
 
-    val ticker = if (showProgressBar()) new ProgressTicker else NoopTicker
+    val ticker = if (showProgressBar()) new FiniteProgressBar("Importing", lineCount(put.in())) else NoopTicker
     val source = createJSStream(put.in())
     val f = source
       .mapAsyncUnordered(4) { js =>
@@ -275,6 +276,8 @@ object DbCommand {
     else if (js.fields.contains("trigger")) Some("rule")
     else None
   }
+
+  def lineCount(file: File): Long = Files.lines(file.toPath).count()
 
   private val unusedSubject = Subject()
   private val unusedParams = Parameters()

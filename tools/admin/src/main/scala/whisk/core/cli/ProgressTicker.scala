@@ -31,19 +31,24 @@ trait Ticker {
 
 object NoopTicker extends Ticker
 
-class ProgressTicker(val colored: Boolean = true) extends Ticker {
-  private val width = 10
-  private val nextDrawDelta = 200 //Redraw ever this millis
-  private val watch = Stopwatch.createStarted()
-  private val barBase = "-"
-  private val barCurrent = "*"
+abstract class ProgressBarBase(val colored: Boolean = true) extends Ticker {
+  protected val width = 10
+  protected val nextDrawDelta = 200 //Redraw ever this millis
+  protected val watch = Stopwatch.createStarted()
 
-  private val colCur = color("\u001B[1;92m") //Green
-  private val colNorm = color("\u001B[0m") //Normal
+  protected val barCurrent: String
+  protected val barCurrentN: String
+  protected val barRemain: String
 
-  private var count = 0
-  private var pos = 0
-  private var movingRight = true
+  protected val greenCol = color("\u001B[1;92m") //Green
+  protected val normalCol = color("\u001B[0m") //Normal
+
+  protected val colStart: String
+  protected val colCur: String
+  protected val colNorm: String
+
+  protected var count = 0
+  protected var pos = 0
   private var lastDrawTime = 0L
   private var maxStatusLength = 0
 
@@ -53,12 +58,18 @@ class ProgressTicker(val colored: Boolean = true) extends Ticker {
   }
 
   override def close(): Unit = {
-    println("\r" + status())
+    println(s"\r${statusPrefix()}${statusSuffix()}")
   }
+
+  protected def doMove(): Unit
+
+  protected def statusSuffix(): String
+
+  protected def statusPrefix(): String
 
   private def draw() = {
     if (move()) {
-      val msg = s"\r[${animation()}] ${status()}"
+      val msg = s"\r${statusPrefix()}[${animation()}] ${statusSuffix()}"
       val msgToPrint = if (msg.length > maxStatusLength) {
         maxStatusLength = msg.length
         msg
@@ -69,27 +80,63 @@ class ProgressTicker(val colored: Boolean = true) extends Ticker {
     }
   }
 
-  private def animation() = {
-    s"${barBase * pos}$colCur$barCurrent$colNorm${barBase * (width - pos)}"
+  private def animation(): String = {
+    s"$colStart${barCurrent * pos}$colCur$barCurrentN$colNorm${barRemain * (width - pos)}"
   }
 
-  private def speed(): String = "%.0f/s".format(count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1))
+  protected def speed(): String = "%.0f/s".format(count * 1.0 / (watch.elapsed(TimeUnit.SECONDS) + 1))
 
   private def move(): Boolean = {
     val elapsesMillis = watch.elapsed(TimeUnit.MILLISECONDS)
     if (elapsesMillis - lastDrawTime >= nextDrawDelta) {
       lastDrawTime = elapsesMillis
-      if (movingRight) pos += 1 else pos -= 1
-
-      if (pos == 0) movingRight = true
-      if (pos == width) movingRight = false
+      doMove()
       true
     } else false
   }
-
-  private def status() = s"$count docs ${speed()} [$watch]"
-
   private def color(code: String) = if (colored) code else ""
+}
+
+class InfiniteProgressBar(action: String, override val colored: Boolean = true) extends ProgressBarBase() {
+  private var movingRight = true
+
+  override protected val barCurrent = "-"
+  override protected val barCurrentN = "*"
+  override protected val barRemain = "-"
+
+  override protected val colStart = normalCol
+  override protected val colCur = greenCol
+  override protected val colNorm = normalCol
+
+  override protected def doMove(): Unit = {
+    if (movingRight) pos += 1 else pos -= 1
+
+    if (pos == 0) movingRight = true
+    if (pos == width) movingRight = false
+  }
+
+  override protected def statusSuffix() = s"$count docs ${speed()} [$watch]"
+  override protected def statusPrefix() = s"$action "
+}
+
+class FiniteProgressBar(action: String, total: Long, override val colored: Boolean = true) extends ProgressBarBase() {
+  override protected val barCurrent = "="
+  override protected val barCurrentN = ">"
+  override protected val barRemain = "-"
+
+  override protected val colStart = greenCol
+  override protected val colCur = greenCol
+  override protected val colNorm = normalCol
+
+  override protected def doMove(): Unit = {
+    pos = progress(width)
+  }
+
+  override protected def statusSuffix() = s"$count/$total docs ${speed()} [$watch]"
+  override protected def statusPrefix() = s"$action ${progressPercent()}% "
+
+  private def progressPercent() = progress(100)
+  private def progress(n: Int) = Math.ceil((count.toFloat / total) * n).toInt
 }
 
 object ConsoleUtil {
