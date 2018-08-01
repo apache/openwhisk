@@ -15,6 +15,7 @@
 
   <!-- Zookeeper -->
   <logger name="org.apache.zookeeper" level="ERROR" />
+  <logger name="org.apache.curator" level="ERROR" />
 
   <root level="${logback.log.level:-INFO}">
     <appender-ref ref="console" />

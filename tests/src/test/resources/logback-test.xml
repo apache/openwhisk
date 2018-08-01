@@ -15,6 +15,7 @@
 
     <!-- Zookeeper -->
     <logger name="org.apache.zookeeper" level="ERROR" />
+    <logger name="org.apache.curator" level="ERROR" />
 
     <logger name="akka.event.slf4j.Slf4jLogger" level="WARN" />
 
