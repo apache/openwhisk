@@ -34,7 +34,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.util.Failure
 
-case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricsSampleWindowMs: Long)
+case class KafkaConsumerConfig(sessionTimeoutMs: Long)
 
 class KafkaConsumerConnector(
   kafkahost: String,
@@ -175,7 +175,7 @@ class KafkaConsumerConnector(
   // Read current lag of the consumed topic, e.g. invoker queue
   // Since we use only one partition in kafka, it is defined 0
   Scheduler.scheduleWaitAtMost(
-    interval = cfg.metricsSampleWindowMs.milliseconds,
+    interval = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka).consumerLagCheckInterval,
     initialDelay = 10.seconds,
     name = "kafka-lag-monitor") { () =>
     Future {

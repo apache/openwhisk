@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class KafkaConfig(replicationFactor: Short)
+case class KafkaConfig(replicationFactor: Short, consumerLagCheckInterval: FiniteDuration)
 
 /**
  * A Kafka based implementation of MessagingProvider
