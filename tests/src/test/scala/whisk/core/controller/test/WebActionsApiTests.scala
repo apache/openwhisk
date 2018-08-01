@@ -312,7 +312,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                   path: String = "",
                   body: Option[JsObject] = None,
                   pkgName: String = null,
-                  headers: List[HttpHeader] = List()) = {
+                  headers: List[HttpHeader] = List.empty) = {
     val packageActionParams = Option(pkgName)
       .filter(_ != null)
       .flatMap(n => packages.find(_.name == EntityName(n)))
