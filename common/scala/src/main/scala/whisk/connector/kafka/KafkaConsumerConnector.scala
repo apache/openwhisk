@@ -27,6 +27,7 @@ import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
 import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
+import whisk.utils.TimeHelpers._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -73,7 +74,7 @@ class KafkaConsumerConnector(
     }
 
     try {
-      val response = consumer.poll(duration.toMillis).asScala
+      val response = consumer.poll(duration).asScala
 
       // Cancel the scheduled wake-up task immediately.
       wakeUpTask.cancel()
