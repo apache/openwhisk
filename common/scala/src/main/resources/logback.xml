@@ -13,6 +13,9 @@
   <!-- Kafka -->
   <logger name="org.apache.kafka" level="ERROR" />
 
+  <!-- Zookeeper -->
+  <logger name="org.apache.zookeeper" level="ERROR" />
+
   <root level="${logback.log.level:-INFO}">
     <appender-ref ref="console" />
   </root>
