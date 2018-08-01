@@ -36,7 +36,8 @@ import whisk.core.database.DbCommand._
 import whisk.core.entity._
 import whisk.core.entity.size._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.Properties
 
@@ -102,13 +103,14 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
-    val ticker = if (get.out.isDefined && showProgressBar()) new InfiniteProgressBar("Exporting") else NoopTicker
+    val artifactStore = getStore(get.dbType)
+    val store = createStreamingStore(get.dbType, artifactStore)
+
+    val ticker = if (get.out.isDefined && showProgressBar()) getProgressBar(store, "Exporting") else NoopTicker
     val outputSink = Flow[JsObject]
       .map(jsToStringLine)
       .via(tick(ticker))
       .toMat(createSink())(Keep.right)
-    val artifactStore = getStore(get.dbType)
-    val store = createStreamingStore(get.dbType, artifactStore)
 
     val f = store.getAll[IOResult](outputSink)
     f.onComplete { _ =>
@@ -174,6 +176,14 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 
   private def tick[T](ticker: Ticker) = {
     Flow[T].wireTap(Sink.foreach(_ => ticker.tick()))
+  }
+
+  private def getProgressBar(store: StreamingArtifactStore, action: String)(implicit transid: TransactionId): Ticker = {
+    val count = Await.result(store.getCount(), 30.seconds)
+    count match {
+      case Some(n) => new FiniteProgressBar(action, n)
+      case None    => new InfiniteProgressBar(action)
+    }
   }
 
   private object PutResultState extends Enumeration {
