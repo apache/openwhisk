@@ -22,13 +22,13 @@ import java.io.File
 import akka.stream.scaladsl.{FileIO, Sink}
 import common.TestFolder
 import org.junit.runner.RunWith
-import org.scalactic.Uniformity
 import org.scalatest.{FlatSpec, OptionValues}
 import org.scalatest.junit.JUnitRunner
 import spray.json.{DefaultJsonProtocol, JsObject}
 import whisk.common.TransactionId
 import whisk.core.cli.CommandMessages
 import whisk.core.database.DbCommand._
+import whisk.core.database.test.behavior.ArtifactStoreTestUtil._
 import whisk.core.entity.{DocInfo, WhiskDocument, WhiskEntity, WhiskPackage, WhiskRule, WhiskTrigger}
 
 import scala.util.Try
@@ -117,10 +117,6 @@ class DbCommandTests
 
   private def stripType(e: WhiskEntity) = JsObject(e.toDocumentRecord.fields - "entityType")
 
-  private def idFilter(ids: Set[String]): JsObject => Boolean = js => ids.contains(idOf(js))
-
-  private def idOf(js: JsObject) = js.fields("_id").convertTo[String]
-
   private def collectedEntities(file: File, filter: JsObject => Boolean) =
     DbCommand
       .createJSStream(file)
@@ -147,17 +143,5 @@ class DbCommandTests
         delete(store, doc.docinfo)
       }
     }
-  }
-
-  /**
-   * Strips of the '_rev' field to allow comparing jsons where only rev may differ
-   */
-  private object strippedOfRevision extends Uniformity[JsObject] {
-    override def normalizedOrSame(b: Any) = b match {
-      case s: JsObject => normalized(s)
-      case _           => b
-    }
-    override def normalizedCanHandle(b: Any) = b.isInstanceOf[JsObject]
-    override def normalized(js: JsObject) = JsObject(js.fields - "_rev")
   }
 }
