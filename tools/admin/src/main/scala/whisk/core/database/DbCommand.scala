@@ -27,7 +27,7 @@ import akka.util.ByteString
 import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import org.slf4j.LoggerFactory
-import spray.json.{JsObject, JsonParser}
+import spray.json.{JsObject, JsString, JsonParser}
 import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.ConsoleUtil._
 import whisk.core.cli.{CommandError, CommandMessages, IllegalState, NoopTicker, ProgressTicker, Ticker, WhiskCommand}
@@ -216,6 +216,9 @@ object DbCommand {
     }
   }
 
+  /**
+   * Filters out system generated fields which start with '_' except '_id
+   */
   def retainProperFields(js: JsObject): JsObject =
     JsObject(js.fields.filterKeys(key => key == "_id" || !key.startsWith("_")))
 
@@ -244,6 +247,35 @@ object DbCommand {
 
   def jsToStringLine(js: JsObject): ByteString = ByteString(js.compactPrint + Properties.lineSeparator)
 
+  /**
+   * Prior to #3164 the "entityType" property was not present. So populate the "entityType" proper if
+   * importing document records from older setups
+   *
+   * @return js document json with "entityType" property
+   */
+  def entityWithEntityType(js: JsObject): JsObject = {
+    if (js.fields.contains("entityType")) js
+    else {
+      getEntityType(js) match {
+        case Some(entityType) => JsObject(js.fields + ("entityType" -> JsString(entityType)))
+        case None =>
+          log.warn("entityType cannot be determined for {}", js)
+          js
+      }
+    }
+  }
+
+  /**
+   * Infers the "entityType" of entities based on convention.
+   */
+  def getEntityType(js: JsObject): Option[String] = {
+    if (js.fields.contains("binding")) Some("package")
+    else if (js.fields.contains("exec")) Some("action")
+    else if (js.fields.contains("parameters")) Some("trigger")
+    else if (js.fields.contains("trigger")) Some("rule")
+    else None
+  }
+
   private val unusedSubject = Subject()
   private val unusedParams = Parameters()
   private val unusedPath = EntityPath("not used")
@@ -255,19 +287,18 @@ object DbCommand {
   //Need to use these proxy classes to enable passing in the js without
   //needing to convert them to actual entity type. Later we should look
   //into supporting ArtifactStore.putRaw kind of method to directly persist js
-  private class AnyAuth(js: JsObject) extends WhiskAuth(unusedSubject, Set.empty) {
+  class AnyAuth(js: JsObject) extends WhiskAuth(unusedSubject, Set.empty) {
     override def toDocumentRecord: JsObject = retainProperFields(js)
   }
 
-  private case class AnyEntity(js: JsObject,
-                               version: SemVer = unusedVersion,
-                               publish: Boolean = false,
-                               namespace: EntityPath = unusedPath,
-                               annotations: Parameters = unusedParams)
+  case class AnyEntity(js: JsObject,
+                       version: SemVer = unusedVersion,
+                       publish: Boolean = false,
+                       namespace: EntityPath = unusedPath,
+                       annotations: Parameters = unusedParams)
       extends WhiskEntity(EntityName("not used"), "not used") {
-    override def toDocumentRecord: JsObject = retainProperFields(js)
-    override def toJson: JsObject = ???
-    //TODO entityType handling
+    override def toDocumentRecord: JsObject = retainProperFields(entityWithEntityType(js))
+    override def toJson: JsObject = toDocumentRecord
   }
 
   private class AnyActivation(js: JsObject)

@@ -23,13 +23,13 @@ import akka.stream.scaladsl.{FileIO, Sink}
 import common.TestFolder
 import org.junit.runner.RunWith
 import org.scalactic.Uniformity
-import org.scalatest.FlatSpec
+import org.scalatest.{FlatSpec, OptionValues}
 import org.scalatest.junit.JUnitRunner
 import spray.json.{DefaultJsonProtocol, JsObject}
 import whisk.common.TransactionId
 import whisk.core.cli.CommandMessages
 import whisk.core.database.DbCommand._
-import whisk.core.entity.{DocInfo, WhiskDocument, WhiskEntity}
+import whisk.core.entity.{DocInfo, WhiskDocument, WhiskEntity, WhiskPackage, WhiskRule, WhiskTrigger}
 
 import scala.util.Try
 
@@ -39,7 +39,8 @@ class DbCommandTests
     with WhiskAdminCliTestBase
     with TestFolder
     with ArtifactNamingHelper
-    with DefaultJsonProtocol {
+    with DefaultJsonProtocol
+    with OptionValues {
   behavior of "db get"
 
   it should "get all artifacts" in {
@@ -79,6 +80,42 @@ class DbCommandTests
 
     cleanup[WhiskEntity](actionIds, entityStore)
   }
+
+  it should "determine entityType if missing" in {
+    val action = newAction(newNS())
+    getEntityType(stripType(action)).value shouldBe "action"
+    entityWithEntityType(stripType(action)) shouldBe action.toDocumentRecord
+
+    val pkg = WhiskPackage(newNS(), aname())
+    getEntityType(stripType(pkg)).value shouldBe "package"
+    entityWithEntityType(stripType(pkg)) shouldBe pkg.toDocumentRecord
+
+    val trigger = WhiskTrigger(newNS(), aname())
+    getEntityType(stripType(trigger)).value shouldBe "trigger"
+    entityWithEntityType(stripType(trigger)) shouldBe trigger.toDocumentRecord
+
+    val rule = WhiskRule(newNS(), aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
+    getEntityType(stripType(rule)).value shouldBe "rule"
+    entityWithEntityType(stripType(rule)) shouldBe rule.toDocumentRecord
+  }
+
+  it should "set entityType if missing" in {
+    implicit val tid: TransactionId = transid()
+
+    val action = newAction(newNS())
+    put(entityStore, AnyEntity(stripType(action)))
+    val actionJsons = List(action.toDocumentRecord)
+
+    val outFile = newFile()
+
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
+    cleanup()
+
+    (collectedEntities(outFile, idFilter(Set(action.docid.id))) should contain theSameElementsAs actionJsons)(
+      after being strippedOfRevision)
+  }
+
+  private def stripType(e: WhiskEntity) = JsObject(e.toDocumentRecord.fields - "entityType")
 
   private def idFilter(ids: Set[String]): JsObject => Boolean = js => ids.contains(idOf(js))
 
