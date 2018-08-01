@@ -321,6 +321,40 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       }
   }
 
+  it should "create action using parameter file, invoke an action using another parameter file" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val name = "paramOverridingAction"
+    val file = Some(TestUtils.getTestActionFilename("argsPrint.js"))
+    val argsCreate = Some(TestUtils.getTestActionFilename("argsCreate.json"))
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, file, parameterFile = argsCreate)
+    }
+
+    //check only first parameters is filled
+    val expectedOutput1 = JsObject("param1" -> JsString("value1"), "param2" -> JsString(""))
+    val run1 = wsk.action.invoke(name)
+    withActivation(wsk.activation, run1) { activation =>
+      activation.response.result shouldBe Some(expectedOutput1)
+    }
+
+    //check second parameter is supplied by param file (merging parameters)
+    val argsInvoke2 = Some(TestUtils.getTestActionFilename("argsInvoke.json"))
+    val expectedOutput2 = JsObject("param1" -> JsString("value1"), "param2" -> JsString("value2"))
+    val run2 = wsk.action.invoke(name, parameterFile = argsInvoke2)
+    withActivation(wsk.activation, run2) { activation =>
+      activation.response.result shouldBe Some(expectedOutput2)
+    }
+
+    //check first param overridden by params file and second param supplied by the file
+    val argsInvoke3 = Some(TestUtils.getTestActionFilename("argsInvokeOverride.json"))
+    val expectedOutput3 = JsObject("param1" -> JsString("value3"), "param2" -> JsString("value2"))
+    val run3 = wsk.action.invoke(name, parameterFile = argsInvoke3)
+    withActivation(wsk.activation, run3) { activation =>
+      activation.response.result shouldBe Some(expectedOutput3)
+    }
+  }
+
   it should "create an action, and get its individual fields" in withAssetCleaner(wskprops) {
     val name = "actionFields"
     val paramInput = Map("payload" -> "test".toJson)

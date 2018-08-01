@@ -32,7 +32,7 @@ import spray.json.DefaultJsonProtocol._
 class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk: WskOperations = new WskRestOperations
+  val wsk = new WskRestOperations
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
@@ -73,6 +73,49 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       activation.response.result shouldBe Some(testResult)
       activation.logs.get.mkString(" ") should include(testString)
     }
+  }
+
+  it should "invoke an action that throws an uncaught exception and returns correct status code" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val name = "throwExceptionAction"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("runexception.js")))
+    }
+
+    withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+      val response = activation.response
+      activation.response.status shouldBe "action developer error"
+      activation.response.result shouldBe Some(
+        JsObject("error" -> "An error has occurred: Extraordinary exception".toJson))
+    }
+  }
+
+  it should "invoke an action with option --blocking only and verify output" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "invokeResult"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+      val args = Map("hello" -> "Robert".toJson)
+      val run = wsk.action.invoke(name, args, blocking = true)
+
+      run.stdout.parseJson.asJsObject.getFieldPath("response", "result").get.asJsObject shouldBe JsObject(args)
+
+      run.stdout.parseJson.asJsObject
+        .getFields(
+          "activationId",
+          "annotations",
+          "duration",
+          "end",
+          "logs",
+          "name",
+          "namespace",
+          "publish",
+          "response",
+          "start",
+          "subject",
+          "version")
+        .size shouldBe 12
   }
 
   it should "pass parameters bound on creation-time to the action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -212,6 +255,32 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       activation.response.status shouldBe "success"
       activation.logs.get.mkString(" ") should include(s"hello, $testString")
     }
+  }
+
+  it should "update an action with different language and check preserving params" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "updatedAction"
+
+      assetHelper.withCleaner(wsk.action, name, false) { (action, _) =>
+        wsk.action.create(
+          name,
+          Some(TestUtils.getTestActionFilename("hello.js")),
+          parameters = Map("name" -> testString.toJson)) //unused in the first function
+      }
+
+      val run1 = wsk.action.invoke(name, Map("payload" -> testString.toJson))
+      withActivation(wsk.activation, run1) { activation =>
+        activation.response.status shouldBe "success"
+        activation.logs.get.mkString(" ") should include(s"hello, $testString")
+      }
+
+      wsk.action.create(name, Some(TestUtils.getTestActionFilename("hello.py")), update = true)
+
+      val run2 = wsk.action.invoke(name)
+      withActivation(wsk.activation, run2) { activation =>
+        activation.response.status shouldBe "success"
+        activation.logs.get.mkString(" ") should include(s"Hello $testString")
+      }
   }
 
   it should "fail to invoke an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
