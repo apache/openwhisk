@@ -123,7 +123,6 @@
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
 
-      "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
 
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
