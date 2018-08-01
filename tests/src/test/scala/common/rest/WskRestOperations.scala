@@ -26,7 +26,6 @@ import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
-
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -76,6 +75,7 @@ import akka.actor.ActorSystem
 import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
 import whisk.common.Https.HttpsConfig
+import whisk.common.AkkaLogging
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
@@ -1141,6 +1141,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
   val systemNamespace = "whisk.system"
+  val logger = new AkkaLogging(actorSystem.log)
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val actorSystem: ActorSystem
@@ -1192,6 +1193,8 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
         body.map(b => HttpEntity.Strict(ContentTypes.`application/json`, ByteString(b))).getOrElse(HttpEntity.Empty))
     val response = Http().singleRequest(request, connectionContext).flatMap { _.toStrict(toStrictTimeout) }.futureValue
 
+    logRequestResponse(request, response)
+
     val validationErrors = validateRequestAndResponse(request, response)
     if (validationErrors.nonEmpty) {
       fail(
@@ -1201,7 +1204,17 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
     response
   }
 
-  private def getHttpCredentials(wp: WskProps): HttpCredentials = {
+  def logRequestResponse(req: HttpRequest, res: HttpResponse) {
+    logger.debug(this, s"Request Method: ${req.method}")
+    logger.debug(this, s"Request URI: ${req.uri}")
+    logger.debug(this, s"Request Headers: ${req.headers.mkString(",")}")
+    logger.debug(this, s"Request Body: ${getReqData(req)}")
+    logger.debug(this, s"Response Status: ${res.status.intValue()}")
+    logger.debug(this, s"Response Headers: ${res.headers.mkString(",")}")
+    logger.debug(this, s"Response Body: ${getRespData(res)}")
+  }
+
+  private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
     if (wp.authKey.contains(":")) {
       val authKey = wp.authKey.split(":")
       new BasicHttpCredentials(authKey(0), authKey(1))
@@ -1296,6 +1309,11 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   def getRespData(resp: HttpResponse): String = {
     val timeout = toStrictTimeout
     Try(resp.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue).getOrElse("")
+  }
+
+  def getReqData(req: HttpRequest): String = {
+    val timeout = 5.seconds
+    Try(req.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue).getOrElse("")
   }
 
   def getNamespaceEntityName(name: String)(implicit wp: WskProps): (String, String) = {
