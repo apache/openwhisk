@@ -244,6 +244,33 @@
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"
 
+- name: populate volumes for controller
+  set_fact:
+    controller_volumes:
+       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
+       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
+- name: ensure controller coverage directory is created with permissions
+  file:
+    path: "{{ coverage_logs_dir }}/controller/{{ item }}"
+    state: directory
+    mode: 0777
+  with_items:
+    - controller
+    - common
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
+- name: extend controller volume for coverage
+  set_fact:
+    controller_volumes: "{{ controller_volumes|default({}) + [coverage_logs_dir+'/controller:/coverage']  }}"
+  when: coverage_enabled
+
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
@@ -252,15 +279,13 @@
   docker_container:
     name: "{{ controller_name }}"
     image:
-      "{{docker_registry~docker.image.prefix}}/controller:{{docker.image.tag}}"
+      "{{docker_registry~docker.image.prefix}}/controller:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "{{ controller_name }}"
     env: "{{ env }}"
-    volumes:
-      - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
-      - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+    volumes: "{{ controller_volumes }}"
     ports: "{{ ports_to_expose }}"
     command:
       /bin/sh -c

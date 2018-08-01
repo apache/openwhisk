@@ -67,6 +67,48 @@ task distDocker {
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
+
+task distDockerCoverage() {
+    doLast {
+        def start = new Date()
+        //Copy the scoverage runtime jars
+        copy {from configurations.scoverage - configurations.compile; into "build/tmp/docker-coverage/ext-lib"}
+        //Copy the scoverage prepared jars
+        coverageJars.each {jar ->
+            copy {from file(jar); into "build/tmp/docker-coverage/lib"; rename { it.replace('-scoverage', '')}}
+        }
+
+        def buildArgs = [
+                "OW_ROOT_DIR=${project.rootProject.projectDir.absolutePath}"
+        ]
+        def dockerImageNameOrig = dockerImageName
+        dockerImageName = "$dockerImageName-cov"
+
+        //Use absolute paths for dockerFile and build directory
+        String dockerFileDir = project.buildscript.sourceFile.getParentFile().getAbsolutePath()
+        String dockerFile = "$dockerFileDir/Dockerfile.cov"
+
+        def cmd = dockerBinary + prepareBuildArgs(buildArgs) + ['-f', dockerFile, '-t', dockerImageName, dockerFileDir]
+        retry(cmd, dockerRetries, dockerTimeout)
+        println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
+
+        //Replace the original image with coverage one
+        project.ext.dockerTaggedImageName = dockerImagePrefix + '/' + dockerImageNameOrig + ':' + "cov"
+    }
+    finalizedBy('tagImage')
+}
+
+def prepareBuildArgs(List buildArgs) {
+    def result = ['build']
+    if(project.hasProperty('dockerBuildArgs')) {
+        buildArgs.addAll(dockerBuildArgs)
+    }
+    buildArgs.each {arg ->
+        result += ['--build-arg', arg]
+    }
+    result
+}
+
 task tagImage {
     doLast {
         def versionString = (dockerBinary + ['-v']).execute().text

@@ -4,6 +4,8 @@
 openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
 whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
+coverage_enabled: "{{ lookup('env', 'GRADLE_COVERAGE') | default('false', true) | bool}}"
+coverage_logs_dir: "{{ openwhisk_tmp_dir }}/wskcov"
 docker_registry: ""
 docker_dns: ""
 runtimes_bypass_pull_for_local_images: true

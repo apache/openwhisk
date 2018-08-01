@@ -54,8 +54,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dockerEndpoint = this(WhiskConfig.dockerEndpoint)
   val dockerPort = this(WhiskConfig.dockerPort)
 
-  val invokerName = this(WhiskConfig.invokerName)
-
   val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(
     WhiskConfig.wskApiPort)
   val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
@@ -153,8 +151,6 @@ object WhiskConfig {
   // in the invoker (they are part of the environment
   // passed to the user container)
   val edgeHostName = "edge.host"
-
-  val invokerName = "invoker.name"
 
   val wskApiProtocol = "whisk.api.host.proto"
   val wskApiPort = "whisk.api.host.port"

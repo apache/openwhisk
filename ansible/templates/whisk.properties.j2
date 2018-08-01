@@ -7,6 +7,7 @@ testing.auth={{ openwhisk_home }}/ansible/files/auth.guest
 vcap.services.file=
 
 whisk.logs.dir={{ whisk_logs_dir }}
+whisk.coverage.logs.dir={{ coverage_logs_dir | default('') }}
 environment.type={{ environmentInformation.type }}
 whisk.ssl.client.verification={{ nginx.ssl.verify_client }}
 whisk.ssl.cert={{ nginx.ssl.path }}/{{ nginx.ssl.cert }}
