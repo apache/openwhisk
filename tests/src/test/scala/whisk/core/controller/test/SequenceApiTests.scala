@@ -101,7 +101,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
     val seqName = s"${aname()}_no_component"
     // create exec sequence with no component
-    val content = WhiskActionPut(Some(sequence(Vector())))
+    val content = WhiskActionPut(Some(sequence(Vector.empty)))
 
     // create an action sequence
     Put(s"$collectionPath/$seqName", content) ~> Route.seal(routes(creds)) ~> check {
@@ -117,7 +117,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
     val components = Vector("a", "b")
     putSimpleSequenceInDB(seqName, namespace, components)
     // update sequence with no component
-    val updateContent = WhiskActionPut(Some(sequence(Vector())))
+    val updateContent = WhiskActionPut(Some(sequence(Vector.empty)))
 
     // create an action sequence
     Put(s"$collectionPath/$seqName?overwrite=true", updateContent) ~> Route.seal(routes(creds)) ~> check {
