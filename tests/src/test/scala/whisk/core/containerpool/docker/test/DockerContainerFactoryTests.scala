@@ -105,7 +105,7 @@ class DockerContainerFactoryTests
     val factory =
       new DockerContainerFactory(
         InvokerInstanceId(0),
-        Map(),
+        Map.empty,
         ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("env" -> Set("e1", "e2"))),
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
 

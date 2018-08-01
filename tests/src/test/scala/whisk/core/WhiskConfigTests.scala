@@ -73,7 +73,7 @@ class WhiskConfigTests extends FlatSpec with Matchers with StreamLogging {
     bw.write("c=C\n")
     bw.close()
 
-    val config = new WhiskConfig(Map("a" -> null, "b" -> "???"), Set("c", "d"), file, env = Map())
+    val config = new WhiskConfig(Map("a" -> null, "b" -> "???"), Set("c", "d"), file, env = Map.empty)
     assert(config.isValid && config("a") == "A" && config("b") == "B")
     assert(config("c") == "C")
     assert(config("d") == "")

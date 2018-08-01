@@ -323,7 +323,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       Some {
         JsObject(
           params.fields ++
-            body.map(_.fields).getOrElse(Map()) ++
+            body.map(_.fields).getOrElse(Map.empty) ++
             Context(webApiDirectives, HttpMethods.getForKey(method.toUpperCase).get, headers, path, Query.Empty)
               .metadata(identity))
       }

@@ -293,7 +293,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
           action.create(name, Some(TestUtils.getTestActionFilename("blackbox.zip")), kind = Some("native"))
       }
 
-      val run = wsk.action.invoke(name, Map())
+      val run = wsk.action.invoke(name, Map.empty)
       withActivation(wsk.activation, run) { activation =>
         activation.response.result shouldBe Some(JsObject("msg" -> "hello zip".toJson))
         activation.logs shouldBe defined
@@ -558,7 +558,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       logs shouldBe expectedLogs
     }
 
-    val runWithNoParams = wsk.trigger.fire(triggerName, Map())
+    val runWithNoParams = wsk.trigger.fire(triggerName, Map.empty)
     withActivation(wsk.activation, runWithNoParams) { activation =>
       activation.response.result shouldBe Some(JsObject.empty)
       activation.duration shouldBe 0L // shouldn't exist but CLI generates it
