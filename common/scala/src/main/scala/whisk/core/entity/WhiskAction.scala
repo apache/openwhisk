@@ -19,6 +19,7 @@ package whisk.core.entity
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -332,11 +333,12 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       require(doc != null, "doc undefined")
     } map { _ =>
       doc.exec match {
-        case exec @ CodeExecAsAttachment(_, Inline(code), _, _) =>
+        case exec @ CodeExecAsAttachment(_, Inline(code), _, binary) =>
           implicit val logger = db.logging
           implicit val ec = db.executionContext
 
-          val stream = new ByteArrayInputStream(code.getBytes("UTF-8"))
+          val bytes = if (binary) Base64.getDecoder().decode(code) else code.getBytes("UTF-8")
+          val stream = new ByteArrayInputStream(bytes)
           val manifest = exec.manifest.attached.get
           val oldAttachment = old
             .flatMap(_.exec match {
@@ -377,10 +379,12 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     fa.flatMap { action =>
       action.exec match {
-        case exec @ CodeExecAsAttachment(_, attached: Attached, _, _) =>
+        case exec @ CodeExecAsAttachment(_, attached: Attached, _, binary) =>
           val boas = new ByteArrayOutputStream()
+          val wrapped = if (binary) Base64.getEncoder().wrap(boas) else boas
 
-          getAttachment[A](db, action, attached, boas, Some { a: WhiskAction =>
+          getAttachment[A](db, action, attached, wrapped, Some { a: WhiskAction =>
+            wrapped.close()
             val newAction = a.copy(exec = exec.inline(boas.toByteArray))
             newAction.revision(a.rev)
             newAction
