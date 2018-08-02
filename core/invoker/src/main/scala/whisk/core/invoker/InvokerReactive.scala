@@ -108,7 +108,7 @@ class InvokerReactive(
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   private val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
+    new MessageFeed("activation", logging, consumer, maximumContainers, 1.second, processActivationMessage)
   })
 
   /** Sends an active-ack. */
