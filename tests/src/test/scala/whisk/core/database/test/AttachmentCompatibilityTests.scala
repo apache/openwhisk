@@ -120,7 +120,7 @@ class AttachmentCompatibilityTests
   private def createAction(doc: WhiskAction) = {
     implicit val tid: TransactionId = transid()
     doc.exec match {
-      case exec @ CodeExecAsAttachment(_, Inline(code), _) =>
+      case exec @ CodeExecAsAttachment(_, Inline(code), _, _) =>
         val attached = exec.manifest.attached.get
 
         val newDoc = doc.copy(exec = exec.copy(code = attached))

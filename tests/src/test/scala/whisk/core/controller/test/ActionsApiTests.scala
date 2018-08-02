@@ -36,7 +36,6 @@ import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 import java.io.ByteArrayInputStream
-import java.util.Base64
 
 import akka.stream.scaladsl._
 
