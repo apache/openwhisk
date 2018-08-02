@@ -521,6 +521,8 @@ abstract class ApiGwRestBasicTests extends BaseApiGwTests {
     val testName = "CLI_APIGWTEST7"
     val testbasepath = "/" + testName + "_bp"
     val testrelpath = "/path"
+    val testrelpath1 = "/pathSecure1"
+    val testrelpath2 = "/pathSecure2"
     val testurlop = "get"
     val testapiname = testName + " API Name"
     val actionName = testName + "_action"
@@ -530,7 +532,8 @@ abstract class ApiGwRestBasicTests extends BaseApiGwTests {
       verifyApiCreated(rr)
       rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
       verifyApiFullList(rr, "", actionName, testurlop, testbasepath, testrelpath, testapiname)
-
+      verifyApiFullList(rr, "", actionName, testurlop, testbasepath, testrelpath1, testapiname)
+      verifyApiFullList(rr, "", actionName, testurlop, testbasepath, testrelpath2, testapiname)
     } finally {
       apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
     }
