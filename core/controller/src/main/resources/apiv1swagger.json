@@ -342,6 +342,9 @@
                     "408": {
                         "$ref": "#/responses/Timeout"
                     },
+                    "429": {
+                        "$ref": "#/responses/TooManyRequsts"
+                    },
                     "500": {
                         "$ref": "#/responses/ServerError"
                     },
@@ -576,6 +579,9 @@
                     },
                     "408": {
                         "$ref": "#/responses/Timeout"
+                    },
+                    "429": {
+                        "$ref": "#/responses/TooManyRequsts"
                     },
                     "500": {
                         "$ref": "#/responses/ServerError"
@@ -1210,6 +1216,9 @@
                     },
                     "408": {
                         "$ref": "#/responses/Timeout"
+                    },
+                    "429": {
+                        "$ref": "#/responses/TooManyRequests"
                     },
                     "500": {
                         "$ref": "#/responses/ServerError"
@@ -2565,6 +2574,9 @@
         },
         "NoActiveRules": {
             "description": "Trigger has no active rules"
+        },
+        "TooManyRequests": {
+            "description": "Too many requests in a given time period"
         }
     }
 }
