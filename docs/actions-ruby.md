@@ -34,7 +34,7 @@ with the following source code:
 def main(args)
   name = args["name"] || "stranger"
   greeting = "Hello #{name}!"
-  print greeting
+  puts greeting
   { "greeting" => greeting }
 end
 ```
