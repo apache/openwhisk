@@ -44,14 +44,12 @@ tasks.withType(Test) {
 }
 
 def leanExcludes = [
-    '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
 ]
 
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
-            "ha/**",
             "whisk/**"
         ],
         "excludes" : [
@@ -66,6 +64,8 @@ ext.testSets = [
     "REQUIRE_SYSTEM" : [
         "includes" : [
             "apigw/healthtests/**",
+            "ha/**",
+            "limits/**",
             "services/**",
             "system/basic/**",
             "system/rest/**",
