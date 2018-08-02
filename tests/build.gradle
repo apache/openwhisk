@@ -44,7 +44,6 @@ tasks.withType(Test) {
 }
 
 def leanExcludes = [
-    '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
 ]
 
@@ -85,6 +84,7 @@ ext.testSets = [
 
 testSets.each {setName, patterns ->
     def excludes = patterns["excludes"] ?: new HashSet<>()
+    excludes.addAll(leanExcludes)
     patterns["excludes"] = excludes
 }
 
