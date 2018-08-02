@@ -806,7 +806,7 @@ class DockerContainerTests
       Future.successful(())
     }
 
-    def ps(filters: Seq[(String, String)] = Seq(), all: Boolean = false)(
+    def ps(filters: Seq[(String, String)] = Seq.empty, all: Boolean = false)(
       implicit transid: TransactionId): Future[Seq[ContainerId]] = ???
 
     def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {

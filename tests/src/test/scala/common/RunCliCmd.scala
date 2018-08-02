@@ -63,7 +63,7 @@ trait RunCliCmd extends Matchers {
           workingDir: File = new File("."),
           stdinFile: Option[File] = None,
           showCmd: Boolean = false,
-          hideFromOutput: Seq[String] = Seq(),
+          hideFromOutput: Seq[String] = Seq.empty,
           retriesOnNetworkError: Int = 3): RunResult = {
     require(retriesOnNetworkError >= 0, "retry count on network error must not be negative")
 

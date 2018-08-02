@@ -76,7 +76,7 @@ class ContainerPoolTests
       TransactionId.testing,
       action.fullyQualifiedName(true),
       action.rev,
-      Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set()),
+      Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty),
       ActivationId.generate(),
       ControllerInstanceId("0"),
       blocking = false,
@@ -353,7 +353,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   behavior of "ContainerPool schedule()"
 
   it should "not provide a container if idle pool is empty" in {
-    ContainerPool.schedule(createAction(), standardNamespace, Map()) shouldBe None
+    ContainerPool.schedule(createAction(), standardNamespace, Map.empty) shouldBe None
   }
 
   it should "reuse an applicable warm container from idle pool with one container" in {
@@ -419,7 +419,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   behavior of "ContainerPool remove()"
 
   it should "not provide a container if pool is empty" in {
-    ContainerPool.remove(Map()) shouldBe None
+    ContainerPool.remove(Map.empty) shouldBe None
   }
 
   it should "not provide a container from busy pool with non-warm containers" in {

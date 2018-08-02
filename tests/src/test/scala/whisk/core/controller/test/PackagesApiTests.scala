@@ -101,7 +101,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       checkCount(path, 0, auser)
       Get(path) ~> Route.seal(routes(auser)) ~> check {
         val response = responseAs[List[JsObject]]
-        response should be(List()) // cannot list packages that are private in another namespace
+        response should be(List.empty) // cannot list packages that are private in another namespace
       }
     }
   }

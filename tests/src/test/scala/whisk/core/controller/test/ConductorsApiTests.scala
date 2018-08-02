@@ -348,10 +348,10 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 else {
                   val action = args.fields.get("action") map { action =>
                     Map("action" -> action)
-                  } getOrElse Map()
+                  } getOrElse Map.empty
                   val state = args.fields.get("state") map { state =>
                     Map("state" -> state)
-                  } getOrElse Map()
+                  } getOrElse Map.empty
                   val wrappedParams = args.fields.getOrElse("params", JsObject.empty).asJsObject.fields
                   val escapedParams = args.fields - "action" - "state" - "params"
                   val params = Map("params" -> JsObject(wrappedParams ++ escapedParams))

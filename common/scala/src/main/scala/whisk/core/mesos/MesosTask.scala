@@ -72,11 +72,11 @@ object MesosTask {
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
              cpuShares: Int = 0,
-             environment: Map[String, String] = Map(),
+             environment: Map[String, String] = Map.empty,
              network: String = "bridge",
-             dnsServers: Seq[String] = Seq(),
+             dnsServers: Seq[String] = Seq.empty,
              name: Option[String] = None,
-             parameters: Map[String, Set[String]] = Map(),
+             parameters: Map[String, Set[String]] = Map.empty,
              constraints: Seq[Constraint] = Seq.empty)(implicit ec: ExecutionContext,
                                                        log: Logging,
                                                        as: ActorSystem): Future[Container] = {
@@ -94,7 +94,7 @@ object MesosTask {
       case "host"   => Host
       case _        => User(network)
     }
-    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map()
+    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty
 
     val task = new TaskDef(
       taskId,

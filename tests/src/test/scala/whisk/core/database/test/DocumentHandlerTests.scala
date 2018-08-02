@@ -189,7 +189,7 @@ class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with
       Set("namespace", "name", "version", "publish", "annotations", "updated")
 
     intercept[UnsupportedView] {
-      WhisksHandler.fieldsRequiredForView("foo", "unknown") shouldBe Set()
+      WhisksHandler.fieldsRequiredForView("foo", "unknown") shouldBe Set.empty
     }
   }
 

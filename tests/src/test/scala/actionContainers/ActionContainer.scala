@@ -64,7 +64,7 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLo
         "binary" -> JsBoolean(Exec.isBinaryCode(code))))
 
   def runPayload(args: JsValue, other: Option[JsObject] = None): JsObject =
-    JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
+    JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map.empty))
 
   def checkStreams(out: String,
                    err: String,

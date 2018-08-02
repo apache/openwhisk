@@ -54,8 +54,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.blackboxInvokers shouldBe 'empty
     state.managedInvokers shouldBe 'empty
     state.invokerSlots shouldBe 'empty
-    state.managedStepSizes shouldBe Seq()
-    state.blackboxStepSizes shouldBe Seq()
+    state.managedStepSizes shouldBe Seq.empty
+    state.blackboxStepSizes shouldBe Seq.empty
 
     // apply one update, verify everything is updated accordingly
     val update1 = IndexedSeq(healthy(0))
@@ -213,8 +213,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   behavior of "pairwiseCoprimeNumbersUntil"
 
   it should "return an empty set for malformed inputs" in {
-    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0) shouldBe Seq()
-    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(-1) shouldBe Seq()
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0) shouldBe Seq.empty
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(-1) shouldBe Seq.empty
   }
 
   it should "return all coprime numbers until the number given" in {

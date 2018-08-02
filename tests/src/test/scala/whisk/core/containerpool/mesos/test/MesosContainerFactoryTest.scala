@@ -91,7 +91,7 @@ class MesosContainerFactoryTest
   behavior of "MesosContainerFactory"
 
   it should "send Subscribe on init" in {
-    val wskConfig = new WhiskConfig(Map())
+    val wskConfig = new WhiskConfig(Map.empty)
     val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
     new MesosContainerFactory(
       wskConfig,
@@ -240,7 +240,7 @@ class MesosContainerFactoryTest
         system,
         logging,
         Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
-        new ContainerArgsConfig("bridge", Seq(), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
+        new ContainerArgsConfig("bridge", Seq.empty, Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
         testTaskId)

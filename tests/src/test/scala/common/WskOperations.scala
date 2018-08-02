@@ -231,8 +231,8 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              kind: Option[String] = None,
              main: Option[String] = None,
              docker: Option[String] = None,
-             parameters: Map[String, JsValue] = Map(),
-             annotations: Map[String, JsValue] = Map(),
+             parameters: Map[String, JsValue] = Map.empty,
+             annotations: Map[String, JsValue] = Map.empty,
              parameterFile: Option[String] = None,
              annotationFile: Option[String] = None,
              timeout: Option[Duration] = None,
@@ -245,7 +245,7 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def invoke(name: String,
-             parameters: Map[String, JsValue] = Map(),
+             parameters: Map[String, JsValue] = Map.empty,
              parameterFile: Option[String] = None,
              blocking: Boolean = false,
              result: Boolean = false,
@@ -255,8 +255,8 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
 trait PackageOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
-             parameters: Map[String, JsValue] = Map(),
-             annotations: Map[String, JsValue] = Map(),
+             parameters: Map[String, JsValue] = Map.empty,
+             annotations: Map[String, JsValue] = Map.empty,
              parameterFile: Option[String] = None,
              annotationFile: Option[String] = None,
              shared: Option[Boolean] = None,
@@ -265,16 +265,16 @@ trait PackageOperations extends DeleteFromCollectionOperations with ListOrGetFro
 
   def bind(provider: String,
            name: String,
-           parameters: Map[String, JsValue] = Map(),
-           annotations: Map[String, JsValue] = Map(),
+           parameters: Map[String, JsValue] = Map.empty,
+           annotations: Map[String, JsValue] = Map.empty,
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
 trait TriggerOperations extends DeleteFromCollectionOperations with ListOrGetFromCollectionOperations {
 
   def create(name: String,
-             parameters: Map[String, JsValue] = Map(),
-             annotations: Map[String, JsValue] = Map(),
+             parameters: Map[String, JsValue] = Map.empty,
+             annotations: Map[String, JsValue] = Map.empty,
              parameterFile: Option[String] = None,
              annotationFile: Option[String] = None,
              feed: Option[String] = None,
@@ -283,7 +283,7 @@ trait TriggerOperations extends DeleteFromCollectionOperations with ListOrGetFro
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def fire(name: String,
-           parameters: Map[String, JsValue] = Map(),
+           parameters: Map[String, JsValue] = Map.empty,
            parameterFile: Option[String] = None,
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
@@ -293,7 +293,7 @@ trait RuleOperations extends DeleteFromCollectionOperations with ListOrGetFromCo
   def create(name: String,
              trigger: String,
              action: String,
-             annotations: Map[String, JsValue] = Map(),
+             annotations: Map[String, JsValue] = Map.empty,
              shared: Option[Boolean] = None,
              update: Boolean = false,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult

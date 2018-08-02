@@ -28,7 +28,7 @@ import common.StreamLogging
 class ConfigTests extends FlatSpec with Matchers with StreamLogging {
 
   "Config" should "gets default value" in {
-    val config = new Config(Map("a" -> "A"))(Map())
+    val config = new Config(Map("a" -> "A"))(Map.empty)
     assert(config.isValid && config("a") == "A")
   }
 
@@ -38,12 +38,12 @@ class ConfigTests extends FlatSpec with Matchers with StreamLogging {
   }
 
   it should "not be valid when environment does not provide value" in {
-    val config = new Config(Map("a" -> null))(Map())
+    val config = new Config(Map("a" -> null))(Map.empty)
     assert(!config.isValid && config("a") == null)
   }
 
   it should "be invalid if same property is required and optional and still not defined" in {
-    val config = new Config(Map("a" -> null), optionalProperties = Set("a"))(Map())
+    val config = new Config(Map("a" -> null), optionalProperties = Set("a"))(Map.empty)
     assert(!config.isValid)
   }
 

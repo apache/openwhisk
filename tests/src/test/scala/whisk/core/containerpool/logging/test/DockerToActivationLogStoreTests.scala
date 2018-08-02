@@ -41,7 +41,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
 
   val uuid = UUID()
   val user =
-    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set())
+    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty)
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val action = ExecutableWhiskAction(user.namespace.name.toPath, EntityName("actionName"), exec)
   val activation =
