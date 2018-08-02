@@ -20,6 +20,7 @@ package whisk.core.controller.test
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import java.time.Instant
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import akka.http.scaladsl.model.StatusCodes._
@@ -55,17 +56,19 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
     val seqName = s"${aname()}_seq"
     val compName1 = s"${aname()}_comp1"
     val compName2 = s"${aname()}_comp2"
-    val comp1Activation = WhiskActivation(
+    val compActivation1 = WhiskActivation(
       namespace,
       EntityName(compName1),
       creds.subject,
       activationIdFactory.make(),
       start = Instant.now,
       end = Instant.now)
+    val expectedComponents =
+      JsObject("key" -> "components".toJson, "value" -> JsArray(compActivation1.activationId.toJson))
 
     putSimpleSequenceInDB(seqName, namespace, Vector(compName1, compName2))
     deleteAction(DocId(s"$namespace/$compName2"))
-    loadBalancer.whiskActivationStub = Some((1.milliseconds, comp1Activation))
+    loadBalancer.whiskActivationStub = Some((1.milliseconds, compActivation1))
 
     Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
       deleteAction(DocId(s"$namespace/$seqName"))
@@ -73,9 +76,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(BadGateway)
       val response = responseAs[JsObject]
       response.fields("response") shouldBe ActivationResponse.applicationError(sequenceComponentNotFound).toExtendedJson
-      val logs = response.fields("logs").convertTo[JsArray]
-      logs.elements.size shouldBe 1
-      logs.elements.head shouldBe comp1Activation.activationId.toJson
+      response.fields("annotations").convertTo[JsArray].elements should contain(expectedComponents)
     }
   }
 
@@ -485,4 +486,5 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
       result
     }, 10, Some(100 milliseconds))
   }
+
 }

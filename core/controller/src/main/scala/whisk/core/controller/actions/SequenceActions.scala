@@ -30,6 +30,7 @@ import scala.util.Failure
 import scala.util.Success
 import akka.actor.ActorSystem
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskServices
@@ -203,12 +204,12 @@ protected[actions] trait SequenceActions {
       end = end,
       cause = if (topmost) None else cause, // propagate the cause for inner sequences, but undefined for topmost
       response = accounting.previousResponse.getAndSet(null), // getAndSet(null) drops reference to the activation result
-      logs = accounting.finalLogs,
       version = action.version,
       publish = false,
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(topmost)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
+        Parameters(WhiskActivation.componentsAnnotation, accounting.componentActivations.toVector.toJson) ++
         causedBy ++
         sequenceLimits,
       duration = Some(accounting.duration))
@@ -377,7 +378,7 @@ protected[actions] trait SequenceActions {
  * @param atomicActionCnt the current count of non-sequence (c.f. atomic) actions already invoked
  * @param previousResponse a reference to the previous activation result which will be nulled out
  *        when no longer needed (see previousResponse.getAndSet(null) below)
- * @param logs a mutable buffer that is appended with new activation ids as the sequence unfolds
+ * @param componentActivations a mutable buffer that is appended with new activation ids as the sequence unfolds
  * @param duration the "user" time so far executing the sequence (sum of durations for
  *        all actions invoked so far which is different from the total time spent executing the sequence)
  * @param maxMemory the maximum memory annotation observed so far for the
@@ -386,14 +387,12 @@ protected[actions] trait SequenceActions {
  */
 protected[actions] case class SequenceAccounting(atomicActionCnt: Int,
                                                  previousResponse: AtomicReference[ActivationResponse],
-                                                 logs: mutable.Buffer[ActivationId],
+                                                 componentActivations: mutable.Buffer[ActivationId],
                                                  duration: Long = 0,
                                                  maxMemory: Option[Int] = None,
                                                  shortcircuit: Boolean = false) {
 
   /** @return the ActivationLogs data structure for this sequence invocation */
-  def finalLogs = ActivationLogs(logs.map(id => id.asString).toVector)
-
   /** The previous activation was successful. */
   private def success(activation: WhiskActivation, newCnt: Int, shortcircuit: Boolean = false) = {
     previousResponse.set(null)
@@ -415,7 +414,7 @@ protected[actions] case class SequenceAccounting(atomicActionCnt: Int,
   /** The previous activation failed (this is used when there is no activation record or an internal error. */
   def fail(failureResponse: ActivationResponse, activationId: Option[ActivationId]) = {
     require(!failureResponse.isSuccess)
-    logs.appendAll(activationId)
+    componentActivations.appendAll(activationId)
     copy(previousResponse = new AtomicReference(failureResponse), shortcircuit = true)
   }
 
@@ -476,12 +475,12 @@ protected[actions] object SequenceAccounting {
     val newMaxMemory = maxMemory(prev.maxMemory, newMemoryLimit)
 
     // append log entry
-    prev.logs += newActivationId
+    prev.componentActivations += newActivationId
 
     SequenceAccounting(
       atomicActionCnt = newCnt,
       previousResponse = new AtomicReference(newResponse),
-      logs = prev.logs,
+      componentActivations = prev.componentActivations,
       duration = incrDuration map { prev.duration + _ } getOrElse { prev.duration },
       maxMemory = newMaxMemory,
       shortcircuit = shortcircuit)

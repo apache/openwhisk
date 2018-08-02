@@ -34,6 +34,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 import whisk.http.Messages.sequenceIsTooLong
+import whisk.core.entity.WhiskActivation
 
 /**
  * Tests sequence execution
@@ -204,10 +205,10 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       val result = activation.response.result.get
       result.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
       // check that inner sequence had only (limit - 1) activations
-      val innerSeq = activation.logs.get(1) // the id of the inner sequence activation
+      val innerSeq = getSequenceComponents(activation)(1) // the id of the inner sequence activation
       val getInnerSeq = wsk.activation.get(Some(innerSeq))
       withActivation(wsk.activation, getInnerSeq, totalWait = allowedActionDuration) { innerSeqActivation =>
-        innerSeqActivation.logs.get.size shouldBe (limit - 1)
+        getSequenceComponents(innerSeqActivation).size shouldBe (limit - 1)
         innerSeqActivation.cause shouldBe Some(activation.activationId)
       }
     }
@@ -468,6 +469,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
     }
   }
 
+  private def getSequenceComponents(activation: ActivationResult) =
+    activation.getAnnotationValue(WhiskActivation.componentsAnnotation).get.convertTo[List[String]]
+
   /**
    * checks logs for the activation of a sequence (length/size and ids)
    * checks that the cause field for composing atomic actions is set properly
@@ -475,13 +479,13 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
    * checks memory
    */
   private def checkSequenceLogsAndAnnotations(activation: ActivationResult, size: Int) = {
-    activation.logs shouldBe defined
+    val components = getSequenceComponents(activation)
     // check that the logs are what they are supposed to be (activation ids)
     // check that the cause field is properly set for these activations
-    activation.logs.get.size shouldBe (size) // the number of activations in this sequence
+    components.size shouldBe (size) // the number of activations in this sequence
     var totalTime: Long = 0
     var maxMemory: Long = 0
-    for (id <- activation.logs.get) {
+    for (id <- components) {
       withActivation(
         wsk.activation,
         id,
@@ -512,7 +516,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
   private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, regex: Regex) {
     withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
       checkSequenceLogsAndAnnotations(activation, 1)
-      val componentId = activation.logs.get(atomicActionIdx)
+      val componentId = getSequenceComponents(activation)(atomicActionIdx)
       val getComponentActivation = wsk.activation.get(Some(componentId))
       withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
         withClue(componentActivation) {
