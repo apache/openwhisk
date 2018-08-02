@@ -80,6 +80,11 @@ class ContainerProxyTests
     Interval(now, now.plusMillis(200))
   }
 
+  val errorInterval = {
+    val now = initInterval.end.plusMillis(75) // delay between init and run
+    Interval(now, now.plusMillis(150))
+  }
+
   val uuid = UUID()
 
   val message = ActivationMessage(
@@ -386,6 +391,70 @@ class ContainerProxyTests
     }
   }
 
+  it should "complete the transaction and reuse the container on a failed run IFF failure was applicationError" in within(
+    timeout) {
+    val container = new TestContainer {
+      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+        implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+        runCount += 1
+        //every other run fails
+        if (runCount % 2 == 0) {
+          Future.successful((runInterval, ActivationResponse.success()))
+        } else {
+          Future.successful((errorInterval, ActivationResponse.applicationError(("boom"))))
+        }
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(factory, acker, store, collector, InvokerInstanceId(0), poolConfig, pauseGrace = timeout))
+    registerCallback(machine)
+    preWarm(machine)
+
+    //first one will fail
+    run(machine, Started)
+
+    // Note that there are no intermediate state changes
+    //second one will succeed
+    run(machine, Ready)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 2
+      collector.calls should have size 2
+      container.suspendCount shouldBe 0
+      acker.calls should have size 2
+      store.calls should have size 2
+
+      val initErrorActivation = acker.calls(0)._2
+      initErrorActivation.duration shouldBe Some((initInterval.duration + errorInterval.duration).toMillis)
+      initErrorActivation.annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
+      initErrorActivation.annotations
+        .get(WhiskActivation.waitTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe
+        Interval(message.transid.meta.start, initInterval.start).duration.toMillis
+
+      val runOnlyActivation = acker.calls(1)._2
+      runOnlyActivation.duration shouldBe Some(runInterval.duration.toMillis)
+      runOnlyActivation.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
+      runOnlyActivation.annotations.get(WhiskActivation.waitTimeAnnotation).get.convertTo[Int] shouldBe {
+        Interval(message.transid.meta.start, runInterval.start).duration.toMillis
+      }
+    }
+
+  }
+
   /*
    * ERROR CASES
    */
@@ -459,12 +528,13 @@ class ContainerProxyTests
     }
   }
 
-  it should "complete the transaction and destroy the container on a failed run" in within(timeout) {
+  it should "complete the transaction and destroy the container on a failed run IFF failure was containerError" in within(
+    timeout) {
     val container = new TestContainer {
       override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         runCount += 1
-        Future.successful((initInterval, ActivationResponse.applicationError("boom")))
+        Future.successful((initInterval, ActivationResponse.containerError(("boom"))))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -488,7 +558,7 @@ class ContainerProxyTests
       container.runCount shouldBe 1
       collector.calls should have size 1
       container.destroyCount shouldBe 1
-      acker.calls(0)._2.response shouldBe ActivationResponse.applicationError("boom")
+      acker.calls(0)._2.response shouldBe ActivationResponse.containerError("boom")
       store.calls should have size 1
     }
   }
