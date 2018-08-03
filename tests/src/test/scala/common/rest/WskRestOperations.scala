@@ -74,6 +74,7 @@ import java.nio.charset.StandardCharsets
 import java.security.KeyStore
 
 import akka.actor.ActorSystem
+import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
 import whisk.common.Https.HttpsConfig
 
@@ -1132,10 +1133,11 @@ class RestGatewayOperations(implicit val actorSystem: ActorSystem) extends Gatew
   }
 }
 
-trait RunRestCmd extends Matchers with ScalaFutures {
+trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
 
   val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
+  val toStrictTimeout = 5 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
@@ -1187,8 +1189,17 @@ trait RunRestCmd extends Matchers with ScalaFutures {
       method,
       hostWithScheme.withPath(path).withQuery(Query(params)),
       List(Authorization(creds)),
-      entity = body.map(b => HttpEntity(ContentTypes.`application/json`, b)).getOrElse(HttpEntity.Empty))
-    Http().singleRequest(request, connectionContext).futureValue
+      entity =
+        body.map(b => HttpEntity.Strict(ContentTypes.`application/json`, ByteString(b))).getOrElse(HttpEntity.Empty))
+    val response = Http().singleRequest(request, connectionContext).flatMap { _.toStrict(toStrictTimeout) }.futureValue
+
+    val validationErrors = validateRequestAndResponse(request, response)
+    if (validationErrors.nonEmpty) {
+      fail(
+        s"HTTP request or response did not match the Swagger spec.\nRequest: $request\n" +
+          s"Response: $response\nValidation Error: $validationErrors")
+    }
+    response
   }
 
   private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
@@ -1280,7 +1291,7 @@ trait RunRestCmd extends Matchers with ScalaFutures {
   }
 
   def getRespData(resp: HttpResponse): String = {
-    val timeout = 5.seconds
+    val timeout = toStrictTimeout
     Try(resp.entity.toStrict(timeout).map { _.data }.map(_.utf8String).futureValue).getOrElse("")
   }
 
