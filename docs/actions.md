@@ -216,10 +216,11 @@ ok: invoked /whisk.system/samples/greeting with id 5975c24de0114ef2b5c24de0118ef
 A blocking invocation request will _wait_ for the activation result to be available. The wait period
 is the lesser of 60 seconds or the action's configured
 [time limit](reference.md#per-action-timeout-ms-default-60s).
-The result of the activation is returned if it is available within the wait period.
-Otherwise, the activation continues processing in the system and an activation ID is returned
-so that one may check for the result later, as with non-blocking requests
-(see [here](#watching-action-output) for tips on monitoring activations).
+The result of the action is successfully returned if it is available within the wait period.
+Otherwise, the result is an error caused by the action timeout and the response status is _application error_.
+The action continues processing in the system for a while until it is terminated. 
+Subsequent calls to `wsk activation get <activationId> --summary` will return the original error even if
+the action finished its execution before it was terminated.
 
 ### Understanding the activation record
 
@@ -340,7 +341,7 @@ is skipped if an action is dispatched to a previously initialized container --- 
 You can tell if an [invocation was a warm activation or a cold one requiring initialization](annotations.md#annotations-specific-to-activations)
 by inspecting the activation record.
 - An action runs for a bounded amount of time. This limit can be configured per action, and applies to both the
-initialization and the execution separately.
+initialization and the execution separately. If the action time limit is exceeded the activation's response status is _application error_.
 - Functions should follow best practices to reduce [vulnerabilities](security.md) by treating input as untrusted,
 and be aware of vulnerabilities they may inherit from third-party dependencies.
 
