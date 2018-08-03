@@ -185,7 +185,7 @@ class KafkaConsumerConnector(
       blocking {
         if (offset > 0) {
           val topicAndPartition = new TopicPartition(topic, 0)
-          synchronized(consumer.endOffsets(Set(topicAndPartition).asJava).asScala.get(topicAndPartition)).foreach {
+          synchronized(consumer.endOffsets(Set(topicAndPartition).asJava)).asScala.get(topicAndPartition).foreach {
             endOffset =>
               // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
               val queueSize = (endOffset - offset).max(0)
