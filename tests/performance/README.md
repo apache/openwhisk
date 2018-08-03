@@ -160,11 +160,13 @@ The test is doing as many requests as possible for the given amount of time (`SE
 
 Available environment variables:
 ```
-OPENWHISK_HOST          (required)
-USERS                   (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+USERS                         (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with
