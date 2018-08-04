@@ -105,7 +105,7 @@ trait Container {
           Future.failed(
             InitializationError(
               result.interval,
-              ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true))))
+              ActivationResponse.containerError(Messages.timedoutActivation(timeout, true))))
         } else {
           Future.failed(
             InitializationError(

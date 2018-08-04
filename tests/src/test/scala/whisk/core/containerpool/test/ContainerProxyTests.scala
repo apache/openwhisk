@@ -493,7 +493,7 @@ class ContainerProxyTests
       override def initialize(initializer: JsObject,
                               timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
-        Future.failed(InitializationError(initInterval, ActivationResponse.applicationError("boom")))
+        Future.failed(InitializationError(initInterval, ActivationResponse.containerError("boom")))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -518,7 +518,7 @@ class ContainerProxyTests
       collector.calls should have size 1
       container.destroyCount shouldBe 1
       val activation = acker.calls(0)._2
-      activation.response shouldBe ActivationResponse.applicationError("boom")
+      activation.response shouldBe ActivationResponse.containerError("boom")
       activation.annotations
         .get(WhiskActivation.initTimeAnnotation)
         .get

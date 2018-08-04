@@ -154,7 +154,7 @@ class ContainerProxy(
             // the failure is either the system fault, or for docker actions, the application/developer fault
             val response = t match {
               case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
-              case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
+              case BlackboxStartupError(msg)       => ActivationResponse.containerError(msg)
               case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
             val context = UserContext(job.msg.user)
@@ -352,7 +352,7 @@ class ContainerProxy(
       case _                => container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
     }
 
-    val activation: Future[(WhiskActivation, Boolean)] = initialize
+    val activation: Future[WhiskActivation] = initialize
       .flatMap { initInterval =>
         val parameters = job.msg.content getOrElse JsObject.empty
 
@@ -373,12 +373,12 @@ class ContainerProxy(
               val initRunInterval = initInterval
                 .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))
                 .getOrElse(runInterval)
-              ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response) -> false
+              ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response)
           }
       }
       .recover {
         case InitializationError(interval, response) =>
-          ContainerProxy.constructWhiskActivation(job, Some(interval), interval, response) -> true
+          ContainerProxy.constructWhiskActivation(job, Some(interval), interval, response)
         case t =>
           // Actually, this should never happen - but we want to make sure to not miss a problem
           logging.error(this, s"caught unexpected error while running activation: ${t}")
@@ -386,54 +386,47 @@ class ContainerProxy(
             job,
             None,
             Interval.zero,
-            ActivationResponse.whiskError(Messages.abnormalRun)) -> true
+            ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
     // Sending active ack. Entirely asynchronous and not waited upon.
-    activation.foreach {
-      case (a, _) => sendActiveAck(tid, a, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid)
-    }
+    activation.foreach(
+      sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
 
     val context = UserContext(job.msg.user)
 
     // Adds logs to the raw activation.
-    val activationWithLogs: Future[Either[ActivationLogReadingError, (WhiskActivation, Boolean)]] = activation
-      .flatMap {
-        {
-          case (activation, initFailure) =>
-            // Skips log collection entirely, if the limit is set to 0
-            if (job.action.limits.logs.asMegaBytes == 0.MB) {
-              Future.successful(Right(activation -> initFailure))
-            } else {
-              val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
-              collectLogs(tid, job.msg.user, activation, container, job.action)
-                .andThen {
-                  case Success(_) => tid.finished(this, start)
-                  case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
-                }
-                .map(logs => Right(activation.withLogs(logs) -> initFailure))
-                .recover {
-                  case LogCollectingException(logs) =>
-                    Left(ActivationLogReadingError(activation.withLogs(logs)))
-                  case _ =>
-                    Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
-                }
+    val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
+      .flatMap { activation =>
+        // Skips log collection entirely, if the limit is set to 0
+        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+          Future.successful(Right(activation))
+        } else {
+          val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
+          collectLogs(tid, job.msg.user, activation, container, job.action)
+            .andThen {
+              case Success(_) => tid.finished(this, start)
+              case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
+            }
+            .map(logs => Right(activation.withLogs(logs)))
+            .recover {
+              case LogCollectingException(logs) =>
+                Left(ActivationLogReadingError(activation.withLogs(logs)))
+              case _ =>
+                Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
             }
         }
-
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
-    activationWithLogs.map(_.fold(_.activation, _._1)).foreach(storeActivation(tid, _, context))
+    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
-      //if non-successful, init failures should fail, and non-applicationErrors should also fail
-      case Right((act, initFailure)) if !act.response.isSuccess && (initFailure || !act.response.isApplicationError) =>
+      case Right(act) if !act.response.isSuccess && !act.response.isApplicationError =>
         Future.failed(ActivationUnsuccessfulError(act))
       case Left(error) => Future.failed(error)
-      case Right((act, _)) =>
-        Future.successful(act)
+      case Right(act)  => Future.successful(act)
     }
   }
 }
