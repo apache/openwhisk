@@ -28,6 +28,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.size.SizeInt
 import whisk.core.WhiskConfig
 import whisk.http.Messages._
+import whisk.core.entity.WhiskActivation
 
 @RunWith(classOf[JUnitRunner])
 class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers with StreamLogging with WskActorSystem {
@@ -215,7 +216,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       // check nested conductor invocation
       withActivation(
         wsk.activation,
-        activation.logs.get(1),
+        getConductorComponents(activation)(1),
         initialWait = 1 second,
         pollPeriod = 60 seconds,
         totalWait = allowedActionDuration) { nestedActivation =>
@@ -273,6 +274,9 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
     }
   }
 
+  private def getConductorComponents(activation: ActivationResult) =
+    activation.getAnnotationValue(WhiskActivation.componentsAnnotation).get.convertTo[List[String]]
+
   /**
    * checks logs for the activation of a conductor action (length/size and ids)
    * checks that the cause field for nested invocations is set properly
@@ -280,13 +284,13 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
    * checks memory
    */
   private def checkConductorLogsAndAnnotations(activation: ActivationResult, size: Int) = {
-    activation.logs shouldBe defined
+    val components = getConductorComponents(activation)
     // check that the logs are what they are supposed to be (activation ids)
     // check that the cause field is properly set for these activations
-    activation.logs.get should have length size // the number of activations in this sequence
+    components.size shouldBe (size) // the number of activations in this sequence
     var totalTime: Long = 0
     var maxMemory: Long = 0
-    activation.logs.get.foreach { id =>
+    components.foreach { id =>
       withActivation(
         wsk.activation,
         id,

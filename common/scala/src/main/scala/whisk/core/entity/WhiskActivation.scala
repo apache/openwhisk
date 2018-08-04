@@ -133,6 +133,7 @@ object WhiskActivation
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
   val conductorAnnotation = "conductor"
+  val componentsAnnotation = "components"
 
   /** Some field names for compositions */
   val actionField = "action"

@@ -88,7 +88,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       annotations.getAs[String]("kind") shouldBe Some("sequence")
       annotations.getAs[Boolean]("topmost") shouldBe Some(true)
       annotations.get("limits") should not be None
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 1
     }
 
     // an error result
@@ -97,7 +97,8 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("error" -> testString.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 1
     }
 
     // a wrapped result { params: result } is unwrapped by the controller
@@ -106,7 +107,8 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("payload" -> testString.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 1
     }
 
     // an invalid action name
@@ -117,7 +119,8 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentInvalid(invalid.toJson).toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 2
     }
 
     // an undefined action
@@ -128,7 +131,8 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentNotFound(s"$namespace/$missing").toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 2
     }
   }
 
@@ -146,8 +150,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 2.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 3
       response.fields("duration") shouldBe (3 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 3
     }
 
     // dynamically invoke step action with an error result
@@ -156,8 +161,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("error" -> "missing parameter".toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 3
       response.fields("duration") shouldBe (3 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 3
     }
 
     // dynamically invoke step action, forwarding state
@@ -168,8 +174,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 2.toJson, "witness" -> 42.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 3
       response.fields("duration") shouldBe (3 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 3
     }
 
     // dynamically invoke a forbidden action
@@ -180,7 +187,8 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
         "error" -> compositionComponentNotAccessible(forbidden.drop(1)).toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 2
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 2
     }
 
     // dynamically invoke step action twice, forwarding state
@@ -191,8 +199,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 3.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 5
       response.fields("duration") shouldBe (5 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 5
     }
 
     // invoke nested conductor with single step
@@ -203,8 +212,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 2.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 3
       response.fields("duration") shouldBe (5 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 3
     }
 
     // nested step followed by outer step
@@ -218,8 +228,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 3.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 5
       response.fields("duration") shouldBe (7 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 5
     }
 
     // two levels of nesting, three steps
@@ -236,8 +247,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("n" -> 4.toJson)
-      response.fields("logs").convertTo[JsArray].elements.size shouldBe 5
       response.fields("duration") shouldBe (11 * duration).toJson
+      val annotations = response.fields("annotations").convertTo[Parameters]
+      annotations.get("components").get.convertTo[JsArray].elements.size shouldBe 5
     }
   }
 
@@ -371,4 +383,5 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
       } getOrElse Future.failed(new IllegalArgumentException("No invocation parameters in conductor test"))
   }
+
 }

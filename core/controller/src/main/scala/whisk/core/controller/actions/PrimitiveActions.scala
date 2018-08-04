@@ -22,6 +22,7 @@ import java.time.{Clock, Instant}
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.common.tracing.WhiskTracerProvider
 import whisk.core.connector.ActivationMessage
@@ -539,13 +540,13 @@ protected[actions] trait PrimitiveActions {
       end = end,
       cause = session.cause,
       response = response,
-      logs = ActivationLogs(session.logs.map(_.asString).toVector),
       version = session.action.version,
       publish = false,
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(session.cause.isEmpty)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(session.action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
         Parameters(WhiskActivation.conductorAnnotation, JsBoolean(true)) ++
+        Parameters(WhiskActivation.componentsAnnotation, session.logs.map(_.asString).toVector.toJson) ++
         causedBy ++
         sequenceLimits,
       duration = Some(session.duration))
