@@ -74,7 +74,7 @@ class KafkaConsumerConnector(
     }
 
     try {
-      val response = consumer.poll(duration).asScala
+      val response = synchronized(consumer.poll(duration)).asScala
 
       // Cancel the scheduled wake-up task immediately.
       wakeUpTask.cancel()
@@ -120,7 +120,7 @@ class KafkaConsumerConnector(
    */
   def commit(retry: Int = 3): Unit =
     try {
-      consumer.commitSync()
+      synchronized(consumer.commitSync())
     } catch {
       case e: RetriableException =>
         if (retry > 0) {
@@ -132,7 +132,7 @@ class KafkaConsumerConnector(
         }
     }
 
-  override def close(): Unit = {
+  override def close(): Unit = synchronized {
     logging.info(this, s"closing consumer for '$topic'")
     consumer.close()
   }
@@ -149,11 +149,14 @@ class KafkaConsumerConnector(
     verifyConfig(config, ConsumerConfig.configNames().asScala.toSet)
 
     val consumer = new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
+
+    // subscribe does not need to be synchronized, because the reference to the consumer hasn't been returned yet and
+    // thus this is guaranteed only to be called by the calling thread.
     consumer.subscribe(Seq(topic).asJavaCollection)
     consumer
   }
 
-  private def recreateConsumer(): Unit = {
+  private def recreateConsumer(): Unit = synchronized {
     logging.info(this, s"recreating consumer for '$topic'")
     try {
       consumer.close()
@@ -182,10 +185,11 @@ class KafkaConsumerConnector(
       blocking {
         if (offset > 0) {
           val topicAndPartition = new TopicPartition(topic, 0)
-          consumer.endOffsets(Set(topicAndPartition).asJava).asScala.get(topicAndPartition).foreach { endOffset =>
-            // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
-            val queueSize = (endOffset - offset).max(0)
-            MetricEmitter.emitHistogramMetric(queueMetric, queueSize)
+          synchronized(consumer.endOffsets(Set(topicAndPartition).asJava)).asScala.get(topicAndPartition).foreach {
+            endOffset =>
+              // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
+              val queueSize = (endOffset - offset).max(0)
+              MetricEmitter.emitHistogramMetric(queueMetric, queueSize)
           }
         }
       }
