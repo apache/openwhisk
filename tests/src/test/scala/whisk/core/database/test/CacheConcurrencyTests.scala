@@ -45,8 +45,11 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
   val nInternalIters = 5
   val nThreads = nInternalIters * 30
 
+  val externalPool = new ForkJoinPool(nThreads)
+  val internalPool = new ForkJoinPool(nThreads)
+
   val parallel = (1 to nInternalIters).par
-  parallel.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+  parallel.tasksupport = new ForkJoinTaskSupport(externalPool)
 
   def run[W](phase: String)(block: String => W) = parallel.map { i =>
     val name = s"testy${i}"
@@ -65,6 +68,12 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
     }
   }
 
+  override def afterAll() = {
+    externalPool.shutdown()
+    internalPool.shutdown()
+    super.afterAll()
+  }
+
   for (n <- 1 to nExternalIters)
     "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${n}" in {
       val actionFile = TestUtils.getTestActionFilename("empty.js")
@@ -80,7 +89,7 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
       run("delete+get") { name =>
         // run 30 operations in parallel: 15 get, 1 delete, 14 more get
         val para = (1 to 30).par
-        para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+        para.tasksupport = new ForkJoinTaskSupport(internalPool)
         para.map { i =>
           if (i != 16) {
             val rr = wsk.action.get(name, expectedExitCode = DONTCARE_EXIT)
@@ -118,7 +127,7 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
       run("update+get") { name =>
         // run 30 operations in parallel: 15 get, 1 update, 14 more get
         val para = (1 to 30).par
-        para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+        para.tasksupport = new ForkJoinTaskSupport(internalPool)
         para.map { i =>
           if (i != 16) {
             wsk.action.get(name)
