@@ -36,6 +36,7 @@ import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 import java.io.ByteArrayInputStream
+import java.util.Base64
 
 import akka.stream.scaladsl._
 
@@ -969,8 +970,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
 
     action.exec match {
-      case exec @ CodeExecAsAttachment(_, _, _, _) =>
-        val stream = new ByteArrayInputStream(code.getBytes)
+      case exec @ CodeExecAsAttachment(_, _, _, binary) =>
+        val bytes = if (binary) Base64.getDecoder().decode(code) else code.getBytes("UTF-8")
+        val stream = new ByteArrayInputStream(bytes)
         val manifest = exec.manifest.attached.get
         val src = StreamConverters.fromInputStream(() => stream)
         putAndAttach[WhiskAction, WhiskEntity](
@@ -1073,8 +1075,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "ensure old and new action schemas are supported" in {
     implicit val tid = transid()
-    val actionOldSchema = WhiskAction(namespace, aname(), js6Old(nonInlinedCode(entityStore)))
-    val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)))
+    val code = nonInlinedCode(entityStore)
+    val actionOldSchema = WhiskAction(namespace, aname(), js6Old(code))
+    val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(code))
     val content = WhiskActionPut(
       Some(actionOldSchema.exec),
       Some(actionOldSchema.parameters),
