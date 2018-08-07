@@ -308,8 +308,9 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
           }
 
           manifest.attached
-            .map { a =>
-              val code = obj.fields.get("code")
+            .map { _ =>
+              // java actions once stored the attachment in "jar" instead of "code"
+              val code = obj.fields.get("code").orElse(obj.fields.get("jar"))
               val binary: Boolean = code match {
                 case Some(JsString(c)) => isBinaryCode(c)
                 case _ =>

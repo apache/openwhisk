@@ -117,6 +117,17 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
     }
   }
 
+  it should "read code stored as jar property" in {
+    val j1 = """{
+               |  "kind": "nodejs:6",
+               |  "jar": "SGVsbG8gT3BlbldoaXNr",
+               |  "binary": false
+               |}""".stripMargin.parseJson.asJsObject
+    Exec.serdes.read(j1) should matchPattern {
+      case CodeExecAsAttachment(_, Inline("SGVsbG8gT3BlbldoaXNr"), None, true) =>
+    }
+  }
+
   it should "read existing code string as string with old manifest" in {
     val oldManifestJson =
       """{
