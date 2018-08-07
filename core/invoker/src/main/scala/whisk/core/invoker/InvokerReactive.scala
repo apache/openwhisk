@@ -23,6 +23,7 @@ import java.time.Instant
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.HttpRequest
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
 import spray.json._
@@ -160,9 +161,9 @@ class InvokerReactive(
   }
 
   /** Stores an activation in the database. */
-  private val store = (tid: TransactionId, activation: WhiskActivation) => {
+  private val store = (tid: TransactionId, activation: WhiskActivation, user: Identity) => {
     implicit val transid: TransactionId = tid
-    activationStore.store(activation)(tid, notifier = None)
+    activationStore.store(activation, user, HttpRequest())(tid, notifier = None)
   }
 
   /** Creates a ContainerProxy Actor when being called. */
@@ -239,7 +240,7 @@ class InvokerReactive(
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
-                store(msg.transid, activation)
+                store(msg.transid, activation, msg.user)
                 Future.successful(())
             }
         } else {

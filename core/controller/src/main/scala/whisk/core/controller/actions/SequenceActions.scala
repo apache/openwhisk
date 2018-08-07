@@ -29,6 +29,7 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpRequest
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -161,7 +162,8 @@ protected[actions] trait SequenceActions {
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
-        case Success((Right(seqActivation), _)) => activationStore.store(seqActivation)(transid, notifier = None)
+        case Success((Right(seqActivation), _)) =>
+          activationStore.store(seqActivation, user, HttpRequest())(transid, notifier = None)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?

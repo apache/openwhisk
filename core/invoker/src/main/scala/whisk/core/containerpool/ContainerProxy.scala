@@ -96,7 +96,7 @@ case object RescheduleJob // job is sent back to parent and could not be process
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
   sendActiveAck: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
-  storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+  storeActivation: (TransactionId, WhiskActivation, Identity) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InvokerInstanceId,
   poolConfig: ContainerPoolConfig,
@@ -167,7 +167,7 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid)
-            storeActivation(transid, activation)
+            storeActivation(transid, activation, job.msg.user)
         }
         .flatMap { container =>
           // now attempt to inject the user code and run the action
@@ -415,7 +415,7 @@ class ContainerProxy(
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
-    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _))
+    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, job.msg.user))
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
@@ -432,7 +432,7 @@ object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
-    store: (TransactionId, WhiskActivation) => Future[Any],
+    store: (TransactionId, WhiskActivation, Identity) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InvokerInstanceId,
     poolConfig: ContainerPoolConfig,

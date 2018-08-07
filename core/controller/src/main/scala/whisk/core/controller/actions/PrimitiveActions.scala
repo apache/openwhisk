@@ -21,6 +21,8 @@ import java.time.{Clock, Instant}
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
+import akka.http.scaladsl.model.HttpRequest
+
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.common.tracing.WhiskTracerProvider
@@ -550,7 +552,7 @@ protected[actions] trait PrimitiveActions {
         sequenceLimits,
       duration = Some(session.duration))
 
-    activationStore.store(activation)(transid, notifier = None)
+    activationStore.store(activation, user, HttpRequest())(transid, notifier = None)
 
     activation
   }
@@ -578,11 +580,11 @@ protected[actions] trait PrimitiveActions {
     //    in case of an incomplete active-ack (record too large for example).
     activeAckResponse.foreach {
       case Right(activation) => result.trySuccess(Right(activation))
-      case _                 => pollActivation(docid, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
+      case _                 => pollActivation(docid, user, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
     }
 
     // 2. Poll the database slowly in case the active-ack never arrives
-    pollActivation(docid, result, _ => 15.seconds)
+    pollActivation(docid, user, result, _ => 15.seconds)
 
     // 3. Timeout forces a fallback to activationId
     val timeout = actorSystem.scheduler.scheduleOnce(totalWaitTime)(result.trySuccess(Left(activationId)))
@@ -602,15 +604,16 @@ protected[actions] trait PrimitiveActions {
    * @param result promise to resolve on result. Is also used to abort polling once completed.
    */
   private def pollActivation(docid: DocId,
+                             user: Identity,
                              result: Promise[Either[ActivationId, WhiskActivation]],
                              wait: Int => FiniteDuration,
                              retries: Int = 0,
                              maxRetries: Int = Int.MaxValue)(implicit transid: TransactionId): Unit = {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
-        activationStore.get(ActivationId(docid.asString)).onComplete {
+        activationStore.get(ActivationId(docid.asString), user, HttpRequest()).onComplete {
           case Success(activation)             => result.trySuccess(Right(activation))
-          case Failure(_: NoDocumentException) => pollActivation(docid, result, wait, retries + 1, maxRetries)
+          case Failure(_: NoDocumentException) => pollActivation(docid, user, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)
         }
       }

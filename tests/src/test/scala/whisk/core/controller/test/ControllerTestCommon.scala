@@ -28,6 +28,7 @@ import org.scalatest.Matchers
 import common.StreamLogging
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
+import akka.http.scaladsl.model.HttpRequest
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -96,32 +97,36 @@ protected trait ControllerTestCommon
     }, dbOpTimeout)
   }
 
-  def getActivation(activationId: ActivationId)(implicit transid: TransactionId,
-                                                timeout: Duration = 10 seconds): WhiskActivation = {
-    Await.result(activationStore.get(activationId), timeout)
+  def getActivation(activationId: ActivationId, user: Identity, request: HttpRequest)(
+    implicit transid: TransactionId,
+    timeout: Duration = 10 seconds): WhiskActivation = {
+    Await.result(activationStore.get(activationId, user, request), timeout)
   }
 
-  def storeActivation(activation: WhiskActivation)(implicit transid: TransactionId,
-                                                   timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = activationStore.store(activation)
+  def storeActivation(activation: WhiskActivation, user: Identity, request: HttpRequest = HttpRequest())(
+    implicit transid: TransactionId,
+    timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = activationStore.store(activation, user, request)
     val doc = Await.result(docFuture, timeout)
     assert(doc != null)
     doc
   }
 
-  def deleteActivation(activationId: ActivationId)(implicit transid: TransactionId) = {
-    val res = Await.result(activationStore.delete(activationId), dbOpTimeout)
+  def deleteActivation(activationId: ActivationId, user: Identity, request: HttpRequest = HttpRequest())(
+    implicit transid: TransactionId) = {
+    val res = Await.result(activationStore.delete(activationId, user, request), dbOpTimeout)
     assert(res, true)
     res
   }
 
-  def waitOnListActivationsInNamespace(namespace: EntityPath, count: Int)(implicit context: ExecutionContext,
-                                                                          transid: TransactionId,
-                                                                          timeout: Duration) = {
+  def waitOnListActivationsInNamespace(namespace: EntityPath, count: Int, user: Identity, request: HttpRequest)(
+    implicit context: ExecutionContext,
+    transid: TransactionId,
+    timeout: Duration) = {
     val success = retry(
       () => {
         val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
-          activationStore.listActivationsInNamespace(namespace, 0, 0)
+          activationStore.listActivationsInNamespace(namespace, 0, 0, user = user, request = request)
         val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
 
         listFuture map { l =>
@@ -135,14 +140,16 @@ protected trait ControllerTestCommon
     assert(success.isSuccess, "wait aborted")
   }
 
-  def waitOnListActivationsMatchingName(namespace: EntityPath, name: EntityPath, count: Int)(
-    implicit context: ExecutionContext,
-    transid: TransactionId,
-    timeout: Duration) = {
+  def waitOnListActivationsMatchingName(
+    namespace: EntityPath,
+    name: EntityPath,
+    count: Int,
+    user: Identity,
+    request: HttpRequest)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
     val success = retry(
       () => {
         val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
-          activationStore.listActivationsMatchingName(namespace, name, 0, 0)
+          activationStore.listActivationsMatchingName(namespace, name, 0, 0, user = user, request = request)
         val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
 
         listFuture map { l =>

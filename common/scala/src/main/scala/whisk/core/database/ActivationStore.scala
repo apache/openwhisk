@@ -39,8 +39,9 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def store(activation: WhiskActivation)(implicit transid: TransactionId,
-                                         notifier: Option[CacheChangeNotification]): Future[DocInfo]
+  def store(activation: WhiskActivation, user: Identity, request: HttpRequest)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo]
 
   /**
    * Retrieves an activation corresponding to the specified activation ID.
@@ -49,7 +50,7 @@ trait ActivationStore {
    * @param transid transaction ID for request
    * @return Future containing the retrieved WhiskActivation
    */
-  def get(activationId: ActivationId, user: Option[Identity] = None, request: Option[HttpRequest] = None)(
+  def get(activationId: ActivationId, user: Identity, request: HttpRequest)(
     implicit transid: TransactionId): Future[WhiskActivation]
 
   /**
@@ -60,7 +61,7 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing a Boolean value indication whether the activation was deleted
    */
-  def delete(activationId: ActivationId, user: Option[Identity] = None, request: Option[HttpRequest] = None)(
+  def delete(activationId: ActivationId, user: Identity, request: HttpRequest)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean]
 
@@ -75,14 +76,13 @@ trait ActivationStore {
    * @param transid transaction ID for request
    * @return Future containing number of activations returned from query in JSON format
    */
-  def countActivationsInNamespace(
-    namespace: EntityPath,
-    name: Option[EntityPath] = None,
-    skip: Int,
-    since: Option[Instant] = None,
-    upto: Option[Instant] = None,
-    user: Option[Identity] = None,
-    request: Option[HttpRequest] = None)(implicit transid: TransactionId): Future[JsObject]
+  def countActivationsInNamespace(namespace: EntityPath,
+                                  name: Option[EntityPath] = None,
+                                  skip: Int,
+                                  since: Option[Instant] = None,
+                                  upto: Option[Instant] = None,
+                                  user: Identity,
+                                  request: HttpRequest)(implicit transid: TransactionId): Future[JsObject]
 
   /**
    * Returns activations corresponding to provided entity name.
@@ -98,16 +98,16 @@ trait ActivationStore {
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
    */
-  def listActivationsMatchingName(namespace: EntityPath,
-                                  name: EntityPath,
-                                  skip: Int,
-                                  limit: Int,
-                                  includeDocs: Boolean = false,
-                                  since: Option[Instant] = None,
-                                  upto: Option[Instant] = None,
-                                  user: Option[Identity] = None,
-                                  request: Option[HttpRequest] = None)(
-    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+  def listActivationsMatchingName(
+    namespace: EntityPath,
+    name: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean = false,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    user: Identity,
+    request: HttpRequest)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
   /**
    * List all activations in a specified namespace.
@@ -122,15 +122,15 @@ trait ActivationStore {
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
    */
-  def listActivationsInNamespace(namespace: EntityPath,
-                                 skip: Int,
-                                 limit: Int,
-                                 includeDocs: Boolean = false,
-                                 since: Option[Instant] = None,
-                                 upto: Option[Instant] = None,
-                                 user: Option[Identity] = None,
-                                 request: Option[HttpRequest] = None)(
-    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+  def listActivationsInNamespace(
+    namespace: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean = false,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    user: Identity,
+    request: HttpRequest)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 }
 
 trait ActivationStoreProvider extends Spi {

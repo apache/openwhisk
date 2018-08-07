@@ -163,7 +163,7 @@ class ContainerProxyTests
         response
     }
 
-  def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation) =>
+  def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, user: Identity) =>
     Future.successful(())
   }
 
