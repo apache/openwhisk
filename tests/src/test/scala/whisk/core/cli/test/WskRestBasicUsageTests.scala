@@ -285,7 +285,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       val run = wsk.action.invoke(name)
       withActivation(wsk.activation, run) { activation =>
-        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
         activation.response.result.get
           .fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
         activation.annotations shouldBe defined
