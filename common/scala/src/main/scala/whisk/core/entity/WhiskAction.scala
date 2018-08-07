@@ -21,6 +21,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.Base64
 
+import akka.http.scaladsl.model.ContentTypes
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -337,9 +339,12 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           implicit val logger = db.logging
           implicit val ec = db.executionContext
 
-          val bytes = if (binary) Base64.getDecoder().decode(code) else code.getBytes("UTF-8")
+          val (bytes, attachmentType) = if (binary) {
+            (Base64.getDecoder().decode(code), ContentTypes.`application/octet-stream`)
+          } else {
+            (code.getBytes("UTF-8"), ContentTypes.`text/plain(UTF-8)`)
+          }
           val stream = new ByteArrayInputStream(bytes)
-          val manifest = exec.manifest.attached.get
           val oldAttachment = old
             .flatMap(_.exec match {
               case CodeExecAsAttachment(_, a: Attached, _, _) => Some(a)
@@ -350,7 +355,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
             db,
             doc,
             (d, a) => d.copy(exec = exec.attach(a)).revision[WhiskAction](d.rev),
-            manifest.attachmentType,
+            attachmentType,
             stream,
             oldAttachment,
             Some { a: WhiskAction =>
