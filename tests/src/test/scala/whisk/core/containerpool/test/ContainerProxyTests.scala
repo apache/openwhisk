@@ -430,6 +430,7 @@ class ContainerProxyTests
       container.runCount shouldBe 2
       collector.calls should have size 2
       container.suspendCount shouldBe 0
+      container.destroyCount shouldBe 0
       acker.calls should have size 2
       store.calls should have size 2
 
