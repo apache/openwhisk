@@ -300,33 +300,28 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
             case None    => throw new DeserializationException(s"kind '$kind' not in $runtimes")
           }
 
+          manifest.attached.map { _ =>
+            }
+
           manifest.attached
             .map { _ =>
               // java actions once stored the attachment in "jar" instead of "code"
-              val code = obj.fields.get("code").orElse(obj.fields.get("jar"))
-              val binary: Boolean = code match {
-                case Some(JsString(c)) => isBinaryCode(c)
-                case _ =>
-                  obj.fields.get("binary") match {
-                    case Some(JsBoolean(b)) => b
-                    case _                  => false
-                  }
-              }
-              val attachment: Attachment[String] = {
-                code
-              } map {
-                attFmt[String].read(_)
-              } getOrElse {
+              val code = obj.fields.get("code").orElse(obj.fields.get("jar")).getOrElse {
                 throw new DeserializationException(
                   s"'code' must be a string or attachment object defined in 'exec' for '$kind' actions")
               }
+              val binary: Boolean = code match {
+                case JsString(c) => isBinaryCode(c)
+                case _           => obj.fields.get("binary").map(_.convertTo[Boolean]).getOrElse(false)
+              }
+
               val main = optMainField.orElse {
                 if (manifest.requireMain.exists(identity)) {
                   throw new DeserializationException(s"'main' must be a string defined in 'exec' for '$kind' actions")
                 } else None
               }
 
-              CodeExecAsAttachment(manifest, attachment, main, binary)
+              CodeExecAsAttachment(manifest, attFmt[String].read(code), main, binary)
             }
             .getOrElse {
               val code: String = obj.fields.get("code") match {
