@@ -19,6 +19,7 @@ package whisk.core.entity
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import akka.http.scaladsl.model.ContentTypes
@@ -340,9 +341,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           implicit val ec = db.executionContext
 
           val (bytes, attachmentType) = if (binary) {
-            (Base64.getDecoder().decode(code), ContentTypes.`application/octet-stream`)
+            (Base64.getDecoder.decode(code), ContentTypes.`application/octet-stream`)
           } else {
-            (code.getBytes("UTF-8"), ContentTypes.`text/plain(UTF-8)`)
+            (code.getBytes(StandardCharsets.UTF_8), ContentTypes.`text/plain(UTF-8)`)
           }
           val stream = new ByteArrayInputStream(bytes)
           val oldAttachment = old
