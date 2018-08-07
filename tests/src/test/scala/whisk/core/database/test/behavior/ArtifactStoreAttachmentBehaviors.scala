@@ -22,14 +22,15 @@ import java.util.Base64
 
 import akka.http.scaladsl.model.{ContentTypes, Uri}
 import akka.stream.IOResult
-import scala.concurrent.duration.DurationInt
 import akka.stream.scaladsl.{Sink, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import whisk.common.TransactionId
 import whisk.core.database.{AttachmentSupport, CacheChangeNotification, NoDocumentException}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
-import whisk.core.entity.{CodeExec, DocInfo, EntityName, ExecManifest, WhiskAction}
+import whisk.core.entity.{CodeExec, DocInfo, EntityName, WhiskAction}
+
+import scala.concurrent.duration.DurationInt
 
 trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with ExecHelpers {
   behavior of s"${storeType}ArtifactStore attachments"
@@ -133,12 +134,7 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
 
     docsToDelete += ((entityStore, i1))
 
-    attached(action2).attachmentType shouldBe ExecManifest.runtimesManifest
-      .resolveDefaultRuntime(JAVA_DEFAULT)
-      .get
-      .attached
-      .get
-      .attachmentType
+    attached(action2).attachmentType shouldBe ContentTypes.`application/octet-stream`
     attached(action2).length shouldBe Some(size)
     attached(action2).digest should not be empty
 
