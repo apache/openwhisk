@@ -21,28 +21,7 @@
 import argparse
 import couchdb.client
 import time
-import base64
 from couchdb import ResourceNotFound
-
-def updateJavaAction(db, doc, id):
-    updated = False
-    attachment = db.get_attachment(doc, 'jarfile')
-
-    if attachment != None:
-        encodedAttachment = base64.b64encode(attachment.getvalue())
-        db.put_attachment(doc, encodedAttachment, 'codefile', 'text/plain')
-        doc = db.get(id)
-        doc['exec']['code'] = {
-            'attachmentName': 'codefile',
-            'attachmentType': 'text/plain'
-        }
-        if 'jar' in doc['exec']:
-            del doc['exec']['jar']
-        db.save(doc)
-        db.delete_attachment(doc, 'jarfile')
-        updated = True
-
-    return updated
 
 def updateNonJavaAction(db, doc, id):
     updated = False
@@ -96,7 +75,7 @@ def main(args):
             if doc['exec']['kind'] != 'java':
                 updated = updateNonJavaAction(db, doc, id)
             else:
-                updated = updateJavaAction(db, doc, id)
+                updated = False
 
             if updated:
                 print('Updated action: "{0}"'.format(id))
