@@ -47,11 +47,14 @@ class LatencySimulation extends Simulation {
   val maxErrorsAllowed: Int = sys.env.getOrElse(MAX_ERRORS_ALLOWED, "0").toInt
   val maxErrorsAllowedPercentage: Double = sys.env.getOrElse(MAX_ERRORS_ALLOWED_PERCENTAGE, "0.1").toDouble
 
+  def toKindSpecificKey(kind: String, suffix: String) = kind.split(':').head.toUpperCase + "_" + suffix
+
   // Exclude runtimes
   val excludedKinds: Seq[String] = sys.env.getOrElse("EXCLUDED_KINDS", "").split(",")
 
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol = openWhisk.apiHost(host)
+
 
   /**
    * Generate a list of actions to execute. The list is a tuple of (kind, code, actionName, main)
@@ -98,21 +101,22 @@ class LatencySimulation extends Simulation {
   val testSetup = setUp(test.inject(atOnceUsers(1)))
     .protocols(openWhiskProtocol)
 
+
   actions
     .map { case (kind, _, _, _) => kind }
     .foldLeft(testSetup) { (agg, kind) =>
       val cur = s"Warm $kind invocation"
       // One failure will make the build yellow
-      val mrt : Int = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MEAN_RESPONSE_TIME, meanResponseTime.toString).toInt
-      val maxrt = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_MEAN_RESPONSE_TIME, maximalMeanResponseTime.toString).toInt
-      val maxerr = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_ERRORS_ALLOWED, maxErrorsAllowed.toString).toInt
-      val maxerrp = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_ERRORS_ALLOWED_PERCENTAGE, maxErrorsAllowedPercentage.toString).toDouble
+      val specificMeanResponseTime : Int = sys.env.getOrElse(toKindSpecificKey(kind,MEAN_RESPONSE_TIME), meanResponseTime.toString).toInt
+      val specificMaxMeanResponseTime = sys.env.getOrElse(toKindSpecificKey(kind,MAX_MEAN_RESPONSE_TIME), maximalMeanResponseTime.toString).toInt
+      val specificMaxErrorsAllowed = sys.env.getOrElse(toKindSpecificKey(kind,MAX_ERRORS_ALLOWED), maxErrorsAllowed.toString).toInt
+      val specificMaxErrorsAllowedPercentage = sys.env.getOrElse(toKindSpecificKey(kind,MAX_ERRORS_ALLOWED_PERCENTAGE), maxErrorsAllowedPercentage.toString).toDouble
 
       agg
-        .assertions(details(cur).responseTime.mean.lte(mrt))
-        .assertions(details(cur).responseTime.mean.lt(maxrt))
+        .assertions(details(cur).responseTime.mean.lte(specificMeanResponseTime))
+        .assertions(details(cur).responseTime.mean.lt(specificMaxMeanResponseTime))
         // Mark the build yellow, if there are failed requests. And red if both conditions fail.
-        .assertions(details(cur).failedRequests.count.lte(maxerr))
-        .assertions(details(cur).failedRequests.percent.lte(maxerrp))
+        .assertions(details(cur).failedRequests.count.lte(specificMaxErrorsAllowed))
+        .assertions(details(cur).failedRequests.percent.lte(specificMaxErrorsAllowedPercentage))
     }
 }

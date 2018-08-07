@@ -114,7 +114,7 @@ MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 It is possible to override the `MEAN_RESPONSE_TIME`, `MAX_MEAN_RESPONSE_TIME`, `MAX_ERRORS_ALLOWED` and `MAX_ERRORS_ALLOWED_PERCENTAGE`
-for each kind by adding the kind as perfix in upper case, like `JAVA_MEAN_RESPONSE_TIME`.
+for each kind by adding the kind as prefix in upper case, like `JAVA_MEAN_RESPONSE_TIME`.
 
 
 You can run the simulation with (in OPENWHISK_HOME)
