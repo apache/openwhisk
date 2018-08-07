@@ -55,7 +55,6 @@ class LatencySimulation extends Simulation {
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol = openWhisk.apiHost(host)
 
-
   /**
    * Generate a list of actions to execute. The list is a tuple of (kind, code, actionName, main)
    * `kind` is needed to create the action
@@ -101,16 +100,20 @@ class LatencySimulation extends Simulation {
   val testSetup = setUp(test.inject(atOnceUsers(1)))
     .protocols(openWhiskProtocol)
 
-
   actions
     .map { case (kind, _, _, _) => kind }
     .foldLeft(testSetup) { (agg, kind) =>
       val cur = s"Warm $kind invocation"
       // One failure will make the build yellow
-      val specificMeanResponseTime : Int = sys.env.getOrElse(toKindSpecificKey(kind,MEAN_RESPONSE_TIME), meanResponseTime.toString).toInt
-      val specificMaxMeanResponseTime = sys.env.getOrElse(toKindSpecificKey(kind,MAX_MEAN_RESPONSE_TIME), maximalMeanResponseTime.toString).toInt
-      val specificMaxErrorsAllowed = sys.env.getOrElse(toKindSpecificKey(kind,MAX_ERRORS_ALLOWED), maxErrorsAllowed.toString).toInt
-      val specificMaxErrorsAllowedPercentage = sys.env.getOrElse(toKindSpecificKey(kind,MAX_ERRORS_ALLOWED_PERCENTAGE), maxErrorsAllowedPercentage.toString).toDouble
+      val specificMeanResponseTime: Int =
+        sys.env.getOrElse(toKindSpecificKey(kind, MEAN_RESPONSE_TIME), meanResponseTime.toString).toInt
+      val specificMaxMeanResponseTime =
+        sys.env.getOrElse(toKindSpecificKey(kind, MAX_MEAN_RESPONSE_TIME), maximalMeanResponseTime.toString).toInt
+      val specificMaxErrorsAllowed =
+        sys.env.getOrElse(toKindSpecificKey(kind, MAX_ERRORS_ALLOWED), maxErrorsAllowed.toString).toInt
+      val specificMaxErrorsAllowedPercentage = sys.env
+        .getOrElse(toKindSpecificKey(kind, MAX_ERRORS_ALLOWED_PERCENTAGE), maxErrorsAllowedPercentage.toString)
+        .toDouble
 
       agg
         .assertions(details(cur).responseTime.mean.lte(specificMeanResponseTime))
