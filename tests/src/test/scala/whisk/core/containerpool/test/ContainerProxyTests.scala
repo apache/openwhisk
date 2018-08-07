@@ -424,6 +424,8 @@ class ContainerProxyTests
     //second one will succeed
     run(machine, Ready)
 
+    //With exception of the error on first run, the assertions should be the same as in
+    //         `run an action and continue with a next run without pausing the container`
     awaitAssert {
       factory.calls should have size 1
       container.initializeCount shouldBe 1
