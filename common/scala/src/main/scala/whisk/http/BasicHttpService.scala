@@ -188,7 +188,6 @@ object BasicHttpService {
     implicit val executionContext = actorSystem.dispatcher
     sys.addShutdownHook {
       Await.result(binding.map(_.unbind()), 30.seconds)
-      actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
     }
   }
