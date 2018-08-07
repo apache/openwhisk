@@ -30,8 +30,6 @@ import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
 
-import java.util.Base64
-
 /**
  * Exec encodes the executable details of an action. For black
  * box container, an image name is required. For Javascript and Python
@@ -153,13 +151,8 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
   override def codeAsJson = code.toJson
 
   def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
-    val code = new String(bytes, StandardCharsets.UTF_8)
-
-    if (kind == "java" && !Exec.isBinaryCode(code)) {
-      val encoded = Base64.getEncoder.encodeToString(bytes)
-      copy(code = Inline(encoded))
-    } else
-      copy(code = Inline(code))
+    val encoded = new String(bytes, StandardCharsets.UTF_8)
+    copy(code = Inline(encoded))
   }
 
   def attach(attached: Attached): CodeExecAsAttachment = {
