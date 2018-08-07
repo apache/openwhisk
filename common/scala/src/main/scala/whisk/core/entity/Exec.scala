@@ -324,7 +324,8 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
               } map {
                 attFmt[String].read(_)
               } getOrElse {
-                throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
+                throw new DeserializationException(
+                  s"'code' must be a string or attachment object defined in 'exec' for '$kind' actions")
               }
               val main = optMainField.orElse {
                 if (manifest.requireMain.exists(identity)) {
