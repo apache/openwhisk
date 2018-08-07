@@ -199,7 +199,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
         response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
       }
   }
 
