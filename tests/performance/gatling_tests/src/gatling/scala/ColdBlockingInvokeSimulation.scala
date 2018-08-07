@@ -39,7 +39,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
   val requestsPerSec: Int = sys.env("REQUESTS_PER_SEC").toInt
   val minimalRequestsPerSec: Int = sys.env.getOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
   val maxErrorsAllowed: Int = sys.env.getOrElse("MAX_ERRORS_ALLOWED", "0").toInt
-  val maxErrorsAllowedPercentage: Double = sys.env.getOrElse("MAX_ERRORS_ALLOWED_PERCENTAGE", "0").toDouble
+  val maxErrorsAllowedPercentage: Double = sys.env.getOrElse("MAX_ERRORS_ALLOWED_PERCENTAGE", "0.1").toDouble
 
 
   // Generate the OpenWhiskProtocol

@@ -35,9 +35,17 @@ class LatencySimulation extends Simulation {
 
   val pauseBetweenInvokes: Int = sys.env.getOrElse("PAUSE_BETWEEN_INVOKES", "0").toInt
 
+  val MEAN_RESPONSE_TIME = "MEAN_RESPONSE_TIME"
+  val MAX_MEAN_RESPONSE_TIME = "MAX_MEAN_RESPONSE_TIME"
+  val MAX_ERRORS_ALLOWED = "MAX_ERRORS_ALLOWED"
+  val MAX_ERRORS_ALLOWED_PERCENTAGE = "MAX_ERRORS_ALLOWED_PERCENTAGE"
+
   // Specify thresholds
-  val meanResponseTime: Int = sys.env("MEAN_RESPONSE_TIME").toInt
-  val maximalMeanResponseTime: Int = sys.env.getOrElse("MAX_MEAN_RESPONSE_TIME", meanResponseTime.toString).toInt
+  val meanResponseTime: Int = sys.env(MEAN_RESPONSE_TIME).toInt
+  val maximalMeanResponseTime: Int = sys.env.getOrElse(MAX_MEAN_RESPONSE_TIME, meanResponseTime.toString).toInt
+
+  val maxErrorsAllowed: Int = sys.env.getOrElse(MAX_ERRORS_ALLOWED, "0").toInt
+  val maxErrorsAllowedPercentage: Double = sys.env.getOrElse(MAX_ERRORS_ALLOWED_PERCENTAGE, "0.1").toDouble
 
   // Exclude runtimes
   val excludedKinds: Seq[String] = sys.env.getOrElse("EXCLUDED_KINDS", "").split(",")
@@ -91,14 +99,20 @@ class LatencySimulation extends Simulation {
     .protocols(openWhiskProtocol)
 
   actions
-    .map { case (kind, _, _, _) => s"Warm $kind invocation" }
-    .foldLeft(testSetup) { (agg, cur) =>
+    .map { case (kind, _, _, _) => kind }
+    .foldLeft(testSetup) { (agg, kind) =>
+      val cur = s"Warm $kind invocation"
       // One failure will make the build yellow
+      val mrt : Int = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MEAN_RESPONSE_TIME, meanResponseTime.toString).toInt
+      val maxrt = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_MEAN_RESPONSE_TIME, maximalMeanResponseTime.toString).toInt
+      val maxerr = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_ERRORS_ALLOWED, maxErrorsAllowed.toString).toInt
+      val maxerrp = sys.env.getOrElse(kind.split(":").head.toUpperCase + "_" + MAX_ERRORS_ALLOWED_PERCENTAGE, maxErrorsAllowedPercentage.toString).toDouble
+
       agg
-        .assertions(details(cur).responseTime.mean.lte(meanResponseTime))
-        .assertions(details(cur).responseTime.mean.lt(maximalMeanResponseTime))
+        .assertions(details(cur).responseTime.mean.lte(mrt))
+        .assertions(details(cur).responseTime.mean.lt(maxrt))
         // Mark the build yellow, if there are failed requests. And red if both conditions fail.
-        .assertions(details(cur).failedRequests.count.is(0))
-        .assertions(details(cur).failedRequests.percent.lte(0.1))
+        .assertions(details(cur).failedRequests.count.lte(maxerr))
+        .assertions(details(cur).failedRequests.percent.lte(maxerrp))
     }
 }
