@@ -300,9 +300,6 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
             case None    => throw new DeserializationException(s"kind '$kind' not in $runtimes")
           }
 
-          manifest.attached.map { _ =>
-            }
-
           manifest.attached
             .map { _ =>
               // java actions once stored the attachment in "jar" instead of "code"
