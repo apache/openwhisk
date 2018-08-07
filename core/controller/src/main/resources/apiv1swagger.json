@@ -1280,6 +1280,9 @@
                     "401": {
                         "$ref": "#/responses/UnauthorizedRequest"
                     },
+                    "403": {
+                        "$ref": "#/responses/UnauthorizedRequest"
+                    },
                     "500": {
                         "$ref": "#/responses/ServerError"
                     }
@@ -1321,6 +1324,9 @@
                         }
                     },
                     "401": {
+                        "$ref": "#/responses/UnauthorizedRequest"
+                    },
+                    "403": {
                         "$ref": "#/responses/UnauthorizedRequest"
                     },
                     "404": {
