@@ -185,7 +185,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       EntityName("proxy"),
       parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z"))))
 
-  override protected def getPackage(pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+  def getPackage(pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     Future {
       packages.find(_.fullyQualifiedName(false) == pkgName).get
     } recoverWith {
@@ -198,7 +198,6 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   }
 
   // action names that start with 'export_' will automatically have an web-export annotation added by the test harness
-  // it doesn't resolve an action name, just toggle failCheckEntitlement to test entitlement
   override protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId) = {
     if (!failActionLookup) {
@@ -245,7 +244,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       if (actionName.path.defaultPackage) {
         Future.successful(theAction)
       } else {
-        getPackage(actionName.path.toFullyQualifiedEntityName) map (_ => theAction)
+        getPackage(actionName.path.toFullyQualifiedEntityName) map (pkg => theAction.inherit(pkg.parameters))
       }
     } else {
       Future.failed(NoDocumentException("doesn't exist"))
