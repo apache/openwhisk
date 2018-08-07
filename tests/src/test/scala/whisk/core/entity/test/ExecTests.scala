@@ -160,7 +160,6 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
                |  "binary": false
              |}""".stripMargin.parseJson.asJsObject
 
-    val a = Exec.serdes.read(j1)
     Exec.serdes.read(j1) should matchPattern {
       case CodeExecAsString(_, "SGVsbG8gT3BlbldoaXNr", None) =>
     }
