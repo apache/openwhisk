@@ -235,10 +235,10 @@ Each action invocation results in an activation record which contains the follow
   - `status`: The activation result, which might be one of the following values:
     - *"success"*: the action invocation completed successfully.
     - *"application error"*: the action was invoked, but returned an error value on purpose, for instance because a precondition on the arguments was not met. This status code is also returned under specific conditions such as:
+      - action timed out
+    - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed. This status code is also returned under specific conditions such as:
       - wrong docker container name
       - initialization of a function failed
-      - action timed out
-    - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed.
     - *"whisk internal error"*: the system was unable to invoke the action.
   - `success`: Is *true* if and only if the status is *"success"*.
   - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
