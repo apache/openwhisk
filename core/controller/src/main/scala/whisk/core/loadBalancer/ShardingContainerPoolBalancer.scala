@@ -461,7 +461,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    *
    * @param invokers a list of available invokers to search in, including their state
    * @param dispatched semaphores for each invoker to give the slots away from
-   * @param slots Number of slots, that need to be aquired (e.g. memory in MB)
+   * @param slots Number of slots, that need to be acquired (e.g. memory in MB)
    * @param index the index to start from (initially should be the "homeInvoker"
    * @param step stable identifier of the entity to be scheduled
    * @return an invoker to schedule to or None of no invoker is available
