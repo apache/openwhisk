@@ -39,6 +39,8 @@ class BlockingInvokeOneActionSimulation extends Simulation {
   // Specify thresholds
   val requestsPerSec: Int = sys.env("REQUESTS_PER_SEC").toInt
   val minimalRequestsPerSec: Int = sys.env.getOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
+  val maxErrorsAllowed: Int = sys.env.getOrElse("MAX_ERRORS_ALLOWED", "0").toInt
+  val maxErrorsAllowedPercentage: Double = sys.env.getOrElse("MAX_ERRORS_ALLOWED_PERCENTAGE", "0.1").toDouble
 
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol: OpenWhiskProtocolBuilder = openWhisk.apiHost(host)
@@ -74,6 +76,6 @@ class BlockingInvokeOneActionSimulation extends Simulation {
     .assertions(details("Invoke action").requestsPerSec.gt(minimalRequestsPerSec))
     .assertions(details("Invoke action").requestsPerSec.gt(requestsPerSec))
     // Mark the build yellow, if there are failed requests. And red if both conditions fail.
-    .assertions(details("Invoke action").failedRequests.count.is(0))
-    .assertions(details("Invoke action").failedRequests.percent.lte(0.1))
+    .assertions(details("Invoke action").failedRequests.count.lte(maxErrorsAllowed))
+    .assertions(details("Invoke action").failedRequests.percent.lte(maxErrorsAllowedPercentage))
 }

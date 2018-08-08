@@ -70,11 +70,13 @@ The test is doing as many requests as possible for the given amount of time (`SE
 Available environment variables:
 
 ```
-OPENWHISK_HOST          (required)
-CONNECTIONS             (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+CONNECTIONS                   (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with (in OPENWHISK_HOME)
@@ -101,13 +103,19 @@ The comparison of the thresholds is against the mean response times of the warm 
 Available environment variables:
 
 ```
-OPENWHISK_HOST          (required)
-API_KEY                 (required, format: UUID:KEY)
-PAUSE_BETWEEN_INVOKES   (default: 0)
-MEAN_RESPONSE_TIME      (required)
-MAX_MEAN_RESPONSE_TIME  (default: MEAN_RESPONSE_TIME)
-EXCLUDED_KINDS          (default: "", format: "python:default,java:default,swift:default")
+OPENWHISK_HOST                (required)
+API_KEY                       (required, format: UUID:KEY)
+PAUSE_BETWEEN_INVOKES         (default: 0)
+MEAN_RESPONSE_TIME            (required)
+MAX_MEAN_RESPONSE_TIME        (default: MEAN_RESPONSE_TIME)
+EXCLUDED_KINDS                (default: "", format: "python:default,java:default,swift:default")
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
+
+It is possible to override the `MEAN_RESPONSE_TIME`, `MAX_MEAN_RESPONSE_TIME`, `MAX_ERRORS_ALLOWED` and `MAX_ERRORS_ALLOWED_PERCENTAGE`
+for each kind by adding the kind as prefix in upper case, like `JAVA_MEAN_RESPONSE_TIME`.
+
 
 You can run the simulation with (in OPENWHISK_HOME)
 ```
@@ -130,12 +138,14 @@ The test is doing as many requests as possible for the given amount of time (`SE
 
 Available environment variables:
 ```
-OPENWHISK_HOST          (required)
-API_KEY                 (required, format: UUID:KEY)
-CONNECTIONS             (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+API_KEY                       (required, format: UUID:KEY)
+CONNECTIONS                   (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with
@@ -160,11 +170,13 @@ The test is doing as many requests as possible for the given amount of time (`SE
 
 Available environment variables:
 ```
-OPENWHISK_HOST          (required)
-USERS                   (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+USERS                         (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with

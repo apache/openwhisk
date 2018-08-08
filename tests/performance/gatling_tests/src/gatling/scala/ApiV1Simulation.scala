@@ -30,6 +30,8 @@ class ApiV1Simulation extends Simulation {
   // Specify thresholds
   val requestsPerSec = sys.env("REQUESTS_PER_SEC").toInt
   val minimalRequestsPerSec = sys.env.getOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
+  val maxErrorsAllowed: Int = sys.env.getOrElse("MAX_ERRORS_ALLOWED", "0").toInt
+  val maxErrorsAllowedPercentage: Double = sys.env.getOrElse("MAX_ERRORS_ALLOWED_PERCENTAGE", "0.1").toDouble
 
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol = openWhisk.apiHost(host)
@@ -46,6 +48,6 @@ class ApiV1Simulation extends Simulation {
     .assertions(details("Call api/v1 endpoint").requestsPerSec.gt(minimalRequestsPerSec))
     .assertions(details("Call api/v1 endpoint").requestsPerSec.gt(requestsPerSec))
     // Mark the build yellow, if there are failed requests. And red if both conditions fail.
-    .assertions(details("Call api/v1 endpoint").failedRequests.count.is(0))
-    .assertions(details("Call api/v1 endpoint").failedRequests.percent.lte(0.1))
+    .assertions(details("Call api/v1 endpoint").failedRequests.count.lte(maxErrorsAllowed))
+    .assertions(details("Call api/v1 endpoint").failedRequests.percent.lte(maxErrorsAllowedPercentage))
 }
