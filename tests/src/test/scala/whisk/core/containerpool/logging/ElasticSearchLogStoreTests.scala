@@ -36,6 +36,7 @@ import pureconfig.error.ConfigReaderException
 import spray.json._
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.database.UserContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -88,6 +89,7 @@ class ElasticSearchLogStoreTests
     HttpEntity(ContentTypes.`application/json`, defaultPayload))
   private val defaultLogStoreHttpRequest =
     HttpRequest(method = GET, uri = "https://some.url", entity = HttpEntity.Empty)
+  private val defaultContext = UserContext(user, defaultLogStoreHttpRequest)
 
   private val expectedLogs = ActivationLogs(
     Vector("2018-03-05T02:10:38.196689522Z stdout: some log stuff", "2018-03-05T02:10:38.196754258Z stdout: more logs"))
@@ -127,7 +129,7 @@ class ElasticSearchLogStoreTests
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfig)
 
-    await(esLogStore.fetchLogs(user, activation.withoutLogs, defaultLogStoreHttpRequest)) shouldBe expectedLogs
+    await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
   }
 
   it should "get logs from supplied activation record when required headers are not present" in {
@@ -137,7 +139,7 @@ class ElasticSearchLogStoreTests
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfigRequiredHeaders)
 
-    await(esLogStore.fetchLogs(user, activation, defaultLogStoreHttpRequest)) shouldBe expectedLogs
+    await(esLogStore.fetchLogs(activation, defaultContext)) shouldBe expectedLogs
   }
 
   it should "get user logs from ElasticSearch when required headers are needed" in {
@@ -160,8 +162,9 @@ class ElasticSearchLogStoreTests
       uri = "https://some.url",
       headers = List(RawHeader("x-auth-token", authToken), RawHeader("x-auth-project-id", authProjectId)),
       entity = HttpEntity.Empty)
+    val context = UserContext(user, requiredHeadersHttpRequest)
 
-    await(esLogStore.fetchLogs(user, activation.withoutLogs, requiredHeadersHttpRequest)) shouldBe expectedLogs
+    await(esLogStore.fetchLogs(activation.withoutLogs, context)) shouldBe expectedLogs
   }
 
   it should "dynamically replace $UUID in request path" in {
@@ -177,13 +180,13 @@ class ElasticSearchLogStoreTests
       Some(testFlow(defaultHttpResponse, httpRequest)),
       elasticSearchConfig = dynamicPathConfig)
 
-    await(esLogStore.fetchLogs(user, activation.withoutLogs, defaultLogStoreHttpRequest)) shouldBe expectedLogs
+    await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
   }
 
   it should "fail to connect to invalid host" in {
     val esLogStore = new ElasticSearchLogStore(system, elasticSearchConfig = defaultConfig)
 
-    a[Throwable] should be thrownBy await(esLogStore.fetchLogs(user, activation, defaultLogStoreHttpRequest))
+    a[Throwable] should be thrownBy await(esLogStore.fetchLogs(activation, defaultContext))
   }
 
   it should "forward errors from ElasticSearch" in {
@@ -194,7 +197,7 @@ class ElasticSearchLogStoreTests
         Some(testFlow(httpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfig)
 
-    a[RuntimeException] should be thrownBy await(esLogStore.fetchLogs(user, activation, defaultLogStoreHttpRequest))
+    a[RuntimeException] should be thrownBy await(esLogStore.fetchLogs(activation, defaultContext))
   }
 
   it should "error when configuration protocol is invalid" in {

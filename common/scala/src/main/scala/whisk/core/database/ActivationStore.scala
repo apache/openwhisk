@@ -29,6 +29,8 @@ import whisk.spi.Spi
 
 import scala.concurrent.Future
 
+case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
+
 trait ActivationStore {
 
   /**
@@ -39,7 +41,7 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def store(activation: WhiskActivation, user: Identity, request: HttpRequest)(
+  def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo]
 
@@ -50,8 +52,7 @@ trait ActivationStore {
    * @param transid transaction ID for request
    * @return Future containing the retrieved WhiskActivation
    */
-  def get(activationId: ActivationId, user: Identity, request: HttpRequest)(
-    implicit transid: TransactionId): Future[WhiskActivation]
+  def get(activationId: ActivationId, context: UserContext)(implicit transid: TransactionId): Future[WhiskActivation]
 
   /**
    * Deletes an activation corresponding to the provided activation ID.
@@ -61,7 +62,7 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing a Boolean value indication whether the activation was deleted
    */
-  def delete(activationId: ActivationId, user: Identity, request: HttpRequest)(
+  def delete(activationId: ActivationId, context: UserContext)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean]
 
@@ -81,8 +82,7 @@ trait ActivationStore {
                                   skip: Int,
                                   since: Option[Instant] = None,
                                   upto: Option[Instant] = None,
-                                  user: Identity,
-                                  request: HttpRequest)(implicit transid: TransactionId): Future[JsObject]
+                                  context: UserContext)(implicit transid: TransactionId): Future[JsObject]
 
   /**
    * Returns activations corresponding to provided entity name.
@@ -106,8 +106,7 @@ trait ActivationStore {
     includeDocs: Boolean = false,
     since: Option[Instant] = None,
     upto: Option[Instant] = None,
-    user: Identity,
-    request: HttpRequest)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
   /**
    * List all activations in a specified namespace.
@@ -129,8 +128,7 @@ trait ActivationStore {
     includeDocs: Boolean = false,
     since: Option[Instant] = None,
     upto: Option[Instant] = None,
-    user: Identity,
-    request: HttpRequest)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 }
 
 trait ActivationStoreProvider extends Spi {

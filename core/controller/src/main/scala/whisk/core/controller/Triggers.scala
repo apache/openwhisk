@@ -45,6 +45,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse
 import whisk.http.Messages
+import whisk.core.database.UserContext
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -133,6 +134,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     extractRequest { request =>
+      val context = UserContext(user, request)
+
       entity(as[Option[JsObject]]) { payload =>
         getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
           trigger: WhiskTrigger =>
@@ -164,7 +167,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     triggerActivation
                 }
                 .map { activation =>
-                  activationStore.store(activation, user, request)
+                  activationStore.store(activation, context)
                 }
               complete(Accepted, triggerActivationId.toJsObject)
             } else {
@@ -189,7 +192,6 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 500 Internal Server Error
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-
     deleteEntity(
       WhiskTrigger,
       entityStore,

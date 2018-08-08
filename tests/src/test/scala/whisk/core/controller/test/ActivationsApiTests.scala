@@ -21,7 +21,6 @@ import java.time.{Clock, Instant}
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server.Route
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -32,6 +31,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.{ErrorResponse, Messages}
+import whisk.core.database.UserContext
 
 /**
  * Tests Activations API.
@@ -52,6 +52,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   behavior of "Activations API"
 
   val creds = WhiskAuthHelpers.newIdentity()
+  val context = UserContext(creds)
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
 
@@ -94,8 +95,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now)
     }.toList
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, creds, HttpRequest()))
-      waitOnListActivationsInNamespace(namespace, 2, creds, HttpRequest())
+      (notExpectedActivations ++ activations).foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, 2, context)
 
       whisk.utils.retry {
         Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
@@ -136,7 +137,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     } finally {
       (notExpectedActivations ++ activations).foreach(activation =>
-        deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest()))
+        deleteActivation(ActivationId(activation.docid.asString), context))
     }
   }
 
@@ -177,8 +178,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, creds, HttpRequest()))
-      waitOnListActivationsInNamespace(namespace, 2, creds, HttpRequest())
+      (notExpectedActivations ++ activations).foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, 2, context)
       checkCount("", 2)
 
       whisk.utils.retry {
@@ -191,7 +192,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
     } finally {
       (notExpectedActivations ++ activations).foreach(activation =>
-        deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest()))
+        deleteActivation(ActivationId(activation.docid.asString), context))
     }
   }
 
@@ -252,8 +253,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = now.plusSeconds(30))) // should match
 
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, creds, HttpRequest()))
-      waitOnListActivationsInNamespace(namespace, activations.length, creds, HttpRequest())
+      (notExpectedActivations ++ activations).foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, activations.length, context)
 
       { // get between two time stamps
         val filter = s"since=${since.toEpochMilli}&upto=${upto.toEpochMilli}"
@@ -307,7 +308,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     } finally {
       (notExpectedActivations ++ activations).foreach(activation =>
-        deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest()))
+        deleteActivation(ActivationId(activation.docid.asString), context))
     }
   }
 
@@ -361,14 +362,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
     }.toList
     try {
-      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(storeActivation(_, creds, HttpRequest()))
-      waitOnListActivationsMatchingName(namespace, EntityPath("xyz"), activations.length, creds, HttpRequest())
+      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(storeActivation(_, context))
+      waitOnListActivationsMatchingName(namespace, EntityPath("xyz"), activations.length, context)
       waitOnListActivationsMatchingName(
         namespace,
         EntityName("pkg").addPath(EntityName("xyz")),
         activations.length,
-        creds,
-        HttpRequest())
+        context)
       checkCount("name=xyz", activations.length)
 
       whisk.utils.retry {
@@ -392,7 +392,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
     } finally {
       (notExpectedActivations ++ activations ++ activationsInPackage).foreach(activation =>
-        deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest()))
+        deleteActivation(ActivationId(activation.docid.asString), context))
     }
 
   }
@@ -480,7 +480,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, creds, HttpRequest())
+      storeActivation(activation, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -501,7 +501,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         status should be(Forbidden)
       }
     } finally {
-      deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest())
+      deleteActivation(ActivationId(activation.docid.asString), context)
     }
   }
 
@@ -517,7 +517,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, creds, HttpRequest())
+      storeActivation(activation, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -525,7 +525,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         response should be(activation.response.toExtendedJson)
       }
     } finally {
-      deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest())
+      deleteActivation(ActivationId(activation.docid.asString), context)
     }
   }
 
@@ -541,7 +541,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, creds, HttpRequest())
+      storeActivation(activation, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -549,7 +549,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         response should be(activation.logs.toJsonObject)
       }
     } finally {
-      deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest())
+      deleteActivation(ActivationId(activation.docid.asString), context)
     }
   }
 
@@ -564,14 +564,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    storeActivation(activation, creds, HttpRequest())
+    storeActivation(activation, context)
     try {
 
       Get(s"$collectionPath/${activation.activationId.asString}/bogus") ~> Route.seal(routes(creds)) ~> check {
         status should be(NotFound)
       }
     } finally {
-      deleteActivation(ActivationId(activation.docid.asString), creds, HttpRequest())
+      deleteActivation(ActivationId(activation.docid.asString), context)
     }
   }
 
@@ -637,7 +637,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     val activation =
       new BadActivation(namespace, aname(), creds.subject, ActivationId.generate(), Instant.now, Instant.now)
-    storeActivation(activation, creds, HttpRequest())
+    storeActivation(activation, context)
 
     Get(s"$collectionPath/${activation.activationId}") ~> Route.seal(routes(creds)) ~> check {
       status should be(InternalServerError)
