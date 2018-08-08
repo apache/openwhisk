@@ -644,10 +644,12 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   def listActivation(filter: Option[String] = None,
                      limit: Option[Int] = None,
                      since: Option[Instant] = None,
+                     skip: Option[Int] = Some(0),
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")
-    val paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++
+    val paramMap = Map("docs" -> docs.toString) ++
+      skip.map(s => Map("skip" -> s.toString)).getOrElse(Map.empty) ++
       limit.map(l => Map("limit" -> l.toString)).getOrElse(Map.empty) ++
       filter.map(f => Map("name" -> f.toString)).getOrElse(Map.empty) ++
       since.map(s => Map("since" -> s.toEpochMilli.toString)).getOrElse(Map.empty)
@@ -706,6 +708,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
    * @param entity the name of the entity to filter from activation list
    * @param limit the maximum number of entities to list (if entity name is not unique use Some(0))
    * @param since (optional) only the activations since this timestamp are included
+   * @param skip (optional) the number of activations to skip
    * @param retries the maximum retries (total timeout is retries + 1 seconds)
    * @return activation ids found, caller must check length of sequence
    */
@@ -713,11 +716,13 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                        entity: Option[String],
                        limit: Option[Int] = Some(30),
                        since: Option[Instant] = None,
+                       skip: Option[Int] = Some(0),
                        retries: Int = 10,
                        pollPeriod: Duration = 1.second)(implicit wp: WskProps): Seq[String] = {
     Try {
       retry({
-        val result = idsActivation(listActivation(filter = entity, limit = limit, since = since, docs = false))
+        val result =
+          idsActivation(listActivation(filter = entity, limit = limit, since = since, skip = skip, docs = false))
         if (result.length >= N) result else throw PartialResult(result)
       }, retries, waitBeforeRetry = Some(pollPeriod))
     } match {
@@ -732,13 +737,23 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                    fieldFilter: Option[String] = None,
                    last: Option[Boolean] = None,
                    summary: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val rr = activationId match {
+    val actId = activationId match {
+      case Some(id) => activationId
+      case None =>
+        last match {
+          case Some(b) if b == true => {
+            val activations = pollFor(N = 1, entity = None, limit = Some(1))
+            require(activations.size <= 1)
+            if (activations.isEmpty) None else Some(activations.head)
+          }
+          case _ => None
+        }
+    }
+    val rr = actId match {
       case Some(id) =>
         val resp = requestEntity(GET, getNamePath(wp.namespace, noun, id))
         new RestResult(resp.status, getRespData(resp))
-
-      case None =>
-        new RestResult(NotFound)
+      case None => new RestResult(NotFound)
     }
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
     rr

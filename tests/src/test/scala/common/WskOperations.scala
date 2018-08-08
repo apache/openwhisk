@@ -314,6 +314,7 @@ trait ActivationOperations {
               entity: Option[String],
               limit: Option[Int] = None,
               since: Option[Instant] = None,
+              skip: Option[Int] = Some(0),
               retries: Int,
               pollPeriod: Duration = 1.second)(implicit wp: WskProps): Seq[String]
 
