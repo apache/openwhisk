@@ -95,7 +95,6 @@
   with_items:
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
-  run_once: true
 
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes

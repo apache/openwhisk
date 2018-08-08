@@ -213,9 +213,8 @@ object ConfigKeys {
   val db = "whisk.db"
 
   val docker = "whisk.docker"
-  val dockerTimeouts = s"$docker.timeouts"
+  val dockerClient = s"$docker.client"
   val dockerContainerFactory = s"${docker}.container-factory"
-  val dockerParallelRuns = s"$docker.parallel-runs"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
 
