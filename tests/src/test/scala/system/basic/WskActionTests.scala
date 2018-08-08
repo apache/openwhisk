@@ -114,8 +114,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
           "response",
           "start",
           "subject",
-          "version")
-        .size shouldBe 12
+          "version") should have size 12
+
   }
 
   it should "pass parameters bound on creation-time to the action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -266,12 +266,6 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
           name,
           Some(TestUtils.getTestActionFilename("hello.js")),
           parameters = Map("name" -> testString.toJson)) //unused in the first function
-      }
-
-      val run1 = wsk.action.invoke(name, Map("payload" -> testString.toJson))
-      withActivation(wsk.activation, run1) { activation =>
-        activation.response.status shouldBe "success"
-        activation.logs.get.mkString(" ") should include(s"hello, $testString")
       }
 
       wsk.action.create(name, Some(TestUtils.getTestActionFilename("hello.py")), update = true)

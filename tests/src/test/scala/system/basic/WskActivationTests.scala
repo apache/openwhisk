@@ -75,39 +75,4 @@ class WskActivationTests extends TestHelpers with WskTestHelpers with WskActorSy
       wsk.activation.result(Some(activation.activationId)).stdout.parseJson.asJsObject shouldBe expectedResult
     }
   }
-
-  it should "list activations with skip" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = withTimestamp("countdown")
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("countdown.js")))
-    }
-
-    val count = 2
-    val run = wsk.action.invoke(name, Map("n" -> count.toJson))
-    withActivation(wsk.activation, run) { activation =>
-      //make query more robust
-      val queryTime = activation.start.minusMillis(500)
-      //the countdown function invokes itself two more times, we need to skip 2 invocations to get single activation
-      val activations =
-        wsk.activation.pollFor(N = 1, Some(name), since = Some(queryTime), skip = Some(2), retries = 80).length
-      withClue(s"expected activations of action '$name' since $queryTime") {
-        activations shouldBe 1
-      }
-    }
-  }
-
-  it should "get last activation" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = withTimestamp("countdown")
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("countdown.js")))
-    }
-
-    val count = 1
-    val run = wsk.action.invoke(name, Map("n" -> count.toJson))
-    withActivation(wsk.activation, run) { activation =>
-      val res = wsk.activation.get(None, last = Some(true))
-      val jsonResponse = wsk.parseJsonString(res.stdout)
-      jsonResponse.getFields("name").head.toString should include("countdown")
-    }
-  }
 }

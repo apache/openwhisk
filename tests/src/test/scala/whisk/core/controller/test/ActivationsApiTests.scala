@@ -468,6 +468,58 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
+  it should "skip activations and return correct ones" in {
+    implicit val tid = transid()
+    val activations = (1 to 3).map { _ =>
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
+    }.toList
+
+    try {
+      activations.foreach(storeActivation)
+      waitOnListActivationsInNamespace(namespace, 3)
+
+      Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val activations = responseAs[List[JsObject]]
+        activations.length should be(2)
+      }
+    } finally {
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
+    }
+  }
+
+  it should "return last activation" in {
+    implicit val tid = transid()
+    val activations = (1 to 3).map { _ =>
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
+    }.toList
+
+    try {
+      activations.foreach(storeActivation)
+      waitOnListActivationsInNamespace(namespace, 3)
+
+      Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val activations = responseAs[List[JsObject]]
+        activations.length should be(1)
+      }
+    } finally {
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
+    }
+  }
+
   //// GET /activations/id
   it should "get activation by id" in {
     implicit val tid = transid()
