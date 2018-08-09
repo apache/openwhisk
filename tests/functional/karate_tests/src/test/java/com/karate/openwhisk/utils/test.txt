@@ -1,0 +1,96 @@
+REQUEST:
+[POST]	https://controller-a-rtapi-ue1-a.dev.runtime.adobe.io/api/v1/web/whisk.system/apimgmt/createApi.http?accesstoken=DUMMY+TOKEN&responsetype=json&spaceguid=23bc46b1-71f6-4ed5-8c54-816aa4f8c502
+Req Headers
+{
+  "Authorization": [
+    "Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+  ],
+  "Content-Type": [
+    "application/json"
+  ],
+  "User-Agent": [
+    "OpenWhisk-CLI/1.0 (2018-06-01T13:37:12.208+0000)"
+  ]
+}
+Req Body
+Body exceeds 1000 bytes and will be truncated
+{"apidoc":{"namespace":"guest","swagger":"{\n  \"swagger\": \"2.0\",\n  \"info\": {\n    \"version\": \"1.0.0\",\n    \"title\": \"Swagger Petstore\",\n    \"license\": {\n      \"name\": \"MIT\"\n    }\n  },\n  \"host\": \"petstore.swagger.io\",\n  \"basePath\": \"/v1\",\n  \"schemes\": [\n    \"http\"\n  ],\n  \"consumes\": [\n    \"application/json\"\n  ],\n  \"produces\": [\n    \"application/json\"\n  ],\n  \"paths\": {\n    \"/pets\": {\n      \"get\": {\n        \"summary\": \"List all pets\",\n        \"operationId\": \"listPets\",\n        \"tags\": [\n          \"pets\"\n        ],\n        \"parameters\": [\n          {\n            \"name\": \"limit\",\n            \"in\": \"query\",\n            \"description\": \"How many items to return at one time (max 100)\",\n            \"required\": false,\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          }\n        ],\n        \"responses\": {\n          \"200\": {\n            \"description\": \"An ...
+RESPONSE:Got response with code 200
+Resp Headers
+{
+  "Access-Control-Allow-Headers": [
+    "Authorization, Content-Type"
+  ],
+  "Access-Control-Allow-Methods": [
+    "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+  ],
+  "Access-Control-Allow-Origin": [
+    "*"
+  ],
+  "Connection": [
+    "keep-alive"
+  ],
+  "Content-Length": [
+    "4030"
+  ],
+  "Content-Type": [
+    "application/json"
+  ],
+  "Date": [
+    "Fri, 20 Jul 2018 08:58:18 GMT"
+  ],
+  "Perf-Br-Resp-Out": [
+    "1532077098.358"
+  ],
+  "Server": [
+    "api-gateway/1.9.3.1"
+  ],
+  "X-Gw-Cache": [
+    "BYPASS"
+  ],
+  "X-Request-Id": [
+    "2FQAX30Kc5G9iEa4ehMFkJZ61NVIuQty",
+    "wOTpXpG0MgF3RtNNzrxEDuOqQ6egmncz"
+  ]
+}
+Response body size is 4030 bytes
+Body exceeds 1000 bytes and will be truncated
+Response body received:
+{
+  "gwApiUrl": "https://controller-a-rtapi-ue1-a.dev.runtime.adobe.io:443/apis/guest/v1",
+  "gwApiActivated": true,
+  "tenantId": "Not Used",
+  "apidoc": {
+    "host": "petstore.swagger.io",
+    "paths": {
+      "/pets": {
+        "get": {
+          "tags": ["pets"],
+          "operationId": "guest/default/listPets",
+          "x-openwhisk": {
+            "url": "not-used",
+            "namespace": "guest",
+            "package": "default",
+            "action": "listPets"
+          },
+          "parameters": [{
+            "format": "int32",
+            "name": "limit",
+            "in": "query",
+            "description": "How many items to return at one time (max 100)",
+            "type": "integer",
+            "required": false
+          }],
+          "summary": "List all pets",
+          "responses": {
+            "200": {
+              "description": "An paged array of pets",
+              "headers": {
+                "x-next": {
+                  "description": "A link to the ...
+ok: created API /v1/pets get for action /guest/default/listPets
+https://controller-a-rtapi-ue1-a.dev.runtime.adobe.io:443/apis/guest/v1/pets
+ok: created API /v1/pets post for action /guest/default/createPets
+https://controller-a-rtapi-ue1-a.dev.runtime.adobe.io:443/apis/guest/v1/pets
+ok: created API /v1/pets/{petId} get for action /guest/default/showPetById
+https://controller-a-rtapi-ue1-a.dev.runtime.adobe.io:443/apis/guest/v1/pets/{petId}
