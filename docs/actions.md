@@ -223,7 +223,7 @@ so that one may check for the result later, as with non-blocking requests
 (see [here](#watching-action-output) for tips on monitoring activations).
 If execution of the action exceeds the action's configured time limit within the blocking wait period
 the result of the invocation is an error caused by the action timeout and the response status is _application error_.
-The action continues processing in the system for a while until it is terminated. 
+The action continues processing in the system for a while until it is terminated.
 Subsequent calls to `wsk activation get <activationId> --summary` will return the original error even if
 the action finished its execution before it was terminated.
 
