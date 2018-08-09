@@ -2,7 +2,7 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 ---
 
-- name: remove cli nginx directory
+- name: remove wsk binary
   file:
     path: "{{ openwhisk_home }}/bin/{{ wsk }}"
     state: absent

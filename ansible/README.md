@@ -150,27 +150,31 @@ cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
-ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+
+# installs a catalog of public packages and actions
 ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
 ```
 
-You need to run `initdb.yml` **every time** you do a fresh deploy CouchDB to initialize the subjects database.
-The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
-data that include actions and activations are lost.
+- You need to run `initdb.yml` **every time** you do a fresh deploy CouchDB to initialize the subjects database.
+- The `wipe.yml` playbook should be run on a fresh deployment only, otherwise actions and activations will be lost.
+- Run `postdeploy.yml` after deployment to install a catalog of useful packages.
+- To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
+- Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 #### Limitation
 
-You can not run multiple CouchDB nodes on a single machine.
-This limitation comes from Erlang EPMD.
-When CouchDB forms a cluster, it counts on EPMD to find other nodes.
-If we want to run multiple nodes on a single machine, we must differentiate EPMD port(`4369`) for each nodes. But if this port is different on each nodes, they cannot find each other.
-So if you want to deploy multiple CouchDB nodes, all nodes should be placed on different machines respectively.
+You cannot run multiple CouchDB nodes on a single machine. This limitation comes from Erlang EPMD which CouchDB relies on to find other nodes.
+To deploy multiple CouchDB nodes, they should be placed on different machines respectively otherwise their ports will clash.
 
 
 ### Deploying Using Cloudant
--   Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
--   Then execute
+-   Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup).
+-   Then execute:
 
 ```
 cd <openwhisk_home>
@@ -180,16 +184,21 @@ ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+
+# installs a catalog of public packages and actions
 ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
 ```
 
-You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the subjects database.
-The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
-
-The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
-data that include actions and activations are lost.
-
-Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
+- You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the subjects database.
+- The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
+- The `wipe.yml` playbook should be run on a fresh deployment only, otherwise actions and activations will be lost.
+- Run `postdeploy.yml` after deployment to install a catalog of useful packages.
+- To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
+- Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 ### Configuring the installation of `wsk` CLI
 There are two installation modes to install `wsk` CLI: remote and local.

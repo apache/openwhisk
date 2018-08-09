@@ -3,7 +3,7 @@
 ---
 # This role will run a CouchDB server on the db group
 
-- name: "Set the coordinator to the first node"
+- name: set the coordinator to the first node
   set_fact:
     coordinator: "{{ groups['db'][0] }}"
 

@@ -1,9 +1,9 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 ---
-# Install the appropriate CLI into the ansible host for the routemgmt tasks
+# Install the appropriate CLI into the ansible host
 
-- name: "Grab the local CLI from the binaries unarchived into nginx"
+- name: grab the local CLI from the binaries unarchived into nginx
   get_url:
     url: "https://{{host}}/cli/go/download/{{os}}/{{arch}}/{{wsk}}"
     dest: "{{ openwhisk_home }}/bin"
