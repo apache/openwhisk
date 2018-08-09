@@ -36,6 +36,12 @@ import whisk.core.database.CouchDbConfig
 
 trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor with IntegrationPatience {
 
+  case class DatabaseUrl(dbProtocol: String, dbUsername: String, dbPassword: String, dbHost: String, dbPort: String) {
+    def url = s"$dbProtocol://$dbUsername:$dbPassword@$dbHost:$dbPort"
+
+    def safeUrl = s"$dbProtocol://$dbHost:$dbPort"
+  }
+
   val python = WhiskProperties.python
   val config = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
   val dbProtocol = config.protocol
@@ -44,14 +50,14 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
   val dbUsername = config.username
   val dbPassword = config.password
   val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
-  val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
+  val dbUrl = DatabaseUrl(dbProtocol, dbUsername, dbPassword, dbHost, dbPort.toString)
 
   def retry[T](task: => T) = whisk.utils.retry(task, 10, Some(500.milliseconds))
 
   /** Creates a new database with the given name */
   def createDatabase(name: String, designDocPath: Option[String])(implicit as: ActorSystem, logging: Logging) = {
     // Implicitly remove database for sanitization purposes
-    removeDatabase(name, true)
+    removeDatabase(name, ignoreFailure = true)
 
     println(s"Creating database: $name")
     val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword, name)

@@ -48,7 +48,7 @@ class ReplicatorTests
     with StreamLogging
     with DatabaseScriptTestUtils {
 
-  val testDbPrefix = s"replicatortest_${dbPrefix}"
+  val testDbPrefix = s"replicatortest_$dbPrefix"
 
   val replicatorClient =
     new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, "_replicator")
@@ -70,15 +70,15 @@ class ReplicatorTests
   }
 
   /** Runs the replicator script to replicate databases */
-  def runReplicator(sourceDbUrl: String,
-                    targetDbUrl: String,
+  def runReplicator(sourceDbUrl: DatabaseUrl,
+                    targetDbUrl: DatabaseUrl,
                     dbPrefix: String,
                     expires: FiniteDuration,
                     continuous: Boolean = false,
                     exclude: List[String] = List.empty,
                     excludeBaseName: List[String] = List.empty) = {
     println(
-      s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous, $exclude, $excludeBaseName")
+      s"Running replicator: ${sourceDbUrl.safeUrl}, ${targetDbUrl.safeUrl}, $dbPrefix, $expires, $continuous, $exclude, $excludeBaseName")
 
     val continuousFlag = if (continuous) Some("--continuous") else None
     val excludeFlag = Seq(exclude.mkString(",")).filter(_.nonEmpty).flatMap(ex => Seq("--exclude", ex))
@@ -88,9 +88,9 @@ class ReplicatorTests
       python,
       replicator,
       "--sourceDbUrl",
-      sourceDbUrl,
+      sourceDbUrl.url,
       "--targetDbUrl",
-      targetDbUrl,
+      targetDbUrl.url,
       "replicate",
       "--dbPrefix",
       dbPrefix,
@@ -113,17 +113,17 @@ class ReplicatorTests
   }
 
   /** Runs the replicator script to replay databases */
-  def runReplay(sourceDbUrl: String, targetDbUrl: String, dbPrefix: String) = {
-    println(s"Running replay: $sourceDbUrl, $targetDbUrl, $dbPrefix")
+  def runReplay(sourceDbUrl: DatabaseUrl, targetDbUrl: DatabaseUrl, dbPrefix: String) = {
+    println(s"Running replay: ${sourceDbUrl.safeUrl}, ${targetDbUrl.safeUrl}, $dbPrefix")
     val rr = TestUtils.runCmd(
       0,
       new File("."),
       WhiskProperties.python,
       WhiskProperties.getFileRelativeToWhiskHome("tools/db/replicateDbs.py").getAbsolutePath,
       "--sourceDbUrl",
-      sourceDbUrl,
+      sourceDbUrl.url,
       "--targetDbUrl",
-      targetDbUrl,
+      targetDbUrl.url,
       "replay",
       "--dbPrefix",
       dbPrefix)
@@ -208,11 +208,11 @@ class ReplicatorTests
     waitForReplication(backupDbName)
 
     // Verify the replicated database is equal to the original database
-    compareDatabases(dbName, backupDbName, true)
+    compareDatabases(dbName, backupDbName, filterUsed = true)
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbName)
   }
 
@@ -235,7 +235,7 @@ class ReplicatorTests
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbNameToBackup)
     removeDatabase(testDbPrefix + excludedName)
   }
@@ -260,7 +260,7 @@ class ReplicatorTests
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbNameToBackup)
     removeDatabase(testDbPrefix + excludedName + "-postfix123")
   }
@@ -290,11 +290,11 @@ class ReplicatorTests
     waitForReplication(backupDbName)
 
     // Verify the replicated database is equal to the original database
-    compareDatabases(dbName, backupDbName, false)
+    compareDatabases(dbName, backupDbName, filterUsed = false)
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbName)
   }
 
@@ -329,7 +329,7 @@ class ReplicatorTests
     waitForReplication(backupDbName)
 
     // Verify the replicated database is equal to the original database
-    compareDatabases(dbName, backupDbName, true)
+    compareDatabases(dbName, backupDbName, filterUsed = true)
 
     // Check that deleted doc has not been copied to snapshot
     val snapshotClient =
@@ -339,11 +339,11 @@ class ReplicatorTests
     val results = snapshotResponse.right.get.fields("rows").convertTo[List[JsObject]]
     results should have size 1
     // If deleted doc would be in db, the document id and rev would have been returned
-    results(0) shouldBe JsObject("key" -> idOfDeletedDocument.toJson, "error" -> "not_found".toJson)
+    results.head shouldBe JsObject("key" -> idOfDeletedDocument.toJson, "error" -> "not_found".toJson)
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbName)
   }
 
@@ -353,7 +353,7 @@ class ReplicatorTests
     val client = createDatabase(dbName, Some(designDocPath))
 
     // Trigger replication and verify the created databases have the correct format
-    val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, true)
+    val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, continuous = true)
     createdBackupDbs should have size 1
     val backupDbName = createdBackupDbs.head
     backupDbName shouldBe s"continuous_$dbName"
@@ -371,7 +371,7 @@ class ReplicatorTests
     waitForDocument(backupClient, docId)
 
     // Verify the replicated database is equal to the original database
-    compareDatabases(backupDbName, dbName, false)
+    compareDatabases(backupDbName, dbName, filterUsed = false)
 
     // Stop the replication
     val replication = replicatorClient.getDoc(backupDbName).futureValue
@@ -383,7 +383,7 @@ class ReplicatorTests
 
     // Remove all created databases
     createdBackupDbs.foreach(removeDatabase(_))
-    createdBackupDbs.foreach(removeReplicationDoc(_))
+    createdBackupDbs.foreach(removeReplicationDoc)
     removeDatabase(dbName)
   }
 
@@ -408,15 +408,15 @@ class ReplicatorTests
     // Trigger replication and verify the expired database is deleted while the unexpired one is kept
     val (createdDatabases, deletedReplicationDocs, deletedDatabases) =
       runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
-    deletedReplicationDocs should (contain(expiredName) and not contain (notExpiredName))
-    deletedDatabases should (contain(expiredName) and not contain (notExpiredName))
+    deletedReplicationDocs should (contain(expiredName) and not contain notExpiredName)
+    deletedDatabases should (contain(expiredName) and not contain notExpiredName)
 
     expiredClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
     notExpiredClient.getAllDocs().futureValue shouldBe 'right
 
     // Cleanup backup database
     createdDatabases.foreach(removeDatabase(_))
-    createdDatabases.foreach(removeReplicationDoc(_))
+    createdDatabases.foreach(removeReplicationDoc)
     removeReplicationDoc(notExpiredName)
     removeDatabase(notExpiredName)
   }
@@ -435,7 +435,7 @@ class ReplicatorTests
     replicatorClient.putDoc(correctPrefixName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
 
     // Create a database that is expired with wrong prefix
-    val wrongPrefix = s"replicatortest_wrongprefix_${dbPrefix}"
+    val wrongPrefix = s"replicatortest_wrongprefix_$dbPrefix"
     val wrongPrefixName = s"backup_${toEpochSeconds(expired)}_${wrongPrefix}expired_backup_wrong_prefix"
     val wrongPrefixClient = createDatabase(wrongPrefixName, Some(designDocPath))
     replicatorClient.putDoc(wrongPrefixName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
@@ -443,15 +443,15 @@ class ReplicatorTests
     // Trigger replication and verify the expired database with correct prefix is deleted while the db with the wrong prefix is kept
     val (createdDatabases, deletedReplicationDocs, deletedDatabases) =
       runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
-    deletedReplicationDocs should (contain(correctPrefixName) and not contain (wrongPrefixName))
-    deletedDatabases should (contain(correctPrefixName) and not contain (wrongPrefixName))
+    deletedReplicationDocs should (contain(correctPrefixName) and not contain wrongPrefixName)
+    deletedDatabases should (contain(correctPrefixName) and not contain wrongPrefixName)
 
     correctPrefixClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
     wrongPrefixClient.getAllDocs().futureValue shouldBe 'right
 
     // Cleanup backup database
     createdDatabases.foreach(removeDatabase(_))
-    createdDatabases.foreach(removeReplicationDoc(_))
+    createdDatabases.foreach(removeReplicationDoc)
     removeReplicationDoc(wrongPrefixName)
     removeDatabase(wrongPrefixName)
   }
@@ -474,7 +474,7 @@ class ReplicatorTests
     waitForReplication(replicationId)
 
     // Verify the replicated database is equal to the original database
-    compareDatabases(backupDbName, dbName, false)
+    compareDatabases(backupDbName, dbName, filterUsed = false)
 
     // Cleanup databases
     removeReplicationDoc(replicationId)
