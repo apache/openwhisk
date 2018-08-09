@@ -90,34 +90,6 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     }
   }
 
-  it should "invoke an action with option --blocking only and verify output" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "invokeResult"
-      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
-      }
-      val args = Map("hello" -> "Robert".toJson)
-      val run = wsk.action.invoke(name, args, blocking = true)
-
-      run.stdout.parseJson.asJsObject.getFieldPath("response", "result").get.asJsObject shouldBe JsObject(args)
-
-      run.stdout.parseJson.asJsObject
-        .getFields(
-          "activationId",
-          "annotations",
-          "duration",
-          "end",
-          "logs",
-          "name",
-          "namespace",
-          "publish",
-          "response",
-          "start",
-          "subject",
-          "version") should have size 12
-
-  }
-
   it should "pass parameters bound on creation-time to the action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "printParams"
     val params = Map("param1" -> "test1", "param2" -> "test2")

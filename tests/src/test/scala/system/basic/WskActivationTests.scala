@@ -21,7 +21,6 @@ import common.rest.WskRestOperations
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
-
 import whisk.utils.retry
 
 import scala.concurrent.duration._

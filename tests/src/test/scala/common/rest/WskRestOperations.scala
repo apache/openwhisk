@@ -741,7 +741,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
       case Some(id) => activationId
       case None =>
         last match {
-          case Some(b) if b == true => {
+          case Some(true) => {
             val activations = pollFor(N = 1, entity = None, limit = Some(1))
             require(activations.size <= 1)
             if (activations.isEmpty) None else Some(activations.head)

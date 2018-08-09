@@ -470,24 +470,20 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "skip activations and return correct ones" in {
     implicit val tid = transid()
-    val activations = (1 to 3).map { _ =>
-      WhiskActivation(
-        namespace,
-        aname(),
-        creds.subject,
-        ActivationId.generate(),
-        start = Instant.now,
-        end = Instant.now)
+    val activations = (1 to 3).map { i =>
+      val time = Instant.now.plusMillis(i)
+      WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
     }.toList
 
     try {
       activations.foreach(storeActivation)
-      waitOnListActivationsInNamespace(namespace, 3)
+      waitOnListActivationsInNamespace(namespace, activations.size)
 
       Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val activations = responseAs[List[JsObject]]
-        activations.length should be(2)
+        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("activationId"))
+        val expectedActivationIds = activations.map(_.toJson.fields("activationId")).reverse.drop(1)
+        resultActivationIds should be(expectedActivationIds)
       }
     } finally {
       activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
@@ -496,24 +492,20 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "return last activation" in {
     implicit val tid = transid()
-    val activations = (1 to 3).map { _ =>
-      WhiskActivation(
-        namespace,
-        aname(),
-        creds.subject,
-        ActivationId.generate(),
-        start = Instant.now,
-        end = Instant.now)
+    val activations = (1 to 3).map { i =>
+      val time = Instant.now.plusMillis(i)
+      WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
     }.toList
 
     try {
       activations.foreach(storeActivation)
-      waitOnListActivationsInNamespace(namespace, 3)
+      waitOnListActivationsInNamespace(namespace, activations.size)
 
       Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val activations = responseAs[List[JsObject]]
-        activations.length should be(1)
+        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("activationId"))
+        val expectedActivationIds = activations.map(_.toJson.fields("activationId")).drop(2)
+        resultActivationIds should be(expectedActivationIds)
       }
     } finally {
       activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
