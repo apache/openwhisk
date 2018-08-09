@@ -174,6 +174,7 @@ trait WhiskCommand {
   this: ScallopConfBase =>
 
   shortSubcommandsHelp()
+  appendDefaultToDescription = true
 
   def failNoSubCommand(): Unit = {
     val s = parentConfig.builder.findSubbuilder(commandNameAndAliases.head).get

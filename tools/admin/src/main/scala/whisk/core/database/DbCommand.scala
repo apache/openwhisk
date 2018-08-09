@@ -82,6 +82,8 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 
     //TODO Support relative files also
     val in = opt[File](descr = "file to read contents from", required = true)
+
+    val threads = opt[Int](descr = "Number of parallel puts to perform", default = Some(5))
     validateFileExists(in)
   }
   addSubcommand(put)
@@ -139,7 +141,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val ticker = if (showProgressBar()) new FiniteProgressBar("Importing", lineCount(put.in())) else NoopTicker
     val source = createJSStream(put.in())
     val f = source
-      .mapAsyncUnordered(4) { js =>
+      .mapAsyncUnordered(put.threads()) { js =>
         val id = js.fields("_id").convertTo[String]
         val g = put.dbType.runtimeClass match {
           case x if x == classOf[WhiskEntity]     => entityStore.put(AnyEntity(js))
