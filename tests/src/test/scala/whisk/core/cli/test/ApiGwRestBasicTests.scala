@@ -97,7 +97,7 @@ abstract class ApiGwRestBasicTests extends BaseApiGwTests {
   }
 
   def verifyApiGet(rr: RunResult): Unit = {
-    rr.stdout should include regex (s""""operationId":\\s+"getPathWithSub_pathsInIt"""")
+    rr.stdout should include regex (s""""operationId":\\s*"getPathWithSub_pathsInIt"""")
   }
 
   def verifyApiFullList(rr: RunResult,

@@ -142,7 +142,7 @@ class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil with WskActorSyst
   }
 
   override def verifyApiGet(rr: RunResult): Unit = {
-    rr.stdout should include(s""""operationId":"getPathWithSub_pathsInIt"""")
+    rr.stdout should include regex (s""""operationId":\\s*"getPathWithSub_pathsInIt"""")
   }
 
   override def verifyApiFullList(rr: RunResult,
@@ -202,7 +202,7 @@ class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil with WskActorSyst
     val openwhisk = RestResult.getFieldJsObject(urlop, "x-openwhisk")
     val actionN = RestResult.getField(openwhisk, "action")
     actionN shouldBe actionName
-    rr.stdout should include regex (s""""target-url":".*${actionName}.${responseType}"""")
+    rr.stdout should include regex (s""""target-url":\\s*".*${actionName}.${responseType}"""")
   }
 
   override def verifyInvalidSwagger(rr: RunResult): Unit = {
