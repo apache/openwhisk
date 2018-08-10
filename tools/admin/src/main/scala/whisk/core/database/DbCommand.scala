@@ -25,21 +25,25 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
+import org.apache.commons.io.FileUtils
 import org.apache.commons.io.output.CloseShieldOutputStream
 import org.rogach.scallop.{ScallopConfBase, Subcommand}
 import org.slf4j.LoggerFactory
-import spray.json.{JsObject, JsString, JsonParser}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.{Logging, TransactionId}
 import whisk.core.cli.ConsoleUtil._
 import whisk.core.cli._
 import whisk.core.database.DbCommand._
+import whisk.core.entity.Attachments.Attached
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.utils.JsHelpers
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
-import scala.util.Properties
+import scala.util.{Failure, Properties, Success, Try}
 
 class DbCommand extends Subcommand("db") with WhiskCommand {
   descr("work with dbs")
@@ -74,6 +78,11 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val view = opt[String](descr = "the view in the database to get", argName = "VIEW")
 
     val out = opt[File](descr = "file to dump the contents to")
+
+    val attachments =
+      opt[Boolean](descr = "include attachments. Downloaded attachments would be stored under 'attachments' directory")
+
+    dependsOnAny(attachments, List(out))
   }
   addSubcommand(get)
 
@@ -109,22 +118,110 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val store = createStreamingStore(get.dbType, artifactStore)
 
     val ticker = if (get.out.isDefined && showProgressBar()) getProgressBar(store, "Exporting") else NoopTicker
+
+    val attachCounter = Sink.fold[Int, JsObject](0)((acc, js) => if (hasAttachment(js)) acc + 1 else acc)
+    val combiner = (cf: Future[Int], iof: Future[IOResult]) => for { c <- cf; io <- iof } yield ReadResult(c, io)
+
     val outputSink = Flow[JsObject]
+      .alsoToMat(attachCounter)(Keep.right) //Track attachment count
       .map(jsToStringLine)
       .via(tick(ticker))
-      .toMat(createSink())(Keep.right)
+      .toMat(createSink())(combiner)
 
-    val f = store.getAll[IOResult](outputSink)
+    val f = store
+      .getAll(outputSink) //1. Write all js docs to a file
+      .map {
+        case (count, r) =>
+          if (r.io.wasSuccessful) r.copy(count = count)
+          else throw r.io.getError
+      }
+      .flatMap { rr =>
+        //TODO Close ticker here and log
+        //2. Now download attachments by reading output file
+        if (rr.attachmentCount > 0) {
+          val dump = get.out() //For attachment case out file is required
+          downloadAttachments(dump, getOrCreateAttachmentDir(dump), rr.count, artifactStore)
+            .map { sr =>
+              rr.copy(downloads = Some(sr))
+            }
+        } else {
+          Future.successful(rr)
+        }
+      }
+
     f.onComplete { _ =>
       ticker.close()
       artifactStore.shutdown()
     }
-    f.map {
-      case (count, r) =>
-        if (r.wasSuccessful)
-          Right(get.out.map(CommandMessages.dbContentToFile(count, _)).getOrElse(""))
-        else throw r.getError
+    f.map { r =>
+      if (r.ok) Right(get.out.map(CommandMessages.dbContentToFile(r.count, _)).getOrElse(""))
+      else Left(IllegalState(r.errorMsg))
     }
+  }
+
+  private case class ReadResult(attachmentCount: Int,
+                                io: IOResult,
+                                count: Long = 0,
+                                downloads: Option[StreamResult] = None) {
+    def ok: Boolean = ignoreAttachmentErrors || io.wasSuccessful && downloads.forall(_.failed == 0)
+
+    def errorMsg = {
+      val r = downloads.get
+      CommandMessages.downloadAttachmentFailed(r.success, r.failed)
+    }
+  }
+
+  def downloadAttachments(file: File, attachmentDir: File, count: Long, store: ArtifactStore[_])(
+    implicit transid: TransactionId,
+    ec: ExecutionContext,
+    materializer: ActorMaterializer): Future[StreamResult] = {
+    val source = createJSStream(file)
+    val ioOk = IOResult.createSuccessful(0)
+    val ticker = if (showProgressBar()) new FiniteProgressBar("Downloading", count) else NoopTicker
+    val f = source
+      .filter(hasAttachment)
+      .mapAsyncUnordered(5) { js =>
+        val id = js.fields("_id").convertTo[String]
+        val t = Try {
+          //Try reading the attachment. If there is some error before actual read call then try would
+          //ensure that only this record is dropped from processing
+          val rev = js.fields("_rev").convertTo[String]
+          val action = WhiskAction.serdes.read(js)
+          action.revision(DocRevision(rev))
+          action.exec match {
+            case CodeExecAsAttachment(_, attached: Attached, _) =>
+              val outFile = createFile(getAttachmentFile(attachmentDir, action))
+              val sink = FileIO.toPath(outFile.toPath)
+              store.readAttachment(action.docinfo, attached, sink)
+            case _ => Future.successful(ioOk)
+          }
+        }
+        val g = t match {
+          case Success(ft) => ft
+          case Failure(e)  => Future.failed(e)
+        }
+
+        //In case of error just record the count and thus recover from the failure
+        g.map { r =>
+            if (r.wasSuccessful) State.SUCCESS
+            else {
+              log.warn(s"Error occurred while downloading attachment for $id", r.getError)
+              State.ERROR
+            }
+          }
+          .recover {
+            case e =>
+              log.warn(s"Error occurred while downloading attachment for $id", e)
+              State.ERROR
+          }
+      }
+      .via(tick(ticker))
+      .runWith(Sink.fold[ResultAccumulator, State.ResultState](new ResultAccumulator) { (acc, s) =>
+        acc.update(s)
+      })
+
+    f.onComplete(_ => ticker.close())
+    f.map(_.toResult())
   }
 
   def putDBContents()(implicit system: ActorSystem,
@@ -132,8 +229,6 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
-    import spray.json.DefaultJsonProtocol._
-
     val authStore = WhiskAuthStore.datastore()
     val entityStore = WhiskEntityStore.datastore()
     val activationStore = WhiskActivationStore.datastore()
@@ -143,24 +238,25 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val f = source
       .mapAsyncUnordered(put.threads()) { js =>
         val id = js.fields("_id").convertTo[String]
+        //TODO js might have db specific fields like _attachments. Those should be stripped
         val g = put.dbType.runtimeClass match {
           case x if x == classOf[WhiskEntity]     => entityStore.put(AnyEntity(js))
           case x if x == classOf[WhiskActivation] => activationStore.put(new AnyActivation(js))
           case x if x == classOf[WhiskAuth]       => authStore.put(new AnyAuth(js))
         }
-        g.map(_ => PutResultState.SUCCESS)
+        g.map(_ => State.SUCCESS)
           .recover {
             case _: DocumentConflictException =>
               log.warn("Document exists [{}]", id)
-              PutResultState.EXISTS
+              State.EXISTS
             case e =>
               log.warn(s"Error while adding [$id]", e)
-              PutResultState.ERROR
+              State.ERROR
           }
       }
       .via(tick(ticker))
-      .runWith(Sink.fold[PutResultAccumulator, PutResultState.PutResultState](new PutResultAccumulator) { (acc, s) =>
-        acc.update(s)
+      .runWith(Sink.fold[ResultAccumulator, State.ResultState](new ResultAccumulator) { (acc, s) =>
+        acc.update(s) //Refactor this from downloadAttachments
       })
 
     f.onComplete(_ => ticker.close())
@@ -171,6 +267,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     }
   }
 
+  //TODO Rename to createFileSink
   private def createSink() =
     get.out
       .map(f => FileIO.toPath(f.toPath))
@@ -188,16 +285,16 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     }
   }
 
-  private object PutResultState extends Enumeration {
-    type PutResultState = Value
+  private object State extends Enumeration {
+    type ResultState = Value
     val SUCCESS, EXISTS, ERROR = Value
   }
 
-  private class PutResultAccumulator(private var success: Long = 0,
-                                     private var failed: Long = 0,
-                                     private var exists: Long = 0) {
-    import PutResultState._
-    def update(r: PutResultState): PutResultAccumulator = {
+  private class ResultAccumulator(private var success: Long = 0,
+                                  private var failed: Long = 0,
+                                  private var exists: Long = 0) {
+    import State._
+    def update(r: ResultState): ResultAccumulator = {
       r match {
         case SUCCESS => success += 1
         case EXISTS  => exists += 1
@@ -206,16 +303,17 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       this
     }
 
-    def toResult(): PutResult = PutResult(success, failed, exists)
+    def toResult(): StreamResult = StreamResult(success, failed, exists)
   }
 
-  case class PutResult(success: Long, failed: Long, exists: Long) {
+  case class StreamResult(success: Long, failed: Long, exists: Long) {
     def ok: Boolean = failed == 0 && exists == 0
   }
 }
 
 object DbCommand {
   private val log = LoggerFactory.getLogger(getClass.getName)
+  private[database] var ignoreAttachmentErrors: Boolean = false
 
   def createStreamingStore[T <: DocumentSerializer](classTag: ClassTag[T], store: ArtifactStore[_])(
     implicit system: ActorSystem,
@@ -290,6 +388,37 @@ object DbCommand {
   }
 
   def lineCount(file: File): Long = Files.lines(file.toPath).count()
+
+  val attachmentFileName = "attachment"
+
+  def hasAttachment(js: JsObject): Boolean = {
+    JsHelpers.getFieldPath(js, "exec", "code") match {
+      case Some(_: JsObject) => true
+      case _                 => false
+    }
+  }
+
+  def getOrCreateAttachmentDir(file: File): File = {
+    val dir = file.getParentFile
+    val attachmentDir = new File(dir, "attachments")
+    FileUtils.forceMkdir(attachmentDir)
+    attachmentDir
+  }
+
+  def getAttachmentFile(basedir: File, action: WhiskAction): File = {
+    val path = action
+      .fullyQualifiedName(false)
+      .fullPath
+      .addPath(EntityName(attachmentFileName))
+    val names = path.namespace.split(EntityPath.PATHSEP)
+    FileUtils.getFile(basedir, names: _*)
+  }
+
+  private def createFile(file: File): File = {
+    //TODO Review if this has any issue with concurrent creation
+    FileUtils.forceMkdirParent(file)
+    file
+  }
 
   private val unusedSubject = Subject()
   private val unusedParams = Parameters()

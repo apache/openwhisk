@@ -55,4 +55,7 @@ object CommandMessages {
   def putDocsFailed(success: Long, failed: Long, exists: Long) =
     s"Put result : Failed = $failed, Already Exists = $exists, Put Successful = $success"
 
+  def downloadAttachmentFailed(success: Long, failed: Long) =
+    s"Download result : Failed = $failed,  Successful = $success"
+
 }

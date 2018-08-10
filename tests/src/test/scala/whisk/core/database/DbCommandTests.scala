@@ -18,19 +18,35 @@
 package whisk.core.database
 
 import java.io.File
+import java.util.Base64
 
 import akka.stream.scaladsl.{FileIO, Sink}
 import common.TestFolder
+import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, OptionValues}
+import org.scalactic.Uniformity
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, OptionValues}
 import spray.json.{DefaultJsonProtocol, JsObject}
 import whisk.common.TransactionId
 import whisk.core.cli.CommandMessages
 import whisk.core.database.DbCommand._
 import whisk.core.database.test.behavior.ArtifactStoreTestUtil._
-import whisk.core.entity.{DocInfo, WhiskDocument, WhiskEntity, WhiskPackage, WhiskRule, WhiskTrigger}
+import whisk.core.entity.Attachments.{Attachment, Inline}
+import whisk.core.entity.test.ExecHelpers
+import whisk.core.entity.{
+  CodeExec,
+  DocInfo,
+  EntityPath,
+  WhiskAction,
+  WhiskDocument,
+  WhiskEntity,
+  WhiskPackage,
+  WhiskRule,
+  WhiskTrigger
+}
 
+import scala.concurrent.Future
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
@@ -40,8 +56,14 @@ class DbCommandTests
     with TestFolder
     with ArtifactNamingHelper
     with DefaultJsonProtocol
-    with OptionValues {
+    with OptionValues
+    with ExecHelpers {
   behavior of "db get"
+
+  //Its possible that test db has some existing data with improper attachments
+  //To avoid failing due to that we ignore those errors and instead explicitly assert
+  //on attachments created in tests
+  DbCommand.ignoreAttachmentErrors = true
 
   it should "get all artifacts" in {
     implicit val tid: TransactionId = transid()
@@ -58,6 +80,43 @@ class DbCommandTests
       after being strippedOfRevision)
 
     collectedEntities(outFile, js => idOf(js).startsWith("_design/")) shouldBe empty
+  }
+
+  it should "download attachments also" in {
+    implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
+    implicit val tid: TransactionId = transid()
+    val simpleNS = newNS()
+    val simpleActions = List.tabulate(3)(_ => newAction(simpleNS))
+
+    //Create few java actions which use attachments
+    val javaNS = newNS()
+    val actionsWithAttachments = List.tabulate(7)(_ => newJavaAction(javaNS))
+    val actions = simpleActions ++ actionsWithAttachments
+
+    actions foreach { a =>
+      val info = WhiskAction.put(entityStore, a, None).futureValue
+      docsToDelete += ((entityStore, info))
+    }
+    val actionIds = actions.map(_.docid.id).toSet
+
+    val actionJsons = Future
+      .sequence(actionIds.map(id => entityStore.get[WhiskAction](DocInfo(id))).toSeq)
+      .futureValue
+      .map(_.toDocumentRecord)
+
+    val outFile = newFile()
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
+
+    //Compare the jsons ignoring _rev and updated and other private fields starting with '_' except '_id'
+    (collectedEntities(outFile, idFilter(actionIds)) should contain theSameElementsAs actionJsons)(
+      after being strippedOfUnstableProps)
+
+    //Check if attachment content matches
+    val attachmentDir = getOrCreateAttachmentDir(outFile)
+    actionsWithAttachments.foreach { a =>
+      val file = getAttachmentFile(attachmentDir, a)
+      getAttachmentBytes(a) shouldBe FileUtils.readFileToByteArray(file)
+    }
   }
 
   behavior of "db put"
@@ -115,6 +174,15 @@ class DbCommandTests
       after being strippedOfRevision)
   }
 
+  private def newJavaAction(ns: EntityPath): WhiskAction = {
+    WhiskAction(ns, aname(), javaDefault(nonInlinedCode(entityStore), Some("hello")))
+  }
+
+  private def getAttachmentBytes(a: WhiskAction) = {
+    val inline = a.exec.asInstanceOf[CodeExec[Attachment[String]]].code.asInstanceOf[Inline[String]]
+    Base64.getDecoder.decode(inline.value)
+  }
+
   private def stripType(e: WhiskEntity) = JsObject(e.toDocumentRecord.fields - "entityType")
 
   private def collectedEntities(file: File, filter: JsObject => Boolean) =
@@ -142,6 +210,21 @@ class DbCommandTests
         val doc = store.get[A](DocInfo(u)).futureValue
         delete(store, doc.docinfo)
       }
+    }
+  }
+
+  object strippedOfUnstableProps extends Uniformity[JsObject] {
+    private def ignoredFields = Set("updated")
+    override def normalizedOrSame(b: Any) = b match {
+      case s: JsObject => normalized(s)
+      case _           => b
+    }
+    override def normalizedCanHandle(b: Any) = b.isInstanceOf[JsObject]
+    override def normalized(js: JsObject) = stripInternalFields(js)
+
+    private def stripInternalFields(js: JsObject) = {
+      //Strip out all field name starting with '_' which are considered as db specific internal fields
+      JsObject(js.fields.filter { case (k, _) => !ignoredFields.contains(k) && (!k.startsWith("_") || k == "_id") })
     }
   }
 }
