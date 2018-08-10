@@ -51,6 +51,7 @@ abstract class ProgressBarBase(val colored: Boolean = true) extends Ticker {
   protected var pos = 0
   private var lastDrawTime = 0L
   private var maxStatusLength = 0
+  private var closed = false
 
   override def tick(): Unit = {
     count += 1
@@ -58,7 +59,10 @@ abstract class ProgressBarBase(val colored: Boolean = true) extends Ticker {
   }
 
   override def close(): Unit = {
-    println(s"\r${statusPrefix()}${statusSuffix()}")
+    if (!closed) {
+      println(s"\r${statusPrefix()}${statusSuffix()}")
+      closed = true
+    }
   }
 
   protected def doMove(): Unit

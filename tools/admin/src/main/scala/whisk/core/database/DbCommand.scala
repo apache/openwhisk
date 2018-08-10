@@ -136,7 +136,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
           else throw r.io.getError
       }
       .flatMap { rr =>
-        //TODO Close ticker here and log
+        ticker.close()
         //2. Now download attachments by reading output file
         if (rr.attachmentCount > 0) {
           val dump = get.out() //For attachment case out file is required
