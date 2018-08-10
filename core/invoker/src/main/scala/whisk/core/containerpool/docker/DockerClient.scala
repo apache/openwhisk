@@ -66,6 +66,11 @@ case class DockerClientTimeoutConfig(run: Duration,
                                      inspect: Duration)
 
 /**
+ * Configuration for docker client
+ */
+case class DockerClientConfig(parallelRuns: Int, timeouts: DockerClientTimeoutConfig)
+
+/**
  * Serves as interface to the docker CLI tool.
  *
  * Be cautious with the ExecutionContext passed to this, as the
@@ -74,8 +79,7 @@ case class DockerClientTimeoutConfig(run: Duration,
  * You only need one instance (and you shouldn't get more).
  */
 class DockerClient(dockerHost: Option[String] = None,
-                   timeouts: DockerClientTimeoutConfig =
-                     loadConfigOrThrow[DockerClientTimeoutConfig](ConfigKeys.dockerTimeouts))(
+                   config: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
   executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
     extends DockerApi
     with ProcessRunner {
@@ -96,8 +100,9 @@ class DockerClient(dockerHost: Option[String] = None,
     Seq(dockerBin) ++ host
   }
 
-  protected val maxParallelRuns = 10
-  protected val runSemaphore = new Semaphore( /* permits= */ maxParallelRuns, /* fair= */ true)
+  protected val maxParallelRuns = config.parallelRuns
+  protected val runSemaphore =
+    new Semaphore( /* permits= */ if (maxParallelRuns > 0) maxParallelRuns else Int.MaxValue, /* fair= */ true)
 
   // Docker < 1.13.1 has a known problem: if more than 10 containers are created (docker run)
   // concurrently, there is a good chance that some of them will fail.
@@ -114,7 +119,7 @@ class DockerClient(dockerHost: Option[String] = None,
       }
     }.flatMap { _ =>
       // Iff the semaphore was acquired successfully
-      runCmd(Seq("run", "-d") ++ args ++ Seq(image), timeouts.run)
+      runCmd(Seq("run", "-d") ++ args ++ Seq(image), config.timeouts.run)
         .andThen {
           // Release the semaphore as quick as possible regardless of the runCmd() result
           case _ => runSemaphore.release()
@@ -139,26 +144,26 @@ class DockerClient(dockerHost: Option[String] = None,
   def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerAddress] =
     runCmd(
       Seq("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString),
-      timeouts.inspect).flatMap {
+      config.timeouts.inspect).flatMap {
       case "<no value>" => Future.failed(new NoSuchElementException)
       case stdout       => Future.successful(ContainerAddress(stdout))
     }
 
   def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("pause", id.asString), timeouts.pause).map(_ => ())
+    runCmd(Seq("pause", id.asString), config.timeouts.pause).map(_ => ())
 
   def unpause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("unpause", id.asString), timeouts.unpause).map(_ => ())
+    runCmd(Seq("unpause", id.asString), config.timeouts.unpause).map(_ => ())
 
   def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("rm", "-f", id.asString), timeouts.rm).map(_ => ())
+    runCmd(Seq("rm", "-f", id.asString), config.timeouts.rm).map(_ => ())
 
   def ps(filters: Seq[(String, String)] = Seq.empty, all: Boolean = false)(
     implicit transid: TransactionId): Future[Seq[ContainerId]] = {
     val filterArgs = filters.flatMap { case (attr, value) => Seq("--filter", s"$attr=$value") }
     val allArg = if (all) Seq("--all") else Seq.empty[String]
     val cmd = Seq("ps", "--quiet", "--no-trunc") ++ allArg ++ filterArgs
-    runCmd(cmd, timeouts.ps).map(_.lines.toSeq.map(ContainerId.apply))
+    runCmd(cmd, config.timeouts.ps).map(_.lines.toSeq.map(ContainerId.apply))
   }
 
   /**
@@ -169,11 +174,11 @@ class DockerClient(dockerHost: Option[String] = None,
   private val pullsInFlight = TrieMap[String, Future[Unit]]()
   def pull(image: String)(implicit transid: TransactionId): Future[Unit] =
     pullsInFlight.getOrElseUpdate(image, {
-      runCmd(Seq("pull", image), timeouts.pull).map(_ => ()).andThen { case _ => pullsInFlight.remove(image) }
+      runCmd(Seq("pull", image), config.timeouts.pull).map(_ => ()).andThen { case _ => pullsInFlight.remove(image) }
     })
 
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
-    runCmd(Seq("inspect", id.asString, "--format", "{{.State.OOMKilled}}"), timeouts.inspect).map(_.toBoolean)
+    runCmd(Seq("inspect", id.asString, "--format", "{{.State.OOMKilled}}"), config.timeouts.inspect).map(_.toBoolean)
 
   private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
     val cmd = dockerCmd ++ args

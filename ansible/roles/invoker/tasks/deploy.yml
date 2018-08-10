@@ -206,6 +206,7 @@
       "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
       "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
       "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
+      "CONFIG_whisk_docker_client_parallelRuns": "{{ invoker_parallel_runs | default() }}"
       "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
@@ -271,7 +272,7 @@
     volumes: "{{ volumes|default('') }},{{ coverage_logs_dir }}/invoker:/coverage"
   when: coverage_enabled
 
-- name: start invoker using docker cli
+- name: start invoker
   docker_container:
     userns_mode: "host"
     pid_mode: "host"
