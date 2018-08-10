@@ -185,7 +185,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
         response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
 
@@ -199,7 +199,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
         response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
 
@@ -213,7 +213,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
         response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
 
@@ -285,7 +285,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       val run = wsk.action.invoke(name)
       withActivation(wsk.activation, run) { activation =>
-        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
         activation.response.result.get
           .fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
         activation.annotations shouldBe defined

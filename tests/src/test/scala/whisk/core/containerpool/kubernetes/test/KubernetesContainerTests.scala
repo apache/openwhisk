@@ -242,7 +242,7 @@ class KubernetesContainerTests
 
     val error = the[InitializationError] thrownBy await(init, initTimeout)
     error.interval shouldBe interval
-    error.response.statusCode shouldBe ActivationResponse.ContainerError
+    error.response.statusCode shouldBe ActivationResponse.DeveloperError
 
     // assert the finish log is there
     val end = LogMarker.parse(logLines.last)

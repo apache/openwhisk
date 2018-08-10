@@ -496,7 +496,7 @@ class ContainerProxyTests
       override def initialize(initializer: JsObject,
                               timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
-        Future.failed(InitializationError(initInterval, ActivationResponse.containerError("boom")))
+        Future.failed(InitializationError(initInterval, ActivationResponse.developerError("boom")))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -521,7 +521,7 @@ class ContainerProxyTests
       collector.calls should have size 1
       container.destroyCount shouldBe 1
       val activation = acker.calls(0)._2
-      activation.response shouldBe ActivationResponse.containerError("boom")
+      activation.response shouldBe ActivationResponse.developerError("boom")
       activation.annotations
         .get(WhiskActivation.initTimeAnnotation)
         .get
@@ -537,7 +537,7 @@ class ContainerProxyTests
       override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         runCount += 1
-        Future.successful((initInterval, ActivationResponse.containerError(("boom"))))
+        Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -561,7 +561,7 @@ class ContainerProxyTests
       container.runCount shouldBe 1
       collector.calls should have size 1
       container.destroyCount shouldBe 1
-      acker.calls(0)._2.response shouldBe ActivationResponse.containerError("boom")
+      acker.calls(0)._2.response shouldBe ActivationResponse.developerError("boom")
       store.calls should have size 1
     }
   }
