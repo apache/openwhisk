@@ -126,7 +126,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       .alsoToMat(attachCounter)(Keep.right) //Track attachment count
       .map(jsToStringLine)
       .via(tick(ticker))
-      .toMat(createSink())(combiner)
+      .toMat(createOutputSink())(combiner)
 
     val f = store
       .getAll(outputSink) //1. Write all js docs to a file
@@ -216,9 +216,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
           }
       }
       .via(tick(ticker))
-      .runWith(Sink.fold[ResultAccumulator, State.ResultState](new ResultAccumulator) { (acc, s) =>
-        acc.update(s)
-      })
+      .runWith(streamResultSink)
 
     f.onComplete(_ => ticker.close())
     f.map(_.toResult())
@@ -255,9 +253,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
           }
       }
       .via(tick(ticker))
-      .runWith(Sink.fold[ResultAccumulator, State.ResultState](new ResultAccumulator) { (acc, s) =>
-        acc.update(s) //Refactor this from downloadAttachments
-      })
+      .runWith(streamResultSink)
 
     f.onComplete(_ => ticker.close())
     f.map { acc =>
@@ -267,8 +263,13 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     }
   }
 
-  //TODO Rename to createFileSink
-  private def createSink() =
+  private def streamResultSink = {
+    Sink.fold[ResultAccumulator, State.ResultState](new ResultAccumulator) { (acc, s) =>
+      acc.update(s)
+    }
+  }
+
+  private def createOutputSink() =
     get.out
       .map(f => FileIO.toPath(f.toPath))
       .getOrElse(StreamConverters.fromOutputStream(() => new CloseShieldOutputStream(System.out)))
