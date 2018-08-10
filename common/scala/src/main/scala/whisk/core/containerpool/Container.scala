@@ -142,7 +142,7 @@ trait Container {
       }
       .map { result =>
         val response = if (result.interval.duration >= timeout) {
-          ActivationResponse.applicationError(Messages.timedoutActivation(timeout, false))
+          ActivationResponse.containerError(Messages.timedoutActivation(timeout, false))
         } else {
           ActivationResponse.processRunResponseContent(result.response, logging)
         }
