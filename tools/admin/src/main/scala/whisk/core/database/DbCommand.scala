@@ -82,6 +82,8 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val attachments =
       opt[Boolean](descr = "include attachments. Downloaded attachments would be stored under 'attachments' directory")
 
+    val threads = opt[Int](descr = "Number of parallel attachment downloads", default = Some(5))
+
     dependsOnAny(attachments, List(out))
   }
   addSubcommand(get)
@@ -140,7 +142,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
         //2. Now download attachments by reading output file
         if (rr.attachmentCount > 0) {
           val dump = get.out() //For attachment case out file is required
-          downloadAttachments(dump, getOrCreateAttachmentDir(dump), rr.count, artifactStore)
+          downloadAttachments(dump, getOrCreateAttachmentDir(dump), rr.count, get.threads(), artifactStore)
             .map { sr =>
               rr.copy(downloads = Some(sr))
             }
@@ -171,7 +173,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     }
   }
 
-  def downloadAttachments(file: File, attachmentDir: File, count: Long, store: ArtifactStore[_])(
+  def downloadAttachments(file: File, attachmentDir: File, count: Long, parallelCount: Int, store: ArtifactStore[_])(
     implicit transid: TransactionId,
     ec: ExecutionContext,
     materializer: ActorMaterializer): Future[StreamResult] = {
@@ -180,7 +182,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val ticker = if (showProgressBar()) new FiniteProgressBar("Downloading", count) else NoopTicker
     val f = source
       .filter(hasAttachment)
-      .mapAsyncUnordered(5) { js =>
+      .mapAsyncUnordered(parallelCount) { js =>
         val id = js.fields("_id").convertTo[String]
         val t = Try {
           //Try reading the attachment. If there is some error before actual read call then try would
