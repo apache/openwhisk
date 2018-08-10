@@ -45,6 +45,17 @@ notifications:
       # travis2slack webhook to enable DMs on openwhisk-team.slack.com to PR authors with TravisCI results
       secure: "tYJIDAKtHp+yLw53yB6+TQnNfyNwZDAZyG7QmHbNP5Mf1HR0GLhpe02AjV99NkjAgaGYxngUELMhNOyB8eiyMdxpemwny4oOeyOUQzVmiry/804JnjK2YvHyAGFVGuhV0LZVfCPsPh5x91yKcDPLSqRSTKhZOiJFmDpBy4qzxM4W7IXxAM+yHKrm8cznBRdR5rGxT5IjV58xMB1p69jJy1rxnjtEWmB2z7j/SiKa6IQlVYgr+BgaJxBhy9WYYczvceU+qyrTWpVYy5P3o5+b0MZ/UkyB5CZT9N5LzLGjLRDqNaNYCT3U8ow1H6w+zY7/9KrAf6szT6raN606vN7uv7TqGEugG949JQfRSQNe3Y7IvTAHatI9VAc3opWgy0jm7eBu9pzSECamGGSGGHl18m7oWZypiwB+ooKg7k545XQCoVwlRulBvwnVO8w2HOjkKSds/JnNhdXLtNKRaBaZxhBkk+5b43k59vaYsHDXaYFUob/nG/K3JoPRkcLtFe3JfNsCABJYC0VbRE3AizHr8CYMhBUrgElPFwPmIJwwLOORq6y3zIRxTOIz4b/x2q9Oa17vK0IwAjgHi8y9RXc6lG0mCyVFScdpxoGF3d9xF8Edwc8WN22pYaZ8r71UF4AWOVxJs1Cnp8gcAn14gONVVvkaVCUwNCCElbJkjdVhhnI="
 
+# specific cache configuration for gradle based builds
+# see: https://docs.travis-ci.com/user/languages/java/#caching
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
 before_install:
   - pip install --upgrade pip setuptools six
   - pip3 install --upgrade pip setuptools six
