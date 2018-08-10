@@ -16,6 +16,20 @@
 # limitations under the License.
 #
 
+# retries a command for five times and exits with the non-zero exit if even after
+# the retries the command did not succeed.
+function retry() {
+  local exitcode=0
+  for i in {1..5};
+  do
+    exitcode=0
+    "$@" && break || exitcode=$? && echo "$i. attempt failed. Will retry $((5-i)) more times!" && sleep 1;
+  done
+  if [ $exitcode -ne 0 ]; then
+    exit $exitcode
+  fi
+}
+
 sudo gpasswd -a travis docker
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=overlay --userns-remap=default"'\'' > /etc/default/docker'
 
@@ -42,4 +56,4 @@ pip install --user pydocumentdb
 #
 # Downloads the gradle wrapper, dependencies and tries to compile the code.
 # Retried 5 times in case there are network hiccups.
-for i in {1..5}; do TERM=dumb ./gradlew :tests:compileTestScala && break || sleep 5; done
+retry TERM=dumb ./gradlew :tests:compileTestScala
