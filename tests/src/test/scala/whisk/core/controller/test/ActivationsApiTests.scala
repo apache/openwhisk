@@ -471,6 +471,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   it should "skip activations and return correct ones" in {
     implicit val tid = transid()
     val activations = (1 to 3).map { i =>
+      //make sure the time is different for each activation
       val time = Instant.now.plusMillis(i)
       WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
     }.toList
@@ -487,12 +488,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
     } finally {
       activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
+      waitOnListActivationsInNamespace(namespace, 0)
     }
   }
 
   it should "return last activation" in {
     implicit val tid = transid()
     val activations = (1 to 3).map { i =>
+      //make sure the time is different for each activation
       val time = Instant.now.plusMillis(i)
       WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
     }.toList
@@ -512,6 +515,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       }
     } finally {
       activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
+      waitOnListActivationsInNamespace(namespace, 0)
     }
   }
 
