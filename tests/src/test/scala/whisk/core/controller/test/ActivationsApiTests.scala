@@ -481,8 +481,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
       Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("activationId"))
-        val expectedActivationIds = activations.map(_.toJson.fields("activationId")).reverse.drop(1)
+        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("name"))
+        val expectedActivationIds = activations.map(_.toJson.fields("name")).reverse.drop(1)
         resultActivationIds should be(expectedActivationIds)
       }
     } finally {
@@ -503,9 +503,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
       Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("activationId"))
-        val expectedActivationIds = activations.map(_.toJson.fields("activationId")).drop(2)
-        resultActivationIds should be(expectedActivationIds)
+        val activationsJson = activations.map(_.toJson)
+        withClue(s"Original activations: ${activationsJson}") {
+          val respNames = responseAs[List[JsObject]].map(_.fields("name"))
+          val expectNames = activationsJson.map(_.fields("name")).drop(2)
+          respNames should be(expectNames)
+        }
       }
     } finally {
       activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
