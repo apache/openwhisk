@@ -288,7 +288,7 @@ class KubernetesContainerTests
     }
 
     val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout)
-    await(runResult) shouldBe (interval, ActivationResponse.applicationError(
+    await(runResult) shouldBe (interval, ActivationResponse.developerError(
       Messages.timedoutActivation(runTimeout, false)))
 
     // assert the finish log is there
