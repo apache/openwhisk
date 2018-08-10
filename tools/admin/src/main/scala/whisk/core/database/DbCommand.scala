@@ -234,9 +234,9 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val ticker = if (showProgressBar()) new FiniteProgressBar("Importing", lineCount(put.in())) else NoopTicker
     val source = createJSStream(put.in())
     val f = source
+      .map(stripRevAndPrivateFields)
       .mapAsyncUnordered(put.threads()) { js =>
         val id = js.fields("_id").convertTo[String]
-        //TODO js might have db specific fields like _attachments. Those should be stripped
         val g = put.dbType.runtimeClass match {
           case x if x == classOf[WhiskEntity]     => entityStore.put(AnyEntity(js))
           case x if x == classOf[WhiskActivation] => activationStore.put(new AnyActivation(js))
@@ -386,6 +386,12 @@ object DbCommand {
     else if (js.fields.contains("parameters")) Some("trigger")
     else if (js.fields.contains("trigger")) Some("rule")
     else None
+  }
+
+  def stripRevAndPrivateFields(js: JsObject): JsObject = {
+    //CouchDB json may include private fields like _attachments. Such fields need to be dropped
+    //prior to put
+    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") || k == "_id" })
   }
 
   def lineCount(file: File): Long = Files.lines(file.toPath).count()
