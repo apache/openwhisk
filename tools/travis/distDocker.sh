@@ -26,10 +26,6 @@ ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
 
-# Downloads the gradle wrapper, dependencies and tries to compile the code
-# Retried 5 times in case there are network hiccups.
-for i in {1..5}; do TERM=dumb ./gradlew compileScala && break || sleep 5; done
-
 TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
 TERM=dumb ./gradlew :core:controller:distDockerCoverage -PdockerImagePrefix=testing

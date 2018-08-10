@@ -36,3 +36,10 @@ pip install --user ansible==2.5.2
 
 # Azure CosmosDB
 pip install --user pydocumentdb
+
+# Basic check that all code compiles and depdendencies are downloaded correctly.
+# Compiling the tests will compile all components as well.
+#
+# Downloads the gradle wrapper, dependencies and tries to compile the code.
+# Retried 5 times in case there are network hiccups.
+for i in {1..5}; do TERM=dumb ./gradlew :tests:compileTestScala && break || sleep 5; done
