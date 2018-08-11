@@ -185,7 +185,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.plus(1 second).toMillis.toJson))
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
-          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
           result.response.result.get.fields("error") shouldBe {
             Messages.timedoutActivation(allowedActionDuration, init = false).toJson
           }
