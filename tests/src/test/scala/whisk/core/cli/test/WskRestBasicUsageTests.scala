@@ -375,7 +375,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val hungRun = wsk.action.invoke(name, Map("forceHang" -> true.toJson))
       withActivation(wsk.activation, hungRun) { activation =>
         // the first action must fail with a timeout error
-        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+        activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
         activation.response.result shouldBe Some(
           JsObject("error" -> Messages.timedoutActivation(3 seconds, false).toJson))
       }
