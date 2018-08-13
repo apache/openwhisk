@@ -18,7 +18,14 @@
 package whisk.core.containerpool.logging
 
 import java.nio.file.{Files, Path, Paths}
-import java.nio.file.attribute.PosixFilePermission.{GROUP_READ, GROUP_WRITE, OTHERS_READ, OWNER_READ, OWNER_WRITE}
+import java.nio.file.attribute.PosixFilePermission.{
+  GROUP_READ,
+  GROUP_WRITE,
+  OTHERS_READ,
+  OTHERS_WRITE,
+  OWNER_READ,
+  OWNER_WRITE
+}
 import java.util.EnumSet
 import java.time.Instant
 
@@ -77,7 +84,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
    * once the defined limit is reached.
    */
   val bufferSize = 100.MB
-  val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ)
+  val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
   protected val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
     .batchWeighted(bufferSize.toBytes, _.length, identity)(_ ++ _)
