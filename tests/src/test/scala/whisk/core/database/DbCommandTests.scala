@@ -21,6 +21,7 @@ import java.io.File
 import java.util.Base64
 
 import akka.stream.scaladsl.{FileIO, Sink}
+import akka.util.{ByteString, ByteStringBuilder}
 import common.TestFolder
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
@@ -32,19 +33,9 @@ import whisk.common.TransactionId
 import whisk.core.cli.CommandMessages
 import whisk.core.database.DbCommand._
 import whisk.core.database.test.behavior.ArtifactStoreTestUtil._
-import whisk.core.entity.Attachments.{Attachment, Inline}
+import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity.test.ExecHelpers
-import whisk.core.entity.{
-  CodeExec,
-  DocInfo,
-  EntityPath,
-  WhiskAction,
-  WhiskDocument,
-  WhiskEntity,
-  WhiskPackage,
-  WhiskRule,
-  WhiskTrigger
-}
+import whisk.core.entity._
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -59,6 +50,8 @@ class DbCommandTests
     with OptionValues
     with ExecHelpers {
   behavior of "db get"
+
+  private implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
 
   //Its possible that test db has some existing data with improper attachments
   //To avoid failing due to that we ignore those errors and instead explicitly assert
@@ -83,7 +76,6 @@ class DbCommandTests
   }
 
   it should "download attachments also" in {
-    implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
     implicit val tid: TransactionId = transid()
     val simpleNS = newNS()
     val simpleActions = List.tabulate(3)(_ => newAction(simpleNS))
@@ -137,6 +129,45 @@ class DbCommandTests
     val inFile = copyEntities(outFile, idFilter(actionIds))
     resultOk("db", "put", "--in", inFile.getAbsolutePath, "whisks") shouldBe CommandMessages.putDocs(10)
 
+    cleanup[WhiskEntity](actionIds, entityStore)
+  }
+
+  it should "put action with attachments" in {
+    implicit val tid: TransactionId = transid()
+    val simpleNS = newNS()
+    val simpleActions = List.tabulate(3)(_ => newAction(simpleNS))
+
+    //Create few java actions which use attachments
+    val javaNS = newNS()
+    val actionsWithAttachments = List.tabulate(7)(_ => newJavaAction(javaNS))
+    val actions = simpleActions ++ actionsWithAttachments
+
+    actions foreach { a =>
+      val info = WhiskAction.put(entityStore, a, None).futureValue
+      docsToDelete += ((entityStore, info))
+    }
+    val actionIds = actions.map(_.docid.id).toSet
+
+    val outFile = newFile()
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "--attachments", "whisks") should include(
+      outFile.getAbsolutePath)
+
+    cleanup()
+
+    val inFile = copyEntities(outFile, idFilter(actionIds))
+    resultOk("db", "put", "--in", inFile.getAbsolutePath, "whisks") shouldBe CommandMessages.putDocs(10)
+
+    actionsWithAttachments.foreach { a =>
+      val newAction = entityStore.get[WhiskAction](DocInfo(a.docid)).futureValue
+      val oldAction = actionsWithAttachments.find(_.docid == newAction.docid).get
+      newAction.exec match {
+        case _ @CodeExecAsAttachment(_, attached: Attached, _) =>
+          val newBytes = getAttachmentBytes(newAction.docinfo, attached).futureValue.result().toArray
+          val oldBytes = getAttachmentBytes(oldAction)
+          newBytes shouldBe oldBytes
+        case _ => fail()
+      }
+    }
     cleanup[WhiskEntity](actionIds, entityStore)
   }
 
@@ -211,6 +242,15 @@ class DbCommandTests
         delete(store, doc.docinfo)
       }
     }
+  }
+
+  private def getAttachmentBytes(docInfo: DocInfo, attached: Attached) = {
+    implicit val tid: TransactionId = transid()
+    entityStore.readAttachment(docInfo, attached, byteStringSink())
+  }
+
+  private def byteStringSink() = {
+    Sink.fold[ByteStringBuilder, ByteString](new ByteStringBuilder)((builder, b) => builder ++= b)
   }
 
   object strippedOfUnstableProps extends Uniformity[JsObject] {

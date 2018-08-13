@@ -79,6 +79,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 
     val out = opt[File](descr = "file to dump the contents to")
 
+    //TODO Make use of this flag!
     val attachments =
       opt[Boolean](descr = "include attachments. Downloaded attachments would be stored under 'attachments' directory")
 
@@ -234,13 +235,14 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     val activationStore = WhiskActivationStore.datastore()
 
     val ticker = if (showProgressBar()) new FiniteProgressBar("Importing", lineCount(put.in())) else NoopTicker
-    val source = createJSStream(put.in())
-    val f = source
+    val attachmentDir = getOrCreateAttachmentDir(put.in())
+    val f = createJSStream(put.in())
       .map(stripRevAndPrivateFields)
+      .log("putDb", _.fields("_id"))
       .mapAsyncUnordered(put.threads()) { js =>
         val id = js.fields("_id").convertTo[String]
         val g = put.dbType.runtimeClass match {
-          case x if x == classOf[WhiskEntity]     => entityStore.put(AnyEntity(js))
+          case x if x == classOf[WhiskEntity]     => putEntity(js, attachmentDir, entityStore)
           case x if x == classOf[WhiskActivation] => activationStore.put(new AnyActivation(js))
           case x if x == classOf[WhiskAuth]       => authStore.put(new AnyAuth(js))
         }
@@ -263,6 +265,30 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       if (r.ok) Right(CommandMessages.putDocs(r.success))
       else Left(IllegalState(CommandMessages.putDocsFailed(success = r.success, failed = r.failed, exists = r.exists)))
     }
+  }
+
+  private def putEntity(js: JsObject, attachmentDir: File, entityStore: ArtifactStore[WhiskEntity])(
+    implicit transid: TransactionId,
+    ec: ExecutionContext): Future[DocInfo] = {
+    if (isAction(js)) {
+      val action = WhiskAction.serdes.read(js)
+      action.exec match {
+        case _ @CodeExecAsAttachment(_, Attached(_, contentType, _, _), _) =>
+          val attachmentSource = getAttachmentSource(action, attachmentDir)
+          entityStore
+            .putAndAttach(action, WhiskAction.attachmentUpdater, contentType, attachmentSource, None)
+            .map(_._1)
+        //TODO CodeExecAsString => Attachment
+        //TODO BlackBoxAction => Attachment
+        case _ => entityStore.put(action)
+      }
+    } else entityStore.put(AnyEntity(js))
+  }
+
+  private def getAttachmentSource(action: WhiskAction, attachmentDir: File) = {
+    val file = getAttachmentFile(attachmentDir, action)
+    require(file.exists(), s"Attachment file ${file.getAbsolutePath} missing for action $action")
+    FileIO.fromPath(file.toPath)
   }
 
   private def streamResultSink = {
@@ -384,6 +410,8 @@ object DbCommand {
     else if (js.fields.contains("entityType")) Some(js.fields("entityType").convertTo[String])
     else None
   }
+
+  def isAction(js: JsObject): Boolean = getEntityType(js).contains("action")
 
   /**
    * Filters out system generated fields which start with '_' except '_id
