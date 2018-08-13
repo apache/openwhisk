@@ -330,12 +330,6 @@ object DbCommand {
     }
   }
 
-  /**
-   * Filters out system generated fields which start with '_' except '_id
-   */
-  def retainProperFields(js: JsObject): JsObject =
-    JsObject(js.fields.filterKeys(key => key == "_id" || !key.startsWith("_")))
-
   def getStore[D](classTag: ClassTag[D])(implicit system: ActorSystem,
                                          logging: Logging,
                                          materializer: ActorMaterializer): ArtifactStore[_] = {
@@ -367,7 +361,7 @@ object DbCommand {
    *
    * @return js document json with "entityType" property
    */
-  def entityWithEntityType(js: JsObject): JsObject = {
+  def withEntityType(js: JsObject): JsObject = {
     if (js.fields.contains("entityType")) js
     else {
       getEntityType(js) match {
@@ -387,9 +381,13 @@ object DbCommand {
     else if (js.fields.contains("exec")) Some("action")
     else if (js.fields.contains("parameters")) Some("trigger")
     else if (js.fields.contains("trigger")) Some("rule")
+    else if (js.fields.contains("entityType")) Some(js.fields("entityType").convertTo[String])
     else None
   }
 
+  /**
+   * Filters out system generated fields which start with '_' except '_id
+   */
   def stripRevAndPrivateFields(js: JsObject): JsObject = {
     //CouchDB json may include private fields like _attachments. Such fields need to be dropped
     //prior to put
@@ -441,7 +439,7 @@ object DbCommand {
   //needing to convert them to actual entity type. Later we should look
   //into supporting ArtifactStore.putRaw kind of method to directly persist js
   class AnyAuth(js: JsObject) extends WhiskAuth(unusedSubject, Set.empty) {
-    override def toDocumentRecord: JsObject = retainProperFields(js)
+    override def toDocumentRecord: JsObject = js
   }
 
   case class AnyEntity(js: JsObject,
@@ -450,12 +448,12 @@ object DbCommand {
                        namespace: EntityPath = unusedPath,
                        annotations: Parameters = unusedParams)
       extends WhiskEntity(EntityName("not used"), "not used") {
-    override def toDocumentRecord: JsObject = retainProperFields(entityWithEntityType(js))
+    override def toDocumentRecord: JsObject = withEntityType(js)
     override def toJson: JsObject = toDocumentRecord
   }
 
   private class AnyActivation(js: JsObject)
       extends WhiskActivation(unusedPath, unusedName, unusedSubject, unusedActivationId, unusedInstant, unusedInstant) {
-    override def toDocumentRecord: JsObject = retainProperFields(js)
+    override def toDocumentRecord: JsObject = js
   }
 }

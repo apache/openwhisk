@@ -143,19 +143,19 @@ class DbCommandTests
   it should "determine entityType if missing" in {
     val action = newAction(newNS())
     getEntityType(stripType(action)).value shouldBe "action"
-    entityWithEntityType(stripType(action)) shouldBe action.toDocumentRecord
+    withEntityType(stripType(action)) shouldBe action.toDocumentRecord
 
     val pkg = WhiskPackage(newNS(), aname())
     getEntityType(stripType(pkg)).value shouldBe "package"
-    entityWithEntityType(stripType(pkg)) shouldBe pkg.toDocumentRecord
+    withEntityType(stripType(pkg)) shouldBe pkg.toDocumentRecord
 
     val trigger = WhiskTrigger(newNS(), aname())
     getEntityType(stripType(trigger)).value shouldBe "trigger"
-    entityWithEntityType(stripType(trigger)) shouldBe trigger.toDocumentRecord
+    withEntityType(stripType(trigger)) shouldBe trigger.toDocumentRecord
 
     val rule = WhiskRule(newNS(), aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
     getEntityType(stripType(rule)).value shouldBe "rule"
-    entityWithEntityType(stripType(rule)) shouldBe rule.toDocumentRecord
+    withEntityType(stripType(rule)) shouldBe rule.toDocumentRecord
   }
 
   it should "set entityType if missing" in {
