@@ -79,7 +79,6 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 
     val out = opt[File](descr = "file to dump the contents to")
 
-    //TODO Make use of this flag!
     val attachments =
       opt[Boolean](descr = "include attachments. Downloaded attachments would be stored under 'attachments' directory")
 
@@ -141,7 +140,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
       .flatMap { rr =>
         ticker.close()
         //2. Now download attachments by reading output file
-        if (rr.attachmentCount > 0) {
+        if (rr.attachmentCount > 0 && get.attachments.getOrElse(false)) {
           val dump = get.out() //For attachment case out file is required
           downloadAttachments(dump, getOrCreateAttachmentDir(dump), rr.count, get.threads(), artifactStore)
             .map { sr =>

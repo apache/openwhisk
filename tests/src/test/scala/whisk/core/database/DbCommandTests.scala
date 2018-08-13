@@ -97,7 +97,8 @@ class DbCommandTests
       .map(_.toDocumentRecord)
 
     val outFile = newFile()
-    resultOk("db", "get", "--out", outFile.getAbsolutePath, "whisks") should include(outFile.getAbsolutePath)
+    resultOk("db", "get", "--out", outFile.getAbsolutePath, "--attachments", "whisks") should include(
+      outFile.getAbsolutePath)
 
     //Compare the jsons ignoring _rev and updated and other private fields starting with '_' except '_id'
     (collectedEntities(outFile, idFilter(actionIds)) should contain theSameElementsAs actionJsons)(
