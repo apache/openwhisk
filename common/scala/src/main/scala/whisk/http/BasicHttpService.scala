@@ -28,8 +28,8 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import spray.json._
+import whisk.common.Https.HttpsConfig
 import whisk.common._
-import whisk.core.WhiskConfig
 
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.DurationInt
@@ -165,7 +165,7 @@ object BasicHttpService {
   /**
    * Starts an HTTPS route handler on given port and registers a shutdown hook.
    */
-  def startHttpsService(route: Route, port: Int, config: WhiskConfig)(implicit actorSystem: ActorSystem,
+  def startHttpsService(route: Route, port: Int, config: HttpsConfig)(implicit actorSystem: ActorSystem,
                                                                       materializer: ActorMaterializer): Unit = {
 
     implicit val executionContext = actorSystem.dispatcher

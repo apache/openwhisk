@@ -212,12 +212,6 @@
         "{{ controller.ssl.keystore.password }}"
       "CONFIG_whisk_controller_https_keystoreFlavor":
         "{{ controller.ssl.storeFlavor }}"
-      "CONFIG_whisk_controller_https_truststorePath":
-        "{{ controller.ssl.truststore.path }}"
-      "CONFIG_whisk_controller_https_truststorePassword":
-        "{{ controller.ssl.truststore.password }}"
-      "CONFIG_whisk_controller_https_truststoreFlavor":
-        "{{ controller.ssl.storeFlavor }}"
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"
       "CONFIG_whisk_loadbalancer_invokerUserMemory":

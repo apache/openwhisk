@@ -49,6 +49,7 @@ import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
 import akka.event.Logging.InfoLevel
 import pureconfig.loadConfigOrThrow
+import whisk.common.Https.HttpsConfig
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -262,9 +263,10 @@ object Controller {
           actorSystem,
           ActorMaterializer.create(actorSystem),
           logger)
-        if (Controller.protocol == "https")
-          BasicHttpService.startHttpsService(controller.route, port, config)(actorSystem, controller.materializer)
-        else
+        if (Controller.protocol == "https") {
+          val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+          BasicHttpService.startHttpsService(controller.route, port, httpsConfig)(actorSystem, controller.materializer)
+        } else
           BasicHttpService.startHttpService(controller.route, port)(actorSystem, controller.materializer)
 
       case Failure(t) =>

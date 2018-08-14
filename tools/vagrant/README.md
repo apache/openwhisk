@@ -227,7 +227,7 @@ Do not restart the VM using Virtual Box tools, and always use `vagrant` from the
 command line: `vagrant up` to start the VM and `vagrant reload` to restart it.
 This allows the `$HOME/openwhisk` folder to be available inside the VM.
 
-**Tip** If you have problems with data stores check that `ansible/db_local.ini`.
+**Tip** If you have problems with data stores check that `ansible/db_local.ini` exists.
 
 **Tip**
 To initialize the data store from scratch run `ansible-playbook -i
