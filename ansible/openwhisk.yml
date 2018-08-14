@@ -14,4 +14,6 @@
 
 - import_playbook: edge.yml
 
+- import_playbook: properties.yml
+
 - import_playbook: downloadcli.yml
