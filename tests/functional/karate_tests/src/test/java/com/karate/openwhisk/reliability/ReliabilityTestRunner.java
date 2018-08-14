@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Copyright 2017-2018 Adobe.
 package com.karate.openwhisk.reliability;
 
 import static org.junit.Assert.assertTrue;
@@ -36,12 +35,6 @@ import cucumber.api.CucumberOptions;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 
-
-/**
- * @author Rahul Tripathi
- *
- *
- */
 
 @RunWith(Karate.class)
 @CucumberOptions(tags = {"~@ignore","~@driver","~@resiliency","~@concurrent"})

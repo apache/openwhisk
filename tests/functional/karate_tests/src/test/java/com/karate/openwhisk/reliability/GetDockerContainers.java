@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Copyright 2017-2018 Adobe.
 package com.karate.openwhisk.reliability;
 import java.io.InputStream;
 
@@ -23,12 +22,6 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
-
-/**
- * @author Rahul Tripathi
- *
- *
- */
 public class GetDockerContainers {
 
 

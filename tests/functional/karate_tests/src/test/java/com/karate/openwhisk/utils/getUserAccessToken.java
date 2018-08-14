@@ -14,13 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Copyright 2017-2018 Adobe.
-/**
-
- * @author Rahul Tripathi
- *
- *
- */
 
 package com.karate.openwhisk.utils;
 
