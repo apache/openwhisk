@@ -644,7 +644,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   def listActivation(filter: Option[String] = None,
                      limit: Option[Int] = None,
                      since: Option[Instant] = None,
-                     skip: Option[Int] = Some(0),
+                     skip: Option[Int] = None,
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")

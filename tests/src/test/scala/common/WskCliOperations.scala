@@ -487,7 +487,7 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
   def list(filter: Option[String] = None,
            limit: Option[Int] = None,
            since: Option[Instant] = None,
-           skip: Option[Int] = Some(0),
+           skip: Option[Int] = None,
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "list", "--auth", wp.authKey) ++ { filter map { Seq(_) } getOrElse Seq.empty } ++ {
       limit map { l =>
@@ -498,7 +498,7 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
         Seq("--since", i.toEpochMilli.toString)
       } getOrElse Seq.empty
     } ++ {
-      since map { i =>
+      skip map { i =>
         Seq("--skip", i.toString)
       } getOrElse Seq.empty
     }
