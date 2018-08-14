@@ -59,7 +59,7 @@ whisk {
       protocol = {{ controller.protocol }}
       https {
         keystore-flavor = "{{ controller.ssl.storeFlavor }}"
-        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controller.ssl.keystore.name }}"
         keystore-password = "{{ controller.ssl.keystore.password }}"
         client-auth = "{{ controller.ssl.clientAuth }}"
       }
