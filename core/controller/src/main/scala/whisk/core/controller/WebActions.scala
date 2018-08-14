@@ -353,7 +353,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
     headers.filter(_.lowercaseName != `Content-Type`.lowercaseName)
 }
 
-trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostActionActivation {
+trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostActionActivation with CustomHeaders {
   services: WhiskServices =>
 
   /** API path invocation path for posting activations directly through the host. */
@@ -643,37 +643,41 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
                               responseType: MediaExtension)(implicit transid: TransactionId) = {
     onComplete(queuedActivation) {
       case Success(Right(activation)) =>
-        val result = activation.resultAsJson
+        respondWithActivationIdHeader(activation.activationId) {
+          val result = activation.resultAsJson
 
-        if (activation.response.isSuccess || activation.response.isApplicationError) {
-          val resultPath = if (activation.response.isSuccess) {
-            projectResultField
+          if (activation.response.isSuccess || activation.response.isApplicationError) {
+            val resultPath = if (activation.response.isSuccess) {
+              projectResultField
+            } else {
+              // the activation produced an error response: therefore ignore
+              // the requested projection and unwrap the error instead
+              // and attempt to handle it per the desired response type (extension)
+              List(ActivationResponse.ERROR_FIELD)
+            }
+
+            val result = getFieldPath(activation.resultAsJson, resultPath)
+            result match {
+              case Some(projection) =>
+                val marshaler = Future(responseType.transcoder(projection, transid, webApiDirectives))
+                onComplete(marshaler) {
+                  case Success(done) => done // all transcoders terminate the connection
+                  case Failure(t)    => terminate(InternalServerError)
+                }
+              case _ => terminate(NotFound, Messages.propertyNotFound)
+            }
           } else {
-            // the activation produced an error response: therefore ignore
-            // the requested projection and unwrap the error instead
-            // and attempt to handle it per the desired response type (extension)
-            List(ActivationResponse.ERROR_FIELD)
+            terminate(BadRequest, Messages.errorProcessingRequest)
           }
-
-          val result = getFieldPath(activation.resultAsJson, resultPath)
-          result match {
-            case Some(projection) =>
-              val marshaler = Future(responseType.transcoder(projection, transid, webApiDirectives))
-              onComplete(marshaler) {
-                case Success(done) => done // all transcoders terminate the connection
-                case Failure(t)    => terminate(InternalServerError)
-              }
-            case _ => terminate(NotFound, Messages.propertyNotFound)
-          }
-        } else {
-          terminate(BadRequest, Messages.errorProcessingRequest)
         }
 
       case Success(Left(activationId)) =>
         // blocking invoke which got queued instead
         // this should not happen, instead it should be a blocking invoke timeout
         logging.debug(this, "activation waiting period expired")
-        terminate(Accepted, Messages.responseNotReady)
+        respondWithActivationIdHeader(activationId) {
+          terminate(Accepted, Messages.responseNotReady)
+        }
 
       case Failure(t: RejectRequest) => terminate(t.code, t.message)
 

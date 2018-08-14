@@ -33,8 +33,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogStoreProvider
-import whisk.core.controller.RestApiCommons
-import whisk.core.controller.WhiskServices
+import whisk.core.controller.{CustomHeaders, RestApiCommons, WhiskServices}
 import whisk.core.database.{ActivationStoreProvider, CacheChangeNotification, DocumentFactory}
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
@@ -53,7 +52,8 @@ protected trait ControllerTestCommon
     with DbUtils
     with ExecHelpers
     with WhiskServices
-    with StreamLogging {
+    with StreamLogging
+    with CustomHeaders {
 
   val activeAckTopicIndex = ControllerInstanceId("0")
 
@@ -89,6 +89,8 @@ protected trait ControllerTestCommon
   val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+
+  val ActivationIdHeaderInLowercase = ActivationIdHeader.toLowerCase
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>

@@ -256,24 +256,28 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead
-        complete(Accepted, activationId.toJsObject)
+        respondWithActivationIdHeader(activationId) {
+          complete(Accepted, activationId.toJsObject)
+        }
       case Success(Right(activation)) =>
         val response = if (result) activation.resultAsJson else activation.toExtendedJson
 
-        if (activation.response.isSuccess) {
-          complete(OK, response)
-        } else if (activation.response.isApplicationError) {
-          // actions that result is ApplicationError status are considered a 'success'
-          // and will have an 'error' property in the result - the HTTP status is OK
-          // and clients must check the response status if it exists
-          // NOTE: response status will not exist in the JSON object if ?result == true
-          // and instead clients must check if 'error' is in the JSON
-          // PRESERVING OLD BEHAVIOR and will address defect in separate change
-          complete(BadGateway, response)
-        } else if (activation.response.isContainerError) {
-          complete(BadGateway, response)
-        } else {
-          complete(InternalServerError, response)
+        respondWithActivationIdHeader(activation.activationId) {
+          if (activation.response.isSuccess) {
+            complete(OK, response)
+          } else if (activation.response.isApplicationError) {
+            // actions that result is ApplicationError status are considered a 'success'
+            // and will have an 'error' property in the result - the HTTP status is OK
+            // and clients must check the response status if it exists
+            // NOTE: response status will not exist in the JSON object if ?result == true
+            // and instead clients must check if 'error' is in the JSON
+            // PRESERVING OLD BEHAVIOR and will address defect in separate change
+            complete(BadGateway, response)
+          } else if (activation.response.isContainerError) {
+            complete(BadGateway, response)
+          } else {
+            complete(InternalServerError, response)
+          }
         }
       case Failure(t: RecordTooLargeException) =>
         logging.debug(this, s"[POST] action payload was too large")

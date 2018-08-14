@@ -793,7 +793,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         status should be(NoContent)
         response.entity shouldBe HttpEntity.Empty
         withClue(headers) {
-          headers.length shouldBe 0
+          headers.length shouldBe 1
+          headers should contain(RawHeader(ActivationIdHeader, _))
         }
       }
 
@@ -922,7 +923,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
             m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
-              headers shouldBe empty
+              headers.size shouldBe 1
+              headers should contain(RawHeader(ActivationIdHeader, _))
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -959,7 +961,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
             m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
-              headers shouldBe empty
+              headers.size shouldBe 1
+              headers should contain(RawHeader(ActivationIdHeader, _))
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -976,7 +979,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
             m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
-              headers shouldBe List(RawHeader("Set-Cookie", "a=b"))
+              headers should contain(RawHeader("Set-Cookie", "a=b"))
+              headers should contain(RawHeader(ActivationIdHeader, _))
               response.entity shouldBe HttpEntity.Empty
             }
           }
