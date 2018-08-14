@@ -181,7 +181,7 @@ protected[core] abstract class EntitlementProvider(
    * @param resource the resource the subject requests access to
    * @return a promise that completes with true iff the subject is permitted to access the request resource
    */
-  protected def entitled(user: Identity, right: Privilege, resource: Resource)(
+  protected[core] def entitled(user: Identity, right: Privilege, resource: Resource)(
     implicit transid: TransactionId): Future[Boolean]
 
   /**
@@ -288,7 +288,7 @@ protected[core] abstract class EntitlementProvider(
    * implicitly or explicitly granted. Instead, the given resource set should include both the binding
    * and the referenced package.
    */
-  protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
+  protected[core] def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.name.asString)

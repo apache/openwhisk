@@ -1736,7 +1736,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       implicit transid: TransactionId) = ???
 
     /** Checks if subject has explicit grant for a resource. */
-    protected override def entitled(user: Identity, right: Privilege, resource: Resource)(
+    protected[core] override def entitled(user: Identity, right: Privilege, resource: Resource)(
       implicit transid: TransactionId) = ???
   }
 
