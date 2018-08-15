@@ -24,6 +24,7 @@ import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling._
+import akka.io.Tcp.SO
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.{Flow, _}
 import spray.json._
@@ -45,16 +46,19 @@ class PoolingRestClient(
   port: Int,
   queueSize: Int,
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
-  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem) {
+  timeout: Option[FiniteDuration] = None,
+  keepAlive: Option[Boolean] = None)(implicit system: ActorSystem) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
   protected implicit val context: ExecutionContext = system.dispatcher
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  //if specified, override the ClientConnection idle-timeout value
+  //if specified, override the ClientConnection idle-timeout and keepalive socket option value
   private val timeoutSettings = {
-    val ps = ConnectionPoolSettings(system.settings.config)
-    timeout.map(t => ps.withUpdatedConnectionSettings(_.withIdleTimeout(t))).getOrElse(ps)
+    ConnectionPoolSettings(system.settings.config).withUpdatedConnectionSettings { s =>
+      val t = timeout.map(t => s.withIdleTimeout(t)).getOrElse(s)
+      keepAlive.map(k => t.withSocketOptions(SO.KeepAlive(k) :: Nil)).getOrElse(t)
+    }
   }
 
   // Creates or retrieves a connection pool for the host.
