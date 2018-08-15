@@ -59,12 +59,15 @@ To verify your CLI setup, try [creating and running an action](./samples.md).
 ### Configure command completion for Openwhisk CLI
 
 For bash command completion to work, bash 4.1 or newer is required. The most recent Linux distributions should have the correct version of bash but Mac users will most likely have an older version.
+
 Mac users can check their bash version and update it by running the following commands:
 
 ```
 bash --version
-brew install bash-completion
+brew install bash
 ```
+
+This requires [Homebrew](https://brew.sh/) to be installed. The updated bash will be installed in `/usr/local/bin`.
 
 To write the bash command completion to your local directory, run the following command:
 
