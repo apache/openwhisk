@@ -170,6 +170,10 @@
                     "prefix": "openwhisk",
                     "name": "action-php-v7.1",
                     "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 }
             },
             {
@@ -180,6 +184,10 @@
                     "prefix": "openwhisk",
                     "name": "action-php-v7.2",
                     "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 }
             }
         ],
