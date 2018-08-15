@@ -1299,7 +1299,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         status should be(OK)
         val response = responseAs[JsObject]
         response should be(activation.resultAsJson)
-        headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
+        headers should contain(RawHeader(ActivationIdHeader, activation.activationId.asString))
       }
     } finally {
       deleteActivation(ActivationId(activation.docid.asString), context)
@@ -1369,6 +1369,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
       // will not wait long enough should get accepted status
       Post(s"$collectionPath/${action.name}?blocking=true&timeout=100") ~> Route.seal(routes(creds)) ~> check {
+        val response = responseAs[JsObject]
         status shouldBe Accepted
         headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
 
