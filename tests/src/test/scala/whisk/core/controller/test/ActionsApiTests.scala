@@ -1380,7 +1380,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val response = responseAs[JsObject]
         response shouldBe activation.withoutLogs.toExtendedJson
         headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
-
       }
     } finally {
       loadBalancer.whiskActivationStub = None
@@ -1409,7 +1408,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val response = responseAs[JsObject]
         response should be(activation.withoutLogs.toExtendedJson)
         headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
-
       }
     } finally {
       deleteActivation(ActivationId(activation.docid.asString), context)

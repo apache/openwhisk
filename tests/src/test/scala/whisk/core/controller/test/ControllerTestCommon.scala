@@ -90,8 +90,6 @@ protected trait ControllerTestCommon
   val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
 
-  val ActivationIdHeaderInLowercase = ActivationIdHeader.toLowerCase
-
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
       logging.debug(this, s"deleting ${doc.docinfo}")
