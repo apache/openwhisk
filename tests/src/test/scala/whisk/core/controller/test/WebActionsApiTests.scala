@@ -1015,6 +1015,28 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           }
       }
     }
+    it should s"handle http web action with base64 encoded known '+json' response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          actionResult = Some(
+            JsObject(
+              "headers" -> JsObject("content-type" -> "application/json-patch+json".toJson),
+              webApiDirectives.statusCode -> OK.intValue.toJson,
+              "body" -> Base64.getEncoder.encodeToString {
+                JsObject("field" -> "value".toJson).compactPrint.getBytes
+              }.toJson))
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            mediaType.value shouldBe "application/json-patch+json"
+            responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
+          }
+        }
+      }
+    }
 
     it should s"handle http web action for known '+json' response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
