@@ -28,6 +28,7 @@ import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.{Message, MessageProducer}
 import whisk.core.entity.UUIDs
+import whisk.utils.Exceptions
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -36,7 +37,8 @@ import scala.util.{Failure, Success}
 
 class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
                                                                                            actorSystem: ActorSystem)
-    extends MessageProducer {
+    extends MessageProducer
+    with Exceptions {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   private val gracefulWaitTime = 100.milliseconds
@@ -99,12 +101,12 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
 
     verifyConfig(config, ProducerConfig.configNames().asScala.toSet)
 
-    new KafkaProducer(config, new StringSerializer, new StringSerializer)
+    tryAndThrow("creating producer")(new KafkaProducer(config, new StringSerializer, new StringSerializer))
   }
 
   private def recreateProducer(): Unit = {
-    val oldProducer = producer
-    oldProducer.close()
+    logging.info(this, s"recreating producer")
+    tryAndSwallow("closing old producer")(producer.close())
     logging.info(this, s"old producer closed")
     producer = createProducer()
   }
