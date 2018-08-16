@@ -56,7 +56,7 @@ trait ActionContainer {
 }
 
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
-  import ActionContainer.{filterSentinel, sentinel}
+  import ActionContainer.{endSentinel, filterEndSentinel}
 
   def initPayload(code: String, main: String = "main"): JsObject =
     JsObject(
@@ -73,15 +73,15 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLo
                    additionalCheck: (String, String) => Unit,
                    sentinelCount: Int = 1): Unit = {
     withClue("expected number of stdout sentinels") {
-      sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
+      sentinelCount shouldBe StringUtils.countMatches(out, endSentinel)
     }
     withClue("expected number of stderr sentinels") {
-      sentinelCount shouldBe StringUtils.countMatches(err, sentinel)
+      sentinelCount shouldBe StringUtils.countMatches(err, endSentinel)
     }
 
-    val (o, e) = (filterSentinel(out), filterSentinel(err))
-    o should not include sentinel
-    e should not include sentinel
+    val (o, e) = (filterEndSentinel(out), filterEndSentinel(err))
+    o should not include endSentinel
+    e should not include endSentinel
     additionalCheck(o, e)
   }
 }
@@ -170,8 +170,10 @@ object ActionContainer {
   }
 
   // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker)
-  val sentinel = Container.ACTIVATION_LOG_SENTINEL
-  def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
+  val startSentinel = Container.ACTIVATION_LOG_START_SENTINEL
+  def filterStartSentinel(str: String): String = str.replaceAll(startSentinel, "").trim
+  val endSentinel = Container.ACTIVATION_LOG_END_SENTINEL
+  def filterEndSentinel(str: String): String = str.replaceAll(endSentinel, "").trim
 
   def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
     code: ActionContainer => Unit)(implicit actorSystem: ActorSystem, logging: Logging): (String, String) = {

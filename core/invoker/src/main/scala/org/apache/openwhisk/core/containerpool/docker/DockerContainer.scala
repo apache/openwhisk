@@ -42,7 +42,8 @@ import org.apache.openwhisk.http.Messages
 
 object DockerContainer {
 
-  private val byteStringSentinel = ByteString(Container.ACTIVATION_LOG_SENTINEL)
+  private val byteStringStartSentinel = ByteString(Container.ACTIVATION_LOG_START_SENTINEL)
+  private val byteStringEndSentinel = ByteString(Container.ACTIVATION_LOG_END_SENTINEL)
 
   /**
    * Creates a container running on a docker daemon.
@@ -268,7 +269,8 @@ class DockerContainer(protected val id: ContainerId,
         logFileOffset.addAndGet(size)
         size
       }
-      .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.byteStringSentinel), 2, waitForSentinel))
+      .filterNot(_.containsSlice(DockerContainer.byteStringStartSentinel))
+      .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.byteStringEndSentinel), 2, waitForSentinel))
       // As we're reading the logs after the activation has finished the invariant is that all loglines are already
       // written and we mostly await them being flushed by the docker daemon. Therefore we can timeout based on the time
       // between two loglines appear without relying on the log frequency in the action itself.

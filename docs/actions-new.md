@@ -223,11 +223,13 @@ will destroy the container.
 
 #### Logs
 
-The proxy must flush all the logs produced during initialization and execution and add a frame marker
-to denote the end of the log stream for an activation. This is done by emitting the token
-[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
-as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
-or truncated activation logs.
+The proxy must flush all the logs produced during initialization and execution and add frame markers
+to denote the start and end of the log stream for an activation. This is done by emitting the token
+[`XXX_THE_START_OF_A_WHISK_ACTIVATION_XXX with id <ACTIVATIONID>`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L52)
+as the first log line for the `stdout` _and_ `stderr` streams and emitting the token
+[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L59)
+as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit these markers will cause delayed,
+truncated, or even completely dropped activation logs.
 
 ### Testing the new runtime
 

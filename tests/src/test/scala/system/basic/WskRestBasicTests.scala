@@ -300,7 +300,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         activation.logs shouldBe defined
         val logs = activation.logs.get.toString
         logs should include("This is an example zip used with the docker skeleton action.")
-        logs should not include Container.ACTIVATION_LOG_SENTINEL
+        logs should not include Container.ACTIVATION_LOG_START_SENTINEL
+        logs should not include Container.ACTIVATION_LOG_END_SENTINEL
       }
   }
 

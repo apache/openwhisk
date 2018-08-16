@@ -52,11 +52,20 @@ case class ContainerAddress(host: String, port: Int = 8080) {
 object Container {
 
   /**
+   * The action proxies insert this line in the logs at the start of each activation for stdout/stderr
+   * along with the activationId in a line that looks like:
+   *   XXX_THE_START_OF_A_WHISK_ACTIVATION_XXX with id <ACTIVATIONID>
+   *
+   * Note: Blackbox containers might not add this sentinel, as we cannot be sure the action developer actually does this.
+   */
+  val ACTIVATION_LOG_START_SENTINEL = "XXX_THE_START_OF_A_WHISK_ACTIVATION_XXX"
+
+  /**
    * The action proxies insert this line in the logs at the end of each activation for stdout/stderr.
    *
    * Note: Blackbox containers might not add this sentinel, as we cannot be sure the action developer actually does this.
    */
-  val ACTIVATION_LOG_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+  val ACTIVATION_LOG_END_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
 
   protected[containerpool] val config: ContainerPoolConfig =
     loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)

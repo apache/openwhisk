@@ -63,8 +63,8 @@ object DockerContainerTests {
     val appendedLog = if (appendSentinel) {
       val lastTime = log.lastOption.map { case LogLine(time, _, _) => time }.getOrElse(Instant.EPOCH.toString)
       log :+
-        LogLine(lastTime, "stderr", s"${Container.ACTIVATION_LOG_SENTINEL}\n") :+
-        LogLine(lastTime, "stdout", s"${Container.ACTIVATION_LOG_SENTINEL}\n")
+        LogLine(lastTime, "stderr", s"${Container.ACTIVATION_LOG_END_SENTINEL}\n") :+
+        LogLine(lastTime, "stdout", s"${Container.ACTIVATION_LOG_END_SENTINEL}\n")
     } else {
       log
     }

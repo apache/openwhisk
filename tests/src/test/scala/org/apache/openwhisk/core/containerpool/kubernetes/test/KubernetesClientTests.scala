@@ -43,7 +43,7 @@ import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.kubernetes._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_SENTINEL
+import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_END_SENTINEL
 
 import scala.collection.mutable
 import scala.collection.immutable
@@ -93,12 +93,12 @@ class KubernetesClientTests
   behavior of "KubernetesClient"
 
   val firstLog = s"""2018-02-06T00:00:18.419889342Z first activation
-                   |2018-02-06T00:00:18.419929471Z $ACTIVATION_LOG_SENTINEL
-                   |2018-02-06T00:00:18.419988733Z $ACTIVATION_LOG_SENTINEL
+                   |2018-02-06T00:00:18.419929471Z $ACTIVATION_LOG_END_SENTINEL
+                   |2018-02-06T00:00:18.419988733Z $ACTIVATION_LOG_END_SENTINEL
                    |""".stripMargin
   val secondLog = s"""2018-02-06T00:09:35.38267193Z second activation
-                    |2018-02-06T00:09:35.382990278Z $ACTIVATION_LOG_SENTINEL
-                    |2018-02-06T00:09:35.383116503Z $ACTIVATION_LOG_SENTINEL
+                    |2018-02-06T00:09:35.382990278Z $ACTIVATION_LOG_END_SENTINEL
+                    |2018-02-06T00:09:35.383116503Z $ACTIVATION_LOG_END_SENTINEL
                     |""".stripMargin
 
   def firstSource(lastTimestamp: Option[Instant] = None): Source[TypedLogLine, Any] =
@@ -141,7 +141,7 @@ class KubernetesClientTests
     val logs = awaitLogs(client.logs(container, None))
     logs should have size 3
     logs(0) shouldBe TypedLogLine("2018-02-06T00:00:18.419889342Z", "stdout", "first activation")
-    logs(2) shouldBe TypedLogLine("2018-02-06T00:00:18.419988733Z", "stdout", ACTIVATION_LOG_SENTINEL)
+    logs(2) shouldBe TypedLogLine("2018-02-06T00:00:18.419988733Z", "stdout", ACTIVATION_LOG_END_SENTINEL)
   }
 
   it should "return all logs after the one matching sinceTime" in {
@@ -156,7 +156,7 @@ class KubernetesClientTests
     val logs = awaitLogs(client.logs(container, testDate))
     logs should have size 3
     logs(0) shouldBe TypedLogLine("2018-02-06T00:09:35.38267193Z", "stdout", "second activation")
-    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_SENTINEL)
+    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_END_SENTINEL)
   }
 
   it should "return all logs if none match sinceTime" in {
@@ -170,7 +170,7 @@ class KubernetesClientTests
     val logs = awaitLogs(client.logs(container, testDate))
     logs should have size 3
     logs(0) shouldBe TypedLogLine("2018-02-06T00:09:35.38267193Z", "stdout", "second activation")
-    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_SENTINEL)
+    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_END_SENTINEL)
   }
 
 }

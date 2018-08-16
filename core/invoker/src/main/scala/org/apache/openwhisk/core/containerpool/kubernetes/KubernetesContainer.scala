@@ -119,11 +119,12 @@ class KubernetesContainer(protected[core] val id: ContainerId,
         // Adding + 1 since we know there's a newline byte being read
         obj.jsonSize.toLong + 1
       }
+      .filterNot(_.log.containsSlice(Container.ACTIVATION_LOG_START_SENTINEL))
       .map { line =>
         lastTimestamp.set(Option(line.time))
         line
       }
-      .via(new CompleteAfterOccurrences(_.log == Container.ACTIVATION_LOG_SENTINEL, 2, waitForSentinel))
+      .via(new CompleteAfterOccurrences(_.log == Container.ACTIVATION_LOG_END_SENTINEL, 2, waitForSentinel))
       .recover {
         case _: StreamLimitReachedException =>
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation
