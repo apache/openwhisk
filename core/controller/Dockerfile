@@ -18,9 +18,9 @@ ADD build/distributions/controller.tar /
 
 COPY init.sh /
 RUN chmod +x init.sh
-RUN chmod 777 /root
 
 RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
+RUN chown ${NOT_ROOT_USER} /root
 USER ${NOT_ROOT_USER}
 
 EXPOSE 8080
