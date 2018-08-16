@@ -740,7 +740,7 @@ class ContainerProxyTests
     var runCount = 0
     var logsCount = 0
 
-    def suspend()(implicit transid: TransactionId): Future[Unit] = {
+    override def suspend()(implicit transid: TransactionId): Future[Unit] = {
       suspendCount += 1
       Future.successful(())
     }
