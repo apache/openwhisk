@@ -27,7 +27,6 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.MessageEntity
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.model.headers.Connection
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.StreamTcpException
 import akka.stream.scaladsl.Sink
@@ -56,6 +55,7 @@ import whisk.http.PoolingRestClient
  * It allows to POST a JSON object and receive JSON object back; that is the
  * content type and the accept headers are both 'application/json.
  * This implementation uses the akka http host-level client API.
+ * NOTE: Keepalive is disabled to prevent issues with paused containers
  *
  * @param hostname the host name
  * @param port the port
@@ -71,7 +71,7 @@ protected class AkkaContainerClient(
   maxResponse: ByteSize,
   queueSize: Int,
   retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
-    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
+    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout), keepAlive = Some(false))
     with ContainerClient {
 
   def close() = Await.result(shutdown(), 30.seconds)
@@ -93,12 +93,8 @@ protected class AkkaContainerClient(
 
     //create the request
     val req = Marshal(body).to[MessageEntity].map { b =>
-      //DO NOT reuse the connection
-      //For details on Connection: Close handling, see:
-      // - https://doc.akka.io/docs/akka-http/current/common/http-model.html#http-headers
-      // - http://github.com/akka/akka-http/tree/v10.1.3/akka-http-core/src/test/scala/akka/http/impl/engine/rendering/ResponseRendererSpec.scala#L470-L571
       HttpRequest(HttpMethods.POST, endpoint, entity = b)
-        .withHeaders(Connection("close"), Accept(MediaTypes.`application/json`))
+        .withHeaders(Accept(MediaTypes.`application/json`))
     }
 
     retryingRequest(req, timeout, retry)
