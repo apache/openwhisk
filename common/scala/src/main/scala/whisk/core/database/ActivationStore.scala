@@ -37,6 +37,7 @@ trait ActivationStore {
    * Stores an activation.
    *
    * @param activation activation to store
+   * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
@@ -49,6 +50,7 @@ trait ActivationStore {
    * Retrieves an activation corresponding to the specified activation ID.
    *
    * @param activationId ID of activation to retrieve
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return Future containing the retrieved WhiskActivation
    */
@@ -58,6 +60,7 @@ trait ActivationStore {
    * Deletes an activation corresponding to the provided activation ID.
    *
    * @param activationId ID of activation to delete
+   * @param context user and request context
    * @param transid transaction ID for the request
    * @param notifier cache change notifier
    * @return Future containing a Boolean value indication whether the activation was deleted
@@ -74,6 +77,7 @@ trait ActivationStore {
    * @param skip number of activations to skip
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return Future containing number of activations returned from query in JSON format
    */
@@ -94,6 +98,7 @@ trait ActivationStore {
    * @param includeDocs return document with each activation
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
@@ -117,6 +122,7 @@ trait ActivationStore {
    * @param includeDocs return document with each activation
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
