@@ -58,6 +58,7 @@ import whisk.http.Messages
 import whisk.http.LenientSprayJsonSupport._
 import whisk.spi.SpiLoader
 import whisk.utils.JsHelpers._
+import whisk.core.entity.Exec
 
 protected[controller] sealed class WebApiDirectives(prefix: String = "__ow_") {
   // enforce the presence of an extension (e.g., .http) in the URI path
@@ -324,6 +325,10 @@ protected[core] object WhiskWebActionsApi extends Directives {
     findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
       val ct = ContentType(mediaType, () => HttpCharsets.`UTF-8`)
       ct match {
+        // TODO: remove this extract check for base64 on json response
+        // this is here for legacy reasons to not brake old webactions returning base64 json that have not migrated yet
+        case nonbinary: ContentType.NonBinary if (isJsonFamily(mediaType) && Exec.isBinaryCode(str)) =>
+          Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
         case nonbinary: ContentType.NonBinary => Success(HttpEntity(nonbinary, str))
 
         // because of the default charset provided to the content type constructor
