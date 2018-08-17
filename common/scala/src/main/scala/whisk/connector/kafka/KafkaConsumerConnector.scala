@@ -27,6 +27,7 @@ import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
 import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
+import whisk.utils.Exceptions
 import whisk.utils.TimeHelpers._
 
 import scala.collection.JavaConverters._
@@ -41,7 +42,8 @@ class KafkaConsumerConnector(
   groupid: String,
   topic: String,
   override val maxPeek: Int = Int.MaxValue)(implicit logging: Logging, actorSystem: ActorSystem)
-    extends MessageConsumer {
+    extends MessageConsumer
+    with Exceptions {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   private val gracefulWaitTime = 100.milliseconds
@@ -148,28 +150,27 @@ class KafkaConsumerConnector(
 
     verifyConfig(config, ConsumerConfig.configNames().asScala.toSet)
 
-    val consumer = new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
+    val consumer = tryAndThrow(s"creating consumer for $topic") {
+      new KafkaConsumer(config, new ByteArrayDeserializer, new ByteArrayDeserializer)
+    }
 
     // subscribe does not need to be synchronized, because the reference to the consumer hasn't been returned yet and
     // thus this is guaranteed only to be called by the calling thread.
-    consumer.subscribe(Seq(topic).asJavaCollection)
+    tryAndThrow(s"subscribing to $topic")(consumer.subscribe(Seq(topic).asJavaCollection))
+
     consumer
   }
 
   private def recreateConsumer(): Unit = synchronized {
     logging.info(this, s"recreating consumer for '$topic'")
-    try {
-      consumer.close()
-    } catch {
-      // According to documentation, the consumer is force closed if it cannot be closed gracefully.
-      // See https://kafka.apache.org/11/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
-      //
-      // For the moment, we have no special handling of 'InterruptException' - it may be possible or even
-      // needed to re-try the 'close()' when being interrupted.
-      case t: Throwable =>
-        logging.error(this, s"failed to close old consumer while recreating: $t")
-    }
+    // According to documentation, the consumer is force closed if it cannot be closed gracefully.
+    // See https://kafka.apache.org/11/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html
+    //
+    // For the moment, we have no special handling of 'InterruptException' - it may be possible or even
+    // needed to re-try the 'close()' when being interrupted.
+    tryAndSwallow("closing old consumer")(consumer.close())
     logging.info(this, s"old consumer closed for '$topic'")
+
     consumer = createConsumer(topic)
   }
 
