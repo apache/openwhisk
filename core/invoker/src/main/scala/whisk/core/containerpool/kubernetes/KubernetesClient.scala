@@ -17,15 +17,12 @@
 
 package whisk.core.containerpool.kubernetes
 
-import java.io.{FileNotFoundException, IOException}
+import java.io.IOException
 import java.net.SocketTimeoutException
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatterBuilder
 
 import akka.actor.ActorSystem
-import akka.event.Logging.{ErrorLevel, InfoLevel}
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
@@ -37,7 +34,6 @@ import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
 import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerId
@@ -68,7 +64,7 @@ import scala.util.control.NonFatal
 /**
  * Configuration for kubernetes client command timeouts.
  */
-case class KubernetesClientTimeoutConfig(run: Duration, rm: Duration, inspect: Duration, logs: Duration)
+case class KubernetesClientTimeoutConfig(run: Duration, logs: Duration)
 
 /**
  * Configuration for kubernetes invoker-agent
@@ -76,9 +72,19 @@ case class KubernetesClientTimeoutConfig(run: Duration, rm: Duration, inspect: D
 case class KubernetesInvokerAgentConfig(enabled: Boolean, port: Int)
 
 /**
+ * Configuration for node affinity for the pods that execute user action containers
+ * The key,value pair should match the <key,value> pair with which the invoker worker nodes
+ * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
+ * but a deployment may override this default if needed.
+ */
+case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: String)
+
+/**
  * General configuration for kubernetes client
  */
-case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig, invokerAgent: KubernetesInvokerAgentConfig)
+case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
+                                  invokerAgent: KubernetesInvokerAgentConfig,
+                                  userPodNodeAffinity: KubernetesInvokerNodeAffinity)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -101,19 +107,6 @@ class KubernetesClient(
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
       .build())
 
-  // Determines how to run kubectl. Failure to find a kubectl binary implies
-  // a failure to initialize this instance of KubernetesClient.
-  protected def findKubectlCmd(): String = {
-    val alternatives = List("/usr/bin/kubectl", "/usr/local/bin/kubectl")
-    val kubectlBin = Try {
-      alternatives.find(a => Files.isExecutable(Paths.get(a))).get
-    } getOrElse {
-      throw new FileNotFoundException(s"Couldn't locate kubectl binary (tried: ${alternatives.mkString(", ")}).")
-    }
-    kubectlBin
-  }
-  protected val kubectlCmd = Seq(findKubectlCmd)
-
   def run(name: String,
           image: String,
           memory: ByteSize = 256.MB,
@@ -124,7 +117,7 @@ class KubernetesClient(
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq
 
-    val pod = new PodBuilder()
+    val podBuilder = new PodBuilder()
       .withNewMetadata()
       .withName(name)
       .addToLabels("name", name)
@@ -132,6 +125,23 @@ class KubernetesClient(
       .endMetadata()
       .withNewSpec()
       .withRestartPolicy("Always")
+    if (config.userPodNodeAffinity.enabled) {
+      val invokerNodeAffinity = new AffinityBuilder()
+        .withNewNodeAffinity()
+        .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+        .addNewNodeSelectorTerm()
+        .addNewMatchExpression()
+        .withKey(config.userPodNodeAffinity.key)
+        .withOperator("In")
+        .withValues(config.userPodNodeAffinity.value)
+        .endMatchExpression()
+        .endNodeSelectorTerm()
+        .endRequiredDuringSchedulingIgnoredDuringExecution()
+        .endNodeAffinity()
+        .build()
+      podBuilder.withAffinity(invokerNodeAffinity)
+    }
+    val pod = podBuilder
       .addNewContainer()
       .withNewResources()
       .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
@@ -166,11 +176,27 @@ class KubernetesClient(
   }
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
-    runCmd(Seq("delete", "--now", "pod", container.id.asString), config.timeouts.rm).map(_ => ())
+    Future {
+      blocking {
+        kubeRestClient
+          .inNamespace(kubeRestClient.getNamespace)
+          .pods()
+          .withName(container.id.asString)
+          .delete()
+      }
+    }.map(_ => ())
   }
 
   def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
-    runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), config.timeouts.rm).map(_ => ())
+    Future {
+      blocking {
+        kubeRestClient
+          .inNamespace(kubeRestClient.getNamespace)
+          .pods()
+          .withLabel(key, value)
+          .delete()
+      }
+    }.map(_ => ())
   }
 
   // suspend is a no-op with the basic KubernetesClient
@@ -199,19 +225,6 @@ class KubernetesClient(
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
     new KubernetesContainer(id, addr, workerIP, nativeContainerId)
-  }
-
-  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
-    val cmd = kubectlCmd ++ args
-    val start = transid.started(
-      this,
-      LoggingMarkers.INVOKER_KUBECTL_CMD(args.head),
-      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
-      logLevel = InfoLevel)
-    executeProcess(cmd, timeout).andThen {
-      case Success(_) => transid.finished(this, start)
-      case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
-    }
   }
 }
 

@@ -76,13 +76,9 @@ class KubernetesClientTests
   val id = ContainerId("55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52")
   val container = kubernetesContainer(id)
 
-  val kubectlCommand = "kubectl"
-
   /** Returns a KubernetesClient with a mocked result for 'executeProcess' */
   def kubernetesClient(fixture: => Future[String]) = {
     new KubernetesClient()(global) {
-      override def findKubectlCmd() = kubectlCommand
-
       override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
                                                                         as: ActorSystem) =
         fixture
