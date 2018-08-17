@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.karate.openwhisk.smoketests;
 import static org.junit.Assert.assertTrue;
 
@@ -32,6 +33,11 @@ import cucumber.api.CucumberOptions;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 
+/**
+ * @author Rahul Tripathi
+ *
+ *
+ */
 
 @CucumberOptions(tags = {"~@ignore","~@driver","~@reliability","~@resiliency","~@concurrent","~@wskfunctions"})
 public class SmokeTestRunner {
@@ -39,7 +45,7 @@ public class SmokeTestRunner {
     public void testwskFunctions() {
 
         String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5, karateOutputPath);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }

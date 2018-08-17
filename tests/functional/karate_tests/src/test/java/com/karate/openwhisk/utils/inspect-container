@@ -1,9 +1,0 @@
-#! /bin/bash
-cd /home/core/
-mkdir -p logs
-docker ps --format "{{.ID}}">containerid.txt
-cat containerid.txt | while read line
-do
-cd /home/core/logs
-docker inspect $line>$line.txt
-done

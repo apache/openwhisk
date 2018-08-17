@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// Copyright 2017-2018 Adobe.
 package com.karate.openwhisk.utils;
 import java.io.BufferedWriter;
 import java.io.File;

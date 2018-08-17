@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.karate.openwhisk.performance
 
 import com.karate.openwhisk.wskadmin._
@@ -31,13 +30,13 @@ import com.karate.openwhisk.utils.OWFileUtil
 
 import scala.concurrent.duration._
 
-class LoadTestOnCreateAction extends Simulation {
+class LoadTest extends Simulation {
   before{
     println("Simulation is about to start!")
     val ar = new WskAdminRunner()
     ar.WskAdminRunner()
   }
-  val createActionTest = scenario("create").exec(karateFeature("classpath:com/karate/openwhisk/performance/load-test-create-action.feature"))
+  val createActionTest = scenario("smoke").exec(karateFeature("classpath:com/karate/openwhisk/smoketests/TC01_Create-Invoke-Delete-Action.feature"))
 
 
   setUp(createActionTest.inject(rampUsers(5) over (5 seconds))
