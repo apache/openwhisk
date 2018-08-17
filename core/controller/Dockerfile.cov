@@ -5,6 +5,7 @@ FROM controller
 
 ARG OW_ROOT_DIR
 
+USER root
 RUN mkdir -p /coverage/common && \
     mkdir -p /coverage/controller && \
     mkdir -p "${OW_ROOT_DIR}/common/scala/build" && \
