@@ -66,7 +66,7 @@ protected[controller] trait ValidateRequestSize extends Directives {
 }
 
 protected trait CustomHeaders extends Directives {
-  val ActivationIdHeader = "X-OpenWhisk-Activation-Id"
+  val ActivationIdHeader = "x-openwhisk-activation-id"
 
   /** Add activation ID in headers */
   protected def respondWithActivationIdHeader(activationId: ActivationId): Directive0 = {

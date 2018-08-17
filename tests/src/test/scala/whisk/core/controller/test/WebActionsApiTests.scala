@@ -794,7 +794,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         response.entity shouldBe HttpEntity.Empty
         withClue(headers) {
           headers.length shouldBe 1
-          headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+          headers.exists(_.is(ActivationIdHeader)) should be(true)
         }
       }
 
@@ -924,7 +924,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
               headers.size shouldBe 1
-              headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+              headers.exists(_.is(ActivationIdHeader)) should be(true)
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -942,7 +942,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
               headers should contain(RawHeader("Set-Cookie", "a=b"))
-              headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+              headers.exists(_.is(ActivationIdHeader)) should be(true)
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -963,7 +963,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
               headers.size shouldBe 1
-              headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+              headers.exists(_.is(ActivationIdHeader)) should be(true)
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -981,7 +981,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
               status should be(statusCode)
               headers should contain(RawHeader("Set-Cookie", "a=b"))
-              headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+              headers.exists(_.is(ActivationIdHeader)) should be(true)
               response.entity shouldBe HttpEntity.Empty
             }
           }
@@ -1171,7 +1171,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             status should be(OK)
             mediaType shouldBe MediaTypes.`application/json`
             headers.size shouldBe 1
-            headers.exists(_.is(ActivationIdHeaderInLowercase)) should be(true)
+            headers.exists(_.is(ActivationIdHeader)) should be(true)
             responseAs[String] shouldBe "hello world"
           }
         }
