@@ -129,6 +129,28 @@ trait DbUtils extends Assertions {
   }
 
   /**
+   * Wait on a view to update with documents added(don't specify the namespace). This uses retry above,
+   * where the step performs a direct db query to retrieve the view and check the count
+   * matches the given value.
+   */
+  def waitOnView[Au](db: ArtifactStore[Au], count: Int, view: View)(implicit context: ExecutionContext,
+                                                                    transid: TransactionId,
+                                                                    timeout: Duration): Unit = {
+    val success = retry(
+      () => {
+        val startKey = List.empty
+        val endKey = List.empty
+        db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
+          if (l.length != count) {
+            throw RetryOp()
+          } else true
+        }
+      },
+      timeout)
+    assert(success.isSuccess, "wait aborted")
+  }
+
+  /**
    * Wait on a view specific to a collection to update with documents added to that collection in namespace.
    * This uses retry above, where the step performs a collection-specific view query using the collection
    * factory. The result count from the view is checked against the given value.

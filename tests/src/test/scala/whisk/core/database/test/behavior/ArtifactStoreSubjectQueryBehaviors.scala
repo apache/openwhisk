@@ -17,15 +17,11 @@
 
 package whisk.core.database.test.behavior
 
-import spray.json.DefaultJsonProtocol._
 import spray.json.{JsBoolean, JsObject}
 import whisk.common.TransactionId
-import whisk.core.database.{NoDocumentException, StaleParameter}
+import whisk.core.database.NoDocumentException
 import whisk.core.entity._
-import whisk.core.entity.types.AuthStore
 import whisk.core.invoker.NamespaceBlacklist
-
-import scala.concurrent.duration.Duration
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
@@ -138,7 +134,7 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     //2 for limits
     //2 for 2 namespace in user blocked
-    waitOnBlacklistView(authStore, 2 + 2)
+    waitOnView(authStore, 2 + 2, NamespaceBlacklist.view)
 
     //Use contains assertion to ensure that even if same db is used by other setup
     //we at least get our expected entries
@@ -146,35 +142,6 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     blacklist
       .refreshBlacklist()
       .futureValue should contain allElementsOf Seq(n1, n2, n4, n5).map(_.asString).toSet
-  }
-
-  def waitOnBlacklistView(db: AuthStore, count: Int)(implicit transid: TransactionId, timeout: Duration) = {
-    val success = retry(() => {
-      blacklistCount().map { listCount =>
-        if (listCount != count) {
-          throw RetryOp()
-        } else true
-      }
-    }, timeout)
-    assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
-  }
-
-  private def blacklistCount()(implicit transid: TransactionId) = {
-    //NamespaceBlacklist uses StaleParameter.UpdateAfter which would lead to race condition
-    //So use actual call here
-    authStore
-      .query(
-        table = NamespaceBlacklist.view.name,
-        startKey = List.empty,
-        endKey = List.empty,
-        skip = 0,
-        limit = Int.MaxValue,
-        includeDocs = false,
-        descending = true,
-        reduce = false,
-        stale = StaleParameter.No)
-      .map(_.map(_.fields("key").convertTo[String]).toSet)
-      .map(_.size)
   }
 
   private class LimitEntity(name: EntityName, limits: UserLimits) extends WhiskAuth(Subject(), Set.empty) {
