@@ -792,82 +792,91 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   it should "put and then get an action with attachment from cache" in {
-    val action =
+    val javaAction =
       WhiskAction(
         namespace,
         aname(),
         javaDefault(nonInlinedCode(entityStore), Some("hello")),
         annotations = Parameters("exec", "java"))
-    val content = WhiskActionPut(
-      Some(action.exec),
-      Some(action.parameters),
-      Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
-    val name = action.name
-    val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
-    val expectedPutLog =
-      Seq(s"uploading attachment '[\\w-]+' of document 'id: ${action.namespace}/${action.name}", s"caching $cacheKey")
-        .mkString("(?s).*")
-    val notExpectedGetLog = Seq(
-      s"finding document: 'id: ${action.namespace}/${action.name}",
-      s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
+    val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val swiftAction = WhiskAction(namespace, aname(), swift3(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS6), (swiftAction, SWIFT3))
 
-    // first request invalidates any previous entries and caches new result
-    Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
+    actions.foreach {
+      case (action, kind) =>
+        val content = WhiskActionPut(
+          Some(action.exec),
+          Some(action.parameters),
+          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+        val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
+
+        val expectedPutLog =
+          Seq(
+            s"uploading attachment '[\\w-]+' of document 'id: ${action.namespace}/${action.name}",
+            s"caching $cacheKey")
+            .mkString("(?s).*")
+        val notExpectedGetLog = Seq(
+          s"finding document: 'id: ${action.namespace}/${action.name}",
+          s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
+
+        // first request invalidates any previous entries and caches new result
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+
+        stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
+        stream.toString should include regex (expectedPutLog)
+        stream.reset()
+
+        // second request should fetch from cache
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+        stream.toString should include(s"serving from cache: ${CacheKey(action)}")
+        stream.toString should not include regex(notExpectedGetLog)
+        stream.reset()
+
+        // delete should invalidate cache
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+
+        stream.toString should include(s"invalidating ${CacheKey(action)}")
+        stream.reset()
     }
-
-    stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
-    stream.toString should include regex (expectedPutLog)
-    stream.reset()
-
-    // second request should fetch from cache
-    Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
-    }
-
-    stream.toString should include(s"serving from cache: ${CacheKey(action)}")
-    stream.toString should not include regex(notExpectedGetLog)
-    stream.reset()
-
-    // delete should invalidate cache
-    Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
-    }
-    stream.toString should include(s"invalidating ${CacheKey(action)}")
-    stream.reset()
   }
 
   it should "put and then get an action with inlined attachment" in {
@@ -963,8 +972,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
 
     action.exec match {
-      case exec @ CodeExecAsAttachment(_, _, _) =>
-        val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
+      case exec @ CodeExecAsAttachment(_, _, _, binary) =>
+        val bytes = if (binary) Base64.getDecoder().decode(code) else code.getBytes("UTF-8")
+        val stream = new ByteArrayInputStream(bytes)
         val manifest = exec.manifest.attached.get
         val src = StreamConverters.fromInputStream(() => stream)
         putAndAttach[WhiskAction, WhiskEntity](
@@ -1014,8 +1024,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         .mkString("(?s).*")
 
     action.exec match {
-      case exec @ CodeExecAsAttachment(_, _, _) =>
-        val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
+      case exec @ CodeExecAsAttachment(_, _, _, _) =>
+        val stream = new ByteArrayInputStream(code.getBytes)
         val manifest = exec.manifest.attached.get
         val src = StreamConverters.fromInputStream(() => stream)
         putAndAttach[WhiskAction, WhiskEntity](
@@ -1063,6 +1073,73 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
     stream.toString should include(s"invalidating ${CacheKey(action)}")
     stream.reset()
+  }
+
+  it should "ensure old and new action schemas are supported" in {
+    implicit val tid = transid()
+    val code = nonInlinedCode(entityStore)
+    val actionOldSchema = WhiskAction(namespace, aname(), js6Old(code))
+    val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(code))
+    val content = WhiskActionPut(
+      Some(actionOldSchema.exec),
+      Some(actionOldSchema.parameters),
+      Some(
+        ActionLimitsOption(
+          Some(actionOldSchema.limits.timeout),
+          Some(actionOldSchema.limits.memory),
+          Some(actionOldSchema.limits.logs))))
+    val expectedPutLog =
+      Seq(s"uploading attachment '[\\w-/:]+' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}")
+        .mkString("(?s).*")
+
+    put(entityStore, actionOldSchema)
+
+    stream.toString should not include regex(expectedPutLog)
+    stream.reset()
+
+    Post(s"$collectionPath/${actionOldSchema.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
+    }
+
+    Put(s"$collectionPath/${actionOldSchema.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          actionOldSchema.namespace,
+          actionOldSchema.name,
+          actionNewSchema.exec,
+          actionOldSchema.parameters,
+          actionOldSchema.limits,
+          actionOldSchema.version.upPatch,
+          actionOldSchema.publish,
+          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+    }
+
+    stream.toString should include regex (expectedPutLog)
+    stream.reset()
+
+    Post(s"$collectionPath/${actionOldSchema.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
+    }
+
+    Delete(s"$collectionPath/${actionOldSchema.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          actionOldSchema.namespace,
+          actionOldSchema.name,
+          actionNewSchema.exec,
+          actionOldSchema.parameters,
+          actionOldSchema.limits,
+          actionOldSchema.version.upPatch,
+          actionOldSchema.publish,
+          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+    }
   }
 
   it should "reject put with conflict for pre-existing action" in {

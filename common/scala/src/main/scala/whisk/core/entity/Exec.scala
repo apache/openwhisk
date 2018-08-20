@@ -140,14 +140,14 @@ protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest,
 
 protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
                                                 override val code: Attachment[String],
-                                                override val entryPoint: Option[String])
+                                                override val entryPoint: Option[String],
+                                                override val binary: Boolean = false)
     extends CodeExec[Attachment[String]] {
   override val kind = manifest.kind
   override val image = manifest.image
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
-  override lazy val binary = true
   override def codeAsJson = code.toJson
 
   def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
@@ -301,22 +301,24 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
           }
 
           manifest.attached
-            .map { a =>
-              val jar: Attachment[String] = {
-                // java actions once stored the attachment in "jar" instead of "code"
-                obj.fields.get("code").orElse(obj.fields.get("jar"))
-              } map {
-                attFmt[String].read(_)
-              } getOrElse {
+            .map { _ =>
+              // java actions once stored the attachment in "jar" instead of "code"
+              val code = obj.fields.get("code").orElse(obj.fields.get("jar")).getOrElse {
                 throw new DeserializationException(
-                  s"'code' must be a valid base64 string in 'exec' for '$kind' actions")
+                  s"'code' must be a string or attachment object defined in 'exec' for '$kind' actions")
               }
+              val binary: Boolean = code match {
+                case JsString(c) => isBinaryCode(c)
+                case _           => obj.fields.get("binary").map(_.convertTo[Boolean]).getOrElse(false)
+              }
+
               val main = optMainField.orElse {
                 if (manifest.requireMain.exists(identity)) {
                   throw new DeserializationException(s"'main' must be a string defined in 'exec' for '$kind' actions")
                 } else None
               }
-              CodeExecAsAttachment(manifest, jar, main)
+
+              CodeExecAsAttachment(manifest, attFmt[String].read(code), main, binary)
             }
             .getOrElse {
               val code: String = obj.fields.get("code") match {

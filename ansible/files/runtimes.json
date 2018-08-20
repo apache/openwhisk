@@ -8,7 +8,11 @@
                     "name": "nodejsaction",
                     "tag": "latest"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "nodejs:6",
@@ -19,6 +23,10 @@
                     "tag": "latest"
                 },
                 "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
                 "stemCells": [{
                     "count": 2,
                     "memory": "256 MB"
@@ -32,7 +40,11 @@
                     "name": "action-nodejs-v8",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
@@ -43,7 +55,11 @@
                     "name": "python2action",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "python:2",
@@ -53,7 +69,11 @@
                     "name": "python2action",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "python:3",
@@ -62,7 +82,11 @@
                     "name": "python3action",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "swift": [
@@ -73,7 +97,11 @@
                     "name": "swiftaction",
                     "tag": "latest"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:3",
@@ -82,7 +110,11 @@
                     "name": "swift3action",
                     "tag": "latest"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:3.1.1",
@@ -91,7 +123,11 @@
                     "name": "action-swift-v3.1.1",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:4.1",
@@ -101,7 +137,11 @@
                     "name": "action-swift-v4.1",
                     "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "java": [
@@ -115,8 +155,8 @@
                 },
                 "deprecated": false,
                 "attached": {
-                    "attachmentName": "jarfile",
-                    "attachmentType": "application/java-archive"
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 },
                 "requireMain": true
             }
@@ -130,6 +170,10 @@
                     "prefix": "openwhisk",
                     "name": "action-php-v7.1",
                     "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 }
             },
             {
@@ -140,6 +184,10 @@
                     "prefix": "openwhisk",
                     "name": "action-php-v7.2",
                     "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 }
             }
         ],
@@ -148,6 +196,10 @@
                 "kind": "ruby:2.5",
                 "default": true,
                 "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-ruby-v2.5",

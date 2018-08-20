@@ -30,24 +30,15 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import pureconfig.loadConfigOrThrow
-import spray.json.DefaultJsonProtocol
+import spray.json._
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
+import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.database.memory.MemoryAttachmentStoreProvider
 import whisk.core.database.{CouchDbConfig, CouchDbRestClient, CouchDbStoreProvider, NoDocumentException}
 import whisk.core.entity.Attachments.Inline
 import whisk.core.entity.test.ExecHelpers
-import whisk.core.entity.{
-  CodeExecAsAttachment,
-  DocInfo,
-  EntityName,
-  EntityPath,
-  WhiskAction,
-  WhiskDocumentReader,
-  WhiskEntity,
-  WhiskEntityJsonFormat,
-  WhiskEntityStore
-}
+import whisk.core.entity._
 
 import scala.concurrent.Future
 import scala.reflect.classTag
@@ -68,6 +59,10 @@ class AttachmentCompatibilityTests
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
   implicit val materializer = ActorMaterializer()
+
+  val creds = WhiskAuthHelpers.newIdentity()
+  val namespace = EntityPath(creds.subject.asString)
+  def aname() = MakeName.next("action_tests")
   val config = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
   val entityStore = WhiskEntityStore.datastore()
   val client =
@@ -117,10 +112,75 @@ class AttachmentCompatibilityTests
     doc2.exec shouldBe exec
   }
 
+  it should "read existing base64 encoded code string" in {
+    implicit val tid: TransactionId = transid()
+    val exec = """{
+               |  "kind": "nodejs:6",
+               |  "code": "SGVsbG8gT3BlbldoaXNr"
+               |}""".stripMargin.parseJson.asJsObject
+    val (id, action) = makeActionJson(namespace, aname(), exec)
+    val info = putDoc(id, action)
+
+    val action2 = WhiskAction.get(entityStore, info.id).futureValue
+    codeExec(action2).codeAsJson shouldBe JsString("SGVsbG8gT3BlbldoaXNr")
+  }
+
+  it should "read existing simple code string" in {
+    implicit val tid: TransactionId = transid()
+    val exec = """{
+                 |  "kind": "nodejs:6",
+                 |  "code": "while (true)"
+                 |}""".stripMargin.parseJson.asJsObject
+    val (id, action) = makeActionJson(namespace, aname(), exec)
+    val info = putDoc(id, action)
+
+    val action2 = WhiskAction.get(entityStore, info.id).futureValue
+    codeExec(action2).codeAsJson shouldBe JsString("while (true)")
+  }
+
+  private def codeExec(a: WhiskAction) = a.exec.asInstanceOf[CodeExec[_]]
+
+  private def makeActionJson(namespace: EntityPath, name: EntityName, exec: JsObject): (String, JsObject) = {
+    val id = namespace.addPath(name).asString
+    val base = s"""{
+                 |  "name": "${name.asString}",
+                 |  "_id": "$id",
+                 |  "publish": false,
+                 |  "annotations": [],
+                 |  "version": "0.0.1",
+                 |  "updated": 1533623651650,
+                 |  "entityType": "action",
+                 |  "parameters": [
+                 |    {
+                 |      "key": "x",
+                 |      "value": "b"
+                 |    }
+                 |  ],
+                 |  "limits": {
+                 |    "timeout": 60000,
+                 |    "memory": 256,
+                 |    "logs": 10
+                 |  },
+                 |  "namespace": "${namespace.asString}"
+                 |}""".stripMargin.parseJson.asJsObject
+    (id, JsObject(base.fields + ("exec" -> exec)))
+  }
+
+  private def putDoc(id: String, js: JsObject): DocInfo = {
+    val r = client.putDoc(id, js).futureValue
+    r match {
+      case Right(response) =>
+        val info = response.convertTo[DocInfo]
+        docsToDelete += ((entityStore, info))
+        info
+      case _ => fail()
+    }
+  }
+
   private def createAction(doc: WhiskAction) = {
     implicit val tid: TransactionId = transid()
     doc.exec match {
-      case exec @ CodeExecAsAttachment(_, Inline(code), _) =>
+      case exec @ CodeExecAsAttachment(_, Inline(code), _, _) =>
         val attached = exec.manifest.attached.get
 
         val newDoc = doc.copy(exec = exec.copy(code = attached))
@@ -134,6 +194,14 @@ class AttachmentCompatibilityTests
         docsToDelete += ((entityStore, info2))
       case _ =>
         fail("Exec must be code attachment")
+    }
+  }
+
+  object MakeName {
+    @volatile var counter = 1
+    def next(prefix: String = "test")(): EntityName = {
+      counter = counter + 1
+      EntityName(s"${prefix}_name$counter")
     }
   }
 

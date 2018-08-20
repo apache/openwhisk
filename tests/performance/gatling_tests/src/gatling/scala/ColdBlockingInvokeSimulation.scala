@@ -32,6 +32,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
   val host = sys.env("OPENWHISK_HOST")
 
   val users: Int = sys.env("USERS").toInt
+  val codeSize: Int = sys.env.getOrElse("CODE_SIZE", "0").toInt
   val seconds: FiniteDuration = sys.env.getOrElse("SECONDS", "10").toInt.seconds
   val actionsPerUser: Int = sys.env.getOrElse("ACTIONS_PER_USER", "5").toInt
 
@@ -64,8 +65,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
           openWhisk("Create action")
             .authenticate(uuid, key)
             .action(actionName)
-            .create(FileUtils
-              .readFileToString(Resource.body("nodeJSAction.js").get.file, StandardCharsets.UTF_8)))
+            .create(actionCode))
       }.rendezVous(users)
         // Execute all actions for the given amount of time.
         .during(seconds) {
@@ -80,6 +80,13 @@ class ColdBlockingInvokeSimulation extends Simulation {
           exec(openWhisk("Delete action").authenticate(uuid, key).action(actionName).delete())
         }
     }
+
+  private def actionCode = {
+    val code = FileUtils
+      .readFileToString(Resource.body("nodeJSAction.js").get.file, StandardCharsets.UTF_8)
+    //Pad the code with empty space to increase the stored code size
+    if (codeSize > 0) code + " " * codeSize else code
+  }
 
   setUp(test.inject(atOnceUsers(users)))
     .protocols(openWhiskProtocol)
