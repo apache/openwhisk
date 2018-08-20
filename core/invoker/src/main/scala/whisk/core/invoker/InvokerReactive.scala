@@ -36,6 +36,7 @@ import whisk.core.database._
 import whisk.core.entity._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
+import whisk.core.database.UserContext
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -160,9 +161,9 @@ class InvokerReactive(
   }
 
   /** Stores an activation in the database. */
-  private val store = (tid: TransactionId, activation: WhiskActivation) => {
+  private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
     implicit val transid: TransactionId = tid
-    activationStore.store(activation)(tid, notifier = None)
+    activationStore.store(activation, context)(tid, notifier = None)
   }
 
   /** Creates a ContainerProxy Actor when being called. */
@@ -236,10 +237,11 @@ class InvokerReactive(
                     ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
                 }
 
+                val context = UserContext(msg.user)
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
-                store(msg.transid, activation)
+                store(msg.transid, activation, context)
                 Future.successful(())
             }
         } else {

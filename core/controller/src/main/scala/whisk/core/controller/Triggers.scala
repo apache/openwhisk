@@ -45,6 +45,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse
 import whisk.http.Messages
+import whisk.core.database.UserContext
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -132,48 +133,52 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    entity(as[Option[JsObject]]) { payload =>
-      getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
-        trigger: WhiskTrigger =>
-          val triggerActivationId = activationIdFactory.make()
-          logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
-          val triggerActivation = WhiskActivation(
-            namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace,
-            entityName.name,
-            user.subject,
-            triggerActivationId,
-            Instant.now(Clock.systemUTC()),
-            Instant.EPOCH,
-            response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
-            version = trigger.version,
-            duration = None)
+    extractRequest { request =>
+      val context = UserContext(user, request)
 
-          // List of active rules associated with the trigger
-          val activeRules: Map[FullyQualifiedEntityName, ReducedRule] =
-            trigger.rules.map(_.filter(_._2.status == Status.ACTIVE)).getOrElse(Map.empty)
+      entity(as[Option[JsObject]]) { payload =>
+        getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
+          trigger: WhiskTrigger =>
+            val triggerActivationId = activationIdFactory.make()
+            logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
+            val triggerActivation = WhiskActivation(
+              namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace,
+              entityName.name,
+              user.subject,
+              triggerActivationId,
+              Instant.now(Clock.systemUTC()),
+              Instant.EPOCH,
+              response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
+              version = trigger.version,
+              duration = None)
 
-          if (activeRules.nonEmpty) {
-            val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
+            // List of active rules associated with the trigger
+            val activeRules: Map[FullyQualifiedEntityName, ReducedRule] =
+              trigger.rules.map(_.filter(_._2.status == Status.ACTIVE)).getOrElse(Map.empty)
 
-            activateRules(user, args, trigger.rules.getOrElse(Map.empty))
-              .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
-              .recover {
-                case e =>
-                  logging.error(this, s"Failed to write action activation results to trigger activation: $e")
-                  triggerActivation
-              }
-              .map { activation =>
-                activationStore.store(activation)
-              }
-            complete(Accepted, triggerActivationId.toJsObject)
-          } else {
-            logging
-              .debug(
-                this,
-                s"[POST] trigger without an active rule was activated; no trigger activation record created for $entityName")
-            complete(NoContent)
-          }
-      })
+            if (activeRules.nonEmpty) {
+              val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
+
+              activateRules(user, args, trigger.rules.getOrElse(Map.empty))
+                .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
+                .recover {
+                  case e =>
+                    logging.error(this, s"Failed to write action activation results to trigger activation: $e")
+                    triggerActivation
+                }
+                .map { activation =>
+                  activationStore.store(activation, context)
+                }
+              complete(Accepted, triggerActivationId.toJsObject)
+            } else {
+              logging
+                .debug(
+                  this,
+                  s"[POST] trigger without an active rule was activated; no trigger activation record created for $entityName")
+              complete(NoContent)
+            }
+        })
+      }
     }
   }
 

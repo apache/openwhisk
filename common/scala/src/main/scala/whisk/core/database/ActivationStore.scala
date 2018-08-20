@@ -21,6 +21,7 @@ import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
 import whisk.core.entity._
@@ -28,38 +29,45 @@ import whisk.spi.Spi
 
 import scala.concurrent.Future
 
+case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
+
 trait ActivationStore {
 
   /**
    * Stores an activation.
    *
    * @param activation activation to store
+   * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def store(activation: WhiskActivation)(implicit transid: TransactionId,
-                                         notifier: Option[CacheChangeNotification]): Future[DocInfo]
+  def store(activation: WhiskActivation, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo]
 
   /**
    * Retrieves an activation corresponding to the specified activation ID.
    *
    * @param activationId ID of activation to retrieve
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return Future containing the retrieved WhiskActivation
    */
-  def get(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
+  def get(activationId: ActivationId, context: UserContext)(implicit transid: TransactionId): Future[WhiskActivation]
 
   /**
    * Deletes an activation corresponding to the provided activation ID.
    *
    * @param activationId ID of activation to delete
+   * @param context user and request context
    * @param transid transaction ID for the request
    * @param notifier cache change notifier
    * @return Future containing a Boolean value indication whether the activation was deleted
    */
-  def delete(activationId: ActivationId)(implicit transid: TransactionId,
-                                         notifier: Option[CacheChangeNotification]): Future[Boolean]
+  def delete(activationId: ActivationId, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean]
 
   /**
    * Counts the number of activations in a namespace.
@@ -69,6 +77,7 @@ trait ActivationStore {
    * @param skip number of activations to skip
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return Future containing number of activations returned from query in JSON format
    */
@@ -76,7 +85,8 @@ trait ActivationStore {
                                   name: Option[EntityPath] = None,
                                   skip: Int,
                                   since: Option[Instant] = None,
-                                  upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject]
+                                  upto: Option[Instant] = None,
+                                  context: UserContext)(implicit transid: TransactionId): Future[JsObject]
 
   /**
    * Returns activations corresponding to provided entity name.
@@ -88,18 +98,20 @@ trait ActivationStore {
    * @param includeDocs return document with each activation
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
    */
-  def listActivationsMatchingName(namespace: EntityPath,
-                                  name: EntityPath,
-                                  skip: Int,
-                                  limit: Int,
-                                  includeDocs: Boolean = false,
-                                  since: Option[Instant] = None,
-                                  upto: Option[Instant] = None)(
-    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+  def listActivationsMatchingName(
+    namespace: EntityPath,
+    name: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean = false,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
   /**
    * List all activations in a specified namespace.
@@ -110,17 +122,19 @@ trait ActivationStore {
    * @param includeDocs return document with each activation
    * @param since timestamp to retrieve activations after
    * @param upto timestamp to retrieve activations before
+   * @param context user and request context
    * @param transid transaction ID for request
    * @return When docs are not included, a Future containing a List of activations in JSON format is returned. When docs
    *         are included, a List of WhiskActivation is returned.
    */
-  def listActivationsInNamespace(namespace: EntityPath,
-                                 skip: Int,
-                                 limit: Int,
-                                 includeDocs: Boolean = false,
-                                 since: Option[Instant] = None,
-                                 upto: Option[Instant] = None)(
-    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+  def listActivationsInNamespace(
+    namespace: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean = false,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 }
 
 trait ActivationStoreProvider extends Spi {

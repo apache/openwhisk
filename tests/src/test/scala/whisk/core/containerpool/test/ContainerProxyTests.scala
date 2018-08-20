@@ -38,6 +38,7 @@ import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
+import whisk.core.database.UserContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -163,7 +164,7 @@ class ContainerProxyTests
         response
     }
 
-  def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation) =>
+  def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
     Future.successful(())
   }
 

@@ -40,6 +40,7 @@ import whisk.http.Messages
 import akka.event.Logging.InfoLevel
 import pureconfig.loadConfigOrThrow
 import whisk.core.ConfigKeys
+import whisk.core.database.UserContext
 
 // States
 sealed trait ContainerState
@@ -96,7 +97,7 @@ case object RescheduleJob // job is sent back to parent and could not be process
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
   sendActiveAck: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
-  storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+  storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InvokerInstanceId,
   poolConfig: ContainerPoolConfig,
@@ -156,6 +157,7 @@ class ContainerProxy(
               case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
               case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
+            val context = UserContext(job.msg.user)
             // construct an appropriate activation and record it in the datastore,
             // also update the feed and active ack; the container cleanup is queued
             // implicitly via a FailureMessage which will be processed later when the state
@@ -167,7 +169,7 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid)
-            storeActivation(transid, activation)
+            storeActivation(transid, activation, context)
         }
         .flatMap { container =>
           // now attempt to inject the user code and run the action
@@ -391,6 +393,8 @@ class ContainerProxy(
     activation.foreach(
       sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
 
+    val context = UserContext(job.msg.user)
+
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
@@ -415,7 +419,7 @@ class ContainerProxy(
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
-    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _))
+    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
@@ -432,7 +436,7 @@ object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
-    store: (TransactionId, WhiskActivation) => Future[Any],
+    store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InvokerInstanceId,
     poolConfig: ContainerPoolConfig,

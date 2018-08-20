@@ -40,6 +40,7 @@ import whisk.core.entity.size.SizeInt
 import whisk.core.entity.types._
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
+import whisk.core.database.UserContext
 
 protected[actions] trait SequenceActions {
   /** The core collections require backend services to be injected in this trait. */
@@ -150,6 +151,8 @@ protected[actions] trait SequenceActions {
                                          start: Instant,
                                          cause: Option[ActivationId])(
     implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
+    val context = UserContext(user)
+
     // not topmost, no need to worry about terminating incoming request
     // Note: the future for the sequence result recovers from all throwable failures
     futureSeqResult
@@ -161,7 +164,8 @@ protected[actions] trait SequenceActions {
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
-        case Success((Right(seqActivation), _)) => activationStore.store(seqActivation)(transid, notifier = None)
+        case Success((Right(seqActivation), _)) =>
+          activationStore.store(seqActivation, context)(transid, notifier = None)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?
