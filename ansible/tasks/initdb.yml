@@ -38,6 +38,15 @@
           "name": "{{ item }}",
           "uuid": "{{ key.split(":")[0] }}",
           "key": "{{ key.split(":")[1] }}"
-        }]
-      }
+        },
+        {% if 'extraNamespaces' in db and item in db.extraNamespaces %}
+          {% for ns in db.extraNamespaces[item] %}
+          {
+            "name": "{{ item }}{{ ns.postfix }}",
+            "uuid": "{{ ns.uuid }}",
+            "key": "{{ ns.key }}"
+          },
+          {% endfor %}
+        {% endif %}
+      ]}
   with_items: "{{ db.authkeys }}"
