@@ -41,6 +41,7 @@ import java.util.Base64
 
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.scaladsl._
+import whisk.core.entity.Attachments.Inline
 
 /**
  * Tests Actions API.
@@ -591,7 +592,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
       response.exec shouldBe an[BlackBoxExec]
       val bb = response.exec.asInstanceOf[BlackBoxExec]
-      bb.code shouldBe Some("cc")
+      bb.code shouldBe Some(Inline("cc"))
       bb.binary shouldBe false
     }
   }
