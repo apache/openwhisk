@@ -89,13 +89,13 @@ import scala.util.{Failure, Success}
  *
  * ## Capacity checking
  *
- * The maximum capacity per invoker is configured using `invoker-busy-threshold`, which is the maximum amount of actions
+ * The maximum capacity per invoker is configured using `user-memory`, which is the maximum amount of memory of actions
  * running in parallel on that invoker.
  *
  * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
- * is made to update the books and a slot in a Semaphore is taken. That slot is only released after the response from
- * the invoker (active-ack) arrives **or** after the active-ack times out. The Semaphore has as many slots as are
- * configured via `invoker-busy-threshold`.
+ * is made to update the books and a slot for each MB of the actions memory limit in a Semaphore is taken. These slots
+ * are only released after the response from the invoker (active-ack) arrives **or** after the active-ack times out.
+ * The Semaphore has as many slots as MBs are configured in `user-memory`.
  *
  * Known caveats:
  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
