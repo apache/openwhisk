@@ -165,7 +165,7 @@ trait ElasticSearchActivationRestClient {
 
   protected def generateGetPayload(activationId: String) = {
     val query =
-      s"_type: ${elasticSearchConfig.schema.activationRecord} AND ${elasticSearchConfig.schema.activationId}: $activationId"
+      s"type: ${elasticSearchConfig.schema.activationRecord} AND ${elasticSearchConfig.schema.activationId}: $activationId"
 
     EsQuery(EsQueryString(query))
   }
@@ -175,7 +175,7 @@ trait ElasticSearchActivationRestClient {
                                                            since: Option[Instant] = None,
                                                            upto: Option[Instant] = None) = {
     val queryRanges = getRanges(since, upto)
-    val activationMatch = Some(EsQueryBoolMatch("_type", elasticSearchConfig.schema.activationRecord))
+    val activationMatch = Some(EsQueryBoolMatch("type", elasticSearchConfig.schema.activationRecord))
     val entityMatch: Option[EsQueryBoolMatch] = name.map { n =>
       Some(EsQueryBoolMatch(elasticSearchConfig.schema.name, n.asString))
     } getOrElse None
@@ -193,7 +193,7 @@ trait ElasticSearchActivationRestClient {
                                                        upto: Option[Instant] = None) = {
     val queryRanges = getRanges(since, upto)
     val queryTerms = Vector(
-      EsQueryBoolMatch("_type", elasticSearchConfig.schema.activationRecord),
+      EsQueryBoolMatch("type", elasticSearchConfig.schema.activationRecord),
       EsQueryBoolMatch(elasticSearchConfig.schema.name, name))
     val queryMust = EsQueryMust(queryTerms, queryRanges)
     val queryOrder = EsQueryOrder(elasticSearchConfig.schema.start, EsOrderDesc)
@@ -208,7 +208,7 @@ trait ElasticSearchActivationRestClient {
                                                           upto: Option[Instant] = None) = {
     val queryRanges = getRanges(since, upto)
     val queryTerms = Vector(
-      EsQueryBoolMatch("_type", elasticSearchConfig.schema.activationRecord),
+      EsQueryBoolMatch("type", elasticSearchConfig.schema.activationRecord),
       EsQueryBoolMatch(elasticSearchConfig.schema.subject, namespace))
     val queryMust = EsQueryMust(queryTerms, queryRanges)
     val queryOrder = EsQueryOrder(elasticSearchConfig.schema.start, EsOrderDesc)
