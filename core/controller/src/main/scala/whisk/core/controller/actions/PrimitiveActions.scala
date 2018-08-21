@@ -613,7 +613,9 @@ protected[actions] trait PrimitiveActions {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
         activationStore.get(ActivationId(docid.asString), context).onComplete {
-          case Success(activation)             => result.trySuccess(Right(activation))
+          case Success(activation) =>
+            logging.info(this, "retrieved activation for blocking invocation from ActivationStore")
+            result.trySuccess(Right(activation))
           case Failure(_: NoDocumentException) => pollActivation(docid, context, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)
         }
