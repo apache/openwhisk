@@ -98,8 +98,8 @@ class ArtifactElasticSearchActivationStore(
     headers.filter(h => elasticSearchConfig.requiredHeaders.contains(h.lowercaseName)).toList
 
   protected def writeActivation(activation: WhiskActivation, context: UserContext) = {
-    val userIdField = Map("namespaceId" -> context.user.toJson)
-    val namespace = Map("namespace" -> activation.namespace.toJson)
+    val userIdField = Map("namespaceId" -> context.user.namespace.uuid.toJson)
+    val namespace = Map("namespace" -> activation.namespace.namespace.toJson)
     val name = Map("name" -> activation.name.toJson)
     val subject = Map("subject" -> activation.subject.toJson)
     val activationId = Map("activationId" -> activation.activationId.toJson)
