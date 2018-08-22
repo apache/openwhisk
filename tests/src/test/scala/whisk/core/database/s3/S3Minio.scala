@@ -56,6 +56,7 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
       |         endpoint-url = "http://localhost:$port"
       |      }
       |      bucket = "$bucket"
+      |      $prefixConfig
       |     }
       |}
       """.stripMargin).withFallback(ConfigFactory.load())
@@ -66,6 +67,12 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
   private val secretAccessKey = "TESTSECRET"
   private val port = freePort()
   private val bucket = "test-ow-travis"
+
+  private def prefixConfig = {
+    if (bucketPrefix.nonEmpty) s"prefix = $bucketPrefix" else ""
+  }
+
+  protected def bucketPrefix: String = ""
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()

@@ -38,9 +38,10 @@ import scala.reflect.ClassTag
 
 object S3AttachmentStoreProvider extends AttachmentStoreProvider {
   val alpakkaConfigKey = s"${ConfigKeys.s3}.alpakka"
-  case class S3Config(bucket: String) {
+  case class S3Config(bucket: String, prefix: Option[String]) {
     def prefixFor[D](implicit tag: ClassTag[D]): String = {
-      tag.runtimeClass.getSimpleName.toLowerCase
+      val className = tag.runtimeClass.getSimpleName.toLowerCase
+      prefix.map(p => s"$p/$className").getOrElse(className)
     }
   }
 
@@ -68,6 +69,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
   override val scheme = "s3"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
+
+  logging.info(this, s"Initializing S3AttachmentStore with bucket=[$bucket], prefix=[$prefix]")
 
   override protected[core] def attach(
     docId: DocId,
