@@ -39,6 +39,7 @@ import whisk.core.database.UserContext
 import java.io.ByteArrayInputStream
 import java.util.Base64
 
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.scaladsl._
 
 /**
@@ -1211,6 +1212,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       response.fields("activationId") should not be None
+      headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
     }
 
     // it should "ignore &result when invoking nonblocking action"
@@ -1218,6 +1220,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       response.fields("activationId") should not be None
+      headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
     }
   }
 
@@ -1229,6 +1232,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       response.fields("activationId") should not be None
+      headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
     }
   }
 
@@ -1263,6 +1267,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       response.fields("activationId") should not be None
+      headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
     }
   }
 
@@ -1294,6 +1299,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         status should be(OK)
         val response = responseAs[JsObject]
         response should be(activation.resultAsJson)
+        headers should contain(RawHeader(ActivationIdHeader, activation.activationId.asString))
       }
     } finally {
       deleteActivation(ActivationId(activation.docid.asString), context)
@@ -1363,7 +1369,10 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
       // will not wait long enough should get accepted status
       Post(s"$collectionPath/${action.name}?blocking=true&timeout=100") ~> Route.seal(routes(creds)) ~> check {
+        val response = responseAs[JsObject]
         status shouldBe Accepted
+        headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
+
       }
 
       // repeat this time wait longer than active ack delay
@@ -1371,6 +1380,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         status shouldBe OK
         val response = responseAs[JsObject]
         response shouldBe activation.withoutLogs.toExtendedJson
+        headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
       }
     } finally {
       loadBalancer.whiskActivationStub = None
@@ -1398,6 +1408,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         status should be(InternalServerError)
         val response = responseAs[JsObject]
         response should be(activation.withoutLogs.toExtendedJson)
+        headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
       }
     } finally {
       deleteActivation(ActivationId(activation.docid.asString), context)
@@ -1412,6 +1423,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       response.fields("activationId") should not be None
+      headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
     }
     stream.toString should include(s"[WhiskActionMetaData] [GET] serving from datastore: ${CacheKey(action)}")
     stream.reset()

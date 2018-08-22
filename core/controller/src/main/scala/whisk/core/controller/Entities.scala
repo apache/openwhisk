@@ -20,9 +20,9 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
@@ -65,6 +65,15 @@ protected[controller] trait ValidateRequestSize extends Directives {
   protected val fieldDescriptionForSizeError = "Request"
 }
 
+protected trait CustomHeaders extends Directives {
+  val ActivationIdHeader = "x-openwhisk-activation-id"
+
+  /** Add activation ID in headers */
+  protected def respondWithActivationIdHeader(activationId: ActivationId): Directive0 = {
+    respondWithHeader(RawHeader(ActivationIdHeader, activationId.asString))
+  }
+}
+
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
 trait WhiskCollectionAPI
     extends Directives
@@ -72,8 +81,8 @@ trait WhiskCollectionAPI
     with AuthorizedRouteProvider
     with ValidateRequestSize
     with ReadOps
-    with WriteOps {
-
+    with WriteOps
+    with CustomHeaders {
   /** The core collections require backend services to be injected in this trait. */
   services: WhiskServices =>
 
