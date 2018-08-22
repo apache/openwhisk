@@ -260,6 +260,7 @@ object LoggingMarkers {
   // Time of the activation in controller until it is delivered to Kafka
   val CONTROLLER_ACTIVATION = LogMarkerToken(controller, activation, start)
   val CONTROLLER_ACTIVATION_BLOCKING = LogMarkerToken(controller, "blockingActivation", start)
+  val CONTROLLER_ACTIVATION_BLOCKING_FROM_DB_POLL = LogMarkerToken(controller, "blockingActivationPoll", count)
 
   // Time that is needed load balance the activation
   val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)
