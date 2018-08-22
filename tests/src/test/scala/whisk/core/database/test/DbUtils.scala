@@ -350,6 +350,11 @@ trait DbUtils extends Assertions {
   def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
   def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
 
+  protected def removeFromCache[A <: DocumentRevisionProvider](entity: WhiskEntity, factory: DocumentFactory[A])(
+    implicit ec: ExecutionContext): Unit = {
+    factory.removeId(CacheKey(entity))
+  }
+
   protected def randomBytes(size: Int): Array[Byte] = {
     val arr = new Array[Byte](size)
     Random.nextBytes(arr)

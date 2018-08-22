@@ -39,6 +39,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS6 = "nodejs:6"
   protected val SWIFT = "swift"
   protected val SWIFT3 = "swift:3.1.1"
+  protected val BLACKBOX = "blackbox"
   protected val SWIFT3_IMAGE = "action-swift-v3.1.1"
   protected val JAVA_DEFAULT = "java"
 
