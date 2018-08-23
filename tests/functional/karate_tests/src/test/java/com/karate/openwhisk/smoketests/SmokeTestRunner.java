@@ -33,12 +33,6 @@ import cucumber.api.CucumberOptions;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 
-/**
- * @author Rahul Tripathi
- *
- *
- */
-
 @CucumberOptions(tags = {"~@ignore","~@driver","~@reliability","~@resiliency","~@concurrent","~@wskfunctions"})
 public class SmokeTestRunner {
     @Test

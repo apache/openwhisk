@@ -1,5 +1,5 @@
-#// Licensed to the Apache Software Foundation (ASF) under one or more contributor
-#// license agreements; and to You under the Apache License, Version 2.0.
+#Licensed to the Apache Software Foundation (ASF) under one or more contributor
+#license agreements; and to You under the Apache License, Version 2.0.
 @ignore
 Feature: Used to Sleep between tests. sheepCount to (default 60 sec, pass '-1' to avoid) sleep as many seconds
 

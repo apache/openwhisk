@@ -32,14 +32,7 @@ import com.intuit.karate.cucumber.KarateStats;
 import cucumber.api.CucumberOptions;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
-/**
- * @author Rahul Tripathi
- *
- *
- */
 
-
-//@RunWith(Karate.class)
 @CucumberOptions(tags = {"~@ignore"})
 public class WskAdminRunner {
     @Test

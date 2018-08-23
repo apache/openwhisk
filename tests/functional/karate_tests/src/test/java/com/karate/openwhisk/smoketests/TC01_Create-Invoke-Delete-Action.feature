@@ -10,7 +10,7 @@ Feature: This feature file will test all the wsk functions
     * configure ssl = true
     * def nameSpace = 'guest'
     * def params = '?blocking=true&result=false'
-    * def scriptcode = call read('classpath:com/karate/openwhisk/functions/hello-world.js')
+    * def script = call read('classpath:com/karate/openwhisk/functions/hello-world.js')
     * def base64encoding = read('classpath:com/karate/openwhisk/utils/base64.js')
 
   Scenario: TC01-As a user I want to verify and validate create, invoke and delete action
@@ -32,6 +32,7 @@ Feature: This feature file will test all the wsk functions
     And request payload
     When method put
     * def responseStatusCode = responseStatus
+    * match responseStatusCode == 200
     * print 'The value of responseStatusCode is:',responseStatusCode
     * eval
     """
@@ -56,6 +57,7 @@ Feature: This feature file will test all the wsk functions
     And request payload
     When method post
     * def responseStatusCode = responseStatus
+    * match responseStatusCode == 200
     * print 'The value of responseStatusCode is:',responseStatusCode
     
     * eval 
@@ -78,6 +80,7 @@ Feature: This feature file will test all the wsk functions
     When method delete
     * def responseStatusCode = responseStatus
     * print 'The value of responseStatusCode is:',responseStatusCode
+    * match responseStatusCode == 200
     * eval 
     """
     if(responseStatusCode==200){
@@ -88,3 +91,4 @@ Feature: This feature file will test all the wsk functions
        }
     """
     * print "Test case ended-->verify and validate create, invoke and delete action"
+    

@@ -39,12 +39,4 @@ Feature: Create Namespace
     * def uuid = $response.namespaces[*].uuid
     * def key = $response.namespaces[*].key
     * def result = uuid[0]+':'+ key[0]
-    * def Auth = base64encoding(result)
-    #* def uuid = $response.namespaces[*].uuid
     * print result
-    * def FileUtil = Java.type('com.karate.openwhisk.utils.OWFileUtil')
-    * string fileSaveResult = FileUtil.writeToFile(Auth, 'authFile.txt')
-    * assert fileSaveResult == 'success'
-    
-
- 

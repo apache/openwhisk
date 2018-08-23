@@ -29,7 +29,6 @@ public class OWFileUtil {
 
     public static String writeToFile(String jsonMsg, String fileName) {
         File parentDir = FileUtils.getDirContaining(OWFileUtil.class);
-        //String parentDir = System.getProperty("user.dir") + "/src/test/java/com/karate/openwhisk/utils";
         System.out.println("Parent dir path: "+parentDir);
         File file = new File(parentDir, fileName);
         FileWriter writer = null;
