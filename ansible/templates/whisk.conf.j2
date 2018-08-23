@@ -27,5 +27,9 @@ whisk {
       WhiskActivation = "{{ db.whisk.activations }}"
     }
   }
+  
+  spi {
+    ArtifactStoreProvider = whisk.core.database.mongodb.MongoDBArtifactStoreProvider
+  }
   {% endif %}
 }
