@@ -36,8 +36,9 @@ props=()
 
 if [ -n "$OPENWHISK_CONFIG" ]
 then
-   printf "%s" "$OPENWHISK_CONFIG" > "/openwhisk.conf"
-   props+=("-Dconfig.file='/openwhisk.conf'")
+    location="/config.conf"
+    printf "%s" "$OPENWHISK_CONFIG" > "$location"
+    props+=("-Dconfig.file='$location'")
 fi
 
 for var in $configVariables
