@@ -55,6 +55,10 @@ trait DbUtils extends Assertions {
   val cnt = new AtomicInteger(0)
   def transid() = TransactionId(cnt.incrementAndGet().toString)
 
+  // Call each few successfully 5 before the test continues to increase probability, that each node of the
+  // CouchDB/Cloudant cluster is updated.
+  val successfulViewCalls = 5
+
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.
    * Attempt the operation up to 'count' times. The future from the
@@ -128,8 +132,8 @@ trait DbUtils extends Assertions {
     endKey: List[String],
     count: Int,
     view: View)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration): Unit = {
-    // Query the view at least 5 times successfully, to handle inconsistency between several CouchDB-nodes.
-    (0 until 5).map { _ =>
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
       val success = retry(() => {
         db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
           if (l.length != count) {
@@ -152,8 +156,8 @@ trait DbUtils extends Assertions {
     namespace: EntityPath,
     count: Int,
     includeDocs: Boolean = false)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
-    // Query the view at least 5 times successfully, to handle inconsistency between several CouchDB-nodes.
-    (0 until 5).map { _ =>
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
       val success = retry(() => {
         factory.listCollectionInNamespace(db, namespace, 0, 0, includeDocs) map { l =>
           if (l.fold(_.length, _.length) < count) {
@@ -172,8 +176,8 @@ trait DbUtils extends Assertions {
   def waitOnView(db: AuthStore, authkey: BasicAuthenticationAuthKey, count: Int)(implicit context: ExecutionContext,
                                                                                  transid: TransactionId,
                                                                                  timeout: Duration) = {
-    // Query the view at least 5 times successfully, to handle inconsistency between several CouchDB-nodes.
-    (0 until 5).map { _ =>
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
       val success = retry(() => {
         Identity.list(db, List(authkey.uuid.asString, authkey.key.asString)) map { l =>
           if (l.length != count) {
@@ -191,8 +195,8 @@ trait DbUtils extends Assertions {
   def waitOnView(db: CouchDbRestClient, designDocName: String, viewName: String, count: Int)(
     implicit context: ExecutionContext,
     timeout: Duration) = {
-    // Query the view at least 5 times successfully, to handle inconsistency between several CouchDB-nodes.
-    (0 until 5).map { _ =>
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
       val success = retry(
         () => {
           db.executeView(designDocName, viewName)().map {
