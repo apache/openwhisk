@@ -161,15 +161,11 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
+    val httpsConfig =
+      if (Invoker.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")) else None
 
-    if (Invoker.protocol == "https") {
-      val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")
-      BasicHttpService.startHttpsService(new BasicRasService {}.route, port, httpsConfig)(
-        actorSystem,
-        ActorMaterializer.create(actorSystem))
-    } else
-      BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
-        actorSystem,
-        ActorMaterializer.create(actorSystem))
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port, httpsConfig)(
+      actorSystem,
+      ActorMaterializer.create(actorSystem))
   }
 }

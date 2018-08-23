@@ -54,6 +54,10 @@ object Https {
     val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance(keyFactoryType)
     keyManagerFactory.init(keyStore, keystorePassword)
 
+    // Currently, we are using the keystore as truststore as well, because the clients use the same keys as the
+    // server for client authentication (if enabled).
+    // So this code is guided by https://doc.akka.io/docs/akka-http/10.0.9/scala/http/server-side-https-support.html
+    // This needs to be reworked, when we fix the keys and certificates.
     val trustManagerFactory: TrustManagerFactory = TrustManagerFactory.getInstance(keyFactoryType)
     trustManagerFactory.init(keyStore)
 

@@ -92,8 +92,8 @@ controller:
     keyPrefix: "{{ __controller_ssl_keyPrefix }}"
     storeFlavor: PKCS12
     clientAuth: "{{ controller_client_auth | default('true') }}"
-    cert: "controller-openwhisk-server-cert.pem"
-    key: "controller-openwhisk-server-key.pem"
+    cert: "{{ __controller_ssl_keyPrefix }}openwhisk-server-cert.pem"
+    key: "{{ __controller_ssl_keyPrefix }}openwhisk-server-key.pem"
     keystore:
       password: "openwhisk"
       name: "{{ __controller_ssl_keyPrefix }}openwhisk-keystore.p12"
@@ -190,8 +190,8 @@ invoker:
     keyPrefix: "{{ __invoker_ssl_keyPrefix }}"
     storeFlavor: "PKCS12"
     clientAuth: "{{ invoker_client_auth | default('true') }}"
-    cert: "invoker-openwhisk-server-cert.pem"
-    key: "invoker-openwhisk-server-key.pem"
+    cert: "{{ __invoker_ssl_keyPrefix }}openwhisk-server-cert.pem"
+    key: "{{ __invoker_ssl_keyPrefix }}openwhisk-server-key.pem"
     keystore:
       password: "{{ invoker_keystore_password | default('openwhisk') }}"
       name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
