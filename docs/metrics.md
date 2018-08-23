@@ -112,7 +112,7 @@ Metrics below are emitted from within a Controller instance.
 
 ##### Controller Activation Retrieval During Blocking Invocations
 
-* `openwhisk.counter.controller_blockingActivationPoll_count` (counter) - Records the count of activations the controller has retrieved from the activation store during blocking invocations
+* `openwhisk.counter.controller_blockingActivationDatabaseRetrieval_count` (counter) - Records the count of activations the controller has retrieved from the activation store during blocking invocations
 
 ##### Activation Submission
 

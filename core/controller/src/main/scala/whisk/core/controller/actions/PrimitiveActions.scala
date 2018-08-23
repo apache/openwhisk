@@ -616,7 +616,7 @@ protected[actions] trait PrimitiveActions {
           case Success(activation) =>
             transid.mark(
               this,
-              LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING_FROM_DB_POLL,
+              LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING_DATABASE_RETRIEVAL,
               s"retrieved activation for blocking invocation via DB polling",
               logLevel = InfoLevel)
             result.trySuccess(Right(activation))
