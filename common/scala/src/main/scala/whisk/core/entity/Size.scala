@@ -69,6 +69,23 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
     ByteSize(commonSize, commonUnit)
   }
 
+  def *(other: Int): ByteSize = {
+    ByteSize(toBytes * other, SizeUnits.BYTE)
+  }
+
+  def /(other: ByteSize): Double = {
+    // Without throwing the exception the result would be `Infinity` here
+    if (other.toBytes == 0) {
+      throw new ArithmeticException
+    } else {
+      (1.0 * toBytes) / (1.0 * other.toBytes)
+    }
+  }
+
+  def /(other: Int): ByteSize = {
+    ByteSize(toBytes / other, SizeUnits.BYTE)
+  }
+
   def compare(other: ByteSize) = toBytes compare other.toBytes
 
   override def equals(that: Any): Boolean = that match {

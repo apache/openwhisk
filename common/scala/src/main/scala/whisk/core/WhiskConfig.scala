@@ -57,7 +57,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(
     WhiskConfig.wskApiPort)
   val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
-  val loadbalancerInvokerBusyThreshold = this.getAsInt(WhiskConfig.loadbalancerInvokerBusyThreshold, 16)
   val controllerInstances = this(WhiskConfig.controllerInstances)
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
@@ -162,8 +161,6 @@ object WhiskConfig {
   val controllerBlackboxFraction = "controller.blackboxFraction"
   val controllerInstances = "controller.instances"
   val dbInstances = "db.instances"
-
-  val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
   val kafkaHostList = "kafka.hosts"
   val zookeeperHostList = "zookeeper.hosts"

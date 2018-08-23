@@ -25,23 +25,24 @@ import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.tracing.WhiskTracerProvider
 import whisk.common._
-import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector._
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database._
 import whisk.core.entity._
+import whisk.core.entity.size._
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 import whisk.core.database.UserContext
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-import DefaultJsonProtocol._
 
 class InvokerReactive(
   config: WhiskConfig,
@@ -99,7 +100,7 @@ class InvokerReactive(
 
   /** Initialize message consumers */
   private val topic = s"invoker${instance.toInt}"
-  private val maximumContainers = poolConfig.maxActiveContainers
+  private val maximumContainers = (poolConfig.userMemory / MemoryLimit.minMemory).toInt
   private val msgProvider = SpiLoader.get[MessagingProvider]
   private val consumer = msgProvider.getConsumer(
     config,

@@ -17,31 +17,25 @@
 
 package whisk.core.containerpool
 
-import akka.actor.ActorSystem
 import java.time.Instant
+
+import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import pureconfig._
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import spray.json.JsObject
 import spray.json.DefaultJsonProtocol._
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.ActivationResponse.ContainerConnectionError
-import whisk.core.entity.ActivationResponse.ContainerResponse
-import whisk.core.entity.ByteSize
-import whisk.http.Messages
-import akka.event.Logging.InfoLevel
+import spray.json.JsObject
+import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.ConfigKeys
-import whisk.core.entity.ActivationEntityLimit
+import whisk.core.entity.ActivationResponse.{ContainerConnectionError, ContainerResponse}
+import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize}
+import whisk.core.entity.size._
+import whisk.http.Messages
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration, _}
+import scala.util.{Failure, Success}
 
 /**
  * An OpenWhisk biased container abstraction. This is **not only** an abstraction

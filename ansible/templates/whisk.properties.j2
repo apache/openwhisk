@@ -59,8 +59,6 @@ controller.protocol={{ controller.protocol }}
 invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
-invoker.numcore={{ invoker.numcore }}
-invoker.coreshare={{ invoker.coreshare }}
 invoker.useRunc={{ invoker.useRunc }}
 
 main.docker.endpoint={{ hostvars[groups["controllers"]|first].ansible_host }}:{{ docker.port }}
@@ -92,5 +90,3 @@ db.instances={{ db.instances }}
 apigw.auth.user={{apigw_auth_user}}
 apigw.auth.pwd={{apigw_auth_pwd}}
 apigw.host.v2={{apigw_host_v2}}
-
-loadbalancer.invokerBusyThreshold={{ invoker.busyThreshold }}

@@ -89,13 +89,13 @@ import scala.util.{Failure, Success}
  *
  * ## Capacity checking
  *
- * The maximum capacity per invoker is configured using `invoker-busy-threshold`, which is the maximum amount of actions
+ * The maximum capacity per invoker is configured using `user-memory`, which is the maximum amount of memory of actions
  * running in parallel on that invoker.
  *
  * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
- * is made to update the books and a slot in a Semaphore is taken. That slot is only released after the response from
- * the invoker (active-ack) arrives **or** after the active-ack times out. The Semaphore has as many slots as are
- * configured via `invoker-busy-threshold`.
+ * is made to update the books and a slot for each MB of the actions memory limit in a Semaphore is taken. These slots
+ * are only released after the response from the invoker (active-ack) arrives **or** after the active-ack times out.
+ * The Semaphore has as many slots as MBs are configured in `user-memory`.
  *
  * Known caveats:
  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
@@ -232,7 +232,12 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
-      ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
+      ShardingContainerPoolBalancer.schedule(
+        invokersToUse,
+        schedulingState.invokerSlots,
+        action.limits.memory.megabytes,
+        homeInvoker,
+        stepSize)
     } else {
       None
     }
@@ -381,7 +386,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         totalActivations.decrement()
         totalActivationMemory.add(entry.memory.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
-        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
+        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release(entry.memory.toMB.toInt))
 
         if (!forced) {
           entry.timeoutHandler.cancel()
@@ -456,6 +461,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    *
    * @param invokers a list of available invokers to search in, including their state
    * @param dispatched semaphores for each invoker to give the slots away from
+   * @param slots Number of slots, that need to be acquired (e.g. memory in MB)
    * @param index the index to start from (initially should be the "homeInvoker"
    * @param step stable identifier of the entity to be scheduled
    * @return an invoker to schedule to or None of no invoker is available
@@ -463,6 +469,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
   @tailrec
   def schedule(invokers: IndexedSeq[InvokerHealth],
                dispatched: IndexedSeq[ForcibleSemaphore],
+               slots: Int,
                index: Int,
                step: Int,
                stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
@@ -471,7 +478,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     if (numInvokers > 0) {
       val invoker = invokers(index)
       // If the current invoker is healthy and we can get a slot
-      if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquire()) {
+      if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquire(slots)) {
         Some(invoker.id)
       } else {
         // If we've gone through all invokers
@@ -480,7 +487,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           if (healthyInvokers.nonEmpty) {
             // Choose a healthy invoker randomly
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
-            dispatched(random.toInt).forceAcquire()
+            dispatched(random.toInt).forceAcquire(slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
             Some(random)
           } else {
@@ -488,7 +495,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           }
         } else {
           val newIndex = (index + step) % numInvokers
-          schedule(invokers, dispatched, newIndex, step, stepsDone + 1)
+          schedule(invokers, dispatched, slots, newIndex, step, stepsDone + 1)
         }
       }
     } else {
@@ -518,7 +525,7 @@ case class ShardingContainerPoolBalancerState(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
-  private val totalInvokerThreshold = lbConfig.invokerBusyThreshold
+  private val totalInvokerThreshold = lbConfig.invokerUserMemory
   private var currentInvokerThreshold = totalInvokerThreshold
 
   private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
@@ -564,7 +571,7 @@ case class ShardingContainerPoolBalancerState(
       if (oldSize < newSize) {
         // Keeps the existing state..
         _invokerSlots = _invokerSlots ++ IndexedSeq.fill(newSize - oldSize) {
-          new ForcibleSemaphore(currentInvokerThreshold)
+          new ForcibleSemaphore(currentInvokerThreshold.toMB.toInt)
         }
       }
     }
@@ -587,9 +594,17 @@ case class ShardingContainerPoolBalancerState(
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
     if (_clusterSize != actualSize) {
       _clusterSize = actualSize
-      val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
+      val newTreshold = if (totalInvokerThreshold / actualSize < MemoryLimit.minMemory) {
+        logging.warn(
+          this,
+          s"registered controllers: ${_clusterSize}: the slots per invoker fall below the min memory of one action.")(
+          TransactionId.loadbalancer)
+        MemoryLimit.minMemory // letting this fall below minMemory doesn't make sense
+      } else {
+        totalInvokerThreshold / actualSize
+      }
       currentInvokerThreshold = newTreshold
-      _invokerSlots = _invokerSlots.map(_ => new ForcibleSemaphore(currentInvokerThreshold))
+      _invokerSlots = _invokerSlots.map(_ => new ForcibleSemaphore(currentInvokerThreshold.toMB.toInt))
 
       logging.info(
         this,
@@ -610,10 +625,12 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  * Configuration for the sharding container pool balancer.
  *
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
- * @param invokerBusyThreshold how many slots an invoker has available in total
+ * @param invokerUserMemory how many Bytes of memory an invoker has available in total for user containers
  * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
  */
-case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int, timeoutFactor: Int)
+case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double,
+                                               invokerUserMemory: ByteSize,
+                                               timeoutFactor: Int)
 
 /**
  * State kept for each activation until completion.

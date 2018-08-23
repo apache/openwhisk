@@ -93,6 +93,48 @@ class SizeTests extends FlatSpec with Matchers {
     }
   }
 
+  // Multiplication
+  it should "2 B * 10 = 20 B" in {
+    2.B * 10 should be(20.B)
+  }
+
+  it should "40 MB * 2 = 80 MB" in {
+    40.MB * 2 should be(80.MB)
+  }
+
+  // Division
+  it should "5 Byte / 2 Byte = 2.5" in {
+    5.B / 2.B should be(2.5)
+  }
+
+  it should "1 KB / 512 Byte = 2" in {
+    1.KB / 512.B should be(2)
+  }
+
+  it should "throw an exception if division is through 0 byte" in {
+    an[ArithmeticException] should be thrownBy {
+      1.MB / 0.B
+    }
+  }
+
+  it should "5 Byte / 2 = 2 Byte" in {
+    5.B / 2 should be(2.B)
+  }
+
+  it should "1 MB / 512 = 2 Byte" in {
+    1.MB / 512 should be(2.KB)
+  }
+
+  it should "not go into integer overflow for a few GB" in {
+    4096.MB / 2 should be(2048.MB)
+  }
+
+  it should "throw an exception if division is through 0" in {
+    an[ArithmeticException] should be thrownBy {
+      1.MB / 0
+    }
+  }
+
   // Conversions
   it should "1024 B to KB = 1" in {
     (1024 B).toKB should be(1)

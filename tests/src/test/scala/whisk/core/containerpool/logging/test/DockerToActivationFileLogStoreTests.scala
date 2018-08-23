@@ -26,8 +26,8 @@ import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.{DockerToActivationFileLogStore, LogLine}
 import whisk.core.entity._
