@@ -34,6 +34,12 @@ configVariables=$(compgen -v | grep $prefix)
 
 props=()
 
+if [ -n "$OPENWHISK_CONFIG" ]
+then
+   printf "%s" "$OPENWHISK_CONFIG" > "/openwhisk.conf"
+   props+=("-Dconfig.file='/openwhisk.conf'")
+fi
+
 for var in $configVariables
 do
     value=$(printenv "$var")
