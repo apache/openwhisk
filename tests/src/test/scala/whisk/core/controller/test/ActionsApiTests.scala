@@ -38,7 +38,6 @@ import whisk.http.Messages
 import whisk.core.database.UserContext
 
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.stream.scaladsl._
 import whisk.core.entity.Attachments.Inline
 
 /**
