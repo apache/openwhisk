@@ -12,14 +12,14 @@
 
 - set_fact:
     dbUser: "{{ dbAdminUser | default(db.credentials.admin.user) }}"
+    dbPassword: "{{ dbAdminPassword | default(db.credentials.admin.pass) }}"
+    dbHost: "{{ dbHostname | default(db.host) }}"
 
 # If a component uses admin credentials, the admin user will not be added to the list (as it already has all access rights).
 - set_fact:
     readerList: "{{ readers | default([]) | difference([dbUser]) }}"
     writerList: "{{ writers | default([]) | difference([dbUser]) }}"
     adminList: "{{ admins | default([]) | difference([dbUser]) }}"
-    dbPassword: "{{ dbAdminPassword | default(db.credentials.admin.pass) }}"
-    dbHost: "{{ dbHostname | default(db.host) }}"
 
 # http://docs.couchdb.org/en/2.0.0/api/database/security.html
 - name: grant permissions for CouchDB
