@@ -62,7 +62,9 @@ object KubernetesContainer {
                                                       log: Logging): Future[KubernetesContainer] = {
     implicit val tid = transid
 
-    val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
+    // Kubernetes naming rule allows maximum length of 63 character and ended with character only.
+    val origName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase.take(63)
+    val podName = if (origName.endsWith("-")) origName.reverse.dropWhile(_ == '-').reverse else origName
 
     for {
       container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
