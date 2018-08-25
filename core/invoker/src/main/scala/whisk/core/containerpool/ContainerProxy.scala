@@ -390,8 +390,6 @@ class ContainerProxy(
       }
 
     val context = UserContext(job.msg.user)
-    
-    // Sending active ack. Entirely asynchronous and not waited upon.
 
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
@@ -416,24 +414,67 @@ class ContainerProxy(
         }
       }
 
-    // activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
-
-
     // Storing the record. Entirely asynchronous and not waited upon.
     activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
       case Right(act) if !act.response.isSuccess =>
-        sendActiveAck(tid, act, job.msg.blocking, job.msg.rootControllerIndex)
+        if (job.msg.blocking) {
+          sendActiveAck(
+            tid,
+            act.withLogs(getTruncatedLogs(act.logs)),
+            job.msg.blocking,
+            job.msg.rootControllerIndex,
+            job.msg.user.namespace.uuid)
+        } else {
+          activation.foreach(
+            sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
+        }
+
         Future.failed(ActivationUnsuccessfulError(act))
-      case Left(error)                           =>
-        activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
+      case Left(error) =>
+        activation.foreach(
+          sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
         Future.failed(error)
-      case Right(act)                            =>
-        sendActiveAck(tid, act, job.msg.blocking, job.msg.rootControllerIndex)
+      case Right(act) =>
+        if (job.msg.blocking) {
+          sendActiveAck(
+            tid,
+            act.withLogs(getTruncatedLogs(act.logs)),
+            job.msg.blocking,
+            job.msg.rootControllerIndex,
+            job.msg.user.namespace.uuid)
+        } else {
+          activation.foreach(
+            sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
+        }
+
         Future.successful(act)
     }
+  }
+
+  def getTruncatedLogs(logs: ActivationLogs) = {
+    var totalLogSize = 0
+    val maxLogSize = 1024 * 4
+
+    ActivationLogs(
+      logs.logs.reverse
+        .map(log =>
+          if (totalLogSize < maxLogSize) {
+            if (log.size + totalLogSize <= maxLogSize) {
+              totalLogSize = totalLogSize + log.size
+              log
+            } else {
+              val l = "..." + log.substring(log.size - (maxLogSize - totalLogSize))
+              totalLogSize = maxLogSize
+              l
+            }
+          } else {
+            ""
+        })
+        .filter(_.nonEmpty)
+        .reverse)
   }
 }
 
