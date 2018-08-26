@@ -96,7 +96,7 @@ case object RescheduleJob // job is sent back to parent and could not be process
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-  sendActiveAck: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
+  sendActiveAck: (TransactionId, WhiskActivation, Boolean, Boolean, ControllerInstanceId, UUID) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InvokerInstanceId,
@@ -167,6 +167,7 @@ class ContainerProxy(
               transid,
               activation,
               job.msg.blocking,
+              false,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid)
             storeActivation(transid, activation, context)
@@ -415,69 +416,26 @@ class ContainerProxy(
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
-    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
+    activationWithLogs.map(_.fold(_.activation, identity)).foreach { act =>
+      sendActiveAck(
+        tid,
+        act,
+        job.msg.blocking,
+        job.msg.blockingLogs,
+        job.msg.rootControllerIndex,
+        job.msg.user.namespace.uuid)
+      storeActivation(tid, act, context)
+    }
 
-    logging.debug(this, "WERWERWERWERWERWERWER")
-    logging.debug(this, s"TESTETESTSETESTSET ${job.msg.blockingLogs}")
-    println(s"TESTETESTSETESTSET ${job.msg.blockingLogs}")
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
       case Right(act) if !act.response.isSuccess =>
-        if (job.msg.blocking && job.msg.blockingLogs) {
-          sendActiveAck(
-            tid,
-            act.withLogs(getTruncatedLogs(act.logs)),
-            job.msg.blocking,
-            job.msg.rootControllerIndex,
-            job.msg.user.namespace.uuid)
-        } else {
-          activation.foreach(
-            sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
-        }
-
         Future.failed(ActivationUnsuccessfulError(act))
       case Left(error) =>
-        activation.foreach(
-          sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
         Future.failed(error)
       case Right(act) =>
-        if (job.msg.blocking && job.msg.blockingLogs) {
-          sendActiveAck(
-            tid,
-            act.withLogs(getTruncatedLogs(act.logs)),
-            job.msg.blocking,
-            job.msg.rootControllerIndex,
-            job.msg.user.namespace.uuid)
-        } else {
-          activation.foreach(
-            sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
-        }
-
         Future.successful(act)
     }
-  }
-
-  def getTruncatedLogs(logs: ActivationLogs) = {
-    var totalLogSize = 0
-    val maxLogSize = 1024 * 4
-
-    ActivationLogs(
-      logs.logs.reverse
-        .map(log =>
-          if (totalLogSize < maxLogSize) {
-            if (log.size + totalLogSize <= maxLogSize) {
-              totalLogSize = totalLogSize + log.size
-              log
-            } else {
-              val l = "..." + log.substring(log.size - (maxLogSize - totalLogSize))
-              totalLogSize = maxLogSize
-              l
-            }
-          } else {
-            ""
-        })
-        .filter(_.nonEmpty)
-        .reverse)
   }
 }
 
@@ -486,7 +444,7 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-    ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID) => Future[Any],
+    ack: (TransactionId, WhiskActivation, Boolean, Boolean, ControllerInstanceId, UUID) => Future[Any],
     store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InvokerInstanceId,

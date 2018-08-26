@@ -117,6 +117,7 @@ class InvokerReactive(
   private val ack = (tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
+                     responseWithLogs: Boolean,
                      controllerInstance: ControllerInstanceId,
                      userId: UUID) => {
     implicit val transid: TransactionId = tid
@@ -130,6 +131,30 @@ class InvokerReactive(
             s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
       }
     }
+
+    def getTruncatedLogs(logs: ActivationLogs) = {
+      var totalLogSize = 0
+      val maxLogSize = 1024 * 4
+
+      ActivationLogs(
+        logs.logs.reverse
+          .map(log =>
+            if (totalLogSize < maxLogSize) {
+              if (log.size + totalLogSize <= maxLogSize) {
+                totalLogSize = totalLogSize + log.size
+                log
+              } else {
+                val l = "..." + log.substring(log.size - (maxLogSize - totalLogSize))
+                totalLogSize = maxLogSize
+                l
+              }
+            } else {
+              ""
+          })
+          .filter(_.nonEmpty)
+          .reverse)
+    }
+
     // Potentially sends activation metadata to kafka if user events are enabled
     UserEvents.send(
       producer, {
@@ -155,7 +180,17 @@ class InvokerReactive(
           activation.typeName)
       })
 
-    send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
+    val act = if (blockingInvoke) {
+      if (responseWithLogs) {
+        activationResult.withLogs(getTruncatedLogs(activationResult.logs))
+      } else {
+        activationResult.withoutLogs
+      }
+    } else {
+      activationResult.withoutLogsOrResult
+    }
+
+    send(Right(act)).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
         send(Left(activationResult.activationId), recovery = true)
     }
@@ -241,7 +276,7 @@ class InvokerReactive(
                 val context = UserContext(msg.user)
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
+                ack(msg.transid, activation, msg.blocking, false, msg.rootControllerIndex, msg.user.namespace.uuid)
                 store(msg.transid, activation, context)
                 Future.successful(())
             }
@@ -251,7 +286,7 @@ class InvokerReactive(
           activationFeed ! MessageFeed.Processed
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid)
+          ack(msg.transid, activation, false, false, msg.rootControllerIndex, msg.user.namespace.uuid)
           logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }
