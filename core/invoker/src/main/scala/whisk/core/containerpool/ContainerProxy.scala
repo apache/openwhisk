@@ -431,12 +431,9 @@ class ContainerProxy(
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
-      case Right(act) if !act.response.isSuccess =>
-        Future.failed(ActivationUnsuccessfulError(act))
-      case Left(error) =>
-        Future.failed(error)
-      case Right(act) =>
-        Future.successful(act)
+      case Right(act) if !act.response.isSuccess => Future.failed(ActivationUnsuccessfulError(act))
+      case Left(error)                           => Future.failed(error)
+      case Right(act)                            => Future.successful(act)
     }
   }
 }
