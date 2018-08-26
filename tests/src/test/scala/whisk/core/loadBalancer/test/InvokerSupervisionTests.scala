@@ -194,6 +194,7 @@ class InvokerSupervisionTests
       activationId = new ActivationIdGenerator {}.make(),
       rootControllerIndex = ControllerInstanceId("0"),
       blocking = false,
+      blockingLogs = false,
       content = None)
     val msg = ActivationRequest(activationMessage, invokerInstance)
 

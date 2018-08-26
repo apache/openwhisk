@@ -144,7 +144,7 @@ class InvokerReactive(
                 totalLogSize = totalLogSize + log.size
                 log
               } else {
-                val l = "..." + log.substring(log.size - (maxLogSize - totalLogSize))
+                val l = s"...${log.substring(log.size - (maxLogSize - totalLogSize))}"
                 totalLogSize = maxLogSize
                 l
               }
