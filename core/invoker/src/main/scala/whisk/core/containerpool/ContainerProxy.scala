@@ -390,6 +390,12 @@ class ContainerProxy(
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
+    // Sending active ack. Entirely asynchronous and not waited upon.
+    if (!job.msg.blockingLogs) {
+      activation.foreach(
+        sendActiveAck(tid, _, job.msg.blocking, false, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
+    }
+
     val context = UserContext(job.msg.user)
 
     // Adds logs to the raw activation.
@@ -415,15 +421,11 @@ class ContainerProxy(
         }
       }
 
-    // Storing the record. Entirely asynchronous and not waited upon.
+    // Sending active ack and storing the record. Entirely asynchronous and not waited upon.
     activationWithLogs.map(_.fold(_.activation, identity)).foreach { act =>
-      sendActiveAck(
-        tid,
-        act,
-        job.msg.blocking,
-        job.msg.blockingLogs,
-        job.msg.rootControllerIndex,
-        job.msg.user.namespace.uuid)
+      if (job.msg.blockingLogs) {
+        sendActiveAck(tid, act, job.msg.blocking, true, job.msg.rootControllerIndex, job.msg.user.namespace.uuid)
+      }
       storeActivation(tid, act, context)
     }
 

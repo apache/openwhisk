@@ -235,7 +235,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                     .getOrElse(true)
 
                   if (allowInvoke) {
-                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, blocking && logs, result)
+                    doInvoke(
+                      user,
+                      actionWithMergedParams,
+                      payload,
+                      blocking,
+                      waitOverride,
+                      blocking && logs && !result,
+                      result)
                   } else {
                     terminate(BadRequest, Messages.parametersNotAllowed)
                   }
