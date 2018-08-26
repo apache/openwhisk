@@ -102,12 +102,13 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    responseWithLogs: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
-      invokeComposition(user, action, payload, waitForResponse, cause)
+      invokeComposition(user, action, payload, waitForResponse, responseWithLogs, cause)
     } else {
-      invokeSimpleAction(user, action, payload, waitForResponse, cause)
+      invokeSimpleAction(user, action, payload, waitForResponse, responseWithLogs, cause)
     }
   }
 
@@ -145,6 +146,7 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    responseWithLogs: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
@@ -168,6 +170,7 @@ protected[actions] trait PrimitiveActions {
       activationId, // activation id created here
       activeAckTopicIndex,
       waitForResponse.isDefined,
+      responseWithLogs,
       args,
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
@@ -261,6 +264,7 @@ protected[actions] trait PrimitiveActions {
                                 action: ExecutableWhiskActionMetaData,
                                 payload: Option[JsObject],
                                 waitForResponse: Option[FiniteDuration],
+                                responseWithLogs: Boolean,
                                 cause: Option[ActivationId],
                                 accounting: Option[CompositionAccounting] = None)(
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
@@ -325,6 +329,7 @@ protected[actions] trait PrimitiveActions {
           action = session.action,
           payload = params,
           waitForResponse = Some(session.action.limits.timeout.duration + 1.minute), // wait for result
+          false,
           cause = Some(session.activationId)) // cause is session id
 
       waitForActivation(user, session, activationResponse).flatMap {
@@ -440,6 +445,7 @@ protected[actions] trait PrimitiveActions {
           action,
           payload,
           waitForResponse = None, // not topmost, hence blocking, no need for timeout
+          false,
           cause = Some(session.activationId),
           accounting = Some(session.accounting))
       case Some(action) => // primitive action
@@ -449,6 +455,7 @@ protected[actions] trait PrimitiveActions {
           action,
           payload,
           waitForResponse = Some(action.limits.timeout.duration + 1.minute),
+          false,
           cause = Some(session.activationId))
       case None => // sequence
         session.accounting.components += 1

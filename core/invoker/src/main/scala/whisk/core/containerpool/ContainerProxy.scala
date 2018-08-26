@@ -417,10 +417,13 @@ class ContainerProxy(
     // Storing the record. Entirely asynchronous and not waited upon.
     activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
 
+    logging.debug(this, "WERWERWERWERWERWERWER")
+    logging.debug(this, s"TESTETESTSETESTSET ${job.msg.blockingLogs}")
+    println(s"TESTETESTSETESTSET ${job.msg.blockingLogs}")
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
       case Right(act) if !act.response.isSuccess =>
-        if (job.msg.blocking) {
+        if (job.msg.blocking && job.msg.blockingLogs) {
           sendActiveAck(
             tid,
             act.withLogs(getTruncatedLogs(act.logs)),
@@ -438,7 +441,7 @@ class ContainerProxy(
           sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
         Future.failed(error)
       case Right(act) =>
-        if (job.msg.blocking) {
+        if (job.msg.blocking && job.msg.blockingLogs) {
           sendActiveAck(
             tid,
             act.withLogs(getTruncatedLogs(act.logs)),

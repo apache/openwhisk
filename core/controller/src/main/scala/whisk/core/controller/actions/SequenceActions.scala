@@ -66,6 +66,7 @@ protected[actions] trait SequenceActions {
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    responseWithLogs: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
   /**
@@ -337,7 +338,7 @@ protected[actions] trait SequenceActions {
           // this is an invoke for an atomic action
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
-          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
+          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), false, cause) map {
             case res => (res, accounting.atomicActionCnt + 1)
           }
       }

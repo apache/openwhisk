@@ -215,34 +215,36 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     implicit transid: TransactionId) = {
     parameter(
       'blocking ? false,
+      'logs ? false,
       'result ? false,
-      'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
-      entity(as[Option[JsObject]]) { payload =>
-        getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some {
-          act: WhiskActionMetaData =>
-            // resolve the action --- special case for sequences that may contain components with '_' as default package
-            val action = act.resolve(user.namespace)
-            onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
-              case Success(_) =>
-                val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
+      'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) {
+      (blocking, logs, result, waitOverride) =>
+        entity(as[Option[JsObject]]) { payload =>
+          getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some {
+            act: WhiskActionMetaData =>
+              // resolve the action --- special case for sequences that may contain components with '_' as default package
+              val action = act.resolve(user.namespace)
+              onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
+                case Success(_) =>
+                  val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
 
-                // incoming parameters may not override final parameters (i.e., parameters with already defined values)
-                // on an action once its parameters are resolved across package and binding
-                val allowInvoke = payload
-                  .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
-                  .getOrElse(true)
+                  // incoming parameters may not override final parameters (i.e., parameters with already defined values)
+                  // on an action once its parameters are resolved across package and binding
+                  val allowInvoke = payload
+                    .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
+                    .getOrElse(true)
 
-                if (allowInvoke) {
-                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
-                } else {
-                  terminate(BadRequest, Messages.parametersNotAllowed)
-                }
+                  if (allowInvoke) {
+                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, blocking && logs, result)
+                  } else {
+                    terminate(BadRequest, Messages.parametersNotAllowed)
+                  }
 
-              case Failure(f) =>
-                super.handleEntitlementFailure(f)
-            }
-        })
-      }
+                case Failure(f) =>
+                  super.handleEntitlementFailure(f)
+              }
+          })
+        }
     }
   }
 
@@ -251,9 +253,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                        payload: Option[JsObject],
                        blocking: Boolean,
                        waitOverride: FiniteDuration,
+                       blockingLogs: Boolean,
                        result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
-    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, blockingLogs, cause = None)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead
         respondWithActivationIdHeader(activationId) {
