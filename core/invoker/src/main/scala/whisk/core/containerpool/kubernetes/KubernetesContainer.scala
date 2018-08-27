@@ -20,20 +20,19 @@ package whisk.core.containerpool.kubernetes
 import akka.actor.ActorSystem
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.stream.StreamLimitReachedException
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.containerpool.Container
-import whisk.core.containerpool.WhiskContainerStartupError
-import whisk.core.containerpool.ContainerId
-import whisk.core.containerpool.ContainerAddress
-import whisk.core.containerpool.docker.{CompleteAfterOccurrences, DockerContainer, OccurrencesNotFoundException}
+import whisk.core.containerpool._
+import whisk.core.containerpool.docker.{CompleteAfterOccurrences, OccurrencesNotFoundException}
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 import whisk.http.Messages
@@ -110,8 +109,6 @@ class KubernetesContainer(protected[core] val id: ContainerId,
     kubernetes.rm(this)
   }
 
-  private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
-
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 
     kubernetes
@@ -124,7 +121,7 @@ class KubernetesContainer(protected[core] val id: ContainerId,
         lastTimestamp.set(Option(line.time))
         line
       }
-      .via(new CompleteAfterOccurrences(_.log == stringSentinel, 2, waitForSentinel))
+      .via(new CompleteAfterOccurrences(_.log == Container.ACTIVATION_LOG_SENTINEL, 2, waitForSentinel))
       .recover {
         case _: StreamLimitReachedException =>
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation

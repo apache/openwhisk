@@ -32,6 +32,7 @@ import common.rest.WskRestOperations
 import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.containerpool.Container
 import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
@@ -299,7 +300,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         activation.logs shouldBe defined
         val logs = activation.logs.get.toString
         logs should include("This is an example zip used with the docker skeleton action.")
-        logs should not include ("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX")
+        logs should not include Container.ACTIVATION_LOG_SENTINEL
       }
   }
 

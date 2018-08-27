@@ -500,8 +500,8 @@ object KubernetesContainerTests {
     if (appendSentinel) {
       val lastTime = log.lastOption.map { case TypedLogLine(time, _, _) => time }.getOrElse(Instant.EPOCH)
       log :+
-        TypedLogLine(lastTime, "stderr", s"${DockerContainer.ActivationSentinel.utf8String}") :+
-        TypedLogLine(lastTime, "stdout", s"${DockerContainer.ActivationSentinel.utf8String}")
+        TypedLogLine(lastTime, "stderr", s"${Container.ACTIVATION_LOG_SENTINEL}") :+
+        TypedLogLine(lastTime, "stdout", s"${Container.ACTIVATION_LOG_SENTINEL}")
     } else {
       log
     }
