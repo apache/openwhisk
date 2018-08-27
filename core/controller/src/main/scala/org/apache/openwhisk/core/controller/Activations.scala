@@ -172,7 +172,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
           case None =>
             activationStore.listActivationsInNamespace(namespace, skip.n, limit.n, docs, since, upto, context)
         }
-        listEntities(activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson))))
+        listEntities(activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson()))))
       }
     }
   }
@@ -191,7 +191,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
     pathEndOrSingleSlash {
       getEntity(
         activationStore.get(ActivationId(docid.asString), context),
-        postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson)))
+        postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson())))
     } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(context, docid) } ~
       (pathPrefix(logsPath) & pathEnd) { fetchLogs(context, docid) }
   }

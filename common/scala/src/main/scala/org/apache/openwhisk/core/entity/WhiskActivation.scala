@@ -99,9 +99,10 @@ case class WhiskActivation(namespace: EntityPath,
 
   def resultAsJson = response.result.toJson.asJsObject
 
-  def toExtendedJson = {
+  def toExtendedJson(removeFields: Seq[String] = Seq.empty, addFields: Map[String, JsValue] = Map.empty) = {
     val JsObject(baseFields) = WhiskActivation.serdes.write(this).asJsObject
-    val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
+
+    val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson) -- removeFields ++ addFields
     if (end != Instant.EPOCH) {
       val durationValue = (duration getOrElse (end.toEpochMilli - start.toEpochMilli)).toJson
       JsObject(newFields + ("duration" -> durationValue))
@@ -112,6 +113,11 @@ case class WhiskActivation(namespace: EntityPath,
 
   def withoutLogsOrResult = {
     copy(response = response.withoutResult, logs = ActivationLogs()).revision[WhiskActivation](rev)
+  }
+
+  def metadata = {
+    copy(response = response.withoutResult, annotations = Parameters(), logs = ActivationLogs())
+      .revision[WhiskActivation](rev)
   }
 
   def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
