@@ -72,7 +72,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
    * This will close the HttpClient that is generated for this instance of ApacheBlockingContainerClient. That will also cause the
    * ConnectionManager to be closed alongside.
    */
-  def close(): Unit = HttpClientUtils.closeQuietly(connection)
+  def close(): Future[Unit] = Future.successful(HttpClientUtils.closeQuietly(connection))
 
   /**
    * Posts to hostname/endpoint the given JSON object.

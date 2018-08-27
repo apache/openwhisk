@@ -71,8 +71,11 @@ trait Container {
 
   /** Stops the container from consuming CPU cycles. */
   def suspend()(implicit transid: TransactionId): Future[Unit] = {
-    //close connection and reset the connection pool
-    closeConnections().andThen { case _ => httpConnection = None }
+    //close connection first, then close connection pool
+    //(testing pool recreation vs connection closing, time was similar - so using the simpler recreation approach)
+    val toClose = httpConnection
+    httpConnection = None
+    closeConnections(toClose)
   }
 
   /** Dual of halt. */
@@ -83,7 +86,7 @@ trait Container {
 
   /** Completely destroys this instance of the container. */
   def destroy()(implicit transid: TransactionId): Future[Unit] = {
-    closeConnections()
+    closeConnections(httpConnection)
   }
 
   /** Initializes code in the container. */
@@ -192,8 +195,11 @@ trait Container {
         RunResult(Interval(started, finished), response)
       }
   }
-  private def closeConnections(): Future[Unit] = {
-    Future.successful(httpConnection.foreach(_.close()))
+  private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {
+    toClose match {
+      case Some(conn) => conn.close()
+      case None       => Future.successful(Unit)
+    }
   }
 }
 
