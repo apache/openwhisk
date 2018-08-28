@@ -45,17 +45,6 @@ import scala.util.Try
 
 object MongoDBArtifactStore {
   val _computed = "_computed"
-  implicit class StringPurge(val s: String) {
-    def escapeDollar: String = {
-      // replace '"$xxx":' to '"_mark_of_dollar_xxx":' as the "$" can not be the first char of field name
-      s.replaceAll("\"\\$([^}]+?\":)", "\"_mark_of_dollar_$1")
-    }
-
-    def recoverDollar: String = {
-      // restore the "$" from "_mark_of_dollar_"
-      s.replaceAll("\"_mark_of_dollar_([^}]+?\":)", "\"\\$$1")
-    }
-  }
 }
 
 /**
@@ -125,7 +114,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       collection
         .findOneAndReplace(
           filters,
-          Document(data.compactPrint.escapeDollar),
+          Document(data.compactPrint),
           FindOneAndReplaceOptions().upsert(true).returnDocument(ReturnDocument.AFTER))
         .toFuture()
         .map { doc =>
@@ -217,7 +206,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
           throw NoDocumentException("not found on 'get'")
         } else {
           transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
-          val response = result.head.toJson(jsonWriteSettings).recoverDollar.parseJson.asJsObject
+          val response = result.head.toJson(jsonWriteSettings).parseJson.asJsObject
           val deserializedDoc = deserialize[A, DocumentAbstraction](doc, response)
           attachmentHandler
             .map(processAttachments(deserializedDoc, response, doc.id.id, _))
@@ -248,7 +237,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       .map {
         case d: Document =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$id'")
-          Some(d.toJson(jsonWriteSettings).recoverDollar.parseJson.asJsObject)
+          Some(d.toJson(jsonWriteSettings).parseJson.asJsObject)
         case null =>
           transid.finished(this, start, s"[GET] '$dbName', document: '$id'; not found.")
           None
@@ -304,7 +293,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       .map { docs =>
         transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${docs.size}")
         docs.map { doc =>
-          val js = doc.toJson(jsonWriteSettings).recoverDollar.parseJson.convertTo[JsObject]
+          val js = doc.toJson(jsonWriteSettings).parseJson.convertTo[JsObject]
           documentHandler.transformViewResult(
             ddoc,
             viewName,
