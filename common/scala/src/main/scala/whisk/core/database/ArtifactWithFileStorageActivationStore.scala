@@ -98,7 +98,8 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
 
   private def transcribeLogs(activation: WhiskActivation, additionalFields: Map[String, JsValue]) =
     activation.logs.logs.map { log =>
-      val line = JsObject(Map("message" -> log.toJson) ++ additionalFields).toJson
+      val line = JsObject(
+        Map("message" -> log.toJson) ++ Map("activationId" -> activation.activationId.toJson) ++ additionalFields).toJson
 
       ByteString(s"${line.compactPrint}\n")
     }
