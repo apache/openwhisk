@@ -258,6 +258,7 @@ db:
       user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
   mongodb:
+    connect_string: "{{ mongodb_connect_string | default(lookup('ini', 'mongodb_connect_string section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
     database: "{{ mongodb_database | default(lookup('ini', 'mongodb_database section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
     data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
 
@@ -283,19 +284,12 @@ couchdb:
 mongodb:
   version: 3.6.6
   commonEnv:
-    CONFIG_whisk_mongodb_host: "{{ db.host }}"
-    CONFIG_whisk_mongodb_port: "{{ db.port }}"
+    CONFIG_whisk_mongodb_uri: "{{ db.mongodb.connect_string }}"
     CONFIG_whisk_mongodb_database: "{{ db.mongodb.database }}"
     CONFIG_whisk_mongodb_collections_WhiskAuth: "{{ db.whisk.auth }}"
     CONFIG_whisk_mongodb_collections_WhiskEntity: "{{ db.whisk.actions }}"
     CONFIG_whisk_mongodb_collections_WhiskActivation: "{{ db.whisk.activations }}"
     CONFIG_whisk_spi_ArtifactStoreProvider: "whisk.core.database.mongodb.MongoDBArtifactStoreProvider"
-  envForController:
-    CONFIG_whisk_mongodb_username: "{{ db.credentials.controller.user }}"
-    CONFIG_whisk_mongodb_password: "{{ db.credentials.controller.pass }}"
-  envForInvoker:
-    CONFIG_whisk_mongodb_username: "{{ db.credentials.invoker.user }}"
-    CONFIG_whisk_mongodb_password: "{{ db.credentials.invoker.pass }}"
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run

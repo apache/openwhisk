@@ -28,50 +28,14 @@ short_description:  A module which support some simple operations on MongoDB.
 description:
     - Including add user/insert document/create indexes in MongoDB
 options:
-    login_user:
+    connect_string:
         description:
-            - The username used to authenticate with
+            - The uri of mongodb server
         required: true
-        default: null
-    login_password:
-        description:
-            - The password used to authenticate with
-        required: true
-        default: null
-    login_host:
-        description:
-            - The host running the database
-        required: false
-        default: localhost
-    login_port:
-        description:
-            - The port to connect to
-        required: false
-        default: 27017
-    login_database:
-        description:
-            - The database where login credentials are stored
-        required: true
-        default: null
-    replica_set:
-        description:
-            - Replica set to connect to (automatically connects to primary for writes)
-        required: false
-        default: null
     database:
         description:
             - The name of the database you want to manipulate
         required: true
-    ssl:
-        description:
-            - Whether to use an SSL connection when connecting to the database
-        default: False
-    ssl_cert_reqs:
-        description:
-            - Specifies whether a certificate is required from the other side of the connection, and whether it will be validated if provided.
-        required: false
-        default: "CERT_REQUIRED"
-        choices: ["CERT_REQUIRED", "CERT_OPTIONAL", "CERT_NONE"]
     user:
         description:
             - The name of the user to add or remove, required when use 'user' mode
@@ -118,9 +82,7 @@ author:
 EXAMPLES = '''
 # add user
 - mongodb:
-    login_user: root
-    login_password: root_password
-    login_database: admin
+    connect_string: mongodb://localhost:27017
     database: admin
     user: test
     password: 123456
@@ -131,9 +93,7 @@ EXAMPLES = '''
 
 # add doc
 - mongodb:
-    login_user: root
-    login_password: root_password
-    login_database: admin
+    connect_string: mongodb://localhost:27017
     mode: doc
     database: admin
     collection: main
@@ -145,9 +105,7 @@ EXAMPLES = '''
 
 # add indexes
 - mongodb:
-    login_user: root
-    login_password: root_password
-    login_database: admin
+    connect_string: mongodb://localhost:27017
     mode: index
     database: admin
     collection: main
@@ -161,8 +119,6 @@ EXAMPLES = '''
         unique: true
 '''
 
-import os
-import ssl as ssl_lib
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -201,6 +157,7 @@ def _recreate_user(module, db, user, password, roles):
         db.command("createUser", user, pwd=password, roles=roles)
     except Exception as e:
         module.fail_json(msg='Unable to create user: %s' % to_native(e), exception=traceback.format_exc())
+
 
 
 def user(module, client, db_name, **kwargs):
@@ -292,15 +249,8 @@ OPERATIONS = {
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            login_user=dict(required=True),
-            login_password=dict(required=True, no_log=True),
-            login_host=dict(default='localhost'),
-            login_port=dict(default='27017'),
-            login_database=dict(required=True),
-            replica_set=dict(default=None),
+            connect_string=dict(required=True),
             database=dict(required=True, aliases=['db']),
-            ssl=dict(default=False, type='bool'),
-            ssl_cert_reqs=dict(default='CERT_REQUIRED', choices=['CERT_NONE', 'CERT_OPTIONAL', 'CERT_REQUIRED']),
             mode=dict(default='user', choices=['user', 'doc', 'index']),
             user=dict(default=None),
             password=dict(default=None, no_log=True),
@@ -312,14 +262,6 @@ def main():
         )
     )
 
-    login_user = module.params['login_user']
-    login_password = module.params['login_password']
-    login_host = module.params['login_host']
-    login_port = module.params['login_port']
-    login_database = module.params['login_database']
-    ssl = module.params['ssl']
-    replica_set = module.params['replica_set']
-
     mode = module.params['mode']
 
     db_name = module.params['database']
@@ -328,22 +270,7 @@ def main():
     check_params(params, mode, module)
 
     try:
-        connection_params = {
-            "host": login_host,
-            "port": int(login_port),
-            "username": login_user,
-            "password": login_password,
-            "authSource": login_database
-        }
-
-        if replica_set:
-            connection_params["replicaset"] = replica_set
-
-        if ssl:
-            connection_params["ssl"] = ssl
-            connection_params["ssl_cert_reqs"] = getattr(ssl_lib, module.params['ssl_cert_reqs'])
-
-        client = MongoClient(**connection_params)
+        client = MongoClient(module.params['connect_string'])
     except NameError:
         module.fail_json(msg='the python pymongo module is required')
     except Exception as e:

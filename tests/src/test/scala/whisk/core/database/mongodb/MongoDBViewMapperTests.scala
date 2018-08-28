@@ -32,7 +32,7 @@ import org.mongodb.scala.model.Filters.{equal => meq, _}
 import org.scalatest.OptionValues
 
 @RunWith(classOf[JUnitRunner])
-class MongoViewMapperTests extends FlatSpec with Matchers with OptionValues {
+class MongoDBViewMapperTests extends FlatSpec with Matchers with OptionValues {
   implicit class RichBson(val b: Bson) {
     def toDoc: BsonDocument = b.toBsonDocument(classOf[Document], MongoClient.DEFAULT_CODEC_REGISTRY)
   }

@@ -17,6 +17,7 @@
 
 package whisk.core.database.mongodb
 
+import org.mongodb.scala.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Sorts
@@ -24,8 +25,10 @@ import whisk.core.database.{ActivationHandler, UnsupportedQueryKeys, Unsupported
 import whisk.core.database.mongodb.MongoDBArtifactStore._computed
 import whisk.core.entity.WhiskEntityQueries
 
-trait MongoViewMapper {
+trait MongoDBViewMapper {
   protected val TOP: String = WhiskEntityQueries.TOP
+
+  val indexes: List[Document]
 
   def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any]): Bson
 
@@ -38,10 +41,15 @@ trait MongoViewMapper {
   }
 }
 
-private object ActivationViewMapper extends MongoViewMapper {
+private object ActivationViewMapper extends MongoDBViewMapper {
   private val NS = "namespace"
   private val NS_WITH_PATH = s"${_computed}.${ActivationHandler.NS_PATH}"
   private val START = "start"
+  override val indexes: List[Document] =
+    List(
+      Document(s"$START" -> -1),
+      Document(s"$START" -> -1, s"$NS" -> -1),
+      Document(s"$NS_WITH_PATH" -> -1, s"$START" -> -1))
 
   override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any]): Bson = {
     checkKeys(startKey, endKey)
@@ -83,13 +91,15 @@ private object ActivationViewMapper extends MongoViewMapper {
   }
 }
 
-private object WhisksViewMapper extends MongoViewMapper {
+private object WhisksViewMapper extends MongoDBViewMapper {
   private val NS = "namespace"
   private val ROOT_NS = s"${_computed}.${WhisksHandler.ROOT_NS}"
   private val TYPE = "entityType"
   private val UPDATED = "updated"
   private val PUBLISH = "publish"
   private val BINDING = "binding"
+  override val indexes: List[Document] =
+    List(Document(s"$NS" -> -1, s"$UPDATED" -> -1), Document(s"$ROOT_NS" -> -1, s"$UPDATED" -> -1))
 
   override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any]): Bson = {
     checkKeys(startKey, endKey)
@@ -157,8 +167,7 @@ private object WhisksViewMapper extends MongoViewMapper {
     case _                              => throw UnsupportedView(s"$ddoc/$view")
   }
 }
-private object SubjectViewMapper extends MongoViewMapper {
-
+private object SubjectViewMapper extends MongoDBViewMapper {
   private val BLOCKED = "blocked"
   private val SUBJECT = "subject"
   private val UUID = "uuid"
@@ -168,6 +177,8 @@ private object SubjectViewMapper extends MongoViewMapper {
   private val NS_KEY = "namespaces.key"
   private val CONCURRENT_INVOCATIONS = "concurrentInvocations"
   private val INVOCATIONS_PERMINUTE = "invocationsPerMinute"
+  override val indexes: List[Document] =
+    List(Document(s"$NS_NAME" -> -1), Document(s"$NS_UUID" -> -1, s"$NS_KEY" -> -1))
 
   override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any]): Bson = {
     require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")

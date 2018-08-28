@@ -4,76 +4,22 @@
 # This role will run a MongoDB server on the db group, this is only for test, please use
 # shared cluster for production env
 
-- name: ensure mongodb config directory exists
-  file:
-    path: "{{ db.confdir }}"
-    state: directory
-    mode: 0777
-
-- name: generate config file for mongod
-  template:
-    src: config.yaml.j2
-    dest: "{{ db.confdir }}/config.temp"
-    mode: 0644
-
-- name: ensure mongodb log directory is created with permissions
-  file:
-    path: "{{ whisk_logs_dir }}/mongodb"
-    state: directory
-    mode: 0777
-  become: "{{ logs.dir.become }}"
-
-# bootstrap mongodb to change sensitive files mode and owner
-- name: bootstrap mongodb
-  docker_container:
-    name: mongodb_bootstrap
-    image: mongo:{{ mongodb.version }}
-    command: sh -c "cd /data/configdb/ && install -m 400 -o mongodb config.temp config"
-    state: started
-    cleanup: yes
-    detach: no
-    volumes:
-      - "{{ db.confdir }}:/data/configdb"
-
-- name: delete temp file in database config dir
-  file:
-    path: "{{ db.confdir }}/config.temp"
-    state: absent
-
 - name: (re)start mongodb
   vars:
     mongodb_image: "{{ mongodb.docker_image | default('mongo:' ~ mongodb.version ) }}"
   docker_container:
     name: mongodb
     image: "{{ mongodb_image }}"
-    command: --config /data/configdb/config
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "mongodb"
     user: "mongodb"
-    env:
-      MONGO_INITDB_ROOT_USERNAME: "{{ db.credentials.admin.user }}"
-      MONGO_INITDB_ROOT_PASSWORD: "{{ db.credentials.admin.pass }}"
     volumes:
       - "{{ whisk_logs_dir }}/mongodb:/logs"
-      - "{{ db.confdir }}:/data/configdb"
       - "{{ db.mongodb.data_volume }}:/data/db"
     ports:
-      - "{{ db.port }}:27017"
+      - "27017:27017"
 
 - name: wait until the MongoDB in this host is up and running
-  local_action: wait_for host={{ ansible_host }} port={{ db.port }} state=started delay=5 timeout=60
-
-- name: create root user in the whisks database
-  mongodb:
-    database: "{{ db.mongodb.database }}"
-    login_user: "{{ db.credentials.admin.user }}"
-    login_password: "{{ db.credentials.admin.pass }}"
-    login_host: "{{ db.host }}"
-    login_port: "{{ db.port }}"
-    login_database: "admin"
-    user: "{{ db.credentials.admin.user }}"
-    password: "{{ db.credentials.admin.pass }}"
-    roles: "dbOwner"
-    force_update: True
+  local_action: wait_for host={{ ansible_host }} port=27017 state=started delay=5 timeout=60

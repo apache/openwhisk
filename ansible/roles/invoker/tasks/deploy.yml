@@ -270,7 +270,7 @@
 
 - name: merge mongodb env variables
   set_fact:
-    env: "{{ env | combine(mongodb.commonEnv) | combine(mongodb.envForInvoker) }}"
+    env: "{{ env | combine(mongodb.commonEnv) }}"
   when: db.backend == "MongoDB"
 
 - name: include plugins

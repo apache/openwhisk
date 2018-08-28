@@ -16,11 +16,8 @@ whisk {
   }
   {% if db.backend == 'MongoDB' %}
   mongodb {
-    host        = "{{ db.host }}"
-    port        = "{{ db.port }}"
+    uri         = "{{ db.mongodb.connect_string }}"
     database    = "{{ db.mongodb.database }}"
-    username    = "{{ db.credentials.admin.user }}"
-    password    = "{{ db.credentials.admin.pass }}"
     collections {
       WhiskAuth       = "{{ db.whisk.auth }}"
       WhiskEntity     = "{{ db.whisk.actions }}"

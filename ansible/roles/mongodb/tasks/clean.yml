@@ -13,14 +13,3 @@
   docker_volume:
     name: "{{ db.mongodb.data_volume }}"
     state: absent
-
-- name: remove MongoDB log directory
-  file:
-    path: "{{ whisk_logs_dir }}/mongodb"
-    state: absent
-  become: "{{ logs.dir.become }}"
-
-- name: remove MongoDB conf directory
-  file:
-    path: "{{ db.confdir }}"
-    state: absent

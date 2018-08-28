@@ -31,7 +31,7 @@ import org.mongodb.scala.bson.BsonString
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.gridfs.{GridFSBucket, GridFSFile, MongoGridFSException}
 import org.mongodb.scala.model._
-import org.mongodb.scala.{MongoClient, MongoException}
+import org.mongodb.scala.{MongoClient, MongoCollection, MongoException}
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.database._
@@ -63,15 +63,15 @@ object MongoDBArtifactStore {
  *
  * @param client the mongodb client to access database
  * @param dbName the name of the database to operate on
- * @param collection the name of the collection to operate on
+ * @param collName the name of the collection to operate on
  * @param documentHandler helper class help to simulate the designDoc of CouchDB
  * @param viewMapper helper class help to simulate the designDoc of CouchDB
  */
 class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: MongoClient,
                                                                       dbName: String,
-                                                                      collection: String,
+                                                                      collName: String,
                                                                       documentHandler: DocumentHandler,
-                                                                      viewMapper: MongoViewMapper,
+                                                                      viewMapper: MongoDBViewMapper,
                                                                       val inliningConfig: InliningConfig,
                                                                       val attachmentStore: Option[AttachmentStore])(
   implicit system: ActorSystem,
@@ -92,8 +92,8 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(mongodbScheme)
 
   private val database = client.getDatabase(dbName)
-  private val main_collection = database.getCollection(collection)
-  private val gridFSBucket = GridFSBucket(database, collection)
+  private val collection = getCollectionAndCreateIndexes
+  private val gridFSBucket = GridFSBucket(database, collName)
 
   private val jsonWriteSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build
 
@@ -106,7 +106,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     val (old_rev, rev) = revisionCalculate(asJson)
     val docinfoStr = s"id: $id, rev: $rev"
     val start =
-      transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$collection' saving document: '$docinfoStr'")
+      transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$collName' saving document: '$docinfoStr'")
 
     val data = JsObject(asJson.fields + (_computed -> documentHandler.computedFields(asJson)) + ("_rev" -> rev.toJson))
     val filters =
@@ -122,14 +122,14 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       }
 
     val f =
-      main_collection
+      collection
         .findOneAndReplace(
           filters,
           Document(data.compactPrint.escapeDollar),
           FindOneAndReplaceOptions().upsert(true).returnDocument(ReturnDocument.AFTER))
         .toFuture()
         .map { doc =>
-          transid.finished(this, start, s"[PUT] '$collection' completed document: '$docinfoStr', document: '$doc'")
+          transid.finished(this, start, s"[PUT] '$collName' completed document: '$docinfoStr', document: '$doc'")
           DocInfo(DocId(id), DocRevision(rev))
         }
         .recover {
@@ -149,31 +149,31 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       f,
       failure =>
         transid
-          .failed(this, start, s"[PUT] '$collection' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+          .failed(this, start, s"[PUT] '$collName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
   override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
     require(doc != null && doc.rev.asString != null, "doc revision required for delete")
 
     val start =
-      transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collection' deleting document: '$doc'")
+      transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collName' deleting document: '$doc'")
 
-    val f = main_collection
+    val f = collection
       .deleteOne(Filters.and(Filters.eq("_id", doc.id.id), Filters.eq("_rev", doc.rev.rev)))
       .toFuture()
       .flatMap { result =>
         if (result.getDeletedCount == 1) { // the result can only be 1 or 0
-          transid.finished(this, start, s"[DEL] '$collection' completed document: '$doc'")
+          transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'")
           Future(true)
         } else {
-          main_collection.find(Filters.eq("_id", doc.id.id)).toFuture.map { result =>
+          collection.find(Filters.eq("_id", doc.id.id)).toFuture.map { result =>
             if (result.size == 1) {
               // find the document according to _id, conflict
-              transid.finished(this, start, s"[DEL] '$collection', document: '$doc'; conflict.")
+              transid.finished(this, start, s"[DEL] '$collName', document: '$doc'; conflict.")
               throw DocumentConflictException("conflict on 'delete'")
             } else {
               // doesn't find the document according to _id, not found
-              transid.finished(this, start, s"[DEL] '$collection', document: '$doc'; not found.")
+              transid.finished(this, start, s"[DEL] '$collName', document: '$doc'; not found.")
               throw NoDocumentException(s"$doc not found on 'delete'")
             }
           }
@@ -184,7 +184,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
           transid.failed(
             this,
             start,
-            s"[DEL] '$collection' failed to delete document: '$doc'; error code: '${t.getCode}'",
+            s"[DEL] '$collName' failed to delete document: '$doc'; error code: '${t.getCode}'",
             ErrorLevel)
           throw new Exception("Unexpected mongodb server error: " + t.getMessage)
       }
@@ -195,7 +195,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
         transid.failed(
           this,
           start,
-          s"[DEL] '$collection' internal error, doc: '$doc', failure: '${failure.getMessage}'",
+          s"[DEL] '$collName' internal error, doc: '$doc', failure: '${failure.getMessage}'",
           ErrorLevel))
   }
 
@@ -208,15 +208,15 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
 
     require(doc != null, "doc undefined")
 
-    val f = main_collection
+    val f = collection
       .find(Filters.eq("_id", doc.id.id)) // method deserialize will check whether the _rev matched
       .toFuture()
       .map(result =>
         if (result.isEmpty) {
-          transid.finished(this, start, s"[GET] '$collection', document: '$doc'; not found.")
+          transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
           throw NoDocumentException("not found on 'get'")
         } else {
-          transid.finished(this, start, s"[GET] '$collection' completed: found document '$doc'")
+          transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
           val response = result.head.toJson(jsonWriteSettings).recoverDollar.parseJson.asJsObject
           val deserializedDoc = deserialize[A, DocumentAbstraction](doc, response)
           attachmentHandler
@@ -225,10 +225,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       })
       .recoverWith {
         case t: MongoException =>
-          transid.finished(
-            this,
-            start,
-            s"[GET] '$collection' failed to get document: '$doc'; error code: '${t.getCode}'")
+          transid.finished(this, start, s"[GET] '$collName' failed to get document: '$doc'; error code: '${t.getCode}'")
           throw new Exception("Unexpected mongodb server error: " + t.getMessage)
         case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
       }
@@ -239,13 +236,13 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
         transid.failed(
           this,
           start,
-          s"[GET] '$collection' internal error, doc: '$doc', failure: '${failure.getMessage}'",
+          s"[GET] '$collName' internal error, doc: '$doc', failure: '${failure.getMessage}'",
           ErrorLevel))
   }
 
   override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {
-    val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$collection' finding document: '$id'")
-    val f = main_collection
+    val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$collName' finding document: '$id'")
+    val f = collection
       .find(Filters.equal("_id", id.id))
       .head()
       .map {
@@ -261,7 +258,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
           transid.failed(
             this,
             start,
-            s"[GET] '$collection' failed to get document: '$id'; error code: '${t.getCode}'",
+            s"[GET] '$collName' failed to get document: '$id'; error code: '${t.getCode}'",
             ErrorLevel)
           throw new Exception("Unexpected mongodb server error: " + t.getMessage)
       }
@@ -272,7 +269,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
         transid.failed(
           this,
           start,
-          s"[GET] '$collection' internal error, doc: '$id', failure: '${failure.getMessage}'",
+          s"[GET] '$collName' internal error, doc: '$id', failure: '${failure.getMessage}'",
           ErrorLevel))
   }
 
@@ -292,7 +289,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
 
     val Array(ddoc, viewName) = table.split("/")
 
-    val find = main_collection
+    val find = collection
       .find(viewMapper.filter(ddoc, viewName, startKey, endKey))
 
     viewMapper.sort(ddoc, viewName, descending).foreach(find.sort)
@@ -300,7 +297,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     find.skip(skip).limit(limit)
 
     val realIncludeDocs = includeDocs | documentHandler.shouldAlwaysIncludeDocs(ddoc, viewName)
-    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$collection' searching '$table")
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$collName' searching '$table")
 
     val f = find
       .toFuture()
@@ -322,7 +319,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       .map(_.flatten.toList)
       .recover {
         case t: MongoException =>
-          transid.failed(this, start, s"[QUERY] '$collection' failed; error code: '${t.getCode}'", ErrorLevel)
+          transid.failed(this, start, s"[QUERY] '$collName' failed; error code: '${t.getCode}'", ErrorLevel)
           throw new Exception("Unexpected mongodb server error: " + t.getMessage)
       }
 
@@ -330,7 +327,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       f,
       failure =>
         transid
-          .failed(this, start, s"[QUERY] '$collection' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+          .failed(this, start, s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
   protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
@@ -344,16 +341,16 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
 
     val option = CountOptions().skip(skip)
     val f =
-      main_collection
+      collection
         .count(query, option)
         .toFuture()
         .map { result =>
-          transid.finished(this, start, s"[COUNT] '$collection' completed: count $result")
+          transid.finished(this, start, s"[COUNT] '$collName' completed: count $result")
           result
         }
         .recover {
           case t: MongoException =>
-            transid.failed(this, start, s"[COUNT] '$collection' failed; error code: '${t.getCode}'", ErrorLevel)
+            transid.failed(this, start, s"[COUNT] '$collName' failed; error code: '${t.getCode}'", ErrorLevel)
             throw new Exception("Unexpected mongodb server error: " + t.getMessage)
         }
 
@@ -429,7 +426,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     val start = transid.started(
       this,
       LoggingMarkers.DATABASE_ATT_SAVE,
-      s"[ATT_PUT] '$collection' uploading attachment '$name' of document 'id: $id'")
+      s"[ATT_PUT] '$collName' uploading attachment '$name' of document 'id: $id'")
 
     val document: org.bson.Document = new org.bson.Document("contentType", contentType.toString)
     //add the document id to the metadata
@@ -443,7 +440,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       .runWith(combinedSink(sink))
       .map { r =>
         transid
-          .finished(this, start, s"[ATT_PUT] '$collection' completed uploading attachment '$name' of document '$id'")
+          .finished(this, start, s"[ATT_PUT] '$collName' completed uploading attachment '$name' of document '$id'")
         AttachResult(r.digest, r.length)
       }
       .recover {
@@ -451,7 +448,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
           transid.failed(
             this,
             start,
-            s"[ATT_PUT] '$collection' failed to upload attachment '$name' of document '$id'; error code '${t.getCode}'",
+            s"[ATT_PUT] '$collName' failed to upload attachment '$name' of document '$id'; error code '${t.getCode}'",
             ErrorLevel)
           throw new Exception("Unexpected mongodb server error: " + t.getMessage)
       }
@@ -462,7 +459,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
         transid.failed(
           this,
           start,
-          s"[ATT_PUT] '$collection' internal error, name: '$name', doc: '$id', failure: '${failure.getMessage}'",
+          s"[ATT_PUT] '$collName' internal error, name: '$name', doc: '$id', failure: '${failure.getMessage}'",
           ErrorLevel))
   }
 
@@ -509,7 +506,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
             .finished(
               this,
               start,
-              s"[ATT_GET] '$collection' completed: found attachment '$attachmentName' of document '$doc'")
+              s"[ATT_GET] '$collName' completed: found attachment '$attachmentName' of document '$doc'")
           result
         }
     }
@@ -524,13 +521,13 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
               transid.finished(
                 this,
                 start,
-                s"[ATT_GET] '$collection', retrieving attachment '$attachmentName' of document '$doc'; not found.")
+                s"[ATT_GET] '$collName', retrieving attachment '$attachmentName' of document '$doc'; not found.")
               NoDocumentException("Not found on 'readAttachment'.")
             case ex: MongoGridFSException =>
               transid.failed(
                 this,
                 start,
-                s"[ATT_GET] '$collection' failed to get attachment '$attachmentName' of document '$doc'; error code: '${ex.getCode}'",
+                s"[ATT_GET] '$collName' failed to get attachment '$attachmentName' of document '$doc'; error code: '${ex.getCode}'",
                 ErrorLevel)
               throw new Exception("Unexpected mongodb server error: " + ex.getMessage)
             case t => t
@@ -618,5 +615,25 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     Try(java.util.UUID.fromString(name))
       .map(_ => Uri.from(scheme = attachmentScheme, path = name).toString)
       .getOrElse(name)
+  }
+
+  private def getCollectionAndCreateIndexes: MongoCollection[Document] = {
+    val coll = database.getCollection(collName)
+    // create indexes in specific collection if they do not exist
+    coll.listIndexes().toFuture().map { idxes =>
+      val keys = idxes.map {
+        _.get("key").map { fields =>
+          Document(fields.asDocument())
+        } getOrElse {
+          Document.empty // this should not happen
+        }
+      }
+
+      viewMapper.indexes.foreach { idx =>
+        if (!keys.contains(idx))
+          coll.createIndex(idx).toFuture
+      }
+    }
+    coll
   }
 }
