@@ -55,6 +55,10 @@ trait DbUtils extends Assertions {
   val cnt = new AtomicInteger(0)
   def transid() = TransactionId(cnt.incrementAndGet().toString)
 
+  // Call each few successfully 5 before the test continues to increase probability, that each node of the
+  // CouchDB/Cloudant cluster is updated.
+  val successfulViewCalls = 5
+
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.
    * Attempt the operation up to 'count' times. The future from the
@@ -93,7 +97,8 @@ trait DbUtils extends Assertions {
   def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityName, count: Int, view: View)(
     implicit context: ExecutionContext,
     transid: TransactionId,
-    timeout: Duration): Unit = waitOnViewImpl(db, namespace.asString, count, view)
+    timeout: Duration): Unit =
+    waitOnViewImpl(db, List(namespace.asString), List(namespace.asString, WhiskEntityQueries.TOP), count, view)
 
   /**
    * Wait on a view to update with documents added to namespace. This uses retry above,
@@ -103,30 +108,8 @@ trait DbUtils extends Assertions {
   def waitOnView[Au](db: ArtifactStore[Au], path: EntityPath, count: Int, view: View)(
     implicit context: ExecutionContext,
     transid: TransactionId,
-    timeout: Duration): Unit = waitOnViewImpl(db, path.asString, count, view)
-
-  /**
-   * Wait on a view to update with documents added to namespace. This uses retry above,
-   * where the step performs a direct db query to retrieve the view and check the count
-   * matches the given value.
-   */
-  private def waitOnViewImpl[Au](db: ArtifactStore[Au], key: String, count: Int, view: View)(
-    implicit context: ExecutionContext,
-    transid: TransactionId,
-    timeout: Duration): Unit = {
-    val success = retry(
-      () => {
-        val startKey = List(key)
-        val endKey = List(key, WhiskEntityQueries.TOP)
-        db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
-          if (l.length != count) {
-            throw RetryOp()
-          } else true
-        }
-      },
-      timeout)
-    assert(success.isSuccess, "wait aborted")
-  }
+    timeout: Duration): Unit =
+    waitOnViewImpl(db, List(path.asString), List(path.asString, WhiskEntityQueries.TOP), count, view)
 
   /**
    * Wait on a view to update with documents added(don't specify the namespace). This uses retry above,
@@ -135,19 +118,31 @@ trait DbUtils extends Assertions {
    */
   def waitOnView[Au](db: ArtifactStore[Au], count: Int, view: View)(implicit context: ExecutionContext,
                                                                     transid: TransactionId,
-                                                                    timeout: Duration): Unit = {
-    val success = retry(
-      () => {
-        val startKey = List.empty
-        val endKey = List.empty
+                                                                    timeout: Duration): Unit =
+    waitOnViewImpl(db, List.empty, List.empty, count, view)
+
+  /**
+   * Wait on a view to update with documents added to namespace. This uses retry above,
+   * where the step performs a direct db query to retrieve the view and check the count
+   * matches the given value.
+   */
+  private def waitOnViewImpl[Au](
+    db: ArtifactStore[Au],
+    startKey: List[String],
+    endKey: List[String],
+    count: Int,
+    view: View)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration): Unit = {
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
+      val success = retry(() => {
         db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
           if (l.length != count) {
             throw RetryOp()
           } else true
         }
-      },
-      timeout)
-    assert(success.isSuccess, "wait aborted")
+      }, timeout)
+      assert(success.isSuccess, "wait aborted")
+    }
   }
 
   /**
@@ -161,14 +156,17 @@ trait DbUtils extends Assertions {
     namespace: EntityPath,
     count: Int,
     includeDocs: Boolean = false)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
-    val success = retry(() => {
-      factory.listCollectionInNamespace(db, namespace, 0, 0, includeDocs) map { l =>
-        if (l.fold(_.length, _.length) < count) {
-          throw RetryOp()
-        } else true
-      }
-    }, timeout)
-    assert(success.isSuccess, "wait aborted")
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
+      val success = retry(() => {
+        factory.listCollectionInNamespace(db, namespace, 0, 0, includeDocs) map { l =>
+          if (l.fold(_.length, _.length) < count) {
+            throw RetryOp()
+          } else true
+        }
+      }, timeout)
+      assert(success.isSuccess, "wait aborted")
+    }
   }
 
   /**
@@ -178,14 +176,17 @@ trait DbUtils extends Assertions {
   def waitOnView(db: AuthStore, authkey: BasicAuthenticationAuthKey, count: Int)(implicit context: ExecutionContext,
                                                                                  transid: TransactionId,
                                                                                  timeout: Duration) = {
-    val success = retry(() => {
-      Identity.list(db, List(authkey.uuid.asString, authkey.key.asString)) map { l =>
-        if (l.length != count) {
-          throw RetryOp()
-        } else true
-      }
-    }, timeout)
-    assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
+      val success = retry(() => {
+        Identity.list(db, List(authkey.uuid.asString, authkey.key.asString)) map { l =>
+          if (l.length != count) {
+            throw RetryOp()
+          } else true
+        }
+      }, timeout)
+      assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+    }
   }
 
   /**
@@ -194,20 +195,23 @@ trait DbUtils extends Assertions {
   def waitOnView(db: CouchDbRestClient, designDocName: String, viewName: String, count: Int)(
     implicit context: ExecutionContext,
     timeout: Duration) = {
-    val success = retry(
-      () => {
-        db.executeView(designDocName, viewName)().map {
-          case Right(doc) =>
-            val length = doc.fields("rows").convertTo[List[JsObject]].length
-            if (length != count) {
+    // Query the view at least `successfulViewCalls` times successfully, to handle inconsistency between several CouchDB-nodes.
+    (0 until successfulViewCalls).map { _ =>
+      val success = retry(
+        () => {
+          db.executeView(designDocName, viewName)().map {
+            case Right(doc) =>
+              val length = doc.fields("rows").convertTo[List[JsObject]].length
+              if (length != count) {
+                throw RetryOp()
+              } else true
+            case Left(_) =>
               throw RetryOp()
-            } else true
-          case Left(_) =>
-            throw RetryOp()
-        }
-      },
-      timeout)
-    assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+          }
+        },
+        timeout)
+      assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+    }
   }
 
   /**
