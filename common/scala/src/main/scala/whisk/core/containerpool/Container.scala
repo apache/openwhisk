@@ -196,10 +196,7 @@ trait Container {
       }
   }
   private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {
-    toClose match {
-      case Some(conn) => conn.close()
-      case None       => Future.successful(Unit)
-    }
+    toClose.map(_.close()).getOrElse(Future.successful(()))
   }
 }
 

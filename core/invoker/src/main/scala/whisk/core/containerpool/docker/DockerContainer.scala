@@ -177,9 +177,7 @@ class DockerContainer(protected val id: ContainerId,
   protected val filePollInterval: FiniteDuration = 5.milliseconds
 
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
-    super.suspend().andThen {
-      case _ => if (useRunc) { runc.pause(id) } else { docker.pause(id) }
-    }
+    super.suspend().flatMap(_ => if (useRunc) runc.pause(id) else docker.pause(id))
   }
   def resume()(implicit transid: TransactionId): Future[Unit] =
     if (useRunc) { runc.resume(id) } else { docker.unpause(id) }
