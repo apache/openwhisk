@@ -111,15 +111,17 @@ case class WhiskActivation(namespace: EntityPath,
     }
   }
 
-  def withoutLogsOrResult = {
-    copy(response = response.withoutResult, logs = ActivationLogs()).revision[WhiskActivation](rev)
-  }
-
   def metadata = {
     copy(response = response.withoutResult, annotations = Parameters(), logs = ActivationLogs())
       .revision[WhiskActivation](rev)
   }
-
+  def withoutResult = {
+    copy(response = response.withoutResult)
+      .revision[WhiskActivation](rev)
+  }
+  def withoutLogsOrResult = {
+    copy(response = response.withoutResult, logs = ActivationLogs()).revision[WhiskActivation](rev)
+  }
   def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
   def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
 }

@@ -41,21 +41,29 @@ import whisk.common.{Logging, TransactionId}
 import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.ConfigKeys
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+
+import pureconfig.loadConfigOrThrow
+
+case class ArtifactWithFileStorageActivationStoreConfig(userIdField: String,
+                                                        writeLogsToArtifact: Boolean,
+                                                        writeResultToArtifact: Boolean)
 
 class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
                                              actorMaterializer: ActorMaterializer,
                                              logging: Logging)
     extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
 
-  implicit val m = actorMaterializer
+  implicit val materializer = actorMaterializer
 
+  private val config =
+    loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfig](ConfigKeys.activationStoreWithFileStorage)
   private val destinationDirectory: Path = Paths.get("logs")
   private val bufferSize = 100.MB
   private val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
-
   private val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
     .batchWeighted(bufferSize.toBytes, _.length, identity)(_ ++ _)
@@ -107,7 +115,7 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
   }
 
   def storeToFile(activation: WhiskActivation, context: UserContext) = {
-    val userIdField = Map("namespaceId" -> context.user.namespace.uuid.toJson) // TODO: Make field name configurable
+    val userIdField = Map(config.userIdField -> context.user.namespace.uuid.toJson)
     val transcribedLogs = transcribeLogs(activation, userIdField)
     val transcribedActivation = transcribeActivation(activation, userIdField)
 
@@ -121,7 +129,16 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
     storeToFile(activation, context)
-    super.store(activation, context) // TODO: Add configuration to not write results and/or logs
+
+    if (config.writeResultToArtifact && config.writeLogsToArtifact) {
+      super.store(activation, context)
+    } else if (config.writeResultToArtifact) {
+      super.store(activation.withoutLogs, context)
+    } else if (config.writeLogsToArtifact) {
+      super.store(activation.withoutResult, context)
+    } else {
+      super.store(activation.withoutLogsOrResult, context)
+    }
   }
 
 }
