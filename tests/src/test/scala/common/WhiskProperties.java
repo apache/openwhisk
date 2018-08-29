@@ -48,11 +48,6 @@ public class WhiskProperties {
     public static final boolean testRouter = System.getProperty("test.router", "false").equals("true");
 
     /**
-     * The number of tests to run concurrently.
-     */
-    public static final int concurrentTestCount = getConcurrentTestCount(System.getProperty("testthreads", null));
-
-    /**
      * The root of the whisk installation, used to retrieve files relative to
      * home.
      */
@@ -363,18 +358,4 @@ public class WhiskProperties {
         }
         return props;
     }
-
-    private static int getConcurrentTestCount(String count) {
-        if (count != null && count.trim().isEmpty() == false) {
-            try {
-                int threads = Integer.parseInt(count);
-                if (threads > 0) {
-                    return threads;
-                }
-            } catch (NumberFormatException e) {
-            }
-        }
-        return DEFAULT_CONCURRENCY;
-    }
-
 }
