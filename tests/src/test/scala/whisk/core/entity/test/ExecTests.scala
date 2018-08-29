@@ -280,7 +280,6 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
       false,
       true)
     val js = Exec.serdes.write(bb)
-    println(js)
 
     val js2 = """{
                 |  "kind": "blackbox",
