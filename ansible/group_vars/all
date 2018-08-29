@@ -286,9 +286,6 @@ mongodb:
   commonEnv:
     CONFIG_whisk_mongodb_uri: "{{ db.mongodb.connect_string }}"
     CONFIG_whisk_mongodb_database: "{{ db.mongodb.database }}"
-    CONFIG_whisk_mongodb_collections_WhiskAuth: "{{ db.whisk.auth }}"
-    CONFIG_whisk_mongodb_collections_WhiskEntity: "{{ db.whisk.actions }}"
-    CONFIG_whisk_mongodb_collections_WhiskActivation: "{{ db.whisk.activations }}"
     CONFIG_whisk_spi_ArtifactStoreProvider: "whisk.core.database.mongodb.MongoDBArtifactStoreProvider"
 
 docker:

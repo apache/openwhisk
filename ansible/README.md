@@ -133,6 +133,7 @@ export OW_DB_PROTOCOL=https
 export OW_DB_HOST=<your cloudant user>.cloudant.com
 export OW_DB_PORT=443
 # below variables are for mongodb
+export OW_MONGODB_CONNECT_STRING=<your mongodb server uri>
 export OW_MONGODB_DATABASE=<your mongodb database name>
 
 ansible-playbook -i environments/<environment> setup.yml
@@ -222,7 +223,6 @@ cd <openwhisk_home>
 cd ansible
 ansible-playbook -i environments/<environment> mongodb.yml
 ansible-playbook -i environments/<environment> initMongoDB.yml
-ansible-playbook -i environments/<environment> wipeMongoDB.yml
 ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml -e database_backend=MongoDB
 ansible-playbook -i environments/<environment> postdeploy.yml

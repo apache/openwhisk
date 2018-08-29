@@ -61,11 +61,6 @@ whisk {
     mongodb {
         uri         = ${?MONGODB_CONNECT_STRING}
         database    = ${?MONGODB_DATABASE}
-        collections {
-          WhiskAuth       = "{{ db.whisk.auth }}"
-          WhiskEntity     = "{{ db.whisk.actions }}"
-          WhiskActivation = "{{ db.whisk.activations }}"
-        }
     }
 
     controller {

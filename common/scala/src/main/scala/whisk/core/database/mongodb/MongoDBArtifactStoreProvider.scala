@@ -30,16 +30,10 @@ import pureconfig._
 
 import scala.reflect.ClassTag
 
-case class MongoDBConfig(uri: String, database: String, collections: Map[String, String]) {
+case class MongoDBConfig(uri: String, database: String) {
   assume(Set(database, uri).forall(_.nonEmpty), "At least one expected property is missing")
 
-  def collectionFor[D](implicit tag: ClassTag[D]): String = {
-    val entityType = tag.runtimeClass.getSimpleName
-    collections.get(entityType) match {
-      case Some(name) => name
-      case None       => throw new IllegalArgumentException(s"Collection name mapping not found for $entityType")
-    }
-  }
+  def collectionFor[D](implicit tag: ClassTag[D]) = tag.runtimeClass.getSimpleName.toLowerCase
 }
 
 object MongoDBClient {

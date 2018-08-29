@@ -10,7 +10,7 @@
     mongodb:
       connect_string: "{{ db.mongodb.connect_string }}"
       database: "{{ db.mongodb.database }}"
-      collection: "{{ db.whisk.auth }}"
+      collection: "whiskauth"
       doc:
         _id: "{{ item }}"
         subject: "{{ item }}"
