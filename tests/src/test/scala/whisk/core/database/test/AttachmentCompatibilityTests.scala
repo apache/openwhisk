@@ -138,6 +138,21 @@ class AttachmentCompatibilityTests
     codeExec(action2).codeAsJson shouldBe JsString("while (true)")
   }
 
+  it should "read existing simple code string for blackbox action" in {
+    implicit val tid: TransactionId = transid()
+    val exec = """{
+                 |  "kind": "blackbox",
+                 |  "image": "docker-custom.com/openwhisk-runtime/magic/nodejs:0.0.1",
+                 |  "code":  "while (true)",
+                 |  "binary": false
+                 |}""".stripMargin.parseJson.asJsObject
+    val (id, action) = makeActionJson(namespace, aname(), exec)
+    val info = putDoc(id, action)
+
+    val action2 = WhiskAction.get(entityStore, info.id).futureValue
+    codeExec(action2).codeAsJson shouldBe JsString("while (true)")
+  }
+
   private def codeExec(a: WhiskAction) = a.exec.asInstanceOf[CodeExec[_]]
 
   private def makeActionJson(namespace: EntityPath, name: EntityName, exec: JsObject): (String, JsObject) = {

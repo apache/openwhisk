@@ -54,6 +54,13 @@ object Attachments {
     }
   }
 
+  implicit class OptionSizeAttachment[T <% SizeConversion](a: Option[Attachment[T]]) extends SizeConversion {
+    def sizeIn(unit: SizeUnits.Unit): ByteSize = a match {
+      case Some(Inline(v)) => (v: SizeConversion).sizeIn(unit)
+      case _               => 0.bytes
+    }
+  }
+
   object Attached {
     implicit val serdes = {
       implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {

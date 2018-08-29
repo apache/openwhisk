@@ -19,7 +19,6 @@ package whisk.core.entity.test
 
 import org.scalatest.Matchers
 import org.scalatest.Suite
-
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.core.WhiskConfig
@@ -27,7 +26,6 @@ import whisk.core.entity._
 import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.ExecManifest._
 import whisk.core.entity.size._
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -41,6 +39,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS6 = "nodejs:6"
   protected val SWIFT = "swift"
   protected val SWIFT3 = "swift:3.1.1"
+  protected val BLACKBOX = "blackbox"
   protected val SWIFT3_IMAGE = "action-swift-v3.1.1"
   protected val JAVA_DEFAULT = "java"
 
@@ -136,10 +135,13 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def sequenceMetaData(components: Vector[FullyQualifiedEntityName]) = SequenceExecMetaData(components)
 
-  protected def bb(image: String) = BlackBoxExec(ExecManifest.ImageName(trim(image)), None, None, false)
+  protected def bb(image: String) = BlackBoxExec(ExecManifest.ImageName(trim(image)), None, None, false, false)
 
   protected def bb(image: String, code: String, main: Option[String] = None) = {
-    BlackBoxExec(ExecManifest.ImageName(trim(image)), Some(trim(code)).filter(_.nonEmpty), main, false)
+    val (codeOpt, binary) =
+      if (code.trim.nonEmpty) (Some(attFmt[String].read(code.toJson)), Exec.isBinaryCode(code))
+      else (None, false)
+    BlackBoxExec(ExecManifest.ImageName(trim(image)), codeOpt, main, false, binary)
   }
 
   protected def blackBoxMetaData(image: String, main: Option[String] = None, binary: Boolean) = {

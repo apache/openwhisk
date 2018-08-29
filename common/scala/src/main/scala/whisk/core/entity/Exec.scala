@@ -27,7 +27,6 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.Attachments._
 import whisk.core.entity.ExecManifest._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
 
 /**
@@ -115,6 +114,11 @@ sealed abstract class ExecMetaData extends ExecMetaDataBase {
   override def size = 0.B
 }
 
+trait AttachedCode {
+  def inline(bytes: Array[Byte]): Exec
+  def attach(attached: Attached): Exec
+}
+
 protected[core] case class CodeExecAsString(manifest: RuntimeManifest,
                                             override val code: String,
                                             override val entryPoint: Option[String])
@@ -142,7 +146,8 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
                                                 override val code: Attachment[String],
                                                 override val entryPoint: Option[String],
                                                 override val binary: Boolean = false)
-    extends CodeExec[Attachment[String]] {
+    extends CodeExec[Attachment[String]]
+    with AttachedCode {
   override val kind = manifest.kind
   override val image = manifest.image
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
@@ -150,12 +155,12 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
   override val pull = false
   override def codeAsJson = code.toJson
 
-  def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
+  override def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
     val encoded = new String(bytes, StandardCharsets.UTF_8)
     copy(code = Inline(encoded))
   }
 
-  def attach(attached: Attached): CodeExecAsAttachment = {
+  override def attach(attached: Attached): CodeExecAsAttachment = {
     copy(code = attached)
   }
 }
@@ -175,17 +180,27 @@ protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifes
  * @param code an optional script or zip archive (as base64 encoded) string
  */
 protected[core] case class BlackBoxExec(override val image: ImageName,
-                                        override val code: Option[String],
+                                        override val code: Option[Attachment[String]],
                                         override val entryPoint: Option[String],
-                                        val native: Boolean)
-    extends CodeExec[Option[String]] {
+                                        val native: Boolean,
+                                        override val binary: Boolean)
+    extends CodeExec[Option[Attachment[String]]]
+    with AttachedCode {
   override val kind = Exec.BLACKBOX
   override val deprecated = false
   override def codeAsJson = code.toJson
-  override lazy val binary = code map { Exec.isBinaryCode(_) } getOrElse false
   override val sentinelledLogs = native
   override val pull = !native
   override def size = super.size + image.publicImageName.sizeInBytes
+
+  override def inline(bytes: Array[Byte]): BlackBoxExec = {
+    val encoded = new String(bytes, StandardCharsets.UTF_8)
+    copy(code = Some(Inline(encoded)))
+  }
+
+  override def attach(attached: Attached): BlackBoxExec = {
+    copy(code = Some(attached))
+  }
 }
 
 protected[core] case class BlackBoxExecMetaData(override val image: ImageName,
@@ -244,7 +259,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
       case b: BlackBoxExec =>
         val base =
           Map("kind" -> JsString(b.kind), "image" -> JsString(b.image.publicImageName), "binary" -> JsBoolean(b.binary))
-        val code = b.code.filter(_.trim.nonEmpty).map("code" -> JsString(_))
+        val code = b.code.map("code" -> attFmt[String].write(_))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ code ++ main)
       case _ => JsObject.empty
@@ -283,15 +298,13 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
               throw new DeserializationException(
                 s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
           }
-          val code: Option[String] = obj.fields.get("code") match {
-            case Some(JsString(i)) => if (i.trim.nonEmpty) Some(i) else None
-            case Some(_) =>
-              throw new DeserializationException(
-                s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
-            case None => None
+          val (codeOpt: Option[Attachment[String]], binary) = obj.fields.get("code") match {
+            case None                                => (None, false)
+            case Some(JsString(i)) if i.trim.isEmpty => (None, false)
+            case Some(code)                          => (Some(attFmt[String].read(code)), isBinary(code, obj))
           }
           val native = execManifests.skipDockerPull(image)
-          BlackBoxExec(image, code, optMainField, native)
+          BlackBoxExec(image, codeOpt, optMainField, native, binary)
 
         case _ =>
           // map "default" virtual runtime versions to the currently blessed actual runtime version
@@ -307,10 +320,6 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
                 throw new DeserializationException(
                   s"'code' must be a string or attachment object defined in 'exec' for '$kind' actions")
               }
-              val binary: Boolean = code match {
-                case JsString(c) => isBinaryCode(c)
-                case _           => obj.fields.get("binary").map(_.convertTo[Boolean]).getOrElse(false)
-              }
 
               val main = optMainField.orElse {
                 if (manifest.requireMain.exists(identity)) {
@@ -318,7 +327,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
                 } else None
               }
 
-              CodeExecAsAttachment(manifest, attFmt[String].read(code), main, binary)
+              CodeExecAsAttachment(manifest, attFmt[String].read(code), main, isBinary(code, obj))
             }
             .getOrElse {
               val code: String = obj.fields.get("code") match {
@@ -339,6 +348,13 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
       val t = code.trim
       (t.length > 0) && (t.length % 4 == 0) && isBase64Pattern.matcher(t).matches()
     } else false
+  }
+
+  private def isBinary(code: JsValue, obj: JsObject): Boolean = {
+    code match {
+      case JsString(c) => isBinaryCode(c)
+      case _           => obj.fields.get("binary").map(_.convertTo[Boolean]).getOrElse(false)
+    }
   }
 }
 

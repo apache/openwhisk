@@ -125,7 +125,7 @@ trait ArtifactStoreBehaviorBase
     WhiskNamespace(Namespace(EntityName(name), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   }
 
-  private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false)
+  private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false, binary = false)
 
   protected def newAction(ns: EntityPath): WhiskAction = {
     WhiskAction(ns, aname(), exec)
