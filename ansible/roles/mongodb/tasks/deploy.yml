@@ -16,7 +16,6 @@
     hostname: "mongodb"
     user: "mongodb"
     volumes:
-      - "{{ whisk_logs_dir }}/mongodb:/logs"
       - "{{ db.mongodb.data_volume }}:/data/db"
     ports:
       - "27017:27017"

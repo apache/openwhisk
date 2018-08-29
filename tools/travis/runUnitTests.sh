@@ -25,6 +25,10 @@ ROOTDIR="$SCRIPTDIR/../.."
 cd $ROOTDIR/tools/travis
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
 
+# enable unittest for mongodb
+export MONGODB_CONNECT_STRING=mongodb://localhost:27017
+export MONGODB_DATABASE=whisks
+
 ./scan.sh
 
 ./setupPrereq.sh
