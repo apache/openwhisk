@@ -162,7 +162,7 @@ class DbCommandTests
       val newAction = entityStore.get[WhiskAction](DocInfo(a.docid)).futureValue
       val oldAction = actionsWithAttachments.find(_.docid == newAction.docid).get
       newAction.exec match {
-        case _ @CodeExecAsAttachment(_, attached: Attached, _) =>
+        case _ @CodeExecAsAttachment(_, attached: Attached, _, _) =>
           val newBytes = getAttachmentBytes(newAction.docinfo, attached).futureValue.result().toArray
           val oldBytes = getAttachmentBytes(oldAction)
           newBytes shouldBe oldBytes

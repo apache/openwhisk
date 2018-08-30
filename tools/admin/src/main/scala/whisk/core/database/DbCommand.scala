@@ -191,7 +191,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
           val action = WhiskAction.serdes.read(js)
           action.revision(DocRevision(rev))
           action.exec match {
-            case CodeExecAsAttachment(_, attached: Attached, _) =>
+            case CodeExecAsAttachment(_, attached: Attached, _, _) =>
               val outFile = createFile(getAttachmentFile(attachmentDir, action))
               val sink = FileIO.toPath(outFile.toPath)
               store.readAttachment(action.docinfo, attached, sink)
@@ -272,16 +272,14 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
     if (isAction(js)) {
       val action = WhiskAction.serdes.read(js)
       action.exec match {
-        case _ @CodeExecAsAttachment(_, Attached(_, contentType, _, _), _) =>
+        case _ @CodeExecAsAttachment(_, Attached(_, contentType, _, _), _, _) =>
           //If attachment was inlined at ArtifactStore level then downloadAttachments would have created attachment
           //file on disk as part of download. So both inline and non inline case gets addressed
           val attachmentSource = getAttachmentSource(action, attachmentDir)
           entityStore
             .putAndAttach(action, WhiskAction.attachmentUpdater, contentType, attachmentSource, None)
             .map(_._1)
-        //TODO CodeExecAsString => Attachment
-        //TODO BlackBoxAction => Attachment
-        case _ => entityStore.put(action)
+        case _ => WhiskAction.put(entityStore, action, None)(transid, None)
       }
     } else entityStore.put(AnyEntity(js))
   }

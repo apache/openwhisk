@@ -46,6 +46,6 @@ trait ArtifactNamingHelper {
 
   private def randomString() = Random.alphanumeric.take(5).mkString
 
-  private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false)
+  private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false, binary = false)
 
 }
