@@ -48,9 +48,11 @@ import scala.concurrent.duration._
 
 import pureconfig.loadConfigOrThrow
 
-case class ArtifactWithFileStorageActivationStoreConfig(userIdField: String,
+case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
+                                                        userIdField: String,
                                                         writeLogsToArtifact: Boolean,
-                                                        writeResultToArtifact: Boolean)
+                                                        writeResultToArtifact: Boolean,
+                                                        additionalJson: String)
 
 class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
                                              actorMaterializer: ActorMaterializer,
@@ -61,6 +63,8 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
 
   private val config =
     loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfig](ConfigKeys.activationStoreWithFileStorage)
+
+  private val additionalJson = config.additionalJson.parseJson.asJsObject.fields
   private val destinationDirectory: Path = Paths.get("logs")
   private val bufferSize = 100.MB
   private val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
@@ -76,7 +80,7 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
             val size = element.size
             if (bytesRead + size > maxSize) {
               bytesRead = size
-              val logFilePath = destinationDirectory.resolve(s"userlogs-${Instant.now.toEpochMilli}.log")
+              val logFilePath = destinationDirectory.resolve(s"${config.logFilePrefix}-${Instant.now.toEpochMilli}.log")
               logging.info(this, s"Rotating log file to '$logFilePath'")
               try {
                 Files.createFile(logFilePath)
@@ -116,9 +120,9 @@ class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
   }
 
   def storeToFile(activation: WhiskActivation, context: UserContext) = {
-    val userIdField = Map(config.userIdField -> context.user.namespace.uuid.toJson)
-    val transcribedLogs = transcribeLogs(activation, userIdField)
-    val transcribedActivation = transcribeActivation(activation, userIdField)
+    val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson) ++ additionalJson
+    val transcribedLogs = transcribeLogs(activation, additionalFields)
+    val transcribedActivation = transcribeActivation(activation, additionalFields)
 
     // Write each log line to file and then write the activation metadata
     Source

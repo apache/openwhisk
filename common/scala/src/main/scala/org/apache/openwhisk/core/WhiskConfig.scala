@@ -244,7 +244,7 @@ object ConfigKeys {
   val controller = s"whisk.controller"
   val controllerActivation = s"$controller.activation"
 
-  val activationStore = "whisk.activationstore"
+  val activationStore = "whisk.activation-store"
   val activationStoreWithFileStorage = s"$activationStore.with-file-storage"
 
 }
