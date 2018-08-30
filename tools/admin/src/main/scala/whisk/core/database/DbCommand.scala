@@ -18,6 +18,7 @@
 package whisk.core.database
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.time.Instant
 
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.{Logging, TransactionId}
+import whisk.core.WhiskConfig
 import whisk.core.cli.ConsoleUtil._
 import whisk.core.cli._
 import whisk.core.database.DbCommand._
@@ -40,6 +42,7 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.utils.JsHelpers
 
+import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
@@ -58,6 +61,8 @@ class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
         "subjects" -> classTag[WhiskAuth])
 
     val database = trailArg[String](descr = s"database type. One of $databases")
+
+    val runtimes = opt[File](descr = "runtimes.json file")(relativeFileConverter)
 
     validate(database) { db =>
       if (databases.contains(db)) {
@@ -115,6 +120,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    initManifest(get)
     val artifactStore = getStore(get.dbType)
     val store = createStreamingStore(get.dbType, artifactStore)
 
@@ -158,6 +164,10 @@ class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
       if (r.ok) Right(get.out.map(CommandMessages.dbContentToFile(r.count, _)).getOrElse(""))
       else Left(IllegalState(r.errorMsg))
     }
+  }
+
+  private def initManifest(cmd: DbSubcommand)(implicit logging: Logging): Unit = {
+    cmd.runtimes.foreach(initializeManifest)
   }
 
   private case class ReadResult(attachmentCount: Int,
@@ -228,6 +238,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
                       materializer: ActorMaterializer,
                       transid: TransactionId,
                       ec: ExecutionContext): Future[Either[CommandError, String]] = {
+    initManifest(put)
     val authStore = WhiskAuthStore.datastore()
     val entityStore = WhiskEntityStore.datastore()
     val activationStore = WhiskActivationStore.datastore()
@@ -445,6 +456,17 @@ object DbCommand {
       .addPath(EntityName(attachmentFileName))
     val names = path.namespace.split(EntityPath.PATHSEP)
     FileUtils.getFile(basedir, names: _*)
+  }
+
+  def initializeManifest(file: File)(implicit logging: Logging): Unit = {
+    class DummyConfig(val props: Map[String, String], requiredProperties: Map[String, String])
+        extends WhiskConfig(requiredProperties) {
+      override protected def getProperties() = mutable.Map(props.toSeq: _*)
+    }
+    val manifest = FileUtils.readFileToString(file, StandardCharsets.UTF_8)
+    val config =
+      new DummyConfig(Map(WhiskConfig.runtimesManifest -> manifest), ExecManifest.requiredProperties)
+    ExecManifest.initialize(config)
   }
 
   private def createFile(file: File): File = {
