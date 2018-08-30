@@ -33,28 +33,12 @@ import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
+class Conf(arguments: Seq[String]) extends ScallopConf(arguments) with ConfSupport {
   banner("OpenWhisk admin command line tool")
   val durationConverter = singleArgConverter[Duration](Duration(_))
 
-  //Spring boot launch script changes the working directory to one where jar file is present
-  //So invocation like ./bin/wskadmin-next -c config.conf would fail to resolve file as it would
-  //be looked in directory where jar is present. This convertor makes use of `OLDPWD` to also
-  //do a fallback check in that directory
-  val fileConverter = singleArgConverter[File] { f =>
-    val f1 = new File(f)
-    val oldpwd = System.getenv("OLDPWD")
-    if (f1.exists())
-      f1
-    else if (oldpwd != null) {
-      val f2 = new File(oldpwd, f)
-      if (f2.exists()) f2 else f1
-    } else {
-      f1
-    }
-  }
   val verbose = tally()
-  val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")(fileConverter)
+  val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")(relativeFileConverter)
   val timeout =
     opt[Duration](descr = "time to wait for asynchronous task to finish", default = Some(30.seconds))(durationConverter)
   printedName = Main.printedName

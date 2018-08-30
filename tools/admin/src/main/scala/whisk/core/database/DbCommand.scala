@@ -45,7 +45,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Properties, Success, Try}
 
-class DbCommand extends Subcommand("db") with WhiskCommand {
+class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
   descr("work with dbs")
 
   val databases = Set("whisks", "activations", "subjects")
@@ -77,7 +77,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
 
     val view = opt[String](descr = "the view in the database to get", argName = "VIEW")
 
-    val out = opt[File](descr = "file to dump the contents to")
+    val out = opt[File](descr = "file to dump the contents to")(relativeFileConverter)
 
     val attachments =
       opt[Boolean](descr = "include attachments. Downloaded attachments would be stored under 'attachments' directory")
@@ -91,8 +91,7 @@ class DbCommand extends Subcommand("db") with WhiskCommand {
   val put = new DbSubcommand("put") {
     descr("add content to database")
 
-    //TODO Support relative files also
-    val in = opt[File](descr = "file to read contents from", required = true)
+    val in = opt[File](descr = "file to read contents from", required = true)(relativeFileConverter)
 
     val threads = opt[Int](descr = "Number of parallel puts to perform", default = Some(5))
     validateFileExists(in)
