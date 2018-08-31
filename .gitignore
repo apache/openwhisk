@@ -16,6 +16,7 @@ results
 /ansible/environments/*
 !/ansible/environments/distributed
 !/ansible/environments/docker-machine
+!/ansible/environments/jenkins
 !/ansible/environments/local
 !/ansible/environments/mac
 !/ansible/environments/vagrant

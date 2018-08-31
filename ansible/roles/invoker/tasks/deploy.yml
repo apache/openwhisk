@@ -56,7 +56,7 @@
   when: environmentInformation.type == "docker-machine"
 
 - name: "determine docker root dir"
-  shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
+  shell: echo -e "GET http://{{ ansible_host }}:{{ docker.port }}/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
   args:
     executable: /bin/bash
   register: dockerInfo_output
@@ -107,7 +107,7 @@
 
 - name: "get invoker info"
   shell: |
-    INFO=`echo -e "GET http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"`
+    INFO=`echo -e "GET http://{{ ansible_host }}:{{ docker.port }}/v1.24/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"`
     if [ -z "$INFO" ]; then
       echo []
     else
