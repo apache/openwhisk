@@ -51,6 +51,8 @@ class ArtifactWithFileStorageActivationStore(
   private val activationFileStorage =
     new ActivationFileStorage(config.logFilePrefix, Paths.get(config.logPath), actorMaterializer, logging)
 
+  def getLogFile = activationFileStorage.getLogFile
+
   override def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {

@@ -48,6 +48,7 @@ class ActivationFileStorage(logFilePrefix: String,
 
   implicit val materializer = actorMaterializer
 
+  private var logFile = logPath
   private val bufferSize = 100.MB
   private val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
   private val writeToFile: Sink[ByteString, _] = MergeHub
@@ -62,12 +63,12 @@ class ActivationFileStorage(logFilePrefix: String,
             val size = element.size
 
             if (bytesRead + size > maxSize) {
-              val logFilePath = logPath.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
+              logFile = logPath.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
 
-              logging.info(this, s"Rotating log file to '$logFilePath'")
-              createLogFile(logFilePath)
+              logging.info(this, s"Rotating log file to '$logFile'")
+              createLogFile(logFile)
               bytesRead = size
-              Some(logFilePath)
+              Some(logFile)
             } else {
               bytesRead += size
               None
@@ -105,6 +106,8 @@ class ActivationFileStorage(logFilePrefix: String,
 
     ByteString(s"${line.compactPrint}\n")
   }
+
+  def getLogFile = logFile
 
   def activationToFile(activation: WhiskActivation,
                        context: UserContext,
