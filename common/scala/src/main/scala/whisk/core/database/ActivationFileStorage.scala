@@ -18,7 +18,7 @@
 package whisk.core.database
 
 import java.time.Instant
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import java.nio.file.attribute.PosixFilePermission.{
   GROUP_READ,
   GROUP_WRITE,
@@ -33,9 +33,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
 import akka.util.ByteString
-
 import spray.json._
-
 import whisk.common.Logging
 import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import whisk.core.entity._
@@ -43,11 +41,13 @@ import whisk.core.entity.size._
 
 import scala.concurrent.duration._
 
-class ActivationFileStorage(logFilePrefix: String, actorMaterializer: ActorMaterializer, logging: Logging) {
+class ActivationFileStorage(logFilePrefix: String,
+                            logPath: Path,
+                            actorMaterializer: ActorMaterializer,
+                            logging: Logging) {
 
   implicit val materializer = actorMaterializer
 
-  private val destinationDirectory: Path = Paths.get("logs")
   private val bufferSize = 100.MB
   private val perms = EnumSet.of(OWNER_READ, OWNER_WRITE, GROUP_READ, GROUP_WRITE, OTHERS_READ, OTHERS_WRITE)
   private val writeToFile: Sink[ByteString, _] = MergeHub
@@ -60,18 +60,13 @@ class ActivationFileStorage(logFilePrefix: String, actorMaterializer: ActorMater
         element =>
           {
             val size = element.size
+
             if (bytesRead + size > maxSize) {
-              bytesRead = size
-              val logFilePath = destinationDirectory.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
+              val logFilePath = logPath.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
+
               logging.info(this, s"Rotating log file to '$logFilePath'")
-              try {
-                Files.createFile(logFilePath)
-                Files.setPosixFilePermissions(logFilePath, perms)
-              } catch {
-                case t: Throwable =>
-                  logging.error(this, s"Couldn't create user log file '$t'")
-                  throw t
-              }
+              createLogFile(logFilePath)
+              bytesRead = size
               Some(logFilePath)
             } else {
               bytesRead += size
@@ -81,6 +76,17 @@ class ActivationFileStorage(logFilePrefix: String, actorMaterializer: ActorMater
       })
     })
     .run()
+
+  private def createLogFile(path: Path) =
+    try {
+      Files.createDirectory(path.getParent)
+      Files.createFile(path)
+      Files.setPosixFilePermissions(path, perms)
+    } catch {
+      case t: Throwable =>
+        logging.error(this, s"Couldn't create user log file '$t'")
+        throw t
+    }
 
   private def transcribeLogs(activation: WhiskActivation, additionalFields: Map[String, JsValue]) =
     activation.logs.logs.map { log =>

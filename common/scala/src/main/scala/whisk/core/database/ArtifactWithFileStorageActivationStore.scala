@@ -30,19 +30,24 @@ import scala.concurrent.Future
 
 import pureconfig.loadConfigOrThrow
 
+import java.nio.file.Paths
+
 case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
+                                                        logPath: String,
                                                         userIdField: String,
                                                         writeLogsToArtifact: Boolean,
                                                         writeResultToArtifact: Boolean)
 
-class ArtifactWithFileStorageActivationStore(actorSystem: ActorSystem,
-                                             actorMaterializer: ActorMaterializer,
-                                             logging: Logging)
+class ArtifactWithFileStorageActivationStore(
+  actorSystem: ActorSystem,
+  actorMaterializer: ActorMaterializer,
+  logging: Logging,
+  config: ArtifactWithFileStorageActivationStoreConfig =
+    loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfig](ConfigKeys.activationStoreWithFileStorage))
     extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
 
-  private val config =
-    loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfig](ConfigKeys.activationStoreWithFileStorage)
-  private val activationFileStorage = new ActivationFileStorage(config.logFilePrefix, actorMaterializer, logging)
+  private val activationFileStorage =
+    new ActivationFileStorage(config.logFilePrefix, Paths.get(config.logPath), actorMaterializer, logging)
 
   override def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
