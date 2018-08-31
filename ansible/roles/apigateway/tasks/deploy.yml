@@ -16,6 +16,7 @@
       "REDIS_PORT": "{{ redis.port }}"
       "PUBLIC_MANAGEDURL_HOST": "{{ ansible_host }}"
       "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
+      "TZ": "{{ docker.timezone }}"
     ports:
       - "{{ apigateway.port.mgmt }}:8080"
       - "{{ apigateway.port.api }}:9000"

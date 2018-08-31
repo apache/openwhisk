@@ -25,6 +25,7 @@
       "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.offsetsTopicReplicationFactor }}"
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
       "KAFKA_NUM_NETWORK_THREADS": "{{ kafka.networkThreads }}"
+      "TZ": "{{ docker.timezone }}"
 
 - name: add kafka non-ssl vars
   when: kafka.protocol != 'SSL'

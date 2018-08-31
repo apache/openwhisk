@@ -368,3 +368,6 @@ limits:
 - The `limits.concurrentInvocations` represents the maximum concurrent invocations allowed per namespace.
 - The `limits.firesPerMinute` represents the allowed namespace trigger firings per minute.
 - The `limits.sequenceMaxLength` represents the maximum length of a sequence action.
+
+#### Set the timezone for containers
+The default timezone for all system containers is UTC. The timezone may differ from your servers which could make it difficult to inspect logs. The timezone is configured globally in [group_vars/all](./group_vars/all#L280) or by passing an extra variable `-e docker_timezone=xxx` when you run an ansible-playbook.

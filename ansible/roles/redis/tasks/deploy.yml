@@ -19,6 +19,8 @@
     restart_policy: "{{ docker.restart.policy }}"
     ports:
       - "{{ redis.port }}:6379"
+    env:
+      TZ: "{{ docker.timezone }}"
 
 - name: wait until redis is up and running
   action: shell (echo PING; sleep 1) | nc {{ ansible_host }} {{ redis.port }}
