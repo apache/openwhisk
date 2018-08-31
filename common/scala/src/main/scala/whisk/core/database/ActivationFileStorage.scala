@@ -79,7 +79,6 @@ class ActivationFileStorage(logFilePrefix: String,
 
   private def createLogFile(path: Path) =
     try {
-      Files.createDirectory(path.getParent)
       Files.createFile(path)
       Files.setPosixFilePermissions(path, perms)
     } catch {

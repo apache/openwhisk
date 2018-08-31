@@ -25,6 +25,7 @@ import spray.json._
 import whisk.common.{Logging, TransactionId}
 import whisk.core.entity._
 import whisk.core.ConfigKeys
+import whisk.core.entity.DocInfo
 
 import scala.concurrent.Future
 
@@ -35,6 +36,7 @@ import java.nio.file.Paths
 case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
                                                         logPath: String,
                                                         userIdField: String,
+                                                        writeToArtifact: Boolean,
                                                         writeLogsToArtifact: Boolean,
                                                         writeResultToArtifact: Boolean)
 
@@ -56,14 +58,18 @@ class ArtifactWithFileStorageActivationStore(
 
     activationFileStorage.activationToFile(activation, context, additionalFields)
 
-    if (config.writeResultToArtifact && config.writeLogsToArtifact) {
-      super.store(activation, context)
-    } else if (config.writeResultToArtifact) {
-      super.store(activation.withoutLogs, context)
-    } else if (config.writeLogsToArtifact) {
-      super.store(activation.withoutResult, context)
+    if (config.writeToArtifact) {
+      if (config.writeResultToArtifact && config.writeLogsToArtifact) {
+        super.store(activation, context)
+      } else if (config.writeResultToArtifact) {
+        super.store(activation.withoutLogs, context)
+      } else if (config.writeLogsToArtifact) {
+        super.store(activation.withoutResult, context)
+      } else {
+        super.store(activation.withoutLogsOrResult, context)
+      }
     } else {
-      super.store(activation.withoutLogsOrResult, context)
+      Future.successful(DocInfo(activation.activationId.asString))
     }
   }
 
