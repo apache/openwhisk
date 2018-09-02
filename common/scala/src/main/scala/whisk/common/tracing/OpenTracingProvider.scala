@@ -80,7 +80,7 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
    * @param transactionId
    */
   override def finishSpan(transactionId: TransactionId): Unit = {
-    clear(transactionId)
+    clear(transactionId, withErrorMessage = None)
   }
 
   /**
@@ -88,8 +88,8 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
    *
    * @param transactionId
    */
-  override def error(transactionId: TransactionId): Unit = {
-    clear(transactionId)
+  override def error(transactionId: TransactionId, message: => String): Unit = {
+    clear(transactionId, withErrorMessage = Some(message))
   }
 
   /**
@@ -122,17 +122,24 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
     }
   }
 
-  private def clear(transactionId: TransactionId): Unit = {
+  private def clear(transactionId: TransactionId, withErrorMessage: Option[String]): Unit = {
     spanMap.get(transactionId.meta.id).foreach {
       case head :: Nil =>
+        withErrorMessage.foreach(setErrorTags(head, _))
         head.finish()
         spanMap.remove(transactionId.meta.id)
         contextMap.remove(transactionId.meta.id)
       case head :: tail =>
+        withErrorMessage.foreach(setErrorTags(head, _))
         head.finish()
         spanMap.put(transactionId.meta.id, tail)
       case Nil =>
     }
+  }
+
+  private def setErrorTags(span: Span, message: => String): Unit = {
+    span.setTag("error", true)
+    span.setTag("message", message)
   }
 
   private def configureCache[T, R](): collection.concurrent.Map[T, R] =
@@ -149,7 +156,7 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
 trait WhiskTracer {
   def startSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {}
   def finishSpan(transactionId: TransactionId): Unit = {}
-  def error(transactionId: TransactionId): Unit = {}
+  def error(transactionId: TransactionId, message: => String): Unit = {}
   def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = None
   def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]): Unit = {}
 }
