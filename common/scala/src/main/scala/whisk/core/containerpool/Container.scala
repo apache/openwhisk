@@ -20,7 +20,7 @@ package whisk.core.containerpool
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
+import akka.event.Logging.{ErrorLevel, InfoLevel}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import pureconfig._
@@ -100,12 +100,17 @@ trait Container {
     callContainer("/init", body, timeout, retry = true)
       .andThen { // never fails
         case Success(r: RunResult) =>
-          transid.finished(
-            this,
-            start.copy(start = r.interval.start),
-            s"initialization result: ${r.toBriefString}",
-            endTime = r.interval.end,
-            logLevel = InfoLevel)
+          r.response match {
+            case Left(_) =>
+              transid.failed(this, start, s"initialization failed with ${r.toBriefString}", logLevel = ErrorLevel)
+            case Right(_) =>
+              transid.finished(
+                this,
+                start.copy(start = r.interval.start),
+                s"initialization result: ${r.toBriefString}",
+                endTime = r.interval.end,
+                logLevel = InfoLevel)
+          }
         case Failure(t) =>
           transid.failed(this, start, s"initializiation failed with $t")
       }
@@ -142,12 +147,16 @@ trait Container {
     callContainer("/run", body, timeout, retry = false)
       .andThen { // never fails
         case Success(r: RunResult) =>
-          transid.finished(
-            this,
-            start.copy(start = r.interval.start),
-            s"running result: ${r.toBriefString}",
-            endTime = r.interval.end,
-            logLevel = InfoLevel)
+          r.response match {
+            case Left(_) => transid.failed(this, start, s"run failed with ${r.toBriefString}", logLevel = ErrorLevel)
+            case Right(_) =>
+              transid.finished(
+                this,
+                start.copy(start = r.interval.start),
+                s"running result: ${r.toBriefString}",
+                endTime = r.interval.end,
+                logLevel = InfoLevel)
+          }
         case Failure(t) =>
           transid.failed(this, start, s"run failed with $t")
       }
