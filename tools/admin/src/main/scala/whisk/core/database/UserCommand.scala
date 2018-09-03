@@ -52,6 +52,10 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       opt[Boolean](
         descr = "revoke the current authorization key and generate a new key",
         short = 'r')
+    val force =
+      opt[Boolean](
+        descr = "force update an existing subject authorization key",
+        short = 'f')
     val subject = trailArg[String](descr = "the subject to create")
 
     validate(subject) { s =>
@@ -81,6 +85,8 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
     def desiredNamespace(authKey: BasicAuthenticationAuthKey) =
       Namespace(EntityName(namespace.getOrElse(subject()).trim), authKey.uuid)
+
+    def isForced= force.isSupplied && auth.isSupplied
   }
 
   val create = new CreateUserCmd
@@ -165,24 +171,24 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   def createUser(authStore: AuthStore)(implicit transid: TransactionId,
                                        ec: ExecutionContext): Future[Either[CommandError, String]] = {
     val authKey = create.auth.map(BasicAuthenticationAuthKey(_)).getOrElse(BasicAuthenticationAuthKey())
+    val nsToUpdate = create.desiredNamespace(authKey).name
     authStore
       .get[ExtendedAuth](DocInfo(create.subject()))
       .flatMap { auth =>
+        var newNS = auth.namespaces.filter(_.namespace.name != nsToUpdate)
         if (auth.isBlocked) {
           Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))
-        } else if (!auth.namespaces.exists(_.namespace.name == create.desiredNamespace(authKey).name)) {
-          val newNS = auth.namespaces + WhiskNamespace(create.desiredNamespace(authKey), authKey)
+        } else if (!auth.namespaces.exists(_.namespace.name == nsToUpdate) || create.isForced) {
+          newNS = newNS.+(WhiskNamespace(create.desiredNamespace(authKey), authKey))
           val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
           authStore.put(newAuth).map(_ => Right(authKey.compact))
         } else if (create.revoke.isSupplied) {
-          val nsToUpdate = create.namespace.getOrElse(create.subject())
-          val updatedAuthKey = auth.namespaces.find(_.namespace.name.asString == nsToUpdate).get.authkey
+          val updatedAuthKey = auth.namespaces.find(_.namespace.name == nsToUpdate).get.authkey
           val newAuthKey = new BasicAuthenticationAuthKey(updatedAuthKey.uuid, Secret())
-          var newNS = auth.namespaces.filter(_.namespace.name.asString != nsToUpdate)
+
           newNS = newNS.+(WhiskNamespace(create.desiredNamespace(newAuthKey), newAuthKey))
           val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
           authStore.put(newAuth).map(_ => Right(newAuthKey.compact))
-//          Future.successful(Left(IllegalState("authKey is " + newAuthKey.compact)))
         } else {
           Future.successful(Left(IllegalState(CommandMessages.namespaceExists)))
         }
