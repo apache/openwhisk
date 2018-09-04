@@ -54,7 +54,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
         short = 'r')
     val force =
       opt[Boolean](
-        descr = "force update an existing subject authorization key",
+        descr = "force update an existing subject authorization uuid:key",
         short = 'f')
     val subject = trailArg[String](descr = "the subject to create")
 
@@ -171,10 +171,10 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
   def createUser(authStore: AuthStore)(implicit transid: TransactionId,
                                        ec: ExecutionContext): Future[Either[CommandError, String]] = {
     val authKey = create.auth.map(BasicAuthenticationAuthKey(_)).getOrElse(BasicAuthenticationAuthKey())
-    val nsToUpdate = create.desiredNamespace(authKey).name
     authStore
       .get[ExtendedAuth](DocInfo(create.subject()))
       .flatMap { auth =>
+        val nsToUpdate = create.desiredNamespace(authKey).name
         var newNS = auth.namespaces.filter(_.namespace.name != nsToUpdate)
         if (auth.isBlocked) {
           Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))

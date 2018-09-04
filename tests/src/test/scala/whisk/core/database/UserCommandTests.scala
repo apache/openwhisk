@@ -68,6 +68,18 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     resultOk("user", "get", subject) shouldBe generatedKey
   }
 
+  it should "create a user or update an existing user with revoke flag" in {
+    val subject = newSubject()
+    val oldKey = resultOk("user", "create", "--revoke", subject)
+    resultOk("user", "get", subject) shouldBe oldKey
+    val newKey = resultOk("user", "create", "--revoke", subject)
+    resultOk("user", "get", subject) shouldBe newKey
+    val oldAuthKey = BasicAuthenticationAuthKey(oldKey)
+    val newAuthKey = BasicAuthenticationAuthKey(newKey)
+    newAuthKey.uuid shouldBe oldAuthKey.uuid
+    newAuthKey.key should not be oldAuthKey.key
+  }
+
   it should "add namespace to existing user" in {
     val subject = newSubject()
     val key = BasicAuthenticationAuthKey()
@@ -86,6 +98,23 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     implicit val tid = transid()
     val i = Identity.get(authStore, EntityName("foo")).futureValue
     i.subject.asString shouldBe subject
+  }
+
+  it should "force update an existing user with defined --auth flag" in {
+    val subject = newSubject()
+    val oldKey = resultOk("user", "create", "--force", subject)
+    resultOk("user", "get", subject) shouldBe oldKey
+    val key = BasicAuthenticationAuthKey()
+    val newKey = resultOk("user", "create", "--auth", key.compact, "--force", subject)
+    resultOk("user", "get", subject) shouldBe newKey
+    newKey shouldBe key.compact
+  }
+
+  it should "not force update an existing user without --auth flag" in {
+    val subject = newSubject()
+    val generatedKey = resultOk("user", "create", "--force", subject)
+    resultOk("user", "get", subject) shouldBe generatedKey
+    resultNotOk("user", "create", "--force", subject) shouldBe CommandMessages.namespaceExists
   }
 
   it should "not add namespace to a blocked user" in {
