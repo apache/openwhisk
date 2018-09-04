@@ -91,7 +91,7 @@ class ActivationFileStorage(logFilePrefix: String,
   private def transcribeLogs(activation: WhiskActivation, additionalFields: Map[String, JsValue]) =
     activation.logs.logs.map { log =>
       val line = JsObject(
-        Map("message" -> log.toJson) ++ Map("activationId" -> activation.activationId.toJson) ++ additionalFields).toJson
+        Map("message" -> log.toJson) ++ Map("activationId" -> activation.activationId.toJson) ++ additionalFields)
 
       ByteString(s"${line.compactPrint}\n")
     }
@@ -102,7 +102,7 @@ class ActivationFileStorage(logFilePrefix: String,
     val annotations = activation.annotations.toJsObject.fields
     val addFields = annotations ++ message ++ additionalFields
     val removeFields = Seq("logs", "annotations")
-    val line = activation.metadata.toExtendedJson(removeFields, addFields).toJson
+    val line = activation.metadata.toExtendedJson(removeFields, addFields)
 
     ByteString(s"${line.compactPrint}\n")
   }
