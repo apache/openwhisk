@@ -83,11 +83,13 @@ class ArtifactWithFileStorageActivationStoreTests()
   def expectedFileContent(activation: WhiskActivation) = {
     val expectedLogs = activation.logs.logs.map { log =>
       JsObject(
+        "type" -> "user_log".toJson,
         "message" -> log.toJson,
         "activationId" -> activation.activationId.toJson,
         "namespaceId" -> user.namespace.uuid.toJson)
     }
     val expectedActivation = JsObject(
+      "type" -> "activation_record".toJson,
       "duration" -> activation.duration.toJson,
       "name" -> activation.name.toJson,
       "subject" -> activation.subject.toJson,
