@@ -86,7 +86,7 @@ class MaxActionDurationTests extends TestHelpers with WskTestHelpers with WskAct
           pollPeriod = 1.minute,
           totalWait = TimeLimit.MAX_DURATION + 2.minutes) { activation =>
           withClue("Activation result not as expected:") {
-            activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+            activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
             activation.response.result shouldBe Some(
               JsObject("error" -> Messages.timedoutActivation(TimeLimit.MAX_DURATION, init = false).toJson))
             activation.duration.toInt should be >= TimeLimit.MAX_DURATION.toMillis.toInt

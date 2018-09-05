@@ -43,14 +43,14 @@ class ActivationResponseTests extends FlatSpec with Matchers {
       {
         val response = ContainerResponse(okStatus = false, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
         val init = processInitResponseContent(Right(response), logger)
-        init.statusCode shouldBe ContainerError
+        init.statusCode shouldBe DeveloperError
         init.result.get.asJsObject
           .fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
       }
       {
         val response = ContainerResponse(okStatus = true, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
         val run = processRunResponseContent(Right(response), logger)
-        run.statusCode shouldBe ContainerError
+        run.statusCode shouldBe DeveloperError
         run.result.get.asJsObject
           .fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
       }
@@ -62,7 +62,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
       .map(Left(_))
       .foreach { e =>
         val ar = processInitResponseContent(e, logger)
-        ar.statusCode shouldBe ContainerError
+        ar.statusCode shouldBe DeveloperError
         ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalInitialization.toJson
       }
   }
@@ -70,7 +70,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed init that responds with null string" in {
     val response = ContainerResponse(okStatus = false, null)
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.toString should not include regex("null")
   }
@@ -78,7 +78,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed init that responds with empty string" in {
     val response = ContainerResponse(okStatus = false, "")
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
   }
@@ -86,7 +86,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed init that responds with non-empty string" in {
     val response = ContainerResponse(okStatus = false, "string")
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.toString should include(response.entity)
   }
@@ -94,7 +94,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed init that responds with JSON string not object" in {
     val response = ContainerResponse(okStatus = false, Vector(1).toJson.compactPrint)
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.toString should include(response.entity)
   }
@@ -102,14 +102,14 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed init that responds with JSON object containing error" in {
     val response = ContainerResponse(okStatus = false, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get shouldBe response.entity.parseJson
   }
 
   it should "interpret failed init that responds with JSON object" in {
     val response = ContainerResponse(okStatus = false, Map("foobar" -> "baz").toJson.compactPrint)
     val ar = processInitResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.toString should include("baz")
   }
@@ -126,7 +126,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
       .map(Left(_))
       .foreach { e =>
         val ar = processRunResponseContent(e, logger)
-        ar.statusCode shouldBe ContainerError
+        ar.statusCode shouldBe DeveloperError
         ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalRun.toJson
       }
   }
@@ -134,7 +134,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed run that responds with null string" in {
     val response = ContainerResponse(okStatus = false, null)
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
     ar.result.get.toString should not include regex("null")
   }
@@ -142,7 +142,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed run that responds with empty string" in {
     val response = ContainerResponse(okStatus = false, "")
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
     ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
   }
@@ -150,7 +150,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed run that responds with non-empty string" in {
     val response = ContainerResponse(okStatus = false, "string")
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
     ar.result.get.toString should include(response.entity)
   }
@@ -158,7 +158,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed run that responds with JSON string not object" in {
     val response = ContainerResponse(okStatus = false, Vector(1).toJson.compactPrint)
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
     ar.result.get.toString should include(response.entity)
   }
@@ -166,14 +166,14 @@ class ActivationResponseTests extends FlatSpec with Matchers {
   it should "interpret failed run that responds with JSON object containing error" in {
     val response = ContainerResponse(okStatus = false, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get shouldBe response.entity.parseJson
   }
 
   it should "interpret failed run that responds with JSON object" in {
     val response = ContainerResponse(okStatus = false, Map("foobar" -> "baz").toJson.compactPrint)
     val ar = processRunResponseContent(Right(response), logger)
-    ar.statusCode shouldBe ContainerError
+    ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
     ar.result.get.toString should include("baz")
   }

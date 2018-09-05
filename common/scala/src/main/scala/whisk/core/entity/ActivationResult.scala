@@ -44,7 +44,7 @@ protected[core] case class ActivationResponse private (val statusCode: Int, val 
 
   def isSuccess = statusCode == ActivationResponse.Success
   def isApplicationError = statusCode == ActivationResponse.ApplicationError
-  def isContainerError = statusCode == ActivationResponse.ContainerError
+  def isContainerError = statusCode == ActivationResponse.DeveloperError
   def isWhiskError = statusCode == ActivationResponse.WhiskError
   def withoutResult = ActivationResponse(statusCode, None)
 
@@ -57,7 +57,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
 
   val Success = 0 // action ran successfully and produced a result
   val ApplicationError = 1 // action ran but there was an error and it was handled
-  val ContainerError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize
+  val DeveloperError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize
   val WhiskError = 3 // internal system error
 
   protected[core] def messageForCode(code: Int) = {
@@ -71,7 +71,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   }
 
   private def error(code: Int, errorValue: JsValue) = {
-    require(code == ApplicationError || code == ContainerError || code == WhiskError)
+    require(code == ApplicationError || code == DeveloperError || code == WhiskError)
     ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)))
   }
 
@@ -79,8 +79,8 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
 
   protected[core] def applicationError(errorValue: JsValue) = error(ApplicationError, errorValue)
   protected[core] def applicationError(errorMsg: String) = error(ApplicationError, JsString(errorMsg))
-  protected[core] def containerError(errorValue: JsValue) = error(ContainerError, errorValue)
-  protected[core] def containerError(errorMsg: String) = error(ContainerError, JsString(errorMsg))
+  protected[core] def developerError(errorValue: JsValue) = error(DeveloperError, errorValue)
+  protected[core] def developerError(errorMsg: String) = error(DeveloperError, JsString(errorMsg))
   protected[core] def whiskError(errorValue: JsValue) = error(WhiskError, errorValue)
   protected[core] def whiskError(errorMsg: String) = error(WhiskError, JsString(errorMsg))
 
@@ -148,21 +148,21 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                 // If the response is a JSON object container an error field, accept it as the response error.
                 val errorOpt = fields.get(ERROR_FIELD)
                 val errorContent = errorOpt getOrElse invalidInitResponse(str).toJson
-                containerError(errorContent)
+                developerError(errorContent)
               case _ =>
-                containerError(invalidInitResponse(str))
+                developerError(invalidInitResponse(str))
             }
 
           case Some((length, maxlength)) =>
-            containerError(truncatedResponse(str, length, maxlength))
+            developerError(truncatedResponse(str, length, maxlength))
         }
 
       case Left(_: MemoryExhausted) =>
-        containerError(memoryExhausted)
+        developerError(memoryExhausted)
 
       case Left(e) =>
         // This indicates a terminal failure in the container (it exited prematurely).
-        containerError(abnormalInitialization)
+        developerError(abnormalInitialization)
     }
   }
 
@@ -194,29 +194,29 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                   // Any non-200 code is treated as a container failure. We still need to check whether
                   // there was a useful error message in there.
                   val errorContent = errorOpt getOrElse invalidRunResponse(str).toJson
-                  containerError(errorContent)
+                  developerError(errorContent)
                 }
 
               case scala.util.Success(notAnObj) =>
                 // This should affect only blackbox containers, since our own containers should already test for that.
-                containerError(invalidRunResponse(str))
+                developerError(invalidRunResponse(str))
 
               case scala.util.Failure(t) =>
                 // This should affect only blackbox containers, since our own containers should already test for that.
                 logger.warn(this, s"response did not json parse: '$str' led to $t")
-                containerError(invalidRunResponse(str))
+                developerError(invalidRunResponse(str))
             }
 
           case Some((length, maxlength)) =>
-            containerError(truncatedResponse(str, length, maxlength))
+            developerError(truncatedResponse(str, length, maxlength))
         }
 
       case Left(_: MemoryExhausted) =>
-        containerError(memoryExhausted)
+        developerError(memoryExhausted)
 
       case Left(e) =>
         // This indicates a terminal failure in the container (it exited prematurely).
-        containerError(abnormalRun)
+        developerError(abnormalRun)
     }
   }
 

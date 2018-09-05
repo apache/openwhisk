@@ -116,7 +116,7 @@ trait Container {
           Future.failed(
             InitializationError(
               result.interval,
-              ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true))))
+              ActivationResponse.developerError(Messages.timedoutActivation(timeout, true))))
         } else {
           Future.failed(
             InitializationError(
@@ -153,7 +153,7 @@ trait Container {
       }
       .map { result =>
         val response = if (result.interval.duration >= timeout) {
-          ActivationResponse.applicationError(Messages.timedoutActivation(timeout, false))
+          ActivationResponse.developerError(Messages.timedoutActivation(timeout, false))
         } else {
           ActivationResponse.processRunResponseContent(result.response, logging)
         }

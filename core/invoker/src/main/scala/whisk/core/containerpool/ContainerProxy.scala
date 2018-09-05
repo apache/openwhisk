@@ -154,7 +154,7 @@ class ContainerProxy(
             // the failure is either the system fault, or for docker actions, the application/developer fault
             val response = t match {
               case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
-              case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
+              case BlackboxStartupError(msg)       => ActivationResponse.developerError(msg)
               case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
             val context = UserContext(job.msg.user)
@@ -423,9 +423,10 @@ class ContainerProxy(
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
-      case Right(act) if !act.response.isSuccess => Future.failed(ActivationUnsuccessfulError(act))
-      case Left(error)                           => Future.failed(error)
-      case Right(act)                            => Future.successful(act)
+      case Right(act) if !act.response.isSuccess && !act.response.isApplicationError =>
+        Future.failed(ActivationUnsuccessfulError(act))
+      case Left(error) => Future.failed(error)
+      case Right(act)  => Future.successful(act)
     }
   }
 }

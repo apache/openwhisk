@@ -241,7 +241,7 @@ class KubernetesContainerTests
 
     val error = the[InitializationError] thrownBy await(init, initTimeout)
     error.interval shouldBe interval
-    error.response.statusCode shouldBe ActivationResponse.ApplicationError
+    error.response.statusCode shouldBe ActivationResponse.DeveloperError
 
     // assert the finish log is there
     val end = LogMarker.parse(logLines.last)
@@ -287,7 +287,7 @@ class KubernetesContainerTests
     }
 
     val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout)
-    await(runResult) shouldBe (interval, ActivationResponse.applicationError(
+    await(runResult) shouldBe (interval, ActivationResponse.developerError(
       Messages.timedoutActivation(runTimeout, false)))
 
     // assert the finish log is there

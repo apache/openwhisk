@@ -185,7 +185,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.plus(1 second).toMillis.toJson))
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
-          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
           result.response.result.get.fields("error") shouldBe {
             Messages.timedoutActivation(allowedActionDuration, init = false).toJson
           }
@@ -272,7 +272,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       def checkResponse(activation: ActivationResult) = {
         val response = activation.response
         response.success shouldBe false
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
         val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
         val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
         withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
