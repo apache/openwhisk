@@ -204,12 +204,12 @@ protected[core] abstract class EntitlementProvider(
   private val kindRestrictor = new KindRestrictor()
 
   /**
-    * Checks if an action's kind is restricted for a given subject
-    *
-    * @param user    the identity to check for restrictions
-    * @param exec    the action's executable details
-    * @return a promise that completes with success iff the user's action kind is not restricted
-    */
+   * Checks if an action's kind is restricted for a given subject
+   *
+   * @param user    the identity to check for restrictions
+   * @param exec    the action's executable details
+   * @return a promise that completes with success iff the user's action kind is not restricted
+   */
   protected[core] def check(user: Identity, exec: Option[Exec])(implicit transid: TransactionId): Future[Unit] = {
     exec
       .map {
