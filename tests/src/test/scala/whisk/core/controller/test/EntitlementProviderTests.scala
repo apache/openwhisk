@@ -695,9 +695,12 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val ep = entitlementProvider
     val subject = WhiskAuthHelpers.newIdentity().copy(limits = UserLimits(allowedKinds = Some(allowedKinds)))
 
-    disallowedKinds.foreach(k =>
-      intercept[RejectRequest] {
+    disallowedKinds.foreach(k => {
+      val ex = intercept[RejectRequest] {
         Await.result(ep.check(subject, Some(getExec(k))), 1.seconds)
+      }
+      assert(ex
+        .toString() === s"RejectRequest(403 Forbidden) The supplied authentication is not authorized to access actions of kind '$k'.")
     })
   }
 
