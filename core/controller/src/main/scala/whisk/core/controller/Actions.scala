@@ -187,8 +187,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskActionPut]) { content =>
         val request = content.resolve(user.namespace)
+        val checkAdditionalPrivileges = entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap {
+          case _ => entitlementProvider.check(user, content.exec)
+        }
 
-        onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
+        onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
             putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
               make(user, entityName, request)
