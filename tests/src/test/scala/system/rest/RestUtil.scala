@@ -17,12 +17,12 @@
 
 package system.rest
 
-import scala.util.Try
+import akka.http.scaladsl.model.Uri
 
+import scala.util.Try
 import com.jayway.restassured.RestAssured
 import com.jayway.restassured.config.RestAssuredConfig
 import com.jayway.restassured.config.SSLConfig
-
 import common.WhiskProperties
 import spray.json._
 
@@ -31,7 +31,7 @@ import spray.json._
  */
 trait RestUtil {
 
-  private val skipKeyStore = false // set this to true for convenient local testing
+  private val skipKeyStore = WhiskProperties.isSSLCheckRelaxed
   private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
   // force RestAssured to allow all hosts in SSL certificates
@@ -55,9 +55,15 @@ trait RestUtil {
    * @return the URL and port for the whisk service using the main router or the edge router ip address
    */
   def getServiceURL(): String = {
-    val apiPort = WhiskProperties.getEdgeHostApiPort()
-    val protocol = if (apiPort == 443) "https" else "http"
-    protocol + "://" + WhiskProperties.getEdgeHost() + ":" + apiPort
+    val host = WhiskProperties.getEdgeHost
+    val uri = Uri(host)
+    //Ensure that prt is explicitly include in the returned URL
+    if (uri.isAbsolute) uri.withPort(uri.effectivePort).toString()
+    else {
+      val apiPort = WhiskProperties.getEdgeHostApiPort
+      val protocol = if (apiPort == 443) "https" else "http"
+      protocol + "://" + host + ":" + apiPort
+    }
   }
 
   /**

@@ -172,6 +172,10 @@ public class WhiskProperties {
         return getInvokerHosts().length;
     }
 
+    public static boolean isSSLCheckRelaxed() {
+        return Boolean.valueOf(getPropFromSystemOrEnv("whisk.ssl.relax"));
+    }
+
     public static String getSslCertificateChallenge() {
         return whiskProperties.getProperty("whisk.ssl.challenge");
     }
@@ -181,6 +185,10 @@ public class WhiskProperties {
      * host.
      */
     public static String getEdgeHost() {
+        String server = getPropFromSystemOrEnv(WHISK_SERVER);
+        if (server != null) {
+            return server;
+        }
         return testRouter ? getRouterHost() : whiskProperties.getProperty("edge.host");
     }
 
@@ -386,7 +394,7 @@ public class WhiskProperties {
     }
 
     private static boolean isWhiskPropertiesRequired() {
-        return getPropFromSystemOrEnv(WHISK_SERVER) != null;
+        return getPropFromSystemOrEnv(WHISK_SERVER) == null;
     }
 
     private static String getPropFromSystemOrEnv(String key) {
