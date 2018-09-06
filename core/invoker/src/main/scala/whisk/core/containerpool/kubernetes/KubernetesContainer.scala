@@ -100,7 +100,9 @@ class KubernetesContainer(protected[core] val id: ContainerId,
 
   protected val waitForLogs: FiniteDuration = 2.seconds
 
-  def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
+  override def suspend()(implicit transid: TransactionId): Future[Unit] = {
+    super.suspend().flatMap(_ => kubernetes.suspend(this))
+  }
 
   def resume()(implicit transid: TransactionId): Future[Unit] = kubernetes.resume(this)
 

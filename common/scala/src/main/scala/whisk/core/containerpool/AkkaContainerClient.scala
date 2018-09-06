@@ -71,10 +71,10 @@ protected class AkkaContainerClient(
   maxResponse: ByteSize,
   queueSize: Int,
   retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
-    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout), keepAlive = Some(false))
+    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
     with ContainerClient {
 
-  def close() = Await.result(shutdown(), 30.seconds)
+  def close() = shutdown()
 
   /**
    * Posts to hostname/endpoint the given JSON object.

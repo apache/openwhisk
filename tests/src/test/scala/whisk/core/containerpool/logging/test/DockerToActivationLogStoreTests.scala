@@ -102,7 +102,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
                       val addr: ContainerAddress = ContainerAddress("test", 1234))(implicit val ec: ExecutionContext,
                                                                                    val logging: Logging)
       extends Container {
-    def suspend()(implicit transid: TransactionId): Future[Unit] = ???
+    override def suspend()(implicit transid: TransactionId): Future[Unit] = ???
     def resume()(implicit transid: TransactionId): Future[Unit] = ???
 
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId) = lines

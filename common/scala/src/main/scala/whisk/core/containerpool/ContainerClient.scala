@@ -23,8 +23,8 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActivationResponse.ContainerHttpError
 import whisk.core.entity.ActivationResponse._
 
-trait ContainerClient extends AutoCloseable {
+trait ContainerClient {
   def post(endpoint: String, body: JsValue, retry: Boolean)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]]
-
+  def close(): Future[Unit]
 }
