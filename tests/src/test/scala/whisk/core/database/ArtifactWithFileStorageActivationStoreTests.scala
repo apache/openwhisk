@@ -66,7 +66,6 @@ class ArtifactWithFileStorageActivationStoreTests()
       ActivationResponse.success(None),
       ActivationResponse.success(Some(message)),
       ActivationResponse.applicationError(message),
-      ActivationResponse.containerError(message),
       ActivationResponse.whiskError(message))
   }
 
