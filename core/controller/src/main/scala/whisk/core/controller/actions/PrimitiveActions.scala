@@ -17,11 +17,10 @@
 
 package whisk.core.controller.actions
 
-import java.lang.Throwable
 import java.time.{Clock, Instant}
 
 import akka.actor.ActorSystem
-import akka.event.Logging.{ErrorLevel, InfoLevel}
+import akka.event.Logging.InfoLevel
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.common.tracing.WhiskTracerProvider
@@ -177,7 +176,7 @@ protected[actions] trait PrimitiveActions {
 
     postedFuture andThen {
       case Success(_) => transid.finished(this, startLoadbalancer)
-      case Failure(e) => transid.failed(this, startLoadbalancer, e.getMessage, logLevel = ErrorLevel)
+      case Failure(e) => transid.failed(this, startLoadbalancer, e.getMessage)
     } flatMap { activeAckResponse =>
       // is caller waiting for the result of the activation?
       waitForResponse
@@ -192,7 +191,7 @@ protected[actions] trait PrimitiveActions {
         }
     } andThen {
       case Success(_) => transid.finished(this, startActivation)
-      case Failure(e) => transid.failed(this, startActivation, e.getMessage, logLevel = ErrorLevel)
+      case Failure(e) => transid.failed(this, startActivation, e.getMessage)
     }
   }
 
