@@ -134,7 +134,7 @@ class InvokerReactive(
     UserEvents.send(
       producer, {
         val activation = Activation(
-          activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
+          activationResult.annotations.getAs[String](WhiskActivation.pathAnnotation).getOrElse("unknown_action"),
           activationResult.response.statusCode,
           activationResult.duration.getOrElse(0),
           activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
@@ -145,7 +145,7 @@ class InvokerReactive(
             .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
             .map(al => al.memory.megabytes)
             .getOrElse(0),
-          activationResult.annotations.getAs[Boolean](WhiskActivation.causedByAnnotation).getOrElse(false))
+          activationResult.annotations.getAs[String](WhiskActivation.causedByAnnotation))
         EventMessage(
           s"invoker${instance.instance}",
           activation,

@@ -147,7 +147,7 @@ case class Activation(name: String,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
-                      causedBy: Boolean)
+                      causedBy: Option[String])
     extends EventMessageBody {
   val typeName = "Activation"
   override def serialize = toJson.compactPrint

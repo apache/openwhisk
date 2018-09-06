@@ -285,7 +285,7 @@ duration - actual time the action code was running
 kind - action flavor, e.g. Node.js
 conductor - true for conductor backed actions
 memory - maximum memory allowed for action container
-causedBy - true for sequence actions
+causedBy - contains the "causedBy" annotation (can be "sequence" or nothing at the moment)
 ```
 Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```
