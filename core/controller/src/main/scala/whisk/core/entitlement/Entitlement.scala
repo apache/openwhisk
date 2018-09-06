@@ -201,14 +201,20 @@ protected[core] abstract class EntitlementProvider(
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user), user))
   }
 
-  private val kindRestrictor = new KindRestrictor()
+  private val kindRestrictor = {
+    import pureconfig.loadConfigOrThrow
+    import whisk.core.ConfigKeys
+    case class AllowedKinds(whitelist: Option[Set[String]] = None)
+    val allowedKinds = loadConfigOrThrow[AllowedKinds](ConfigKeys.runtimes)
+    KindRestrictor(allowedKinds.whitelist)
+  }
 
   /**
-   * Checks if an action's kind is restricted for a given subject
+   * Checks if an action kind is allowed for a given subject.
    *
-   * @param user    the identity to check for restrictions
-   * @param exec    the action's executable details
-   * @return a promise that completes with success iff the user's action kind is not restricted
+   * @param user the identity to check for restrictions
+   * @param exec the action executable details
+   * @return a promise that completes with success iff the user's action kind is allowed
    */
   protected[core] def check(user: Identity, exec: Option[Exec])(implicit transid: TransactionId): Future[Unit] = {
     exec

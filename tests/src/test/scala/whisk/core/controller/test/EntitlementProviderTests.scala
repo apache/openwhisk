@@ -20,13 +20,10 @@ package whisk.core.controller.test
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
-
 import whisk.core.controller.RejectRequest
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege._
@@ -699,8 +696,9 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       val ex = intercept[RejectRequest] {
         Await.result(ep.check(subject, Some(getExec(k))), 1.seconds)
       }
-      assert(ex
-        .toString() === s"RejectRequest(403 Forbidden) The supplied authentication is not authorized to access actions of kind '$k'.")
+
+      ex.code shouldBe Forbidden
+      ex.message.get.error shouldBe Messages.notAuthorizedtoActionKind(k)
     })
   }
 

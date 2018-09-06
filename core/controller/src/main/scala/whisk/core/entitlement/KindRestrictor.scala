@@ -17,24 +17,8 @@
 
 package whisk.core.entitlement
 
-import pureconfig.loadConfigOrThrow
 import whisk.common.{Logging, TransactionId}
-import whisk.core.ConfigKeys
 import whisk.core.entity.Identity
-
-/**
- * @param whitelist set of default allowed kinds when not explicitly available via namespace limits.
- */
-protected[core] case class AllowedKinds(whitelist: Option[Set[String]] = None) {
-  override def toString = {
-    whitelist
-      .map {
-        case list if list.nonEmpty => s"white-listed kinds: ${list.mkString(", ")}"
-        case _                     => "no kinds are allowed, the white-list is empty"
-      }
-      .getOrElse("all kinds are allowed, the white-list is not specified")
-  }
-}
 
 /**
  * The runtimes manifest specifies all runtimes enabled for the deployment.
@@ -46,17 +30,30 @@ protected[core] case class AllowedKinds(whitelist: Option[Set[String]] = None) {
  *
  * If a white list is not specified (i.e., whitelist == None), then all runtimes are allowed.
  * In other words, no whitelist is the same as setting the white list to all allowed runtimes.
+ *
+ * @param whitelist set of default allowed kinds when not explicitly available via namespace limits.
  */
-class KindRestrictor(allowedKinds: AllowedKinds = loadConfigOrThrow[AllowedKinds](ConfigKeys.runtimes))(
-  implicit logging: Logging) {
+case class KindRestrictor(whitelist: Option[Set[String]] = None)(implicit logging: Logging) {
 
-  logging.info(this, allowedKinds.toString)(TransactionId.controller)
+  logging.info(
+    this, {
+      whitelist
+        .map {
+          case list if list.nonEmpty => s"white-listed kinds: ${list.mkString(", ")}"
+          case _                     => "no kinds are allowed, the white-list is empty"
+        }
+        .getOrElse("all kinds are allowed, the white-list is not specified")
+    })(TransactionId.controller)
 
   def check(user: Identity, kind: String): Boolean = {
     user.limits.allowedKinds
-      .orElse(allowedKinds.whitelist)
+      .orElse(whitelist)
       .map(allowed => allowed.contains(kind))
       .getOrElse(true)
   }
 
+}
+
+object KindRestrictor {
+  def apply(whitelist: Set[String])(implicit logging: Logging) = new KindRestrictor(Some(whitelist))
 }
