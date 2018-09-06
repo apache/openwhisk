@@ -34,3 +34,16 @@ To just run the unit tests
 
     $ ansible-playbook -i ansible/environments/local ansible/properties.yml
     $ ./gradlew tests:testUnit
+
+## Running System Basic Tests
+
+To just run system basic test against an existing running setup you can pass on the server details and auth via system properties
+
+    $ ./gradlew :tests:testSystemBasic -Dwhisk.auth="23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP" -Dwhisk.server=https://localhost
+    
+Here
+
+* `whisk.auth` - Auth key for a test user account. For a setup using default credentials it can be `guest` key
+* `whisk.server` - Edge Host Url of the OpenWhisk setup
+
+If required you can relax the SSL check by passing `-Dwhisk.ssl.relax=true`. Also both the above properties can be passed as env variable `WHISK_AUTH` and `WHISK_SERVER`
