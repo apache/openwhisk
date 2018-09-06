@@ -32,6 +32,16 @@ import static org.junit.Assert.assertTrue;
 public class WhiskProperties {
 
     /**
+     * System property key which refers to OpenWhisk Edge Host url
+     */
+    private static final String WHISK_SERVER = "whisk.server";
+
+    /**
+     * System property key which refers to authentication key to be used for testing
+     */
+    private static final String WHISK_AUTH = "whisk.auth";
+
+    /**
      * The name of the properties file.
      */
     protected static final String WHISK_PROPS_FILE = "whisk.properties";
@@ -87,14 +97,19 @@ public class WhiskProperties {
 
         assertTrue("could not determine openwhisk home", wskdir != null);
 
-        File wskpropsFile = new File(wskdir, WHISK_PROPS_FILE);
-        assertTrue(String.format("'%s' does not exists but required", wskpropsFile), wskpropsFile.exists());
+        if (isWhiskPropertiesRequired()) {
+            File wskpropsFile = new File(wskdir, WHISK_PROPS_FILE);
+            assertTrue(String.format("'%s' does not exists but required", wskpropsFile), wskpropsFile.exists());
 
-        // loads properties from file
-        whiskProperties = loadProperties(wskpropsFile);
+            // loads properties from file
+            whiskProperties = loadProperties(wskpropsFile);
 
-        // set whisk home from read properties
-        whiskHome = whiskProperties.getProperty("openwhisk.home");
+            // set whisk home from read properties
+            whiskHome = whiskProperties.getProperty("openwhisk.home");
+        } else {
+            whiskProperties = new Properties();
+            whiskHome = wskdir;
+        }
 
         System.out.format("test router? %s\n", testRouter);
     }
@@ -285,6 +300,17 @@ public class WhiskProperties {
     }
 
     /**
+     * Returns auth key to be used for testing
+     */
+    public static String getAuthKeyForTesting() {
+        String authKey = getPropFromSystemOrEnv(WHISK_AUTH);
+        if (authKey == null) {
+            authKey = readAuthKey(getAuthFileForTesting());
+        }
+        return authKey;
+    }
+
+    /**
      * @return the path to a file holding the VCAP_SERVICES used during junit
      *         testing
      */
@@ -357,5 +383,21 @@ public class WhiskProperties {
             }
         }
         return props;
+    }
+
+    private static boolean isWhiskPropertiesRequired() {
+        return getPropFromSystemOrEnv(WHISK_SERVER) != null;
+    }
+
+    private static String getPropFromSystemOrEnv(String key) {
+        String value = System.getProperty(key);
+        if (value == null) {
+            value = System.getenv(toEnvName(key));
+        }
+        return value;
+    }
+
+    private static String toEnvName(String p) {
+        return p.replace('.', '_').toUpperCase();
     }
 }
