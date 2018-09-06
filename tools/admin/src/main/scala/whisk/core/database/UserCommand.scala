@@ -85,8 +85,6 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
     def desiredNamespace(authKey: BasicAuthenticationAuthKey) =
       Namespace(EntityName(namespace.getOrElse(subject()).trim), authKey.uuid)
-
-    def isForced= force.isSupplied && auth.isSupplied
   }
 
   val create = new CreateUserCmd
@@ -178,7 +176,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
         var newNS = auth.namespaces.filter(_.namespace.name != nsToUpdate)
         if (auth.isBlocked) {
           Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))
-        } else if (!auth.namespaces.exists(_.namespace.name == nsToUpdate) || create.isForced) {
+        } else if (!auth.namespaces.exists(_.namespace.name == nsToUpdate) || create.force.isSupplied) {
           newNS = newNS.+(WhiskNamespace(create.desiredNamespace(authKey), authKey))
           val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
           authStore.put(newAuth).map(_ => Right(authKey.compact))
