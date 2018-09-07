@@ -25,7 +25,6 @@ import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.tracing.WhiskTracerProvider
 import whisk.common._
@@ -132,32 +131,14 @@ class InvokerReactive(
     }
 
     if (UserEvents.enabled) {
-      val event = for {
-        // There are no sensible defaults for these fields, so they are required. They should always be there but there is
-        // no static analysis to proof that so we're defensive here.
-        fqn <- activationResult.annotations.getAs[String](WhiskActivation.pathAnnotation)
-        kind <- activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation)
-      } yield {
-        val activation = Activation(
-          fqn,
-          activationResult.response.statusCode,
-          activationResult.duration.getOrElse(0),
-          activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
-          activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
-          kind,
-          activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
-          activationResult.annotations
-            .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
-            .map(_.memory.megabytes)
-            .getOrElse(0),
-          activationResult.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
+      val event = Activation.from(activationResult).map { body =>
         EventMessage(
           s"invoker${instance.instance}",
-          activation,
+          body,
           activationResult.subject,
           activationResult.namespace.toString,
           userId,
-          activation.typeName)
+          body.typeName)
       }
 
       event match {
