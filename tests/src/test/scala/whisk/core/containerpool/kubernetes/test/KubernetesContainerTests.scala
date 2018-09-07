@@ -245,7 +245,7 @@ class KubernetesContainerTests
 
     // assert the finish log is there
     val end = LogMarker.parse(logLines.last)
-    end.token shouldBe INVOKER_ACTIVATION_INIT.asFinish
+    end.token shouldBe INVOKER_ACTIVATION_INIT.asError
   }
 
   /*
@@ -292,7 +292,7 @@ class KubernetesContainerTests
 
     // assert the finish log is there
     val end = LogMarker.parse(logLines.last)
-    end.token shouldBe INVOKER_ACTIVATION_RUN.asFinish
+    end.token shouldBe INVOKER_ACTIVATION_RUN.asError
   }
 
   /*
