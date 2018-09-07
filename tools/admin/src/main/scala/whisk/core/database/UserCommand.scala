@@ -49,13 +49,9 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
     val namespace =
       opt[String](descr = "create key for given namespace instead (defaults to subject id)", argName = "NAMESPACE")
     val revoke =
-      opt[Boolean](
-        descr = "revoke the current authorization key and generate a new key",
-        short = 'r')
+      opt[Boolean](descr = "revoke the current authorization key and generate a new key", short = 'r')
     val force =
-      opt[Boolean](
-        descr = "force update an existing subject authorization uuid:key",
-        short = 'f')
+      opt[Boolean](descr = "force update an existing subject authorization uuid:key", short = 'f')
     val subject = trailArg[String](descr = "the subject to create")
 
     validate(subject) { s =>
@@ -173,18 +169,18 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       .get[ExtendedAuth](DocInfo(create.subject()))
       .flatMap { auth =>
         val nsToUpdate = create.desiredNamespace(authKey).name
-        var newNS = auth.namespaces.filter(_.namespace.name != nsToUpdate)
+        val existingNS = auth.namespaces.filter(_.namespace.name != nsToUpdate)
         if (auth.isBlocked) {
           Future.successful(Left(IllegalState(CommandMessages.subjectBlocked)))
         } else if (!auth.namespaces.exists(_.namespace.name == nsToUpdate) || create.force.isSupplied) {
-          newNS = newNS.+(WhiskNamespace(create.desiredNamespace(authKey), authKey))
+          val newNS = existingNS + WhiskNamespace(create.desiredNamespace(authKey), authKey)
           val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
           authStore.put(newAuth).map(_ => Right(authKey.compact))
         } else if (create.revoke.isSupplied) {
           val updatedAuthKey = auth.namespaces.find(_.namespace.name == nsToUpdate).get.authkey
           val newAuthKey = new BasicAuthenticationAuthKey(updatedAuthKey.uuid, Secret())
 
-          newNS = newNS.+(WhiskNamespace(create.desiredNamespace(newAuthKey), newAuthKey))
+          val newNS = existingNS + WhiskNamespace(create.desiredNamespace(newAuthKey), newAuthKey)
           val newAuth = WhiskAuth(auth.subject, newNS).revision[WhiskAuth](auth.rev)
           authStore.put(newAuth).map(_ => Right(newAuthKey.compact))
         } else {
