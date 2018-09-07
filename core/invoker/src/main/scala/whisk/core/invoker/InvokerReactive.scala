@@ -131,39 +131,39 @@ class InvokerReactive(
       }
     }
 
-    // Potentially sends activation metadata to kafka if user events are enabled and the activation carries all
-    // annotations needed
-    val event = for {
-      // There are no sensible defaults for these fields, so they are required. They should always be there but there is
-      // no static analysis to proof that so we're defensive here.
-      fqn <- activationResult.annotations.getAs[String](WhiskActivation.pathAnnotation)
-      kind <- activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation)
-    } yield {
-      val activation = Activation(
-        fqn,
-        activationResult.response.statusCode,
-        activationResult.duration.getOrElse(0),
-        activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
-        activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
-        kind,
-        activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
-        activationResult.annotations
-          .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
-          .map(_.memory.megabytes)
-          .getOrElse(0),
-        activationResult.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
-      EventMessage(
-        s"invoker${instance.instance}",
-        activation,
-        activationResult.subject,
-        activationResult.namespace.toString,
-        userId,
-        activation.typeName)
-    }
+    if (UserEvents.enabled) {
+      val event = for {
+        // There are no sensible defaults for these fields, so they are required. They should always be there but there is
+        // no static analysis to proof that so we're defensive here.
+        fqn <- activationResult.annotations.getAs[String](WhiskActivation.pathAnnotation)
+        kind <- activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation)
+      } yield {
+        val activation = Activation(
+          fqn,
+          activationResult.response.statusCode,
+          activationResult.duration.getOrElse(0),
+          activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
+          activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
+          kind,
+          activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
+          activationResult.annotations
+            .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
+            .map(_.memory.megabytes)
+            .getOrElse(0),
+          activationResult.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
+        EventMessage(
+          s"invoker${instance.instance}",
+          activation,
+          activationResult.subject,
+          activationResult.namespace.toString,
+          userId,
+          activation.typeName)
+      }
 
-    event match {
-      case Success(msg) => UserEvents.send(producer, msg)
-      case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
+      event match {
+        case Success(msg) => UserEvents.send(producer, msg)
+        case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
+      }
     }
 
     send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
