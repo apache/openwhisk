@@ -9,6 +9,15 @@
     local_action: template src="{{playbook_dir}}/environments/local/hosts.j2.ini" dest="{{ playbook_dir }}/environments/local/hosts"
     when: "'environments/local' in hosts_dir"
 
+  - name: detect local public IP
+    local_action: shell ip a | grep "scope global $(ip route | grep default | cut -d ' ' -f 5)" | grep -Po '(?<=inet )[\d.]+'
+    register: local_ip_result
+    when: "'environments/jenkins' in hosts_dir"
+
+  - name: gen hosts if 'jenkins' env is used
+    local_action: template src="{{playbook_dir}}/environments/jenkins/hosts.j2.ini" dest="{{ playbook_dir }}/environments/jenkins/hosts"
+    when: "'environments/jenkins' in hosts_dir"
+
   - name: find the ip of docker-machine
     local_action: shell "docker-machine" "ip" "{{docker_machine_name | default('whisk')}}"
     register: result
