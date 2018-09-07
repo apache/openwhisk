@@ -84,7 +84,7 @@ private[cosmosdb] trait CosmosDBUtil {
   def createClient(config: CosmosDBConfig): AsyncDocumentClient =
     new AsyncDocumentClient.Builder()
       .withServiceEndpoint(config.endpoint)
-      .withMasterKey(config.key)
+      .withMasterKeyOrResourceToken(config.key)
       .withConnectionPolicy(ConnectionPolicy.GetDefault)
       .withConsistencyLevel(ConsistencyLevel.Session)
       .build
