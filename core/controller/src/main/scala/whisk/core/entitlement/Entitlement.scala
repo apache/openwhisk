@@ -47,18 +47,21 @@ package object types {
  * Resource is a type that encapsulates details relevant to identify a specific resource.
  * It may be an entire collection, or an element in a collection.
  *
- * @param namespace the namespace the resource resides in
+ * @param namespace  the namespace the resource resides in
  * @param collection the collection (e.g., actions, triggers) identifying a resource
- * @param entity an optional entity name that identifies a specific item in the collection
- * @param env an optional environment to bind to the resource during an activation
+ * @param entity     an optional entity name that identifies a specific item in the collection
+ * @param env        an optional environment to bind to the resource during an activation
  */
 protected[core] case class Resource(namespace: EntityPath,
                                     collection: Collection,
                                     entity: Option[String],
                                     env: Option[Parameters] = None) {
   def parent: String = collection.path + EntityPath.PATHSEP + namespace
+
   def id: String = parent + entity.map(EntityPath.PATHSEP + _).getOrElse("")
+
   def fqname: String = namespace.asString + entity.map(EntityPath.PATHSEP + _).getOrElse("")
+
   override def toString: String = id
 }
 
@@ -92,13 +95,14 @@ protected[core] abstract class EntitlementProvider(
    * controllers
    */
   private def overcommit(clusterSize: Int) = if (clusterSize > 1) 1.2 else 1
+
   private def dilateLimit(limit: Int): Int = Math.ceil(limit.toDouble * overcommit(loadBalancer.clusterSize)).toInt
 
   /**
    * Calculates a possibly dilated limit relative to the current user.
    *
    * @param defaultLimit the default limit across the whole system
-   * @param user the user to apply that limit to
+   * @param user         the user to apply that limit to
    * @return a calculated limit
    */
   private def calculateLimit(defaultLimit: Int, overrideLimit: Identity => Option[Int])(user: Identity): Int = {
@@ -113,7 +117,7 @@ protected[core] abstract class EntitlementProvider(
    * limit, so it needs to be divided between the parties who want to perform that check.
    *
    * @param defaultLimit the default limit across the whole system
-   * @param user the user to apply that limit to
+   * @param user         the user to apply that limit to
    * @return a calculated limit
    */
   private def calculateIndividualLimit(defaultLimit: Int, overrideLimit: Identity => Option[Int])(
@@ -154,8 +158,8 @@ protected[core] abstract class EntitlementProvider(
   /**
    * Grants a subject the right to access a resources.
    *
-   * @param subject the subject to grant right to
-   * @param right the privilege to grant the subject
+   * @param user     the subject to grant right to
+   * @param right    the privilege to grant the subject
    * @param resource the resource to grant the subject access to
    * @return a promise that completes with true iff the subject is granted the right to access the requested resource
    */
@@ -165,8 +169,8 @@ protected[core] abstract class EntitlementProvider(
   /**
    * Revokes a subject the right to access a resources.
    *
-   * @param subject the subject to revoke right to
-   * @param right the privilege to revoke the subject
+   * @param user     the subject to revoke right to
+   * @param right    the privilege to revoke the subject
    * @param resource the resource to revoke the subject access to
    * @return a promise that completes with true iff the subject is revoked the right to access the requested resource
    */
@@ -176,8 +180,8 @@ protected[core] abstract class EntitlementProvider(
   /**
    * Checks if a subject is entitled to a resource because it was granted the right explicitly.
    *
-   * @param subject the subject to check rights for
-   * @param right the privilege the subject is requesting
+   * @param user     the subject to check rights for
+   * @param right    the privilege the subject is requesting
    * @param resource the resource the subject requests access to
    * @return a promise that completes with true iff the subject is permitted to access the request resource
    */
@@ -197,6 +201,35 @@ protected[core] abstract class EntitlementProvider(
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user), user))
   }
 
+  private val kindRestrictor = {
+    import pureconfig.loadConfigOrThrow
+    import whisk.core.ConfigKeys
+    case class AllowedKinds(whitelist: Option[Set[String]] = None)
+    val allowedKinds = loadConfigOrThrow[AllowedKinds](ConfigKeys.runtimes)
+    KindRestrictor(allowedKinds.whitelist)
+  }
+
+  /**
+   * Checks if an action kind is allowed for a given subject.
+   *
+   * @param user the identity to check for restrictions
+   * @param exec the action executable details
+   * @return a promise that completes with success iff the user's action kind is allowed
+   */
+  protected[core] def check(user: Identity, exec: Option[Exec])(implicit transid: TransactionId): Future[Unit] = {
+    exec
+      .map {
+        case e =>
+          if (kindRestrictor.check(user, e.kind)) {
+            Future.successful(())
+          } else {
+            Future.failed(
+              RejectRequest(Forbidden, Some(ErrorResponse(Messages.notAuthorizedtoActionKind(e.kind), transid))))
+          }
+      }
+      .getOrElse(Future.successful(()))
+  }
+
   /**
    * Checks if a subject has the right to access a specific resource. The entitlement may be implicit,
    * that is, inferred based on namespaces that a subject belongs to and the namespace of the
@@ -208,8 +241,8 @@ protected[core] abstract class EntitlementProvider(
    * implicitly or explicitly granted. Instead, resolve the package binding first and use the alternate
    * method which authorizes a set of resources.
    *
-   * @param user the subject to check rights for
-   * @param right the privilege the subject is requesting (applies to the entire set of resources)
+   * @param user     the subject to check rights for
+   * @param right    the privilege the subject is requesting (applies to the entire set of resources)
    * @param resource the resource the subject requests access to
    * @return a promise that completes with success iff the subject is permitted to access the requested resource
    */
@@ -237,9 +270,9 @@ protected[core] abstract class EntitlementProvider(
    * resource for example, or explicit. The implicit check is computed here. The explicit check
    * is delegated to the service implementing this interface.
    *
-   * @param user the subject identity to check rights for
-   * @param right the privilege the subject is requesting (applies to the entire set of resources)
-   * @param resources the set of resources the subject requests access to
+   * @param user       the subject identity to check rights for
+   * @param right      the privilege the subject is requesting (applies to the entire set of resources)
+   * @param resources  the set of resources the subject requests access to
    * @param noThrottle ignore throttle limits
    * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
    */
@@ -312,8 +345,8 @@ protected[core] abstract class EntitlementProvider(
    * While it is possible for the set of resources to contain more than one action or trigger, the plurality is ignored and treated
    * as one activation since these should originate from a single macro resources (e.g., a sequence).
    *
-   * @param user the subject identity to check rights for
-   * @param right the privilege, if ACTIVATE then check quota else return None
+   * @param user      the subject identity to check rights for
+   * @param right     the privilege, if ACTIVATE then check quota else return None
    * @param resources the set of resources must contain at least one resource that can be activated else return None
    * @return future completing successfully if user is below limits else failing with a rejection
    */
@@ -334,8 +367,8 @@ protected[core] abstract class EntitlementProvider(
    * While it is possible for the set of resources to contain more than one action, the plurality is ignored and treated
    * as one activation since these should originate from a single macro resources (e.g., a sequence).
    *
-   * @param user the subject identity to check rights for
-   * @param right the privilege, if ACTIVATE then check quota else return None
+   * @param user      the subject identity to check rights for
+   * @param right     the privilege, if ACTIVATE then check quota else return None
    * @param resources the set of resources must contain at least one resource that can be activated else return None
    * @return future completing successfully if user is below limits else failing with a rejection
    */

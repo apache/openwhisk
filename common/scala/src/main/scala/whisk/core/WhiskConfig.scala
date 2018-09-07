@@ -206,12 +206,13 @@ object ConfigKeys {
   val userEvents = "whisk.user-events"
 
   val runtimes = "whisk.runtimes"
+  val runtimesWhitelists = s"$runtimes.whitelists"
 
   val db = "whisk.db"
 
   val docker = "whisk.docker"
   val dockerClient = s"$docker.client"
-  val dockerContainerFactory = s"${docker}.container-factory"
+  val dockerContainerFactory = s"$docker.container-factory"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
 
