@@ -64,7 +64,7 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
   val creds = BasicHttpCredentials(whiskAuth.fst, whiskAuth.snd)
   val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))
   val allowOrigin = `Access-Control-Allow-Origin`.*
-  val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
+  val allowHeaders = `Access-Control-Allow-Headers`("*")
   val url = Uri(s"$controllerProtocol://${WhiskProperties.getBaseControllerAddress()}")
 
   def request(method: HttpMethod, uri: Uri, headers: Option[Seq[HttpHeader]] = None): Future[HttpResponse] = {
