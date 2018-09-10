@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.time.Instant
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.util.ByteString
@@ -43,7 +43,7 @@ import whisk.core.entity.size._
 import whisk.utils.JsHelpers
 
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Properties, Success, Try}
@@ -242,28 +242,39 @@ class DbCommand extends Subcommand("db") with WhiskCommand with ConfSupport {
     val authStore = WhiskAuthStore.datastore()
     val entityStore = WhiskEntityStore.datastore()
     val activationStore = WhiskActivationStore.datastore()
+    val attachmentDir = getOrCreateAttachmentDir(put.in())
+
+    def putDocument(js: JsObject) = {
+      val id = js.fields("_id").convertTo[String]
+      val g = put.dbType.runtimeClass match {
+        case x if x == classOf[WhiskEntity]     => putEntity(js, attachmentDir, entityStore)
+        case x if x == classOf[WhiskActivation] => activationStore.put(new AnyActivation(js))
+        case x if x == classOf[WhiskAuth]       => authStore.put(new AnyAuth(js))
+      }
+      g.map(_ => State.SUCCESS)
+        .recover {
+          case _: DocumentConflictException =>
+            log.warn("Document exists [{}]", id)
+            State.EXISTS
+        }
+    }
 
     val ticker = if (showProgressBar()) new FiniteProgressBar("Importing", lineCount(put.in())) else NoopTicker
-    val attachmentDir = getOrCreateAttachmentDir(put.in())
+
     val f = createJSStream(put.in())
       .map(stripRevAndPrivateFields)
       .log("putDb", _.fields("_id"))
       .mapAsyncUnordered(put.threads()) { js =>
         val id = js.fields("_id").convertTo[String]
-        val g = put.dbType.runtimeClass match {
-          case x if x == classOf[WhiskEntity]     => putEntity(js, attachmentDir, entityStore)
-          case x if x == classOf[WhiskActivation] => activationStore.put(new AnyActivation(js))
-          case x if x == classOf[WhiskAuth]       => authStore.put(new AnyAuth(js))
+
+        //Logging at warn to ensure it comes in log
+        val onSuccess = () => log.warn("Document [{}] created successfully", id)
+        val g = retry(putDocument(js), 50.millis, 5, onSuccess)(ec, system.scheduler)
+        g.recover {
+          case e =>
+            log.warn(s"Error while adding [$id]", e)
+            State.ERROR
         }
-        g.map(_ => State.SUCCESS)
-          .recover {
-            case _: DocumentConflictException =>
-              log.warn("Document exists [{}]", id)
-              State.EXISTS
-            case e =>
-              log.warn(s"Error while adding [$id]", e)
-              State.ERROR
-          }
       }
       .via(tick(ticker))
       .runWith(streamResultSink)
@@ -467,6 +478,21 @@ object DbCommand {
     val config =
       new DummyConfig(Map(WhiskConfig.runtimesManifest -> manifest), ExecManifest.requiredProperties)
     ExecManifest.initialize(config)
+  }
+
+  /**
+   * Retries the passed function with given delay in case of failure. In case the retry succeeds then it invokes
+   * the `onSuccess` method
+   */
+  def retry[T](f: => Future[T], delay: FiniteDuration, retries: Int, onSuccess: () => Unit)(
+    implicit ec: ExecutionContext,
+    s: Scheduler): Future[T] = {
+    def retry0(retryCount: Int, failedOnce: Boolean): Future[T] = {
+      val g = f.recoverWith { case _ if retries > 0 => akka.pattern.after(delay, s)(retry0(retries - 1, true)) }
+      g.onSuccess { case _ if failedOnce => onSuccess() }
+      g
+    }
+    retry0(retries, false)
   }
 
   private def createFile(file: File): File = {
