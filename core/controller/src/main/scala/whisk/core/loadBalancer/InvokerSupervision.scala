@@ -122,10 +122,11 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
       val invoker = instanceToRef.getOrElse(p.instance.toInt, registerInvoker(p.instance))
       instanceToRef = instanceToRef.updated(p.instance.toInt, invoker)
 
-//      For the case when the invoker was restarted and got a new displayed name
+      // For the case when the invoker was restarted and got a new displayed name
       val oldHealth = status(p.instance.toInt)
-      if (!oldHealth.id.toString.equalsIgnoreCase(p.instance.toString)) {
+      if (oldHealth.id != p.instance) {
         status = status.updated(p.instance.toInt, new InvokerHealth(p.instance, oldHealth.status))
+        instanceToRef.get(p.instance.toInt).map(ref => refToInstance.updated(ref, p.instance))
       }
 
       invoker.forward(p)
@@ -184,17 +185,20 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
     }
   }
 
-  /** Pads a list to a given length using the given function to compute entries */
+  /**
+   * Pads a list to a given length using the given function to compute entries
+   * Essentially this functions adds dummy values for the Invokers whose
+   * Ping messages haven't arrived yet
+   */
   def padToIndexed[A](list: IndexedSeq[A], n: Int, f: (Int) => A): IndexedSeq[A] = list ++ (list.size until n).map(f)
 
   // Register a new invoker
   def registerInvoker(instanceId: InvokerInstanceId): ActorRef = {
     logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
 
-    status = padToIndexed(
-      status,
-      instanceId.toInt + 1,
-      i => new InvokerHealth(InvokerInstanceId(i, instanceId.uniqueName, instanceId.displayedName), Offline))
+    status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InvokerInstanceId(i), Offline))
+
+    status = status.updated(instanceId.toInt, new InvokerHealth(instanceId, Offline))
 
     val ref = childFactory(context, instanceId)
 
