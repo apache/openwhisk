@@ -143,7 +143,7 @@ class InvokerReactive(
 
       event match {
         case Success(msg) => UserEvents.send(producer, msg)
-        case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
+        case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
       }
     }
 
