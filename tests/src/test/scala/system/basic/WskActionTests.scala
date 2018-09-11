@@ -266,8 +266,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
 
     val run = wsk.action.invoke(name, Map("payload" -> "google.com".toJson))
     withActivation(wsk.activation, run) { activation =>
-      activation.response.result shouldBe Some(
-        JsObject("stderr" -> "ping: icmp open socket: Operation not permitted\n".toJson, "stdout" -> "".toJson))
+      val stdout = activation.response.result.get.fields("stdout").convertTo[String]
+      stdout should not include ("bytes from")
     }
   }
 
