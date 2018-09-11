@@ -266,8 +266,13 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
 
     val run = wsk.action.invoke(name, Map("payload" -> "google.com".toJson))
     withActivation(wsk.activation, run) { activation =>
-      val stdout = activation.response.result.get.fields("stdout").convertTo[String]
-      stdout should not include ("bytes from")
+      val result = activation.response.result.get
+      result.getFields("stdout", "code") match {
+        case Seq(JsString(stdout), JsNumber(code)) =>
+          stdout should not include "bytes from"
+          code.intValue() should not be 0
+        case _ => fail()
+      }
     }
   }
 
