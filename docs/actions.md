@@ -237,9 +237,10 @@ Each action invocation results in an activation record which contains the follow
 - `response`: A dictionary that defines the following keys
   - `status`: The activation result, which might be one of the following values:
     - *"success"*: the action invocation completed successfully.
-    - *"application error"*: the action was invoked, but returned an error value on purpose, for instance because a precondition on the arguments was not met. This status code is also returned when the action exceeds its time limit.
+    - *"application error"*: the action was invoked, but returned an error value on purpose, for instance because a precondition on the arguments was not met.
     - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed. This status code is also returned under specific conditions such as:
-      - the action failed to initialize for any reason (including time out)
+      - the action failed to initialize for any reason
+      - the action exceeded its time limit during the init or run phase
       - the action specified a wrong docker container name
       - the action did not properly implement the expected [runtime protocol](actions-new.md)
     - *"whisk internal error"*: the system was unable to invoke the action.
@@ -347,8 +348,7 @@ is skipped if an action is dispatched to a previously initialized container --- 
 You can tell if an [invocation was a warm activation or a cold one requiring initialization](annotations.md#annotations-specific-to-activations)
 by inspecting the activation record.
 - An action runs for a bounded amount of time. This limit can be configured per action, and applies to both the
-initialization and the execution separately. If the action time limit is exceeded during initialization, the activation's
-response status is _action developer error_. If the action time limit is exceeded during the run phase it is _application error_.
+initialization and the execution separately. If the action time limit is exceeded during the initialization or run phase, the activation's response status is _action developer error_.
 - Functions should follow best practices to reduce [vulnerabilities](security.md) by treating input as untrusted,
 and be aware of vulnerabilities they may inherit from third-party dependencies.
 
