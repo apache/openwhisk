@@ -68,6 +68,35 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     resultOk("user", "get", subject) shouldBe generatedKey
   }
 
+  it should "force update an existing user" in {
+    val subject = newSubject()
+    val oldKey = resultOk("user", "create", "--force", subject)
+    resultOk("user", "get", subject) shouldBe oldKey
+
+    // Force update with provided auth uuid:key
+    val key = BasicAuthenticationAuthKey()
+    val newKey = resultOk("user", "create", "--auth", key.compact, "--force", subject)
+    resultOk("user", "get", subject) shouldBe newKey
+    newKey shouldBe key.compact
+
+    // Force update without auth, uuid:key is randomly generated
+    val generatedKey = resultOk("user", "create", "--force", subject)
+    generatedKey should not be newKey
+    generatedKey should not be oldKey
+  }
+
+  it should "create a user or update an existing user with revoke flag" in {
+    val subject = newSubject()
+    val oldKey = resultOk("user", "create", "--revoke", subject)
+    resultOk("user", "get", subject) shouldBe oldKey
+    val newKey = resultOk("user", "create", "--revoke", subject)
+    resultOk("user", "get", subject) shouldBe newKey
+    val oldAuthKey = BasicAuthenticationAuthKey(oldKey)
+    val newAuthKey = BasicAuthenticationAuthKey(newKey)
+    newAuthKey.uuid shouldBe oldAuthKey.uuid
+    newAuthKey.key should not be oldAuthKey.key
+  }
+
   it should "add namespace to existing user" in {
     val subject = newSubject()
     val key = BasicAuthenticationAuthKey()
@@ -82,10 +111,20 @@ class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     //Adding same namespace should fail
     resultNotOk("user", "create", "--auth", key2.compact, "--namespace", "foo", subject) shouldBe CommandMessages.namespaceExists
 
+    //Adding same namespace with force flag should update the namespace with specified uuid:key
+    val newKey = resultOk("user", "create", "--force", "--auth", key2.compact, "--namespace", "foo", subject)
+    newKey shouldBe key2.compact
+
+    //Adding same namespace with force flag without auth should regenerate random uuid:key
+    val generatedKey = resultOk("user", "create", "--force", "--namespace", "foo", subject)
+    generatedKey should not be key2.compact
+    generatedKey should not be key.compact
+
     //It should be possible to lookup by new namespace
     implicit val tid = transid()
     val i = Identity.get(authStore, EntityName("foo")).futureValue
     i.subject.asString shouldBe subject
+    resultOk("user", "get", "--namespace", "foo", subject) shouldBe generatedKey
   }
 
   it should "not add namespace to a blocked user" in {

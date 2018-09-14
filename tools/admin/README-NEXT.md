@@ -80,6 +80,14 @@ $ wskadmin-next user create userA -ns space1
 $ wskadmin-next user create userB -ns space1
 <prints new key specific to userB and space1>
 
+# force update a user with new uuid:key
+$ wskadmin-next user create -f userA
+<prints new UUID and new key>
+
+# revoke auth key of a user and regenerate a new key
+$ wskadmin-next user create -r userA
+<prints old UUID and new key>
+
 # list all users sharing a space
 $ wskadmin-next user list space1 -a
 <key for userA>   userA
