@@ -109,7 +109,7 @@ object ByteSize {
   def fromString(sizeString: String): ByteSize = {
     val matcher = regex.matcher(sizeString)
     if (matcher.matches()) {
-      val size = matcher.group(1).toInt
+      val size = matcher.group(1).toLong
       val unit = matcher.group(2).charAt(0).toUpper match {
         case 'B' => SizeUnits.BYTE
         case 'K' => SizeUnits.KB

@@ -23,6 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 import whisk.common.{ForcibleSemaphore, TransactionId}
 import whisk.core.entity.{ByteSize, InvokerInstanceId, MemoryLimit}
+import whisk.core.entity.size._
 import whisk.core.loadBalancer.InvokerState._
 import whisk.core.loadBalancer._
 
@@ -36,22 +37,25 @@ import whisk.core.loadBalancer._
 class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with StreamLogging {
   behavior of "ShardingContainerPoolBalancerState"
 
-  def healthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), Healthy)
-  def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i), Unhealthy)
-  def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i), Offline)
+  val defaultUserMemory: ByteSize = 1024.MB
+
+  def healthy(i: Int, memory: ByteSize = defaultUserMemory) =
+    new InvokerHealth(InvokerInstanceId(i, userMemory = memory), Healthy)
+  def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Unhealthy)
+  def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Offline)
 
   def semaphores(count: Int, max: Int): IndexedSeq[ForcibleSemaphore] =
     IndexedSeq.fill(count)(new ForcibleSemaphore(max))
 
-  def lbConfig(blackboxFraction: Double, invokerBusyThreshold: ByteSize) =
-    ShardingContainerPoolBalancerConfig(blackboxFraction, invokerBusyThreshold, 1)
+  def lbConfig(blackboxFraction: Double) =
+    ShardingContainerPoolBalancerConfig(blackboxFraction, 1)
 
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty
     val slots = 10
     val memoryPerSlot = MemoryLimit.minMemory
     val memory = memoryPerSlot * slots
-    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, memory))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.invokers shouldBe 'empty
     state.blackboxInvokers shouldBe 'empty
     state.managedInvokers shouldBe 'empty
@@ -60,7 +64,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.blackboxStepSizes shouldBe Seq.empty
 
     // apply one update, verify everything is updated accordingly
-    val update1 = IndexedSeq(healthy(0))
+    val update1 = IndexedSeq(healthy(0, memory))
     state.updateInvokers(update1)
 
     state.invokers shouldBe update1
@@ -76,7 +80,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
 
     // apply second update, growing the state
-    val update2 = IndexedSeq(healthy(0), healthy(1))
+    val update2 =
+      IndexedSeq(healthy(0, memory), healthy(1, memory * 2))
     state.updateInvokers(update2)
 
     state.invokers shouldBe update2
@@ -84,17 +89,18 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.blackboxInvokers shouldBe IndexedSeq(update2.last)
     state.invokerSlots should have size update2.size
     state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
-    state.invokerSlots(1).availablePermits shouldBe memory.toMB
+    state.invokerSlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerSlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
     state.managedStepSizes shouldBe Seq(1)
     state.blackboxStepSizes shouldBe Seq(1)
   }
 
   it should "allow managed partition to overlap with blackbox for small N" in {
     Seq(0.1, 0.2, 0.3, 0.4, 0.5).foreach { bf =>
-      val state = ShardingContainerPoolBalancerState()(lbConfig(bf, MemoryLimit.stdMemory))
+      val state = ShardingContainerPoolBalancerState()(lbConfig(bf))
 
       (1 to 100).toSeq.foreach { i =>
-        state.updateInvokers((1 to i).map(_ => healthy(1)))
+        state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.stdMemory)))
 
         withClue(s"invoker count $bf $i:") {
           state.managedInvokers.length should be <= i
@@ -120,22 +126,26 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val slots = 10
     val memoryPerSlot = MemoryLimit.minMemory
     val memory = memoryPerSlot * slots
-    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, memory))
-    state.updateInvokers(IndexedSeq(healthy(0)))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
+    state.updateInvokers(IndexedSeq(healthy(0, memory), healthy(1, memory * 2)))
 
     state.invokerSlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
     state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB
 
+    state.invokerSlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerSlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
+
     state.updateCluster(2)
     state.invokerSlots.head.availablePermits shouldBe memory.toMB / 2 // state reset + divided by 2
+    state.invokerSlots(1).availablePermits shouldBe memory.toMB
   }
 
   it should "fallback to a size of 1 (alone) if cluster size is < 1" in {
     val slots = 10
     val memoryPerSlot = MemoryLimit.minMemory
     val memory = memoryPerSlot * slots
-    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, memory))
-    state.updateInvokers(IndexedSeq(healthy(0)))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
+    state.updateInvokers(IndexedSeq(healthy(0, memory)))
 
     state.invokerSlots.head.availablePermits shouldBe memory.toMB
 
@@ -153,8 +163,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val slots = 10
     val memoryPerSlot = MemoryLimit.minMemory
     val memory = memoryPerSlot * slots
-    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5, memory))
-    state.updateInvokers(IndexedSeq(healthy(0)))
+    val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
+    state.updateInvokers(IndexedSeq(healthy(0, memory)))
 
     state.invokerSlots.head.availablePermits shouldBe memory.toMB
 
