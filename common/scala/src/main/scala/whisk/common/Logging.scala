@@ -186,8 +186,8 @@ case class LogMarkerToken(component: String,
   val toStringWithSubAction =
     subAction.map(sa => component + "_" + action + "." + sa + "_" + state).getOrElse(toString)
 
-  val asFinish = copy(state = LoggingMarkers.finish)
-  val asError = copy(state = LoggingMarkers.error)
+  def asFinish = copy(state = LoggingMarkers.finish)
+  def asError = copy(state = LoggingMarkers.error)
 }
 
 object LogMarkerToken {
