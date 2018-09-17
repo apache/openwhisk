@@ -75,8 +75,12 @@ The `wskadmin limits` commands allow you set action and trigger throttles per na
 $ wskadmin limits get space1
 No limits found, default system limits apply
 
-# set limits
+# set limits on invocationsPerMinute
 $ wskadmin limits set space1 --invocationsPerMinute 1
+Limits successfully set for "space1"
+
+# set limits on allowedKinds
+$ wskadmin limits set space1 --allowedKinds nodejs:6 python
 Limits successfully set for "space1"
 ```
 
