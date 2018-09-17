@@ -258,7 +258,7 @@ Operation Types
 
 #### CosmosDB RU Metrics
 
-When database used is CosmosDB then metrics related to CosmosDB Resource Units is also emitted. 
+When database used is CosmosDB then metrics related to CosmosDB Resource Units is also emitted.
 
 If Kamon tags are enabled then metric name is `openwhisk.counter.cosmosdb_ru_used` with following tags
 
