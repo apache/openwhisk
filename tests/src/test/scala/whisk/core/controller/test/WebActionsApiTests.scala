@@ -23,10 +23,8 @@ import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
-import org.scalatest.FlatSpec
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpEntity
@@ -50,7 +48,6 @@ import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskWebActionsApi
 import whisk.core.controller.WebApiDirectives
-import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Resource
@@ -128,22 +125,30 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   val systemKey = BasicAuthenticationAuthKey(uuid, Secret())
   val systemIdentity =
     Future.successful(Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, Privilege.ALL))
+  val namespace = EntityPath(systemId.asString)
+  val proxyNamespace = namespace.addPath(EntityName("proxy"))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
   protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
 
   behavior of "Web actions API"
 
-  var failActionLookup = false // toggle to cause action lookup to fail
   var failActivation = 0 // toggle to cause action to fail
   var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
   var failCheckEntitlement = false // toggle to cause entitlement to fail
   var actionResult: Option[JsObject] = None
-  var requireAuthentication = false // toggle require-whisk-auth annotation on action
   var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or  requireAuthenticationKey)
   var requireAuthenticationKey = "example-web-action-api-key"
-  var customOptions = true // toogle web-custom-options annotation on action
   var invocationCount = 0
   var invocationsAllowed = 0
+
+  override def beforeAll() = {
+    implicit val tid = transid()
+
+    put(entityStore, stubPackage, garbageCollect = false)
+    put(entityStore, stubAction(namespace, EntityName("export_c")), garbageCollect = false)
+    put(entityStore, stubAction(proxyNamespace, EntityName("export_c")), garbageCollect = false)
+    put(entityStore, stubAction(proxyNamespace, EntityName("raw_export_c")), garbageCollect = false)
+  }
 
   override def beforeEach() = {
     invocationCount = 0
@@ -151,15 +156,13 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   }
 
   override def afterEach() = {
-    failActionLookup = false
     failActivation = 0
     failThrottleForSubject = None
     failCheckEntitlement = false
     actionResult = None
-    requireAuthentication = false
     requireAuthenticationAsBoolean = true
-    customOptions = true
     assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
+    cleanup()
   }
 
   val allowedMethodsWithEntity = {
@@ -179,76 +182,60 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     "D6fzsAAAAASUVORK5CYII="
 
   // there is only one package that is predefined 'proxy'
-  val packages = Seq(
-    WhiskPackage(
-      EntityPath(systemId.asString),
-      EntityName("proxy"),
-      parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z"))))
+  val stubPackage = WhiskPackage(
+    EntityPath(systemId.asString),
+    EntityName("proxy"),
+    parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z")))
 
-  def getPackage(pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    Future {
-      packages.find(_.fullyQualifiedName(false) == pkgName).get
-    } recoverWith {
-      case _: NoSuchElementException => Future.failed(NoDocumentException("does not exist"))
-    }
-  }
+  val packages = Seq(stubPackage)
 
   val defaultActionParameters = {
     Parameters("y", JsString("Y")) ++ Parameters("z", JsString("Z")) ++ Parameters("empty", JsNull)
   }
 
   // action names that start with 'export_' will automatically have an web-export annotation added by the test harness
-  override protected def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId) = {
-    if (!failActionLookup) {
-      def theAction = {
-        val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
+  protected def stubAction(namespace: EntityPath,
+                           name: EntityName,
+                           customOptions: Boolean = true,
+                           requireAuthentication: Boolean = false,
+                           requireAuthenticationAsBoolean: Boolean = true)(implicit transid: TransactionId) = {
 
-        WhiskActionMetaData(
-          actionName.path,
-          actionName.name,
-          js6MetaData(binary = false),
-          defaultActionParameters,
-          annotations = {
-            if (actionName.name.asString.startsWith("export_")) {
-              annotations ++
-                Parameters("web-export", JsBoolean(true)) ++ {
-                if (requireAuthentication) {
-                  Parameters(
-                    "require-whisk-auth",
-                    (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
-                } else Parameters()
-              } ++ {
-                if (customOptions) {
-                  Parameters("web-custom-options", JsBoolean(true))
-                } else Parameters()
-              }
-            } else if (actionName.name.asString.startsWith("raw_export_")) {
-              annotations ++
-                Parameters("web-export", JsBoolean(true)) ++
-                Parameters("raw-http", JsBoolean(true)) ++ {
-                if (requireAuthentication) {
-                  Parameters(
-                    "require-whisk-auth",
-                    (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
-                } else Parameters()
-              } ++ {
-                if (customOptions) {
-                  Parameters("web-custom-options", JsBoolean(true))
-                } else Parameters()
-              }
-            } else annotations
-          })
-      }
-
-      if (actionName.path.defaultPackage) {
-        Future.successful(theAction)
-      } else {
-        getPackage(actionName.path.toFullyQualifiedEntityName) map (pkg => theAction.inherit(pkg.parameters))
-      }
-    } else {
-      Future.failed(NoDocumentException("doesn't exist"))
-    }
+    val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
+    WhiskAction(
+      namespace,
+      name,
+      jsDefault("??"),
+      defaultActionParameters,
+      annotations = {
+        if (name.asString.startsWith("export_")) {
+          annotations ++
+            Parameters("web-export", JsBoolean(true)) ++ {
+            if (requireAuthentication) {
+              Parameters(
+                "require-whisk-auth",
+                (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
+            } else Parameters()
+          } ++ {
+            if (customOptions) {
+              Parameters("web-custom-options", JsBoolean(true))
+            } else Parameters()
+          }
+        } else if (name.asString.startsWith("raw_export_")) {
+          annotations ++
+            Parameters("web-export", JsBoolean(true)) ++
+            Parameters("raw-http", JsBoolean(true)) ++ {
+            if (requireAuthentication) {
+              Parameters(
+                "require-whisk-auth",
+                (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
+            } else Parameters()
+          } ++ {
+            if (customOptions) {
+              Parameters("web-custom-options", JsBoolean(true))
+            } else Parameters()
+          }
+        } else annotations
+      })
   }
 
   // there is only one identity defined for the fully qualified name of the web action: 'systemId'
@@ -301,9 +288,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       // check that action parameters were merged with package
       // all actions have default parameters (see actionLookup stub)
       if (!action.namespace.defaultPackage) {
-        getPackage(action.namespace.toFullyQualifiedEntityName) foreach { pkg =>
-          action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
-        }
+        action.parameters shouldBe (stubPackage.parameters ++ defaultActionParameters)
       } else {
         action.parameters shouldBe defaultActionParameters
       }
@@ -368,6 +353,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"reject requests when Identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
+      put(entityStore, stubAction(namespace, EntityName("c")))
+
       // the first of these fails in the identity lookup,
       // the second in the package lookup (does not exist),
       // the third fails the annotation check (no web-export annotation because name doesn't start with export_c)
@@ -375,8 +362,6 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       Seq("guest/proxy/c", s"$systemId/doesnotexist/c", s"$systemId/default/c", s"$systemId/proxy/export_fail")
         .foreach { path =>
           allowedMethods.foreach { m =>
-            failActionLookup = path.endsWith("fail")
-
             m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
               status should be(NotFound)
             }
@@ -398,69 +383,76 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"reject requests when authentication is required but none given (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      Seq(s"$systemId/proxy/export_auth").foreach { path =>
-        allowedMethods.foreach { m =>
-          requireAuthentication = true
-          Seq(true, false).foreach { useReqWhiskAuthBool =>
-            requireAuthenticationAsBoolean = useReqWhiskAuthBool
-          }
+      allowedMethods.foreach { m =>
+        Seq(true, false).foreach { useReqWhiskAuthBool =>
+          requireAuthenticationAsBoolean = useReqWhiskAuthBool
+        }
 
-          if (requireAuthenticationAsBoolean) {
-            if (creds.isDefined) {
-              val user = creds.get
-              invocationsAllowed += 1
-              m(s"$testRoutePath/${path}.json") ~> Route
-                .seal(routes(creds)) ~> check {
-                status should be(OK)
-                val response = responseAs[JsObject]
-                response shouldBe JsObject(
-                  "pkg" -> s"$systemId/proxy".toJson,
-                  "action" -> "export_auth".toJson,
-                  "content" -> metaPayload(m.method.name.toLowerCase, JsObject.empty, creds, pkgName = "proxy"))
-                response
-                  .fields("content")
-                  .asJsObject
-                  .fields(webApiDirectives.namespace) shouldBe user.namespace.name.toJson
-              }
-            } else {
-              m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
-                status should be(Unauthorized)
-              }
-            }
-          } else if (creds.isDefined) {
+        val entityName = MakeName.next("export")
+        val action = stubAction(
+          proxyNamespace,
+          entityName,
+          requireAuthentication = true,
+          requireAuthenticationAsBoolean = requireAuthenticationAsBoolean)
+        val path = action.fullyQualifiedName(false)
+
+        put(entityStore, action)
+
+        if (requireAuthenticationAsBoolean) {
+          if (creds.isDefined) {
             val user = creds.get
             invocationsAllowed += 1
-
-            // web action require-whisk-auth is set and the header X-Require-Whisk-Auth value does not matches
-            m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey) ~> Route
+            m(s"$testRoutePath/${path}.json") ~> Route
               .seal(routes(creds)) ~> check {
               status should be(OK)
               val response = responseAs[JsObject]
               response shouldBe JsObject(
                 "pkg" -> s"$systemId/proxy".toJson,
-                "action" -> "export_auth".toJson,
-                "content" -> metaPayload(
-                  m.method.name.toLowerCase,
-                  JsObject.empty,
-                  creds,
-                  pkgName = "proxy",
-                  headers = List(RawHeader("X-Require-Whisk-Auth", requireAuthenticationKey))))
+                "action" -> entityName.asString.toJson,
+                "content" -> metaPayload(m.method.name.toLowerCase, JsObject.empty, creds, pkgName = "proxy"))
               response
                 .fields("content")
                 .asJsObject
                 .fields(webApiDirectives.namespace) shouldBe user.namespace.name.toJson
             }
-
-            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value does not match
-            m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey + "-bad") ~> Route
-              .seal(routes(creds)) ~> check {
-              status should be(Unauthorized)
-            }
           } else {
-            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value is not set
             m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
               status should be(Unauthorized)
             }
+          }
+        } else if (creds.isDefined) {
+          val user = creds.get
+          invocationsAllowed += 1
+
+          // web action require-whisk-auth is set and the header X-Require-Whisk-Auth value does not matches
+          m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey) ~> Route
+            .seal(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response shouldBe JsObject(
+              "pkg" -> s"$systemId/proxy".toJson,
+              "action" -> entityName.asString.toJson,
+              "content" -> metaPayload(
+                m.method.name.toLowerCase,
+                JsObject.empty,
+                creds,
+                pkgName = "proxy",
+                headers = List(RawHeader("X-Require-Whisk-Auth", requireAuthenticationKey))))
+            response
+              .fields("content")
+              .asJsObject
+              .fields(webApiDirectives.namespace) shouldBe user.namespace.name.toJson
+          }
+
+          // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value does not match
+          m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey + "-bad") ~> Route
+            .seal(routes(creds)) ~> check {
+            status should be(Unauthorized)
+          }
+        } else {
+          // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value is not set
+          m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
+            status should be(Unauthorized)
           }
         }
       }
@@ -612,6 +604,41 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
               "pkg" -> s"$systemId".toJson,
               "action" -> "export_c".toJson,
               "content" -> metaPayload(m.method.name.toLowerCase, JsObject.empty, creds))
+          }
+        }
+      }
+    }
+
+    it should s"invoke action in binding package and bound package (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(
+        EntityPath(systemId.asString),
+        EntityName("provider"),
+        None,
+        stubPackage.parameters,
+        publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), EntityName("reference"), provider.bind)
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      put(entityStore, action)
+
+      Seq(s"$systemId/provider/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+          }
+        }
+      }
+
+      Seq(s"$systemId/reference/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
           }
         }
       }
@@ -1317,17 +1344,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         s"$systemId/proxy/export_c.xyzz/",
         s"$systemId/proxy/export_c.xyzz/content").foreach { path =>
         allowedMethods.foreach { m =>
-          actionResult = Some(JsObject(webApiDirectives.statusCode -> Created.intValue.toJson))
-
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+
             if (webApiDirectives.enforceExtension) {
               status should be(NotAcceptable)
               confirmErrorWithTid(
                 responseAs[JsObject],
                 Some(Messages.contentTypeExtensionNotSupported(WhiskWebActionsApi.allowedExtensions)))
             } else {
-              invocationsAllowed += 1
-              status should be(Created)
+              status should be(NotFound)
             }
           }
         }
@@ -1494,25 +1519,27 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
     it should s"invoke action with options verb without custom options (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
-      customOptions = false
 
-      Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json").foreach { path =>
-        Seq(`Access-Control-Request-Headers`("x-custom-header"), RawHeader("x-custom-header", "value")).foreach {
-          testHeader =>
-            allowedMethods.foreach { m =>
-              if (m != Options) invocationsAllowed += 1 // options verb does not invoke an action
-              m(s"$testRoutePath/$path") ~> addHeader(testHeader) ~> Route.seal(routes(creds)) ~> check {
-                header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
-                header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-                if (testHeader.name == `Access-Control-Request-Headers`.name) {
-                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: x-custom-header"
-                } else {
-                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent"
+      put(entityStore, stubAction(proxyNamespace, EntityName("export_without_custom_options"), false))
+
+      Seq(s"$systemId/proxy/export_without_custom_options.http", s"$systemId/proxy/export_without_custom_options.json")
+        .foreach { path =>
+          Seq(`Access-Control-Request-Headers`("x-custom-header"), RawHeader("x-custom-header", "value")).foreach {
+            testHeader =>
+              allowedMethods.foreach { m =>
+                if (m != Options) invocationsAllowed += 1 // options verb does not invoke an action
+                m(s"$testRoutePath/$path") ~> addHeader(testHeader) ~> Route.seal(routes(creds)) ~> check {
+                  header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                  header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                  if (testHeader.name == `Access-Control-Request-Headers`.name) {
+                    header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: x-custom-header"
+                  } else {
+                    header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent"
+                  }
                 }
               }
-            }
+          }
         }
-      }
     }
 
     it should s"invoke action with head verb (auth? ${creds.isDefined})" in {
