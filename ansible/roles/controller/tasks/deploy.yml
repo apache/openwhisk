@@ -58,7 +58,7 @@
 - name: copy nginx certificate keystore
   when: controller.protocol == 'https'
   copy:
-    src: files/{{ controllerKeystoreName }}
+    src: files/{{ controller.ssl.keystore.name }}
     mode: 0666
     dest: "{{ controller.confdir }}/{{ controller_name }}"
   become: "{{ controller.dir.become }}"
@@ -207,16 +207,10 @@
       "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
       "CONFIG_whisk_controller_https_keystorePath":
-        "{{ controller.ssl.keystore.path }}"
+        "/conf/{{ controller.ssl.keystore.name }}"
       "CONFIG_whisk_controller_https_keystorePassword":
         "{{ controller.ssl.keystore.password }}"
       "CONFIG_whisk_controller_https_keystoreFlavor":
-        "{{ controller.ssl.storeFlavor }}"
-      "CONFIG_whisk_controller_https_truststorePath":
-        "{{ controller.ssl.truststore.path }}"
-      "CONFIG_whisk_controller_https_truststorePassword":
-        "{{ controller.ssl.truststore.password }}"
-      "CONFIG_whisk_controller_https_truststoreFlavor":
         "{{ controller.ssl.storeFlavor }}"
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"

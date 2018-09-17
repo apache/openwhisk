@@ -59,12 +59,18 @@ whisk {
       protocol = {{ controller.protocol }}
       https {
         keystore-flavor = "{{ controller.ssl.storeFlavor }}"
-        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controller.ssl.keystore.name }}"
         keystore-password = "{{ controller.ssl.keystore.password }}"
-        truststore-flavor = "{{ controller.ssl.storeFlavor }}"
-        truststore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
-        truststore-password = "{{ controller.ssl.keystore.password }}"
         client-auth = "{{ controller.ssl.clientAuth }}"
+      }
+    }
+    invoker {
+      protocol = {{ invoker.protocol }}
+      https {
+        keystore-flavor = "{{ invoker.ssl.storeFlavor }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+        keystore-password = "{{ invoker.ssl.keystore.password }}"
+        client-auth = "{{ invoker.ssl.clientAuth }}"
       }
     }
     user-events {

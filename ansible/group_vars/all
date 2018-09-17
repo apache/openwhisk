@@ -56,6 +56,9 @@ limits:
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
+# Moved here to avoid recursions. Please do not use outside of controller-dict.
+__controller_ssl_keyPrefix: "controller-"
+
 # port means outer port
 controller:
   dir:
@@ -83,27 +86,18 @@ controller:
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"
-  protocol: "{{ controllerProtocolForSetup }}"
+  protocol: "{{ controller_protocol | default('https') }}"
   ssl:
     cn: openwhisk-controllers
-    cert: "{{ controller_ca_cert | default('controller-openwhisk-server-cert.pem') }}"
-    key: "{{ controller_key | default('controller-openwhisk-server-key.pem') }}"
-    clientAuth: "{{ controller_client_auth | default('true') }}"
+    keyPrefix: "{{ __controller_ssl_keyPrefix }}"
     storeFlavor: PKCS12
+    clientAuth: "{{ controller_client_auth | default('true') }}"
+    cert: "{{ __controller_ssl_keyPrefix }}openwhisk-server-cert.pem"
+    key: "{{ __controller_ssl_keyPrefix }}openwhisk-server-key.pem"
     keystore:
-      password: "{{ controllerKeystorePassword }}"
-      path: "/conf/{{ controllerKeystoreName }}"
-# keystore and truststore are the same as long as controller and nginx share the certificate
-    truststore:
-      password: "{{ controllerKeystorePassword }}"
-      path: "/conf/{{ controllerKeystoreName }}"
+      password: "openwhisk"
+      name: "{{ __controller_ssl_keyPrefix }}openwhisk-keystore.p12"
   extraEnv: "{{ controller_extraEnv | default({}) }}"
-
-# move controller protocol outside to not evaluate controller variables during execution of setup.yml
-controllerProtocolForSetup: "{{ controller_protocol | default('https') }}"
-controllerKeystoreName: "{{ controllerKeyPrefix }}openwhisk-keystore.p12"
-controllerKeyPrefix: "controller-"
-controllerKeystorePassword: openwhisk
 
 jmx:
   basePortController: 15000
@@ -166,6 +160,9 @@ zookeeper_connect_string: "{% set ret = [] %}\
 invokerHostnameFromMap: "{{ groups['invokers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
 invokerHostname: "{{ invokerHostnameFromMap | default(inventory_hostname) }}"
 
+# Moved here to avoid recursions. Please do not use outside of invoker-dict.
+__invoker_ssl_keyPrefix: "invoker-"
+
 invoker:
   dir:
     become: "{{ invoker_dir_become | default(false) }}"
@@ -187,6 +184,17 @@ invoker:
     {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
     {% endif %}"
   extraEnv: "{{ invoker_extraEnv | default({}) }}"
+  protocol: "{{ invoker_protocol | default('https') }}"
+  ssl:
+    cn: "openwhisk-invokers"
+    keyPrefix: "{{ __invoker_ssl_keyPrefix }}"
+    storeFlavor: "PKCS12"
+    clientAuth: "{{ invoker_client_auth | default('true') }}"
+    cert: "{{ __invoker_ssl_keyPrefix }}openwhisk-server-cert.pem"
+    key: "{{ __invoker_ssl_keyPrefix }}openwhisk-server-key.pem"
+    keystore:
+      password: "{{ invoker_keystore_password | default('openwhisk') }}"
+      name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"

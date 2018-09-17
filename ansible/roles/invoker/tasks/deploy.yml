@@ -86,6 +86,18 @@
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ invoker.confdir }}/{{ invoker_name }}"
 
+- name: copy keystore, key and cert
+  when: invoker.protocol == "https"
+  copy:
+    src: "{{ item }}"
+    mode: 0666
+    dest: "{{ invoker.confdir }}/{{ invoker_name }}"
+  become: "{{ invoker.dir.become }}"
+  with_items:
+  - "files/{{ invoker.ssl.keystore.name }}"
+  - "files/{{ invoker.ssl.key }}"
+  - "files/{{ invoker.ssl.cert }}"
+
 - name: check, that required databases exist
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -224,6 +236,11 @@
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
+      "CONFIG_whisk_invoker_protocol": "{{ invoker.protocol }}"
+      "CONFIG_whisk_invoker_https_keystorePath": "/conf/{{ invoker.ssl.keystore.name }}"
+      "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
+      "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
+      "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
 
 - name: extend invoker dns env
   set_fact:
@@ -290,7 +307,10 @@
 
 - name: wait until Invoker is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
+    url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
+    validate_certs: "no"
+    client_key: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.key }}"
+    client_cert: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.cert }}"
   register: result
   until: result.status == 200
   retries: 12

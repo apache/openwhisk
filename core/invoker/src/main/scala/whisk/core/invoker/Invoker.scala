@@ -22,6 +22,8 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
+import pureconfig.loadConfigOrThrow
+import whisk.common.Https.HttpsConfig
 import whisk.common._
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
@@ -38,6 +40,8 @@ import scala.util.{Failure, Try}
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
 
 object Invoker {
+
+  protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 
   /**
    * An object which records the environment variables required for this component to run.
@@ -157,7 +161,10 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
+    val httpsConfig =
+      if (Invoker.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")) else None
+
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port, httpsConfig)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
   }

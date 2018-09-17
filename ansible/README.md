@@ -81,16 +81,12 @@ directory before deploying OpenWhisk.
 The following step must be executed once per development environment.
 It will generate the `hosts` configuration file based on your environment settings.
 
-```
-ansible-playbook -i environments/<environment> setup.yml
-```
-
 The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
 You may elect to enable high-availability (HA) mode by passing tne ansible option `-e mode=HA` when executing this playbook.
 This will configure your deployment with multiple instances (e.g., two kafka instancess, and two invokers).
 
 In addition to the host file generation, you need to configure the database for your deployment. This is done
-by creating a file `ansible/db_local.ini` to provide the following properties.
+by modifying the file `ansible/db_local.ini` to provide the following properties.
 
 ```bash
 [db_creds]
@@ -102,7 +98,7 @@ db_host=
 db_port=
 ```
 
-This file is generated automatically if you are using an ephermeral CouchDB instance. Otherwise, you must create it explicitly.
+This file is generated automatically for an ephermeral CouchDB instance during `setup.yml`. If you want to use Cloudant, you have to modify the file.
 For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```
@@ -113,7 +109,7 @@ export OW_DB_PROTOCOL=<your couchdb protocol>
 export OW_DB_HOST=<your couchdb host>
 export OW_DB_PORT=<your couchdb port>
 
-ansible-playbook -i environments/<environment> couchdb.yml --tags ini
+ansible-playbook -i environments/<environment> setup.yml
 ```
 
 Alternatively, if you want to use Cloudant as your datastore:
@@ -126,7 +122,7 @@ export OW_DB_PROTOCOL=https
 export OW_DB_HOST=<your cloudant user>.cloudant.com
 export OW_DB_PORT=443
 
-ansible-playbook -i environments/<environment> couchdb.yml --tags ini
+ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #### Install Prerequisites

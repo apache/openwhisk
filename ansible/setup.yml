@@ -5,6 +5,7 @@
 
 - hosts: localhost
   tasks:
+  # Generate hosts files
   - name: gen hosts if 'local' env is used
     local_action: template src="{{playbook_dir}}/environments/local/hosts.j2.ini" dest="{{ playbook_dir }}/environments/local/hosts"
     when: "'environments/local' in hosts_dir"
@@ -23,6 +24,21 @@
     local_action: template src="{{playbook_dir}}/environments/docker-machine/hosts.j2.ini" dest="{{ playbook_dir }}/environments/docker-machine/hosts"
     when: "'environments/docker-machine' in hosts_dir"
 
+  - name: Refresh inventory to ensure generated hosts files are used
+    meta: refresh_inventory
+
+  # Generate db_local.ini
+  - name: check if db_local.ini exists?
+    tags: ini
+    stat: path="{{ playbook_dir }}/db_local.ini"
+    register: db_check
+
+  - name: prepare db_local.ini
+    tags: ini
+    local_action: template src="db_local.ini.j2" dest="{{ playbook_dir }}/db_local.ini"
+    when: not db_check.stat.exists
+
+  # Generate nginx certificates
   - name: gen untrusted server certificate for host
     local_action: shell "{{ playbook_dir }}/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}" "server" "{{ playbook_dir }}/roles/nginx/files"
     when: nginx.ssl.cert == "openwhisk-server-cert.pem"
@@ -31,6 +47,7 @@
     local_action: shell "{{ playbook_dir }}/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}" "client" "{{ playbook_dir }}/roles/nginx/files"
     when: nginx.ssl.client_ca_cert == "openwhisk-client-ca-cert.pem"
 
+  # Generate Kafka certificates
   - name: clean up old kafka keystore
     file:
       path: "{{ playbook_dir }}/roles/kafka/files"
@@ -46,19 +63,32 @@
     become: "{{ logs.dir.become }}"
     when: kafka_protocol_for_setup == 'SSL'
 
-
   - name: generate kafka certificates
     local_action: shell "{{ playbook_dir }}/files/genssl.sh" "openwhisk-kafka" "server_with_JKS_keystore" "{{ playbook_dir }}/roles/kafka/files" openwhisk "kafka-" "generateKey"
     when: kafka_protocol_for_setup == 'SSL'
 
+  # Generate Controller certificates
   - name: ensure controller files directory exists
     file:
       path: "{{ playbook_dir }}/roles/controller/files/"
       state: directory
       mode: 0777
     become: "{{ logs.dir.become }}"
-    when: controllerProtocolForSetup == 'https'
+    when: controller.protocol == 'https'
 
   - name: generate controller certificates
-    when: controllerProtocolForSetup == 'https'
-    local_action: shell "{{ playbook_dir }}/files/genssl.sh" "openwhisk-controllers" "server" "{{ playbook_dir }}/roles/controller/files" {{ controllerKeystorePassword }} {{ controllerKeyPrefix }} "generateKey"
+    when: controller.protocol == 'https'
+    local_action: shell "{{ playbook_dir }}/files/genssl.sh" "{{ controller.ssl.cn }}" "server" "{{ playbook_dir }}/roles/controller/files" {{ controller.ssl.keystore.password }} {{ controller.ssl.keyPrefix }} "generateKey"
+
+  # Generate Invoker certificates
+  - name: ensure invoker files directory exists
+    file:
+      path: "{{ playbook_dir }}/roles/invoker/files/"
+      state: directory
+      mode: 0777
+    become: "{{ logs.dir.become }}"
+    when: invoker.protocol == 'https'
+
+  - name: generate invoker certificates
+    when: invoker.protocol == 'https'
+    local_action: shell "{{ playbook_dir }}/files/genssl.sh" "{{ invoker.ssl.cn }}" "server" "{{ playbook_dir }}/roles/invoker/files" {{ invoker.ssl.keystore.password }} {{ invoker.ssl.keyPrefix }} "generateKey"

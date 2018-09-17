@@ -17,38 +17,34 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
 import akka.Done
-import akka.actor.ActorSystem
-import akka.actor.CoordinatedShutdown
+import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import kamon.Kamon
-import whisk.common.AkkaLogging
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
+import pureconfig.loadConfigOrThrow
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.common.Https.HttpsConfig
+import whisk.common.{AkkaLogging, Logging, LoggingMarkers, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessagingProvider
+import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database.{ActivationStoreProvider, CacheChangeNotification, RemoteCacheInvalidation}
 import whisk.core.entitlement._
-import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
+import whisk.core.entity._
 import whisk.core.loadBalancer.{InvokerState, LoadBalancerProvider}
-import whisk.http.BasicHttpService
-import whisk.http.BasicRasService
+import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
-import whisk.core.containerpool.logging.LogStoreProvider
-import akka.event.Logging.InfoLevel
-import pureconfig.loadConfigOrThrow
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success}
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -262,10 +258,11 @@ object Controller {
           actorSystem,
           ActorMaterializer.create(actorSystem),
           logger)
-        if (Controller.protocol == "https")
-          BasicHttpService.startHttpsService(controller.route, port, config)(actorSystem, controller.materializer)
-        else
-          BasicHttpService.startHttpService(controller.route, port)(actorSystem, controller.materializer)
+
+        val httpsConfig =
+          if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
+
+        BasicHttpService.startHttpService(controller.route, port, httpsConfig)(actorSystem, controller.materializer)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")

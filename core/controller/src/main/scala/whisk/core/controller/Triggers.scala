@@ -37,6 +37,7 @@ import spray.json.DefaultJsonProtocol._
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import pureconfig.loadConfigOrThrow
 import spray.json._
+import whisk.common.Https.HttpsConfig
 import whisk.common.{Https, TransactionId}
 import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.{ActivationStore, CacheChangeNotification}
@@ -64,7 +65,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     val sslConfig = AkkaSSLConfig().mapSettings { s =>
       s.withLoose(s.loose.withDisableHostnameVerification(true))
     }
-    Https.connectionContext(whiskConfig, Some(sslConfig))
+    val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+    Https.connectionContext(httpsConfig, Some(sslConfig))
 
   }
 

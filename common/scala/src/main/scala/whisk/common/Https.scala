@@ -24,28 +24,18 @@ import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import akka.http.scaladsl.ConnectionContext
 import akka.stream.TLSClientAuth
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
-import whisk.core.WhiskConfig
-import pureconfig._
 
 object Https {
-  case class HttpsConfig(keystorePassword: String,
-                         keystoreFlavor: String,
-                         keystorePath: String,
-                         truststorePath: String,
-                         truststorePassword: String,
-                         truststoreFlavor: String,
-                         clientAuth: String)
-  private val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+  case class HttpsConfig(keystorePassword: String, keystoreFlavor: String, keystorePath: String, clientAuth: String)
 
   def getCertStore(password: Array[Char], flavor: String, path: String): KeyStore = {
-    val certStorePassword: Array[Char] = password
     val cs: KeyStore = KeyStore.getInstance(flavor)
     val certStore: InputStream = new FileInputStream(path)
-    cs.load(certStore, certStorePassword)
+    cs.load(certStore, password)
     cs
   }
 
-  def connectionContext(config: WhiskConfig, sslConfig: Option[AkkaSSLConfig] = None) = {
+  def connectionContext(httpsConfig: HttpsConfig, sslConfig: Option[AkkaSSLConfig] = None) = {
 
     val keyFactoryType = "SunX509"
     val clientAuth = {
@@ -55,17 +45,21 @@ object Https {
         Some(TLSClientAuth.none)
     }
 
-// configure keystore
     val keystorePassword = httpsConfig.keystorePassword.toCharArray
-    val ks: KeyStore = getCertStore(keystorePassword, httpsConfig.keystoreFlavor, httpsConfig.keystorePath)
-    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance(keyFactoryType)
-    keyManagerFactory.init(ks, keystorePassword)
 
-// configure truststore
-    val truststorePassword = httpsConfig.truststorePassword.toCharArray
-    val ts: KeyStore = getCertStore(truststorePassword, httpsConfig.truststoreFlavor, httpsConfig.keystorePath)
+    val keyStore: KeyStore = KeyStore.getInstance(httpsConfig.keystoreFlavor)
+    val keyStoreStream: InputStream = new FileInputStream(httpsConfig.keystorePath)
+    keyStore.load(keyStoreStream, keystorePassword)
+
+    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance(keyFactoryType)
+    keyManagerFactory.init(keyStore, keystorePassword)
+
+    // Currently, we are using the keystore as truststore as well, because the clients use the same keys as the
+    // server for client authentication (if enabled).
+    // So this code is guided by https://doc.akka.io/docs/akka-http/10.0.9/scala/http/server-side-https-support.html
+    // This needs to be reworked, when we fix the keys and certificates.
     val trustManagerFactory: TrustManagerFactory = TrustManagerFactory.getInstance(keyFactoryType)
-    trustManagerFactory.init(ts)
+    trustManagerFactory.init(keyStore)
 
     val sslContext: SSLContext = SSLContext.getInstance("TLS")
     sslContext.init(keyManagerFactory.getKeyManagers, trustManagerFactory.getTrustManagers, new SecureRandom)
