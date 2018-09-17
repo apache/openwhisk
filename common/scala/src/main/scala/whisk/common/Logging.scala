@@ -212,9 +212,7 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken): Unit = emitCounterMetric(token, 1)
-
-  def emitCounterMetric(token: LogMarkerToken, times: Long): Unit = {
+  def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         metrics
