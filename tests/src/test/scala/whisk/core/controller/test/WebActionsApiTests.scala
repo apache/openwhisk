@@ -36,7 +36,7 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.headers.{RawHeader, `Access-Control-Request-Headers`, `Content-Type`}
+import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaType
@@ -126,6 +126,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   val proxyNamespace = namespace.addPath(EntityName("proxy"))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
   protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
+  def aname() = MakeName.next("web_action_tests")
 
   behavior of "Web actions API"
 
@@ -134,6 +135,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var failCheckEntitlement = false // toggle to cause entitlement to fail
   var actionResult: Option[JsObject] = None
   var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or  requireAuthenticationKey)
+  var testParametersInInvokeAction = true // toggle to test parameter in invokeAction
   var requireAuthenticationKey = "example-web-action-api-key"
   var invocationCount = 0
   var invocationsAllowed = 0
@@ -158,6 +160,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     failCheckEntitlement = false
     actionResult = None
     requireAuthenticationAsBoolean = true
+    testParametersInInvokeAction = true
     assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
     cleanup()
   }
@@ -283,13 +286,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         })
 
       // check that action parameters were merged with package
-      // all actions have default parameters (see actionLookup stub)
-      if (!action.namespace.defaultPackage) {
-        action.parameters shouldBe (stubPackage.parameters ++ defaultActionParameters)
-      } else {
-        action.parameters shouldBe defaultActionParameters
+      // all actions have default parameters (see stubAction)
+      if (testParametersInInvokeAction) {
+        if (!action.namespace.defaultPackage) {
+          action.parameters shouldBe (stubPackage.parameters ++ defaultActionParameters)
+        } else {
+          action.parameters shouldBe defaultActionParameters
+        }
+        action.parameters.get("z") shouldBe defaultActionParameters.get("z")
       }
-      action.parameters.get("z") shouldBe defaultActionParameters.get("z")
 
       Future.successful(Right(activation))
     } else if (failActivation == 1) {
@@ -609,29 +614,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"invoke action in binding of a private package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      val provider = WhiskPackage(
-        EntityPath(systemId.asString),
-        EntityName("provider"),
-        None,
-        stubPackage.parameters,
-        publish = false)
-      val reference = WhiskPackage(EntityPath(systemId.asString), EntityName("reference"), provider.bind)
+      val provider = WhiskPackage(EntityPath(systemId.asString), aname(), None, stubPackage.parameters)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
       val action = stubAction(provider.fullPath, EntityName("export_c"))
 
       put(entityStore, provider)
       put(entityStore, reference)
       put(entityStore, action)
 
-      Seq(s"$systemId/provider/export_c.json").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-          }
-        }
-      }
-
-      Seq(s"$systemId/reference/export_c.json").foreach { path =>
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
         allowedMethods.foreach { m =>
           invocationsAllowed += 1
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
@@ -644,20 +635,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"invoke action in binding of a public package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      val provider = WhiskPackage(
-        EntityPath("guest"),
-        EntityName("provider"),
-        None,
-        stubPackage.parameters,
-        publish = true)
-      val reference = WhiskPackage(EntityPath(systemId.asString), EntityName("reference"), provider.bind)
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
       val action = stubAction(provider.fullPath, EntityName("export_c"))
 
       put(entityStore, provider)
       put(entityStore, reference)
       put(entityStore, action)
 
-      Seq(s"$systemId/provider/export_c.json").foreach { path =>
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
         allowedMethods.foreach { m =>
           invocationsAllowed += 1
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
@@ -665,12 +651,37 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           }
         }
       }
+    }
 
-      Seq(s"$systemId/reference/export_c.json").foreach { path =>
+    it should s"match precedence order for merging parameters (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      testParametersInInvokeAction = false
+
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, Parameters("a", JsString("A")) ++ Parameters("b", JsString("b")), publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind, Parameters("a", JsString("a")) ++ Parameters("c", JsString("c")))
+
+      // stub action has defaultActionParameters
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      put(entityStore, action)
+
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
         allowedMethods.foreach { m =>
           invocationsAllowed += 1
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
+            val response = responseAs[JsObject]
+
+            response shouldBe JsObject(
+              "pkg" -> s"guest/${provider.name}".toJson,
+              "action" -> "export_c".toJson,
+              "content" -> metaPayload(
+                m.method.name.toLowerCase,
+                Map("a" -> "a", "b" -> "b", "c" -> "c").toJson.asJsObject,
+                creds))
           }
         }
       }
