@@ -122,7 +122,7 @@ $ wskadmin-next limits get space1
 No limits found, default system limits apply
 
 # set limits
-$ wskadmin-next limits set space1 --invocationsPerMinute 1
+$ wskadmin-next limits set --invocationsPerMinute 1 space1
 Limits successfully set for "space1"
 ```
 
