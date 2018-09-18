@@ -399,7 +399,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
   }
 
-  it should "be able to run a memory intenisve actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "be able to run a memory intensive actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "TestNodeJsInvokeHighMemory"
     val allowedMemory = MemoryLimit.maxMemory
     assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
@@ -407,6 +407,8 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       (action, _) =>
         action.create(name, Some(actionName), memory = Some(allowedMemory))
     }
+    // Don't try to allocate all the memory on invoking the action, as the maximum memory is set for the whole container
+    // and not only for the user action.
     val run = wsk.action.invoke(name, Map("payload" -> (allowedMemory.toMB - 56).toJson))
     withActivation(wsk.activation, run) { response =>
       response.response.status shouldBe "success"
