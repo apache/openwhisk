@@ -35,13 +35,14 @@ trait RestUtil {
   private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
   // force RestAssured to allow all hosts in SSL certificates
-  protected val sslconfig = {
-    new RestAssuredConfig().sslConfig(if (!skipKeyStore) {
-      if (trustStorePassword != null) new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames()
-      else new SSLConfig().allowAllHostnames()
+  val sslconfig = {
+    val inner = new SSLConfig().allowAllHostnames()
+    if (!skipKeyStore && trustStorePassword != null) {
+      inner.keystore("keystore", trustStorePassword)
     } else {
-      new SSLConfig().relaxedHTTPSValidation().allowAllHostnames()
-    })
+      inner.relaxedHTTPSValidation()
+    }
+    new RestAssuredConfig().sslConfig(inner)
   }
 
   /**
@@ -57,13 +58,15 @@ trait RestUtil {
   def getServiceURL(): String = {
     val host = WhiskProperties.getEdgeHost
     val uri = Uri(host)
-    //Ensure that prt is explicitly include in the returned URL
-    if (uri.isAbsolute) uri.withPort(uri.effectivePort).toString()
-    else {
+    //Ensure that port is explicitly include in the returned URL
+    val absolute = if (uri.isAbsolute) {
+      uri.withPort(uri.effectivePort)
+    } else {
       val apiPort = WhiskProperties.getEdgeHostApiPort
       val protocol = if (apiPort == 443) "https" else "http"
-      protocol + "://" + host + ":" + apiPort
+      Uri.from(scheme = protocol, host = host, port = apiPort)
     }
+    absolute.toString()
   }
 
   /**
