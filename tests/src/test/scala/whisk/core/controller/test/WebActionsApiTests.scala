@@ -36,7 +36,7 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
+import akka.http.scaladsl.model.headers.{RawHeader, `Access-Control-Request-Headers`, `Content-Type`}
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaType
@@ -44,10 +44,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.controller.Context
-import whisk.core.controller.RejectRequest
-import whisk.core.controller.WhiskWebActionsApi
-import whisk.core.controller.WebApiDirectives
+import whisk.core.controller._
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Resource
@@ -609,11 +606,46 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke action in binding package and bound package (auth? ${creds.isDefined})" in {
+    it should s"invoke action in binding of the private package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       val provider = WhiskPackage(
         EntityPath(systemId.asString),
+        EntityName("provider"),
+        None,
+        stubPackage.parameters,
+        publish = false)
+      val reference = WhiskPackage(EntityPath(systemId.asString), EntityName("reference"), provider.bind)
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      put(entityStore, action)
+
+      Seq(s"$systemId/provider/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+          }
+        }
+      }
+
+      Seq(s"$systemId/reference/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+          }
+        }
+      }
+    }
+
+    it should s"invoke action in binding of the public package (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(
+        EntityPath("guest"),
         EntityName("provider"),
         None,
         stubPackage.parameters,
