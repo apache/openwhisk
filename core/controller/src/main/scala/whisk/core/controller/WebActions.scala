@@ -383,7 +383,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
     List(`Access-Control-Allow-Origin`.*, `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH))
 
   private val defaultCorsWithAllowHeader = {
-    defaultCorsBaseResponse :+ `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name)
+    defaultCorsBaseResponse :+ `Access-Control-Allow-Headers`("*")
   }
 
   private def defaultCorsResponse(headers: Seq[HttpHeader]): List[HttpHeader] = {
