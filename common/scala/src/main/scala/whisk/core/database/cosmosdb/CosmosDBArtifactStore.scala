@@ -28,7 +28,7 @@ import akka.util.{ByteString, ByteStringBuilder}
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
-import whisk.common.{Logging, LoggingMarkers, TransactionId}
+import whisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
 import whisk.core.database._
 import whisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
@@ -67,6 +67,13 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val _id = "_id"
   private val _rev = "_rev"
 
+  private val putToken = createToken("put", read = false)
+  private val delToken = createToken("del", read = false)
+  private val getToken = createToken("get")
+  private val queryToken = createToken("query")
+  private val countToken = createToken("count")
+  private val putAttachmentToken = createToken("putAttachment", read = false)
+
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
@@ -88,6 +95,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .transform(
         { r =>
           transid.finished(this, start, s"[PUT] '$collName' completed document: '$docinfoStr'")
+          collectMetrics(putToken, r.getRequestCharge)
           toDocInfo(r.getResource)
         }, {
           case e: DocumentClientException if isConflict(e) =>
@@ -106,8 +114,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc))
       .head()
       .transform(
-        { _ =>
+        { r =>
           transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'")
+          collectMetrics(delToken, r.getRequestCharge)
           true
         }, {
           case e: DocumentClientException if isNotFound(e) =>
@@ -139,6 +148,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
         { rr =>
           val js = getResultToWhiskJsonDoc(rr.getResource)
           transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
+          collectMetrics(getToken, rr.getRequestCharge)
           deserialize[A, DocumentAbstraction](doc, js)
         }, {
           case e: DocumentClientException if isNotFound(e) =>
@@ -167,6 +177,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .map { rr =>
         val js = getResultToWhiskJsonDoc(rr.getResource)
         transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: found document '$id'")
+        collectMetrics(getToken, rr.getRequestCharge)
         Some(js)
       }
       .recoverWith {
@@ -206,6 +217,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, newFeedOptions()))
     val f = Source
       .fromPublisher(publisher)
+      .wireTap(Sink.foreach(r => collectMetrics(queryToken, r.getRequestCharge)))
       .mapConcat(asSeq)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)
@@ -241,6 +253,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .map { r =>
         val count = r.getResults.asScala.head.getLong(aggregate).longValue()
         transid.finished(this, start, s"[COUNT] '$collName' completed: count $count")
+        collectMetrics(countToken, r.getRequestCharge)
         if (count > skip) count - skip else 0L
       }
 
@@ -321,9 +334,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc))
       .head()
       .transform(
-        { _ =>
+        { r =>
           transid
             .finished(this, start, s"[ATT_PUT] '$collName' completed uploading attachment '$name' of document '$doc'")
+          collectMetrics(putAttachmentToken, r.getRequestCharge)
           doc //Adding attachment does not change the revision of document. So retain the doc info
         }, {
           case e: DocumentClientException if isConflict(e) =>
@@ -494,5 +508,16 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def checkDoc[T <: Resource](doc: T): Unit = {
     require(doc.getId != null, s"$doc does not have id field set")
     require(doc.getETag != null, s"$doc does not have etag field set")
+  }
+
+  private def collectMetrics(token: LogMarkerToken, charge: Double): Unit = {
+    MetricEmitter.emitCounterMetric(token, Math.round(charge))
+  }
+
+  private def createToken(action: String, read: Boolean = true): LogMarkerToken = {
+    val mode = if (read) "read" else "write"
+    val tags = Map("action" -> action, "mode" -> mode, "collection" -> collName)
+    if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)
+    else LogMarkerToken("cosmosdb", "ru", collName, Some(action))
   }
 }
