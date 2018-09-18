@@ -606,7 +606,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke action in binding of the private package (auth? ${creds.isDefined})" in {
+    it should s"invoke action in binding of a private package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       val provider = WhiskPackage(
@@ -641,7 +641,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke action in binding of the public package (auth? ${creds.isDefined})" in {
+    it should s"invoke action in binding of a public package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       val provider = WhiskPackage(
