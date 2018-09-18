@@ -334,10 +334,10 @@ class InvokerSupervisionTests
       allStates(supervisor) shouldBe IndexedSeq(new InvokerHealth(invokerInstance, Offline))
     }
   }
+
   it should "update the invoker instance id after it was restarted" in {
     val invoker0 = TestProbe()
-    val invoker01 = TestProbe()
-    val children = mutable.Queue(invoker0.ref, invoker01.ref)
+    val children = mutable.Queue(invoker0.ref)
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
 
     val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
