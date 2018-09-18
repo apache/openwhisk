@@ -41,8 +41,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
   val invalid = "invalid#Action"
   val missing = "missingAction"
 
-  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
-  assert(whiskConfig.isValid)
+  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> "50"))
   val limit = whiskConfig.actionSequenceLimit.toInt
 
   behavior of "Whisk conductor actions"
