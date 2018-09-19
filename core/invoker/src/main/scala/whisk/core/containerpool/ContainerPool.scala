@@ -156,14 +156,29 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // (and a new container would over commit the pool)
             val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
             val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
-                this,
+              def errorMessage(reason: String) =
                 s"Rescheduling Run message, too many message in the pool, " +
+                  reason +
                   s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
                   s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
                   s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
                   s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
+                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                  s"waiting messages: ${runBuffer.size}"
+              if (runBuffer.size > 1) {
+                logging.warn(
+                  this,
+                  errorMessage(
+                    "the reason for this is most likely, that this invoker has been overloaded by the loadbalancer, "))(
+                  r.msg.transid)
+              } else {
+                logging.error(
+                  this,
+                  errorMessage(
+                    "as this is the only message that is waiting currently, it is most likely waiting until log-collection of a previous action is finished, "))(
+                  r.msg.transid)
+              }
+
               Some(logMessageInterval.fromNow)
             } else {
               r.retryLogDeadline
