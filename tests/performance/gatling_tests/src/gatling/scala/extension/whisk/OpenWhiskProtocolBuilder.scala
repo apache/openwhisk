@@ -62,6 +62,7 @@ case class OpenWhiskProtocolBuilder(private val protocol: OpenWhiskProtocol) {
       .baseURL(s"${protocol.protocol}://${protocol.apiHost}:${protocol.port}")
       .contentTypeHeader("application/json")
       .userAgentHeader("gatlingLoadTest")
+      .warmUp("http://google.com")
       .build
   }
 }
