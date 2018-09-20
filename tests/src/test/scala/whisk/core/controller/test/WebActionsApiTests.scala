@@ -658,8 +658,17 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
       testParametersInInvokeAction = false
 
-      val provider = WhiskPackage(EntityPath("guest"), aname(), None, Parameters("a", JsString("A")) ++ Parameters("b", JsString("b")), publish = true)
-      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind, Parameters("a", JsString("a")) ++ Parameters("c", JsString("c")))
+      val provider = WhiskPackage(
+        EntityPath("guest"),
+        aname(),
+        None,
+        Parameters("a", JsString("A")) ++ Parameters("b", JsString("b")),
+        publish = true)
+      val reference = WhiskPackage(
+        EntityPath(systemId.asString),
+        aname(),
+        provider.bind,
+        Parameters("a", JsString("a")) ++ Parameters("c", JsString("c")))
 
       // stub action has defaultActionParameters
       val action = stubAction(provider.fullPath, EntityName("export_c"))
