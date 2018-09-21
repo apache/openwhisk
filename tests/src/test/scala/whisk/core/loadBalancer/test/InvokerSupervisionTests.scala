@@ -310,4 +310,58 @@ class InvokerSupervisionTests
 
     invoker.isTimerActive(InvokerActor.timerName) shouldBe false
   }
+
+  it should "initially store invoker status with its full id - instance/uniqueName/displayedName" in {
+
+    val invoker0 = TestProbe()
+    val children = mutable.Queue(invoker0.ref)
+    val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
+
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
+
+    val invokerInstance = InvokerInstanceId(0, Some("10.x.x.x"), Some("invoker-xyz"))
+
+    within(timeout.duration) {
+
+      val ping = PingMessage(invokerInstance)
+
+      supervisor ! ping
+
+      invoker0.expectMsgType[SubscribeTransitionCallBack]
+      invoker0.expectMsg(ping)
+
+      allStates(supervisor) shouldBe IndexedSeq(new InvokerHealth(invokerInstance, Offline))
+    }
+  }
+
+  it should "update the invoker instance id after it was restarted" in {
+    val invoker0 = TestProbe()
+    val children = mutable.Queue(invoker0.ref)
+    val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
+
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
+
+    val invokerInstance = InvokerInstanceId(0, Some("10.x.x.x"), Some("invoker-xyz"))
+
+    val invokerAfterRestart = InvokerInstanceId(0, Some("10.x.x.x"), Some("invoker-zyx"))
+
+    within(timeout.duration) {
+      val ping = PingMessage(invokerInstance)
+
+      supervisor ! ping
+
+      invoker0.expectMsgType[SubscribeTransitionCallBack]
+      invoker0.expectMsg(ping)
+
+      invoker0.send(supervisor, CurrentState(invoker0.ref, Unhealthy))
+
+      val newPing = PingMessage(invokerAfterRestart)
+
+      supervisor ! newPing
+
+      allStates(supervisor) shouldBe IndexedSeq(new InvokerHealth(invokerAfterRestart, Unhealthy))
+    }
+  }
 }
