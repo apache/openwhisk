@@ -147,7 +147,7 @@ case class Activation(name: String,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
-                      causedBy: Boolean)
+                      causedBy: Option[String])
     extends EventMessageBody {
   val typeName = "Activation"
   override def serialize = toJson.compactPrint
@@ -169,6 +169,30 @@ object Activation extends DefaultJsonProtocol {
       "conductor",
       "memory",
       "causedBy")
+
+  /** Constructs an "Activation" event from a WhiskActivation */
+  def from(a: WhiskActivation): Try[Activation] = {
+    for {
+      // There are no sensible defaults for these fields, so they are required. They should always be there but there is
+      // no static analysis to proof that so we're defensive here.
+      fqn <- a.annotations.getAs[String](WhiskActivation.pathAnnotation)
+      kind <- a.annotations.getAs[String](WhiskActivation.kindAnnotation)
+    } yield {
+      Activation(
+        fqn,
+        a.response.statusCode,
+        a.duration.getOrElse(0),
+        a.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
+        a.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
+        kind,
+        a.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
+        a.annotations
+          .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
+          .map(_.memory.megabytes)
+          .getOrElse(0),
+        a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
+    }
+  }
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {

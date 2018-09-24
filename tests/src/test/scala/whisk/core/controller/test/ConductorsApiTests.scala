@@ -37,6 +37,8 @@ import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
 import whisk.http.Messages._
 
+import scala.util.Success
+
 /**
  * Tests Conductor Actions API.
  *
@@ -84,9 +86,9 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response.fields("response").asJsObject.fields("result") shouldBe JsObject("payload" -> testString.toJson)
       response.fields("duration") shouldBe duration.toJson
       val annotations = response.fields("annotations").convertTo[Parameters]
-      annotations.getAs[Boolean]("conductor") shouldBe Some(true)
-      annotations.getAs[String]("kind") shouldBe Some("sequence")
-      annotations.getAs[Boolean]("topmost") shouldBe Some(true)
+      annotations.getAs[Boolean]("conductor") shouldBe Success(true)
+      annotations.getAs[String]("kind") shouldBe Success("sequence")
+      annotations.getAs[Boolean]("topmost") shouldBe Success(true)
       annotations.get("limits") should not be None
       response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
     }

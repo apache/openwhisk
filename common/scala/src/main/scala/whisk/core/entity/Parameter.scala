@@ -17,9 +17,10 @@
 
 package whisk.core.entity
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+
 import scala.language.postfixOps
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString
@@ -97,7 +98,10 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   protected[core] def get(p: String): Option[JsValue] = params.get(new ParameterName(p)).map(_.value)
 
   /** Retrieves parameter by name if it exists. Returns that parameter if it is deserializable to {@code T} */
-  protected[core] def getAs[T: JsonReader](p: String): Option[T] = get(p).flatMap(js => Try(js.convertTo[T]).toOption)
+  protected[core] def getAs[T: JsonReader](p: String): Try[T] =
+    get(p)
+      .fold[Try[JsValue]](Failure(new IllegalStateException(s"key '$p' does not exist")))(Success.apply)
+      .flatMap(js => Try(js.convertTo[T]))
 
   /** Retrieves parameter by name if it exist. Returns true if parameter exists and has truthy value. */
   protected[core] def isTruthy(p: String): Boolean = {

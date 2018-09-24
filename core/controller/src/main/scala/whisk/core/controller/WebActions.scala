@@ -498,7 +498,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
                         this,
                         "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
                       terminate(Unauthorized)
-                    } else if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
+                    } else if (!action.annotations.getAs[Boolean]("web-custom-options").getOrElse(false)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -574,7 +574,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.getAs[Boolean]("raw-http").exists(identity)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean]("raw-http").getOrElse(false)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -743,8 +743,8 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
       val requiresAuthenticatedUser =
-        action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).exists(identity)
-      val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
+        action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).getOrElse(false)
+      val isExported = action.annotations.getAs[Boolean]("web-export").getOrElse(false)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {
