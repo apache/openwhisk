@@ -58,6 +58,8 @@ object Container {
    */
   val ACTIVATION_LOG_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
 
+  protected[containerpool] val config: ContainerPoolConfig =
+    loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
 }
 
 trait Container {
@@ -67,9 +69,6 @@ trait Container {
   protected val addr: ContainerAddress
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
-
-  protected[containerpool] val config: ContainerPoolConfig =
-    loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
 
   /** HTTP connection to the container, will be lazily established by callContainer */
   protected var httpConnection: Option[ContainerClient] = None
@@ -182,7 +181,7 @@ trait Container {
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = if (config.akkaClient) {
+      val conn = if (Container.config.akkaClient) {
         new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
       } else {
         new ApacheBlockingContainerClient(
