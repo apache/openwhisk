@@ -204,7 +204,7 @@ class DockerContainer(protected val id: ContainerId,
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = if (config.akkaClient) {
+      val conn = if (Container.config.akkaClient) {
         new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
       } else {
         new ApacheBlockingContainerClient(
