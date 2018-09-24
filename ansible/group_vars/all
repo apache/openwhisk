@@ -56,6 +56,8 @@ limits:
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
+limit_activation_payload: 1048576
+
 # Moved here to avoid recursions. Please do not use outside of controller-dict.
 __controller_ssl_keyPrefix: "controller-"
 
@@ -138,6 +140,8 @@ kafka:
   offsetsTopicReplicationFactor: "{{ kafka_offsetsTopicReplicationFactor | default(kafka_replicationFactor) | default((groups['kafkas']|length)|int) }}"
   # adapt this param for production deployments depending on the number of kafka consumers
   networkThreads: "{{ kafka_network_threads | default(3) }}"
+  payload:
+    max: "{{ limit_activation_payload + (limit_activation_payload * 0.05) | int | default() }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\

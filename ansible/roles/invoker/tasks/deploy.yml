@@ -191,6 +191,7 @@
       "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_payload_max": "{{ kafka.payload.max }}"
       "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
