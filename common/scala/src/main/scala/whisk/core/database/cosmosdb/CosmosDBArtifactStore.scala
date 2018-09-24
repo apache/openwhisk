@@ -74,6 +74,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val countToken = createToken("count")
   private val putAttachmentToken = createToken("putAttachment", read = false)
 
+  //Clone the returned instance as these are mutable
+  def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
+
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
