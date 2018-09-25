@@ -161,7 +161,7 @@
       "CONFIG_whisk_kafka_common_sslKeystorePassword":
         "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_kafka_payload_max":
-        "{{ kafka.payload.max }}"
+        "{{ kafka_payload_max | default() }}"
 
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db.host }}"
