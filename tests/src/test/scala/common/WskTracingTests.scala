@@ -28,20 +28,23 @@ import whisk.common.tracing.{OpenTracer, TracingConfig}
 import whisk.core.ConfigKeys
 
 import scala.ref.WeakReference
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.{Matchers, TestData}
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
-class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
+class WskTracingTests extends TestHelpers with Matchers {
 
   val tracer: MockTracer = new MockTracer()
   val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
   val ticker = new FakeTicker(System.nanoTime())
   val openTracer = new OpenTracer(tracer, tracingConfig, ticker)
 
-  it should "create span and context and invalidate cache after expiry" in {
-    tracer.reset
+  override def beforeEach(td: TestData): Unit = {
+    super.beforeEach(td)
+    tracer.reset()
+  }
 
+  it should "create span and context and invalidate cache after expiry" in {
     val transactionId: TransactionId = TransactionId.testing
     var list: List[WeakReference[Span]] = List.empty
 
@@ -63,17 +66,26 @@ class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
   }
 
   it should "create a finished span" in {
-    tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     openTracer.finishSpan(transactionId)
     val finishedSpans = tracer.finishedSpans()
     finishedSpans should have size 1
+  }
 
+  it should "put error message into span" in {
+    val transactionId = TransactionId.testing
+    val errorMessage = "dummy error message"
+    openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
+    openTracer.error(transactionId, errorMessage)
+    val errorSpans = tracer.finishedSpans()
+    errorSpans should have size 1
+    val spanMap = errorSpans.get(0).tags().asScala
+    spanMap.get("error") should be(Some(true))
+    spanMap.get("message") should be(Some(errorMessage))
   }
 
   it should "create a child span" in {
-    tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
@@ -84,11 +96,9 @@ class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
     val parent: MockSpan = finishedSpans.get(1)
     val child: MockSpan = finishedSpans.get(0)
     child.parentId should be(parent.context().spanId)
-
   }
 
   it should "create a span with tag" in {
-    tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     openTracer.finishSpan(transactionId)
@@ -97,16 +107,14 @@ class WskTracingTests extends FlatSpec with TestHelpers with Matchers {
     val mockSpan: MockSpan = finishedSpans.get(0)
     mockSpan.tags should not be null
     mockSpan.tags should have size 1
-
   }
 
   it should "create a valid trace context and use it" in {
-    tracer.reset
     val transactionId: TransactionId = TransactionId.testing
     openTracer.startSpan(LoggingMarkers.CONTROLLER_ACTIVATION, transactionId)
     val context = openTracer.getTraceContext(transactionId)
     openTracer.finishSpan(transactionId)
-    tracer.reset
+    tracer.reset()
     //use context for new span
     openTracer.setTraceContext(transactionId, context)
     openTracer.startSpan(LoggingMarkers.CONTROLLER_KAFKA, transactionId)
