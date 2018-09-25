@@ -172,7 +172,7 @@ protected[actions] trait SequenceActions {
           if (UserEvents.enabled) {
             val event = Activation.from(seqActivation).map { body =>
               EventMessage(
-                activeAckTopicIndex.asString,
+                s"controller${activeAckTopicIndex.asString}",
                 body,
                 seqActivation.subject,
                 seqActivation.namespace.toString,

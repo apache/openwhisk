@@ -561,7 +561,7 @@ protected[actions] trait PrimitiveActions {
     if (UserEvents.enabled) {
       val event = Activation.from(activation).map { body =>
         EventMessage(
-          activeAckTopicIndex.asString,
+          s"controller${activeAckTopicIndex.asString}",
           body,
           activation.subject,
           activation.namespace.toString,
