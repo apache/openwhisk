@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorSystem
 import spray.json._
 import whisk.common.{Logging, TransactionId, UserEvents}
-import whisk.core.connector.{Activation, EventMessage, MessagingProvider}
+import whisk.core.connector.{EventMessage, MessagingProvider}
 import whisk.core.controller.WhiskServices
 import whisk.core.database.{ActivationStore, NoDocumentException, UserContext}
 import whisk.core.entity._
@@ -34,8 +34,8 @@ import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 import scala.collection._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -170,17 +170,7 @@ protected[actions] trait SequenceActions {
       .andThen {
         case Success((Right(seqActivation), _)) =>
           if (UserEvents.enabled) {
-            val event = Activation.from(seqActivation).map { body =>
-              EventMessage(
-                s"controller${activeAckTopicIndex.asString}",
-                body,
-                seqActivation.subject,
-                seqActivation.namespace.toString,
-                user.namespace.uuid,
-                body.typeName)
-            }
-
-            event match {
+            EventMessage.from(seqActivation, s"controller${activeAckTopicIndex.asString}", user.namespace.uuid) match {
               case Success(msg) => UserEvents.send(producer, msg)
               case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
             }

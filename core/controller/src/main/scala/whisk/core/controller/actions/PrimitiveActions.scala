@@ -24,7 +24,7 @@ import akka.event.Logging.InfoLevel
 import spray.json._
 import whisk.common.tracing.WhiskTracerProvider
 import whisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
-import whisk.core.connector.{Activation, ActivationMessage, EventMessage, MessagingProvider}
+import whisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
 import whisk.core.controller.WhiskServices
 import whisk.core.database.{ActivationStore, NoDocumentException, UserContext}
 import whisk.core.entitlement.{Resource, _}
@@ -559,16 +559,7 @@ protected[actions] trait PrimitiveActions {
       duration = Some(session.duration))
 
     if (UserEvents.enabled) {
-      val event = Activation.from(activation).map { body =>
-        EventMessage(
-          s"controller${activeAckTopicIndex.asString}",
-          body,
-          activation.subject,
-          activation.namespace.toString,
-          user.namespace.uuid,
-          body.typeName)
-      }
-      event match {
+      EventMessage.from(activation, s"controller${activeAckTopicIndex.asString}", user.namespace.uuid) match {
         case Success(msg) => UserEvents.send(producer, msg)
         case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
       }
