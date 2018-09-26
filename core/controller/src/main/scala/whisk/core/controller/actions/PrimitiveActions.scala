@@ -22,23 +22,23 @@ import java.time.{Clock, Instant}
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
-import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.common.tracing.WhiskTracerProvider
-import whisk.core.connector.ActivationMessage
+import whisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
+import whisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
 import whisk.core.controller.WhiskServices
-import whisk.core.database.{ActivationStore, NoDocumentException}
+import whisk.core.database.{ActivationStore, NoDocumentException, UserContext}
 import whisk.core.entitlement.{Resource, _}
 import whisk.core.entity.ActivationResponse.ERROR_FIELD
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.types.EntityStore
 import whisk.http.Messages._
+import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory.FutureExtensions
-import whisk.core.database.UserContext
 
 import scala.collection.mutable.Buffer
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -65,6 +65,10 @@ protected[actions] trait PrimitiveActions {
 
   /** Database service to get activations. */
   protected val activationStore: ActivationStore
+
+  /** Message producer. This is needed to write user-metrics. */
+  private val messagingProvider = SpiLoader.get[MessagingProvider]
+  private val producer = messagingProvider.getProducer(services.whiskConfig)
 
   /** A method that knows how to invoke a sequence of actions. */
   protected[actions] def invokeSequence(
@@ -553,6 +557,13 @@ protected[actions] trait PrimitiveActions {
         causedBy ++
         sequenceLimits,
       duration = Some(session.duration))
+
+    if (UserEvents.enabled) {
+      EventMessage.from(activation, s"controller${activeAckTopicIndex.asString}", user.namespace.uuid) match {
+        case Success(msg) => UserEvents.send(producer, msg)
+        case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
+      }
+    }
 
     activationStore.store(activation, context)(transid, notifier = None)
 

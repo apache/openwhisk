@@ -221,5 +221,11 @@ object EventMessage extends DefaultJsonProtocol {
   implicit val format =
     jsonFormat(EventMessage.apply _, "source", "body", "subject", "namespace", "userId", "eventType", "timestamp")
 
+  def from(a: WhiskActivation, source: String, userId: UUID): Try[EventMessage] = {
+    Activation.from(a).map { body =>
+      EventMessage(source, body, a.subject, a.namespace.toString, userId, body.typeName)
+    }
+  }
+
   def parse(msg: String) = format.read(msg.parseJson)
 }

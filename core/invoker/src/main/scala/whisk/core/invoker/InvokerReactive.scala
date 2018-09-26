@@ -131,17 +131,7 @@ class InvokerReactive(
     }
 
     if (UserEvents.enabled) {
-      val event = Activation.from(activationResult).map { body =>
-        EventMessage(
-          s"invoker${instance.instance}",
-          body,
-          activationResult.subject,
-          activationResult.namespace.toString,
-          userId,
-          body.typeName)
-      }
-
-      event match {
+      EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
         case Success(msg) => UserEvents.send(producer, msg)
         case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
       }
