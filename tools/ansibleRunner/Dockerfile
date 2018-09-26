@@ -29,6 +29,7 @@ tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/d
 rm -f docker-${DOCKER_VERSION}.tgz && \
 chmod +x /usr/bin/docker
 
+RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
 RUN pip install ansible==2.5.2
 RUN pip install jinja2==2.9.6
