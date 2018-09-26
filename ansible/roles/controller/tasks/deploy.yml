@@ -160,8 +160,6 @@
         "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslKeystorePassword":
         "{{ kafka.ssl.keystore.password }}"
-      "CONFIG_whisk_kafka_payload_max":
-        "{{ kafka_payload_max | default() }}"
 
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db.host }}"
@@ -193,6 +191,8 @@
 
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
+      "CONFIG_whisk_activation_kafka_payload_max":
+        "{{ limit_activation_kafka_payload | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONFIG_whisk_runtimes_defaultImagePrefix":
