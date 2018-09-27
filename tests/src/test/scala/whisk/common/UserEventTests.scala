@@ -77,7 +77,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
         event.body match {
           case a: Activation =>
             Seq(a.statusCode) should contain oneOf (0, 1, 2, 3)
-            event.source should fullyMatch regex "invoker\\d+".r
+            event.source should fullyMatch regex "(invoker|controller)\\d+".r
           case m: Metric =>
             Seq(m.metricName) should contain oneOf ("ConcurrentInvocations", "ConcurrentRateLimit", "TimedRateLimit")
             event.source should fullyMatch regex "controller\\d+".r

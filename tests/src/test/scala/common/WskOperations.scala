@@ -32,7 +32,7 @@ import whisk.core.entity.ByteSize
 import scala.util.Try
 
 case class WskProps(
-  authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
+  authKey: String = WhiskProperties.getAuthKeyForTesting,
   cert: String =
     WhiskProperties.getFileRelativeToWhiskHome("ansible/roles/nginx/files/openwhisk-client-cert.pem").getAbsolutePath,
   key: String =

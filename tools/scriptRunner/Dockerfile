@@ -1,7 +1,7 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 
-from alpine
+FROM node:alpine
 
 RUN apk --no-cache add \
   bash \
@@ -17,6 +17,6 @@ RUN wget -q https://github.com/apache/incubator-openwhisk-cli/releases/download/
     rm OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz
 
 COPY init.sh /init.sh
-RUN chmod +X /init.sh
+RUN chmod +x /init.sh
 
 CMD ["/init.sh"]

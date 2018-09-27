@@ -256,6 +256,18 @@ Operation Types
 * `saveDocument`
 * `saveDocumentBulk`
 
+#### CosmosDB RU Metrics
+
+When database used is CosmosDB then metrics related to CosmosDB Resource Units is also emitted.
+
+If Kamon tags are enabled then metric name is `openwhisk.counter.cosmosdb_ru_used` with following tags
+
+- `mode` - `read` or `write`
+- `collection` - Name of collection. Example `activations`, `whisks` and `subjects`
+- `action` - Type of operation performed. Example `get`, `put`, `del`, `query` and `count`
+
+If Kamon tags are not enabled then metric name is of the form `openwhisk.counter.cosmosdb.ru.<collecton>.<action>`
+
 ## User specific metrics
 ### Configuration
 User metrics are enabled by default and could be explicitly disabled by setting the following property in one of the Ansible configuration files:
@@ -273,7 +285,7 @@ duration - actual time the action code was running
 kind - action flavor, e.g. Node.js
 conductor - true for conductor backed actions
 memory - maximum memory allowed for action container
-causedBy - true for sequence actions
+causedBy - contains the "causedBy" annotation (can be "sequence" or nothing at the moment)
 ```
 Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```

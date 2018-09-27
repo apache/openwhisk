@@ -19,6 +19,7 @@ package whisk.core.controller
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, HEAD, POST, PUT}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.headers._
@@ -150,8 +151,10 @@ protected[controller] object RestApiCommons {
  */
 protected[controller] trait RespondWithHeaders extends Directives {
   val allowOrigin = `Access-Control-Allow-Origin`.*
-  val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
-  val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
+  val allowHeaders = `Access-Control-Allow-Headers`("*")
+  val allowMethods =
+    `Access-Control-Allow-Methods`(GET, DELETE, POST, PUT, HEAD)
+  val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders, allowMethods)
 }
 
 case class WhiskInformation(buildNo: String, date: String)

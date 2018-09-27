@@ -214,12 +214,16 @@ ok: invoked /whisk.system/samples/greeting with id 5975c24de0114ef2b5c24de0118ef
 ### Blocking invocations and timeouts
 
 A blocking invocation request will _wait_ for the activation result to be available. The wait period
-is the lesser of 60 seconds or the action's configured
+is the lesser of 60 seconds (this is the default for blocking invocations) or the action's configured
 [time limit](reference.md#per-action-timeout-ms-default-60s).
-The result of the activation is returned if it is available within the wait period.
+
+The result of the activation is returned if it is available within the blocking wait period.
 Otherwise, the activation continues processing in the system and an activation ID is returned
 so that one may check for the result later, as with non-blocking requests
 (see [here](#watching-action-output) for tips on monitoring activations).
+When an action exceeds its configured time limit, the activation record will indicate this error.
+See [understanding the activation record](#understanding-the-activation-record) for more details.
+
 
 ### Understanding the activation record
 
@@ -233,8 +237,12 @@ Each action invocation results in an activation record which contains the follow
 - `response`: A dictionary that defines the following keys
   - `status`: The activation result, which might be one of the following values:
     - *"success"*: the action invocation completed successfully.
-    - *"application error"*: the action invocation was successful, but the action returned an error value on purpose, for instance because a precondition on the arguments was not met.
-    - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed.
+    - *"application error"*: the action was invoked, but returned an error value on purpose, for instance because a precondition on the arguments was not met.
+    - *"action developer error"*: the action was invoked, but it completed abnormally, for instance the action did not detect an exception, or a syntax error existed. This status code is also returned under specific conditions such as:
+      - the action failed to initialize for any reason
+      - the action exceeded its time limit during the init or run phase
+      - the action specified a wrong docker container name
+      - the action did not properly implement the expected [runtime protocol](actions-new.md)
     - *"whisk internal error"*: the system was unable to invoke the action.
   - `success`: Is *true* if and only if the status is *"success"*.
   - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
@@ -340,7 +348,7 @@ is skipped if an action is dispatched to a previously initialized container --- 
 You can tell if an [invocation was a warm activation or a cold one requiring initialization](annotations.md#annotations-specific-to-activations)
 by inspecting the activation record.
 - An action runs for a bounded amount of time. This limit can be configured per action, and applies to both the
-initialization and the execution separately.
+initialization and the execution separately. If the action time limit is exceeded during the initialization or run phase, the activation's response status is _action developer error_.
 - Functions should follow best practices to reduce [vulnerabilities](security.md) by treating input as untrusted,
 and be aware of vulnerabilities they may inherit from third-party dependencies.
 

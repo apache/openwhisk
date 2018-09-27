@@ -154,7 +154,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     MetricEmitter.emitCounterMetric(endMarker)
 
     //tracing support
-    WhiskTracerProvider.tracer.error(this)
+    WhiskTracerProvider.tracer.error(this, message)
   }
 
   /**

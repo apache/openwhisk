@@ -113,14 +113,21 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
 
   // State of the actor. Mutable vars with immutable collections prevents closures or messages
   // from leaking the state for external mutation
-  var instanceToRef = immutable.Map.empty[InvokerInstanceId, ActorRef]
+  var instanceToRef = immutable.Map.empty[Int, ActorRef]
   var refToInstance = immutable.Map.empty[ActorRef, InvokerInstanceId]
   var status = IndexedSeq[InvokerHealth]()
 
   def receive: Receive = {
     case p: PingMessage =>
-      val invoker = instanceToRef.getOrElse(p.instance, registerInvoker(p.instance))
-      instanceToRef = instanceToRef.updated(p.instance, invoker)
+      val invoker = instanceToRef.getOrElse(p.instance.toInt, registerInvoker(p.instance))
+      instanceToRef = instanceToRef.updated(p.instance.toInt, invoker)
+
+      // For the case when the invoker was restarted and got a new displayed name
+      val oldHealth = status(p.instance.toInt)
+      if (oldHealth.id != p.instance) {
+        status = status.updated(p.instance.toInt, new InvokerHealth(p.instance, oldHealth.status))
+        refToInstance = refToInstance.updated(invoker, p.instance)
+      }
 
       invoker.forward(p)
 
@@ -128,7 +135,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
 
     case msg: InvocationFinishedMessage =>
       // Forward message to invoker, if InvokerActor exists
-      instanceToRef.get(msg.invokerInstance).foreach(_.forward(msg))
+      instanceToRef.get(msg.invokerInstance.toInt).foreach(_.forward(msg))
 
     case CurrentState(invoker, currentState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
@@ -185,12 +192,13 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
   def registerInvoker(instanceId: InvokerInstanceId): ActorRef = {
     logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
 
+    // Grow the underlying status sequence to the size needed to contain the incoming ping. Dummy values are created
+    // to represent invokers, where ping messages haven't arrived yet
     status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InvokerInstanceId(i), Offline))
+    status = status.updated(instanceId.toInt, new InvokerHealth(instanceId, Offline))
 
     val ref = childFactory(context, instanceId)
-
     ref ! SubscribeTransitionCallBack(self) // register for state change events
-
     refToInstance = refToInstance.updated(ref, instanceId)
 
     ref

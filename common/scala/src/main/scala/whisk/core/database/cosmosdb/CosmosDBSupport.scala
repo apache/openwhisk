@@ -57,7 +57,7 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
         }
       }
       .getOrElse {
-        client.createCollection(database.getSelfLink, newDatabaseCollection, null).blockingResult()
+        client.createCollection(database.getSelfLink, newDatabaseCollection, dbOptions).blockingResult()
       }
   }
 
@@ -70,6 +70,12 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
     defn.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
     defn.setPartitionKey(viewMapper.partitionKeyDefn)
     defn
+  }
+
+  private def dbOptions = {
+    val opts = new RequestOptions
+    opts.setOfferThroughput(config.throughput)
+    opts
   }
 
   private def newDatabase = {

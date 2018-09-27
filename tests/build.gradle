@@ -83,6 +83,11 @@ ext.testSets = [
     ],
     "LEAN" : [
         "excludes" : leanExcludes
+    ],
+    "REQUIRE_SYSTEM_BASIC" : [
+        "includes" : [
+            "system/basic/**"
+        ]
     ]
 ]
 
@@ -115,6 +120,11 @@ task testLean(type: Test) {
     }
     exclude getPattern(testSetName, "excludes")
     include getPattern(testSetName, "includes")
+}
+
+task testSystemBasic(type: Test) {
+    exclude getPattern("REQUIRE_SYSTEM_BASIC", "excludes")
+    include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
 }
 
 task testUnit(type: Test) {
@@ -177,11 +187,14 @@ task deleteKeystore(type: Delete) {
 }
 task createKeystore(dependsOn: deleteKeystore) {
     doLast {
-        Properties props = new Properties()
-        props.load(new FileInputStream(file('../whisk.properties')))
-        keystorePath.parentFile.mkdirs()
-        def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
-        cmd.execute().waitForProcessOutput(System.out, System.err)
+        def propsFile = file('../whisk.properties')
+        if (propsFile.exists()) {
+            Properties props = new Properties()
+            props.load(new FileInputStream(propsFile))
+            keystorePath.parentFile.mkdirs()
+            def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
+            cmd.execute().waitForProcessOutput(System.out, System.err)
+        }
     }
 }
 

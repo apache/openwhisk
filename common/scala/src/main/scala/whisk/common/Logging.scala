@@ -182,8 +182,8 @@ case class LogMarkerToken(component: String,
                           subAction: Option[String] = None,
                           tags: Map[String, String] = Map.empty) {
 
-  override def toString = component + "_" + action + "_" + state
-  def toStringWithSubAction =
+  override val toString = component + "_" + action + "_" + state
+  val toStringWithSubAction =
     subAction.map(sa => component + "_" + action + "." + sa + "_" + state).getOrElse(toString)
 
   def asFinish = copy(state = LoggingMarkers.finish)
@@ -212,14 +212,14 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken): Unit = {
+  def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         metrics
           .counter(token.toString, token.tags)
-          .increment(1)
+          .increment(times)
       } else {
-        metrics.counter(token.toStringWithSubAction).increment(1)
+        metrics.counter(token.toStringWithSubAction).increment(times)
       }
     }
   }

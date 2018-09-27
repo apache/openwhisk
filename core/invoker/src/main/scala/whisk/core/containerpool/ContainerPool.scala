@@ -163,7 +163,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
                   s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
                   s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB")(r.msg.transid)
+                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                  s"waiting messages: ${runBuffer.size}")(r.msg.transid)
               Some(logMessageInterval.fromNow)
             } else {
               r.retryLogDeadline

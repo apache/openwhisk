@@ -17,6 +17,8 @@
 
 package extension.whisk
 
+import java.net.URL
+
 import com.softwaremill.quicklens._
 import io.gatling.core.Predef._
 import io.gatling.core.config.GatlingConfiguration
@@ -33,6 +35,17 @@ import scala.language.implicitConversions
  * @param port port to use. e.g. 443
  */
 case class OpenWhiskProtocol(apiHost: String, protocol: String = "https", port: Int = 443)
+
+object OpenWhiskProtocol {
+
+  def apply(url: String): OpenWhiskProtocol = {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      val u = new URL(url)
+      val port = if (u.getPort > 0) u.getPort else u.getDefaultPort
+      OpenWhiskProtocol(u.getHost, u.toURI.getScheme, port)
+    } else new OpenWhiskProtocol(url)
+  }
+}
 
 case object OpenWhiskProtocolBuilderBase {
   def apiHost(url: String): OpenWhiskProtocolBuilder = OpenWhiskProtocolBuilder(OpenWhiskProtocol(url))
@@ -62,6 +75,7 @@ case class OpenWhiskProtocolBuilder(private val protocol: OpenWhiskProtocol) {
       .baseURL(s"${protocol.protocol}://${protocol.apiHost}:${protocol.port}")
       .contentTypeHeader("application/json")
       .userAgentHeader("gatlingLoadTest")
+      .warmUp("http://google.com")
       .build
   }
 }

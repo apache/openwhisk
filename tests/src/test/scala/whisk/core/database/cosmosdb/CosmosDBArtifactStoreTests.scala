@@ -26,4 +26,21 @@ import whisk.core.database.test.behavior.ArtifactStoreBehavior
 @RunWith(classOf[JUnitRunner])
 class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
   override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
+
+  behavior of "CosmosDB Setup"
+
+  it should "be configured with default throughput" in {
+    //Trigger loading of the db
+    val stores = Seq(entityStore, authStore, activationStore)
+    stores.foreach { s =>
+      val doc = s.asInstanceOf[CosmosDBArtifactStore[_]].documentCollection()
+      val offer = client
+        .queryOffers(s"SELECT * from c where c.offerResourceId = '${doc.getResourceId}'", null)
+        .blockingOnlyResult()
+        .get
+      withClue(s"Collection ${doc.getId} : ") {
+        offer.getThroughput shouldBe storeConfig.throughput
+      }
+    }
+  }
 }
