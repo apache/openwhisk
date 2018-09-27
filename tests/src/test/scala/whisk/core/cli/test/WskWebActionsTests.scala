@@ -204,7 +204,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       response.statusCode shouldBe 200
       response.header("Access-Control-Allow-Origin") shouldBe "*"
       response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-      response.header("Access-Control-Allow-Headers") shouldBe "*"
+      response.header("Access-Control-Allow-Headers") shouldBe "Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent"
       response.header("Location") shouldBe null
       response.header("Set-Cookie") shouldBe null
     }

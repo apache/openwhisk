@@ -450,7 +450,7 @@ if it is present in the HTTP request. Otherwise, a default value is generated as
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
-Access-Control-Allow-Headers: *
+Access-Control-Allow-Headers: Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent
 ```
 
 Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a
