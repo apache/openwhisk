@@ -611,7 +611,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke action in binding of a private package (auth? ${creds.isDefined})" in {
+    it should s"invoke action in a binding of private package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       val provider = WhiskPackage(EntityPath(systemId.asString), aname(), None, stubPackage.parameters)
@@ -632,7 +632,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"invoke action in binding of a public package (auth? ${creds.isDefined})" in {
+    it should s"invoke action in a binding of public package (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
@@ -649,6 +649,84 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
           }
+        }
+      }
+    }
+
+    it should s"not inherit annotations of package binding (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
+      val reference = WhiskPackage(
+        EntityPath(systemId.asString),
+        aname(),
+        provider.bind,
+        annotations = Parameters("web-export", JsBoolean(false)))
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      put(entityStore, action)
+
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+          }
+        }
+      }
+    }
+
+    it should s"reject request that tries to override final parameters of action in package binding (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      put(entityStore, action)
+
+      val contentX = JsObject("x" -> "overriden".toJson)
+      val contentZ = JsObject("z" -> "overriden".toJson)
+
+      allowedMethodsWithEntity.foreach { m =>
+        invocationsAllowed += 1
+
+        m(s"$testRoutePath/$systemId/${reference.name}/export_c.json?x=overriden") ~> Route.seal(routes(creds)) ~> check {
+          status should be(BadRequest)
+          responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+        }
+
+        m(s"$testRoutePath/$systemId/${reference.name}/export_c.json?y=overriden") ~> Route.seal(routes(creds)) ~> check {
+          status should be(BadRequest)
+          responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+        }
+
+        m(s"$testRoutePath/$systemId/${reference.name}/export_c.json", contentX) ~> Route.seal(routes(creds)) ~> check {
+          status should be(BadRequest)
+          responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+        }
+
+        m(s"$testRoutePath/$systemId/${reference.name}/export_c.json?y=overriden", contentZ) ~> Route.seal(
+          routes(creds)) ~> check {
+          status should be(BadRequest)
+          responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+        }
+
+        m(s"$testRoutePath/$systemId/${reference.name}/export_c.json?empty=overriden") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[JsObject]
+          response shouldBe JsObject(
+            "pkg" -> s"guest/${provider.name}".toJson,
+            "action" -> "export_c".toJson,
+            "content" -> metaPayload(
+              m.method.name.toLowerCase,
+              Map("empty" -> "overriden").toJson.asJsObject,
+              creds,
+              pkgName = "proxy"))
         }
       }
     }

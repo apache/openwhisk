@@ -485,6 +485,12 @@ $ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTI
 < Access-Control-Allow-Origin: example.com
 ```
 
+## Sharing web actions
+
+Web actions in a public package can be shared with all Openwhisk users. It means a web in a public package cannot be disabled so any (private) binding of the package will have the web action exposed. 
+  
+Action parameters are [protected and treated as immutable](./annotations.md#protected-parameters). Therefore, you can make your own immutable parameters by binding to a package and specifying default parameters. (Note that the parameters are inherited, but annotations are not.)
+
 ## Error Handling
 
 When an OpenWhisk action fails, there are two different failure modes. The first is known as an _application error_ and is analogous to a caught exception: the action returns a JSON object containing a top level `error` property. The second is a _developer error_ which occurs when the action fails catastrophically and does not produce a response (this is similar to an uncaught exception). For web actions, the controller handles application errors as follows:
