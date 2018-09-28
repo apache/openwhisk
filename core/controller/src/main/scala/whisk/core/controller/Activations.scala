@@ -191,7 +191,10 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
     pathEndOrSingleSlash {
       getEntity(
         activationStore.get(ActivationId(docid.asString), context),
-        postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson)))
+        postProcess = Some((activation: WhiskActivation) => {
+          //do not assume logs are embedded in activation entity, fetch from logsStore
+          complete(logStore.fetchLogs(activation, context).map(activation.withLogs(_).toExtendedJson))
+        }))
     } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(context, docid) } ~
       (pathPrefix(logsPath) & pathEnd) { fetchLogs(context, docid) }
   }
