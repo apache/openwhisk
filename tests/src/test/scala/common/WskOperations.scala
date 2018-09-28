@@ -40,7 +40,8 @@ case class WskProps(
   namespace: String = "_",
   apiversion: String = "v1",
   apihost: String = WhiskProperties.getEdgeHost,
-  token: String = "") {
+  token: String = "",
+  basicAuth: Boolean = true) {
   def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
   def writeFile(propsfile: File) = {
     val propsStr = s"""NAMESPACE=$namespace

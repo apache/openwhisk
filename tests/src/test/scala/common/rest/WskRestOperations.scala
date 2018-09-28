@@ -40,11 +40,10 @@ import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, HttpCredentials, OAuth2BearerToken}
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.HttpMethods.DELETE
@@ -1176,7 +1175,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
                     params: Map[String, String] = Map.empty,
                     body: Option[String] = None)(implicit wp: WskProps): HttpResponse = {
 
-    val creds = getBasicHttpCredentials(wp)
+    val creds = getHttpCredentials(wp)
 
     // startsWith(http) includes https
     val hostWithScheme = if (wp.apihost.startsWith("http")) {
@@ -1202,12 +1201,16 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
     response
   }
 
-  private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
+  private def getHttpCredentials(wp: WskProps): HttpCredentials = {
     if (wp.authKey.contains(":")) {
       val authKey = wp.authKey.split(":")
       new BasicHttpCredentials(authKey(0), authKey(1))
     } else {
-      new BasicHttpCredentials(wp.authKey, wp.authKey)
+      if (wp.basicAuth) {
+        new BasicHttpCredentials(wp.authKey, wp.authKey)
+      } else {
+        new OAuth2BearerToken(wp.authKey)
+      }
     }
   }
 
