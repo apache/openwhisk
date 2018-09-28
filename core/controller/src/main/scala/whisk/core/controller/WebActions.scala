@@ -672,12 +672,12 @@ trait WhiskWebActionsApi
   }
 
   /**
-    * Gets action from datastore.
-    * if it is in a package, then resolve and merge parameters only,
-    * except for annotations.
-    *
-    * @return future action document
-    */
+   * Gets action from datastore.
+   * if it is in a package, then resolve and merge parameters only,
+   * except for annotations.
+   *
+   * @return future action document
+   */
   private def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, actionName)
