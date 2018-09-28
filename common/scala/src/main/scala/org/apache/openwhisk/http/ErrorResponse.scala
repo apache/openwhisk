@@ -20,7 +20,6 @@ package org.apache.openwhisk.http
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -28,15 +27,9 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.server.StandardRoute
-
 import spray.json._
-
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.entity.SizeError
-import org.apache.openwhisk.core.entity.ByteSize
-import org.apache.openwhisk.core.entity.Exec
-import org.apache.openwhisk.core.entity.ExecMetaDataBase
-import org.apache.openwhisk.core.entity.ActivationId
+import org.apache.openwhisk.core.entity.{ActivationId, ByteSize, Exec, ExecMetaDataBase, SizeError}
 
 object Messages {
 

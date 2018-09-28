@@ -658,6 +658,64 @@ You can clean up by deleting actions that you do not want to use.
   actions
   /guest/mySequence                private sequence
   ```
+## action permission management
+
+* Notes on users, just have 2 type users,
+  - the action's owner
+  - the user (not the owner) who used the shared action directly(e.g. get, invoke), we call it "the shared user"
+
+* Notes on permission control
+  - the owner has read(or download) permission on any situation, but for the shared user,
+    in spite of has read permission on any situation, but can set it undownloadable or downloadable
+  - the shared user can't update/delete the action forever.
+  - the owner's permission can affect other user's permission, e.g
+    if the owner is not given execute permission, the shared user can't have execute permission as well.
+
+* Notes on permission values, include below permission value
+  - permission code:rwxr-x: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:read(yes)/write(no)/execute(yes), this is default
+  - permission code:rwxr--: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:read(yes)/write(no)/execute(no)
+  - permission code:r-xr-x: owner:read(yes)/write(no)/execute(yes)|the shared action's user:read(yes)/write(no)/execute(yes)
+  - permission code:r-xr--: owner:read(yes)/write(no)/execute(yes)|the shared action's user:read(yes)/write(no)/execute(no)
+  - permission code:r--r--: owner:read(yes)/write(no)/execute(no)|the shared action's user:read(yes)/write(no)/execute(no)
+  - permission code:rw-r--: owner:read(yes)/write(yes)/execute(no)|the shared action's user:read(yes)/write(no)/execute(no)
+  - permission code:rwx--x: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(no)/write(no)/execute(yes)
+  - permission code:rwx---: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(no)/write(no)/execute(no)
+  - permission code:r-x--x: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(no)/write(no)/execute(yes)
+  - permission code:r-x---: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(no)/write(no)/execute(no)
+  - permission code:r-----: owner:read(yes)/write(no)/execute(no)|the shared action's user:download(no)/write(no)/execute(no)
+  - permission code:rw----: owner:read(yes)/write(yes)/execute(no)|the shared action's user:download(no)/write(no)/execute(no)
+
+When create action without permissions annotation, permission control keeps the same as before,
+e.g. the owner has all permissions(create/update(or delete)/invoke), the user(not owner) doesn't have update/delete permission on the shared action.
+
+When create(or update) action with permissions annotation, must specify the permissions annotation to a correct scope, e.g.
+```
+wsk action create ${action} ${code_path} --annotation permissions ${permission code in correct scope}
+```
+
+Make action unmodifiable(can't updated and can't deleted), e.g.
+```
+wsk action update ${action} --annotation permissions r-xr-x
+```
+Then, it will be failed when update this action or delete action.
+
+Make action modifiable again, e.g.
+```
+wsk action update ${action} --annotation permissions rwxr-x
+```
+Then, it will be successful when update this action or delete action.
+
+Make action unexecutable, e.g.
+```
+wsk action update ${action} --annotation permissions rw-r--
+```
+Then, it will be failed when invoke this action.
+
+Make action executable again, e.g.
+```
+wsk action update ${action} --annotation permissions rwxr-x
+```
+Then, it will be successful again when invoke this action.
 
 ## Accessing action metadata within the action body
 

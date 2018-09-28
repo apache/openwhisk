@@ -435,6 +435,169 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "create action not allowed when permission code is not legal" in {
+    implicit val tid = transid()
+
+    // Below permission code(rwxrwx) is not legal, because the user(not owner) can't update/delete shared action
+    val action =
+      WhiskAction(
+        namespace,
+        aname(),
+        jsDefault(""),
+        annotations = Parameters(WhiskAction.permissionsFieldName, JsString("rwxrwx")))
+    val content = JsObject(
+      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
+      "annotations" -> action.annotations.toJson)
+
+    // create failed due to the permission code(rwxrwx) is not legal
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
+    }
+  }
+
+  it should "create action allowed when permission code is legal" in {
+    implicit val tid = transid()
+
+    val action =
+      WhiskAction(
+        namespace,
+        aname(),
+        jsDefault(""),
+        annotations = Parameters(WhiskAction.permissionsFieldName, JsString("rwxr-x")))
+    val content = JsObject(
+      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
+      "annotations" -> action.annotations.toJson)
+
+    // create successfully because the permission code(rwxr-x) is legal
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "the owner can not update action when permission code's write bit is unwritable" in {
+    implicit val tid = transid()
+    val action =
+      WhiskAction(
+        namespace,
+        aname(),
+        jsDefault(""),
+        annotations = Parameters(WhiskAction.permissionsFieldName, JsString("r-xr-x")))
+    val content = JsObject(
+      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
+      "annotations" -> action.annotations.toJson)
+
+    // create successfully
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+
+    // update not allowed because the owner's write bit is unwritable
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
+    }
+
+    // update the owner's write bit to writable
+    val writableAnnotation =
+      JsObject("annotations" -> Parameters(WhiskAction.permissionsFieldName, JsString("rwxr-x")).toJson)
+    Put(s"$collectionPath/${action.name}?overwrite=true", writableAnnotation) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+
+    // update allowed after change the owner's  write bit to writable
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "the owner can not delete action when permission code's write bit is unwritable" in {
+    implicit val tid = transid()
+    val action =
+      WhiskAction(
+        namespace,
+        aname(),
+        jsDefault(""),
+        annotations = Parameters(WhiskAction.permissionsFieldName, JsString("r-xr-x")))
+    val content = JsObject(
+      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
+      "annotations" -> action.annotations.toJson)
+
+    // create successfully
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+
+    // delete not allowed because the owner's write bit is unwritable
+    Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
+    }
+
+    // update the owner's write bit to writable
+    val writableAnnotation =
+      JsObject("annotations" -> Parameters(WhiskAction.permissionsFieldName, JsString("rwxr-x")).toJson)
+    Put(s"$collectionPath/${action.name}?overwrite=true", writableAnnotation) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+
+    // delete allowed after change the owner's write bit to writable
+    Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "the owner can not invoke the action when permission code's execute bit is unexecutable" in {
+    implicit val tid = transid()
+    val action = WhiskAction(
+      namespace,
+      aname(),
+      jsDefault("??"),
+      annotations = Parameters(WhiskAction.permissionsFieldName, JsString("rwxr-x")))
+    val activation = WhiskActivation(
+      action.namespace,
+      action.name,
+      creds.subject,
+      activationIdFactory.make(),
+      start = Instant.now,
+      end = Instant.now,
+      response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
+    put(entityStore, action)
+
+    try {
+      // do not store the activation in the db, instead register it as the response to generate on active ack
+      loadBalancer.whiskActivationStub = Some((500.milliseconds, Right(activation)))
+
+      // invoke successfully because the owner's execute bit is executable
+      Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe OK
+      }
+
+      // update the owner's execute bit to unexecutable
+      val unexecutableAnnotation =
+        JsObject("annotations" -> Parameters(WhiskAction.permissionsFieldName, JsString("rw-r--")).toJson)
+      Put(s"$collectionPath/${action.name}?overwrite=true", unexecutableAnnotation) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+      }
+
+      // invoke failed after change the owner's execute bit to unexecutable
+      Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe Forbidden
+      }
+
+      // update the owner's execute bit to executable again
+      val executableAnnotation =
+        JsObject("annotations" -> Parameters(WhiskAction.permissionsFieldName, JsString("rwxr--")).toJson)
+      Put(s"$collectionPath/${action.name}?overwrite=true", executableAnnotation) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+      }
+
+      // invoke successfully after change the owner's execute bit to executable again
+      Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+      }
+    } finally {
+      loadBalancer.whiskActivationStub = None
+    }
+  }
+
   it should "report NotFound for delete non existent action" in {
     implicit val tid = transid()
     Delete(s"$collectionPath/xyz") ~> Route.seal(routes(creds)) ~> check {

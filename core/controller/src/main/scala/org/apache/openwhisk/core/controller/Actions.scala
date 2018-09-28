@@ -218,9 +218,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
-              make(user, entityName, request)
-            })
+            val operation = if (overwrite) "update" else "create"
+            onComplete(
+              entitlementProvider
+                .checkActionPermissions(
+                  operation,
+                  user,
+                  entityStore,
+                  entityName,
+                  WhiskAction.get,
+                  content.getPermissions())) {
+              case Success(_) =>
+                putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
+                  make(user, entityName, request)
+                })
+              case Failure(f) => super.handleEntitlementFailure(f)
+            }
           case Failure(f) =>
             super.handleEntitlementFailure(f)
         }
@@ -241,37 +254,43 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    parameter(
-      'blocking ? false,
-      'result ? false,
-      'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
-      (blocking, result, waitOverride) =>
-        entity(as[Option[JsObject]]) { payload =>
-          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-            act: WhiskActionMetaData =>
-              // resolve the action --- special case for sequences that may contain components with '_' as default package
-              val action = act.resolve(user.namespace)
-              onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
-                case Success(_) =>
-                  val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
+    onComplete(
+      entitlementProvider
+        .checkActionPermissions("invoke", user, entityStore, entityName, WhiskAction.get)) {
+      case Success(_) =>
+        parameter(
+          'blocking ? false,
+          'result ? false,
+          'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
+          (blocking, result, waitOverride) =>
+            entity(as[Option[JsObject]]) { payload =>
+              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                act: WhiskActionMetaData =>
+                  // resolve the action --- special case for sequences that may contain components with '_' as default package
+                  val action = act.resolve(user.namespace)
+                  onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
+                    case Success(_) =>
+                      val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
 
-                  // incoming parameters may not override final parameters (i.e., parameters with already defined values)
-                  // on an action once its parameters are resolved across package and binding
-                  val allowInvoke = payload
-                    .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
-                    .getOrElse(true)
+                      // incoming parameters may not override final parameters (i.e., parameters with already defined values)
+                      // on an action once its parameters are resolved across package and binding
+                      val allowInvoke = payload
+                        .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
+                        .getOrElse(true)
 
-                  if (allowInvoke) {
-                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
-                  } else {
-                    terminate(BadRequest, Messages.parametersNotAllowed)
+                      if (allowInvoke) {
+                        doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
+                      } else {
+                        terminate(BadRequest, Messages.parametersNotAllowed)
+                      }
+
+                    case Failure(f) =>
+                      super.handleEntitlementFailure(f)
                   }
-
-                case Failure(f) =>
-                  super.handleEntitlementFailure(f)
-              }
-          })
+              })
+            }
         }
+      case Failure(f) => super.handleEntitlementFailure(f)
     }
   }
 
@@ -333,11 +352,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
+    onComplete(
+      entitlementProvider
+        .checkActionPermissions("remove", user, entityStore, entityName, WhiskAction.get)) {
+      case Success(_) =>
+        deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
+      case Failure(f) => super.handleEntitlementFailure(f)
+    }
   }
 
   /** Checks for package binding case. we don't want to allow get for a package binding in shared package */
-  private def fetchEntity(entityName: FullyQualifiedEntityName, env: Option[Parameters], code: Boolean)(
+  private def fetchEntity(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters], code: Boolean)(
     implicit transid: TransactionId) = {
     val resolvedPkg: Future[Either[String, FullyQualifiedEntityName]] = if (entityName.path.defaultPackage) {
       Future.successful(Right(entityName))
@@ -357,13 +382,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           case Left(f) => terminate(Forbidden, f)
           case Right(_) =>
             if (code) {
-              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
-                action: WhiskAction =>
-                  val mergedAction = env map {
-                    action inherit _
-                  } getOrElse action
-                  complete(OK, mergedAction)
-              })
+              onComplete(
+                entitlementProvider
+                  .checkActionPermissions("download", user, entityStore, entityName, WhiskAction.get)) {
+                case Success(_) =>
+                  getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                    action: WhiskAction =>
+                      val mergedAction = env map {
+                        action inherit _
+                      } getOrElse action
+                      complete(OK, mergedAction)
+                  })
+                case Failure(f) => super.handleEntitlementFailure(f)
+              }
             } else {
               getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
                 action: WhiskActionMetaData =>
@@ -396,7 +427,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       if (executeOnly && user.namespace.name != entityName.namespace) {
         terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
       } else {
-        fetchEntity(entityName, env, code)
+        fetchEntity(user, entityName, env, code)
       }
     }
   }
