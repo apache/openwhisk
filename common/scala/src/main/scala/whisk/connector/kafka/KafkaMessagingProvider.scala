@@ -26,6 +26,7 @@ import pureconfig._
 import whisk.common.{CausedBy, Logging}
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector.{MessageConsumer, MessageProducer, MessagingProvider}
+import whisk.core.entity.ByteSize
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -47,10 +48,16 @@ object KafkaMessagingProvider extends MessagingProvider {
   def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer =
     new KafkaProducerConnector(config.kafkaHosts)
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String)(implicit logging: Logging): Try[Unit] = {
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String, topicSize: Option[ByteSize] = None)(
+    implicit logging: Logging): Try[Unit] = {
     val kafkaConfig = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
     val topicConfig = KafkaConfiguration.configMapToKafkaConfig(
-      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + "." + topicConfigKey))
+      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + "." + topicConfigKey)) ++
+      (topicSize.map { size =>
+        Map(s"max.message.bytes" -> size.size.toString)
+      } getOrElse Map.empty)
+
+    logging.info(this, s"KAFKA CONFIG $topicConfig")
 
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
     val client = AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts))

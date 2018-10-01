@@ -23,6 +23,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.core.entity.ByteSize
 import whisk.spi.Spi
 
 import scala.util.Try
@@ -38,5 +39,6 @@ trait MessagingProvider extends Spi {
     maxPeek: Int = Int.MaxValue,
     maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging, actorSystem: ActorSystem): MessageConsumer
   def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Try[Unit]
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String, topicSize: Option[ByteSize] = None)(
+    implicit logging: Logging): Try[Unit]
 }

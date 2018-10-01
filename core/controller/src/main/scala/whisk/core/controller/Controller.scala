@@ -238,13 +238,13 @@ object Controller {
 
     val msgProvider = SpiLoader.get[MessagingProvider]
 
-    Map(
-      "completed" + instance.asString -> "completed",
-      "health" -> "health",
-      "cacheInvalidation" -> "cache-invalidation",
-      "events" -> "events").foreach {
-      case (topic, topicConfigurationKey) =>
-        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey).isFailure) {
+    Seq(
+      ("completed" + instance.asString, "completed", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      ("health", "health", None),
+      ("cacheInvalidation", "cache-invalidation", None),
+      ("events", "events", None)).foreach {
+      case (topic, topicConfigurationKey, topicSize) =>
+        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, topicSize).isFailure) {
           abort(s"failure during msgProvider.ensureTopic for topic $topic")
         }
     }

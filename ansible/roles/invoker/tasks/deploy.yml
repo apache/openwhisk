@@ -235,7 +235,6 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
-      "CONFIG_whisk_activation_kafka_payload_max": "{{ limit_activation_kafka_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
       "CONFIG_whisk_invoker_protocol": "{{ invoker.protocol }}"
       "CONFIG_whisk_invoker_https_keystorePath": "/conf/{{ invoker.ssl.keystore.name }}"
