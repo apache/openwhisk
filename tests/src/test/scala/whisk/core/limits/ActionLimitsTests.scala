@@ -248,7 +248,10 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
 
     // Needs some bytes grace since activation message is not only the payload.
     val args = Map("p" -> ("a" * (allowedSize - 750).toInt).toJson)
+    val start = Instant.now
     val rr = wsk.action.invoke(name, args, blocking = true, expectedExitCode = TestUtils.SUCCESS_EXIT)
+    val finish = Instant.now
+    finish.toEpochMilli - start.toEpochMilli should be < 15000L
     val activation = wsk.parseJsonString(rr.respData).convertTo[ActivationResult]
 
     activation.response.success shouldBe true
@@ -284,10 +287,14 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       // this tests an active ack failure to post from invoker
       val args = Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson)
       val code = if (blocking) BadGateway.intValue else TestUtils.ACCEPTED
-      val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
       if (blocking) {
+        val start = Instant.now
+        val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
+        val finish = Instant.now
+        finish.toEpochMilli - start.toEpochMilli should be < 15000L
         checkResponse(wsk.parseJsonString(rr.respData).convertTo[ActivationResult])
       } else {
+        val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
         withActivation(wsk.activation, rr, totalWait = 120 seconds) { checkResponse(_) }
       }
     }
