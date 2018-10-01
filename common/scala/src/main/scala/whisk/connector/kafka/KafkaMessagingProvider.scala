@@ -45,8 +45,10 @@ object KafkaMessagingProvider extends MessagingProvider {
     actorSystem: ActorSystem): MessageConsumer =
     new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek)
 
-  def getProducer(config: WhiskConfig)(implicit logging: Logging, actorSystem: ActorSystem): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHosts)
+  def getProducer(config: WhiskConfig, maxRequestSize: Option[ByteSize] = None)(
+    implicit logging: Logging,
+    actorSystem: ActorSystem): MessageProducer =
+    new KafkaProducerConnector(config.kafkaHosts, maxRequestSize = maxRequestSize)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String, topicSize: Option[ByteSize] = None)(
     implicit logging: Logging): Try[Unit] = {
