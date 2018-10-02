@@ -143,11 +143,11 @@ object Invoker {
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
-    val topicSize = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
+    val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance = InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
-          .ensureTopic(config, topic = topicName, topicConfig = topicBaseName, topicSize = topicSize)
+          .ensureTopic(config, topic = topicName, topicConfig = topicBaseName, maxMessageBytes = maxMessageBytes)
           .isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic $topicName")
     }

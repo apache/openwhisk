@@ -100,8 +100,8 @@ class KafkaProducerConnector(
     val config = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahosts) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer)) ++
-      (maxRequestSize map { size =>
-        Map("max.request.size" -> size.size.toString)
+      (maxRequestSize map { max =>
+        Map("max.request.size" -> max.size.toString)
       } getOrElse Map.empty)
 
     verifyConfig(config, ProducerConfig.configNames().asScala.toSet)

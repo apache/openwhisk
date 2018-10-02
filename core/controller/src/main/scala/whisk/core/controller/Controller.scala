@@ -243,8 +243,8 @@ object Controller {
       ("health", "health", None),
       ("cacheInvalidation", "cache-invalidation", None),
       ("events", "events", None)).foreach {
-      case (topic, topicConfigurationKey, topicSize) =>
-        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, topicSize).isFailure) {
+      case (topic, topicConfigurationKey, maxMessageBytes) =>
+        if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, maxMessageBytes).isFailure) {
           abort(s"failure during msgProvider.ensureTopic for topic $topic")
         }
     }

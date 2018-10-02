@@ -50,13 +50,13 @@ object KafkaMessagingProvider extends MessagingProvider {
     actorSystem: ActorSystem): MessageProducer =
     new KafkaProducerConnector(config.kafkaHosts, maxRequestSize = maxRequestSize)
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String, topicSize: Option[ByteSize] = None)(
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String, maxMessageBytes: Option[ByteSize] = None)(
     implicit logging: Logging): Try[Unit] = {
     val kafkaConfig = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
     val topicConfig = KafkaConfiguration.configMapToKafkaConfig(
       loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + "." + topicConfigKey)) ++
-      (topicSize.map { size =>
-        Map(s"max.message.bytes" -> size.size.toString)
+      (maxMessageBytes.map { max =>
+        Map(s"max.message.bytes" -> max.size.toString)
       } getOrElse Map.empty)
 
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))

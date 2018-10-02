@@ -41,6 +41,6 @@ trait MessagingProvider extends Spi {
   def getProducer(config: WhiskConfig, maxRequestSize: Option[ByteSize] = None)(
     implicit logging: Logging,
     actorSystem: ActorSystem): MessageProducer
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String, topicSize: Option[ByteSize] = None)(
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String, maxMessageBytes: Option[ByteSize] = None)(
     implicit logging: Logging): Try[Unit]
 }
