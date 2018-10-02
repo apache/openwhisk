@@ -250,8 +250,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     val args = Map("p" -> ("a" * (allowedSize - 750).toInt).toJson)
     val start = Instant.now
     val rr = wsk.action.invoke(name, args, blocking = true, expectedExitCode = TestUtils.SUCCESS_EXIT)
-    val finish = Instant.now
-    finish.toEpochMilli - start.toEpochMilli should be < 15000L
+    Instant.now.toEpochMilli - start.toEpochMilli should be < 15000L // Ensure activation was not retrieved via DB polling
     val activation = wsk.parseJsonString(rr.respData).convertTo[ActivationResult]
 
     activation.response.success shouldBe true
@@ -290,8 +289,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       if (blocking) {
         val start = Instant.now
         val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
-        val finish = Instant.now
-        finish.toEpochMilli - start.toEpochMilli should be < 15000L
+        Instant.now.toEpochMilli - start.toEpochMilli should be < 15000L // Ensure activation was not retrieved via DB polling
         checkResponse(wsk.parseJsonString(rr.respData).convertTo[ActivationResult])
       } else {
         val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
