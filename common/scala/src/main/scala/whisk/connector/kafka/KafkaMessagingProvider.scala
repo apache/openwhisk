@@ -59,8 +59,6 @@ object KafkaMessagingProvider extends MessagingProvider {
         Map(s"max.message.bytes" -> size.size.toString)
       } getOrElse Map.empty)
 
-    logging.info(this, s"KAFKA CONFIG $topicConfig")
-
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
     val client = AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts))
     val partitions = 1
