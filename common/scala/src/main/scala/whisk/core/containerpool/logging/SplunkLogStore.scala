@@ -64,18 +64,12 @@ case class SplunkLogStoreConfig(host: String,
                                 logStreamField: String,
                                 logMessageField: String,
                                 activationIdField: String,
+                                queryConstraints: String,
                                 queryTimestampOffsetSeconds: Int,
                                 disableSNI: Boolean)
 case class SplunkResponse(results: Vector[JsObject])
 object SplunkResponseJsonProtocol extends DefaultJsonProtocol {
   implicit val orderFormat = jsonFormat1(SplunkResponse)
-}
-
-/**
- * Represents a single log line as read from a docker log
- */
-protected[core] case class SplunkLogLine(time: String, stream: String, log: String) {
-  def toFormattedString = f"$time%-30s $stream: ${log.trim}"
 }
 
 /**
@@ -116,7 +110,7 @@ class SplunkLogStore(
     //    {"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"}], "highlighted":{}}
     //note: splunk returns results in reverse-chronological order, therefore we include "| reverse" to cause results to arrive in chronological order
     val search =
-      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField}| reverse"""
+      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.queryConstraints} ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField}| reverse"""
 
     val entity = FormData(
       Map(

@@ -64,6 +64,7 @@ class SplunkLogStoreTests
     "log_stream",
     "log_message",
     "activation_id",
+    "somefield::somevalue",
     22,
     disableSNI = false)
 
@@ -119,7 +120,7 @@ class SplunkLogStoreTests
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
+                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
 
               (
                 Success(
