@@ -49,7 +49,7 @@ For more detailed instructions or if you encounter problems see the [OpenWhisk-d
 
 ### Kubernetes Setup
 
-Another path to quickly starting to use OpenWhisk is to install it on a Kubernetes cluster.  OpenWhisk can be installed on Minikube, on a managed Kubernetes cluster provisioned from a public cloud provider, or on a Kubernetes cluster you manage yourself. To get started,
+Another path to quickly starting to use OpenWhisk is to install it on a Kubernetes cluster.  On a Mac, you can use the Kubernetes support built into Docker 18.06 (or higher). You can also deploy OpenWhisk on Minikube, on a managed Kubernetes cluster provisioned from a public cloud provider, or on a Kubernetes cluster you manage yourself. To get started,
 
 ```
 git clone https://github.com/apache/incubator-openwhisk-deploy-kube.git
