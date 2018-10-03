@@ -121,8 +121,12 @@ The `wskadmin-next limits` commands allow you set action and trigger throttles p
 $ wskadmin-next limits get space1
 No limits found, default system limits apply
 
-# set limits
+# set limits on invocationsPerMinute
 $ wskadmin-next limits set --invocationsPerMinute 1 space1
+Limits successfully set for "space1"
+
+# set limits on allowedKinds
+$ wskadmin-next limits set --allowedKinds nodejs:6 python space1
 Limits successfully set for "space1"
 ```
 

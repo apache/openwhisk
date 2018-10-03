@@ -64,11 +64,22 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         validate = _ >= 0,
         name = "concurrentInvocations",
         noshort = true)
+    val allowedKinds =
+      opt[List[String]](
+        descr = "list of runtime kinds allowed in this namespace",
+        argName = "ALLOWEDKINDS",
+        name = "allowedKinds",
+        noshort = true,
+        default = None)
 
     lazy val limits: LimitEntity =
       new LimitEntity(
         EntityName(namespace()),
-        UserLimits(invocationsPerMinute.toOption, firesPerMinute.toOption, concurrentInvocations.toOption))
+        UserLimits(
+          invocationsPerMinute.toOption,
+          firesPerMinute.toOption,
+          concurrentInvocations.toOption,
+          allowedKinds.toOption.map(_.toSet)))
   }
   addSubcommand(set)
 
@@ -126,7 +137,8 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         val msg = Seq(
           l.concurrentInvocations.map(ci => s"concurrentInvocations =  $ci"),
           l.invocationsPerMinute.map(i => s"invocationsPerMinute = $i"),
-          l.firesPerMinute.map(i => s"firesPerMinute = $i")).flatten.mkString(Properties.lineSeparator)
+          l.firesPerMinute.map(i => s"firesPerMinute = $i"),
+          l.allowedKinds.map(k => s"allowedKinds = ${k.mkString(", ")}")).flatten.mkString(Properties.lineSeparator)
         Right(msg)
       }
       .recover {

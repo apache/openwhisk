@@ -49,10 +49,13 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       "7",
       "--concurrentInvocations",
       "11",
+      "--allowedKinds",
+      "nodejs:6",
+      "blackbox",
       ns) shouldBe CommandMessages.limitsSuccessfullySet(ns)
 
     val limits = limitsStore.get[LimitEntity](DocInfo(LimitsCommand.limitIdOf(EntityName(ns)))).futureValue
-    limits.limits shouldBe UserLimits(Some(3), Some(7), Some(11))
+    limits.limits shouldBe UserLimits(Some(3), Some(7), Some(11), Some(Set("nodejs:6", "blackbox")))
 
     resultOk("limits", "set", "--invocationsPerMinute", "13", ns) shouldBe CommandMessages.limitsSuccessfullyUpdated(ns)
 
@@ -74,6 +77,23 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
     val ns = newNamespace()
     resultOk("limits", "set", "--invocationsPerMinute", "13", ns)
     resultOk("limits", "get", ns) shouldBe "invocationsPerMinute = 13"
+
+    //Delete
+    resultOk("limits", "delete", ns) shouldBe CommandMessages.limitsDeleted
+
+    //Read after delete should result in default message
+    resultOk("limits", "get", ns) shouldBe CommandMessages.defaultLimits
+
+    //Delete of deleted namespace should result in error
+    resultNotOk("limits", "delete", ns) shouldBe CommandMessages.limitsNotFound(ns)
+  }
+
+  it should "update existing allowedKind limit" in {
+    val ns = newNamespace()
+    resultOk("limits", "set", "--allowedKinds", "nodejs:6", ns)
+    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:6"
+    resultOk("limits", "set", "--allowedKinds", "nodejs:6", "blackbox", "python", ns)
+    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:6, blackbox, python"
 
     //Delete
     resultOk("limits", "delete", ns) shouldBe CommandMessages.limitsDeleted

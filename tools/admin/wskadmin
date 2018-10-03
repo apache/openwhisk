@@ -131,6 +131,7 @@ def parseArgs():
     subcmd.add_argument('--invocationsPerMinute', help='invocations per minute allowed', type=int)
     subcmd.add_argument('--firesPerMinute', help='trigger fires per minute allowed', type=int)
     subcmd.add_argument('--concurrentInvocations', help='concurrent invocations allowed for this namespace', type=int)
+    subcmd.add_argument('--allowedKinds', help='list of runtime kinds allowed in this namespace', nargs='+', type=str)
 
     subcmd = subparser.add_parser('get', help='get limits for a given namespace (if none exist, system defaults apply)')
     subcmd.add_argument('namespace', help='the namespace to get limits for')
@@ -516,7 +517,7 @@ def setLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
     doc = dbDoc or {'_id': docId}
 
-    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations']
+    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds']
     for limit in limits:
         givenLimit = argsDict.get(limit)
         toSet = givenLimit if givenLimit != None else doc.get(limit)
@@ -535,7 +536,7 @@ def getLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
 
     if dbDoc is not None:
-        limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations']
+        limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds']
         for limit in limits:
             givenLimit = dbDoc.get(limit)
             if givenLimit != None:
