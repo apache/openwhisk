@@ -60,15 +60,20 @@ class SplunkLogStoreTests
     "splunk-user",
     "splunk-pass",
     "splunk-index",
+    "log_timestamp",
+    "log_stream",
     "log_message",
     "activation_id",
+    "somefield::somevalue",
+    22,
     disableSNI = false)
 
   behavior of "Splunk LogStore"
 
   val startTime = "2007-12-03T10:15:30Z"
+  val startTimePlusOffset = "2007-12-03T10:15:08Z" //queried end time range is endTime-22
   val endTime = "2007-12-03T10:15:45Z"
-  val endTimePlus5 = "2007-12-03T10:15:50Z" //queried end time range is endTime+5
+  val endTimePlusOffset = "2007-12-03T10:16:07Z" //queried end time range is endTime+22
   val uuid = UUID()
   val user =
     Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty)
@@ -110,12 +115,12 @@ class SplunkLogStoreTests
 
               request.uri.path.toString() shouldBe "/services/search/jobs"
               request.headers shouldBe List(Authorization.basic(testConfig.username, testConfig.password))
-              earliestTime shouldBe Some(startTime)
-              latestTime shouldBe Some(endTimePlus5)
+              earliestTime shouldBe Some(startTimePlusOffset)
+              latestTime shouldBe Some(endTimePlusOffset)
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logMessageField}| reverse""")
+                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
 
               (
                 Success(
@@ -123,7 +128,7 @@ class SplunkLogStoreTests
                     StatusCodes.OK,
                     entity = HttpEntity(
                       ContentTypes.`application/json`,
-                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"},{"log_message":"some other log message"}], "highlighted":{}}"""))),
+                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_timestamp": "2007-12-03T10:15:30Z", "log_stream":"stdout", "log_message":"some log message"},{"log_timestamp": "2007-12-03T10:15:31Z", "log_stream":"stderr", "log_message":"some other log message"}], "highlighted":{}}"""))),
                 userContext)
             }
             .recover {
@@ -148,7 +153,10 @@ class SplunkLogStoreTests
     //use the a flow that asserts the request structure and provides a response in the expected format
     val splunkStore = new SplunkLogStore(system, Some(testFlow), testConfig)
     val result = await(splunkStore.fetchLogs(activation, context))
-    result shouldBe ActivationLogs(Vector("some log message", "some other log message"))
+    result shouldBe ActivationLogs(
+      Vector(
+        "2007-12-03T10:15:30Z           stdout: some log message",
+        "2007-12-03T10:15:31Z           stderr: some other log message"))
   }
 
   it should "fail to connect to bogus host" in {

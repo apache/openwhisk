@@ -60,8 +60,12 @@ case class SplunkLogStoreConfig(host: String,
                                 username: String,
                                 password: String,
                                 index: String,
+                                logTimestampField: String,
+                                logStreamField: String,
                                 logMessageField: String,
                                 activationIdField: String,
+                                queryConstraints: String,
+                                queryTimestampOffsetSeconds: Int,
                                 disableSNI: Boolean)
 case class SplunkResponse(results: Vector[JsObject])
 object SplunkResponseJsonProtocol extends DefaultJsonProtocol {
@@ -106,16 +110,18 @@ class SplunkLogStore(
     //    {"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"}], "highlighted":{}}
     //note: splunk returns results in reverse-chronological order, therefore we include "| reverse" to cause results to arrive in chronological order
     val search =
-      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logMessageField}| reverse"""
+      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.queryConstraints} ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField}| reverse"""
 
     val entity = FormData(
       Map(
         "exec_mode" -> "oneshot",
         "search" -> search,
         "output_mode" -> "json",
-        "earliest_time" -> activation.start.toString, //assume that activation start/end are UTC zone, and splunk events are the same
+        "earliest_time" -> activation.start
+          .minusSeconds(splunkConfig.queryTimestampOffsetSeconds)
+          .toString, //assume that activation start/end are UTC zone, and splunk events are the same
         "latest_time" -> activation.end
-          .plusSeconds(5) //add 5s to avoid a timerange of 0 on short-lived activations
+          .plusSeconds(splunkConfig.queryTimestampOffsetSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
           .toString)).toEntity
 
     logging.debug(this, "sending request")
@@ -130,7 +136,11 @@ class SplunkLogStore(
           .map(r => {
             ActivationLogs(
               r.results
-                .map(_.fields(splunkConfig.logMessageField).convertTo[String]))
+                .map(l =>
+                  //format same as whisk.core.containerpool.logging.LogLine.toFormattedString
+                  f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
+                    .fields(splunkConfig.logStreamField)
+                    .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"))
           })
       })
   }
