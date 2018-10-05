@@ -1,12 +1,10 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 
-FROM node:alpine
+FROM node:slim
 
-RUN apk --no-cache add \
-  bash \
+RUN apt-get update && apt-get install -y \
   git \
-  libc6-compat \
   wget \
   zip
 

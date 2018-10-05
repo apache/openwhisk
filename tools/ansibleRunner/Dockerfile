@@ -1,27 +1,18 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 
-from alpine
+from debian:jessie-slim
 
 ENV DOCKER_VERSION 1.12.0
 
-RUN apk --no-cache add \
-  bash \
+RUN apt-get update && apt-get install -y \
   curl \
   git \
-  libc6-compat \
-  libffi \
-  openssl \
+  libffi-dev \
   python \
-  py-pip \
+  python-pip \
   wget \
   zip
-
-RUN apk --no-cache add --virtual build-dependencies \
-  python-dev \
-  build-base \
-  libffi-dev \
-  openssl-dev
 
 # Install docker client
 RUN wget --no-verbose https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz && \
@@ -33,7 +24,5 @@ RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
 RUN pip install ansible==2.5.2
 RUN pip install jinja2==2.9.6
-
-RUN apk del build-dependencies
 
 CMD ["/usr/bin/ansible-playbook", "/task/playbook.yml"]
