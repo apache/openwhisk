@@ -25,4 +25,4 @@ RUN pip install --upgrade setuptools
 RUN pip install ansible==2.5.2
 RUN pip install jinja2==2.9.6
 
-CMD ["/usr/bin/ansible-playbook", "/task/playbook.yml"]
+CMD ["/usr/local/bin/ansible-playbook", "/task/playbook.yml"]
