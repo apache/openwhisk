@@ -269,7 +269,7 @@ object InvokerPool {
 
   /** An action to use for monitoring invoker health. */
   def healthAction(i: ControllerInstanceId): Option[WhiskAction] =
-    ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
+    ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:default").map { manifest =>
       new WhiskAction(
         namespace = healthActionIdentity.namespace.name.toPath,
         name = EntityName(s"invokerHealthTestAction${i.asString}"),
