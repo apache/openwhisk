@@ -585,8 +585,7 @@ protected[actions] trait PrimitiveActions {
     val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.name.toPath, activationId))
     logging.debug(this, s"action activation will block for result upto $totalWaitTime")
 
-    // 1. Wait for the active-ack to happen. Either immediately resolve the promise or poll the database quickly
-    //    in case of an incomplete active-ack (record too large for example).
+    // 1. Wait for the active-ack to happen
     activeAckResponse.foreach {
       case Right(activation) => result.trySuccess(Right(activation))
       case _                 =>
