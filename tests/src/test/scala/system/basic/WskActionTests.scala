@@ -299,7 +299,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       val filePath = TestUtils.getTestActionFilename("hello.js")
       val code = FileUtils.readFileToString(new File(filePath), StandardCharsets.UTF_8)
-      val largeCode = code + " " * (10 * FileUtils.ONE_MB).toInt
+      val largeCode = code + " " * (WhiskProperties.getMaxActionSizeMB * FileUtils.ONE_MB).toInt
       val tmpFile = File.createTempFile("whisk", ".js")
       FileUtils.write(tmpFile, largeCode, StandardCharsets.UTF_8)
       val result = action.create(name, Some(tmpFile.getAbsolutePath))
