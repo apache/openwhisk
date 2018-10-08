@@ -26,7 +26,7 @@ import whisk.common.tracing.WhiskTracerProvider
 import whisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
 import whisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
 import whisk.core.controller.WhiskServices
-import whisk.core.database.ActivationStore
+import whisk.core.database.{ActivationStore, UserContext}
 import whisk.core.entitlement.{Resource, _}
 import whisk.core.entity.ActivationResponse.ERROR_FIELD
 import whisk.core.entity._
