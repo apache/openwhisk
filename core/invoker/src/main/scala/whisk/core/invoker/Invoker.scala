@@ -29,6 +29,7 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.{MessagingProvider, PingMessage}
 import whisk.core.entity.{ExecManifest, InvokerInstanceId}
+import whisk.core.entity.ActivationEntityLimit
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -142,12 +143,15 @@ object Invoker {
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
+    val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance = InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
+    if (msgProvider
+          .ensureTopic(config, topic = topicName, topicConfig = topicBaseName, maxMessageBytes = maxMessageBytes)
+          .isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic $topicName")
     }
-    val producer = msgProvider.getProducer(config)
+    val producer = msgProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)
     } catch {

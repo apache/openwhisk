@@ -27,7 +27,7 @@ import whisk.common.{Counter, Logging, TransactionId}
 import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.{Message, MessageProducer}
-import whisk.core.entity.UUIDs
+import whisk.core.entity.{ByteSize, UUIDs}
 import whisk.utils.Exceptions
 
 import scala.collection.JavaConverters._
@@ -35,8 +35,10 @@ import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
-                                                                                           actorSystem: ActorSystem)
+class KafkaProducerConnector(
+  kafkahosts: String,
+  id: String = UUIDs.randomUUID().toString,
+  maxRequestSize: Option[ByteSize] = None)(implicit logging: Logging, actorSystem: ActorSystem)
     extends MessageProducer
     with Exceptions {
 
@@ -97,7 +99,10 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
   private def createProducer(): KafkaProducer[String, String] = {
     val config = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahosts) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
-      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
+      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer)) ++
+      (maxRequestSize map { max =>
+        Map("max.request.size" -> max.size.toString)
+      } getOrElse Map.empty)
 
     verifyConfig(config, ProducerConfig.configNames().asScala.toSet)
 

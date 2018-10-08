@@ -299,7 +299,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
   }
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config)
+  private val messageProducer = messagingProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
 
   /** 3. Send the activation to the invoker */
   private def sendActivationToInvoker(producer: MessageProducer,
