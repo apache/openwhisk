@@ -81,6 +81,27 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
+  it should "find subject having multiple namespaces" in {
+    implicit val tid: TransactionId = transid()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
+    val ns1 = Namespace(aname(), uuid1)
+    val ns2 = Namespace(aname(), uuid2)
+
+    val auth = WhiskAuth(
+      Subject(ns1.name.name),
+      Set(
+        WhiskNamespace(ns1, BasicAuthenticationAuthKey(ak1.uuid, ak1.key)),
+        WhiskNamespace(ns2, BasicAuthenticationAuthKey(ak2.uuid, ak2.key))))
+
+    put(authStore, auth)
+
+    waitOnView(authStore, BasicAuthenticationAuthKey(ak1.uuid, ak1.key), 1)
+    Identity.get(authStore, ns1.name).futureValue.subject shouldBe auth.subject
+  }
+
   it should "find subject by namespace with limits" in {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
