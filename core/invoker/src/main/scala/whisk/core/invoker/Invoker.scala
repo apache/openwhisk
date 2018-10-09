@@ -25,11 +25,13 @@ import kamon.Kamon
 import pureconfig.loadConfigOrThrow
 import whisk.common.Https.HttpsConfig
 import whisk.common._
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.WhiskConfig._
 import whisk.core.connector.{MessagingProvider, PingMessage}
+import whisk.core.containerpool.ContainerPoolConfig
 import whisk.core.entity.{ExecManifest, InvokerInstanceId}
 import whisk.core.entity.ActivationEntityLimit
+import whisk.core.entity.size._
 import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -68,6 +70,7 @@ object Invoker {
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
@@ -143,8 +146,11 @@ object Invoker {
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
+
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName)
+    val invokerInstance =
+      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory)
+
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
           .ensureTopic(config, topic = topicName, topicConfig = topicBaseName, maxMessageBytes = maxMessageBytes)
@@ -153,7 +159,7 @@ object Invoker {
     }
     val producer = msgProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
     val invoker = try {
-      new InvokerReactive(config, invokerInstance, producer)
+      new InvokerReactive(config, invokerInstance, producer, poolConfig)
     } catch {
       case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
     }

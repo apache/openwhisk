@@ -30,7 +30,8 @@ import whisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
  */
 case class InvokerInstanceId(val instance: Int,
                              uniqueName: Option[String] = None,
-                             displayedName: Option[String] = None) {
+                             displayedName: Option[String] = None,
+                             val userMemory: ByteSize) {
   def toInt: Int = instance
 
   override def toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
@@ -43,7 +44,8 @@ case class ControllerInstanceId(val asString: String) {
 }
 
 object InvokerInstanceId extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat3(InvokerInstanceId.apply)
+  import whisk.core.entity.size.{serdes => xserds}
+  implicit val serdes = jsonFormat4(InvokerInstanceId.apply)
 }
 
 object ControllerInstanceId extends DefaultJsonProtocol {

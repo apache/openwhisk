@@ -38,8 +38,7 @@ import whisk.core.containerpool.docker.DockerApiWithFileAccess
 import whisk.core.containerpool.docker.DockerContainerFactory
 import whisk.core.containerpool.docker.DockerContainerFactoryConfig
 import whisk.core.containerpool.docker.RuncApi
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InvokerInstanceId
+import whisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
@@ -56,6 +55,8 @@ class DockerContainerFactoryTests
   ExecManifest.initialize(config) should be a 'success
 
   behavior of "DockerContainerFactory"
+
+  val defaultUserMemory: ByteSize = 1024.MB
 
   it should "set the docker run args based on ContainerArgsConfig" in {
 
@@ -104,7 +105,7 @@ class DockerContainerFactoryTests
 
     val factory =
       new DockerContainerFactory(
-        InvokerInstanceId(0),
+        InvokerInstanceId(0, userMemory = defaultUserMemory),
         Map.empty,
         ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("env" -> Set("e1", "e2"))),
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
