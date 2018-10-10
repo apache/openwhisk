@@ -77,8 +77,8 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         EntityName(namespace()),
         UserLimits(
           invocationsPerMinute.toOption,
-          firesPerMinute.toOption,
           concurrentInvocations.toOption,
+          firesPerMinute.toOption,
           allowedKinds.toOption.map(_.toSet)))
   }
   addSubcommand(set)
