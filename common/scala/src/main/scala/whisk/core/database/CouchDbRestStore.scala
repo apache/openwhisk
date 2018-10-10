@@ -555,10 +555,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
-    f.onFailure({
+    f.failed.foreach {
       case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
       case x                         => onFailure(x)
-    })
+    }
     f
   }
 }

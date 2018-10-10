@@ -238,9 +238,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .runWith(Sink.seq)
       .map(_.toList)
 
-    f.onSuccess({
-      case out => transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
-    })
+    f.foreach { out =>
+      transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
+    }
     reportFailure(f, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
   }
 
