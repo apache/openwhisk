@@ -296,7 +296,7 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
     val notBlocked = s"(NOT(IS_DEFINED(r.$BLOCKED)) OR r.$BLOCKED = false)"
     val (where, params) = startKey match {
       case (ns: String) :: Nil =>
-        (s"$notBlocked AND (r.$SUBJECT = @name OR n.$NAME = @name)", ("@name", ns) :: Nil)
+        (s"$notBlocked AND ((r.$SUBJECT = @name AND IS_DEFINED(r.$KEY)) OR n.$NAME = @name)", ("@name", ns) :: Nil)
       case (uuid: String) :: (key: String) :: Nil =>
         (
           s"$notBlocked AND ((r.$UUID = @uuid AND r.$KEY = @key) OR (n.$UUID = @uuid AND n.$KEY = @key))",
