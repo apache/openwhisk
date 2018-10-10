@@ -21,7 +21,6 @@ import java.util.Base64
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.language.reflectiveCalls
 import scala.util.Failure
 import scala.util.Try
 import org.junit.runner.RunWith
