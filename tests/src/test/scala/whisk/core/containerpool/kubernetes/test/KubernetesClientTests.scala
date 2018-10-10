@@ -26,7 +26,6 @@ import akka.stream.scaladsl.{Concat, Sink, Source}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.junit.runner.RunWith
@@ -79,7 +78,7 @@ class KubernetesClientTests
 
   /** Returns a KubernetesClient with a mocked result for 'executeProcess' */
   def kubernetesClient(fixture: => Future[String]) = {
-    new KubernetesClient()(global) {
+    new KubernetesClient()(executionContext) {
       override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
                                                                         as: ActorSystem) =
         fixture
@@ -89,7 +88,7 @@ class KubernetesClientTests
   def kubernetesContainer(id: ContainerId) =
     new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
       Future.successful("")
-    }, actorSystem, global, logging)
+    }, actorSystem, executionContext, logging)
 
   behavior of "KubernetesClient"
 
@@ -178,6 +177,7 @@ class KubernetesClientTests
 
 object KubernetesClientTests {
   import scala.language.implicitConversions
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   implicit def strToDate(str: String): Option[Instant] =
     KubernetesClient.parseK8STimestamp(str).toOption
