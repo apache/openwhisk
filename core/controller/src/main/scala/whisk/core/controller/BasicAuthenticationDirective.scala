@@ -53,7 +53,7 @@ object BasicAuthenticationDirective extends AuthenticationDirectiveProvider {
             logging.debug(this, s"authentication not valid")
             None
         }
-        future onFailure { case t => logging.error(this, s"authentication error: $t") }
+        future.failed.foreach(t => logging.error(this, s"authentication error: $t"))
         future
       }.toOption
     } getOrElse {

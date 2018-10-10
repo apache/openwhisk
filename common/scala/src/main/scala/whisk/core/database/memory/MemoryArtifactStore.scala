@@ -131,14 +131,13 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     val f = Future.fromTry(t)
 
-    f.onFailure({
+    f.failed.foreach {
       case _: DocumentConflictException =>
         transid.finished(this, start, s"[PUT] '$dbName', document: '$docinfoStr'; conflict.")
-    })
+      case _ =>
+    }
 
-    f.onSuccess({
-      case _ => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'")
-    })
+    f.foreach(_ => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'"))
 
     reportFailure(f, start, failure => s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'")
   }
@@ -239,9 +238,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }.toList
 
     val f = Future.sequence(r).map(_.flatten)
-    f.onSuccess({
-      case _ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
-    })
+    f.foreach(_ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}"))
     reportFailure(f, start, failure => s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'")
 
   }
@@ -270,10 +267,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     } else {
       val storedName = attachmentUri.path.toString()
       val f = attachmentStore.readAttachment(doc.id, storedName, sink)
-      f.onSuccess {
-        case _ =>
-          transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-      }
+      f.foreach(_ =>
+        transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'"))
       f
     }
   }

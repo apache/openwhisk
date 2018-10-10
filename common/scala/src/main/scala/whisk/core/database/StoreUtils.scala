@@ -38,11 +38,11 @@ private[database] object StoreUtils {
     implicit transid: TransactionId,
     logging: Logging,
     ec: ExecutionContext): Future[T] = {
-    f.onFailure({
+    f.failed.foreach {
       case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
       case x =>
         transid.failed(this, start, s"${failureMessage(x)} [${x.getClass.getSimpleName}]", ErrorLevel)
-    })
+    }
     f
   }
 
