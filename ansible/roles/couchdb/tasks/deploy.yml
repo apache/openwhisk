@@ -72,7 +72,7 @@
     user: "{{ db.credentials.admin.user }}"
     password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
-  when: (inventory_hostname == coordinator) and (couchdb.version|version_compare('2.0','>='))
+  when: (inventory_hostname == coordinator) and (couchdb.version is version_compare('2.0','>='))
 
 - name: enable the cluster setup mode
   uri:
