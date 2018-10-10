@@ -127,7 +127,7 @@ class MesosContainerFactoryTest
         containerArgsConfig,
         mesosConfig,
         (_, _) => testActor,
-        testTaskId)
+        testTaskId _)
 
     expectMsg(Subscribe)
     factory.createContainer(
@@ -173,7 +173,7 @@ class MesosContainerFactoryTest
         containerArgsConfig,
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
-        testTaskId)
+        testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
@@ -244,7 +244,7 @@ class MesosContainerFactoryTest
         new ContainerArgsConfig("bridge", Seq.empty, Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
-        testTaskId)
+        testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
