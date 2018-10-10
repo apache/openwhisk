@@ -111,6 +111,7 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
       case InfoLevel    => "INFO"
       case WarningLevel => "WARN"
       case ErrorLevel   => "ERROR"
+      case LogLevel(_)  => "UNKNOWN"
     }
 
     val logMessage = Seq(message).collect {
