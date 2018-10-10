@@ -110,7 +110,6 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     seq.foreach { js =>
       JsHelpers.getFieldPath(js, "value", "namespace").get shouldBe JsString(i1.namespace.name.asString)
     }
-    seq.size shouldBe 2
   }
 
   it should "find subject by namespace with limits" in {
