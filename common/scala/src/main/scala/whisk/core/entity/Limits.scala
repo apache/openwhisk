@@ -82,5 +82,5 @@ protected[core] object ActionLimits extends ArgNormalizer[ActionLimits] with Def
 
 protected[core] object TriggerLimits extends ArgNormalizer[TriggerLimits] with DefaultJsonProtocol {
 
-  override protected[core] implicit val serdes = jsonFormat0(TriggerLimits.apply)
+  override protected[core] implicit val serdes = jsonFormat0(TriggerLimits.apply _)
 }
