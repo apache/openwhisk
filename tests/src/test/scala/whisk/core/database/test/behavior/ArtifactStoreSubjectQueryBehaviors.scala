@@ -17,11 +17,12 @@
 
 package whisk.core.database.test.behavior
 
-import spray.json.{JsBoolean, JsObject}
+import spray.json.{JsBoolean, JsObject, JsString}
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.invoker.NamespaceBlacklist
+import whisk.utils.JsHelpers
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
@@ -99,7 +100,17 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     put(authStore, auth)
 
     waitOnView(authStore, BasicAuthenticationAuthKey(ak1.uuid, ak1.key), 1)
-    Identity.get(authStore, ns1.name).futureValue.subject shouldBe auth.subject
+
+    val i1 = Identity.get(authStore, ns1.name).futureValue
+    i1.subject shouldBe auth.subject
+    i1.namespace shouldBe ns1
+
+    //Also check if all results returned match the provided namespace
+    val seq = Identity.list(authStore, List(ns1.name.asString), limit = 100).futureValue
+    seq.foreach { js =>
+      JsHelpers.getFieldPath(js, "value", "namespace").get shouldBe JsString(i1.namespace.name.asString)
+    }
+    seq.size shouldBe 2
   }
 
   it should "find subject by namespace with limits" in {
