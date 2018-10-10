@@ -19,7 +19,7 @@ package common
 
 import java.io.File
 
-import scala.collection.JavaConversions.mapAsJavaMap
+import scala.collection.JavaConverters._
 import scala.collection.mutable.Buffer
 import org.scalatest.Matchers
 import TestUtils._
@@ -48,7 +48,7 @@ trait RunCliCmd extends Matchers {
              env: Map[String, String],
              fileStdin: Option[File],
              params: Seq[String]): RunResult = {
-    TestUtils.runCmd(expectedExitCode, dir, TestUtils.logger, env, fileStdin.getOrElse(null), params: _*)
+    TestUtils.runCmd(expectedExitCode, dir, TestUtils.logger, env.asJava, fileStdin.getOrElse(null), params: _*)
   }
 
   /**
