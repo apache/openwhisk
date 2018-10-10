@@ -17,7 +17,7 @@
 
 package whisk.core.database.cosmosdb
 
-import com.microsoft.azure.cosmosdb.Database
+import com.microsoft.azure.cosmosdb.{Database, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import pureconfig.loadConfigOrThrow
 import whisk.core.ConfigKeys
@@ -31,6 +31,7 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
 
   lazy val storeConfigTry = Try { loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb) }
   lazy val client = CosmosDBUtil.createClient(storeConfig)
+  val useExistingDB = java.lang.Boolean.getBoolean("whisk.cosmosdb.useExistingDB")
 
   def storeConfig = storeConfigTry.get
 
@@ -44,17 +45,43 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
   }
 
   protected def createTestDB() = {
+    if (useExistingDB) {
+      val db = getOrCreateDatabase()
+      println(s"Using existing database ${db.getId}")
+      db
+    } else {
+      val databaseDefinition = new Database
+      databaseDefinition.setId(generateDBName())
+      val db = client.createDatabase(databaseDefinition, null).blockingResult()
+      dbsToDelete += db
+      println(s"Created database ${db.getId}")
+      db
+    }
+  }
+
+  private def getOrCreateDatabase(): Database = {
+    client
+      .queryDatabases(querySpec(storeConfig.db), null)
+      .blockingOnlyResult()
+      .getOrElse {
+        client.createDatabase(newDatabase, null).blockingResult()
+      }
+  }
+
+  protected def querySpec(id: String) =
+    new SqlQuerySpec("SELECT * FROM root r WHERE r.id=@id", new SqlParameterCollection(new SqlParameter("@id", id)))
+
+  private def newDatabase = {
     val databaseDefinition = new Database
-    databaseDefinition.setId(generateDBName())
-    val db = client.createDatabase(databaseDefinition, null).blockingResult()
-    dbsToDelete += db
-    println(s"Credted database ${db.getId}")
-    db
+    databaseDefinition.setId(storeConfig.db)
+    databaseDefinition
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
-    dbsToDelete.foreach(db => client.deleteDatabase(db.getSelfLink, null).blockingResult())
+    if (!useExistingDB) {
+      dbsToDelete.foreach(db => client.deleteDatabase(db.getSelfLink, null).blockingResult())
+    }
     client.close()
   }
 }

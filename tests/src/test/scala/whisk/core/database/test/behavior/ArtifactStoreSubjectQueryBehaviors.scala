@@ -17,11 +17,12 @@
 
 package whisk.core.database.test.behavior
 
-import spray.json.{JsBoolean, JsObject}
+import spray.json.{JsBoolean, JsObject, JsString}
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.invoker.NamespaceBlacklist
+import whisk.utils.JsHelpers
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
@@ -79,6 +80,36 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     waitOnView(authStore, BasicAuthenticationAuthKey(ak1.uuid, ak2.key), 1)
     Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
+  }
+
+  it should "find subject having multiple namespaces" in {
+    implicit val tid: TransactionId = transid()
+    val uuid1 = UUID()
+    val uuid2 = UUID()
+    val ak1 = BasicAuthenticationAuthKey(uuid1, Secret())
+    val ak2 = BasicAuthenticationAuthKey(uuid2, Secret())
+    val ns1 = Namespace(aname(), uuid1)
+    val ns2 = Namespace(aname(), uuid2)
+
+    val auth = WhiskAuth(
+      Subject(ns1.name.name),
+      Set(
+        WhiskNamespace(ns1, BasicAuthenticationAuthKey(ak1.uuid, ak1.key)),
+        WhiskNamespace(ns2, BasicAuthenticationAuthKey(ak2.uuid, ak2.key))))
+
+    put(authStore, auth)
+
+    waitOnView(authStore, BasicAuthenticationAuthKey(ak1.uuid, ak1.key), 1)
+
+    val i1 = Identity.get(authStore, ns1.name).futureValue
+    i1.subject shouldBe auth.subject
+    i1.namespace shouldBe ns1
+
+    //Also check if all results returned match the provided namespace
+    val seq = Identity.list(authStore, List(ns1.name.asString), limit = 100).futureValue
+    seq.foreach { js =>
+      JsHelpers.getFieldPath(js, "value", "namespace").get shouldBe JsString(i1.namespace.name.asString)
+    }
   }
 
   it should "find subject by namespace with limits" in {
