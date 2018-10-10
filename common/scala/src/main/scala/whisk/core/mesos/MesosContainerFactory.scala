@@ -76,7 +76,7 @@ class MesosContainerFactory(config: WhiskConfig,
                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
                             mesosConfig: MesosConfig = loadConfigOrThrow[MesosConfig](ConfigKeys.mesos),
                             clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
-                            taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator)
+                            taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator _)
     extends ContainerFactory {
 
   val subscribeTimeout = 10.seconds
