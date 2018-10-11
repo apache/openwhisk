@@ -106,7 +106,7 @@ jmx:
   rmiBasePortInvoker: 18000
   user: "{{ jmxuser | default('jmxuser') }}"
   pass: "{{ jmxuser | default('jmxpass') }}"
-  jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
+  jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/home/owuser/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/home/owuser/jmxremote.access"
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:

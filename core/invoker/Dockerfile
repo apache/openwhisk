@@ -4,6 +4,8 @@
 FROM scala
 
 ENV DOCKER_VERSION 1.12.0
+ENV UID=1001 \
+    NOT_ROOT_USER=owuser
 
 RUN apk add --update openssl
 
@@ -20,6 +22,7 @@ ADD build/distributions/invoker.tar ./
 
 COPY init.sh /
 RUN chmod +x init.sh
+RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
 
 EXPOSE 8080
 CMD ["./init.sh", "0"]
