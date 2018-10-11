@@ -36,7 +36,7 @@ import whisk.http.Messages
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
@@ -130,14 +130,12 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }
 
     val f = Future.fromTry(t)
-
-    f.failed.foreach {
-      case _: DocumentConflictException =>
+    f.onComplete {
+      case Success(_) => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'")
+      case Failure(_: DocumentConflictException) =>
         transid.finished(this, start, s"[PUT] '$dbName', document: '$docinfoStr'; conflict.")
-      case _ =>
+      case Failure(_) =>
     }
-
-    f.foreach(_ => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'"))
 
     reportFailure(f, start, failure => s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'")
   }
