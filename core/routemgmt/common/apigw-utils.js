@@ -566,7 +566,7 @@ function setActionOperationInvocationDetails(swagger, endpoint, operationId, res
   var caseIdx = getCaseOperationIdx(caseArr, operationId);
   var operations = [operationId];
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype) + (responsetype === 'http' ? "$(request.path)" : ""));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype, true) );
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
   if (endpoint.action.secureKey) {
     _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[1].set-variable.actions[0].set', 'message.headers.X-Require-Whisk-Auth' );
@@ -599,12 +599,13 @@ function getCaseOperationIdx(caseArr, operationId) {
 //   parameters           - the parameters defined in the path, if any.
 // Returns:
 //   string               - web-action URL
-function makeWebActionBackendUrl(endpointAction, endpointResponseType) {
+function makeWebActionBackendUrl(endpointAction, endpointResponseType, isTargetUrl = false) {
   host = getHostFromActionUrl(endpointAction.backendUrl);
   ns = endpointAction.namespace;
   pkg = getPackageNameFromFqActionName(endpointAction.name) || 'default';
   name = getActionNameFromFqActionName(endpointAction.name);
-  return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType;
+  reqPath = isTargetUrl && endpointResponseType === 'http' ? "$(request.path)" : "";
+  return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType + reqPath;
 }
 
 /*
