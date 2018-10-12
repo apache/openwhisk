@@ -5,12 +5,15 @@ FROM scala
 
 ENV UID=1001 \
     NOT_ROOT_USER=owuser
+ENV SWAGGER_UI_DOWNLOAD_SHA256=3d7ef5ddc59e10f132fe99771498f0f1ba7a2cbfb9585f9863d4191a574c96e7 \
+    SWAGGER_UI_VERSION=3.6.0
 
 # Install swagger-ui
-RUN curl -sSL -o swagger-ui-v3.6.0.tar.gz --no-verbose https://github.com/swagger-api/swagger-ui/archive/v3.6.0.tar.gz && \
+RUN curl -sSL -o swagger-ui-v${SWAGGER_UI_VERSION}.tar.gz --no-verbose https://github.com/swagger-api/swagger-ui/archive/v${SWAGGER_UI_VERSION}.tar.gz && \
+    echo "${SWAGGER_UI_DOWNLOAD_SHA256}  swagger-ui-v${SWAGGER_UI_VERSION}.tar.gz" | sha256sum -c - && \
     mkdir swagger-ui && \
-    tar zxf swagger-ui-v3.6.0.tar.gz -C /swagger-ui --strip-components=2 swagger-ui-3.6.0/dist && \
-    rm swagger-ui-v3.6.0.tar.gz && \
+    tar zxf swagger-ui-v${SWAGGER_UI_VERSION}.tar.gz -C /swagger-ui --strip-components=2 swagger-ui-${SWAGGER_UI_VERSION}/dist && \
+    rm swagger-ui-v${SWAGGER_UI_VERSION}.tar.gz && \
     sed -i s#http://petstore.swagger.io/v2/swagger.json#/api/v1/api-docs#g /swagger-ui/index.html
 
 # Copy app jars
