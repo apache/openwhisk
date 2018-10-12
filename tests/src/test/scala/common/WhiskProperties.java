@@ -349,6 +349,10 @@ public class WhiskProperties {
         return osname.equalsIgnoreCase("linux");
     }
 
+    public static int getMaxActionSizeMB(){
+        return Integer.parseInt(getProperty("whisk.action.size.max", "10"));
+    }
+
     /**
      * python interpreter.
      */
@@ -395,6 +399,14 @@ public class WhiskProperties {
 
     private static boolean isWhiskPropertiesRequired() {
         return getPropFromSystemOrEnv(WHISK_SERVER) == null;
+    }
+
+    private static String getProperty(String key, String defaultValue) {
+        String value = getPropFromSystemOrEnv(key);
+        if (value == null) {
+            value = whiskProperties.getProperty(key, defaultValue);
+        }
+        return value;
     }
 
     private static String getPropFromSystemOrEnv(String key) {

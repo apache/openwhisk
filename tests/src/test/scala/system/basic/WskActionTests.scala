@@ -17,10 +17,14 @@
 
 package system.basic
 
+import java.io.File
+import java.nio.charset.StandardCharsets
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
+import org.apache.commons.io.FileUtils
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -289,4 +293,26 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       activation.logs.get.mkString(" ") should include(s"hello, $utf8")
     }
   }
+
+  it should "invoke action with large code" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "big-hello"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      val filePath = TestUtils.getTestActionFilename("hello.js")
+      val code = FileUtils.readFileToString(new File(filePath), StandardCharsets.UTF_8)
+      val largeCode = code + " " * (WhiskProperties.getMaxActionSizeMB * FileUtils.ONE_MB).toInt
+      val tmpFile = File.createTempFile("whisk", ".js")
+      FileUtils.write(tmpFile, largeCode, StandardCharsets.UTF_8)
+      val result = action.create(name, Some(tmpFile.getAbsolutePath))
+      tmpFile.delete()
+      result
+    }
+
+    val hello = "hello"
+    val run = wsk.action.invoke(name, Map("payload" -> hello.toJson))
+    withActivation(wsk.activation, run) { activation =>
+      activation.response.status shouldBe "success"
+      activation.logs.get.mkString(" ") should include(s"hello, $hello")
+    }
+  }
+
 }
