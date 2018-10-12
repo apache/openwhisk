@@ -41,7 +41,7 @@ private[database] object StoreUtils {
     f.onFailure({
       case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
       case x =>
-        transid.failed(this, start, s"${failureMessage(x)}[${x.getClass.getSimpleName}]", ErrorLevel)
+        transid.failed(this, start, s"${failureMessage(x)} [${x.getClass.getSimpleName}]", ErrorLevel)
     })
     f
   }
