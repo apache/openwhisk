@@ -43,6 +43,9 @@ fi
 if [ -n "$config" ]
 then
     location="/config.conf"
+    if [ -n "$NOT_ROOT_USER" ]; then
+        location="/home/$NOT_ROOT_USER/config.conf"
+    fi
     printf "%s" "$config" > "$location"
     props+=("-Dconfig.file='$location'")
 fi
