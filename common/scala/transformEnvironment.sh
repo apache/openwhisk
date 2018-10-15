@@ -42,7 +42,7 @@ fi
 
 if [ -n "$config" ]
 then
-    location="/config.conf"
+    location="$HOME/config.conf"
     printf "%s" "$config" > "$location"
     props+=("-Dconfig.file='$location'")
 fi
