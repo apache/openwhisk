@@ -127,11 +127,11 @@ class DockerClient(dockerHost: Option[String] = None,
         .map(ContainerId.apply)
         .recoverWith {
           // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
-          // Exit code 125 means an error reported by the Docker daemon.
+          // Exit status 125 means an error reported by the Docker daemon.
           // Examples:
           // - Unrecognized option specified
           // - Not enough disk space
-          case pre: ProcessRunningException if pre.exitCode == 125 =>
+          case pre: ProcessRunningException if pre.exitStatus == ExitStatus(125) =>
             Future.failed(
               DockerContainerId
                 .parse(pre.stdout)
@@ -189,6 +189,8 @@ class DockerClient(dockerHost: Option[String] = None,
       logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start)
+      case Failure(pte: ProcessTimeoutException) =>
+        transid.failed(this, start, pte.getMessage, ErrorLevel)
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }
