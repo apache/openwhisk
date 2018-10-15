@@ -202,7 +202,7 @@ class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil with WskActorSyst
     val openwhisk = RestResult.getFieldJsObject(urlop, "x-openwhisk")
     val actionN = RestResult.getField(openwhisk, "action")
     actionN shouldBe actionName
-    rr.stdout should include regex (s""""target-url":\\s*".*${actionName}.${responseType}"""")
+    rr.stdout should include regex (s""""target-url":\\s*".*${actionName}.${responseType}.*"""")
   }
 
   override def verifyInvalidSwagger(rr: RunResult): Unit = {
