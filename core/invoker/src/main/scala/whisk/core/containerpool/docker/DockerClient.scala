@@ -33,9 +33,7 @@ import scala.util.Success
 import scala.util.Try
 import akka.event.Logging.{ErrorLevel, InfoLevel}
 import pureconfig.loadConfigOrThrow
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
@@ -191,6 +189,7 @@ class DockerClient(dockerHost: Option[String] = None,
       case Success(_) => transid.finished(this, start)
       case Failure(pte: ProcessTimeoutException) =>
         transid.failed(this, start, pte.getMessage, ErrorLevel)
+        MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_DOCKER_CMD_TIMEOUT(args.head))
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }
