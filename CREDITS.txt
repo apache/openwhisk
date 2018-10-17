@@ -75,5 +75,14 @@ project by both companies.
 
 * openwhisk-apigateway: A performant API Gateway based on Openresty and NGINX.
 
+The OpenWhisk Composer project code was originally created, designed, developed (under an
+IBM copyright dated 2017-2018) and donated in October 2018 by the IBM Corporation (http://www.ibm.com/)
+to the Apache Software Foundation (ASF). The following repositories were included in
+the initial donation:
+
+* openwhisk-composer:
+  * A new programming model for composing cloud functions built on Apache OpenWhisk
+
+
                           The Apache OpenWhisk Community
                        http://openwhisk.incubator.apache.org/
