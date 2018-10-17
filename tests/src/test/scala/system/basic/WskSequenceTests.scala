@@ -33,7 +33,7 @@ import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
-import whisk.http.Messages.sequenceIsTooLong
+import org.apache.openwhisk.http.Messages.sequenceIsTooLong
 
 /**
  * Tests sequence execution

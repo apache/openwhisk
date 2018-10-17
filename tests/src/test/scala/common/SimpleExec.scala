@@ -17,7 +17,7 @@
 
 package common
 
-import whisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, TransactionId}
 
 import scala.sys.process.{stringSeqToProcess, ProcessLogger}
 

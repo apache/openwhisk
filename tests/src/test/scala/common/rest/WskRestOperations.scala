@@ -64,8 +64,8 @@ import common.TestUtils.RunResult
 import common.WaitFor
 import common.WhiskProperties
 import common.WskProps
-import whisk.core.entity.ByteSize
-import whisk.utils.retry
+import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.utils.retry
 import javax.net.ssl._
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import java.nio.charset.StandardCharsets
@@ -74,8 +74,8 @@ import java.security.KeyStore
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
-import whisk.common.Https.HttpsConfig
-import whisk.common.AkkaLogging
+import org.apache.openwhisk.common.Https.HttpsConfig
+import org.apache.openwhisk.common.AkkaLogging
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true

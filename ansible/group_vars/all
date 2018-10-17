@@ -36,7 +36,7 @@ whisk:
     date: "{{ansible_date_time.iso8601}}"
 
 ##
-# configuration parameters related to support runtimes (see whisk.core.entity.ExecManifest for schema of the manifest).
+# configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).
 # briefly the parameters are:
 #
 #   runtimes_registry: optional registry (with trailing slack) where to pull docker images from for runtimes and backbox images
@@ -199,7 +199,7 @@ invoker:
       name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
 
 userLogs:
-  spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
+  spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"

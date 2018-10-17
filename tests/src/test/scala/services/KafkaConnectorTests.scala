@@ -27,11 +27,11 @@ import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import whisk.common.TransactionId
-import whisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
-import whisk.core.WhiskConfig
-import whisk.core.connector.Message
-import whisk.utils.{retry, ExecutionContextFactory}
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.connector.Message
+import org.apache.openwhisk.utils.{retry, ExecutionContextFactory}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext}

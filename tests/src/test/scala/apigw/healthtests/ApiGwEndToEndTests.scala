@@ -178,7 +178,7 @@ abstract class ApiGwEndToEndTests
       val start = java.lang.System.currentTimeMillis
       val apiToInvoke = s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue&guid=$start"
       println(s"Invoking: '${apiToInvoke}'")
-      val response = whisk.utils.retry({
+      val response = org.apache.openwhisk.utils.retry({
         val response = RestAssured.given().config(sslconfig).get(s"$apiToInvoke")
         println("URL invocation response status: " + response.statusCode)
         response.statusCode should be(200)

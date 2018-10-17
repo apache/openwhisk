@@ -25,7 +25,7 @@ import common.rest.WskRestOperations
 import common.rest.RestResult
 import common.WskActorSystem
 
-import whisk.utils.retry
+import org.apache.openwhisk.utils.retry
 
 import scala.concurrent.duration._
 

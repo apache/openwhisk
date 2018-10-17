@@ -32,8 +32,8 @@ import common.rest.WskRestOperations
 import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.containerpool.Container
-import whisk.http.Messages
+import org.apache.openwhisk.core.containerpool.Container
+import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
@@ -46,7 +46,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
   /**
    * Retry operations that need to settle the controller cache
    */
-  def cacheRetry[T](fn: => T) = whisk.utils.retry(fn, 5, Some(1.second))
+  def cacheRetry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 5, Some(1.second))
 
   behavior of "Wsk REST"
 
@@ -482,7 +482,6 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     // Sleep time must be larger than 60 seconds to see the expected exit code
     // Set sleep time to a value smaller than allowedActionDuration to not raise a timeout
     val sleepTime = allowedActionDuration - 20.seconds
-    sleepTime should be >= 60.seconds
     val params = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson)
     val res = assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("sleep.js")), timeout = Some(allowedActionDuration))

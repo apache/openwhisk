@@ -37,9 +37,9 @@ import common.rest.WskRestOperations
 import common.WskAdmin.wskadmin
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.http.Messages._
-import whisk.utils.ExecutionContextFactory
-import whisk.utils.retry
+import org.apache.openwhisk.http.Messages._
+import org.apache.openwhisk.utils.ExecutionContextFactory
+import org.apache.openwhisk.utils.retry
 
 import scala.util.{Success, Try}
 

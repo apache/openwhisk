@@ -55,4 +55,4 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-mainClassName = "whisk.core.invoker.Invoker"
+mainClassName = "org.apache.openwhisk.core.invoker.Invoker"
