@@ -117,11 +117,19 @@ class InvokerReactive(
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
                      controllerInstance: ControllerInstanceId,
-                     userId: UUID) => {
+                     userId: UUID,
+                     isSlotFree: Boolean) => {
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-      val msg = CompletionMessage(transid, res, instance)
+      val msg = if (isSlotFree) {
+        val aid = res.fold(identity, _.activationId)
+        val isWhiskSystemError = res.fold(_ => false, _.response.isWhiskError)
+        CompletionMessage(transid, aid, isWhiskSystemError, instance)
+      } else {
+        ResultMessage(transid, res)
+      }
+
       producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
           logging.info(
@@ -130,7 +138,8 @@ class InvokerReactive(
       }
     }
 
-    if (UserEvents.enabled) {
+    // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
+    if (UserEvents.enabled && isSlotFree) {
       EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
         case Success(msg) => UserEvents.send(producer, msg)
         case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
@@ -223,7 +232,7 @@ class InvokerReactive(
                 val context = UserContext(msg.user)
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid)
+                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid, true)
                 store(msg.transid, activation, context)
                 Future.successful(())
             }
@@ -233,7 +242,7 @@ class InvokerReactive(
           activationFeed ! MessageFeed.Processed
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid)
+          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid, true)
           logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }
