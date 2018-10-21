@@ -82,7 +82,7 @@ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/whi
 
 In this example the authentication was passed using the `-u` flag, you can pass this value also as part of the URL as `https://$AUTH@{APIHOST}`
 
-The OpenWhisk API supports request-response calls from web clients. OpenWhisk responds to `OPTIONS` requests with Cross-Origin Resource Sharing headers. Currently, all origins are allowed (that is, Access-Control-Allow-Origin is "`*`"), the standard set of methods are allowed (that is, Access-Control-Allow-Methods is "`GET, DELETE, POST, PUT, HEAD`"), and Access-Control-Allow-Headers yields "`*`".
+The OpenWhisk API supports request-response calls from web clients. OpenWhisk responds to `OPTIONS` requests with Cross-Origin Resource Sharing headers. Currently, all origins are allowed (that is, Access-Control-Allow-Origin is "`*`"), the standard set of methods are allowed (that is, Access-Control-Allow-Methods is "`GET, DELETE, POST, PUT, HEAD`"), and Access-Control-Allow-Headers yields "`Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent`".
 
 **Attention:** Because OpenWhisk currently supports only one key per namespace, it is not recommended to use CORS beyond simple experiments. Use [Web Actions](webactions.md) or [API Gateway](apigateway.md) to expose your actions to the public and not use the OpenWhisk authorization key for client applications that require CORS.
 

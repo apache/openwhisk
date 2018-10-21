@@ -1502,7 +1502,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                 if (testHeader.name == `Access-Control-Request-Headers`.name) {
                   header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: x-custom-header"
                 } else {
-                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: *"
+                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent"
                 }
               }
             }

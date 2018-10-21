@@ -40,7 +40,7 @@ import akka.http.scaladsl.model.headers.`Timeout-Access`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
+import akka.http.scaladsl.model.HttpMethods.{OPTIONS}
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpResponse
 import spray.json._
@@ -353,7 +353,12 @@ protected[core] object WhiskWebActionsApi extends Directives {
     headers.filter(_.lowercaseName != `Content-Type`.lowercaseName)
 }
 
-trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostActionActivation with CustomHeaders {
+trait WhiskWebActionsApi
+    extends Directives
+    with ValidateRequestSize
+    with PostActionActivation
+    with CustomHeaders
+    with CorsSettings.WebActions {
   services: WhiskServices =>
 
   /** API path invocation path for posting activations directly through the host. */
@@ -380,10 +385,10 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
 
   private val defaultCorsBaseResponse =
-    List(`Access-Control-Allow-Origin`.*, `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH))
+    List(allowOrigin, allowMethods)
 
   private val defaultCorsWithAllowHeader = {
-    defaultCorsBaseResponse :+ `Access-Control-Allow-Headers`("*")
+    defaultCorsBaseResponse :+ allowHeaders
   }
 
   private def defaultCorsResponse(headers: Seq[HttpHeader]): List[HttpHeader] = {
