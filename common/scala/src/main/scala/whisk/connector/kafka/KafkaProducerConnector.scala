@@ -33,7 +33,7 @@ import whisk.utils.Exceptions
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class KafkaProducerConnector(
   kafkahosts: String,
@@ -55,12 +55,16 @@ class KafkaProducerConnector(
 
     Future {
       blocking {
-        producer.send(record, new Callback {
+        Try(producer.send(record, new Callback {
           override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
             if (exception == null) produced.success(metadata)
             else produced.failure(exception)
           }
-        })
+        })).recover {
+          case e: Exception =>
+            logging.error(this, e.getMessage)
+            produced.failure(e)
+        }
       }
     }
 
