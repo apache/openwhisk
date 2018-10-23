@@ -352,8 +352,8 @@ class DockerContainerTests
     val suspend = container.suspend()
     val resume = container.resume()
 
-    Await.result(suspend, 500.milliseconds)
-    Await.result(resume, 500.milliseconds)
+    await(suspend)
+    await(resume)
 
     docker.unpauses should have size 0
     docker.pauses should have size 0
@@ -372,8 +372,8 @@ class DockerContainerTests
     val suspend = container.suspend()
     val resume = container.resume()
 
-    Await.result(suspend, 500.milliseconds)
-    Await.result(resume, 500.milliseconds)
+    await(suspend)
+    await(resume)
 
     docker.unpauses should have size 1
     docker.pauses should have size 1
