@@ -343,31 +343,43 @@ class DockerContainerTests
    * DOCKER COMMANDS
    */
   it should "pause and resume container via runc" in {
-    implicit val docker = stub[DockerApiWithFileAccess]
-    implicit val runc = stub[RuncApi]
+    implicit val docker = new TestDockerClient
+    implicit val runc = new TestRuncClient
 
     val id = ContainerId("id")
     val container = new DockerContainer(id, ContainerAddress("ip"), true)
 
-    container.suspend()
-    container.resume()
+    val suspend = container.suspend()
+    val resume = container.resume()
 
-    (runc.pause(_: ContainerId)(_: TransactionId)).verify(id, transid)
-    (runc.resume(_: ContainerId)(_: TransactionId)).verify(id, transid)
+    await(suspend)
+    await(resume)
+
+    docker.unpauses should have size 0
+    docker.pauses should have size 0
+
+    runc.pauses should have size 1
+    runc.resumes should have size 1
   }
 
   it should "pause and unpause container via docker" in {
-    implicit val docker = stub[DockerApiWithFileAccess]
-    implicit val runc = stub[RuncApi]
+    implicit val docker = new TestDockerClient
+    implicit val runc = new TestRuncClient
 
     val id = ContainerId("id")
     val container = new DockerContainer(id, ContainerAddress("ip"), false)
 
-    container.suspend()
-    container.resume()
+    val suspend = container.suspend()
+    val resume = container.resume()
 
-    (docker.pause(_: ContainerId)(_: TransactionId)).verify(id, transid)
-    (docker.unpause(_: ContainerId)(_: TransactionId)).verify(id, transid)
+    await(suspend)
+    await(resume)
+
+    docker.unpauses should have size 1
+    docker.pauses should have size 1
+
+    runc.pauses should have size 0
+    runc.resumes should have size 0
   }
 
   it should "destroy a container via Docker" in {
@@ -768,6 +780,21 @@ class DockerContainerTests
     val processedLogsFalse = awaitLogs(container.logs(limit = 1.MB, waitForSentinel = false))
     processedLogsFalse should have size 1
     processedLogsFalse(0) shouldBe expectedLogEntry.toFormattedString
+  }
+
+  class TestRuncClient extends RuncApi {
+    var resumes = mutable.Buffer.empty[ContainerId]
+    var pauses = mutable.Buffer.empty[ContainerId]
+
+    override def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
+      resumes += id
+      Future.successful(())
+    }
+
+    override def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
+      pauses += id
+      Future.successful(())
+    }
   }
 
   class TestDockerClient extends DockerApiWithFileAccess {
