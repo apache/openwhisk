@@ -672,25 +672,13 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Gets action from datastore.
-   * if it is in a package, then resolve and merge parameters only,
-   * except for annotations.
-   *
-   * @return future action document
-   */
-  private def resolveActionAndMergeParameters(actionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, actionName)
-  }
-
-  /**
    * Gets the action if it exists and fail future with RejectRequest if it does not.
    *
    * @return future action document or NotFound rejection
    */
   private def actionLookup(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    resolveActionAndMergeParameters(actionName) recoverWith {
+    WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, actionName) recoverWith {
       case _: ArtifactStoreException | DeserializationException(_, _, _) =>
         Future.failed(RejectRequest(NotFound))
     }
