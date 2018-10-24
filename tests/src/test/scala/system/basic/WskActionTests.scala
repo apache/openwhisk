@@ -242,8 +242,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
 
       wsk.action.create(name, Some(TestUtils.getTestActionFilename("hello.py")), update = true)
 
-      val run2 = wsk.action.invoke(name)
-      withActivation(wsk.activation, run2) { activation =>
+      val run = wsk.action.invoke(name)
+      withActivation(wsk.activation, run) { activation =>
         activation.response.status shouldBe "success"
         activation.logs.get.mkString(" ") should include(s"Hello $testString")
       }
