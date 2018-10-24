@@ -571,8 +571,8 @@ case class ShardingContainerPoolBalancerState(
 
     // for small N, allow the managed invokers to overlap with blackbox invokers, and
     // further assume that blackbox invokers << managed invokers
-    val managed = Math.max(1, Math.ceil(newSize.toDouble * (1 - blackboxFraction)).toInt)
-    val blackboxes = Math.max(1, Math.floor(newSize.toDouble * blackboxFraction).toInt)
+    val blackboxes = Math.max(1, Math.round(newSize.toDouble * blackboxFraction).toInt)
+    val managed = Math.max(1, newSize - blackboxes)
 
     _invokers = newInvokers
     _managedInvokers = _invokers.take(managed)

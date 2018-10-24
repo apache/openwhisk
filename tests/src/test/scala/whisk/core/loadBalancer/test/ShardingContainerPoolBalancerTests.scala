@@ -96,26 +96,23 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   }
 
   it should "allow managed partition to overlap with blackbox for small N" in {
-    Seq(0.1, 0.2, 0.3, 0.4, 0.5).foreach { bf =>
+    Seq(0.1, 0.2, 0.3, 0.4, 0.5, 0.9, 0.99).foreach { bf =>
       val state = ShardingContainerPoolBalancerState()(lbConfig(bf))
 
       (1 to 100).toSeq.foreach { i =>
-        state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.stdMemory)))
+        state.updateInvokers((1 to i).map(i => healthy(i, MemoryLimit.stdMemory)))
 
         withClue(s"invoker count $bf $i:") {
-          state.managedInvokers.length should be <= i
-          state.blackboxInvokers should have size Math.max(1, (bf * i).toInt)
+          state.blackboxInvokers should have size Math.max(1, Math.round(bf * i).toInt)
+          state.managedInvokers should have size Math.max(1, i - state.blackboxInvokers.length)
 
           val m = state.managedInvokers.length
           val b = state.blackboxInvokers.length
-          bf match {
-            // written out explicitly for clarity
-            case 0.1 if i < 10 => m + b shouldBe i + 1
-            case 0.2 if i < 5  => m + b shouldBe i + 1
-            case 0.3 if i < 4  => m + b shouldBe i + 1
-            case 0.4 if i < 3  => m + b shouldBe i + 1
-            case 0.5 if i < 2  => m + b shouldBe i + 1
-            case _             => m + b shouldBe i
+
+          if (i == 1 || Math.round(bf * i).toInt == i) {
+            m + b shouldBe i + 1
+          } else {
+            m + b shouldBe i
           }
         }
       }
