@@ -86,7 +86,8 @@ object KubernetesContainer {
  * @param workerIP the ip of the workernode on which the container is executing
  * @param nativeContainerId the docker/containerd lowlevel id for the container
  */
-class KubernetesContainer(protected[core] val id: ContainerId,
+class KubernetesContainer(protected[core] var _name: String,
+                          protected[core] val id: ContainerId,
                           protected[core] val addr: ContainerAddress,
                           protected[core] val workerIP: String,
                           protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
@@ -138,4 +139,9 @@ class KubernetesContainer(protected[core] val id: ContainerId,
       .takeWithin(waitForLogs)
       .map { _.toByteString }
   }
+
+  /** Rename container. */
+  override def rename(name: String)(implicit transid: TransactionId): Future[Unit] =
+    // rename currently not supported
+    Future.successful(Unit)
 }

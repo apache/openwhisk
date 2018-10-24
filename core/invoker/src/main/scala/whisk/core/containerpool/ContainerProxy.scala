@@ -331,6 +331,19 @@ class ContainerProxy(
   }
 
   /**
+   * Checks whether container name is "prewarmed"
+   *
+   * @param suffix the container name's suffix
+   * @return a unique container name
+   */
+  def isPrewarmed(name: String, instance: InvokerInstanceId, suffix: String): Boolean = {
+    val sanitizedSuffix = suffix.filter(ContainerProxy.isAllowed)
+
+    return name.startsWith(s"${ContainerFactory.containerNamePrefix(instance)}_") && name.endsWith(
+      s"_prewarm_${sanitizedSuffix}")
+  }
+
+  /**
    * Runs the job, initialize first if necessary.
    * Completes the job by:
    * 1. sending an activate ack,
@@ -349,7 +362,15 @@ class ContainerProxy(
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
       case data: WarmedData => Future.successful(None)
-      case _                => container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
+      case _                =>
+        // check if container has generic "prewarm" name
+        if (isPrewarmed(container.name, instance, job.action.exec.kind)) {
+          // now rename container to action based name
+          val newName =
+            ContainerProxy.containerName(instance, job.msg.user.namespace.name.asString, job.action.name.asString)
+          container.rename(newName)
+        }
+        container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
     }
 
     val activation: Future[WhiskActivation] = initialize
@@ -450,6 +471,8 @@ object ContainerProxy {
 
   val timeouts = loadConfigOrThrow[ContainerProxyTimeoutConfig](ConfigKeys.containerProxyTimeouts)
 
+  def isAllowed(c: Char): Boolean = c.isLetterOrDigit || c == '_'
+
   /**
    * Generates a unique container name.
    *
@@ -458,8 +481,6 @@ object ContainerProxy {
    * @return a unique container name
    */
   def containerName(instance: InvokerInstanceId, prefix: String, suffix: String): String = {
-    def isAllowed(c: Char): Boolean = c.isLetterOrDigit || c == '_'
-
     val sanitizedPrefix = prefix.filter(isAllowed)
     val sanitizedSuffix = suffix.filter(isAllowed)
 

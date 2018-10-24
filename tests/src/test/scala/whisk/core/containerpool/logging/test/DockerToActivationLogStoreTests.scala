@@ -98,6 +98,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
   }
 
   class TestContainer(lines: Source[ByteString, Any],
+                      var _name: String = "test",
                       val id: ContainerId = ContainerId("test"),
                       val addr: ContainerAddress = ContainerAddress("test", 1234))(implicit val ec: ExecutionContext,
                                                                                    val logging: Logging)
@@ -108,5 +109,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId) = lines
 
     override implicit protected val as: ActorSystem = actorSystem
+
+    def rename(name: String)(implicit transid: TransactionId): Future[Unit] = ???
   }
 }

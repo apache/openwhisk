@@ -106,7 +106,7 @@ class DockerContainerTests
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     awaitLogs: FiniteDuration = 2.seconds)(implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
-    new DockerContainer(id, addr, true) {
+    new DockerContainer("test", id, addr, true) {
       override protected def callContainer(
         path: String,
         body: JsObject,
@@ -181,7 +181,11 @@ class DockerContainerTests
     implicit val runc = stub[RuncApi]
 
     val container =
-      DockerContainer.create(transid = transid, image = Left(ImageName("image")), dockerRunParameters = parameters)
+      DockerContainer.create(
+        transid = transid,
+        image = Left(ImageName("image")),
+        name = Some("myContainer"),
+        dockerRunParameters = parameters)
     await(container)
 
     docker.pulls should have size 1
@@ -303,6 +307,7 @@ class DockerContainerTests
       DockerContainer.create(
         transid = transid,
         image = Left(ImageName("image", tag = Some("prod"))),
+        name = Some("myContainer"),
         dockerRunParameters = parameters)
 
     noException should be thrownBy await(container)
@@ -347,7 +352,7 @@ class DockerContainerTests
     implicit val runc = new TestRuncClient
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerAddress("ip"), true)
+    val container = new DockerContainer("test", id, ContainerAddress("ip"), true)
 
     val suspend = container.suspend()
     val resume = container.resume()
@@ -367,7 +372,7 @@ class DockerContainerTests
     implicit val runc = new TestRuncClient
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerAddress("ip"), false)
+    val container = new DockerContainer("test", id, ContainerAddress("ip"), false)
 
     val suspend = container.suspend()
     val resume = container.resume()
@@ -387,7 +392,7 @@ class DockerContainerTests
     implicit val runc = stub[RuncApi]
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerAddress("ip"), true)
+    val container = new DockerContainer("test", id, ContainerAddress("ip"), true)
 
     container.destroy()
 
@@ -849,5 +854,7 @@ class DockerContainerTests
       rawContainerLogsInvocations += ((containerId, fromPos, pollInterval))
       Source.single(ByteString.empty)
     }
+
+    def rename(id: ContainerId, name: String)(implicit transid: TransactionId): Future[Unit] = Future.successful(())
   }
 }

@@ -64,6 +64,7 @@ object Container {
 
 trait Container {
 
+  protected var _name: String
   implicit protected val as: ActorSystem
   protected val id: ContainerId
   protected val addr: ContainerAddress
@@ -72,6 +73,8 @@ trait Container {
 
   /** HTTP connection to the container, will be lazily established by callContainer */
   protected var httpConnection: Option[ContainerClient] = None
+
+  def name = _name
 
   /** Stops the container from consuming CPU cycles. */
   def suspend()(implicit transid: TransactionId): Future[Unit] = {
@@ -199,6 +202,10 @@ trait Container {
         RunResult(Interval(started, finished), response)
       }
   }
+
+  /** Rename container. */
+  def rename(name: String)(implicit transid: TransactionId): Future[Unit]
+
   private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {
     toClose.map(_.close()).getOrElse(Future.successful(()))
   }

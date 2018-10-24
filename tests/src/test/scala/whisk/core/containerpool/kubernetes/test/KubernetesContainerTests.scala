@@ -102,7 +102,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     awaitLogs: FiniteDuration = 2.seconds)(implicit kubernetes: KubernetesApi): KubernetesContainer = {
 
-    new KubernetesContainer(id, addr, addr.host, "docker://" + id.asString) {
+    new KubernetesContainer("test", id, addr, addr.host, "docker://" + id.asString) {
       override protected def callContainer(
         path: String,
         body: JsObject,
@@ -192,7 +192,7 @@ class KubernetesContainerTests
     implicit val kubernetes = stub[KubernetesApi]
 
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val container = new KubernetesContainer("test", id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
 
     container.destroy()
 

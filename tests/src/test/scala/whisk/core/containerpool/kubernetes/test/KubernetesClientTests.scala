@@ -87,7 +87,7 @@ class KubernetesClientTests
   }
 
   def kubernetesContainer(id: ContainerId) =
-    new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
+    new KubernetesContainer("test", id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
       Future.successful("")
     }, actorSystem, global, logging)
 
@@ -117,7 +117,7 @@ class KubernetesClientTests
   it should "forward suspend commands to the client" in {
     implicit val kubernetes = new TestKubernetesClient
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val container = new KubernetesContainer("test", id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
     await(container.suspend())
     kubernetes.suspends should have size 1
     kubernetes.suspends(0) shouldBe id
@@ -126,7 +126,7 @@ class KubernetesClientTests
   it should "forward resume commands to the client" in {
     implicit val kubernetes = new TestKubernetesClient
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val container = new KubernetesContainer("test", id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
     await(container.resume())
     kubernetes.resumes should have size 1
     kubernetes.resumes(0) shouldBe id
@@ -204,7 +204,7 @@ object KubernetesClientTests {
       val addr: ContainerAddress = ContainerAddress("ip")
       val workerIP: String = "127.0.0.1"
       val nativeContainerId: String = "docker://" + containerId.asString
-      Future.successful(new KubernetesContainer(containerId, addr, workerIP, nativeContainerId))
+      Future.successful(new KubernetesContainer("test", containerId, addr, workerIP, nativeContainerId))
     }
 
     def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {

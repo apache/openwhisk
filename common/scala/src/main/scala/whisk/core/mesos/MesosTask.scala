@@ -119,7 +119,7 @@ object MesosTask {
       log.info(this, s"launched task with state ${taskDetails.taskStatus.getState} at ${taskHost}:${taskPort}")
       val containerIp = new ContainerAddress(taskHost, taskPort)
       val containerId = new ContainerId(taskId);
-      new MesosTask(containerId, containerIp, ec, log, as, taskId, mesosClientActor, mesosConfig)
+      new MesosTask(name.get, containerId, containerIp, ec, log, as, taskId, mesosClientActor, mesosConfig)
     })
 
   }
@@ -130,7 +130,8 @@ object JsonFormatters extends DefaultJsonProtocol {
   implicit val createContainerJson = jsonFormat3(CreateContainer)
 }
 
-class MesosTask(override protected val id: ContainerId,
+class MesosTask(override protected var _name: String,
+                override protected val id: ContainerId,
                 override protected val addr: ContainerAddress,
                 override protected val ec: ExecutionContext,
                 override protected val logging: Logging,
@@ -182,4 +183,9 @@ class MesosTask(override protected val id: ContainerId,
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
     Source.single(ByteString(LogLine(logMsg, "stdout", Instant.now.toString).toJson.compactPrint))
+
+  /** Rename container. */
+  override def rename(name: String)(implicit transid: TransactionId): Future[Unit] =
+    // rename currently not supported
+    Future.successful(Unit)
 }

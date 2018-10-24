@@ -193,6 +193,9 @@ class DockerClient(dockerHost: Option[String] = None,
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }
+
+  def rename(id: ContainerId, name: String)(implicit transid: TransactionId): Future[Unit] =
+    runCmd(Seq("rename", id.asString, name), config.timeouts.pause).map(_ => ())
 }
 
 trait DockerApi {
@@ -269,6 +272,15 @@ trait DockerApi {
    * @return a Future containing whether the container was killed or not
    */
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean]
+
+  /**
+   * Rename container.
+   *
+   * @param id the id of the container to rename
+   * @param name new container name
+   * @return a Future completing once the rename is complete
+   */
+  def rename(id: ContainerId, name: String)(implicit transid: TransactionId): Future[Unit]
 }
 
 /** Indicates any error while starting a container that leaves a broken container behind that needs to be removed */

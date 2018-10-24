@@ -908,6 +908,7 @@ class ContainerProxyTests
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
   class TestContainer extends Container {
+    protected var _name: String = "test"
     protected val id = ContainerId("testcontainer")
     protected val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
@@ -957,5 +958,8 @@ class ContainerProxyTests
       Future.successful((runInterval, ActivationResponse.success()))
     }
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = ???
+    override def rename(name: String)(implicit transid: TransactionId): Future[Unit] =
+      // rename currently not supported
+      Future.successful(Unit)
   }
 }

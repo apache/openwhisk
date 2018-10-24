@@ -224,7 +224,7 @@ class KubernetesClient(
     // By convention, kubernetes adds a docker:// prefix when using docker as the low-level container engine
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
-    new KubernetesContainer(id, addr, workerIP, nativeContainerId)
+    new KubernetesContainer(id.asString, id, addr, workerIP, nativeContainerId)
   }
 }
 

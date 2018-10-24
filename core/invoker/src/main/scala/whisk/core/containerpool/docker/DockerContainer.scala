@@ -39,6 +39,7 @@ import spray.json._
 import whisk.core.containerpool.logging.LogLine
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
+import scala.util.{Failure, Success}
 
 object DockerContainer {
 
@@ -141,7 +142,7 @@ object DockerContainer {
           docker.rm(id)
           Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
       }
-    } yield new DockerContainer(id, ip, useRunc)
+    } yield new DockerContainer(name.get, id, ip, useRunc)
   }
 }
 
@@ -155,7 +156,8 @@ object DockerContainer {
  * @param id the id of the container
  * @param addr the ip of the container
  */
-class DockerContainer(protected val id: ContainerId,
+class DockerContainer(protected var _name: String,
+                      protected val id: ContainerId,
                       protected val addr: ContainerAddress,
                       protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
                                                       runc: RuncApi,
@@ -179,6 +181,15 @@ class DockerContainer(protected val id: ContainerId,
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
     docker.rm(id)
+  }
+
+  def rename(newName: String)(implicit transid: TransactionId): Future[Unit] = {
+    docker.rename(id, newName).andThen {
+      case Success(_) =>
+        _name = newName
+      case Failure(e) =>
+        logging.error(this, s"Failed to rename container: $e")
+    }
   }
 
   /**
