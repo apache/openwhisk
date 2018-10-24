@@ -485,11 +485,16 @@ $ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTI
 < Access-Control-Allow-Origin: example.com
 ```
 
-## Sharing web actions
+## Web Actions in Shared Packages
 
-Web actions in a public package can be shared with all Openwhisk users. It means a web in a public package cannot be disabled so any (private) binding of the package will have the web action exposed. 
-  
-Action parameters are [protected and treated as immutable](./annotations.md#protected-parameters). Therefore, you can make your own immutable parameters by binding to a package and specifying default parameters. (Note that the parameters are inherited, but annotations are not.)
+A web action in a shared (i.e., public) package is accessible as a web action either directly via the package's fully
+qualified name, or via a package binding. It is important to note that a web action in a public package will be
+accessible for all bindings of the package even if the binding is private. This is because the web action annotation
+is carried on the action and cannot be overridden. If you do not wish to expose a web action through your package
+bindings, then you should clone-and-own the package instead.
+
+Action parameters are inherited from its package, and the binding if there is one. You can make package parameters
+[immutable](./annotations.md#protected-parameters) by defining their values through a package binding.
 
 ## Error Handling
 
