@@ -1,0 +1,35 @@
+# Auto detect text files and perform LF normalization.
+# Resources:
+#       - https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
+#       - http://davidlaing.com/2012/09/19/customise-your-gitattributes-to-become-a-git-ninja/
+#       - https://help.github.com/articles/dealing-with-line-endings/
+* text=auto
+
+*.go            text eol=lf
+*.java          text
+*.js            text
+*.md            text
+*.py            text eol=lf
+*.scala         text
+*.sh            text eol=lf
+*.gradle        text
+*.xml           text
+*.bat           text eol=crlf
+
+*.jar           binary
+*.png           binary
+
+# python files not having the .py extension
+tools/cli/wsk      text eol=lf
+tools/cli/wskadmin text eol=lf
+
+# bash files not having the .sh extension
+tools/vagrant/simple/wsk        text eol=lf
+gradlew                         text eol=lf
+core/javaAction/proxy/gradlew   text eol=lf
+tools/vagrant/hello             text eol=lf
+sdk/docker/client/action        text eol=lf
+
+# auth files with default api keys
+ansible/files/auth.guest         text eol=lf
+ansible/files/auth.whisk.system  text eol=lf
