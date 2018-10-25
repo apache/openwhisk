@@ -16,6 +16,7 @@
  */
 plugins {
     id 'scala'
+    id 'application'
 }
 
 group 'com.adobe.api.platform.runtime'
@@ -44,9 +45,24 @@ dependencies {
     compile 'org.slf4j:jcl-over-slf4j:1.7.25'
     compile 'org.slf4j:log4j-over-slf4j:1.7.25'
 
+    compile 'io.kamon:kamon-core_2.12:1.0.0'
+    compile 'io.kamon:kamon-prometheus_2.12:1.0.0'
+
     testCompile 'org.scalatest:scalatest_2.12:3.0.1'
 }
 
 tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
+
+mainClassName = 'com.adobe.api.platform.runtime.metrics.UserMetricsConsumer'
+
+//Ensure that dist archive name does not contain version
+distTar {
+    archiveName = "${project.name}.tar"
+}
+
+//Avoid generating the zip files from maven installations
+distZip {
+    enabled false
 }
