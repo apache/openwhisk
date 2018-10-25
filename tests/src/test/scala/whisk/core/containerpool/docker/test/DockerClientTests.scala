@@ -242,7 +242,7 @@ class DockerClientTests
         runCmdCount += 1
         println(s"runCmdCount=${runCmdCount}, args.last=${args.last}")
         runCmdCount match {
-          case 1 => Future.failed(ProcessRunningException(ExitStatus(1), "", ""))
+          case 1 => Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
           case 2 => Future.successful(secondContainerId.asString)
           case _ => Future.failed(new Throwable())
         }
@@ -336,7 +336,7 @@ class DockerClientTests
   it should "fail with BrokenDockerContainer when run returns with exit status 125 and a container ID" in {
     val dc = dockerClient {
       Future.failed(
-        ProcessRunningException(
+        ProcessUnsuccessfulException(
           exitStatus = ExitStatus(125),
           stdout = id.asString,
           stderr =
@@ -346,7 +346,7 @@ class DockerClientTests
     bdc.id shouldBe id
   }
 
-  it should "fail with ProcessRunningException when run returns with exit code !=125 or no container ID" in {
+  it should "fail with ProcessRunningException when run returns with exit code !=125, no container ID or timeout" in {
     def runAndVerify(pre: ProcessRunningException, clue: String) = {
       val dc = dockerClient { Future.failed(pre) }
       withClue(s"${clue} - exitStatus = ${pre.exitStatus}, stdout = '${pre.stdout}', stderr = '${pre.stderr}': ") {
@@ -355,11 +355,13 @@ class DockerClientTests
     }
 
     Seq[(ProcessRunningException, String)](
-      (ProcessRunningException(ExitStatus(127), id.asString, "Unknown command"), "Exit code not 125"),
-      (ProcessRunningException(ExitStatus(125), "", "Unknown flag: --foo"), "No container ID"),
-      (ProcessRunningException(ExitStatus(1), "", ""), "Exit code not 125 and no container ID")).foreach {
-      case (pre, clue) => runAndVerify(pre, clue)
-    }
+      (ProcessUnsuccessfulException(ExitStatus(127), id.asString, "Unknown command"), "Exit code not 125"),
+      (ProcessUnsuccessfulException(ExitStatus(125), "", "Unknown flag: --foo"), "No container ID"),
+      (ProcessUnsuccessfulException(ExitStatus(1), "", ""), "Exit code not 125 and no container ID"),
+      (ProcessTimeoutException(1.second, ExitStatus(125), id.asString, ""), "Timeout instead of unsuccessful command"))
+      .foreach {
+        case (pre, clue) => runAndVerify(pre, clue)
+      }
   }
 
   it should "fail with ProcessTimeoutException when command times out" in {

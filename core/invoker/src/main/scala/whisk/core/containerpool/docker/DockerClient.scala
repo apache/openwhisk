@@ -129,7 +129,7 @@ class DockerClient(dockerHost: Option[String] = None,
           // Examples:
           // - Unrecognized option specified
           // - Not enough disk space
-          case pre: ProcessRunningException if pre.exitStatus == ExitStatus(125) =>
+          case pre: ProcessUnsuccessfulException if pre.exitStatus == ExitStatus(125) =>
             Future.failed(
               DockerContainerId
                 .parse(pre.stdout)

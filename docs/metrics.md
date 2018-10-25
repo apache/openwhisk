@@ -182,34 +182,40 @@ Metrics below are for invoker state as recorded within load balancer monitoring.
 
 Following metrics capture stats around various docker command executions.
 
-* Pause
+* pause
   * `openwhisk.counter.invoker_docker.pause_start`
   * `openwhisk.counter.invoker_docker.pause_error`
+  * `openwhisk.counter.invoker_docker.pause_timeout`
   * `openwhisk.histogram.invoker_docker.pause_finish`
   * `openwhisk.histogram.invoker_docker.pause_error`
-* Ps
+* ps
   * `openwhisk.counter.invoker_docker.ps_start`
   * `openwhisk.counter.invoker_docker.ps_error`
+  * `openwhisk.counter.invoker_docker.ps_timeout`
   * `openwhisk.histogram.invoker_docker.ps_finish`
   * `openwhisk.histogram.invoker_docker.ps_error`
 * pull
   * `openwhisk.counter.invoker_docker.pull_start`
   * `openwhisk.counter.invoker_docker.pull_error`
+  * `openwhisk.counter.invoker_docker.pull_timeout`
   * `openwhisk.histogram.invoker_docker.pull_finish`
   * `openwhisk.histogram.invoker_docker.pull_error`
 * rm
   * `openwhisk.counter.invoker_docker.rm_start`
   * `openwhisk.counter.invoker_docker.rm_error`
+  * `openwhisk.counter.invoker_docker.rm_timeout`
   * `openwhisk.histogram.invoker_docker.rm_finish`
   * `openwhisk.histogram.invoker_docker.rm_error`
 * run
   * `openwhisk.counter.invoker_docker.run_start`
   * `openwhisk.counter.invoker_docker.run_error`
+  * `openwhisk.counter.invoker_docker.run_timeout`
   * `openwhisk.histogram.invoker_docker.run_finish`
   * `openwhisk.histogram.invoker_docker.run_error`
 * unpause
   * `openwhisk.counter.invoker_docker.unpause_start`
   * `openwhisk.counter.invoker_docker.unpause_error`
+  * `openwhisk.counter.invoker_docker.unpause_timeout`
   * `openwhisk.histogram.invoker_docker.unpause_finish`
   * `openwhisk.histogram.invoker_docker.unpause_error`
 

@@ -214,7 +214,7 @@ class DockerContainerTests
       override def run(image: String,
                        args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
         runs += ((image, args))
-        Future.failed(ProcessRunningException(ExitStatus(1), "", ""))
+        Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
       }
     }
     implicit val runc = stub[RuncApi]

@@ -60,19 +60,18 @@ trait ProcessRunner {
       case (exitStatus, stdout, stderr, scheduled) =>
         scheduled.foreach(_.cancel())
         timeout match {
-          case t: FiniteDuration if exitStatus.terminatedBySIGTERM =>
+          case _: FiniteDuration if exitStatus.terminatedBySIGTERM =>
             Future.failed(ProcessTimeoutException(timeout, exitStatus, stdout, stderr))
-          case _ => Future.failed(ProcessRunningException(exitStatus, stdout, stderr))
+          case _ => Future.failed(ProcessUnsuccessfulException(exitStatus, stdout, stderr))
         }
     }
 }
 
-case class ExitStatus(statusValue: Int) {
-
+object ExitStatus {
   // Based on The Open Group Base Specifications Issue 7, 2018 edition:
   // Shell & Utilities - Shell Command Language - 2.8.2 Exit Status for Commands
   // http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
-  val STATUS_SUCCESSFULL = 0
+  val STATUS_SUCCESSFUL = 0
   val STATUS_NOT_EXECUTABLE = 126
   val STATUS_NOT_FOUND = 127
   // When a command is stopped by a signal, the exit status is 128 + signal numer
@@ -88,39 +87,50 @@ case class ExitStatus(statusValue: Int) {
   val SIGKILL = 9
   val SIGALRM = 14
   val SIGTERM = 15
+}
+
+case class ExitStatus(statusValue: Int) {
 
   override def toString(): String = {
     def signalAsString(signal: Int): String = {
       signal match {
-        case SIGHUP  => "SIGHUP"
-        case SIGINT  => "SIGINT"
-        case SIGQUIT => "SIGQUIT"
-        case SIGABRT => "SIGABRT"
-        case SIGKILL => "SIGKILL"
-        case SIGALRM => "SIGALRM"
-        case SIGTERM => "SIGTERM"
-        case _       => signal.toString
+        case ExitStatus.SIGHUP  => "SIGHUP"
+        case ExitStatus.SIGINT  => "SIGINT"
+        case ExitStatus.SIGQUIT => "SIGQUIT"
+        case ExitStatus.SIGABRT => "SIGABRT"
+        case ExitStatus.SIGKILL => "SIGKILL"
+        case ExitStatus.SIGALRM => "SIGALRM"
+        case ExitStatus.SIGTERM => "SIGTERM"
+        case _                  => signal.toString
       }
     }
 
     val detail = statusValue match {
-      case STATUS_SUCCESSFULL                => "successful"
-      case STATUS_NOT_EXECUTABLE             => "not executable"
-      case STATUS_NOT_FOUND                  => "not found"
-      case _ if statusValue >= STATUS_SIGNAL => "terminated by signal " + signalAsString(statusValue - STATUS_SIGNAL)
-      case _                                 => "unsuccessful"
+      case ExitStatus.STATUS_SUCCESSFUL     => "successful"
+      case ExitStatus.STATUS_NOT_EXECUTABLE => "not executable"
+      case ExitStatus.STATUS_NOT_FOUND      => "not found"
+      case _ if statusValue >= ExitStatus.STATUS_SIGNAL =>
+        "terminated by signal " + signalAsString(statusValue - ExitStatus.STATUS_SIGNAL)
+      case _ => "unsuccessful"
     }
 
     s"$statusValue ($detail)"
   }
 
-  val successful = statusValue == STATUS_SUCCESSFULL
-  val terminatedBySIGTERM = (statusValue - STATUS_SIGNAL) == SIGTERM
+  val successful = statusValue == ExitStatus.STATUS_SUCCESSFUL
+  val terminatedBySIGTERM = (statusValue - ExitStatus.STATUS_SIGNAL) == ExitStatus.SIGTERM
 }
 
-case class ProcessRunningException(exitStatus: ExitStatus, stdout: String, stderr: String)
-    extends Exception(s"code: $exitStatus, stdout: $stdout, stderr: $stderr")
+abstract class ProcessRunningException(info: String, val exitStatus: ExitStatus, val stdout: String, val stderr: String)
+    extends Exception(s"info: $info, code: $exitStatus, stdout: $stdout, stderr: $stderr")
 
-case class ProcessTimeoutException(timeout: Duration, exitStatus: ExitStatus, stdout: String, stderr: String)
-    extends Exception(
-      s"command was terminated, took longer than $timeout, code: $exitStatus, stdout: $stdout, stderr: $stderr")
+case class ProcessUnsuccessfulException(override val exitStatus: ExitStatus,
+                                        override val stdout: String,
+                                        override val stderr: String)
+    extends ProcessRunningException("command was unsuccessful", exitStatus, stdout, stderr)
+
+case class ProcessTimeoutException(timeout: Duration,
+                                   override val exitStatus: ExitStatus,
+                                   override val stdout: String,
+                                   override val stderr: String)
+    extends ProcessRunningException(s"command was terminated, took longer than $timeout", exitStatus, stdout, stderr)
