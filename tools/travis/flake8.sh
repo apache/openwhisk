@@ -38,5 +38,5 @@ done
 echo 'Flake8: second round to find any other stylistic issues...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --ignore=E --max-line-length=127 --statistics
+    flake8 "$i" --ignore=E,W503,W504,W605 --max-line-length=127 --statistics
 done
