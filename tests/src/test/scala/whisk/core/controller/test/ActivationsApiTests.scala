@@ -470,15 +470,15 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "skip activations and return correct ones" in {
     implicit val tid = transid()
-    val activations = (1 to 3).map { i =>
+    val activations: Seq[WhiskActivation] = (1 to 3).map { i =>
       //make sure the time is different for each activation
       val time = Instant.now.plusMillis(i)
       WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
     }.toList
 
     try {
-      activations.foreach(storeActivation)
-      waitOnListActivationsInNamespace(namespace, activations.size)
+      activations.foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, activations.size, context)
 
       Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -487,8 +487,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         resultActivationIds should be(expectedActivationIds)
       }
     } finally {
-      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
-      waitOnListActivationsInNamespace(namespace, 0)
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString), context))
+      waitOnListActivationsInNamespace(namespace, 0, context)
     }
   }
 
@@ -501,8 +501,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      activations.foreach(storeActivation)
-      waitOnListActivationsInNamespace(namespace, activations.size)
+      activations.foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, activations.size, context)
 
       Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -514,8 +514,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         }
       }
     } finally {
-      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString)))
-      waitOnListActivationsInNamespace(namespace, 0)
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString), context))
+      waitOnListActivationsInNamespace(namespace, 0, context)
     }
   }
 

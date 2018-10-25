@@ -39,7 +39,7 @@ import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, HttpCredentials, OAuth2BearerToken}
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, OAuth2BearerToken}
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.Http
@@ -1220,7 +1220,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
     response
   }
 
-  private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
+  private def getHttpCredentials(wp: WskProps) = {
     if (wp.authKey.contains(":")) {
       val authKey = wp.authKey.split(":")
       new BasicHttpCredentials(authKey(0), authKey(1))
