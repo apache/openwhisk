@@ -797,6 +797,15 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
+  it should "return empty list for invalid namespace" in {
+    implicit val tid = transid()
+    val path = s"/whisk.systsdf/${collection.path}"
+    Get(path) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      responseAs[List[JsObject]] should be(List.empty)
+    }
+  }
+
   it should "reject bind to non-package" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault("??"))

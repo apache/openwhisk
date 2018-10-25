@@ -160,6 +160,40 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
     }
   }
 
+  it should "list shared packages when package is turned into public" in withAssetCleaner(guestWskProps) {
+    (wp, assetHelper) =>
+      assetHelper.withCleaner(wsk.pkg, samplePackage) { (pkg, _) =>
+        pkg.create(samplePackage)(wp)
+      }
+
+      retry {
+        val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+        verifyPackageNotSharedList(packageList, guestNamespace, samplePackage)
+      }
+
+      wsk.pkg.create(samplePackage, update = true, shared = Some(true))(wp)
+
+      retry {
+        val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+        verifyPackageSharedList(packageList, guestNamespace, samplePackage)
+      }
+  }
+
+  //TODO: convert to API-level test under whisk.core.controller once issues/3959 is resolved
+  it should "reject getting package from invalid namespace" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
+    val invalidNamespace = "whisk.systsdf"
+    wsk.pkg.get(s"/${invalidNamespace}/utils", expectedExitCode = forbiddenCode)(wp).stderr should include(
+      "not authorized")
+  }
+
+  //TODO: convert to API-level test under whisk.core.controller once issues/3959 is resolved
+  it should "reject getting invalid package from valid namespace" in withAssetCleaner(guestWskProps) {
+    (wp, assetHelper) =>
+      val invalidPackage = "utilssss"
+      wsk.pkg.get(s"/whisk.system/${invalidPackage}", expectedExitCode = forbiddenCode)(wp).stderr should include(
+        "not authorized")
+  }
+
   def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val fullyQualifiedPackageName = s"/$namespace/$packageName"
     withClue(s"Packagelist is: ${packageList.stdout}; Packagename is: $fullyQualifiedPackageName")(

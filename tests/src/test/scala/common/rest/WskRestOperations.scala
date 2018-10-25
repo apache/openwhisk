@@ -26,7 +26,6 @@ import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
-
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -40,7 +39,7 @@ import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, HttpCredentials, OAuth2BearerToken}
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, OAuth2BearerToken}
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.Http
@@ -76,6 +75,7 @@ import akka.actor.ActorSystem
 import akka.util.ByteString
 import pureconfig.loadConfigOrThrow
 import whisk.common.Https.HttpsConfig
+import whisk.common.AkkaLogging
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
@@ -644,10 +644,12 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
   def listActivation(filter: Option[String] = None,
                      limit: Option[Int] = None,
                      since: Option[Instant] = None,
+                     skip: Option[Int] = None,
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")
-    val paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++
+    val paramMap = Map("docs" -> docs.toString) ++
+      skip.map(s => Map("skip" -> s.toString)).getOrElse(Map.empty) ++
       limit.map(l => Map("limit" -> l.toString)).getOrElse(Map.empty) ++
       filter.map(f => Map("name" -> f.toString)).getOrElse(Map.empty) ++
       since.map(s => Map("since" -> s.toEpochMilli.toString)).getOrElse(Map.empty)
@@ -706,6 +708,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
    * @param entity the name of the entity to filter from activation list
    * @param limit the maximum number of entities to list (if entity name is not unique use Some(0))
    * @param since (optional) only the activations since this timestamp are included
+   * @param skip (optional) the number of activations to skip
    * @param retries the maximum retries (total timeout is retries + 1 seconds)
    * @return activation ids found, caller must check length of sequence
    */
@@ -713,11 +716,13 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                        entity: Option[String],
                        limit: Option[Int] = Some(30),
                        since: Option[Instant] = None,
+                       skip: Option[Int] = Some(0),
                        retries: Int = 10,
                        pollPeriod: Duration = 1.second)(implicit wp: WskProps): Seq[String] = {
     Try {
       retry({
-        val result = idsActivation(listActivation(filter = entity, limit = limit, since = since, docs = false))
+        val result =
+          idsActivation(listActivation(filter = entity, limit = limit, since = since, skip = skip, docs = false))
         if (result.length >= N) result else throw PartialResult(result)
       }, retries, waitBeforeRetry = Some(pollPeriod))
     } match {
@@ -732,13 +737,23 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                    fieldFilter: Option[String] = None,
                    last: Option[Boolean] = None,
                    summary: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val rr = activationId match {
+    val actId = activationId match {
+      case Some(id) => activationId
+      case None =>
+        last match {
+          case Some(true) => {
+            val activations = pollFor(N = 1, entity = None, limit = Some(1))
+            require(activations.size <= 1)
+            if (activations.isEmpty) None else Some(activations.head)
+          }
+          case _ => None
+        }
+    }
+    val rr = actId match {
       case Some(id) =>
         val resp = requestEntity(GET, getNamePath(wp.namespace, noun, id))
         new RestResult(resp.status, getRespData(resp))
-
-      case None =>
-        new RestResult(NotFound)
+      case None => new RestResult(NotFound)
     }
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
     rr
@@ -1141,6 +1156,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
   val systemNamespace = "whisk.system"
+  val logger = new AkkaLogging(actorSystem.log)
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val actorSystem: ActorSystem
@@ -1192,6 +1208,9 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
         body.map(b => HttpEntity.Strict(ContentTypes.`application/json`, ByteString(b))).getOrElse(HttpEntity.Empty))
     val response = Http().singleRequest(request, connectionContext).flatMap { _.toStrict(toStrictTimeout) }.futureValue
 
+    logger.debug(this, s"Request: $request")
+    logger.debug(this, s"Response: $response")
+
     val validationErrors = validateRequestAndResponse(request, response)
     if (validationErrors.nonEmpty) {
       fail(
@@ -1201,7 +1220,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
     response
   }
 
-  private def getHttpCredentials(wp: WskProps): HttpCredentials = {
+  private def getHttpCredentials(wp: WskProps) = {
     if (wp.authKey.contains(":")) {
       val authKey = wp.authKey.split(":")
       new BasicHttpCredentials(authKey(0), authKey(1))

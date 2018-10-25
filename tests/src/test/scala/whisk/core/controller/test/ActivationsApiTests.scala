@@ -468,6 +468,57 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
+  it should "skip activations and return correct ones" in {
+    implicit val tid = transid()
+    val activations: Seq[WhiskActivation] = (1 to 3).map { i =>
+      //make sure the time is different for each activation
+      val time = Instant.now.plusMillis(i)
+      WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
+    }.toList
+
+    try {
+      activations.foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, activations.size, context)
+
+      Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val resultActivationIds = responseAs[List[JsObject]].map(_.fields("name"))
+        val expectedActivationIds = activations.map(_.toJson.fields("name")).reverse.drop(1)
+        resultActivationIds should be(expectedActivationIds)
+      }
+    } finally {
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString), context))
+      waitOnListActivationsInNamespace(namespace, 0, context)
+    }
+  }
+
+  it should "return last activation" in {
+    implicit val tid = transid()
+    val activations = (1 to 3).map { i =>
+      //make sure the time is different for each activation
+      val time = Instant.now.plusMillis(i)
+      WhiskActivation(namespace, aname(), creds.subject, ActivationId.generate(), start = time, end = time)
+    }.toList
+
+    try {
+      activations.foreach(storeActivation(_, context))
+      waitOnListActivationsInNamespace(namespace, activations.size, context)
+
+      Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val activationsJson = activations.map(_.toJson)
+        withClue(s"Original activations: ${activationsJson}") {
+          val respNames = responseAs[List[JsObject]].map(_.fields("name"))
+          val expectNames = activationsJson.map(_.fields("name")).drop(2)
+          respNames should be(expectNames)
+        }
+      }
+    } finally {
+      activations.foreach(a => deleteActivation(ActivationId(a.docid.asString), context))
+      waitOnListActivationsInNamespace(namespace, 0, context)
+    }
+  }
+
   //// GET /activations/id
   it should "get activation by id" in {
     implicit val tid = transid()

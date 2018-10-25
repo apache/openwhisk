@@ -480,12 +480,14 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
    * @param filter (optional) if define, must be a simple entity name
    * @param limit (optional) the maximum number of activation to return
    * @param since (optional) only the activations since this timestamp are included
+   * @param skip (optional) the number of activations to skip
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   def list(filter: Option[String] = None,
            limit: Option[Int] = None,
            since: Option[Instant] = None,
+           skip: Option[Int] = None,
            expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "list", "--auth", wp.authKey) ++ { filter map { Seq(_) } getOrElse Seq.empty } ++ {
       limit map { l =>
@@ -494,6 +496,10 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
     } ++ {
       since map { i =>
         Seq("--since", i.toEpochMilli.toString)
+      } getOrElse Seq.empty
+    } ++ {
+      skip map { i =>
+        Seq("--skip", i.toString)
       } getOrElse Seq.empty
     }
     wsk.cli(wp.overrides ++ params, expectedExitCode)
@@ -606,6 +612,7 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
    * @param entity the name of the entity to filter from activation list
    * @param limit the maximum number of entities to list (if entity name is not unique use Some(0))
    * @param since (optional) only the activations since this timestamp are included
+   * @param skip (optional) the number of activations to skip
    * @param retries the maximum retries (total timeout is retries + 1 seconds)
    * @return activation ids found, caller must check length of sequence
    */
@@ -613,11 +620,12 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
                        entity: Option[String],
                        limit: Option[Int] = None,
                        since: Option[Instant] = None,
+                       skip: Option[Int] = Some(0),
                        retries: Int = 10,
                        pollPeriod: Duration = 1.second)(implicit wp: WskProps): Seq[String] = {
     Try {
       retry({
-        val result = ids(list(filter = entity, limit = limit, since = since))
+        val result = ids(list(filter = entity, limit = limit, since = since, skip = skip))
         if (result.length >= N) result else throw PartialResult(result)
       }, retries, waitBeforeRetry = Some(pollPeriod))
     } match {

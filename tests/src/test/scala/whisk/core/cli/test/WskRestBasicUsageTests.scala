@@ -342,6 +342,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
       val args = Map("hello" -> "Robert".toJson)
       val run = wsk.action.invoke(name, args, blocking = true, result = true)
+      //--result takes precedence over --blocking
       run.stdout.parseJson shouldBe args.toJson
   }
 
