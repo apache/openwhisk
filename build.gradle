@@ -1,5 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 plugins {
-    id 'java'
+    id 'scala'
 }
 
 group 'com.adobe.api.platform.runtime'
@@ -12,5 +28,25 @@ repositories {
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile 'com.github.pureconfig:pureconfig_2.12:0.9.0'
+    compile 'io.spray:spray-json_2.12:1.3.4'
+
+    compile 'com.typesafe.akka:akka-actor_2.12:2.5.17'
+    compile 'com.typesafe.akka:akka-stream_2.12:2.5.17'
+    compile 'com.typesafe.akka:akka-stream-kafka_2.12:0.22'
+    compile 'com.typesafe.akka:akka-slf4j_2.12:2.5.17'
+
+    compile 'com.typesafe.akka:akka-http-core_2.12:10.1.5'
+    compile 'com.typesafe.akka:akka-http-spray-json_2.12:10.1.5'
+
+    compile 'ch.qos.logback:logback-classic:1.2.3'
+    compile 'org.slf4j:jcl-over-slf4j:1.7.25'
+    compile 'org.slf4j:log4j-over-slf4j:1.7.25'
+
+    testCompile 'org.scalatest:scalatest_2.12:3.0.1'
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
