@@ -42,6 +42,16 @@ object EventMessageBody extends DefaultJsonProtocol {
   }
 }
 
+/**
+ *
+ * @param source Originating source like invoker or controller (with id)
+ * @param body Event body which varies based on `eventType`
+ * @param subject
+ * @param namespace
+ * @param userId
+ * @param eventType type of event. Currently 2 `Activation` and `Metric`
+ * @param timestamp time when the event is produced
+ */
 case class EventMessage(source: String,
                         body: EventMessageBody,
                         subject: String,

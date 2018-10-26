@@ -14,18 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.adobe.api.platform.runtime.metrics
 
 import akka.actor.ActorSystem
-import kamon.Kamon
-import kamon.prometheus.PrometheusReporter
+import akka.stream.ActorMaterializer
+import akka.testkit.TestKit
+import net.manub.embeddedkafka.EmbeddedKafka
+import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
+import org.scalatest.{FlatSpecLike, Matchers, Suite}
+import org.slf4j.{Logger, LoggerFactory}
 
-object UserMetricsConsumer {
+import scala.concurrent.duration.FiniteDuration
 
-  def main(args: Array[String]): Unit = {
-    Kamon.addReporter(new PrometheusReporter())
-    implicit val actorSystem = ActorSystem("runtime-actor-system")
+abstract class KafkaSpecBase
+    extends TestKit(ActorSystem("test"))
+    with Suite
+    with Matchers
+    with ScalaFutures
+    with FlatSpecLike
+    with EmbeddedKafka
+    with IntegrationPatience
+    with Eventually { this: Suite =>
+  val log: Logger = LoggerFactory.getLogger(getClass)
 
+  implicit val materializer = ActorMaterializer()
+
+  def sleep(time: FiniteDuration, msg: String = ""): Unit = {
+    log.info(s"sleeping $time $msg")
+    Thread.sleep(time.toMillis)
   }
-
 }
