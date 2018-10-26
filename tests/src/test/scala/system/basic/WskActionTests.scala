@@ -32,7 +32,9 @@ import spray.json.DefaultJsonProtocol._
 class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRestOperations
+  // wsk must have type WskOperations so that tests using CLI (class Wsk)
+  // instead of REST (WskRestOperations) still work.
+  val wsk: WskOperations = new WskRestOperations
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
