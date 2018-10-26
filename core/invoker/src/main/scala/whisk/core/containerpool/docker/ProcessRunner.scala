@@ -91,24 +91,26 @@ object ExitStatus {
 
 case class ExitStatus(statusValue: Int) {
 
+  import ExitStatus._
+
   override def toString(): String = {
     def signalAsString(signal: Int): String = {
       signal match {
-        case ExitStatus.SIGHUP  => "SIGHUP"
-        case ExitStatus.SIGINT  => "SIGINT"
-        case ExitStatus.SIGQUIT => "SIGQUIT"
-        case ExitStatus.SIGABRT => "SIGABRT"
-        case ExitStatus.SIGKILL => "SIGKILL"
-        case ExitStatus.SIGALRM => "SIGALRM"
-        case ExitStatus.SIGTERM => "SIGTERM"
-        case _                  => signal.toString
+        case SIGHUP  => "SIGHUP"
+        case SIGINT  => "SIGINT"
+        case SIGQUIT => "SIGQUIT"
+        case SIGABRT => "SIGABRT"
+        case SIGKILL => "SIGKILL"
+        case SIGALRM => "SIGALRM"
+        case SIGTERM => "SIGTERM"
+        case _       => signal.toString
       }
     }
 
     val detail = statusValue match {
-      case ExitStatus.STATUS_SUCCESSFUL     => "successful"
-      case ExitStatus.STATUS_NOT_EXECUTABLE => "not executable"
-      case ExitStatus.STATUS_NOT_FOUND      => "not found"
+      case STATUS_SUCCESSFUL     => "successful"
+      case STATUS_NOT_EXECUTABLE => "not executable"
+      case STATUS_NOT_FOUND      => "not found"
       case _ if statusValue >= ExitStatus.STATUS_SIGNAL =>
         "terminated by signal " + signalAsString(statusValue - ExitStatus.STATUS_SIGNAL)
       case _ => "unsuccessful"
