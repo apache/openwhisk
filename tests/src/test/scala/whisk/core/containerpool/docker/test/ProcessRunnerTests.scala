@@ -26,13 +26,12 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import whisk.core.containerpool.docker.ProcessRunner
+import whisk.core.containerpool.docker._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import org.scalatest.Matchers
-import whisk.core.containerpool.docker.ProcessRunningException
 
 import scala.language.reflectiveCalls // Needed to invoke run() method of structural ProcessRunner extension
 
@@ -55,18 +54,53 @@ class ProcessRunnerTests extends FlatSpec with Matchers with WskActorSystem {
   }
 
   it should "run an external command unsuccessfully and capture its output" in {
-    val exitCode = 1
+    val exitStatus = ExitStatus(1)
     val stdout = "Output"
     val stderr = "Error"
 
-    val future = processRunner.run(Seq("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitCode}"))
+    val future =
+      processRunner.run(Seq("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitStatus.statusValue}"))
 
-    the[ProcessRunningException] thrownBy await(future) shouldBe ProcessRunningException(exitCode, stdout, stderr)
+    val exception = the[ProcessRunningException] thrownBy await(future)
+    exception shouldBe ProcessUnsuccessfulException(exitStatus, stdout, stderr)
+    exception.getMessage should startWith("info: command was unsuccessful")
   }
 
   it should "terminate an external command after the specified timeout is reached" in {
-    val future = processRunner.run(Seq("sleep", "1"), 100.milliseconds)
-    val exception = the[ProcessRunningException] thrownBy await(future)
-    exception.exitCode shouldBe 143
+    val timeout = 100.milliseconds
+    // Run "sleep" command for 1 second and make sure that stdout and stderr are dropped
+    val future = processRunner.run(Seq("/bin/sh", "-c", "sleep 1 1>/dev/null 2>/dev/null"), timeout)
+    val exception = the[ProcessTimeoutException] thrownBy await(future)
+    exception shouldBe ProcessTimeoutException(timeout, ExitStatus(143), "", "")
+    exception.getMessage should startWith(s"info: command was terminated, took longer than $timeout")
+  }
+
+  behavior of "ExitStatus"
+
+  it should "provide a proper textual representation" in {
+    Seq[(Int, String)](
+      (0, "successful"),
+      (1, "unsuccessful"),
+      (125, "unsuccessful"),
+      (126, "not executable"),
+      (127, "not found"),
+      (128, "terminated by signal 0"),
+      (129, "terminated by signal SIGHUP"),
+      (130, "terminated by signal SIGINT"),
+      (131, "terminated by signal SIGQUIT"),
+      (134, "terminated by signal SIGABRT"),
+      (137, "terminated by signal SIGKILL"),
+      (142, "terminated by signal SIGALRM"),
+      (143, "terminated by signal SIGTERM"),
+      (144, "terminated by signal 16")).foreach {
+      case (statusValue, detailText) =>
+        ExitStatus(statusValue).toString shouldBe s"$statusValue ($detailText)"
+    }
+  }
+
+  it should "properly classify exit status" in {
+    withClue("Exit status 0 is successful - ") { ExitStatus(0).successful shouldBe true }
+    withClue("Exit status 1 is not successful - ") { ExitStatus(1).successful shouldBe false }
+    withClue("Exit status 143 means terminated by SIGTERM - ") { ExitStatus(143).terminatedBySIGTERM shouldBe true }
   }
 }

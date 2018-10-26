@@ -173,7 +173,7 @@ class KubernetesContainerTests
         env: Map[String, String] = Map.empty,
         labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
         runs += ((name, image, env, labels))
-        Future.failed(ProcessRunningException(1, "", ""))
+        Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
       }
     }
 

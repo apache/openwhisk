@@ -32,7 +32,7 @@ trait ProcessRunner {
    * Runs the specified command with arguments asynchronously and
    * capture stdout as well as stderr.
    *
-   * If not set to infinite, after timeout is reached the process is killed.
+   * If not set to infinite, after timeout is reached the process is terminated.
    *
    * Be cautious with the execution context you pass because the command
    * is blocking.
@@ -52,17 +52,87 @@ trait ProcessRunner {
         case _                 => None
       }
 
-      (process.exitValue(), out.mkString("\n"), err.mkString("\n"), scheduled)
+      (ExitStatus(process.exitValue()), out.mkString("\n"), err.mkString("\n"), scheduled)
     }).flatMap {
-      case (0, stdout, _, scheduled) =>
+      case (ExitStatus(0), stdout, _, scheduled) =>
         scheduled.foreach(_.cancel())
         Future.successful(stdout)
-      case (code, stdout, stderr, scheduled) =>
+      case (exitStatus, stdout, stderr, scheduled) =>
         scheduled.foreach(_.cancel())
-        Future.failed(ProcessRunningException(code, stdout, stderr))
+        timeout match {
+          case _: FiniteDuration if exitStatus.terminatedBySIGTERM =>
+            Future.failed(ProcessTimeoutException(timeout, exitStatus, stdout, stderr))
+          case _ => Future.failed(ProcessUnsuccessfulException(exitStatus, stdout, stderr))
+        }
     }
-
 }
 
-case class ProcessRunningException(exitCode: Int, stdout: String, stderr: String)
-    extends Exception(s"code: $exitCode ${if (exitCode == 143) "(killed)" else ""}, stdout: $stdout, stderr: $stderr")
+object ExitStatus {
+  // Based on The Open Group Base Specifications Issue 7, 2018 edition:
+  // Shell & Utilities - Shell Command Language - 2.8.2 Exit Status for Commands
+  // http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
+  val STATUS_SUCCESSFUL = 0
+  val STATUS_NOT_EXECUTABLE = 126
+  val STATUS_NOT_FOUND = 127
+  // When a command is stopped by a signal, the exit status is 128 + signal numer
+  val STATUS_SIGNAL = 128
+
+  // Based on The Open Group Base Specifications Issue 7, 2018 edition:
+  // Shell & Utilities - Utilities - kill
+  // http://pubs.opengroup.org/onlinepubs/9699919799/utilities/kill.html
+  val SIGHUP = 1
+  val SIGINT = 2
+  val SIGQUIT = 3
+  val SIGABRT = 6
+  val SIGKILL = 9
+  val SIGALRM = 14
+  val SIGTERM = 15
+}
+
+case class ExitStatus(statusValue: Int) {
+
+  import ExitStatus._
+
+  override def toString(): String = {
+    def signalAsString(signal: Int): String = {
+      signal match {
+        case SIGHUP  => "SIGHUP"
+        case SIGINT  => "SIGINT"
+        case SIGQUIT => "SIGQUIT"
+        case SIGABRT => "SIGABRT"
+        case SIGKILL => "SIGKILL"
+        case SIGALRM => "SIGALRM"
+        case SIGTERM => "SIGTERM"
+        case _       => signal.toString
+      }
+    }
+
+    val detail = statusValue match {
+      case STATUS_SUCCESSFUL     => "successful"
+      case STATUS_NOT_EXECUTABLE => "not executable"
+      case STATUS_NOT_FOUND      => "not found"
+      case _ if statusValue >= ExitStatus.STATUS_SIGNAL =>
+        "terminated by signal " + signalAsString(statusValue - ExitStatus.STATUS_SIGNAL)
+      case _ => "unsuccessful"
+    }
+
+    s"$statusValue ($detail)"
+  }
+
+  val successful = statusValue == ExitStatus.STATUS_SUCCESSFUL
+  val terminatedBySIGTERM = (statusValue - ExitStatus.STATUS_SIGNAL) == ExitStatus.SIGTERM
+}
+
+abstract class ProcessRunningException(info: String, val exitStatus: ExitStatus, val stdout: String, val stderr: String)
+    extends Exception(s"info: $info, code: $exitStatus, stdout: $stdout, stderr: $stderr")
+
+case class ProcessUnsuccessfulException(override val exitStatus: ExitStatus,
+                                        override val stdout: String,
+                                        override val stderr: String)
+    extends ProcessRunningException("command was unsuccessful", exitStatus, stdout, stderr)
+
+case class ProcessTimeoutException(timeout: Duration,
+                                   override val exitStatus: ExitStatus,
+                                   override val stdout: String,
+                                   override val stderr: String)
+    extends ProcessRunningException(s"command was terminated, took longer than $timeout", exitStatus, stdout, stderr)

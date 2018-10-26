@@ -33,9 +33,7 @@ import scala.util.Success
 import scala.util.Try
 import akka.event.Logging.{ErrorLevel, InfoLevel}
 import pureconfig.loadConfigOrThrow
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
@@ -127,11 +125,11 @@ class DockerClient(dockerHost: Option[String] = None,
         .map(ContainerId.apply)
         .recoverWith {
           // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
-          // Exit code 125 means an error reported by the Docker daemon.
+          // Exit status 125 means an error reported by the Docker daemon.
           // Examples:
           // - Unrecognized option specified
           // - Not enough disk space
-          case pre: ProcessRunningException if pre.exitCode == 125 =>
+          case pre: ProcessUnsuccessfulException if pre.exitStatus == ExitStatus(125) =>
             Future.failed(
               DockerContainerId
                 .parse(pre.stdout)
@@ -189,6 +187,9 @@ class DockerClient(dockerHost: Option[String] = None,
       logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start)
+      case Failure(pte: ProcessTimeoutException) =>
+        transid.failed(this, start, pte.getMessage, ErrorLevel)
+        MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_DOCKER_CMD_TIMEOUT(args.head))
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }

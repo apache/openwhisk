@@ -243,6 +243,7 @@ object LoggingMarkers {
   val finish = "finish"
   val error = "error"
   val count = "count"
+  val timeout = "timeout"
 
   private val controller = "controller"
   private val invoker = "invoker"
@@ -296,6 +297,8 @@ object LoggingMarkers {
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
+    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String) =

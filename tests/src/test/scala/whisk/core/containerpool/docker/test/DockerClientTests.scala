@@ -18,7 +18,6 @@
 package whisk.core.containerpool.docker.test
 
 import akka.actor.ActorSystem
-
 import java.util.concurrent.Semaphore
 
 import scala.concurrent.Await
@@ -41,10 +40,7 @@ import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
 import whisk.common.TransactionId
 import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.ContainerId
-import whisk.core.containerpool.docker.BrokenDockerContainer
-import whisk.core.containerpool.docker.DockerClient
-import whisk.core.containerpool.docker.DockerContainerId
-import whisk.core.containerpool.docker.ProcessRunningException
+import whisk.core.containerpool.docker._
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
@@ -246,7 +242,7 @@ class DockerClientTests
         runCmdCount += 1
         println(s"runCmdCount=${runCmdCount}, args.last=${args.last}")
         runCmdCount match {
-          case 1 => Future.failed(ProcessRunningException(1, "", ""))
+          case 1 => Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
           case 2 => Future.successful(secondContainerId.asString)
           case _ => Future.failed(new Throwable())
         }
@@ -337,11 +333,11 @@ class DockerClientTests
     runAndVerify(dc.pull("image"), "pull")
   }
 
-  it should "fail with BrokenDockerContainer when run returns with exit code 125 and a container ID" in {
+  it should "fail with BrokenDockerContainer when run returns with exit status 125 and a container ID" in {
     val dc = dockerClient {
       Future.failed(
-        ProcessRunningException(
-          exitCode = 125,
+        ProcessUnsuccessfulException(
+          exitStatus = ExitStatus(125),
           stdout = id.asString,
           stderr =
             """/usr/bin/docker: Error response from daemon: mkdir /var/run/docker.1.1/libcontainerd.1.1/55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52: no space left on device."""))
@@ -350,19 +346,44 @@ class DockerClientTests
     bdc.id shouldBe id
   }
 
-  it should "fail with ProcessRunningException when run returns with exit code !=125 or no container ID" in {
+  it should "fail with ProcessRunningException when run returns with exit code !=125, no container ID or timeout" in {
     def runAndVerify(pre: ProcessRunningException, clue: String) = {
       val dc = dockerClient { Future.failed(pre) }
-      withClue(s"${clue} - exitCode = ${pre.exitCode}, stdout = '${pre.stdout}', stderr = '${pre.stderr}': ") {
+      withClue(s"${clue} - exitStatus = ${pre.exitStatus}, stdout = '${pre.stdout}', stderr = '${pre.stderr}': ") {
         the[ProcessRunningException] thrownBy await(dc.run("image", Seq.empty)) shouldBe pre
       }
     }
 
     Seq[(ProcessRunningException, String)](
-      (ProcessRunningException(126, id.asString, "Unknown command"), "Exit code not 125"),
-      (ProcessRunningException(125, "", "Unknown flag: --foo"), "No container ID"),
-      (ProcessRunningException(1, "", ""), "Exit code not 125 and no container ID")).foreach {
-      case (pre, clue) => runAndVerify(pre, clue)
+      (ProcessUnsuccessfulException(ExitStatus(127), id.asString, "Unknown command"), "Exit code not 125"),
+      (ProcessUnsuccessfulException(ExitStatus(125), "", "Unknown flag: --foo"), "No container ID"),
+      (ProcessUnsuccessfulException(ExitStatus(1), "", ""), "Exit code not 125 and no container ID"),
+      (ProcessTimeoutException(1.second, ExitStatus(125), id.asString, ""), "Timeout instead of unsuccessful command"))
+      .foreach {
+        case (pre, clue) => runAndVerify(pre, clue)
+      }
+  }
+
+  it should "fail with ProcessTimeoutException when command times out" in {
+    val expectedPTE =
+      ProcessTimeoutException(timeout = 10.seconds, exitStatus = ExitStatus(143), stdout = "stdout", stderr = "stderr")
+    val dc = dockerClient {
+      Future.failed(expectedPTE)
     }
+    Seq[(Future[_], String)](
+      (dc.run("image", Seq.empty), "run"),
+      (dc.inspectIPAddress(id, "network"), "inspectIPAddress"),
+      (dc.pause(id), "pause"),
+      (dc.unpause(id), "unpause"),
+      (dc.rm(id), "rm"),
+      (dc.ps(), "ps"),
+      (dc.pull("image"), "pull"),
+      (dc.isOomKilled(id), "isOomKilled"))
+      .foreach {
+        case (cmd, clue) =>
+          withClue(s"command '$clue' - ") {
+            the[ProcessTimeoutException] thrownBy await(cmd) shouldBe expectedPTE
+          }
+      }
   }
 }
