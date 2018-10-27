@@ -21,6 +21,8 @@ import spray.json._
 
 import scala.util.Try
 
+//Classes in this file are taken from OpenWhisk code base
+
 trait EventMessageBody {
   def typeName: String
 }
@@ -48,7 +50,7 @@ object EventMessageBody extends DefaultJsonProtocol {
  * @param body Event body which varies based on `eventType`
  * @param subject
  * @param namespace
- * @param userId
+ * @param userId user uuid
  * @param eventType type of event. Currently 2 `Activation` and `Metric`
  * @param timestamp time when the event is produced
  */
