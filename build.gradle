@@ -62,7 +62,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-mainClassName = 'com.adobe.api.platform.runtime.metrics.UserMetricsConsumer'
+mainClassName = 'com.adobe.api.platform.runtime.metrics.OpenWhiskEvents'
 
 //Ensure that dist archive name does not contain version
 distTar {
