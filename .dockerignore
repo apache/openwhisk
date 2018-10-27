@@ -1,0 +1,5 @@
+*
+!transformEnvironment.sh
+!init.sh
+!build/distributions
+!Dockerfile
