@@ -653,6 +653,45 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
+    it should s"invoke action relative to a binding where the action doesn't exist (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
+
+      put(entityStore, provider)
+      put(entityStore, reference)
+      // action is not created
+
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(NotFound)
+          }
+        }
+      }
+    }
+
+    it should s"invoke action in non-existing binding (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
+      val action = stubAction(provider.fullPath, EntityName("export_c"))
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
+
+      put(entityStore, provider)
+      put(entityStore, action)
+      // reference is not created
+
+      Seq(s"$systemId/${reference.name}/export_c.json").foreach { path =>
+        allowedMethods.foreach { m =>
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(NotFound)
+          }
+        }
+      }
+    }
+
     it should s"not inherit annotations of package binding (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
