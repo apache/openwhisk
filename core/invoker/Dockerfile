@@ -13,7 +13,6 @@ RUN apk add --update openssl
 # Uncomment to fetch latest version of docker instead: RUN wget -qO- https://get.docker.com | sh
 # Install docker client
 RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz && \
-RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz && \
 echo "${DOCKER_DOWNLOAD_SHA256}  docker-${DOCKER_VERSION}.tgz" | sha256sum -c - && \
 tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker && \
 tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker-runc && \
