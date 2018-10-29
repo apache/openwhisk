@@ -37,6 +37,7 @@ case class KamonConsumer(settings: ConsumerSettings[String, String])(implicit sy
     control.drainAndShutdown()(system.dispatcher)
   }
 
+  //TODO Use RestartSource
   private val control: DrainingControl[Done] = Consumer
     .committableSource(settings, Subscriptions.topics(userEventTopic))
     .map { msg =>
@@ -61,6 +62,7 @@ object KamonConsumer {
         val a = e.body.asInstanceOf[Activation]
         Kamon.histogram("waitTime", MeasurementUnit.time.milliseconds).refine("name" -> a.name).record(a.waitTime)
         Kamon.counter("activations").refine("name" -> a.name).increment()
+        println(a.name)
       }
   }
 }
