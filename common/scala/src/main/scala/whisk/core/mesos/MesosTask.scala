@@ -23,18 +23,12 @@ import akka.pattern.ask
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import akka.util.Timeout
-import com.adobe.api.platform.runtime.mesos.Bridge
-import com.adobe.api.platform.runtime.mesos.CommandDef
-import com.adobe.api.platform.runtime.mesos.Constraint
-import com.adobe.api.platform.runtime.mesos.DeleteTask
-import com.adobe.api.platform.runtime.mesos.Host
-import com.adobe.api.platform.runtime.mesos.Running
-import com.adobe.api.platform.runtime.mesos.SubmitTask
-import com.adobe.api.platform.runtime.mesos.TaskDef
-import com.adobe.api.platform.runtime.mesos.User
+import com.adobe.api.platform.runtime.mesos._
 import java.time.Instant
+
 import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -103,7 +97,14 @@ object MesosTask {
       mesosCpuShares,
       mesosRam,
       List(8080), // all action containers listen on 8080
-      Some(0), // port at index 0 used for health
+      Some(
+        HealthCheckConfig(
+          mesosConfig.healthCheck.healthCheckPortIndex,
+          mesosConfig.healthCheck.delay,
+          mesosConfig.healthCheck.interval,
+          mesosConfig.healthCheck.timeout,
+          mesosConfig.healthCheck.gracePeriod,
+          mesosConfig.healthCheck.maxConsecutiveFailures)),
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,

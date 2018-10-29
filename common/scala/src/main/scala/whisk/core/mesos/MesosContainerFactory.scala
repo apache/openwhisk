@@ -20,16 +20,11 @@ package whisk.core.mesos
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import com.adobe.api.platform.runtime.mesos.Constraint
-import com.adobe.api.platform.runtime.mesos.LIKE
-import com.adobe.api.platform.runtime.mesos.LocalTaskStore
-import com.adobe.api.platform.runtime.mesos.MesosClient
-import com.adobe.api.platform.runtime.mesos.Subscribe
-import com.adobe.api.platform.runtime.mesos.SubscribeComplete
-import com.adobe.api.platform.runtime.mesos.Teardown
-import com.adobe.api.platform.runtime.mesos.UNLIKE
+import com.adobe.api.platform.runtime.mesos._
 import java.time.Instant
+
 import pureconfig.loadConfigOrThrow
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -66,7 +61,8 @@ case class MesosConfig(masterUrl: String,
                        constraints: Seq[String],
                        constraintDelimiter: String,
                        blackboxConstraints: Seq[String],
-                       teardownOnExit: Boolean) {}
+                       teardownOnExit: Boolean,
+                       healthCheck: HealthCheckConfig) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
