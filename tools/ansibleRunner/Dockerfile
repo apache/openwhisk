@@ -3,7 +3,7 @@
 
 from debian:jessie-slim
 
-ENV DOCKER_VERSION 1.12.0
+ENV DOCKER_VERSION 18.06.1-ce
 
 RUN apt-get update && apt-get install -y \
   curl \

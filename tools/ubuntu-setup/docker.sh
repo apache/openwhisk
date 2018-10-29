@@ -32,8 +32,11 @@ sudo apt-cache policy docker-engine
 sudo apt-get --no-install-recommends -y install linux-image-extra-virtual
 
 # DOCKER
-sudo apt-get install -y --force-yes docker-engine=1.12.0-0~trusty
-sudo apt-mark hold docker-engine
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt-get update
+sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+
 
 # enable (security - use 127.0.0.1)
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=aufs"'\'' >> /etc/default/docker'

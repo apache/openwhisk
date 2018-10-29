@@ -26,7 +26,7 @@ If you prefer to use Docker-machine, you can follow instructions in [docker-mach
 
 The following are required to build and deploy OpenWhisk from a Mac host:
 
-- [Docker 1.12.0](https://docs.docker.com/docker-for-mac/)
+- [Docker 18.06](https://docs.docker.com/docker-for-mac/)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or [Open JDK 8](https://adoptopenjdk.net/releases.html#x64_mac)
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)

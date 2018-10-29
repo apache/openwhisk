@@ -124,7 +124,7 @@ class DockerClient(dockerHost: Option[String] = None,
         }
         .map(ContainerId.apply)
         .recoverWith {
-          // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
+          // https://docs.docker.com/engine/reference/run/#general-form
           // Exit status 125 means an error reported by the Docker daemon.
           // Examples:
           // - Unrecognized option specified
