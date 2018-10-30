@@ -597,12 +597,12 @@ protected[actions] trait PrimitiveActions {
     //    in case of an incomplete active-ack (record too large for example).
     activeAckResponse.foreach {
       case Right(activation) => result.trySuccess(Right(activation))
-      case _ if (controllerActivationConfig.polling) =>
-          pollActivation(docid, context, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
+      case _ if (controllerActivationConfig.pollingFromDb) =>
+        pollActivation(docid, context, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
       case _ =>
     }
 
-    if (controllerActivationConfig.polling) {
+    if (controllerActivationConfig.pollingFromDb) {
       // 2. Poll the database slowly in case the active-ack never arrives
       pollActivation(docid, context, result, _ => 15.seconds)
     }
@@ -658,4 +658,4 @@ protected[actions] trait PrimitiveActions {
 
 }
 
-case class ControllerActivationConfig(polling: Boolean)
+case class ControllerActivationConfig(pollingFromDb: Boolean)
