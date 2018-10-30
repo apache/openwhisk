@@ -62,7 +62,7 @@ case class MesosConfig(masterUrl: String,
                        constraintDelimiter: String,
                        blackboxConstraints: Seq[String],
                        teardownOnExit: Boolean,
-                       healthCheck: HealthCheckConfig) {}
+                       healthCheck: Option[HealthCheckConfig] = None) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,

@@ -97,14 +97,7 @@ object MesosTask {
       mesosCpuShares,
       mesosRam,
       List(8080), // all action containers listen on 8080
-      Some(
-        HealthCheckConfig(
-          mesosConfig.healthCheck.healthCheckPortIndex,
-          mesosConfig.healthCheck.delay,
-          mesosConfig.healthCheck.interval,
-          mesosConfig.healthCheck.timeout,
-          mesosConfig.healthCheck.gracePeriod,
-          mesosConfig.healthCheck.maxConsecutiveFailures)),
+      mesosConfig.healthCheck,
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,

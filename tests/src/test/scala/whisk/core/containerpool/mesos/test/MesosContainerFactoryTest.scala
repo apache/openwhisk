@@ -146,7 +146,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         User("net1"),
         Map(
@@ -195,7 +195,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         User("net1"),
         Map(
@@ -267,7 +267,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         Bridge,
         Map(
