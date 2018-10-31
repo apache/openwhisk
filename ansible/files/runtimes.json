@@ -208,9 +208,9 @@
             }
         ]
     },
-    "golang": [
+    "go": [
         {
-            "kind": "golang:1.11",
+            "kind": "go:1.11",
             "default": true,
             "deprecated": false,
             "attached": {
