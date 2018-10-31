@@ -17,10 +17,12 @@
   set_fact:
     env: >-
       {{ env | combine({
-        'CONFIG_akka_cluster_seedNodes_' ~ item.0:
-          'akka.tcp://controller-actor-system@'~item.1~':'~(controller.akka.cluster.basePort+item.0)
+        'CONFIG_akka_cluster_seedNodes_' ~ seedNode.0:
+          'akka.tcp://controller-actor-system@'~seedNode.1~':'~(controller.akka.cluster.basePort+seedNode.0)
       }) }}
   with_indexed_items: "{{ controller.akka.cluster.seedNodes }}"
+  loop_control:
+    loop_var: seedNode
 
 - name: Add akka environment to controller environment
   vars:
