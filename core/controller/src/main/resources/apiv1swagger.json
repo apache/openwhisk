@@ -1892,6 +1892,7 @@
                         "python:3",
                         "python:default",
                         "ruby:2.5",
+                        "go:1.11",
                         "sequence",
                         "swift:3.1.1",
                         "swift:4.1"
