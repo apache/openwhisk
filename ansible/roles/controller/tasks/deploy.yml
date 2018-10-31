@@ -34,6 +34,7 @@
     path: "{{ whisk_logs_dir }}/{{ controller_name }}/{{ controller_name }}_logs.log"
     state: touch
     mode: 0777
+  when: environment_type is defined and environment_type == "docker-machine"
 
 - name: ensure controller config directory is created with permissions
   file:
