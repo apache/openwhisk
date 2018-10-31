@@ -175,7 +175,7 @@ invoker:
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
   # Specify if it should use docker-runc or docker to pause/unpause containers
-  useRunc: "{{ invoker_use_runc | default(true) }}"
+  useRunc: "{{ invoker_use_runc | default(false) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
