@@ -279,12 +279,12 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
 
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
-    // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
+    // the completion ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
     activations.getOrElseUpdate(
       msg.activationId, {
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
-          processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = instance)
+          processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
         }
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
@@ -344,36 +344,61 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
       activeAckConsumer,
       maxActiveAcksPerPoll,
       activeAckPollDuration,
-      processActiveAck)
+      processAcknowledgement)
   })
 
-  /** 4. Get the active-ack message and parse it */
-  private def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
+  /** 4. Get the acknowledgement message and parse it */
+  private def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = Future {
     val raw = new String(bytes, StandardCharsets.UTF_8)
-    CompletionMessage.parse(raw) match {
+    AcknowledegmentMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
-        processCompletion(m.response, m.transid, forced = false, invoker = m.invoker)
+        processCompletion(
+          m.activationId,
+          m.transid,
+          forced = false,
+          isSystemError = m.isSystemError,
+          invoker = m.invoker)
+        activationFeed ! MessageFeed.Processed
+
+      case Success(m: ResultMessage) =>
+        processResult(m.response, m.transid)
         activationFeed ! MessageFeed.Processed
 
       case Failure(t) =>
         activationFeed ! MessageFeed.Processed
-        logging.error(this, s"failed processing message: $raw with $t")
+        logging.error(this, s"failed processing message: $raw")
+
+      case _ =>
+        activationFeed ! MessageFeed.Processed
+        logging.error(this, s"Unexpected Acknowledgment message received by loadbalancer: $raw")
     }
   }
 
-  /** 5. Process the active-ack and update the state accordingly */
-  private def processCompletion(response: Either[ActivationId, WhiskActivation],
+  /** 5. Process the result ack and return it to the user */
+  private def processResult(response: Either[ActivationId, WhiskActivation], tid: TransactionId): Unit = {
+    val aid = response.fold(l => l, r => r.activationId)
+
+    // Resolve the promise to send the result back to the user
+    // The activation will be removed from `activations`-map later, when we receive the completion message, because the
+    // slot of the invoker is not yet free for new activations.
+    activations.get(aid).map { entry =>
+      entry.promise.trySuccess(response)
+    }
+    logging.info(this, s"received result ack for '$aid'")(tid)
+  }
+
+  /** Process the completion ack and update the state */
+  private def processCompletion(aid: ActivationId,
                                 tid: TransactionId,
                                 forced: Boolean,
+                                isSystemError: Boolean,
                                 invoker: InvokerInstanceId): Unit = {
-    val aid = response.fold(l => l, r => r.activationId)
 
     val invocationResult = if (forced) {
       InvocationFinishedResult.Timeout
     } else {
       // If the response contains a system error, report that, otherwise report Success
       // Left generally is considered a Success, since that could be a message not fitting into Kafka
-      val isSystemError = response.fold(_ => false, _.response.isWhiskError)
       if (isSystemError) {
         InvocationFinishedResult.SystemError
       } else {
@@ -390,12 +415,16 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
 
         if (!forced) {
           entry.timeoutHandler.cancel()
-          entry.promise.trySuccess(response)
+          // If the action was blocking and the Resultmessage has been received before nothing will happen here.
+          // If the action was blocking and the ResultMessage is still missing, we pass the ActivationId. With this Id,
+          // the controller will get the result out of the database.
+          // If the action was non-blocking, we will close the promise here.
+          entry.promise.trySuccess(Left(aid))
         } else {
-          entry.promise.tryFailure(new Throwable("no active ack received"))
+          entry.promise.tryFailure(new Throwable("no completion ack received"))
         }
 
-        logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
+        logging.info(this, s"${if (!forced) "received" else "forced"} completion ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
@@ -403,17 +432,17 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         // Health actions do not have an ActivationEntry as they are written on the message bus directly. Their result
         // is important to pass to the invokerPool because they are used to determine if the invoker can be considered
         // healthy again.
-        logging.info(this, s"received active ack for health action on $invoker")(tid)
+        logging.info(this, s"received completion ack for health action on $invoker")(tid)
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
       case None if !forced =>
         // Received an active-ack that has already been taken out of the state because of a timeout (forced active-ack).
         // The result is ignored because a timeout has already been reported to the invokerPool per the force.
-        logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
+        logging.debug(this, s"received completion ack for '$aid' which has no entry")(tid)
       case None =>
         // The entry has already been removed by an active ack. This part of the code is reached by the timeout and can
         // happen if active-ack and timeout happen roughly at the same time (the timeout was triggered before the active
         // ack canceled the timer). As the active ack is already processed we don't have to do anything here.
-        logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
+        logging.debug(this, s"forced completion ack for '$aid' which has no entry")(tid)
     }
   }
 
