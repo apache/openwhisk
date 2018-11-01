@@ -34,7 +34,7 @@ The expected signature for a `main` function is:
 
 `func Main(event map[string]interface{}) map[string]interface{}`
 
-So a very simple `hello world` function would be:
+So a very simple single file `hello.go` action would be:
 
 ```go
 package main
@@ -55,6 +55,12 @@ func Main(obj map[string]interface{}) map[string]interface{} {
   // encode the result back in json
   return msg
 }
+```
+
+You can deploy it with just:
+
+```
+wsk action create hello-go hello.go
 ```
 
 You can also have multiple source files in an action, packages and vendor folders.
@@ -98,7 +104,14 @@ For running tests, editing without errors with package resolution, you need to u
 You should import it your subpackage with `import "hello"`.
 Note this means if you want to compile locally you have to set your `GOPATH` to parent directory of your `src` directory. If you use VSCode, you need to enable the `go.inferGopath` option.
 
-When you send the sources, you will have to zip the content of the `src` folder, *not* the main directory.
+When you send the sources, you will have to zip the content of the `src` folder, *not* the main directory. For example:
+
+```
+cd src
+zip -r ../hello.zip *
+cd ..
+wsk action create hello2-go hello.zip --kind go:1.11
+```
 
 Check the example [golang-main-package](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples/golang-main-package) and the associated `Makefile`.
 
@@ -145,16 +158,6 @@ Note you do not need to store the `vendor` folder in the version control system 
 
 If you need to use vendor folder in the main package, you need to create a directory `main` and place all the source code that would normally go in the top level, in the `main` folder instead.  A vendor folder in the top level *does not work*.
 
-<a name="vscode">
-
-## Using VsCode
-
-If you are using [VsCode[(https://code.visualstudio.com/) as your Go development environment with the [VsCode Go](https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go) support, without errors and with completion working you need to:
-
-- enable the option `go.inferGopath`
-- place all your sources in a `src` folder
-- either to open the `src` folder as the top level source or add it as a folder in the workspace (it is not enough just have it as a subfolder)
-- create a `dummy.go` an empty main - it will not be used but it will shut up "`main.main` missing error detection"
 
 <a name="precompile"/>
 
@@ -181,6 +184,17 @@ Note that the output is always a zip file in  Linux AMD64 format so the executab
 
 Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples) for a collection of tested Makefiles. The  generated executable is suitable to be deployed in OpenWhisk, so you can do:
 
-`wsk action create my/action exec.zip -docker openwhisk/actionloop-golang-v1.11`
+`wsk action create my/action exec.zip --kind go:1.11`
 
 You can also use just the `openwhisk/actionloop` as runtime, it is smaller.
+
+<a name="vscode">
+
+## Using VsCode
+
+If you are using [VsCode[(https://code.visualstudio.com/) as your Go development environment with the [VsCode Go](https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go) support, without errors and with completion working you need to:
+
+- enable the option `go.inferGopath`
+- place all your sources in a `src` folder
+- either to open the `src` folder as the top level source or add it as a folder in the workspace (it is not enough just have it as a subfolder)
+- create a `dummy.go` an empty main - it will not be used but it will shut up "`main.main` missing error detection"
