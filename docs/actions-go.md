@@ -18,6 +18,7 @@
 -->
 
 <a name="golang"/>
+
 # Creating and Invoking Go Actions
 
 The runtime `actionloop-golang-v1.11` runtime can execute actions written in the Go programming language in OpenWhisk, either as precompiled binary or compiling sources on the fly.
@@ -131,7 +132,7 @@ To create a vendor folder, you need to
 
 - install the [dep](https://github.com/golang/dep) tool
 - cd to the `src/hello` folder (*not* the `src` folder)
-- run `DEPPROJECTROOT=$(realpath $PWD/../..) dep init` the first time 
+- run `DEPPROJECTROOT=$(realpath $PWD/../..) dep init` the first time
 
 The tool will detect the used libraries and create 2 manifest files `Gopkg.lock` and `Gopkg.toml`. If already have the manifest files, you just need `dep ensure` to create and populate the `vendor` folder.
 
