@@ -21,11 +21,11 @@
 
 # Creating and Invoking Go Actions
 
-The runtime `actionloop-golang-v1.11` runtime can execute actions written in the Go programming language in OpenWhisk, either as precompiled binary or compiling sources on the fly.
+The `actionloop-golang-v1.11` runtime can execute actions written in the Go programming language in OpenWhisk, either as precompiled binary or compiling sources on the fly.
 
 ## Entry Point
 
-The source code of an action is one or more Go source file. The entry point of the action is a function, placed in the `main` package. The default name for the main function is `Main`, but you can change it to any name you want using the `--main` switch in `wsk`. The name is however always capitalized. The function must have a specific signature, as described next.
+The source code of an action is one or more Go source files. The entry point of the action is a function, placed in the `main` package. The default name for the main function is `Main`, but you can change it to any name you want using the `--main` switch in `wsk`. The name is however always capitalized. The function must have a specific signature, as described next.
 
 *NOTE* The runtime does *not* support different packages from `main` for the entry point. If you specify `hello.main` the runtime will try to use `Hello.main`, that will be almost certainly incorrect. You can however have other packages in your sources, as described below.
 
@@ -72,8 +72,10 @@ The runtime `actionloop-golang-v1.11` accepts:
 
 - executable binaries in Linux ELF executable compiled for the AMD64 architecture
 - zip files containing a binary executable named `exec` at the top level, again a Linux ELF executable compiled for the AMD64 architecture
-- a single file source code in Go language, that will be compiled
+- a single source file in Go, that will be compiled
 - a zip file not containing in the top level a binary file `exec`, it will be interpreted as a collection of zip files, and compiled
+
+You can create a binary in the correct format on any GO platform cross-compiling with `GOOS=Linux` and `GOARCH=amd64`. However it is recommended you use the compiler embedded in the Docker image for this purpose using the precompilation feature, as described below.
 
 ## Using packages and vendor folder
 
@@ -103,7 +105,7 @@ golang-main-package/
 For running tests, editing without errors with package resolution, you need to use a `src` folder, place the sources that belongs to the main package in the `src` and place sources of your package in the `src/hello` folder.
 
 You should import it your subpackage with `import "hello"`.
-Note this means if you want to compile locally you have to set your `GOPATH` to parent directory of your `src` directory. If you use VSCode, you need to enable the `go.inferGopath` option.
+Note this means if you want to compile locally you have to set your `GOPATH` to parent of your `src` directory. If you use VSCode, you need to enable the `go.inferGopath` option.
 
 When you send the sources, you will have to zip the content of the `src` folder, *not* the main directory. For example:
 
@@ -111,7 +113,7 @@ When you send the sources, you will have to zip the content of the `src` folder,
 cd src
 zip -r ../hello.zip *
 cd ..
-wsk action create hello2-go hello.zip --kind go:1.11
+wsk action create hellozip hello.zip --kind go:1.11
 ```
 
 Check the example [golang-main-package](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples/golang-main-package) and the associated `Makefile`.
@@ -185,7 +187,7 @@ Note that the output is always a zip file in  Linux AMD64 format so the executab
 
 Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples) for a collection of tested Makefiles. The  generated executable is suitable to be deployed in OpenWhisk, so you can do:
 
-`wsk action create my/action exec.zip --kind go:1.11`
+`wsk action create my-action exec.zip --kind go:1.11`
 
 You can also use just the `openwhisk/actionloop` as runtime, it is smaller.
 
