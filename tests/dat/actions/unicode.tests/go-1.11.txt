@@ -1,0 +1,12 @@
+package main
+
+import "fmt"
+
+func Main(args map[string]interface{}) map[string]interface{} {
+	delimiter := args["delimiter"].(string)
+	str := delimiter + " ☃ " + delimiter
+    fmt.Println(str)
+	res := make(map[string]interface{})
+	res["winter"] = str
+	return res
+}

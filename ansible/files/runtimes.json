@@ -208,6 +208,22 @@
             }
         ]
     },
+    "go": [
+        {
+            "kind": "go:1.11",
+            "default": true,
+            "deprecated": false,
+            "attached": {
+                "attachmentName": "codefile",
+                "attachmentType": "text/plain"
+            },
+            "image": {
+                "prefix": "openwhisk",
+                "name": "actionloop-golang-v1.11",
+                "tag": "latest"
+            }
+        }
+    ],
     "blackboxes": [
         {
             "prefix": "openwhisk",
