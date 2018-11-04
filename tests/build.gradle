@@ -79,6 +79,15 @@ ext.testSets = [
             "whisk/core/limits/**",
             "whisk/core/database/test/*CacheConcurrencyTests*",
             "whisk/core/controller/test/*ControllerApiTests*",
+        ],
+        "excludes": [
+            "system/basic/WskMultiRuntimeTests*"
+        ]
+    ],
+    "REQUIRE_MULTI_RUNTIME" : [
+        "includes" : [
+            "system/basic/*MultiRuntimeTests*",
+            "system/basic/*UnicodeTests*"
         ]
     ],
     "LEAN" : [

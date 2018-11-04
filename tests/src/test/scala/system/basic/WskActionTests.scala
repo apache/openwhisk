@@ -231,26 +231,6 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     }
   }
 
-  it should "update an action with different language and check preserving params" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "updatedAction"
-
-      assetHelper.withCleaner(wsk.action, name, false) { (action, _) =>
-        wsk.action.create(
-          name,
-          Some(TestUtils.getTestActionFilename("hello.js")),
-          parameters = Map("name" -> testString.toJson)) //unused in the first function
-      }
-
-      wsk.action.create(name, Some(TestUtils.getTestActionFilename("hello.py")), update = true)
-
-      val run = wsk.action.invoke(name)
-      withActivation(wsk.activation, run) { activation =>
-        activation.response.status shouldBe "success"
-        activation.logs.get.mkString(" ") should include(s"Hello $testString")
-      }
-  }
-
   it should "fail to invoke an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "empty"
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
