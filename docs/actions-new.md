@@ -57,7 +57,7 @@ additional rqeuirements and best practices:
     - [Action Interface tests](#action-interface-tests)
     - [Runtime proxy tests](#runtime-proxy-tests) 
 4. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
-5. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
+5. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes).
 
 ### The runtimes manifest
 
