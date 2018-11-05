@@ -22,7 +22,7 @@ set -e
 SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
-RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes-nodeonly.json"}
+RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 
 cd $ROOTDIR/ansible
 
