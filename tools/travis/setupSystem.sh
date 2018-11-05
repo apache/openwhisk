@@ -22,10 +22,11 @@ set -e
 SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
+RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes-nodeonly.json"}
 
 cd $ROOTDIR/ansible
 
-$ANSIBLE_CMD openwhisk.yml
+$ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST"
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD routemgmt.yml
 
