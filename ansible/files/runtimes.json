@@ -27,10 +27,12 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 },
-                "stemCells": [{
-                    "count": 2,
-                    "memory": "256 MB"
-                }]
+                "stemCells": [
+                    {
+                        "count": 2,
+                        "memory": "256 MB"
+                    }
+                ]
             },
             {
                 "kind": "nodejs:8",
@@ -206,24 +208,24 @@
                     "tag": "latest"
                 }
             }
+        ],
+        "go": [
+            {
+                "kind": "go:1.11",
+                "default": true,
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "actionloop-golang-v1.11",
+                    "tag": "latest"
+                }
+            }
         ]
     },
-    "go": [
-        {
-            "kind": "go:1.11",
-            "default": true,
-            "deprecated": false,
-            "attached": {
-                "attachmentName": "codefile",
-                "attachmentType": "text/plain"
-            },
-            "image": {
-                "prefix": "openwhisk",
-                "name": "actionloop-golang-v1.11",
-                "tag": "latest"
-            }
-        }
-    ],
     "blackboxes": [
         {
             "prefix": "openwhisk",
