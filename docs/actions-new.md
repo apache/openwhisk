@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 -->
-## Adding Action Runtimes
+## Adding Action Language Runtimes
 
 OpenWhisk supports [several languages and runtimes](actions.md#languages-and-runtimes) but
 there may be other languages or runtimes that are important for your organization, and for
@@ -24,34 +24,37 @@ which you want tighter integration with the platform. The OpenWhisk platform is 
 and you can add new languages or runtimes (with custom packages and third-party dependencies)
 following the guide described here.
 
-### Unit of execution
-The unit of execution for all functions is a [Docker container](https://docs.docker.com).
-The container implements a specific interface which:
-1. accepts an initialization payload (the code) and prepared for execution,
-2. accepts runtime payload (the input parameters) and
+### Runtime general requirements
+
+The unit of execution for all functions is a [Docker container](https://docs.docker.com) which 
+must implement a specific [Action interface](#action-interface) that, in general performs:
+
+1. **[Initialization](#initialization)** - accepts an initialization payload (the code) and prepared for execution,
+2. **[Activation](#activation)** - accepts a runtime payload (the input parameters) and
    - prepares the activation context,
    - runs the function,
    - returns the function result,
-3. flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
+3. **[Logging](#logging)** - flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
 
-Any container which implements the [Action interface](#action-interface) may be used as an action.
-It is in this way that you can add support for other languages or customized runtimes.
+The specifics of the [Action interface](#action-interface) and its functions are shown below.
 
-The interface is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
-which validates the initialization protocol, the runtime protocol, ensures the activation context is correctly prepared,
-and that the logs are properly framed. Your runtime should extend this test suite, and of course include additional tests
-as needed.
+### OpenWhisk Project and Platform requirements
 
-The runtime support is best implemented in its own repository to permit a management
-lifecycle independent of the rest of the OpenWhisk platform which requires the following
-additions:
+Each runtime should be implemented in its own repository to permit a management lifecycle independent 
+of the rest of the OpenWhisk platform.  The repository should conform to the Canonical layout as shown in 
+the [Canonical runtime repository](#canonical-runtime-repository) section.
+
+In order for your language runtime to be properly added to the OpenWhisk platform and officially 
+recognized by the Apache OpenWhisk project, the following additional requirments must be fulfilled:
+
 1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
 2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
 4. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),
-5. add a standard test action to the [tests artifacts directory](../tests/dat/actions/unicode.tests).
+5. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests).
+6. automate and pass the [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates your implementation.
 
-### The runtime manifest
+### The runtimes manifest
 
 Actions when created specify the desired runtime for the function via a property called "kind".
 When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is a typically
@@ -81,23 +84,6 @@ The `default` property indicates if the corresponding kind should be treated as 
 default for the runtime family. The JSON `image` structure defines the Docker image name
 that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` for the 
 JSON example above).
-
-### The test action
-
-The standard test action is shown below in JavaScript. It should be adapted for the
-new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
-with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
-a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
-runtime manifest entry, replacing `:` in the kind with a `-`.
-For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
-
-```js
-function main(args) {
-    var str = args.delimiter + " ☃ " + args.delimiter;
-    console.log(str);
-    return { "winter": str };
-}
-```
 
 ### Canonical runtime repository
 
@@ -223,7 +209,7 @@ which is "application error" if the proxy returned an "error" object, and "actio
 must complete within the allowed duration. Failure to complete activation within the allowed time frame
 will destroy the container.
 
-#### Logs
+#### Logging
 
 The proxy must flush all the logs produced during initialization and execution and add a frame marker
 to denote the end of the log stream for an activation. This is done by emitting the token
@@ -231,10 +217,37 @@ to denote the end of the log stream for an activation. This is done by emitting 
 as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
 or truncated activation logs.
 
-### Testing the new runtime
+### Testing 
+
+#### Testing the Action Interface
+
+The [Action interface](#action-interface) is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates the initialization protocol, the runtime protocol, 
+ensures the activation context is correctly prepared, and that the logs are properly framed. Your 
+runtime should extend this test suite, and of course include additional tests as needed.
+
+##### The test action
+
+The standard test action is shown below in JavaScript. It should be adapted for the
+new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
+with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
+a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
+runtime manifest entry, replacing `:` in the kind with a `-`.
+For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
+
+```js
+function main(args) {
+    var str = args.delimiter + " ☃ " + args.delimiter;
+    console.log(str);
+    return { "winter": str };
+}
+```
+
+### Testing the Runtime proxy
 
 There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
-for validating a new runtime. The harness will performing the following:
+for validating a new runtime. 
+
+The harness will performing the following:
 * Test the proxy can handle the identity functions (initialize and run).
 * Test the proxy can properly handle functions with Unicode characters.
 * Test the proxy properly constructs the activation context.
