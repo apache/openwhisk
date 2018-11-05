@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 -->
+## Adding Action Runtimes
 
 OpenWhisk supports [several languages and runtimes](actions.md#languages-and-runtimes) but
 there may be other languages or runtimes that are important for your organization, and for
@@ -33,7 +34,7 @@ The container implements a specific interface which:
    - returns the function result,
 3. flushes all `stdout` and `stderr` logs and adds a frame marker at the end of the activation.
 
-Any container which implements [the interface](#action-interface) may be used as an action.
+Any container which implements the [Action interface](#action-interface) may be used as an action.
 It is in this way that you can add support for other languages or customized runtimes.
 
 The interface is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
@@ -77,8 +78,9 @@ As an example, the following entry add a new runtime family called `nodejs` with
 ```
 
 The `default` property indicates if the corresponding kind should be treated as the
-default for the runtime family. The `image` structure defines the Docker image name
-that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` here).
+default for the runtime family. The JSON `image` structure defines the Docker image name
+that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` for the 
+JSON example above).
 
 ### The test action
 
