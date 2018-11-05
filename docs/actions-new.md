@@ -51,7 +51,7 @@ If you wish to have your runtime officially recognized by the Apache OpenWhisk p
 additional rqeuirements and best practices:
 
 1. implement the runtime in its own repository to permit a management lifecycle independent of the rest of the OpenWhisk platform,
-  - The repository should conform to the Canonical layout as shown in the [Canonical runtime repository](#canonical-runtime-repository) section,
+    - The repository should conform to the Canonical layout as shown in the [Canonical runtime repository](#canonical-runtime-repository) section,
 2. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests),
 3. automate and pass the following test suites:
     - [Action Interface tests](#action-interface-tests)
