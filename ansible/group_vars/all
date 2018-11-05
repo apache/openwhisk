@@ -49,7 +49,7 @@ whisk:
 #       {{ runtimes_local_image_prefix }} to skip docker pull in invoker even if the image is not part of the blackbox set
 #
 
-manifestfile: "{{ manifest_file | default('/ansible/files/runtimes-nodeonly.json') }}"
+manifestfile: "{{ manifest_file | default('/ansible/files/runtimes.json') }}"
 runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '{{ manifestfile }}') | from_json) }}"
 
 limits:

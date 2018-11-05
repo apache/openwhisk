@@ -44,7 +44,7 @@ as needed.
 The runtime support is best implemented in its own repository to permit a management
 lifecycle independent of the rest of the OpenWhisk platform which requires the following
 additions:
-1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes-all.json),
+1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
 2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
 4. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),

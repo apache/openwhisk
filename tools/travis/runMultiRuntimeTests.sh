@@ -27,10 +27,10 @@ cd $ROOTDIR/tools/travis
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_MULTI_RUNTIME"
 export GRADLE_COVERAGE=true
 
-./setupPrereq.sh /ansible/files/runtimes-all.json
+./setupPrereq.sh
 
 ./distDocker.sh
 
-./setupSystem.sh /ansible/files/runtimes-all.json
+./setupSystem.sh
 
 ./runTests.sh
