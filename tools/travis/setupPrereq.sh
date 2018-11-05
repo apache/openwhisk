@@ -31,5 +31,5 @@ $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
 
-$ANSIBLE_CMD properties.yml
+$ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-all.json"
 echo "Time taken for ${0##*/} is $SECONDS secs"
