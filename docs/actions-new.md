@@ -38,21 +38,26 @@ must implement a specific [Action interface](#action-interface) that, in general
 
 The specifics of the [Action interface](#action-interface) and its functions are shown below.
 
-### OpenWhisk Project and Platform requirements
+### Platform requirements
 
-Each runtime should be implemented in its own repository to permit a management lifecycle independent 
-of the rest of the OpenWhisk platform.  The repository should conform to the Canonical layout as shown in 
-the [Canonical runtime repository](#canonical-runtime-repository) section.
-
-In order for your language runtime to be properly added to the OpenWhisk platform and officially 
-recognized by the Apache OpenWhisk project, the following additional requirments must be fulfilled:
+In order for your language runtime to be properly recognized by the OpenWhisk platform, the following additional requirments must be fulfilled:
 
 1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
-2. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
-3. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
-4. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json),
-5. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests).
-6. automate and pass the [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates your implementation.
+2. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json)
+
+### Project requirements
+
+If you wish to have your runtime officially recognized by the Apache OpenWhisk project, please follow these 
+additional rqeuirements and best practices:
+
+1. implement the runtime in its own repository to permit a management lifecycle independent of the rest of the OpenWhisk platform,
+  - The repository should conform to the Canonical layout as shown in the [Canonical runtime repository](#canonical-runtime-repository) section,
+2. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests),
+3. automate and pass the following test suites:
+    - [Action Interface tests](#action-interface-tests)
+    - [Runtime proxy tests](#runtime-proxy-tests) 
+4. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
+5. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes),
 
 ### The runtimes manifest
 
@@ -103,6 +108,23 @@ The runtime repository should follow the canonical structure used by other runti
 
 The [Docker skeleton repository](https://github.com/apache/incubator-openwhisk-runtime-docker)
 is an example starting point to fork and modify for your new runtime.
+
+#### The test action
+
+The standard test action is shown below in JavaScript. It should be adapted for the
+new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
+with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
+a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
+runtime manifest entry, replacing `:` in the kind with a `-`.
+For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
+
+```js
+function main(args) {
+    var str = args.delimiter + " ☃ " + args.delimiter;
+    console.log(str);
+    return { "winter": str };
+}
+```
 
 ### Action Interface
 
@@ -219,30 +241,13 @@ or truncated activation logs.
 
 ### Testing 
 
-#### Testing the Action Interface
+#### Action Interface tests
 
 The [Action interface](#action-interface) is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates the initialization protocol, the runtime protocol, 
 ensures the activation context is correctly prepared, and that the logs are properly framed. Your 
 runtime should extend this test suite, and of course include additional tests as needed.
 
-##### The test action
-
-The standard test action is shown below in JavaScript. It should be adapted for the
-new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
-with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
-a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
-runtime manifest entry, replacing `:` in the kind with a `-`.
-For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
-
-```js
-function main(args) {
-    var str = args.delimiter + " ☃ " + args.delimiter;
-    console.log(str);
-    return { "winter": str };
-}
-```
-
-### Testing the Runtime proxy
+#### Runtime proxy tests
 
 There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
 for validating a new runtime. 
