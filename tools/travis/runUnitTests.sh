@@ -27,7 +27,7 @@ export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
 
 ./scan.sh
 
-./setupPrereq.sh
+./setupPrereq.sh /ansible/files/runtimes-all.json
 
 ./distDocker.sh
 
