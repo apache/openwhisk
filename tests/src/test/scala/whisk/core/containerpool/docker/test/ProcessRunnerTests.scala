@@ -25,7 +25,6 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import whisk.core.containerpool.docker._
 
 import scala.concurrent.ExecutionContext

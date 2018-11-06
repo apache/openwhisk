@@ -36,7 +36,7 @@ import whisk.http.Messages
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
@@ -130,15 +130,12 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }
 
     val f = Future.fromTry(t)
-
-    f.onFailure({
-      case _: DocumentConflictException =>
+    f.onComplete {
+      case Success(_) => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'")
+      case Failure(_: DocumentConflictException) =>
         transid.finished(this, start, s"[PUT] '$dbName', document: '$docinfoStr'; conflict.")
-    })
-
-    f.onSuccess({
-      case _ => transid.finished(this, start, s"[PUT] '$dbName' completed document: '$docinfoStr'")
-    })
+      case Failure(_) =>
+    }
 
     reportFailure(f, start, failure => s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'")
   }
@@ -239,9 +236,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }.toList
 
     val f = Future.sequence(r).map(_.flatten)
-    f.onSuccess({
-      case _ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
-    })
+    f.foreach(_ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}"))
     reportFailure(f, start, failure => s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'")
 
   }
@@ -270,10 +265,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     } else {
       val storedName = attachmentUri.path.toString()
       val f = attachmentStore.readAttachment(doc.id, storedName, sink)
-      f.onSuccess {
-        case _ =>
-          transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-      }
+      f.foreach(_ =>
+        transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'"))
       f
     }
   }

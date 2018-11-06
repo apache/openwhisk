@@ -22,7 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
@@ -41,7 +41,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
     val msgs = new ArrayList[Message]
     queue.synchronized {
       queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
-      msgs map { m =>
+      msgs.asScala map { m =>
         offset += 1
         (topic, -1, offset, m.serialize.getBytes)
       }
@@ -87,7 +87,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
 
     def sendBulk(topic: String, msgs: Seq[Message]): Future[RecordMetadata] = {
       queue.synchronized {
-        if (queue.addAll(msgs)) {
+        if (queue.addAll(msgs.asJava)) {
           logging.info(this, s"put: ${msgs.length} messages")
           Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, -1, Long.box(-1L), -1, -1))
         } else {

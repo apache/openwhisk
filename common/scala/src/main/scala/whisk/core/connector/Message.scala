@@ -75,8 +75,8 @@ object ActivationMessage extends DefaultJsonProtocol {
  * Message that is sent from the invoker to the controller after action is completed or after slot is free again for
  * new actions.
  */
-abstract class AcknowledegmentMessage() extends Message {
-  override val transid: TransactionId
+abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Message {
+  override val transid: TransactionId = tid
   override def serialize: String = {
     AcknowledegmentMessage.serdes.write(this).compactPrint
   }
@@ -90,7 +90,7 @@ case class CompletionMessage(override val transid: TransactionId,
                              activationId: ActivationId,
                              isSystemError: Boolean,
                              invoker: InvokerInstanceId)
-    extends AcknowledegmentMessage() {
+    extends AcknowledegmentMessage(transid) {
 
   override def toString = {
     activationId.asString
@@ -109,7 +109,7 @@ object CompletionMessage extends DefaultJsonProtocol {
  * The whisk activation field will have its logs stripped.
  */
 case class ResultMessage(override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
-    extends AcknowledegmentMessage() {
+    extends AcknowledegmentMessage(transid) {
 
   override def toString = {
     response.fold(l => l, r => r.activationId).asString

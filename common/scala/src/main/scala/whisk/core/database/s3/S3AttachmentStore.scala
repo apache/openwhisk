@@ -87,11 +87,9 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
       .runWith(combinedSink(client.multipartUpload(bucket, objectKey(docId, name), contentType)))
       .map(r => AttachResult(r.digest, r.length))
 
-    f.onSuccess({
-      case _ =>
-        transid
-          .finished(this, start, s"[ATT_PUT] '$prefix' completed uploading attachment '$name' of document 'id: $docId'")
-    })
+    f.foreach(_ =>
+      transid
+        .finished(this, start, s"[ATT_PUT] '$prefix' completed uploading attachment '$name' of document 'id: $docId'"))
 
     reportFailure(
       f,
@@ -147,10 +145,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
       .runWith(Sink.seq)
       .map(_ => true)
 
-    f.onSuccess {
-      case _ =>
-        transid.finished(this, start, s"[ATTS_DELETE] completed: deleting attachments of document 'id: $docId'")
-    }
+    f.foreach(_ =>
+      transid.finished(this, start, s"[ATTS_DELETE] completed: deleting attachments of document 'id: $docId'"))
 
     reportFailure(
       f,
@@ -167,10 +163,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String)(implic
       .deleteObject(bucket, objectKey(docId, name))
       .map(_ => true)
 
-    f.onSuccess {
-      case _ =>
-        transid.finished(this, start, s"[ATT_DELETE] completed: deleting attachment '$name' of document 'id: $docId'")
-    }
+    f.foreach(_ =>
+      transid.finished(this, start, s"[ATT_DELETE] completed: deleting attachment '$name' of document 'id: $docId'"))
 
     reportFailure(
       f,

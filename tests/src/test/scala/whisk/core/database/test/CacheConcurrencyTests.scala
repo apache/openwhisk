@@ -19,7 +19,7 @@ package whisk.core.database.test
 
 import scala.collection.parallel._
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.forkjoin.ForkJoinPool
+import java.util.concurrent.ForkJoinPool
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
