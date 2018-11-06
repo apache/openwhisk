@@ -139,14 +139,19 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var requireAuthenticationKey = "example-web-action-api-key"
   var invocationCount = 0
   var invocationsAllowed = 0
+  lazy val testFixturesToGc = {
+    implicit val tid = transid()
+    Seq(
+      stubPackage,
+      stubAction(namespace, EntityName("export_c")),
+      stubAction(proxyNamespace, EntityName("export_c")),
+      stubAction(proxyNamespace, EntityName("raw_export_c"))).map { f =>
+      put(entityStore, f, garbageCollect = false)
+    }
+  }
 
   override def beforeAll() = {
-    implicit val tid = transid()
-
-    put(entityStore, stubPackage, garbageCollect = false)
-    put(entityStore, stubAction(namespace, EntityName("export_c")), garbageCollect = false)
-    put(entityStore, stubAction(proxyNamespace, EntityName("export_c")), garbageCollect = false)
-    put(entityStore, stubAction(proxyNamespace, EntityName("raw_export_c")), garbageCollect = false)
+    testFixturesToGc.foreach(f => ())
   }
 
   override def beforeEach() = {
@@ -163,6 +168,11 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     testParametersInInvokeAction = true
     assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
     cleanup()
+  }
+
+  override def afterAll() = {
+    implicit val tid = transid()
+    testFixturesToGc.foreach(delete(entityStore, _))
   }
 
   val allowedMethodsWithEntity = {
@@ -198,7 +208,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                            name: EntityName,
                            customOptions: Boolean = true,
                            requireAuthentication: Boolean = false,
-                           requireAuthenticationAsBoolean: Boolean = true)(implicit transid: TransactionId) = {
+                           requireAuthenticationAsBoolean: Boolean = true) = {
 
     val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
     WhiskAction(
@@ -720,8 +730,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"reject request that tries to override final parameters of action in package binding (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      val provider = WhiskPackage(EntityPath("guest"), aname(), None, stubPackage.parameters, publish = true)
-      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind)
+      val provider = WhiskPackage(EntityPath("guest"), aname(), None, publish = true)
+      val reference = WhiskPackage(EntityPath(systemId.asString), aname(), provider.bind, stubPackage.parameters)
       val action = stubAction(provider.fullPath, EntityName("export_c"))
 
       put(entityStore, provider)
