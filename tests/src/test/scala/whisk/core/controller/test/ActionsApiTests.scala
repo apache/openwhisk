@@ -1271,7 +1271,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       activationIdFactory.make(),
       start = Instant.now,
       end = Instant.now,
-      response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
+      response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))),
+      logs = ActivationLogs(Vector("first line", "second line")))
     put(entityStore, action)
     // storing the activation in the db will allow the db polling to retrieve it
     // the test harness makes sure the activation id observed by the test matches
