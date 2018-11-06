@@ -27,6 +27,15 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+# We need to create the file with proper permissions because the dir creation above
+# does not result in a dir with full permissions in docker machine especially with macos mounts
+- name: ensure controller log file is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/{{ controller_name }}/{{ controller_name }}_logs.log"
+    state: touch
+    mode: 0777
+  when: environment_type is defined and environment_type == "docker-machine"
+
 - name: ensure controller config directory is created with permissions
   file:
     path: "{{ controller.confdir }}/{{ controller_name }}"
