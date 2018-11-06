@@ -19,6 +19,9 @@ package whisk.core.mesos
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.event.Logging.ErrorLevel
+import akka.event.Logging.InfoLevel
+import akka.pattern.AskTimeoutException
 import akka.pattern.ask
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -39,8 +42,12 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import spray.json._
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.MetricEmitter
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerAddress
@@ -64,6 +71,9 @@ object MesosTask {
   val taskLaunchTimeout = Timeout(45 seconds)
   val taskDeleteTimeout = Timeout(30 seconds)
 
+  val LAUNCH_CMD = "launch"
+  val KILL_CMD = "kill"
+
   def create(mesosClientActor: ActorRef,
              mesosConfig: MesosConfig,
              taskIdGenerator: () => String,
@@ -81,8 +91,6 @@ object MesosTask {
                                                        log: Logging,
                                                        as: ActorSystem): Future[Container] = {
     implicit val tid = transid
-
-    log.info(this, s"creating task for image $image...")
 
     val mesosCpuShares = cpuShares / 1024.0 // convert openwhisk (docker based) shares to mesos (cpu percentage)
     val mesosRam = memory.toMB.toInt
@@ -110,17 +118,32 @@ object MesosTask {
       Some(CommandDef(environment)),
       constraints.toSet)
 
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_MESOS_CMD(LAUNCH_CMD),
+      s"launching mesos task for taskid $taskId (image:$image, mem: $mesosRam, cpu: $mesosCpuShares) (timeout: $taskLaunchTimeout)",
+      logLevel = InfoLevel)
+
     val launched: Future[Running] =
       mesosClientActor.ask(SubmitTask(task))(taskLaunchTimeout).mapTo[Running]
 
-    launched.map(taskDetails => {
-      val taskHost = taskDetails.hostname
-      val taskPort = taskDetails.hostports(0)
-      log.info(this, s"launched task with state ${taskDetails.taskStatus.getState} at ${taskHost}:${taskPort}")
-      val containerIp = new ContainerAddress(taskHost, taskPort)
-      val containerId = new ContainerId(taskId);
-      new MesosTask(containerId, containerIp, ec, log, as, taskId, mesosClientActor, mesosConfig)
-    })
+    launched
+      .andThen {
+        case Success(taskDetails) =>
+          transid.finished(this, start, s"launched task ${taskId} at ${taskDetails.hostname}:${taskDetails
+            .hostports(0)}", logLevel = InfoLevel)
+        case Failure(ate: AskTimeoutException) =>
+          transid.failed(this, start, ate.getMessage, ErrorLevel)
+          MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_MESOS_CMD_TIMEOUT(LAUNCH_CMD))
+        case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
+      }
+      .map(taskDetails => {
+        val taskHost = taskDetails.hostname
+        val taskPort = taskDetails.hostports(0)
+        val containerIp = new ContainerAddress(taskHost, taskPort)
+        val containerId = new ContainerId(taskId);
+        new MesosTask(containerId, containerIp, ec, log, as, taskId, mesosClientActor, mesosConfig)
+      })
 
   }
 
@@ -132,8 +155,8 @@ object JsonFormatters extends DefaultJsonProtocol {
 
 class MesosTask(override protected val id: ContainerId,
                 override protected val addr: ContainerAddress,
-                override protected val ec: ExecutionContext,
-                override protected val logging: Logging,
+                override protected implicit val ec: ExecutionContext,
+                override protected implicit val logging: Logging,
                 override protected val as: ActorSystem,
                 taskId: String,
                 mesosClientActor: ActorRef,
@@ -154,9 +177,22 @@ class MesosTask(override protected val id: ContainerId,
 
   /** Completely destroys this instance of the container. */
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_MESOS_CMD(MesosTask.KILL_CMD),
+      s"killing mesos taskid $taskId (timeout: ${MesosTask.taskDeleteTimeout})",
+      logLevel = InfoLevel)
+
     mesosClientActor
       .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
       .mapTo[TaskStatus]
+      .andThen {
+        case Success(_) => transid.finished(this, start, logLevel = InfoLevel)
+        case Failure(ate: AskTimeoutException) =>
+          transid.failed(this, start, ate.getMessage, ErrorLevel)
+          MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_MESOS_CMD_TIMEOUT(MesosTask.KILL_CMD))
+        case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
+      }
       .map(taskStatus => {
         // verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
         if (taskStatus.getState != TaskState.TASK_KILLED) {

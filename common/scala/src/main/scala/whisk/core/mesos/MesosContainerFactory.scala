@@ -122,7 +122,6 @@ class MesosContainerFactory(config: WhiskConfig,
       mesosConfig.constraints
     }
 
-    logging.info(this, s"using Mesos to create a container with image $image...")
     MesosTask.create(
       mesosClientActor,
       mesosConfig,
