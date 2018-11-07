@@ -93,23 +93,13 @@ class MesosContainerFactoryTest
 
   val timeouts = MesosTimeoutConfig(1.seconds, 1.seconds, 1.seconds, 1.seconds, 1.seconds)
 
+  val mesosConfig =
+    MesosConfig("http://master:5050", None, "*", true, Seq.empty, " ", Seq.empty, true, None, 1.seconds, timeouts)
+
   behavior of "MesosContainerFactory"
 
   it should "send Subscribe on init" in {
     val wskConfig = new WhiskConfig(Map.empty)
-    val mesosConfig = MesosConfig(
-      "http://master:5050",
-      None,
-      "*",
-      0.seconds,
-      true,
-      Seq.empty,
-      " ",
-      Seq.empty,
-      true,
-      None,
-      1.seconds,
-      timeouts)
     new MesosContainerFactory(
       wskConfig,
       system,
@@ -127,7 +117,6 @@ class MesosContainerFactoryTest
       "http://master:5050",
       None,
       "*",
-      0.seconds,
       true,
       Seq("att1 LIKE v1", "att2 UNLIKE v2"),
       " ",
@@ -180,20 +169,6 @@ class MesosContainerFactoryTest
   }
 
   it should "send DeleteTask on destroy" in {
-    val mesosConfig = MesosConfig(
-      "http://master:5050",
-      None,
-      "*",
-      0.seconds,
-      true,
-      Seq.empty,
-      " ",
-      Seq.empty,
-      true,
-      None,
-      1.seconds,
-      timeouts)
-
     val probe = TestProbe()
     val factory =
       new MesosContainerFactory(
@@ -263,20 +238,6 @@ class MesosContainerFactoryTest
   }
 
   it should "return static message for logs" in {
-    val mesosConfig = MesosConfig(
-      "http://master:5050",
-      None,
-      "*",
-      0.seconds,
-      true,
-      Seq.empty,
-      " ",
-      Seq.empty,
-      true,
-      None,
-      1.seconds,
-      timeouts)
-
     val probe = TestProbe()
     val factory =
       new MesosContainerFactory(

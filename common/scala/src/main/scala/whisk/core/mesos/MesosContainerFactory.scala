@@ -75,7 +75,6 @@ case class MesosContainerHealthCheckConfig(portIndex: Int,
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String],
                        role: String,
-                       failoverTimeout: FiniteDuration,
                        mesosLinkLogMessage: Boolean,
                        constraints: Seq[String],
                        constraintDelimiter: String,
@@ -197,7 +196,7 @@ object MesosContainerFactory {
           "whisk-containerfactory-framework",
           mesosConfig.masterUrl,
           mesosConfig.role,
-          mesosConfig.failoverTimeout,
+          mesosConfig.timeouts.failover,
           taskStore = new LocalTaskStore,
           refuseSeconds = mesosConfig.offerRefuseDuration.toSeconds.toDouble))
 
