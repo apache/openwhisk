@@ -40,8 +40,6 @@ import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import spray.json._
@@ -68,8 +66,6 @@ case object Environment
 case class CreateContainer(image: String, memory: String, cpuShare: String)
 
 object MesosTask {
-  val taskLaunchTimeout = Timeout(45 seconds)
-  val taskDeleteTimeout = Timeout(30 seconds)
 
   val LAUNCH_CMD = "launch"
   val KILL_CMD = "kill"
@@ -111,13 +107,14 @@ object MesosTask {
       mesosCpuShares,
       mesosRam,
       List(8080), // all action containers listen on 8080
-      Some(0), // port at index 0 used for health
+      mesosConfig.healthCheck, // port at index 0 used for health
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,
       Some(CommandDef(environment)),
       constraints.toSet)
 
+    val taskLaunchTimeout = Timeout(mesosConfig.taskLaunchTimeout)
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_MESOS_CMD(LAUNCH_CMD),
@@ -162,6 +159,7 @@ class MesosTask(override protected val id: ContainerId,
                 mesosClientActor: ActorRef,
                 mesosConfig: MesosConfig)
     extends Container {
+  val taskDeleteTimeout = Timeout(mesosConfig.taskLaunchTimeout)
 
   /** Stops the container from consuming CPU cycles. */
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
@@ -180,11 +178,11 @@ class MesosTask(override protected val id: ContainerId,
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_MESOS_CMD(MesosTask.KILL_CMD),
-      s"killing mesos taskid $taskId (timeout: ${MesosTask.taskDeleteTimeout})",
+      s"killing mesos taskid $taskId (timeout: ${taskDeleteTimeout})",
       logLevel = InfoLevel)
 
     mesosClientActor
-      .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
+      .ask(DeleteTask(taskId))(taskDeleteTimeout)
       .mapTo[TaskStatus]
       .andThen {
         case Success(_) => transid.finished(this, start, logLevel = InfoLevel)

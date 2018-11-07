@@ -21,6 +21,7 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import com.adobe.api.platform.runtime.mesos.Constraint
+import com.adobe.api.platform.runtime.mesos.HealthCheckConfig
 import com.adobe.api.platform.runtime.mesos.LIKE
 import com.adobe.api.platform.runtime.mesos.LocalTaskStore
 import com.adobe.api.platform.runtime.mesos.MesosClient
@@ -66,7 +67,13 @@ case class MesosConfig(masterUrl: String,
                        constraints: Seq[String],
                        constraintDelimiter: String,
                        blackboxConstraints: Seq[String],
-                       teardownOnExit: Boolean) {}
+                       teardownOnExit: Boolean,
+                       healthCheck: Option[HealthCheckConfig],
+                       offerRefuseDuration: FiniteDuration,
+                       taskLaunchTimeout: FiniteDuration,
+                       taskDeleteTimeout: FiniteDuration,
+                       subscribeTimeout: FiniteDuration,
+                       teardownTimeout: FiniteDuration) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -78,9 +85,6 @@ class MesosContainerFactory(config: WhiskConfig,
                             clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
                             taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator _)
     extends ContainerFactory {
-
-  val subscribeTimeout = 10.seconds
-  val teardownTimeout = 30.seconds
 
   implicit val as: ActorSystem = actorSystem
   implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -94,7 +98,7 @@ class MesosContainerFactory(config: WhiskConfig,
   private def subscribe(): Future[Unit] = {
     logging.info(this, s"subscribing to Mesos master at ${mesosConfig.masterUrl}")
     mesosClientActor
-      .ask(Subscribe)(subscribeTimeout)
+      .ask(Subscribe)(mesosConfig.subscribeTimeout)
       .mapTo[SubscribeComplete]
       .map(complete => logging.info(this, s"subscribe completed successfully... $complete"))
       .recoverWith {
@@ -164,8 +168,8 @@ class MesosContainerFactory(config: WhiskConfig,
 
   /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
   override def cleanup(): Unit = {
-    val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
-    Try(Await.result(complete, teardownTimeout))
+    val complete: Future[Any] = mesosClientActor.ask(Teardown)(mesosConfig.teardownTimeout)
+    Try(Await.result(complete, mesosConfig.teardownTimeout))
       .map(_ => logging.info(this, "Mesos framework teardown completed."))
       .recover {
         case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
@@ -184,7 +188,8 @@ object MesosContainerFactory {
           mesosConfig.masterUrl,
           mesosConfig.role,
           mesosConfig.failoverTimeout,
-          taskStore = new LocalTaskStore))
+          taskStore = new LocalTaskStore,
+          refuseSeconds = mesosConfig.offerRefuseDuration.toSeconds.toDouble))
 
   val counter = new Counter()
   val startTime = Instant.now.getEpochSecond

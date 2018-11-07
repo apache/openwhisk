@@ -93,7 +93,22 @@ class MesosContainerFactoryTest
 
   it should "send Subscribe on init" in {
     val wskConfig = new WhiskConfig(Map.empty)
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
+    val mesosConfig = MesosConfig(
+      "http://master:5050",
+      None,
+      "*",
+      0.seconds,
+      true,
+      Seq.empty,
+      " ",
+      Seq.empty,
+      true,
+      None,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds)
     new MesosContainerFactory(
       wskConfig,
       system,
@@ -116,7 +131,13 @@ class MesosContainerFactoryTest
       Seq("att1 LIKE v1", "att2 UNLIKE v2"),
       " ",
       Seq("bbatt1 LIKE v1", "bbatt2 UNLIKE v2"),
-      true)
+      true,
+      None,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds)
 
     val factory =
       new MesosContainerFactory(
@@ -146,7 +167,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         User("net1"),
         Map(
@@ -161,7 +182,22 @@ class MesosContainerFactoryTest
   }
 
   it should "send DeleteTask on destroy" in {
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
+    val mesosConfig = MesosConfig(
+      "http://master:5050",
+      None,
+      "*",
+      0.seconds,
+      true,
+      Seq.empty,
+      " ",
+      Seq.empty,
+      true,
+      None,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds)
 
     val probe = TestProbe()
     val factory =
@@ -195,7 +231,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         User("net1"),
         Map(
@@ -232,7 +268,22 @@ class MesosContainerFactoryTest
   }
 
   it should "return static message for logs" in {
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
+    val mesosConfig = MesosConfig(
+      "http://master:5050",
+      None,
+      "*",
+      0.seconds,
+      true,
+      Seq.empty,
+      " ",
+      Seq.empty,
+      true,
+      None,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds,
+      1.seconds)
 
     val probe = TestProbe()
     val factory =
@@ -267,7 +318,7 @@ class MesosContainerFactoryTest
         mesosCpus,
         actionMemory.toMB.toInt,
         List(8080),
-        Some(0),
+        None,
         false,
         Bridge,
         Map(
