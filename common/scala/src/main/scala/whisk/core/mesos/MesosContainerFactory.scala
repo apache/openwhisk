@@ -51,22 +51,38 @@ import whisk.core.entity.InvokerInstanceId
 import whisk.core.entity.UUID
 
 /**
+ * Configuration for mesos timeouts
+ */
+case class MesosTimeoutConfig(failover: FiniteDuration,
+                              taskLaunch: FiniteDuration,
+                              taskDelete: FiniteDuration,
+                              subscribe: FiniteDuration,
+                              teardown: FiniteDuration)
+
+/**
+ * Configuration for mesos action container health checks
+ */
+case class MesosContainerHealthCheckConfig(portIndex: Int,
+                                           delay: FiniteDuration,
+                                           interval: FiniteDuration,
+                                           timeout: FiniteDuration,
+                                           gracePeriod: FiniteDuration,
+                                           maxConsecutiveFailures: Int)
+
+/**
  * Configuration for MesosClient
- * @param masterUrl The mesos url e.g. http://leader.mesos:5050.
- * @param masterPublicUrl A public facing mesos url (which may be different that the internal facing url) e.g. http://mymesos:5050.
- * @param role The role used by this framework (see http://mesos.apache.org/documentation/latest/roles/#associating-frameworks-with-roles).
- * @param failoverTimeout Timeout allowed for framework to reconnect after disconnection.
- * @param mesosLinkLogMessage If true, display a link to mesos in the static log message, otherwise do not include a link to mesos.
  */
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String],
                        role: String,
-                       failoverTimeout: FiniteDuration,
                        mesosLinkLogMessage: Boolean,
                        constraints: Seq[String],
                        constraintDelimiter: String,
                        blackboxConstraints: Seq[String],
-                       teardownOnExit: Boolean) {}
+                       teardownOnExit: Boolean,
+                       healthCheck: Option[MesosContainerHealthCheckConfig],
+                       offerRefuseDuration: FiniteDuration,
+                       timeouts: MesosTimeoutConfig) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -78,9 +94,6 @@ class MesosContainerFactory(config: WhiskConfig,
                             clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
                             taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator _)
     extends ContainerFactory {
-
-  val subscribeTimeout = 10.seconds
-  val teardownTimeout = 30.seconds
 
   implicit val as: ActorSystem = actorSystem
   implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -94,7 +107,7 @@ class MesosContainerFactory(config: WhiskConfig,
   private def subscribe(): Future[Unit] = {
     logging.info(this, s"subscribing to Mesos master at ${mesosConfig.masterUrl}")
     mesosClientActor
-      .ask(Subscribe)(subscribeTimeout)
+      .ask(Subscribe)(mesosConfig.timeouts.subscribe)
       .mapTo[SubscribeComplete]
       .map(complete => logging.info(this, s"subscribe completed successfully... $complete"))
       .recoverWith {
@@ -122,7 +135,6 @@ class MesosContainerFactory(config: WhiskConfig,
       mesosConfig.constraints
     }
 
-    logging.info(this, s"using Mesos to create a container with image $image...")
     MesosTask.create(
       mesosClientActor,
       mesosConfig,
@@ -165,8 +177,8 @@ class MesosContainerFactory(config: WhiskConfig,
 
   /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
   override def cleanup(): Unit = {
-    val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
-    Try(Await.result(complete, teardownTimeout))
+    val complete: Future[Any] = mesosClientActor.ask(Teardown)(mesosConfig.timeouts.teardown)
+    Try(Await.result(complete, mesosConfig.timeouts.teardown))
       .map(_ => logging.info(this, "Mesos framework teardown completed."))
       .recover {
         case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
@@ -184,8 +196,9 @@ object MesosContainerFactory {
           "whisk-containerfactory-framework",
           mesosConfig.masterUrl,
           mesosConfig.role,
-          mesosConfig.failoverTimeout,
-          taskStore = new LocalTaskStore))
+          mesosConfig.timeouts.failover,
+          taskStore = new LocalTaskStore,
+          refuseSeconds = mesosConfig.offerRefuseDuration.toSeconds.toDouble))
 
   val counter = new Counter()
   val startTime = Instant.now.getEpochSecond
