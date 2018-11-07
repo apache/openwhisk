@@ -164,7 +164,7 @@ Web actions bring some additional features that include:
 1. `Content extensions`: the request must specify its desired content type as one of `.json`, `.html`, `.http`, `.svg` or `.text`. This is done by adding an extension to the action name in the URI, so that an action `/guest/demo/hello` is referenced as `/guest/demo/hello.http` for example to receive an HTTP response back. For convenience, the `.http` extension is assumed when no extension is detected.
 2. `Projecting fields from the result`: When used with content extensions other than `.http`, the path that follows the action name is used to project out one or more levels of the response. For example, 
 `/guest/demo/hello.html/body`. This allows an action which returns a dictionary `{body: "..." }` to project the `body` property and directly return its string value instead. The projected path follows an absolute path model (as in XPath).
-3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
+3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, binding parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
 5. `Activation via multiple HTTP verbs`: a web action may be invoked via any of these HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`, as well as `HEAD` and `OPTIONS`.
 6. `Non JSON body and raw HTTP entity handling`: A web action may accept an HTTP request body other than a JSON object, and may elect to always receive such values as opaque values (plain text when not binary, or base64 encoded string otherwise).
@@ -484,6 +484,17 @@ $ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTI
 < Access-Control-Allow-Methods: OPTIONS, GET
 < Access-Control-Allow-Origin: example.com
 ```
+
+## Web Actions in Shared Packages
+
+A web action in a shared (i.e., public) package is accessible as a web action either directly via the package's fully
+qualified name, or via a package binding. It is important to note that a web action in a public package will be
+accessible for all bindings of the package even if the binding is private. This is because the web action annotation
+is carried on the action and cannot be overridden. If you do not wish to expose a web action through your package
+bindings, then you should clone-and-own the package instead.
+
+Action parameters are inherited from its package, and the binding if there is one. You can make package parameters
+[immutable](./annotations.md#protected-parameters) by defining their values through a package binding.
 
 ## Error Handling
 

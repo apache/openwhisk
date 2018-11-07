@@ -50,6 +50,7 @@ import RestApiCommons.{jsonPrettyResponsePrinter => jsonPrettyPrinter}
 import whisk.common.TransactionId
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerException
@@ -373,6 +374,9 @@ trait WhiskWebActionsApi
   /** Configured authentication provider. */
   protected val authenticationProvider = SpiLoader.get[AuthenticationDirectiveProvider]
 
+  /** The collection type for this trait. */
+  protected val collection = Collection(Collection.ACTIONS)
+
   /** The prefix for web invokes e.g., /web. */
   private lazy val webRoutePrefix = {
     pathPrefix(webInvokePathSegments.map(_segmentStringToPathMatcher(_)).reduceLeft(_ / _))
@@ -446,23 +450,6 @@ trait WhiskWebActionsApi
         }
       }
     }
-  }
-
-  /**
-   * Gets package from datastore.
-   * This method is factored out to allow mock testing.
-   */
-  protected def getPackage(pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskPackage] = {
-    WhiskPackage.get(entityStore, pkgName.toDocId)
-  }
-
-  /**
-   * Gets action from datastore.
-   * This method is factored out to allow mock testing.
-   */
-  protected def getAction(actionName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    WhiskActionMetaData.get(entityStore, actionName.toDocId)
   }
 
   /**
@@ -545,27 +532,15 @@ trait WhiskWebActionsApi
    */
   private def verifyWebAction(actionName: FullyQualifiedEntityName, authenticated: Boolean)(
     implicit transid: TransactionId) = {
-    for {
-      // lookup the identity for the action namespace
-      actionOwnerIdentity <- identityLookup(actionName.path.root) flatMap { i =>
-        entitlementProvider.checkThrottles(i) map (_ => i)
-      }
 
-      // lookup the action - since actions are stored relative to package name
-      // the lookup will fail if the package name for the action refers to a binding instead
-      // also merge package and action parameters at the same time
-      // precedence order for parameters:
-      // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
-      action <- confirmExportedAction(actionLookup(actionName), authenticated) flatMap { a =>
-        if (a.namespace.defaultPackage) {
-          Future.successful(a)
-        } else {
-          pkgLookup(a.namespace.toFullyQualifiedEntityName) map { pkg =>
-            (a.inherit(pkg.parameters))
-          }
+    // lookup the identity for the action namespace
+    identityLookup(actionName.path.root) flatMap { actionOwnerIdentity =>
+      confirmExportedAction(actionLookup(actionName), authenticated) flatMap { a =>
+        checkEntitlement(actionOwnerIdentity, a) map { _ =>
+          (actionOwnerIdentity, a)
         }
       }
-    } yield (actionOwnerIdentity, action)
+    }
   }
 
   private def extractEntityAndProcessRequest(actionOwnerIdentity: Identity,
@@ -697,32 +672,13 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Gets package from datastore and confirms it is not a binding.
-   */
-  private def pkgLookup(pkg: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskPackage] = {
-    getPackage(pkg).filter {
-      _.binding.isEmpty
-    } recoverWith {
-      case _: ArtifactStoreException | DeserializationException(_, _, _) =>
-        // if the package lookup fails or the package doesn't conform to expected invariants,
-        // fail the request with BadRequest so as not to leak information about the existence
-        // of packages that are otherwise private
-        logging.debug(this, s"package which does not exist")
-        Future.failed(RejectRequest(NotFound))
-      case _: NoSuchElementException =>
-        logging.debug(this, s"'$pkg' is a binding")
-        Future.failed(RejectRequest(NotFound))
-    }
-  }
-
-  /**
    * Gets the action if it exists and fail future with RejectRequest if it does not.
    *
    * @return future action document or NotFound rejection
    */
   private def actionLookup(actionName: FullyQualifiedEntityName)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
-    getAction(actionName) recoverWith {
+    WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, actionName) recoverWith {
       case _: ArtifactStoreException | DeserializationException(_, _, _) =>
         Future.failed(RejectRequest(NotFound))
     }
@@ -763,6 +719,17 @@ trait WhiskWebActionsApi
         Future.failed(RejectRequest(Unauthorized))
       }
     }
+  }
+
+  /**
+   * Checks if an action is executable.
+   */
+  private def checkEntitlement(identity: Identity, action: WhiskActionMetaData)(
+    implicit transid: TransactionId): Future[Unit] = {
+
+    val fqn = action.fullyQualifiedName(false)
+    val resource = Resource(fqn.path, collection, Some(fqn.name.asString))
+    entitlementProvider.check(identity, Privilege.ACTIVATE, resource)
   }
 
   /**
