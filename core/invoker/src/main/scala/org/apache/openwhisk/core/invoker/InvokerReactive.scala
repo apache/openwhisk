@@ -155,7 +155,11 @@ class InvokerReactive(
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
     implicit val transid: TransactionId = tid
-    activationStore.store(activation, context)(tid, notifier = None)
+    if (context.remainingQuota.activationStorePerMinute > 0) {
+      activationStore.store(activation, context)(tid, notifier = None)
+    } else {
+      Future.successful(())
+    }
   }
 
   /** Creates a ContainerProxy Actor when being called. */
@@ -229,7 +233,7 @@ class InvokerReactive(
                     ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
                 }
 
-                val context = UserContext(msg.user)
+                val context = UserContext(msg.user, msg.remainingQuota)
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid, true)

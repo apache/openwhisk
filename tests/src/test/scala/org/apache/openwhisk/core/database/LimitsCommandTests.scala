@@ -49,6 +49,8 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       "7",
       "--concurrentInvocations",
       "11",
+      "--activationStorePerMinute",
+      "13",
       "--allowedKinds",
       "nodejs:6",
       "blackbox",
@@ -59,6 +61,7 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       invocationsPerMinute = Some(3),
       firesPerMinute = Some(7),
       concurrentInvocations = Some(11),
+      activationStorePerMinute = Some(13),
       allowedKinds = Some(Set("nodejs:6", "blackbox")))
 
     resultOk("limits", "set", "--invocationsPerMinute", "13", ns) shouldBe CommandMessages.limitsSuccessfullyUpdated(ns)

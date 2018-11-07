@@ -157,7 +157,7 @@ class ContainerProxy(
               case BlackboxStartupError(msg)       => ActivationResponse.developerError(msg)
               case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
-            val context = UserContext(job.msg.user)
+            val context = UserContext(job.msg.user, job.msg.remainingQuota)
             // construct an appropriate activation and record it in the datastore,
             // also update the feed and active ack; the container cleanup is queued
             // implicitly via a FailureMessage which will be processed later when the state
@@ -396,7 +396,7 @@ class ContainerProxy(
         sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, false))
     }
 
-    val context = UserContext(job.msg.user)
+    val context = UserContext(job.msg.user, job.msg.remainingQuota)
 
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation

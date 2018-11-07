@@ -128,7 +128,8 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(authStore, ak1, 1)
     waitOnView(authStore, ak2, 1)
 
-    val limits = UserLimits(invocationsPerMinute = Some(7), firesPerMinute = Some(31))
+    val limits =
+      UserLimits(invocationsPerMinute = Some(7), firesPerMinute = Some(31), activationStorePerMinute = Some(20))
     put(authStore, new LimitEntity(name1.name, limits))
 
     val i = Identity.get(authStore, name1.name).futureValue

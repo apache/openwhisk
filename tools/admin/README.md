@@ -79,6 +79,10 @@ No limits found, default system limits apply
 $ wskadmin limits set space1 --invocationsPerMinute 1
 Limits successfully set for "space1"
 
+# set limits to disable saving of activations in activationstore
+$ wskadmin limits set space1 --activationStorePerMinute 1
+Limits successfully set for "space1"
+
 # set limits on allowedKinds
 $ wskadmin limits set space1 --allowedKinds nodejs:6 python
 Limits successfully set for "space1"

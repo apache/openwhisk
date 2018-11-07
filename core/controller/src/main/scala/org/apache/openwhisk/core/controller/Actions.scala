@@ -139,7 +139,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
             val right = collection.determineRight(m, Some(innername))
             onComplete(entitlementProvider.check(user, right, packageResource)) {
-              case Success(_) =>
+              case Success(remainingQuota) =>
                 getEntity(WhiskPackage.get(entityStore, packageDocId), Some {
                   if (right == Privilege.READ || right == Privilege.ACTIVATE) {
                     // need to merge package with action, hence authorize subject for package
@@ -148,7 +148,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                     //
                     // NOTE: it is an error if either the package or the action does not exist,
                     // the former manifests as unauthorized and the latter as not found
-                    mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
+                    mergeActionWithPackageAndDispatch(m, user, remainingQuota, EntityName(innername)) _
                   } else {
                     // these packaged action operations do not need merging with the package,
                     // but may not be permitted if this is a binding, or if the subject does
@@ -158,7 +158,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                         terminate(BadRequest, Messages.notAllowedOnBinding)
                       } getOrElse {
                         val actionResource = Resource(wp.fullPath, collection, Some(innername))
-                        dispatchOp(user, right, actionResource)
+                        dispatchOp(user, remainingQuota, right, actionResource)
                       }
                   }
                 })
@@ -214,8 +214,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 502 Bad Gateway
    * - 500 Internal Server Error
    */
-  override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+  override def activate(user: Identity,
+                        remainingQuota: RemainingQuota,
+                        entityName: FullyQualifiedEntityName,
+                        env: Option[Parameters])(implicit transid: TransactionId) = {
     parameter(
       'blocking ? false,
       'result ? false,
@@ -236,7 +238,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   .getOrElse(true)
 
                 if (allowInvoke) {
-                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
+                  doInvoke(user, remainingQuota, actionWithMergedParams, payload, blocking, waitOverride, result)
                 } else {
                   terminate(BadRequest, Messages.parametersNotAllowed)
                 }
@@ -250,13 +252,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   }
 
   private def doInvoke(user: Identity,
+                       remainingQuota: RemainingQuota,
                        actionWithMergedParams: WhiskActionMetaData,
                        payload: Option[JsObject],
                        blocking: Boolean,
                        waitOverride: FiniteDuration,
                        result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
-    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+    onComplete(invokeAction(user, remainingQuota, actionWithMergedParams, payload, waitForResponse, cause = None)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead
         respondWithActivationIdHeader(activationId) {
@@ -566,6 +569,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   private def mergeActionWithPackageAndDispatch(method: HttpMethod,
                                                 user: Identity,
+                                                remainingQuota: RemainingQuota,
                                                 action: EntityName,
                                                 ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
@@ -576,7 +580,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         // already checked that subject is authorized for package and binding;
         // this fetch is redundant but should hit the cache to ameliorate cost
         getEntity(WhiskPackage.get(entityStore, docid), Some {
-          mergeActionWithPackageAndDispatch(method, user, action, Some { wp }) _
+          mergeActionWithPackageAndDispatch(method, user, remainingQuota, action, Some { wp }) _
         })
     } getOrElse {
       // a subject has implied rights to all resources in a package, so dispatch
@@ -586,7 +590,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       val resource = Resource(ns, collection, Some { action.asString }, Some { params })
       val right = collection.determineRight(method, resource.entity)
       logging.debug(this, s"merged package parameters and rebased action to '$ns")
-      dispatchOp(user, right, resource)
+      dispatchOp(user, remainingQuota, right, resource)
     }
   }
 
@@ -603,7 +607,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     // then traverses all actions in the sequence, inlining any that are sequences
     val future = if (components.size > actionSequenceLimit) {
       Future.failed(TooManyActionsInSequence())
-    } else if (components.size == 0) {
+    } else if (components.isEmpty) {
       Future.failed(NoComponentInSequence())
     } else {
       // resolve the action document id (if it's in a package/binding);

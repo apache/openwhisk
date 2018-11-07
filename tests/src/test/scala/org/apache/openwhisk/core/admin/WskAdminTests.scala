@@ -218,17 +218,35 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
           "--firesPerMinute",
           "2",
           "--concurrentInvocations",
-          "3"))
+          "3",
+          "--activationStorePerMinute",
+          "4"))
       // check correctly set
       val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
       lines should have size 3
       lines(0) shouldBe "invocationsPerMinute = 1"
       lines(1) shouldBe "firesPerMinute = 2"
       lines(2) shouldBe "concurrentInvocations = 3"
+      lines(3) shouldBe "activationStorePerMinute = 4"
     } finally {
       wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
     }
   }
+
+  it should "disable saving of activations in ActivationsStore" in {
+    val subject = Subject().asString
+    try {
+      // set limit
+      wskadmin.cli(Seq("limits", "set", subject, "--disableActivationStore"))
+      // check correctly set
+      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+      lines should have size 1
+      lines(0) shouldBe "disableActivationStore = True"
+    } finally {
+      wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
+    }
+  }
+
   it should "adjust whitelist for namespace" in {
     val subject = Subject().asString
     try {

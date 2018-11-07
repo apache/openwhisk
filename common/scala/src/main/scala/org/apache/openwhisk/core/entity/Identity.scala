@@ -32,10 +32,20 @@ import org.apache.openwhisk.core.entitlement.Privilege
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,
                       firesPerMinute: Option[Int] = None,
+                      activationStorePerMinute: Option[Int] = None,
                       allowedKinds: Option[Set[String]] = None)
 
 object UserLimits extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat4(UserLimits.apply)
+  implicit val serdes = jsonFormat5(UserLimits.apply)
+}
+
+case class RemainingQuota(invocationsPerMinute: Int = 0,
+                          concurrentInvocations: Int = 0,
+                          firesPerMinute: Int = 0,
+                          activationStorePerMinute: Int = 0)
+
+object RemainingQuota extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat4(RemainingQuota.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

@@ -133,10 +133,12 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+  override def activate(user: Identity,
+                        remainingQuota: RemainingQuota,
+                        entityName: FullyQualifiedEntityName,
+                        env: Option[Parameters])(implicit transid: TransactionId) = {
     extractRequest { request =>
-      val context = UserContext(user, request)
+      val context = UserContext(user, remainingQuota, request)
 
       entity(as[Option[JsObject]]) { payload =>
         getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
@@ -169,7 +171,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     triggerActivation
                 }
                 .map { activation =>
-                  activationStore.store(activation, context)
+                  if (remainingQuota.activationStorePerMinute > 0)
+                    activationStore.store(activation, context)
                 }
               respondWithActivationIdHeader(triggerActivationId) {
                 complete(Accepted, triggerActivationId.toJsObject)

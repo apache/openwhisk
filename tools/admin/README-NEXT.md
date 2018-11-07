@@ -125,6 +125,10 @@ No limits found, default system limits apply
 $ wskadmin-next limits set --invocationsPerMinute 1 space1
 Limits successfully set for "space1"
 
+# set limits to disable saving of activations in activationstore
+$ wskadmin-next limits set space1 --activationStorePerMinute 1
+Limits successfully set for "space1"
+
 # set limits on allowedKinds
 $ wskadmin-next limits set --allowedKinds nodejs:6 python space1
 Limits successfully set for "space1"

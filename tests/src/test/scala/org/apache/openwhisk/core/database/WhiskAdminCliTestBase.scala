@@ -58,12 +58,13 @@ trait WhiskAdminCliTestBase
 
   protected def randomString(len: Int = 5): String = Random.alphanumeric.take(len).mkString
 
-  protected def resultOk(args: String*): String =
-    WhiskAdmin(new Conf(args.toSeq))
+  protected def resultOk(args: String*): String = {
+    val result = WhiskAdmin(new Conf(args.toSeq))
       .executeCommand()
       .futureValue
-      .right
-      .get
+    result shouldBe 'right
+    result.right.get
+  }
 
   protected def resultNotOk(args: String*): String =
     WhiskAdmin(new Conf(args.toSeq))

@@ -419,7 +419,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         activationId = new ActivationIdGenerator {}.make(),
         rootControllerIndex = controllerInstance,
         blocking = false,
-        content = None)
+        content = None,
+        remainingQuota = RemainingQuota(activationStorePerMinute = 1))
 
       context.parent ! ActivationRequest(activationMessage, invokerInstance)
     }

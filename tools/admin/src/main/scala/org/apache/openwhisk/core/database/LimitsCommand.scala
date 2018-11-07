@@ -73,6 +73,13 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         validate = _ >= 0,
         name = "concurrentInvocations",
         noshort = true)
+    val activationStorePerMinute =
+      opt[Int](
+        descr = "amount of activations that are allowed to write to activation store for this namespace",
+        argName = "ACTIVATIONSTOREPERMINUTE",
+        validate = _ >= 0,
+        name = "activationStorePerMinute",
+        noshort = true)
     val allowedKinds =
       opt[List[String]](
         descr = "list of runtime kinds allowed in this namespace",
@@ -88,6 +95,7 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
           invocationsPerMinute.toOption,
           concurrentInvocations.toOption,
           firesPerMinute.toOption,
+          activationStorePerMinute.toOption,
           allowedKinds.toOption.map(_.toSet)))
   }
   addSubcommand(set)
@@ -147,6 +155,7 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
           l.concurrentInvocations.map(ci => s"concurrentInvocations =  $ci"),
           l.invocationsPerMinute.map(i => s"invocationsPerMinute = $i"),
           l.firesPerMinute.map(i => s"firesPerMinute = $i"),
+          l.activationStorePerMinute.map(aspm => s"activationStorePerMinute = $aspm"),
           l.allowedKinds.map(k => s"allowedKinds = ${k.mkString(", ")}")).flatten.mkString(Properties.lineSeparator)
         Right(msg)
       }

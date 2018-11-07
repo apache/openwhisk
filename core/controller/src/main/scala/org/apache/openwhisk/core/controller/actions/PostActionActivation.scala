@@ -46,6 +46,7 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
    */
   protected[controller] def invokeAction(
     user: Identity,
+    remainingQuota: RemainingQuota,
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
@@ -54,10 +55,11 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
       // this is a topmost sequence
       case None =>
         val SequenceExecMetaData(components) = action.exec
-        invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
+        invokeSequence(user, remainingQuota, action, components, payload, waitForResponse, cause, topmost = true, 0)
+          .map(r => r._1)
       // a non-deprecated ExecutableWhiskAction
       case Some(executable) if !executable.exec.deprecated =>
-        invokeSingleAction(user, executable, payload, waitForResponse, cause)
+        invokeSingleAction(user, remainingQuota, executable, payload, waitForResponse, cause)
       // a deprecated exec
       case _ =>
         Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(action.exec)))

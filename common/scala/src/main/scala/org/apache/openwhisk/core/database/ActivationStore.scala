@@ -29,7 +29,7 @@ import org.apache.openwhisk.spi.Spi
 
 import scala.concurrent.Future
 
-case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
+case class UserContext(user: Identity, remainingQuota: RemainingQuota, request: HttpRequest = HttpRequest())
 
 trait ActivationStore {
 
