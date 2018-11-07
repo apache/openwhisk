@@ -27,10 +27,10 @@ cd $ROOTDIR/tools/travis
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
 export GRADLE_COVERAGE=true
 
-./setupPrereq.sh
+./setupPrereq.sh /ansible/files/runtimes-nodeonly.json
 
 ./distDocker.sh
 
-./setupSystem.sh
+./setupSystem.sh /ansible/files/runtimes-nodeonly.json
 
 ./runTests.sh

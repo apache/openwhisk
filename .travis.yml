@@ -74,6 +74,10 @@ jobs:
        - ./tools/travis/checkAndUploadLogs.sh system
       name: "System Tests"
     - script:
+      - ./tools/travis/runMultiRuntimeTests.sh
+      - ./tools/travis/checkAndUploadLogs.sh multi-runtime
+      name: "Multi-Runtime Tests"
+    - script:
         - ./tests/performance/preparation/deploy.sh
         - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 2m
         - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 4 2 2m
