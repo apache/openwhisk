@@ -21,7 +21,6 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import com.adobe.api.platform.runtime.mesos.Constraint
-import com.adobe.api.platform.runtime.mesos.HealthCheckConfig
 import com.adobe.api.platform.runtime.mesos.LIKE
 import com.adobe.api.platform.runtime.mesos.LocalTaskStore
 import com.adobe.api.platform.runtime.mesos.MesosClient
@@ -52,12 +51,26 @@ import whisk.core.entity.InvokerInstanceId
 import whisk.core.entity.UUID
 
 /**
+ * Configuration for mesos timeouts
+ */
+case class MesosTimeoutConfig(failover: FiniteDuration,
+                              taskLaunch: FiniteDuration,
+                              taskDelete: FiniteDuration,
+                              subscribe: FiniteDuration,
+                              teardown: FiniteDuration)
+
+/**
+ * Configuration for mesos action container health checks
+ */
+case class MesosContainerHealthCheckConfig(portIndex: Int,
+                                           delay: FiniteDuration,
+                                           interval: FiniteDuration,
+                                           timeout: FiniteDuration,
+                                           gracePeriod: FiniteDuration,
+                                           maxConsecutiveFailures: Int)
+
+/**
  * Configuration for MesosClient
- * @param masterUrl The mesos url e.g. http://leader.mesos:5050.
- * @param masterPublicUrl A public facing mesos url (which may be different that the internal facing url) e.g. http://mymesos:5050.
- * @param role The role used by this framework (see http://mesos.apache.org/documentation/latest/roles/#associating-frameworks-with-roles).
- * @param failoverTimeout Timeout allowed for framework to reconnect after disconnection.
- * @param mesosLinkLogMessage If true, display a link to mesos in the static log message, otherwise do not include a link to mesos.
  */
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String],
@@ -68,12 +81,9 @@ case class MesosConfig(masterUrl: String,
                        constraintDelimiter: String,
                        blackboxConstraints: Seq[String],
                        teardownOnExit: Boolean,
-                       healthCheck: Option[HealthCheckConfig],
+                       healthCheck: Option[MesosContainerHealthCheckConfig],
                        offerRefuseDuration: FiniteDuration,
-                       taskLaunchTimeout: FiniteDuration,
-                       taskDeleteTimeout: FiniteDuration,
-                       subscribeTimeout: FiniteDuration,
-                       teardownTimeout: FiniteDuration) {}
+                       timeouts: MesosTimeoutConfig) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -98,7 +108,7 @@ class MesosContainerFactory(config: WhiskConfig,
   private def subscribe(): Future[Unit] = {
     logging.info(this, s"subscribing to Mesos master at ${mesosConfig.masterUrl}")
     mesosClientActor
-      .ask(Subscribe)(mesosConfig.subscribeTimeout)
+      .ask(Subscribe)(mesosConfig.timeouts.subscribe)
       .mapTo[SubscribeComplete]
       .map(complete => logging.info(this, s"subscribe completed successfully... $complete"))
       .recoverWith {
@@ -168,8 +178,8 @@ class MesosContainerFactory(config: WhiskConfig,
 
   /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
   override def cleanup(): Unit = {
-    val complete: Future[Any] = mesosClientActor.ask(Teardown)(mesosConfig.teardownTimeout)
-    Try(Await.result(complete, mesosConfig.teardownTimeout))
+    val complete: Future[Any] = mesosClientActor.ask(Teardown)(mesosConfig.timeouts.teardown)
+    Try(Await.result(complete, mesosConfig.timeouts.teardown))
       .map(_ => logging.info(this, "Mesos framework teardown completed."))
       .recover {
         case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")

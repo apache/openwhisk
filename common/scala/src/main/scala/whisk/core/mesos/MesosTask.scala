@@ -30,6 +30,7 @@ import com.adobe.api.platform.runtime.mesos.Bridge
 import com.adobe.api.platform.runtime.mesos.CommandDef
 import com.adobe.api.platform.runtime.mesos.Constraint
 import com.adobe.api.platform.runtime.mesos.DeleteTask
+import com.adobe.api.platform.runtime.mesos.HealthCheckConfig
 import com.adobe.api.platform.runtime.mesos.Host
 import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
@@ -100,6 +101,17 @@ object MesosTask {
     }
     val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty
 
+    //transform our config to mesos-actor config:
+    val healthCheckConfig = mesosConfig.healthCheck.map(
+      c =>
+        HealthCheckConfig(
+          c.portIndex,
+          c.delay.toSeconds.toDouble,
+          c.interval.toSeconds.toDouble,
+          c.timeout.toSeconds.toDouble,
+          c.gracePeriod.toSeconds.toDouble,
+          c.maxConsecutiveFailures))
+    //define task
     val task = new TaskDef(
       taskId,
       name.getOrElse(image), // task name either the indicated name, or else the image name
@@ -107,14 +119,14 @@ object MesosTask {
       mesosCpuShares,
       mesosRam,
       List(8080), // all action containers listen on 8080
-      mesosConfig.healthCheck, // port at index 0 used for health
+      healthCheckConfig, // port at index 0 used for health
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,
       Some(CommandDef(environment)),
       constraints.toSet)
 
-    val taskLaunchTimeout = Timeout(mesosConfig.taskLaunchTimeout)
+    val taskLaunchTimeout = Timeout(mesosConfig.timeouts.taskLaunch)
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_MESOS_CMD(LAUNCH_CMD),
@@ -159,7 +171,7 @@ class MesosTask(override protected val id: ContainerId,
                 mesosClientActor: ActorRef,
                 mesosConfig: MesosConfig)
     extends Container {
-  val taskDeleteTimeout = Timeout(mesosConfig.taskLaunchTimeout)
+  val taskDeleteTimeout = Timeout(mesosConfig.timeouts.taskLaunch)
 
   /** Stops the container from consuming CPU cycles. */
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {

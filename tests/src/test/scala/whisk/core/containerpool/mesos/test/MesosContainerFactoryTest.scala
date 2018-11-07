@@ -57,6 +57,7 @@ import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.core.mesos.MesosConfig
 import whisk.core.mesos.MesosContainerFactory
+import whisk.core.mesos.MesosTimeoutConfig
 @RunWith(classOf[JUnitRunner])
 class MesosContainerFactoryTest
     extends TestKit(ActorSystem("MesosActorSystem"))
@@ -89,6 +90,9 @@ class MesosContainerFactoryTest
   override def beforeEach() = {
     stream.reset()
   }
+
+  val timeouts = MesosTimeoutConfig(1.seconds, 1.seconds, 1.seconds, 1.seconds, 1.seconds)
+
   behavior of "MesosContainerFactory"
 
   it should "send Subscribe on init" in {
@@ -105,10 +109,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds)
+      timeouts)
     new MesosContainerFactory(
       wskConfig,
       system,
@@ -134,10 +135,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds)
+      timeouts)
 
     val factory =
       new MesosContainerFactory(
@@ -194,10 +192,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds)
+      timeouts)
 
     val probe = TestProbe()
     val factory =
@@ -280,10 +275,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds,
-      1.seconds)
+      timeouts)
 
     val probe = TestProbe()
     val factory =
