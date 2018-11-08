@@ -118,10 +118,10 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
   }
 
   /** Dispatches resource to the proper handler depending on context. */
-  protected override def dispatchOp(user: Identity, remainingQuota: RemainingQuota, op: Privilege, resource: Resource)(
+  protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(
     implicit transid: TransactionId) = {
     extractRequest { request =>
-      val context = UserContext(user, RemainingQuota(), request)
+      val context = UserContext(user, request)
 
       resource.entity.flatMap(e => ActivationId.parse(e).toOption) match {
         case Some(aid) =>

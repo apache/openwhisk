@@ -253,7 +253,7 @@ protected[core] abstract class EntitlementProvider(
    * @return a promise that completes with success iff the subject is permitted to access the requested resource
    */
   protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
-    implicit transid: TransactionId): Future[RemainingQuota] = check(user, right, Set(resource))
+    implicit transid: TransactionId): Future[Option[RemainingQuota]] = check(user, right, Set(resource))
 
   /**
    * Constructs a RejectRequest containing the forbidden resources.
@@ -283,19 +283,19 @@ protected[core] abstract class EntitlementProvider(
    * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
    */
   protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource], noThrottle: Boolean = false)(
-    implicit transid: TransactionId): Future[RemainingQuota] = {
+    implicit transid: TransactionId): Future[Option[RemainingQuota]] = {
     val subject = user.subject
 
-    val entitlementCheck: Future[RemainingQuota] = if (user.rights.contains(right)) {
+    val entitlementCheck: Future[Option[RemainingQuota]] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
         logging.debug(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
         val throttleCheck =
-          if (noThrottle) Future.successful(RemainingQuota())
+          if (noThrottle) Future.successful(None)
           else
             checkUserThrottle(user, right, resources)
               .flatMap(remainingThrottle =>
                 checkConcurrentUserThrottle(user, right, resources).map(con =>
-                  remainingThrottle.copy(concurrentInvocations = con)))
+                  remainingThrottle.map(_.copy(concurrentInvocations = con))))
         throttleCheck
           .flatMap(remainingQuota => checkPrivilege(user, right, resources).map(p => (p, remainingQuota)))
           .flatMap {
@@ -304,7 +304,7 @@ protected[core] abstract class EntitlementProvider(
               if (failedResources.isEmpty) Future.successful(remainingQuota)
               else Future.failed(unauthorizedOn(failedResources.map(_._1)))
           }
-      } else Future.successful(RemainingQuota())
+      } else Future.successful(None)
     } else if (right != REJECT) {
       logging.debug(
         this,
@@ -360,17 +360,17 @@ protected[core] abstract class EntitlementProvider(
    * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Future[RemainingQuota] = {
+    implicit transid: TransactionId): Future[Option[RemainingQuota]] = {
     if (right == ACTIVATE) {
       val remainingStores = activationStoreRateThrottler.check(user).remaining
       if (resources.exists(_.collection.path == Collection.ACTIONS)) {
         checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user).map(rate =>
-          RemainingQuota(invocationsPerMinute = rate.remaining, activationStorePerMinute = remainingStores))
+          Some(RemainingQuota(rate.remaining, 0, 0, remainingStores)))
       } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
         checkThrottleOverload(Future.successful(triggerRateThrottler.check(user)), user).map(rate =>
-          RemainingQuota(firesPerMinute = rate.remaining, activationStorePerMinute = remainingStores))
-      } else Future.successful(RemainingQuota(activationStorePerMinute = remainingStores))
-    } else Future.successful(RemainingQuota())
+          Some(RemainingQuota(0, 0, rate.remaining, remainingStores)))
+      } else Future.successful(Some(RemainingQuota(0, 0, 0, remainingStores)))
+    } else Future.successful(None)
   }
 
   /**

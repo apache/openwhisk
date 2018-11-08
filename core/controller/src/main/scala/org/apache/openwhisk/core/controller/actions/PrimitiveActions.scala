@@ -73,7 +73,6 @@ protected[actions] trait PrimitiveActions {
   /** A method that knows how to invoke a sequence of actions. */
   protected[actions] def invokeSequence(
     user: Identity,
-    remainingQuota: RemainingQuota,
     action: WhiskActionMetaData,
     components: Vector[FullyQualifiedEntityName],
     payload: Option[JsObject],
@@ -104,16 +103,15 @@ protected[actions] trait PrimitiveActions {
    */
   protected[actions] def invokeSingleAction(
     user: Identity,
-    remainingQuota: RemainingQuota,
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
-      invokeComposition(user, remainingQuota, action, payload, waitForResponse, cause)
+      invokeComposition(user, action, payload, waitForResponse, cause)
     } else {
-      invokeSimpleAction(user, remainingQuota, action, payload, waitForResponse, cause)
+      invokeSimpleAction(user, action, payload, waitForResponse, cause)
     }
   }
 
@@ -148,7 +146,6 @@ protected[actions] trait PrimitiveActions {
    */
   private def invokeSimpleAction(
     user: Identity,
-    remainingQuota: RemainingQuota,
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
@@ -176,7 +173,6 @@ protected[actions] trait PrimitiveActions {
       activeAckTopicIndex,
       waitForResponse.isDefined,
       args,
-      remainingQuota,
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 
@@ -191,7 +187,7 @@ protected[actions] trait PrimitiveActions {
         .map { timeout =>
           // yes, then wait for the activation response from the message bus
           // (known as the active response or active ack)
-          waitForActivationResponse(user, remainingQuota, message.activationId, timeout, activeAckResponse)
+          waitForActivationResponse(user, message.activationId, timeout, activeAckResponse)
         }
         .getOrElse {
           // no, return the activation id
@@ -267,7 +263,6 @@ protected[actions] trait PrimitiveActions {
    *            Left(ActivationId) if not waiting for a response, or allowed duration has elapsed without a result ready
    */
   private def invokeComposition(user: Identity,
-                                remainingQuota: RemainingQuota,
                                 action: ExecutableWhiskActionMetaData,
                                 payload: Option[JsObject],
                                 waitForResponse: Option[FiniteDuration],
@@ -289,8 +284,7 @@ protected[actions] trait PrimitiveActions {
     logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
 
     val response: Future[Either[ActivationId, WhiskActivation]] =
-      invokeConductor(user, remainingQuota, payload, session).map(response =>
-        Right(completeActivation(user, remainingQuota, session, response)))
+      invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
 
     // is caller waiting for the result of the activation?
     cause
@@ -316,10 +310,8 @@ protected[actions] trait PrimitiveActions {
    * @param session the session object for this composition
    * @param transid a transaction id for logging
    */
-  private def invokeConductor(user: Identity,
-                              remainingQuota: RemainingQuota,
-                              payload: Option[JsObject],
-                              session: Session)(implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session)(
+    implicit transid: TransactionId): Future[ActivationResponse] = {
 
     if (session.accounting.conductors > 2 * actionSequenceLimit) {
       // composition is too long
@@ -335,7 +327,6 @@ protected[actions] trait PrimitiveActions {
       val activationResponse =
         invokeSimpleAction(
           user,
-          remainingQuota: RemainingQuota,
           action = session.action,
           payload = params,
           waitForResponse = Some(session.action.limits.timeout.duration + 1.minute), // wait for result
@@ -367,19 +358,17 @@ protected[actions] trait PrimitiveActions {
             case Some(next) =>
               FullyQualifiedEntityName.resolveName(next, user.namespace.name) match {
                 case Some(fqn) if session.accounting.components < actionSequenceLimit =>
-                  tryInvokeNext(user, remainingQuota, fqn, params, session)
+                  tryInvokeNext(user, fqn, params, session)
 
                 case Some(_) => // composition is too long
                   invokeConductor(
                     user,
-                    remainingQuota,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionIsTooLong))),
                     session = session)
 
                 case None => // parsing failure
                   invokeConductor(
                     user,
-                    remainingQuota,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentInvalid(next)))),
                     session = session)
 
@@ -399,11 +388,8 @@ protected[actions] trait PrimitiveActions {
    * @param session the session for the current activation
    * @return promise for the eventual activation
    */
-  private def tryInvokeNext(user: Identity,
-                            remainingQuota: RemainingQuota,
-                            fqn: FullyQualifiedEntityName,
-                            params: Option[JsObject],
-                            session: Session)(implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def tryInvokeNext(user: Identity, fqn: FullyQualifiedEntityName, params: Option[JsObject], session: Session)(
+    implicit transid: TransactionId): Future[ActivationResponse] = {
     val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
     entitlementProvider
       .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
@@ -414,14 +400,13 @@ protected[actions] trait PrimitiveActions {
           .flatMap {
             case next =>
               // successful resolution
-              invokeComponent(user, remainingQuota, action = next, payload = params, session)
+              invokeComponent(user, action = next, payload = params, session)
           }
           .recoverWith {
             case _ =>
               // resolution failure
               invokeConductor(
                 user,
-                remainingQuota,
                 payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotFound(fqn.asString)))),
                 session = session)
           }
@@ -431,7 +416,6 @@ protected[actions] trait PrimitiveActions {
           // failed entitlement check
           invokeConductor(
             user,
-            remainingQuota,
             payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotAccessible(fqn.asString)))),
             session = session)
       }
@@ -449,11 +433,8 @@ protected[actions] trait PrimitiveActions {
    * @param session the session object for this composition
    * @param transid a transaction id for logging
    */
-  private def invokeComponent(user: Identity,
-                              remainingQuota: RemainingQuota,
-                              action: WhiskActionMetaData,
-                              payload: Option[JsObject],
-                              session: Session)(implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def invokeComponent(user: Identity, action: WhiskActionMetaData, payload: Option[JsObject], session: Session)(
+    implicit transid: TransactionId): Future[ActivationResponse] = {
 
     val exec = action.toExecutableWhiskAction
     val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
@@ -461,7 +442,6 @@ protected[actions] trait PrimitiveActions {
         // invokeComposition will increase the invocation counts
         invokeComposition(
           user,
-          remainingQuota,
           action,
           payload,
           waitForResponse = None, // not topmost, hence blocking, no need for timeout
@@ -471,7 +451,6 @@ protected[actions] trait PrimitiveActions {
         session.accounting.components += 1
         invokeSimpleAction(
           user,
-          remainingQuota,
           action,
           payload,
           waitForResponse = Some(action.limits.timeout.duration + 1.minute),
@@ -481,7 +460,6 @@ protected[actions] trait PrimitiveActions {
         val SequenceExecMetaData(components) = action.exec
         invokeSequence(
           user,
-          remainingQuota,
           action,
           components,
           payload,
@@ -495,7 +473,7 @@ protected[actions] trait PrimitiveActions {
       case Left(response) => // unsuccessful invocation, return error response
         Future.successful(response)
       case Right(activation) => // reinvoke conductor on component result
-        invokeConductor(user, remainingQuota, payload = Some(activation.resultAsJson), session = session)
+        invokeConductor(user, payload = Some(activation.resultAsJson), session = session)
     }
   }
 
@@ -542,12 +520,10 @@ protected[actions] trait PrimitiveActions {
    * Creates an activation for a composition and writes it back to the datastore.
    * Returns the activation.
    */
-  private def completeActivation(user: Identity,
-                                 remainingQuota: RemainingQuota,
-                                 session: Session,
-                                 response: ActivationResponse)(implicit transid: TransactionId): WhiskActivation = {
+  private def completeActivation(user: Identity, session: Session, response: ActivationResponse)(
+    implicit transid: TransactionId): WhiskActivation = {
 
-    val context = UserContext(user, remainingQuota)
+    val context = UserContext(user)
 
     // compute max memory
     val sequenceLimits = Parameters(
@@ -589,7 +565,7 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    if (remainingQuota.activationStorePerMinute > 0)
+    if (user.remainingQuota.exists(_.activationStorePerMinute > 0))
       activationStore.store(activation, context)(transid, notifier = None)
 
     activation
@@ -605,12 +581,11 @@ protected[actions] trait PrimitiveActions {
    * fails because the message is too large.
    */
   private def waitForActivationResponse(user: Identity,
-                                        remainingQuota: RemainingQuota,
                                         activationId: ActivationId,
                                         totalWaitTime: FiniteDuration,
                                         activeAckResponse: Future[Either[ActivationId, WhiskActivation]])(
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-    val context = UserContext(user, remainingQuota)
+    val context = UserContext(user)
     val result = Promise[Either[ActivationId, WhiskActivation]]
     val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.name.toPath, activationId))
     logging.debug(this, s"action activation will block for result upto $totalWaitTime")

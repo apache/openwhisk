@@ -39,10 +39,10 @@ object UserLimits extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat5(UserLimits.apply)
 }
 
-case class RemainingQuota(invocationsPerMinute: Int = 0,
-                          concurrentInvocations: Int = 0,
-                          firesPerMinute: Int = 0,
-                          activationStorePerMinute: Int = 0)
+case class RemainingQuota(invocationsPerMinute: Int,
+                          concurrentInvocations: Int,
+                          firesPerMinute: Int,
+                          activationStorePerMinute: Int)
 
 object RemainingQuota extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat4(RemainingQuota.apply)
@@ -58,7 +58,8 @@ protected[core] case class Identity(subject: Subject,
                                     namespace: Namespace,
                                     authkey: GenericAuthKey,
                                     rights: Set[Privilege],
-                                    limits: UserLimits = UserLimits())
+                                    limits: UserLimits = UserLimits(),
+                                    remainingQuota: Option[RemainingQuota] = None)
 
 object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
 
@@ -67,7 +68,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
   override val cacheEnabled = true
   override val evictionPolicy = WriteTime
 
-  implicit val serdes = jsonFormat5(Identity.apply)
+  implicit val serdes = jsonFormat6(Identity.apply)
 
   /**
    * Retrieves a key for namespace.

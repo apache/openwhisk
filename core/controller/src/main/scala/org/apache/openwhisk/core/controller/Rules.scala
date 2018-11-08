@@ -129,10 +129,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 409 Conflict
    * - 500 Internal Server Error
    */
-  override def activate(user: Identity,
-                        remainingQuota: RemainingQuota,
-                        entityName: FullyQualifiedEntityName,
-                        env: Option[Parameters])(implicit transid: TransactionId) = {
+  override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
+    implicit transid: TransactionId) = {
     extractStatusRequest { requestedState =>
       val docid = entityName.toDocId
 

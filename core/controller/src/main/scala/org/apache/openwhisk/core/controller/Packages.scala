@@ -105,10 +105,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * Responses are one of (Code, Message)
    * - 405 Not Allowed
    */
-  override def activate(user: Identity,
-                        remainingQuota: RemainingQuota,
-                        entityName: FullyQualifiedEntityName,
-                        env: Option[Parameters])(implicit transid: TransactionId) = {
+  override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
+    implicit transid: TransactionId) = {
     logging.error(this, "activate is not permitted on packages")
     reject
   }

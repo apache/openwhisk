@@ -267,7 +267,8 @@ object InvokerPool {
       Subject(whiskSystem),
       Namespace(EntityName(whiskSystem), uuid),
       BasicAuthenticationAuthKey(uuid, Secret()),
-      Set[Privilege]())
+      Set[Privilege](),
+      remainingQuota = Some(RemainingQuota(1, 1, 1, 1)))
   }
 
   /** An action to use for monitoring invoker health. */
@@ -419,8 +420,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         activationId = new ActivationIdGenerator {}.make(),
         rootControllerIndex = controllerInstance,
         blocking = false,
-        content = None,
-        remainingQuota = RemainingQuota(activationStorePerMinute = 1))
+        content = None)
 
       context.parent ! ActivationRequest(activationMessage, invokerInstance)
     }

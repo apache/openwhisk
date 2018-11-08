@@ -67,7 +67,6 @@ protected[actions] trait SequenceActions {
   /** A method that knows how to invoke a single primitive action. */
   protected[actions] def invokeAction(
     user: Identity,
-    remainingQuota: RemainingQuota,
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
@@ -89,7 +88,6 @@ protected[actions] trait SequenceActions {
    */
   protected[actions] def invokeSequence(
     user: Identity,
-    remainingQuota: RemainingQuota,
     action: WhiskActionMetaData,
     components: Vector[FullyQualifiedEntityName],
     payload: Option[JsObject],
@@ -113,7 +111,6 @@ protected[actions] trait SequenceActions {
         // the cause for the component activations is the current sequence
         invokeSequenceComponents(
           user,
-          remainingQuota,
           action,
           seqActivationId,
           payload,
@@ -121,7 +118,6 @@ protected[actions] trait SequenceActions {
           cause = Some(seqActivationId),
           atomicActionsCount),
         user,
-        remainingQuota,
         action,
         topmost,
         start,
@@ -154,7 +150,6 @@ protected[actions] trait SequenceActions {
   private def completeSequenceActivation(seqActivationId: ActivationId,
                                          futureSeqResult: Future[SequenceAccounting],
                                          user: Identity,
-                                         remainingQuota: RemainingQuota,
                                          action: WhiskActionMetaData,
                                          topmost: Boolean,
                                          start: Instant,
@@ -179,8 +174,8 @@ protected[actions] trait SequenceActions {
               case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
             }
           }
-          if (remainingQuota.activationStorePerMinute > 0) {
-            val context = UserContext(user, remainingQuota)
+          if (user.remainingQuota.exists(_.activationStorePerMinute > 0)) {
+            val context = UserContext(user)
             activationStore.store(seqActivation, context)(transid, notifier = None)
           }
 
@@ -252,7 +247,6 @@ protected[actions] trait SequenceActions {
    */
   private def invokeSequenceComponents(
     user: Identity,
-    remainingQuota: RemainingQuota,
     seqAction: WhiskActionMetaData,
     seqActivationId: ActivationId,
     inputPayload: Option[JsObject],
@@ -282,7 +276,7 @@ protected[actions] trait SequenceActions {
       .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
-            invokeNextAction(user, remainingQuota, futureAction, accounting, cause)
+            invokeNextAction(user, futureAction, accounting, cause)
               .flatMap { accounting =>
                 if (!accounting.shortcircuit) {
                   Future.successful(accounting)
@@ -326,7 +320,6 @@ protected[actions] trait SequenceActions {
    */
   private def invokeNextAction(
     user: Identity,
-    remainingQuota: RemainingQuota,
     futureAction: Future[WhiskActionMetaData],
     accounting: SequenceAccounting,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[SequenceAccounting] = {
@@ -345,7 +338,6 @@ protected[actions] trait SequenceActions {
           // call invokeSequence to invoke the inner sequence; this is a blocking activation by definition
           invokeSequence(
             user,
-            remainingQuota,
             action,
             components,
             inputPayload,
@@ -357,7 +349,7 @@ protected[actions] trait SequenceActions {
           // this is an invoke for an atomic action
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
-          invokeAction(user, remainingQuota, action, inputPayload, waitForResponse = Some(timeout), cause) map {
+          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
             case res => (res, accounting.atomicActionCnt + 1)
           }
       }

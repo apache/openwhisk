@@ -91,11 +91,8 @@ trait WhiskCollectionAPI
     implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
   /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-  protected def activate(
-    user: Identity,
-    remainingQuota: RemainingQuota,
-    entityName: FullyQualifiedEntityName,
-    env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Future[RouteResult]
+  protected def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
+    implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
   /** Removes entity from namespace. Terminates HTTP request. */
   protected def remove(user: Identity, entityName: FullyQualifiedEntityName)(
@@ -110,7 +107,7 @@ trait WhiskCollectionAPI
     implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
   /** Dispatches resource to the proper handler depending on context. */
-  protected override def dispatchOp(user: Identity, remainingQuota: RemainingQuota, op: Privilege, resource: Resource)(
+  protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(
     implicit transid: TransactionId) = {
     resource.entity match {
       case Some(EntityName(name)) =>
@@ -125,7 +122,7 @@ trait WhiskCollectionAPI
           case ACTIVATE =>
             extract(_.request.entity.contentLengthOption) { length =>
               validateSize(isWhithinRange(length.getOrElse(0)))(transid, RestApiCommons.jsonDefaultResponsePrinter) {
-                activate(user, remainingQuota, FullyQualifiedEntityName(resource.namespace, name), resource.env)
+                activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
               }
             }
 

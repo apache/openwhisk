@@ -496,8 +496,7 @@ trait WhiskWebActionsApi
                           complete(OK, HttpEntity.Empty)
                         } else {
                           extractEntityAndProcessRequest(
-                            actionOwnerIdentity,
-                            remainingQuota,
+                            actionOwnerIdentity.copy(remainingQuota = remainingQuota),
                             action,
                             extension,
                             onBehalfOf,
@@ -507,8 +506,7 @@ trait WhiskWebActionsApi
                       }
                     } else {
                       extractEntityAndProcessRequest(
-                        actionOwnerIdentity,
-                        remainingQuota,
+                        actionOwnerIdentity.copy(remainingQuota = remainingQuota),
                         action,
                         extension,
                         onBehalfOf,
@@ -558,7 +556,6 @@ trait WhiskWebActionsApi
   }
 
   private def extractEntityAndProcessRequest(actionOwnerIdentity: Identity,
-                                             remainingQuota: RemainingQuota,
                                              action: WhiskActionMetaData,
                                              extension: MediaExtension,
                                              onBehalfOf: Option[Identity],
@@ -566,14 +563,7 @@ trait WhiskWebActionsApi
                                              httpEntity: HttpEntity)(implicit transid: TransactionId) = {
 
     def process(body: Option[JsValue], isRawHttpAction: Boolean) = {
-      processRequest(
-        actionOwnerIdentity,
-        remainingQuota,
-        action,
-        extension,
-        onBehalfOf,
-        context.withBody(body),
-        isRawHttpAction)
+      processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
     provide(action.annotations.getAs[Boolean]("raw-http").getOrElse(false)) { isRawHttpAction =>
@@ -614,7 +604,6 @@ trait WhiskWebActionsApi
   }
 
   private def processRequest(actionOwnerIdentity: Identity,
-                             remainingQuota: RemainingQuota,
                              action: WhiskActionMetaData,
                              responseType: MediaExtension,
                              onBehalfOf: Option[Identity],
@@ -632,13 +621,7 @@ trait WhiskWebActionsApi
       if (isRawHttpAction || context
             .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-        invokeAction(
-          actionOwnerIdentity,
-          remainingQuota,
-          action,
-          Some(JsObject(content)),
-          maxWaitForWebActionResult,
-          cause = None)
+        invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
       } else {
         Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
       }
@@ -754,7 +737,7 @@ trait WhiskWebActionsApi
    * Checks if an action is executable.
    */
   private def checkEntitlement(identity: Identity, action: WhiskActionMetaData)(
-    implicit transid: TransactionId): Future[RemainingQuota] = {
+    implicit transid: TransactionId): Future[Option[RemainingQuota]] = {
 
     val fqn = action.fullyQualifiedName(false)
     val resource = Resource(fqn.path, collection, Some(fqn.name.asString))

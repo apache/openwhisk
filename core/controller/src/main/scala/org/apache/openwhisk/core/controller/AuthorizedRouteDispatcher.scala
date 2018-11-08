@@ -73,7 +73,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
     val right = collection.determineRight(method, resource.entity)
 
     onComplete(entitlementProvider.check(user, right, resource)) {
-      case Success(remainingQuota) => dispatchOp(user, remainingQuota, right, resource)
+      case Success(remainingQuota) => dispatchOp(user.copy(remainingQuota = remainingQuota), right, resource)
       case Failure(t) =>
         t match {
           case (r: RejectRequest) =>
@@ -101,7 +101,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
   }
 
   /** Dispatches resource to the proper handler depending on context. */
-  protected def dispatchOp(user: Identity, remainingQuota: RemainingQuota, op: Privilege, resource: Resource)(
+  protected def dispatchOp(user: Identity, op: Privilege, resource: Resource)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
   /** Extracts namespace for user from the matched path segment. */

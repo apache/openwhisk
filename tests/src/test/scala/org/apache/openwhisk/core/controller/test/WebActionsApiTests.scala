@@ -1971,7 +1971,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
     // The check method checks both throttle and entitlement.
     protected[core] override def check(user: Identity, right: Privilege, resource: Resource)(
-      implicit transid: TransactionId): Future[Unit] = {
+      implicit transid: TransactionId): Future[Option[RemainingQuota]] = {
       val subject = user.subject
 
       // first, check entitlement
@@ -1983,7 +1983,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         failThrottleForSubject match {
           case Some(subject) if subject == user.subject =>
             Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests(2, 1)))
-          case _ => Future.successful({})
+          case _ => Future.successful(None)
         }
       }
     }

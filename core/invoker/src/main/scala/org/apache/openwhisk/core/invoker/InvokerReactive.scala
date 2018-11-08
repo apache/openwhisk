@@ -155,7 +155,7 @@ class InvokerReactive(
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
     implicit val transid: TransactionId = tid
-    if (context.remainingQuota.activationStorePerMinute > 0) {
+    if (context.user.remainingQuota.exists(_.activationStorePerMinute > 0)) {
       activationStore.store(activation, context)(tid, notifier = None)
     } else {
       Future.successful(())
@@ -233,7 +233,7 @@ class InvokerReactive(
                     ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
                 }
 
-                val context = UserContext(msg.user, msg.remainingQuota)
+                val context = UserContext(msg.user)
                 val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid, true)
