@@ -60,7 +60,7 @@ ext.testSets = [
             "org/apache/openwhisk/core/admin/**",
             "org/apache/openwhisk/core/apigw/actions/test/**",
             "org/apache/openwhisk/core/cli/test/**",
-            "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/actionlimits/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
@@ -68,7 +68,7 @@ ext.testSets = [
     ],
     "REQUIRE_SYSTEM" : [
         "includes" : [
-            "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/actionlimits/**",
             "org/apache/openwhisk/core/admin/**",
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/apigw/actions/test/**",

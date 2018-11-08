@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.limits
+package org.apache.openwhisk.core.actionlimits
 
 import scala.concurrent.duration.DurationInt
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.limits
+package org.apache.openwhisk.core.actionlimits
 
 import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
@@ -175,6 +175,37 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       } else {
         createResult.stderr should include("allowed threshold")
       }
+    }
+  }
+
+  it should "be able to run a memory intensive actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "TestNodeJsInvokeHighMemory"
+    val allowedMemory = MemoryLimit.maxMemory
+    assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+      val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
+      (action, _) =>
+        action.create(name, Some(actionName), memory = Some(allowedMemory))
+    }
+    // Don't try to allocate all the memory on invoking the action, as the maximum memory is set for the whole container
+    // and not only for the user action.
+    val run = wsk.action.invoke(name, Map("payload" -> (allowedMemory.toMB - 56).toJson))
+    withActivation(wsk.activation, run) { response =>
+      response.response.status shouldBe "success"
+    }
+  }
+
+  it should "be aborted when exceeding its memory limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "TestNodeJsMemoryExceeding"
+    assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+      val allowedMemory = 128.megabytes
+      val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
+      (action, _) =>
+        action.create(name, Some(actionName), memory = Some(allowedMemory))
+    }
+
+    val run = wsk.action.invoke(name, Map("payload" -> 256.toJson))
+    withActivation(wsk.activation, run) {
+      _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
   }
 
@@ -409,37 +440,6 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
         response.response.status shouldBe "success"
         response.response.result shouldBe Some(JsObject("msg" -> "OK, buffer of size 128 MB has been filled.".toJson))
       }
-    }
-  }
-
-  it should "be able to run a memory intensive actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "TestNodeJsInvokeHighMemory"
-    val allowedMemory = MemoryLimit.maxMemory
-    assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
-      val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
-      (action, _) =>
-        action.create(name, Some(actionName), memory = Some(allowedMemory))
-    }
-    // Don't try to allocate all the memory on invoking the action, as the maximum memory is set for the whole container
-    // and not only for the user action.
-    val run = wsk.action.invoke(name, Map("payload" -> (allowedMemory.toMB - 56).toJson))
-    withActivation(wsk.activation, run) { response =>
-      response.response.status shouldBe "success"
-    }
-  }
-
-  it should "be aborted when exceeding its memory limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "TestNodeJsMemoryExceeding"
-    assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
-      val allowedMemory = 128.megabytes
-      val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
-      (action, _) =>
-        action.create(name, Some(actionName), memory = Some(allowedMemory))
-    }
-
-    val run = wsk.action.invoke(name, Map("payload" -> 256.toJson))
-    withActivation(wsk.activation, run) {
-      _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
   }
 }
