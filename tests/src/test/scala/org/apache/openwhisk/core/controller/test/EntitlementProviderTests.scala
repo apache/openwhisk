@@ -66,7 +66,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val resources = collections map { Resource(someUser.namespace.name.toPath, _, None) }
 
     resources foreach { r =>
-      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe 'right
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
@@ -128,7 +128,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       // fine grained and applies to public vs private private packages (hence permit READ on PACKAGES to
       // be true
       if ((r.collection == PACKAGES)) {
-        Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+        Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe 'right
       } else {
         Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
           RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
@@ -150,10 +150,10 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val collections = Seq(ACTIONS, RULES, TRIGGERS)
     val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
-      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
-      Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Right({})
-      Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Right({})
-      Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Right({})
+      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe 'right
+      Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe 'right
+      Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe 'right
+      Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe 'right
     }
   }
 
@@ -176,7 +176,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
-      Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Right({})
+      Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe 'right
     }
   }
 
@@ -185,7 +185,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val collections = Seq(NAMESPACES, ACTIVATIONS)
     val resources = collections map { Resource(someUser.namespace.name.toPath, _, Some("xyz")) }
     resources foreach { r =>
-      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+      Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe 'right
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
@@ -220,8 +220,8 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(NotFound))
       // create/put/delete should be allowed
-      Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Right({})
-      Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Right({})
+      Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe 'right
+      Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe 'right
       // activate is not allowed on a package
       Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
@@ -232,11 +232,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     val all = Resource(someUser.namespace.name.toPath, ACTIONS, None)
     val one = Resource(someUser.namespace.name.toPath, ACTIONS, Some("xyz"))
-    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
-    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
+    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be 'right
+    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be 'right
     Await.result(entitlementProvider.grant(adminUser, READ, all), requestTimeout) // granted
-    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get shouldBe Right({})
-    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
+    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get shouldBe 'right
+    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe 'right
     Await.result(entitlementProvider.revoke(adminUser, READ, all), requestTimeout) // revoked
   }
 
@@ -244,15 +244,15 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     val all = Resource(someUser.namespace.name.toPath, ACTIONS, None)
     val one = Resource(someUser.namespace.name.toPath, ACTIONS, Some("xyz"))
-    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
-    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
+    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be 'right
+    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be 'right
     Await
       .ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout)
       .eitherValue
       .get should not be Right({})
     Await.result(entitlementProvider.grant(adminUser, READ, one), requestTimeout) // granted
-    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
-    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
+    Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be 'right
+    Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe 'right
     Await
       .ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout)
       .eitherValue
