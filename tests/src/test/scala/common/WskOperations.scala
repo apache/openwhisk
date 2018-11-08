@@ -27,7 +27,7 @@ import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import TestUtils._
 import spray.json._
-import whisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.ByteSize
 
 import scala.util.Try
 

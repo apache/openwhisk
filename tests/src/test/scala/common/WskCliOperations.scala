@@ -33,8 +33,8 @@ import scala.util.Try
 import common.TestUtils._
 import spray.json.JsObject
 import spray.json.JsValue
-import whisk.core.entity.ByteSize
-import whisk.utils.retry
+import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.utils.retry
 
 import FullyQualifiedNames.fqn
 import FullyQualifiedNames.resolve

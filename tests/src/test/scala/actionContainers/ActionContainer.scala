@@ -39,11 +39,11 @@ import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import spray.json._
 import common.StreamLogging
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.entity.Exec
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.entity.Exec
 import common.WhiskProperties
-import whisk.core.containerpool.Container
+import org.apache.openwhisk.core.containerpool.Container
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -236,7 +236,7 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    whisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
+    org.apache.openwhisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
   }
   private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
     implicit logging: Logging,
@@ -244,7 +244,8 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    whisk.core.containerpool.AkkaContainerClient.concurrentPost(host, port, endPoint, contents, 30.seconds)
+    org.apache.openwhisk.core.containerpool.AkkaContainerClient
+      .concurrentPost(host, port, endPoint, contents, 30.seconds)
   }
 
 }

@@ -23,9 +23,9 @@ import com.github.benmanes.caffeine.cache.Ticker
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import pureconfig.loadConfigOrThrow
-import whisk.common.{LoggingMarkers, TransactionId}
-import whisk.common.tracing.{OpenTracer, TracingConfig}
-import whisk.core.ConfigKeys
+import org.apache.openwhisk.common.{LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common.tracing.{OpenTracer, TracingConfig}
+import org.apache.openwhisk.core.ConfigKeys
 
 import scala.ref.WeakReference
 import org.scalatest.{Matchers, TestData}

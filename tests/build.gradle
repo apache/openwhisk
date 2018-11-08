@@ -54,30 +54,31 @@ def leanExcludes = [
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
-            "whisk/**"
+            "org/apache/openwhisk/**"
         ],
         "excludes" : [
-            "whisk/core/admin/**",
-            "whisk/core/apigw/actions/test/**",
-            "whisk/core/cli/test/**",
-            "whisk/core/limits/**",
+            "org/apache/openwhisk/core/admin/**",
+            "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/core/cli/test/**",
+            "org/apache/openwhisk/core/limits/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
+            "org/apache/openwhisk/testEntities/**",
         ]
     ],
     "REQUIRE_SYSTEM" : [
         "includes" : [
+            "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/admin/**",
+            "org/apache/openwhisk/core/cli/test/**",
+            "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
+            "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
             "apigw/healthtests/**",
             "ha/**",
             "services/**",
             "system/basic/**",
             "system/rest/**",
-            "whisk/core/admin/**",
-            "whisk/core/cli/test/**",
-            "whisk/core/apigw/actions/test/**",
-            "whisk/core/limits/**",
-            "whisk/core/database/test/*CacheConcurrencyTests*",
-            "whisk/core/controller/test/*ControllerApiTests*",
         ],
         "excludes": [
             "system/basic/WskMultiRuntimeTests*"
@@ -95,7 +96,7 @@ ext.testSets = [
     ],
     "REQUIRE_SYSTEM_BASIC" : [
         "includes" : [
-            "system/basic/**"
+            "org/apache/openwhisk/testEntities/system/basic/**"
         ]
     ]
 ]
@@ -137,7 +138,7 @@ task testSystemBasic(type: Test) {
 }
 
 task testUnit(type: Test) {
-    systemProperty("whisk.spi.ArtifactStoreProvider", "whisk.core.database.memory.MemoryArtifactStoreProvider")
+    systemProperty("whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider")
     exclude getPattern("REQUIRE_ONLY_DB", "excludes")
     include getPattern("REQUIRE_ONLY_DB", "includes")
 

@@ -44,8 +44,8 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
 '''
 
 def meta = [
-        controller : [main:"whisk.core.controller.Controller"],
-        invoker : [main:"whisk.core.invoker.Invoker"]
+        controller : [main:"org.apache.openwhisk.core.controller.Controller"],
+        invoker : [main:"org.apache.openwhisk.core.invoker.Invoker"]
 ]
 
 //Get names of all running containers

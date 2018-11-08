@@ -213,7 +213,7 @@ trait WskTestHelpers extends Matchers {
                 val rr = cli.sanitize(n)(wskprops)
                 rr.exitCode match {
                   case CONFLICT | StatusCodes.Conflict.intValue =>
-                    whisk.utils.retry({
+                    org.apache.openwhisk.utils.retry({
                       println("package deletion conflict, view computation delay likely, retrying...")
                       cli.delete(n)(wskprops)
                     }, 5, Some(1.second))

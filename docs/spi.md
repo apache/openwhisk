@@ -22,7 +22,7 @@
 Alternate implementations of various components follow an SPI (Service Provider Interface) pattern:
 * The pluggable component is defined as an Spi trait:
 ```scala
-import whisk.spi.Spi
+import org.apache.openwhisk.spi.Spi
 trait ThisIsPluggable extends Spi { ... }
 ```
 * Implementations implement the Spi trait

@@ -37,11 +37,11 @@ import common.rest.{HttpConnection, WskRestOperations}
 import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
-import whisk.core.ConfigKeys
-import whisk.core.database.CouchDbConfig
-import whisk.core.database.test.ExtendedCouchDbRestClient
-import whisk.utils.retry
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.database.CouchDbConfig
+import org.apache.openwhisk.core.database.test.ExtendedCouchDbRestClient
+import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ShootComponentsTests
