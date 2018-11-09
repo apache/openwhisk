@@ -20,14 +20,12 @@ package org.apache.openwhisk.core.database
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.Failure
-import scala.util.Success
 import com.github.benmanes.caffeine.cache.Caffeine
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.LoggingMarkers
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.entity.CacheKey
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success}
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -90,12 +88,13 @@ case object AccessTime extends EvictionPolicy
 case object WriteTime extends EvictionPolicy
 
 trait MultipleReadersSingleWriterCache[W, Winfo] {
-  import MultipleReadersSingleWriterCache._
   import MultipleReadersSingleWriterCache.State._
+  import MultipleReadersSingleWriterCache._
 
   /** Subclasses: Toggle this to enable/disable caching for your entity type. */
   protected val cacheEnabled = true
   protected val evictionPolicy: EvictionPolicy = AccessTime
+  protected val fixedCacheSize = 0
 
   private object Entry {
     def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
@@ -445,25 +444,37 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
   }
 
   /** This is the backing store. */
-  private lazy val cache: ConcurrentMapBackedCache[Entry] = evictionPolicy match {
-    case AccessTime =>
-      new ConcurrentMapBackedCache(
-        Caffeine
+  private lazy val cache: ConcurrentMapBackedCache[Entry] = new ConcurrentMapBackedCache(
+    (evictionPolicy match {
+      case AccessTime => {
+
+        val caffeineCache = Caffeine
           .newBuilder()
           .asInstanceOf[Caffeine[Any, Future[Entry]]]
           .expireAfterAccess(5, TimeUnit.MINUTES)
           .softValues()
-          .build()
-          .asMap())
 
-    case _ =>
-      new ConcurrentMapBackedCache(
-        Caffeine
+        if (fixedCacheSize > 0) {
+          caffeineCache.maximumSize(fixedCacheSize)
+        } else {
+          caffeineCache
+        }
+      }
+
+      case _ => {
+
+        val caffeineCache = Caffeine
           .newBuilder()
           .asInstanceOf[Caffeine[Any, Future[Entry]]]
           .expireAfterWrite(5, TimeUnit.MINUTES)
           .softValues()
-          .build()
-          .asMap())
-  }
+
+        if (fixedCacheSize > 0) {
+          caffeineCache.maximumSize(fixedCacheSize)
+        } else {
+          caffeineCache
+        }
+      }
+    }).build()
+      .asMap())
 }

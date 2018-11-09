@@ -17,17 +17,19 @@
 
 package org.apache.openwhisk.core.entity
 
+import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.database.{
+  MultipleReadersSingleWriterCache,
+  NoDocumentException,
+  StaleParameter,
+  WriteTime
+}
+import org.apache.openwhisk.core.entitlement.Privilege
+import org.apache.openwhisk.core.entity.types.AuthStore
+import spray.json._
+
 import scala.concurrent.Future
 import scala.util.Try
-import spray.json._
-import types.AuthStore
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.MultipleReadersSingleWriterCache
-import org.apache.openwhisk.core.database.NoDocumentException
-import org.apache.openwhisk.core.database.StaleParameter
-import org.apache.openwhisk.core.database.WriteTime
-import org.apache.openwhisk.core.entitlement.Privilege
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,
@@ -56,6 +58,9 @@ object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocIn
 
   override val cacheEnabled = true
   override val evictionPolicy = WriteTime
+  // upper bound for the auth cache to prevent memory pollution by sending
+  // malicious namespace patterns
+  override val fixedCacheSize = 100000
 
   implicit val serdes = jsonFormat5(Identity.apply)
 
