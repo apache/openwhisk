@@ -261,7 +261,7 @@ apigateway:
   version: 0.9.10
 
 redis:
-  version: 3.2
+  version: 4.0
   port: 6379
 
 linux:
