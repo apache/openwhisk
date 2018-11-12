@@ -2,36 +2,90 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 ---
 # This role will install Docker using apt.
+- name: Install docker xenial
+  block:
+    - name: install docker-ce prerequisites
+      apt: name={{item}} update_cache=yes
+      with_items:
+       - apt-transport-https
+       - ca-certificates
+       - curl
+       - software-properties-common
 
-- name: add docker repo
-  apt_repository:
-    repo: deb https://apt.dockerproject.org/repo ubuntu-trusty main
-    update_cache: yes
-    state: present
-  become: true
+    - name: add docker GPG key
+      apt_key: url=https://download.docker.com/linux/ubuntu/gpg
 
-- name: install docker
-  apt:
-    name: "docker-engine={{ docker.version }}"
-    state: present
-    force: yes
-  become: true
+    - name: add docker APT repository amd64
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable
+      when: ansible_architecture == "x86_64"
 
-- name: configure docker
-  template:
-    src: docker.j2
-    dest: "/etc/default/docker"
-  become: true
+    - name: add docker APT repository amrhf
+      apt_repository:
+        repo: deb [arch=armhf] https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable
+      when: ansible_architecture == "armhf"
 
-- name: add user to docker group
-  user:
-    name: "{{docker.user|default(ansible_user_id)}}"
-    groups: docker
-    append: true
-  become: true
+    - name: install docker-ce
+      update_cache: yes
+      apt:  name=docker-ce
 
-- name: restart docker service
-  service:
-    name: docker
-    state: restarted
-  become: true
+    - name: replace ExecStart line
+      lineinfile: 
+        dest: /lib/systemd/system/docker.service
+        regexp: "^(.*)ExecStart=/usr/bin/dockerd(.*)$"
+        line: "ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:{{ docker.port }} -H unix:///var/run/docker.sock -s {{ docker.storagedriver }} --insecure-registry {{ groups['registry']|first }}:5000"
+        backrefs: yes
+
+    - name: add user to docker group
+      user:
+        name: "{{docker.user|default(ansible_user_id)}}"
+        groups: docker
+        append: true
+      become: true
+
+    - name: reload systemd
+      command: systemctl daemon-reload
+
+    - name: restart docker service
+      service:
+        name: docker
+        state: restarted
+      become: true
+
+  when: ansible_distribution_release == "xenial"
+
+- name: Install docker trusty
+  block:
+    - name: add docker repo
+      apt_repository:
+        repo: deb https://apt.dockerproject.org/repo ubuntu-trusty main
+        update_cache: yes
+        state: present
+      become: true
+
+    - name: install docker
+      apt:
+        name: "docker-engine={{ docker.version }}"
+        state: present
+        force: yes
+      become: true
+
+    - name: configure docker
+      template:
+        src: docker.j2
+        dest: "/etc/default/docker"
+      become: true
+
+    - name: add user to docker group
+      user:
+        name: "{{docker.user|default(ansible_user_id)}}"
+        groups: docker
+        append: true
+      become: true
+
+    - name: restart docker service
+      service:
+        name: docker
+        state: restarted
+      become: true
+  when: ansible_distribution_release == "trusty"
