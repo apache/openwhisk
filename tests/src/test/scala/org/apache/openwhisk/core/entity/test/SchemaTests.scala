@@ -46,6 +46,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "Privilege"
 
+  private implicit class ExecJson(e: Exec) {
+    def asJson: JsObject = Exec.serdes.write(e).asJsObject
+  }
+
   it should "serdes a right" in {
     Privilege.serdes.read("READ".toJson) shouldBe Privilege.READ
     Privilege.serdes.read("read".toJson) shouldBe Privilege.READ
@@ -490,11 +494,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       Exec.serdes.read(e)
     }
 
-    assert(execs(0) == jsDefault("js1") && json(0).compactPrint == jsDefault("js1").toString)
-    assert(execs(1) == jsDefault("js2") && json(1).compactPrint != jsDefault("js2").toString) // ignores unknown properties
-    assert(execs(2) == swift("swift1") && json(2).compactPrint == swift("swift1").toString)
-    assert(execs(3) == swift3(b64Body) && json(3).compactPrint == swift3(b64Body).toString)
-    assert(execs(4) == jsDefault(b64Body) && json(4).compactPrint == jsDefault(b64Body).toString)
+    assert(execs(0) == jsDefault("js1") && json(0) == jsDefault("js1").asJson)
+    assert(execs(1) == jsDefault("js2") && json(1) != jsDefault("js2").asJson) // ignores unknown properties
+    assert(execs(2) == swift("swift1") && json(2) == swift("swift1").asJson)
+    assert(execs(3) == swift3(b64Body) && json(3) == swift3(b64Body).asJson)
+    assert(execs(4) == jsDefault(b64Body) && json(4) == jsDefault(b64Body).asJson)
   }
 
   it should "properly deserialize and reserialize JSON blackbox" in {
@@ -522,9 +526,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     execs(1) shouldBe bb("container1", contents)
     execs(2) shouldBe bb("container1", contents, Some("naim"))
 
-    json(0).compactPrint shouldBe bb("container1").toString
-    json(1).compactPrint shouldBe bb("container1", contents).toString
-    json(2).compactPrint shouldBe bb("container1", contents, Some("naim")).toString
+    json(0) shouldBe bb("container1").asJson
+    json(1) shouldBe bb("container1", contents).asJson
+    json(2) shouldBe bb("container1", contents, Some("naim")).asJson
 
     execs(0) shouldBe Exec.serdes.read(
       JsObject(
@@ -608,15 +612,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "serialize to json" in {
-    val execs = Seq(bb("container"), jsDefault("js"), jsDefault("js"), swift("swift")).map { _.toString }
-    assert(
-      execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson).compactPrint)
-    assert(
-      execs(1) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
-    assert(
-      execs(2) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
-    assert(
-      execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swift".toJson, "binary" -> false.toJson).compactPrint)
+    val execs = Seq(bb("container"), jsDefault("js"), jsDefault("js"), swift("swift")).map { _.asJson }
+    assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson))
+    assert(execs(1) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(2) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
   }
 
   behavior of "Parameter"
