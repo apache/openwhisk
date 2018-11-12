@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.database
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ConcurrentMap, TimeUnit}
 
 import com.github.benmanes.caffeine.cache.Caffeine
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
@@ -444,37 +444,19 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
   }
 
   /** This is the backing store. */
-  private lazy val cache: ConcurrentMapBackedCache[Entry] = new ConcurrentMapBackedCache(
-    (evictionPolicy match {
-      case AccessTime => {
+  private lazy val cache: ConcurrentMapBackedCache[Entry] = createCache()
 
-        val caffeineCache = Caffeine
-          .newBuilder()
-          .asInstanceOf[Caffeine[Any, Future[Entry]]]
-          .expireAfterAccess(5, TimeUnit.MINUTES)
-          .softValues()
+  private def createCache() = {
+    val b = Caffeine
+      .newBuilder()
+      .softValues()
 
-        if (fixedCacheSize > 0) {
-          caffeineCache.maximumSize(fixedCacheSize)
-        } else {
-          caffeineCache
-        }
-      }
+    evictionPolicy match {
+      case AccessTime => b.expireAfterAccess(5, TimeUnit.MINUTES)
+      case _          => b.expireAfterWrite(5, TimeUnit.MINUTES)
+    }
 
-      case _ => {
-
-        val caffeineCache = Caffeine
-          .newBuilder()
-          .asInstanceOf[Caffeine[Any, Future[Entry]]]
-          .expireAfterWrite(5, TimeUnit.MINUTES)
-          .softValues()
-
-        if (fixedCacheSize > 0) {
-          caffeineCache.maximumSize(fixedCacheSize)
-        } else {
-          caffeineCache
-        }
-      }
-    }).build()
-      .asMap())
+    if (fixedCacheSize > 0) b.maximumSize(fixedCacheSize)
+    new ConcurrentMapBackedCache(b.build().asMap().asInstanceOf[ConcurrentMap[Any, Future[Entry]]])
+  }
 }
