@@ -14,6 +14,7 @@
     env:
       "REDIS_HOST": "{{ groups['redis'] | first }}"
       "REDIS_PORT": "{{ redis.port }}"
+      "REDIS_PASS": "{{ redis.password }}"
       "PUBLIC_MANAGEDURL_HOST": "{{ ansible_host }}"
       "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
       "TZ": "{{ docker.timezone }}"
