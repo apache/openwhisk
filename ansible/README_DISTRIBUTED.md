@@ -29,7 +29,7 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 
 #### Setup and provision OpenWhisk component VMs
-A set of Ubuntu 14.04 machines will need to be provisioned in the targeted IaaS (Infrastructure as a Service platform). These VMs will need to provisioned manually in most IaaS providers, but we have added some scripts to automate VM/disk provisioning against Openstack CPIs. These scripts are not being actively maintained at the moment, but PRs to enhance the scripts and add support for other IaaS offerings (AWS, GCE, etc) are certainly encouraged. Once the VMs are up and reachable by the bootstapper VM, the installation process should be the same regardless of provider.
+A set of Ubuntu 14.04 or 16.04 machines will need to be provisioned in the targeted IaaS (Infrastructure as a Service platform). These VMs will need to provisioned manually in most IaaS providers, but we have added some scripts to automate VM/disk provisioning against Openstack CPIs. These scripts are not being actively maintained at the moment, but PRs to enhance the scripts and add support for other IaaS offerings (AWS, GCE, etc) are certainly encouraged. Once the VMs are up and reachable by the bootstapper VM, the installation process should be the same regardless of provider.
 
 If using Openstack, please follow the README at [environments/distributed/files/openstack/README_OS.md](environments/distributed/files/openstack/README_OS.md) to manage the required VMs. Otherwise, provision each VM manually.
 
