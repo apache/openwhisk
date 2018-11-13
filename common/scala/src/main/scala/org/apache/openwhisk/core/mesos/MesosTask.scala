@@ -179,7 +179,7 @@ object MesosTask {
           MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_MESOS_CMD_TIMEOUT(MesosTask.KILL_CMD))
         case Failure(t) => transid.failed(this, start, s"task destroy failed ${t.getMessage}", ErrorLevel)
       }
-      .map(_ => {})(ec)
+      .map(_ => {})
   }
 }
 
