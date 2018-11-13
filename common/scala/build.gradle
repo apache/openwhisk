@@ -72,7 +72,9 @@ dependencies {
     //tracing support
     compile 'io.opentracing:opentracing-api:0.31.0'
     compile 'io.opentracing:opentracing-util:0.31.0'
-    compile 'io.opentracing.brave:brave-opentracing:0.31.0'
+    compile ('io.opentracing.brave:brave-opentracing:0.31.0'){
+        exclude group: 'io.zipkin.brave', module:'brave-tests'
+    }
     compile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1'
     compile 'io.zipkin.reporter2:zipkin-reporter:2.6.1'
 
