@@ -352,8 +352,13 @@ class NamespaceSpecificThrottleTests
   val activationDisabled = getAdditionalTestSubject("activationDisabled")
   wskadmin.cli(Seq("limits", "set", activationDisabled.namespace, "--activationStorePerMinute", "0"))
 
+  val oneActivationStore = getAdditionalTestSubject("oneActivationStore")
+  wskadmin.cli(Seq("limits", "set", oneActivationStore.namespace, "--activationStorePerMinute", "1"))
+
   override def afterAll() = {
-    sanitizeNamespaces(Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps, activationDisabled).map(_.namespace))
+    sanitizeNamespaces(
+      Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps, activationDisabled, oneActivationStore).map(
+        _.namespace))
   }
 
   behavior of "Namespace-specific throttles"
@@ -477,12 +482,49 @@ class NamespaceSpecificThrottleTests
       assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
         action.create(actionName, defaultAction)
       }
-      val runResult = wsk.action.invoke(actionName)
+      val runResult = wsk.action.invoke(actionName, blocking = true)
       val activationId = wsk.activation.extractActivationId(runResult)
       withClue(s"did not find an activation id in '$runResult'") {
         activationId shouldBe a[Some[_]]
       }
-      val activation = wsk.activation.waitForActivation(activationId.get)
+      val activation = wsk.activation.waitForActivation(activationId.get, totalWait = 5.seconds)
       activation shouldBe 'Left
+  }
+
+  it should "respect overridden activation store throttle of 1" in withAssetCleaner(oneActivationStore) {
+    (wp, assetHelper) =>
+      implicit val props = wp
+      val actionName = "oneActivation"
+
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(actionName, defaultAction)
+      }
+
+      val deployedControllers = WhiskProperties.getControllerHosts.split(",").length
+
+      // Saving one activation should be allowed, the second one not.
+      // Due to the current implementation of the rate throttling,
+      // it is possible that the counter gets deleted, because the minute switches.
+      // That's why we make amountOfControllers times two requests. At the latest,
+      // the request deployedControllers * 2 + 1 will fail.
+      val results = (1 to deployedControllers * 2 + 1)
+        .map { _ =>
+          wsk.action.invoke(actionName, blocking = true)
+        }
+        .map { res =>
+          val activationId = wsk.activation.extractActivationId(res)
+          withClue(s"did not find an activation id in '$res'") {
+            activationId shouldBe a[Some[_]]
+          }
+          activationId.get
+        }
+        .map { activationId =>
+          wsk.activation.waitForActivation(activationId, totalWait = 5.second)
+        }
+
+      // On each controller, the activation should be stored at least once
+      // All other activations should not be written.
+      atLeast(deployedControllers, results) shouldBe 'Right
+      atLeast(1, results) shouldBe 'Left
   }
 }
