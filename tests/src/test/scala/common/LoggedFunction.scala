@@ -82,6 +82,61 @@ class LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) 
   }
 }
 
+class SynchronizedLoggedFunction1[A1, B](body: A1 => B) extends Function1[A1, B] {
+  val calls = mutable.Buffer[A1]()
+
+  override def apply(v1: A1): B = {
+    calls.synchronized(calls += (v1))
+    body(v1)
+  }
+}
+
+class SynchronizedLoggedFunction2[A1, A2, B](body: (A1, A2) => B) extends Function2[A1, A2, B] {
+  val calls = mutable.Buffer[(A1, A2)]()
+
+  override def apply(v1: A1, v2: A2): B = {
+    calls.synchronized(calls += ((v1, v2)))
+    body(v1, v2)
+  }
+}
+
+class SynchronizedLoggedFunction3[A1, A2, A3, B](body: (A1, A2, A3) => B) extends Function3[A1, A2, A3, B] {
+  val calls = mutable.Buffer[(A1, A2, A3)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3): B = {
+    calls.synchronized(calls += ((v1, v2, v3)))
+    body(v1, v2, v3)
+  }
+}
+
+class SynchronizedLoggedFunction4[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) extends Function4[A1, A2, A3, A4, B] {
+  val calls = mutable.Buffer[(A1, A2, A3, A4)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4): B = {
+    calls.synchronized(calls += ((v1, v2, v3, v4)))
+    body(v1, v2, v3, v4)
+  }
+}
+
+class SynchronizedLoggedFunction5[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B)
+    extends Function5[A1, A2, A3, A4, A5, B] {
+  val calls = mutable.Buffer[(A1, A2, A3, A4, A5)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5): B = {
+    calls.synchronized(calls += ((v1, v2, v3, v4, v5)))
+    body(v1, v2, v3, v4, v5)
+  }
+}
+class SynchronizedLoggedFunction6[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B)
+    extends Function6[A1, A2, A3, A4, A5, A6, B] {
+  val calls = mutable.Buffer[(A1, A2, A3, A4, A5, A6)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5, v6: A6): B = {
+    calls.synchronized(calls += ((v1, v2, v3, v4, v5, v6)))
+    body(v1, v2, v3, v4, v5, v6)
+  }
+}
+
 object LoggedFunction {
   def apply[A1, B](body: (A1) => B) = new LoggedFunction1[A1, B](body)
   def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2[A1, A2, B](body)
@@ -90,4 +145,15 @@ object LoggedFunction {
   def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5[A1, A2, A3, A4, A5, B](body)
   def apply[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B) =
     new LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body)
+}
+
+object SynchronizedLoggedFunction {
+  def apply[A1, B](body: (A1) => B) = new SynchronizedLoggedFunction1[A1, B](body)
+  def apply[A1, A2, B](body: (A1, A2) => B) = new SynchronizedLoggedFunction2[A1, A2, B](body)
+  def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new SynchronizedLoggedFunction3[A1, A2, A3, B](body)
+  def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new SynchronizedLoggedFunction4[A1, A2, A3, A4, B](body)
+  def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) =
+    new SynchronizedLoggedFunction5[A1, A2, A3, A4, A5, B](body)
+  def apply[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B) =
+    new SynchronizedLoggedFunction6[A1, A2, A3, A4, A5, A6, B](body)
 }

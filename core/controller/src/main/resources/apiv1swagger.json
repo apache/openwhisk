@@ -1744,6 +1744,12 @@
                     "format": "int32",
                     "description": "log size in megabytes",
                     "default": 10
+                },
+                "concurrency": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "number of concurrent activations allowed",
+                    "default": 1
                 }
             }
         },

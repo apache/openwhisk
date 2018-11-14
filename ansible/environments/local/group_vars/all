@@ -30,3 +30,7 @@ kafka_topics_invoker_retentionBytes: 104857600
 kafka_topics_invoker_retentionMS: 300000
 
 env_hosts_dir: "{{ playbook_dir }}/environments/local"
+
+container_pool_akka_client: true
+runtimes_enable_concurrency: true
+limit_action_concurrency_max: 500

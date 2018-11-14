@@ -18,13 +18,14 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
-
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
+import common.SynchronizedLoggedFunction
 import common.{LoggedFunction, StreamLogging}
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -55,6 +56,7 @@ class ContainerProxyTests
   override def afterAll = TestKit.shutdownActorSystem(system)
 
   val timeout = 5.seconds
+  val pauseGrace = timeout + 1.minute
   val log = logging
   val defaultUserMemory: ByteSize = 1024.MB
 
@@ -67,6 +69,11 @@ class ContainerProxyTests
 
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val concurrentAction = ExecutableWhiskAction(
+    EntityPath("actionSpace"),
+    EntityName("actionName"),
+    exec,
+    limits = ActionLimits(concurrency = ConcurrencyLimit(2)))
 
   // create a transaction id to set the start time and control queue time
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
@@ -119,23 +126,32 @@ class ContainerProxyTests
   }
 
   /** Run the common action on the state-machine, assumes good cases */
-  def run(machine: ActorRef, currentState: ContainerState) = {
+  def run(machine: ActorRef, currentState: ContainerState, expectInit: Boolean = true) = {
     machine ! Run(action, message)
     expectMsg(Transition(machine, currentState, Running))
-    expectWarmed(invocationNamespace.name, action)
+    if (expectInit) {
+      expectWarmed(invocationNamespace.name, action, 1)
+    }
+    expectWarmed(invocationNamespace.name, action, 0)
     expectMsg(Transition(machine, Running, Ready))
   }
 
   /** Expect a NeedWork message with prewarmed data */
   def expectPreWarmed(kind: String) = expectMsgPF() {
-    case NeedWork(PreWarmedData(_, kind, memoryLimit)) => true
+    case NeedWork(PreWarmedData(_, kind, memoryLimit, _)) => true
   }
 
   /** Expect a NeedWork message with warmed data */
-  def expectWarmed(namespace: String, action: ExecutableWhiskAction) = {
+  def expectWarmed(namespace: String, action: ExecutableWhiskAction, count: Int) = {
     val test = EntityName(namespace)
     expectMsgPF() {
-      case NeedWork(WarmedData(_, `test`, `action`, _)) => true
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) if a.data.activeActivationCount == count => //matched, otherwise will fail
+    }
+  }
+  def expectAnyWarmed(namespace: String, action: ExecutableWhiskAction) = {
+    val test = EntityName(namespace)
+    expectMsgPF() {
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) =>
     }
   }
 
@@ -147,6 +163,15 @@ class ContainerProxyTests
 
   /** Creates an inspectable version of the ack method, which records all calls in a buffer */
   def createAcker(a: ExecutableWhiskAction = action) = LoggedFunction {
+    (_: TransactionId, activation: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: Boolean) =>
+      activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
+      activation.annotations.get("path") shouldBe Some(a.fullyQualifiedName(false).toString.toJson)
+      activation.annotations.get("kind") shouldBe Some(a.exec.kind.toJson)
+      Future.successful(())
+  }
+
+  /** Creates an synchronized inspectable version of the ack method, which records all calls in a buffer */
+  def createSyncAcker(a: ExecutableWhiskAction = action) = SynchronizedLoggedFunction {
     (_: TransactionId, activation: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: Boolean) =>
       activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
       activation.annotations.get("path") shouldBe Some(a.fullyQualifiedName(false).toString.toJson)
@@ -173,8 +198,11 @@ class ContainerProxyTests
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
     Future.successful(())
   }
-
-  val poolConfig = ContainerPoolConfig(2.MB, false)
+  def createSyncStore = SynchronizedLoggedFunction {
+    (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
+      Future.successful(())
+  }
+  val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
 
   behavior of "ContainerProxy"
 
@@ -195,7 +223,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, Some("myname"), userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
@@ -224,11 +252,11 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
 
     preWarm(machine)
-    run(machine, Started)
+    run(machine, Started, true)
 
     // Timeout causes the container to pause
     timeout(machine)
@@ -268,13 +296,13 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
     run(machine, Started)
     // Note that there are no intermediate state changes
-    run(machine, Ready)
+    run(machine, Ready, false)
 
     awaitAssert {
       factory.calls should have size 1
@@ -323,14 +351,14 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
     run(machine, Started)
     timeout(machine)
     expectPause(machine)
-    run(machine, Paused)
+    run(machine, Paused, false)
 
     awaitAssert {
       factory.calls should have size 1
@@ -369,9 +397,9 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
-    run(machine, Uninitialized)
+    run(machine, Uninitialized, true)
 
     awaitAssert {
       factory.calls should have size 1
@@ -409,12 +437,13 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
 
     machine ! Run(noLogsAction, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectWarmed(invocationNamespace.name, noLogsAction)
+    expectWarmed(invocationNamespace.name, noLogsAction, 1)
+    expectWarmed(invocationNamespace.name, noLogsAction, 0)
     expectMsg(Transition(machine, Running, Ready))
 
     awaitAssert {
@@ -427,12 +456,126 @@ class ContainerProxyTests
     }
   }
 
+  //This tests concurrency from the ContainerPool perspective - where multiple Run messages may be sent to ContainerProxy
+  //without waiting for the completion of the previous Run message (signaled by NeedWork message)
+  //Multiple messages can only be handled after Warming.
+  it should "stay in Running state if others are still running" in within(timeout) {
+    val initPromise = Promise[Interval]()
+    val runPromises = Seq(
+      Promise[(Interval, ActivationResponse)](),
+      Promise[(Interval, ActivationResponse)](),
+      Promise[(Interval, ActivationResponse)](),
+      Promise[(Interval, ActivationResponse)](),
+      Promise[(Interval, ActivationResponse)](),
+      Promise[(Interval, ActivationResponse)]())
+    val container = new TestContainer(Some(initPromise), runPromises)
+    val factory = createFactory(Future.successful(container))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      (_: TransactionId, _: Identity, _: WhiskActivation, _: Container, _: ExecutableWhiskAction) => {
+        container.logs(0.MB, false)(TransactionId.testing)
+        Future.successful(ActivationLogs())
+      }
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    preWarm(machine) //ends in Started state
+
+    machine ! Run(concurrentAction, message) //first in Started state
+    machine ! Run(concurrentAction, message) //second in Started or Running state
+
+    //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
+    //second message will be delayed until we get to Running state with WarmedData
+    //   (and will produce 1 NeedWork message after run)
+    expectMsg(Transition(machine, Started, Running))
+
+    //complete the init
+    initPromise.success(initInterval)
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when init completes
+
+    //complete the first run
+    runPromises(0).success(runInterval, ActivationResponse.success())
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when first completes (count is 0 since stashed not counted)
+    expectMsg(Transition(machine, Running, Ready)) //wait for first to complete to skip the delay step that can only reliably be tested in single threaded
+    expectMsg(Transition(machine, Ready, Running)) //when second starts (after delay...)
+
+    //complete the second run
+    runPromises(1).success(runInterval, ActivationResponse.success())
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when second completes
+
+    //go back to ready after first and second runs are complete
+    expectMsg(Transition(machine, Running, Ready))
+
+    machine ! Run(concurrentAction, message) //third in Ready state
+    machine ! Run(concurrentAction, message) //fourth in Ready state
+    machine ! Run(concurrentAction, message) //fifth in Ready state - will be queued
+    machine ! Run(concurrentAction, message) //sixth in Ready state - will be queued
+
+    //third message will go from Ready -> Running -> Ready (after fourth run)
+    expectMsg(Transition(machine, Ready, Running))
+
+    //complete the third run (do not request new work yet)
+    runPromises(2).success(runInterval, ActivationResponse.success())
+
+    //complete the fourth run -> dequeue the fifth run (do not request new work yet)
+    runPromises(3).success(runInterval, ActivationResponse.success())
+
+    //complete the fifth run (request new work, 1 active remain)
+    runPromises(4).success(runInterval, ActivationResponse.success())
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when fifth completes
+
+    //complete the sixth run (request new work 0 active remain)
+    runPromises(5).success(runInterval, ActivationResponse.success())
+
+    //expectWarmed(invocationNamespace.name, concurrentAction, 1) //when sixth completes
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when sixth completes
+
+    // back to ready
+    expectMsg(Transition(machine, Running, Ready))
+
+    //timeout + pause after getting back to Ready
+    timeout(machine)
+    expectMsg(Transition(machine, Ready, Pausing))
+    expectMsg(Transition(machine, Pausing, Paused))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 6
+      container.atomicLogsCount.get() shouldBe 6
+      container.suspendCount shouldBe 1
+      container.resumeCount shouldBe 0
+      acker.calls should have size 6
+      store.calls should have size 6
+      acker
+        .calls(0)
+        ._2
+        .annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
+      acker.calls(1)._2.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
+    }
+
+  }
+
   it should "complete the transaction and reuse the container on a failed run IFF failure was applicationError" in within(
     timeout) {
     val container = new TestContainer {
-      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
-        runCount += 1
+        atomicRunCount.incrementAndGet()
         //every other run fails
         if (runCount % 2 == 0) {
           Future.successful((runInterval, ActivationResponse.success()))
@@ -465,7 +608,7 @@ class ContainerProxyTests
 
     // Note that there are no intermediate state changes
     //second one will succeed
-    run(machine, Ready)
+    run(machine, Ready, false)
 
     //With exception of the error on first run, the assertions should be the same as in
     //         `run an action and continue with a next run without pausing the container`
@@ -521,7 +664,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -544,7 +687,8 @@ class ContainerProxyTests
   it should "complete the transaction and destroy the container on a failed init" in within(timeout) {
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
-                              timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+                              timeout: FiniteDuration,
+                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         Future.failed(InitializationError(initInterval, ActivationResponse.developerError("boom")))
       }
@@ -564,7 +708,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -591,9 +735,9 @@ class ContainerProxyTests
   it should "complete the transaction and destroy the container on a failed run IFF failure was containerError" in within(
     timeout) {
     val container = new TestContainer {
-      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
-        runCount += 1
+        atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
       }
     }
@@ -612,10 +756,11 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -650,10 +795,11 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -687,10 +833,11 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -728,7 +875,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
     timeout(machine) // times out Ready state so container suspends
@@ -771,7 +918,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine) // times out Ready state so container suspends
@@ -795,7 +942,8 @@ class ContainerProxyTests
     val initPromise = Promise[Interval]
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
-                              timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+                              timeout: FiniteDuration,
+                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         initPromise.future
       }
@@ -815,7 +963,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
 
     // Start running the action
@@ -827,7 +975,8 @@ class ContainerProxyTests
 
     // Finish /init, note that /run and log-collecting happens nonetheless
     initPromise.success(Interval.zero)
-    expectWarmed(invocationNamespace.name, action)
+    expectWarmed(invocationNamespace.name, action, 1)
+    expectWarmed(invocationNamespace.name, action, 0)
     expectMsg(Transition(machine, Running, Ready))
 
     // Remove the container after the transaction finished
@@ -874,7 +1023,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = timeout))
+            pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine)
@@ -907,7 +1056,9 @@ class ContainerProxyTests
   /**
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
-  class TestContainer extends Container {
+  class TestContainer(initPromise: Option[Promise[Interval]] = None,
+                      runPromises: Seq[Promise[(Interval, ActivationResponse)]] = Seq.empty)
+      extends Container {
     protected val id = ContainerId("testcontainer")
     protected val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
@@ -917,9 +1068,10 @@ class ContainerProxyTests
     var resumeCount = 0
     var destroyCount = 0
     var initializeCount = 0
-    var runCount = 0
-    var logsCount = 0
+    val atomicRunCount = new AtomicInteger(0) //need atomic tracking since we will test concurrent runs
+    var atomicLogsCount = new AtomicInteger(0)
 
+    def runCount = atomicRunCount.get()
     override def suspend()(implicit transid: TransactionId): Future[Unit] = {
       suspendCount += 1
       super.suspend()
@@ -932,16 +1084,17 @@ class ContainerProxyTests
       destroyCount += 1
       super.destroy()
     }
-    override def initialize(initializer: JsObject, timeout: FiniteDuration)(
+    override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
       initializer shouldBe action.containerInitializer
       timeout shouldBe action.limits.timeout.duration
-      Future.successful(initInterval)
+
+      initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
-    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
-      runCount += 1
+      val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
@@ -954,8 +1107,15 @@ class ContainerProxyTests
       // a freshly computed deadline, as they get computed slightly after each other
       deadline should (be <= maxDeadline and be >= Instant.now)
 
-      Future.successful((runInterval, ActivationResponse.success()))
+      //return the future for this run (if runPromises no empty), or a default response
+      runPromises
+        .lift(runCount - 1)
+        .map(_.future)
+        .getOrElse(Future.successful((runInterval, ActivationResponse.success())))
     }
-    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = ???
+    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
+      atomicLogsCount.incrementAndGet()
+      Source.empty
+    }
   }
 }

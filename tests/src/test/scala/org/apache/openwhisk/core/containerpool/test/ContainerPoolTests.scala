@@ -118,7 +118,7 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, false)
+  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false)
 
   behavior of "ContainerPool"
 
@@ -488,14 +488,15 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   val differentNamespace = EntityName("differentNamespace")
 
   /** Helper to create a new action from String representations */
-  def createAction(namespace: String = "actionNS", name: String = "actionName") =
-    ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec)
+  def createAction(namespace: String = "actionNS", name: String = "actionName", limits: ActionLimits = ActionLimits()) =
+    ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec, limits = limits)
 
   /** Helper to create WarmedData with sensible defaults */
   def warmedData(action: ExecutableWhiskAction = createAction(),
                  namespace: String = standardNamespace.asString,
-                 lastUsed: Instant = Instant.now) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
+                 lastUsed: Instant = Instant.now,
+                 active: Int = 0) =
+    WarmedData(stub[Container], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
   def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
@@ -569,6 +570,24 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
   }
 
+  it should "not use a container when active activation count >= maxconcurrent" in {
+    val maxConcurrent = 25
+
+    val data = warmedData(
+      active = maxConcurrent,
+      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
+    val pool = Map('warm -> data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe None
+
+    val data2 = warmedData(
+      active = maxConcurrent - 1,
+      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
+    val pool2 = Map('warm -> data2)
+
+    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
+
+  }
+
   behavior of "ContainerPool remove()"
 
   it should "not provide a container if pool is empty" in {
@@ -613,5 +632,17 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool = Map('first -> first, 'second -> second, 'third -> third, 'oldest -> oldest)
 
     ContainerPool.remove(pool, MemoryLimit.stdMemory * 2) shouldBe List('oldest, 'first)
+  }
+
+  it should "provide oldest container (excluding concurrently busy) from busy pool with multiple containers" in {
+    val commonNamespace = differentNamespace.asString
+    val first = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(1), active = 0)
+    val second = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(2), active = 0)
+    val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0), active = 3)
+
+    var pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('first)
+    pool = pool - 'first
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('second)
   }
 }

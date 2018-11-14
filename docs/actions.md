@@ -44,6 +44,7 @@ advanced topics.
   * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
 * [Securing your action](security.md)
+* [Concurrency in actions](concurrency.md)
 
 ## Languages and Runtimes
 

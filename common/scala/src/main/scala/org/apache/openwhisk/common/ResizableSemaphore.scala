@@ -17,24 +17,21 @@
 
 package org.apache.openwhisk.common
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
-
 import scala.annotation.tailrec
 
 /**
- * A Semaphore, which in addition to the usual features has means to force more clients to get permits.
- *
- * Like any usual Semaphore, this implementation will give away at most `maxAllowed` permits when used the "usual" way.
- * In addition to that, it also has a `forceAcquire` method which will push the Semaphore's remaining permits into a
- * negative value. Getting permits using `tryAcquire` will only be possible once the permits value is in a positive
- * state again.
- *
- * As this is (now) only used for the loadbalancer's scheduling, this does not implement the "whole" Java Semaphore's
- * interface but only the methods needed.
- *
- * @param maxAllowed maximum number of permits given away by `tryAcquire`
+ * A Semaphore that has a specialized release process that optionally allows reduction of permits in batches.
+ * When permit size after release is a factor of reductionSize, the release process will reset permits to state + 1 - reductionSize;
+ * otherwise the release will reset permits to state + 1.
+ * It also maintains an operationCount where a tryAquire + release is a single operation,
+ * so that we can know once all operations are completed.
+ * @param maxAllowed
+ * @param reductionSize
  */
-class ForcibleSemaphore(maxAllowed: Int) {
+class ResizableSemaphore(maxAllowed: Int, reductionSize: Int) {
+  private val operationCount = new AtomicInteger(0)
   class Sync extends AbstractQueuedSynchronizer {
     setState(maxAllowed)
 
@@ -42,16 +39,19 @@ class ForcibleSemaphore(maxAllowed: Int) {
 
     /** Try to release a permit and return whether or not that operation was successful. */
     @tailrec
-    override final def tryReleaseShared(releases: Int): Boolean = {
+    final def tryReleaseSharedWithResult(releases: Int): Boolean = {
       val current = getState
-      val next = current + releases
-      if (next < current) { // integer overflow
-        throw new Error("Maximum permit count exceeded, permit variable overflowed")
-      }
-      if (compareAndSetState(current, next)) {
-        true
+      val next2 = current + releases
+      val (next, reduced) = if (next2 % reductionSize == 0) {
+        (next2 - reductionSize, true)
       } else {
-        tryReleaseShared(releases)
+        (next2, false)
+      }
+      //next MIGHT be < current in case of reduction; this is OK!!!
+      if (compareAndSetState(current, next)) {
+        reduced
+      } else {
+        tryReleaseSharedWithResult(releases)
       }
     }
 
@@ -69,22 +69,9 @@ class ForcibleSemaphore(maxAllowed: Int) {
         nonFairTryAcquireShared(acquires)
       }
     }
-
-    /**
-     * Basically the same as `nonFairTryAcquireShared`, but does bound to a minimal value of 0 so permits can get
-     * negative.
-     */
-    @tailrec
-    final def forceAquireShared(acquires: Int): Unit = {
-      val available = getState
-      val remaining = available - acquires
-      if (!compareAndSetState(available, remaining)) {
-        forceAquireShared(acquires)
-      }
-    }
   }
 
-  private val sync = new Sync
+  val sync = new Sync
 
   /**
    * Acquires the given numbers of permits.
@@ -94,31 +81,35 @@ class ForcibleSemaphore(maxAllowed: Int) {
    */
   def tryAcquire(acquires: Int = 1): Boolean = {
     require(acquires > 0, "cannot acquire negative or no permits")
-    sync.nonFairTryAcquireShared(acquires) >= 0
-  }
-
-  /**
-   * Forces the amount of permits.
-   *
-   * This possibly pushes the internal number of available permits to a negative value.
-   *
-   * @param acquires the number of permits to get
-   */
-  def forceAcquire(acquires: Int = 1): Unit = {
-    require(acquires > 0, "cannot force acquire negative or no permits")
-    sync.forceAquireShared(acquires)
+    if (sync.nonFairTryAcquireShared(acquires) >= 0) {
+      operationCount.incrementAndGet()
+      true
+    } else {
+      false
+    }
   }
 
   /**
    * Releases the given amount of permits
    *
    * @param acquires the number of permits to release
+   * @return (releaseMemory, releaseAction) releaseMemory is true if concurrency count is a factor of reductionSize
+   *         releaseAction is true if the operationCount reaches 0
    */
-  def release(acquires: Int = 1): Unit = {
+  def release(acquires: Int = 1, opComplete: Boolean): (Boolean, Boolean) = {
     require(acquires > 0, "cannot release negative or no permits")
-    sync.releaseShared(acquires)
+    //release always succeeds, so we can always adjust the operationCount
+    val releaseAction = if (opComplete) { // an operation completion
+      operationCount.decrementAndGet() == 0
+    } else { //otherwise an allocation + operation initialization
+      operationCount.incrementAndGet() == 0
+    }
+    (sync.tryReleaseSharedWithResult(acquires), releaseAction)
   }
 
   /** Returns the number of currently available permits. Possibly negative. */
   def availablePermits: Int = sync.permits
+
+  //for testing
+  def counter = operationCount.get()
 }

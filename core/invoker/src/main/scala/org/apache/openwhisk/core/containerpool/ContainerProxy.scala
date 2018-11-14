@@ -24,6 +24,7 @@ import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
+import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
@@ -52,16 +53,27 @@ case object Paused extends ContainerState
 case object Removing extends ContainerState
 
 // Data
-sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize)
+sealed abstract class ContainerData(val lastUsed: Instant,
+                                    val memoryLimit: ByteSize,
+                                    val activeActivationCount: Int = 0)
 case class NoData() extends ContainerData(Instant.EPOCH, 0.B)
 case class MemoryData(override val memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH, memoryLimit)
-case class PreWarmedData(container: Container, kind: String, override val memoryLimit: ByteSize)
-    extends ContainerData(Instant.EPOCH, memoryLimit)
+case class PreWarmedData(container: Container,
+                         kind: String,
+                         override val memoryLimit: ByteSize,
+                         override val activeActivationCount: Int = 0)
+    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount)
 case class WarmedData(container: Container,
                       invocationNamespace: EntityName,
                       action: ExecutableWhiskAction,
-                      override val lastUsed: Instant)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB)
+                      override val lastUsed: Instant,
+                      override val activeActivationCount: Int = 0)
+    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB) {
+  def incrementActive: WarmedData =
+    WarmedData(container, invocationNamespace, action, Instant.now, activeActivationCount + 1)
+  def decrementActive: WarmedData =
+    WarmedData(container, invocationNamespace, action, Instant.now, activeActivationCount - 1)
+}
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
@@ -73,6 +85,9 @@ case class NeedWork(data: ContainerData)
 case object ContainerPaused
 case object ContainerRemoved // when container is destroyed
 case object RescheduleJob // job is sent back to parent and could not be processed because container is being destroyed
+case class PreWarmCompleted(data: PreWarmedData)
+case class InitCompleted(data: WarmedData)
+case object RunCompleted
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -80,10 +95,26 @@ case object RescheduleJob // job is sent back to parent and could not be process
  * and the container itself.
  *
  * The contract is as follows:
- * 1. Only one job is to be sent to the ContainerProxy at one time. ContainerProxy
+ * 1. If action.limits.concurrency.maxConcurrent == 1:
+ *    Only one job is to be sent to the ContainerProxy at one time. ContainerProxy
  *    will delay all further jobs until a previous job has finished.
- * 2. The next job can be sent to the ContainerProxy after it indicates available
- *    capacity by sending NeedWork to its parent.
+ *
+ *    1a. The next job can be sent to the ContainerProxy after it indicates available
+ *       capacity by sending NeedWork to its parent.
+ *
+ * 2. If action.limits.concurrency.maxConcurrent > 1:
+ *    Parent must coordinate with ContainerProxy to attempt to send only data.action.limits.concurrency.maxConcurrent
+ *    jobs for concurrent processing.
+ *
+ *    Since the current job count is only periodically sent to parent, the number of jobs
+ *    sent to ContainerProxy may exceed data.action.limits.concurrency.maxConcurrent,
+ *    in which case jobs are buffered, so that only a max of action.limits.concurrency.maxConcurrent
+ *    are ever sent into the container concurrently. Parent will NOT be signalled to send more jobs until
+ *    buffered jobs are completed, but their order is not guaranteed.
+ *
+ *    2a. The next job can be sent to the ContainerProxy after ContainerProxy has "concurrent capacity",
+ *        indicated by sending NeedWork to its parent.
+ *
  * 3. A Remove message can be sent at any point in time. Like multiple jobs though,
  *    it will be delayed until the currently running job finishes.
  *
@@ -108,7 +139,7 @@ class ContainerProxy(
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
-
+  var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -121,7 +152,7 @@ class ContainerProxy(
         job.exec.pull,
         job.memoryLimit,
         poolConfig.cpuShare(job.memoryLimit))
-        .map(container => PreWarmedData(container, job.exec.kind, job.memoryLimit))
+        .map(container => PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit)))
         .pipeTo(self)
 
       goto(Starting)
@@ -147,7 +178,8 @@ class ContainerProxy(
           case Success(container) =>
             // the container is ready to accept an activation; register it as PreWarmed; this
             // normalizes the life cycle for containers and their cleanup when activations fail
-            self ! PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB)
+            self ! PreWarmCompleted(
+              PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB, 1))
 
           case Failure(t) =>
             // the container did not come up cleanly, so disambiguate the failure mode and then cleanup
@@ -175,7 +207,7 @@ class ContainerProxy(
         .flatMap { container =>
           // now attempt to inject the user code and run the action
           initializeAndRun(container, job)
-            .map(_ => WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now))
+            .map(_ => RunCompleted)
         }
         .pipeTo(self)
 
@@ -184,9 +216,9 @@ class ContainerProxy(
 
   when(Starting) {
     // container was successfully obtained
-    case Event(data: PreWarmedData, _) =>
-      context.parent ! NeedWork(data)
-      goto(Started) using data
+    case Event(completed: PreWarmCompleted, _) =>
+      context.parent ! NeedWork(completed.data)
+      goto(Started) using completed.data
 
     // container creation failed
     case Event(_: FailureMessage, _) =>
@@ -200,10 +232,9 @@ class ContainerProxy(
     case Event(job: Run, data: PreWarmedData) =>
       implicit val transid = job.msg.transid
       initializeAndRun(data.container, job)
-        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
+        .map(_ => RunCompleted)
         .pipeTo(self)
-
-      goto(Running)
+      goto(Running) using PreWarmedData(data.container, data.kind, data.memoryLimit, 1)
 
     case Event(Remove, data: PreWarmedData) => destroyContainer(data.container)
   }
@@ -211,12 +242,38 @@ class ContainerProxy(
   when(Running) {
     // Intermediate state, we were able to start a container
     // and we keep it in case we need to destroy it.
-    case Event(data: PreWarmedData, _) => stay using data
+    case Event(completed: PreWarmCompleted, _) => stay using completed.data
+
+    // Init was successful
+    case Event(completed: InitCompleted, _: PreWarmedData) =>
+      //in case concurrency supported, multiple runs can begin as soon as init is complete
+      context.parent ! NeedWork(completed.data)
+      stay using completed.data
 
     // Run was successful
-    case Event(data: WarmedData, _) =>
-      context.parent ! NeedWork(data)
-      goto(Ready) using data
+    case Event(RunCompleted, s: WarmedData) =>
+      val newData = s.decrementActive
+
+      //if there are items in runbuffer, process them if there is capacity, and stay; otherwise if we have any pending activations, also stay
+      if (requestWork(newData) || newData.activeActivationCount > 0) {
+        stay using newData
+      } else {
+        goto(Ready) using newData
+      }
+    case Event(job: Run, data: WarmedData)
+        if stateData.activeActivationCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
+      runBuffer = runBuffer.enqueue(job)
+      stay()
+    case Event(job: Run, data: WarmedData)
+        if stateData.activeActivationCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
+
+      implicit val transid = job.msg.transid
+      val newData = data.incrementActive
+
+      initializeAndRun(data.container, job)
+        .map(_ => RunCompleted)
+        .pipeTo(self)
+      stay() using newData
 
     // Failed after /init (the first run failed)
     case Event(_: FailureMessage, data: PreWarmedData) => destroyContainer(data.container)
@@ -227,6 +284,7 @@ class ContainerProxy(
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
       context.parent ! ContainerRemoved
+      rejectBuffered()
       stop()
 
     case _ => delay
@@ -235,11 +293,13 @@ class ContainerProxy(
   when(Ready, stateTimeout = pauseGrace) {
     case Event(job: Run, data: WarmedData) =>
       implicit val transid = job.msg.transid
+      val newData = data.incrementActive
+
       initializeAndRun(data.container, job)
-        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
+        .map(_ => RunCompleted)
         .pipeTo(self)
 
-      goto(Running)
+      goto(Running) using newData
 
     // pause grace timed out
     case Event(StateTimeout, data: WarmedData) =>
@@ -258,6 +318,8 @@ class ContainerProxy(
   when(Paused, stateTimeout = unusedTimeout) {
     case Event(job: Run, data: WarmedData) =>
       implicit val transid = job.msg.transid
+      val newData = data.incrementActive
+
       data.container
         .resume()
         .andThen {
@@ -269,10 +331,10 @@ class ContainerProxy(
             self ! job
         }
         .flatMap(_ => initializeAndRun(data.container, job))
-        .map(_ => WarmedData(data.container, job.msg.user.namespace.name, job.action, Instant.now))
+        .map(_ => RunCompleted)
         .pipeTo(self)
 
-      goto(Running)
+      goto(Running) using newData
 
     // container is reclaimed by the pool or it has become too old
     case Event(StateTimeout | Remove, data: WarmedData) =>
@@ -299,6 +361,24 @@ class ContainerProxy(
 
   initialize()
 
+  /** Either process runbuffer or signal parent to send work; return true if runbuffer is being processed */
+  def requestWork(newData: WarmedData): Boolean = {
+    //if there is concurrency capacity, process runbuffer, or signal NeedWork
+    if (newData.activeActivationCount < newData.action.limits.concurrency.maxConcurrent) {
+      runBuffer.dequeueOption match {
+        case Some((run, q)) =>
+          runBuffer = q
+          self ! run
+          true
+        case _ =>
+          context.parent ! NeedWork(newData)
+          false
+      }
+    } else {
+      false
+    }
+  }
+
   /** Delays all incoming messages until unstashAll() is called */
   def delay = {
     stash()
@@ -318,6 +398,8 @@ class ContainerProxy(
       context.parent ! RescheduleJob
     }
 
+    rejectBuffered()
+
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
       case _      => Future.successful(())
@@ -329,6 +411,18 @@ class ContainerProxy(
       .pipeTo(self)
 
     goto(Removing)
+  }
+
+  /**
+   * Return any buffered jobs to parent, in case buffer is not empty at removal/error time.
+   */
+  def rejectBuffered() = {
+    //resend any buffered items on container removal
+    if (runBuffer.nonEmpty) {
+      logging.info(this, s"resending ${runBuffer.size} buffered jobs to parent on container removal")
+      runBuffer.foreach(context.parent ! _)
+      runBuffer = immutable.Queue.empty[Run]
+    }
   }
 
   /**
@@ -349,12 +443,20 @@ class ContainerProxy(
 
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
-      case data: WarmedData => Future.successful(None)
-      case _                => container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
+      case data: WarmedData =>
+        Future.successful(None)
+      case _ =>
+        container
+          .initialize(job.action.containerInitializer, actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .map(Some(_))
     }
 
     val activation: Future[WhiskActivation] = initialize
       .flatMap { initInterval =>
+        //immediately setup warmedData for use (before first execution) so that concurrent actions can use it asap
+        if (initInterval.isDefined) {
+          self ! InitCompleted(WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now, 1))
+        }
         val parameters = job.msg.content getOrElse JsObject.empty
 
         val authEnvironment = job.msg.user.authkey.toEnvironment
@@ -368,7 +470,11 @@ class ContainerProxy(
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
 
         container
-          .run(parameters, JsObject(authEnvironment.fields ++ environment.fields), actionTimeout)(job.msg.transid)
+          .run(
+            parameters,
+            JsObject(authEnvironment.fields ++ environment.fields),
+            actionTimeout,
+            job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
           .map {
             case (runInterval, response) =>
               val initRunInterval = initInterval
