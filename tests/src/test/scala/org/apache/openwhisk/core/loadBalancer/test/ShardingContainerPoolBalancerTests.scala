@@ -17,13 +17,54 @@
 
 package org.apache.openwhisk.core.loadBalancer.test
 
+import akka.actor.ActorRef
+import akka.actor.ActorRefFactory
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.testkit.TestProbe
 import common.StreamLogging
+import java.nio.charset.StandardCharsets
+import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.common.TopicPartition
 import org.junit.runner.RunWith
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
-import org.apache.openwhisk.common.{ForcibleSemaphore, TransactionId}
-import org.apache.openwhisk.core.entity.{ByteSize, InvokerInstanceId, MemoryLimit}
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.connector.ActivationMessage
+import org.apache.openwhisk.core.connector.CompletionMessage
+import org.apache.openwhisk.core.connector.Message
+import org.apache.openwhisk.core.connector.MessageConsumer
+import org.apache.openwhisk.core.connector.MessageProducer
+import org.apache.openwhisk.core.connector.MessagingProvider
+import org.apache.openwhisk.core.entity.ActivationId
+import org.apache.openwhisk.core.entity.BasicAuthenticationAuthKey
+import org.apache.openwhisk.core.entity.ControllerInstanceId
+import org.apache.openwhisk.core.entity.EntityName
+import org.apache.openwhisk.core.entity.EntityPath
+import org.apache.openwhisk.core.entity.ExecManifest
+import org.apache.openwhisk.core.entity.Identity
+import org.apache.openwhisk.core.entity.InvokerInstanceId
+import org.apache.openwhisk.core.entity.MemoryLimit
+import org.apache.openwhisk.core.entity.Namespace
+import org.apache.openwhisk.core.entity.Secret
+import org.apache.openwhisk.core.entity.Subject
+import org.apache.openwhisk.core.entity.UUID
+import org.apache.openwhisk.core.entity.WhiskActionMetaData
+import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.apache.openwhisk.core.loadBalancer.FeedFactory
+import org.apache.openwhisk.core.loadBalancer.InvokerPoolFactory
 import org.apache.openwhisk.core.loadBalancer.InvokerState._
 import org.apache.openwhisk.core.loadBalancer._
 
@@ -34,7 +75,12 @@ import org.apache.openwhisk.core.loadBalancer._
  * of the ContainerPool object.
  */
 @RunWith(classOf[JUnitRunner])
-class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with StreamLogging {
+class ShardingContainerPoolBalancerTests
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with ExecHelpers
+    with MockFactory {
   behavior of "ShardingContainerPoolBalancerState"
 
   val defaultUserMemory: ByteSize = 1024.MB
@@ -44,8 +90,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Unhealthy)
   def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Offline)
 
-  def semaphores(count: Int, max: Int): IndexedSeq[ForcibleSemaphore] =
-    IndexedSeq.fill(count)(new ForcibleSemaphore(max))
+  def semaphores(count: Int, max: Int): IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]] =
+    IndexedSeq.fill(count)(new NestedSemaphore[FullyQualifiedEntityName](max))
 
   def lbConfig(blackboxFraction: Double) =
     ShardingContainerPoolBalancerConfig(blackboxFraction, 1)
@@ -172,6 +218,9 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
     state.invokerSlots.head.availablePermits shouldBe MemoryLimit.minMemory.toMB
   }
+  val namespace = EntityPath("testspace")
+  val name = EntityName("testname")
+  val fqn = FullyQualifiedEntityName(namespace, name)
 
   behavior of "schedule"
 
@@ -179,6 +228,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "return None on an empty invoker list" in {
     ShardingContainerPoolBalancer.schedule(
+      1,
+      fqn,
       IndexedSeq.empty,
       IndexedSeq.empty,
       MemoryLimit.minMemory.toMB.toInt,
@@ -192,6 +243,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val invokers = (0 until invokerCount).map(unhealthy)
 
     ShardingContainerPoolBalancer.schedule(
+      1,
+      fqn,
       invokers,
       invokerSlots,
       MemoryLimit.minMemory.toMB.toInt,
@@ -207,7 +260,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val expectedResult = Seq(3, 3, 3, 5, 5, 5, 4, 4, 4)
     val result = expectedResult.map { _ =>
       ShardingContainerPoolBalancer
-        .schedule(invokers, invokerSlots, 1, index = 0, step = 2)
+        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
         .get
         .toInt
     }
@@ -216,7 +269,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
     val bruteResult = (0 to 100).map { _ =>
       ShardingContainerPoolBalancer
-        .schedule(invokers, invokerSlots, 1, index = 0, step = 2)
+        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
         .get
         .toInt
     }
@@ -231,7 +284,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val expectedResult = Seq(0, 0, 0, 3, 3, 3)
     val result = expectedResult.map { _ =>
       ShardingContainerPoolBalancer
-        .schedule(invokers, invokerSlots, 1, index = 0, step = 1)
+        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
         .get
         .toInt
     }
@@ -240,7 +293,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
     // more schedules will result in randomized invokers, but the unhealthy and offline invokers should not be part
     val bruteResult = (0 to 100).map { _ =>
-      ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 1, index = 0, step = 1).get.toInt
+      ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1).get.toInt
     }
 
     bruteResult should contain allOf (0, 3)
@@ -254,15 +307,15 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val invokers = (0 until invokerCount).map(i => healthy(i))
 
     // Ask for three slots -> First invoker should be used
-    ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 3, index = 0, step = 1).get.toInt shouldBe 0
+    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 3, index = 0, step = 1).get.toInt shouldBe 0
     // Ask for two slots -> Second invoker should be used
-    ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
+    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
     // Ask for 1 slot -> First invoker should be used
-    ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 1, index = 0, step = 1).get.toInt shouldBe 0
+    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1).get.toInt shouldBe 0
     // Ask for 4 slots -> Third invoker should be used
-    ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 4, index = 0, step = 1).get.toInt shouldBe 2
+    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 4, index = 0, step = 1).get.toInt shouldBe 2
     // Ask for 2 slots -> Second invoker should be used
-    ShardingContainerPoolBalancer.schedule(invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
+    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
 
     invokerSlots.foreach(_.availablePermits shouldBe 0)
   }
@@ -282,5 +335,203 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(5) shouldBe Seq(1, 2, 3)
     ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(9) shouldBe Seq(1, 2, 5, 7)
     ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(10) shouldBe Seq(1, 3, 7)
+  }
+
+  behavior of "concurrent actions"
+  it should "allow concurrent actions to be scheduled to same invoker without affecting memory slots" in {
+    val invokerCount = 3
+    // Each invoker has 2 slots, each action has concurrency 3
+    val slots = 2
+    val invokerSlots = semaphores(invokerCount, slots)
+    val concurrency = 3
+    val invokers = (0 until invokerCount).map(i => healthy(i))
+
+    (0 until invokerCount).foreach { i =>
+      (1 to slots).foreach { s =>
+        (1 to concurrency).foreach { c =>
+          ShardingContainerPoolBalancer
+            .schedule(concurrency, fqn, invokers, invokerSlots, 1, 0, 1)
+            .get
+            .toInt shouldBe i
+          invokerSlots
+            .lift(i)
+            .get
+            .concurrentState(fqn)
+            .availablePermits shouldBe concurrency - c
+        }
+      }
+    }
+
+  }
+
+  implicit val am = ActorMaterializer()
+  val config = new WhiskConfig(ExecManifest.requiredProperties)
+  val invokerMem = 2000.MB
+  val concurrency = 5
+  val actionMem = 256.MB
+  val actionMetaData =
+    WhiskActionMetaData(
+      namespace,
+      name,
+      js6MetaData(Some("jsMain"), false),
+      limits = actionLimits(actionMem, concurrency))
+  val maxContainers = invokerMem.toMB.toInt / actionMetaData.limits.memory.megabytes
+  val numInvokers = 3
+  val maxActivations = maxContainers * numInvokers * concurrency
+
+  //run a separate test for each variant of 1..n concurrently-ish arriving activations, to exercise:
+  // - no containers started
+  // - containers started but no concurrency room
+  // - no concurrency room and no memory room to launch new containers
+  //(1 until maxActivations).foreach { i =>
+  (75 until maxActivations).foreach { i =>
+    it should s"reflect concurrent processing ${i} state in containerSlots" in {
+      //each batch will:
+      // - submit activations concurrently
+      // - wait for activation submission to messaging system (mostly to detect which invoker was assiged
+      // - verify remaining concurrency slots available
+      // - complete activations concurrently
+      // - verify concurrency/memory slots are released
+      testActivationBatch(i)
+    }
+  }
+
+  def mockMessaging(): MessagingProvider = {
+    val messaging = stub[MessagingProvider]
+    val producer = stub[MessageProducer]
+    val consumer = stub[MessageConsumer]
+    (messaging
+      .getProducer(_: WhiskConfig, _: Option[ByteSize])(_: Logging, _: ActorSystem))
+      .when(*, *, *, *)
+      .returns(producer)
+    (messaging
+      .getConsumer(_: WhiskConfig, _: String, _: String, _: Int, _: FiniteDuration)(_: Logging, _: ActorSystem))
+      .when(*, *, *, *, *, *, *)
+      .returns(consumer)
+    (producer
+      .send(_: String, _: Message, _: Int))
+      .when(*, *, *)
+      .returns(Future.successful(new RecordMetadata(new TopicPartition("fake", 0), 0, 0, 0l, 0l, 0, 0)))
+
+    messaging
+  }
+  def testActivationBatch(numActivations: Int): Unit = {
+    //setup mock messaging
+    val feedProbe = new FeedFactory {
+      def createFeed(f: ActorRefFactory, m: MessagingProvider, p: (Array[Byte]) => Future[Unit]) =
+        TestProbe().testActor
+
+    }
+    val invokerPoolProbe = new InvokerPoolFactory {
+      override def createInvokerPool(
+        actorRefFactory: ActorRefFactory,
+        messagingProvider: MessagingProvider,
+        messagingProducer: MessageProducer,
+        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+        monitor: Option[ActorRef]): ActorRef =
+        TestProbe().testActor
+    }
+    val balancer =
+      new ShardingContainerPoolBalancer(
+        config,
+        ControllerInstanceId("0"),
+        feedProbe,
+        invokerPoolProbe,
+        lbConfig(0.0),
+        mockMessaging)
+
+    val invokers = IndexedSeq.tabulate(numInvokers) { i =>
+      new InvokerHealth(InvokerInstanceId(i, userMemory = invokerMem), Healthy)
+    }
+    balancer.schedulingState.updateInvokers(invokers)
+    val invocationNamespace = EntityName("invocationSpace")
+
+    val fqn = actionMetaData.fullyQualifiedName(true)
+    val hash =
+      ShardingContainerPoolBalancer.generateHash(invocationNamespace, actionMetaData.fullyQualifiedName(false))
+    val home = hash % invokers.size
+    val stepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(invokers.size)
+    val stepSize = stepSizes(hash % stepSizes.size)
+    val uuid = UUID()
+    //initiate activation
+    val published = (0 until numActivations).par.map { _ =>
+      val aid = ActivationId.generate()
+      val msg = ActivationMessage(
+        TransactionId.testing,
+        actionMetaData.fullyQualifiedName(true),
+        actionMetaData.rev,
+        Identity(
+          Subject(),
+          Namespace(invocationNamespace, uuid),
+          BasicAuthenticationAuthKey(uuid, Secret()),
+          Set.empty),
+        aid,
+        ControllerInstanceId("0"),
+        blocking = false,
+        content = None)
+
+      //send activation to loadbalancer
+      aid -> balancer.publish(actionMetaData.toExecutableWhiskAction.get, msg)
+
+    }.toMap
+
+    val activations = published.values
+    val ids = published.keys
+
+    //wait for activation submissions
+    Await.ready(Future.sequence(activations.toList), 10.seconds)
+
+    val maxActivationsPerInvoker = concurrency * maxContainers
+    //verify updated concurrency slots
+
+    def rem(count: Int) =
+      if (count % concurrency > 0) {
+        concurrency - (count % concurrency)
+      } else {
+        0
+      }
+
+    //assert available permits per invoker are as expected
+    var nextInvoker = home
+    ids.toList.grouped(maxActivationsPerInvoker).zipWithIndex.foreach { g =>
+      val remaining = rem(g._1.size)
+      val concurrentState = balancer.schedulingState._invokerSlots
+        .lift(nextInvoker)
+        .get
+        .concurrentState(fqn)
+      concurrentState.availablePermits shouldBe remaining
+      concurrentState.counter shouldBe g._1.size
+      nextInvoker = (nextInvoker + stepSize) % numInvokers
+    }
+
+    //complete all
+    val acks = ids.par.map { aid =>
+      val invoker = balancer.activations(aid).invokerName
+      completeActivation(invoker, balancer, aid)
+    }
+
+    Await.ready(Future.sequence(acks.toList), 10.seconds)
+
+    //verify invokers go back to unused state
+    invokers.foreach { i =>
+      val concurrentState = balancer.schedulingState._invokerSlots
+        .lift(i.id.toInt)
+        .get
+        .concurrentState
+        .get(fqn)
+
+      concurrentState shouldBe None
+      balancer.schedulingState._invokerSlots.lift(i.id.toInt).map { i =>
+        i.availablePermits shouldBe invokerMem.toMB
+      }
+
+    }
+  }
+
+  def completeActivation(invoker: InvokerInstanceId, balancer: ShardingContainerPoolBalancer, aid: ActivationId) = {
+    //complete activation
+    val ack = CompletionMessage(TransactionId.testing, aid, false, invoker).serialize
+      .getBytes(StandardCharsets.UTF_8)
+    balancer.processAcknowledgement(ack)
   }
 }

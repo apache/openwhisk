@@ -39,7 +39,10 @@ import org.apache.openwhisk.core.entity.types.EntityStore
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
  * limit optional so that it is convenient to override just one limit at a time.
  */
-case class ActionLimitsOption(timeout: Option[TimeLimit], memory: Option[MemoryLimit], logs: Option[LogLimit])
+case class ActionLimitsOption(timeout: Option[TimeLimit],
+                              memory: Option[MemoryLimit],
+                              logs: Option[LogLimit],
+                              concurrency: Option[ConcurrencyLimit])
 
 /**
  * WhiskActionPut is a restricted WhiskAction view that eschews properties
@@ -585,7 +588,7 @@ object WhiskActionMetaData
 }
 
 object ActionLimitsOption extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat3(ActionLimitsOption.apply)
+  implicit val serdes = jsonFormat4(ActionLimitsOption.apply)
 }
 
 object WhiskActionPut extends DefaultJsonProtocol {

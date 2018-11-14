@@ -29,7 +29,10 @@ case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
                                extraArgs: Map[String, Set[String]] = Map.empty)
 
-case class ContainerPoolConfig(userMemory: ByteSize, akkaClient: Boolean) {
+case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Double, akkaClient: Boolean) {
+  require(
+    concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
+    s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.

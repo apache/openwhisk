@@ -200,6 +200,7 @@ class CliActionOperations(override val wsk: RunCliCmd)
     timeout: Option[Duration] = None,
     memory: Option[ByteSize] = None,
     logsize: Option[ByteSize] = None,
+    concurrency: Option[Int] = None,
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,

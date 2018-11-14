@@ -119,7 +119,9 @@ protected class AkkaContainerClient(
             case _ =>
               //handle missing Content-Length as NoResponseReceived
               //also handle 204 as NoResponseReceived, for parity with ApacheBlockingContainerClient client
-              response.discardEntityBytes().future.map(_ => Left(NoResponseReceived()))
+              //per https://github.com/akka/akka-http/issues/1459, don't use discardEntityBytes!
+              //(discardEntityBytes was causing failures in WskUnicodeTests)
+              response.entity.dataBytes.runWith(Sink.ignore).map(_ => Left(NoResponseReceived()))
           }
         }
       }

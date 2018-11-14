@@ -47,17 +47,21 @@ class BlockingInvokeOneActionSimulation extends Simulation {
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol: OpenWhiskProtocolBuilder = openWhisk.apiHost(host)
 
+  // Specify async
+  val async = sys.env.getOrElse("ASYNC", "false").toBoolean
+
   val actionName = "testActionForBlockingInvokeOneAction"
+  val actionfile = if (async) "nodeJSAsyncAction.js" else "nodeJSAction.js"
 
   // Define scenario
-  val test: ScenarioBuilder = scenario("Invoke one action blocking")
+  val test: ScenarioBuilder = scenario(s"Invoke one ${if (async) "async" else "sync"} action blocking")
     .doIf(_.userId == 1) {
       exec(
         openWhisk("Create action")
           .authenticate(uuid, key)
           .action(actionName)
           .create(FileUtils
-            .readFileToString(Resource.body("nodeJSAction.js").get.file, StandardCharsets.UTF_8)))
+            .readFileToString(Resource.body(actionfile).get.file, StandardCharsets.UTF_8)))
     }
     .rendezVous(connections)
     .during(5.seconds) {

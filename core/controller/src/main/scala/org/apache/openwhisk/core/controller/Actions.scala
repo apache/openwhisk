@@ -391,7 +391,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     implicit transid: TransactionId) = {
     val exec = content.exec.get
     val limits = content.limits map { l =>
-      ActionLimits(l.timeout getOrElse TimeLimit(), l.memory getOrElse MemoryLimit(), l.logs getOrElse LogLimit())
+      ActionLimits(
+        l.timeout getOrElse TimeLimit(),
+        l.memory getOrElse MemoryLimit(),
+        l.logs getOrElse LogLimit(),
+        l.concurrency getOrElse ConcurrencyLimit())
     } getOrElse ActionLimits()
     // This is temporary while we are making sequencing directly supported in the controller.
     // The parameter override allows this to work with Pipecode.code. Any parameters other

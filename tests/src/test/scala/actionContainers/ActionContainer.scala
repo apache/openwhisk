@@ -71,12 +71,25 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLo
   def checkStreams(out: String,
                    err: String,
                    additionalCheck: (String, String) => Unit,
-                   sentinelCount: Int = 1): Unit = {
+                   sentinelCount: Int = 1,
+                   concurrent: Boolean = false): Unit = {
     withClue("expected number of stdout sentinels") {
       sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
     }
+    //sentinels should be all together
+    if (concurrent) {
+      withClue("expected grouping of stdout sentinels") {
+        out should include((1 to sentinelCount).map(_ => sentinel + "\n").mkString)
+      }
+    }
     withClue("expected number of stderr sentinels") {
       sentinelCount shouldBe StringUtils.countMatches(err, sentinel)
+    }
+    //sentinels should be all together
+    if (concurrent) {
+      withClue("expected grouping of stderr sentinels") {
+        err should include((1 to sentinelCount).map(_ => sentinel + "\n").mkString)
+      }
     }
 
     val (o, e) = (filterSentinel(out), filterSentinel(err))

@@ -47,7 +47,8 @@ class InvokerReactive(
   config: WhiskConfig,
   instance: InvokerInstanceId,
   producer: MessageProducer,
-  poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool))(
+  poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
+  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
   implicit actorSystem: ActorSystem,
   logging: Logging) {
 
@@ -101,15 +102,16 @@ class InvokerReactive(
   private val topic = s"invoker${instance.toInt}"
   private val maximumContainers = (poolConfig.userMemory / MemoryLimit.minMemory).toInt
   private val msgProvider = SpiLoader.get[MessagingProvider]
-  private val consumer = msgProvider.getConsumer(
-    config,
-    topic,
-    topic,
-    maximumContainers,
-    maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+
+  //number of peeked messages - increasing the concurrentPeekFactor improves concurrent usage, but adds risk for message loss in case of crash
+  private val maxPeek =
+    math.max(maximumContainers, (maximumContainers * limitsConfig.max * poolConfig.concurrentPeekFactor).toInt)
+
+  private val consumer =
+    msgProvider.getConsumer(config, topic, topic, maxPeek, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   private val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed("activation", logging, consumer, maximumContainers, 1.second, processActivationMessage)
+    new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
   /** Sends an active-ack. */

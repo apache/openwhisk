@@ -147,4 +147,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected def blackBoxMetaData(image: String, main: Option[String] = None, binary: Boolean) = {
     BlackBoxExecMetaData(ExecManifest.ImageName(trim(image)), main, false, binary)
   }
+
+  protected def actionLimits(memory: ByteSize, concurrency: Int): ActionLimits =
+    ActionLimits(memory = MemoryLimit(memory), concurrency = ConcurrencyLimit(concurrency))
 }
