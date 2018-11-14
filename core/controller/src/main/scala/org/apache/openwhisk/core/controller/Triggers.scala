@@ -141,24 +141,23 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       entity(as[Option[JsObject]]) { payload =>
         getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
           trigger: WhiskTrigger =>
-            val triggerActivationId = activationIdFactory.make()
-            logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
-            val triggerActivation = WhiskActivation(
-              namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace,
-              entityName.name,
-              user.subject,
-              triggerActivationId,
-              Instant.now(Clock.systemUTC()),
-              Instant.EPOCH,
-              response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
-              version = trigger.version,
-              duration = None)
-
             // List of active rules associated with the trigger
             val activeRules: Map[FullyQualifiedEntityName, ReducedRule] =
               trigger.rules.map(_.filter(_._2.status == Status.ACTIVE)).getOrElse(Map.empty)
 
             if (activeRules.nonEmpty) {
+              val triggerActivationId = activationIdFactory.make()
+              logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
+              val triggerActivation = WhiskActivation(
+                namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace
+                entityName.name,
+                user.subject,
+                triggerActivationId,
+                Instant.now(Clock.systemUTC()),
+                Instant.EPOCH,
+                response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
+                version = trigger.version,
+                duration = None)
               val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
 
               activateRules(user, args, trigger.rules.getOrElse(Map.empty))
