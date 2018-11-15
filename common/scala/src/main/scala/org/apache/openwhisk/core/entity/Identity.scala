@@ -17,17 +17,19 @@
 
 package org.apache.openwhisk.core.entity
 
+import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.database.{
+  MultipleReadersSingleWriterCache,
+  NoDocumentException,
+  StaleParameter,
+  WriteTime
+}
+import org.apache.openwhisk.core.entitlement.Privilege
+import org.apache.openwhisk.core.entity.types.AuthStore
+import spray.json._
+
 import scala.concurrent.Future
 import scala.util.Try
-import spray.json._
-import types.AuthStore
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.MultipleReadersSingleWriterCache
-import org.apache.openwhisk.core.database.NoDocumentException
-import org.apache.openwhisk.core.database.StaleParameter
-import org.apache.openwhisk.core.database.WriteTime
-import org.apache.openwhisk.core.entitlement.Privilege
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,
@@ -50,12 +52,15 @@ protected[core] case class Identity(subject: Subject,
                                     rights: Set[Privilege],
                                     limits: UserLimits = UserLimits())
 
-object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
+object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocInfo] with DefaultJsonProtocol {
 
   private val viewName = "subjects/identities"
 
   override val cacheEnabled = true
   override val evictionPolicy = WriteTime
+  // upper bound for the auth cache to prevent memory pollution by sending
+  // malicious namespace patterns
+  override val fixedCacheSize = 100000
 
   implicit val serdes = jsonFormat5(Identity.apply)
 
@@ -75,16 +80,16 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         list(datastore, List(ns), limit = 1) map { list =>
           list.length match {
             case 1 =>
-              rowToIdentity(list.head, ns)
+              Some(rowToIdentity(list.head, ns))
             case 0 =>
               logger.info(this, s"$viewName[$namespace] does not exist")
-              throw new NoDocumentException("namespace does not exist")
+              None
             case _ =>
               logger.error(this, s"$viewName[$namespace] is not unique")
               throw new IllegalStateException("namespace is not unique")
           }
         }
-      })
+      }).map(_.getOrElse(throw new NoDocumentException("namespace does not exist")))
   }
 
   def get(datastore: AuthStore, authkey: BasicAuthenticationAuthKey)(
@@ -97,16 +102,16 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         list(datastore, List(authkey.uuid.asString, authkey.key.asString)) map { list =>
           list.length match {
             case 1 =>
-              rowToIdentity(list.head, authkey.uuid.asString)
+              Some(rowToIdentity(list.head, authkey.uuid.asString))
             case 0 =>
               logger.info(this, s"$viewName[${authkey.uuid}] does not exist")
-              throw new NoDocumentException("uuid does not exist")
+              None
             case _ =>
               logger.error(this, s"$viewName[${authkey.uuid}] is not unique")
               throw new IllegalStateException("uuid is not unique")
           }
         }
-      })
+      }).map(_.getOrElse(throw new NoDocumentException("namespace does not exist")))
   }
 
   def list(datastore: AuthStore, key: List[Any], limit: Int = 2)(

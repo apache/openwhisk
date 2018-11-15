@@ -82,6 +82,22 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
+  it should "should throw NoDocumentException for non existing namespaces" in {
+    implicit val tid: TransactionId = transid()
+    val nonExistingNamesSpace = "nonExistingNamesSpace"
+    Identity.get(authStore, EntityName(nonExistingNamesSpace)).failed.futureValue shouldBe a[NoDocumentException]
+  }
+
+  it should "should throw NoDocumentException for non existing authKeys" in {
+    implicit val tid: TransactionId = transid()
+    val nonExistingUUID = "nonExistingUUID"
+    val nonExistingSecret = "nonExistingSecret"
+    Identity
+      .get(authStore, BasicAuthenticationAuthKey(UUID(nonExistingUUID), Secret()))
+      .failed
+      .futureValue shouldBe a[NoDocumentException]
+  }
+
   it should "find subject having multiple namespaces" in {
     implicit val tid: TransactionId = transid()
     val uuid1 = UUID()
