@@ -46,10 +46,8 @@ case class KindRestrictor(whitelist: Option[Set[String]] = None)(implicit loggin
     })(TransactionId.controller)
 
   def check(user: Identity, kind: String): Boolean = {
-    user.limits.allowedKinds
-      .orElse(whitelist)
-      .map(allowed => allowed.contains(kind))
-      .getOrElse(true)
+    val kindList = user.limits.allowedKinds.getOrElse(Set()).union(whitelist.getOrElse(Set()))
+    kindList.isEmpty || kindList.contains(kind)
   }
 
 }

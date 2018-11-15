@@ -49,16 +49,16 @@ class KindRestrictorTests extends FlatSpec with Matchers with StreamLogging {
     allKinds.foreach(k => kr.check(subject, k) shouldBe true)
   }
 
-  it should "not grant subject access to any kinds if limit is the empty set" in {
+  it should "grant subject access to any kinds if limit is the empty set" in {
     val subject = WhiskAuthHelpers.newIdentity().copy(limits = UserLimits(allowedKinds = Some(Set.empty)))
     val kr = KindRestrictor()
-    allKinds.foreach(k => kr.check(subject, k) shouldBe false)
+    allKinds.foreach(k => kr.check(subject, k) shouldBe true)
   }
 
-  it should "not grant subject access to any kinds if white list is the empty set" in {
+  it should "grant subject access to any kinds if white list is the empty set" in {
     val subject = WhiskAuthHelpers.newIdentity()
     val kr = KindRestrictor(Set[String]())
-    allKinds.foreach(k => kr.check(subject, k) shouldBe false)
+    allKinds.foreach(k => kr.check(subject, k) shouldBe true)
   }
 
   it should "grant subject access only to subject-limited kinds" in {
@@ -75,11 +75,11 @@ class KindRestrictorTests extends FlatSpec with Matchers with StreamLogging {
     disallowedKinds.foreach(k => kr.check(subject, k) shouldBe false)
   }
 
-  it should "grant subject access only to explicitly limited kind" in {
+  it should "grant subject access both explicitly limited kinds and default whitelisted kinds" in {
     val explicitKind = allowedKinds.head
     val subject = WhiskAuthHelpers.newIdentity().copy(limits = UserLimits(allowedKinds = Some(Set(explicitKind))))
     val kr = KindRestrictor(allowedKinds.tail)
-    allKinds.foreach(k => kr.check(subject, k) shouldBe (k == explicitKind))
+    allKinds.foreach(k => kr.check(subject, k) shouldBe allowedKinds.contains(k))
   }
 
 }
