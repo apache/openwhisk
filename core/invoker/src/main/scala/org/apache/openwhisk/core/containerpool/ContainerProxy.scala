@@ -497,10 +497,10 @@ class ContainerProxy(
       }
 
     // Sending active ack. Entirely asynchronous and not waited upon.
-    if (job.msg.blocking) {
-      activation.foreach(
+    val sendResult = if (job.msg.blocking) {
+      activation.map(
         sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, false))
-    }
+    } else Future.successful(())
 
     val context = UserContext(job.msg.user)
 
@@ -530,8 +530,16 @@ class ContainerProxy(
     activationWithLogs
       .map(_.fold(_.activation, identity))
       .foreach { activation =>
-        // Sending the completionMessage to the controller asynchronously.
-        sendActiveAck(tid, activation, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, true)
+        // Sending the completionMessage to the controller asynchronously. But not before result message is sent.
+        sendResult.onComplete(
+          _ =>
+            sendActiveAck(
+              tid,
+              activation,
+              job.msg.blocking,
+              job.msg.rootControllerIndex,
+              job.msg.user.namespace.uuid,
+              true))
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
