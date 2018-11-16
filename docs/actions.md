@@ -176,7 +176,7 @@ wsk action invoke /whisk.system/samples/greeting
 ok: invoked /whisk.system/samples/greeting with id 5a64676ec8aa46b5a4676ec8aaf6b5d2
  ```
 
-To retrieve the activation record, you use the `wsk activations get <id>` command, as in:
+To retrieve the activation record, you use the `wsk activation get <id>` command, as in:
 ```
 wsk activation get 5a64676ec8aa46b5a4676ec8aaf6b5d2
 ok: got activation 5a64676ec8aa46b5a4676ec8aaf6b5d2
