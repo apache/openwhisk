@@ -243,7 +243,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       wp.binding map {
         // pre-existing entity is a binding, check that new binding is valid
         b =>
-          checkBinding(b.fullyQualifiedName)
+          checkBinding(binding.fullyQualifiedName)
       } getOrElse {
         // pre-existing entity is a package, cannot make it a binding
         Future.failed(RejectRequest(Conflict, Messages.packageCannotBecomeBinding))
