@@ -21,7 +21,6 @@ import java.time.Instant
 
 import scala.collection.mutable
 import scala.concurrent.duration._
-
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -29,12 +28,12 @@ import org.scalatest.FlatSpec
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+import common.WhiskProperties
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
@@ -571,7 +570,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "not use a container when active activation count >= maxconcurrent" in {
-    val maxConcurrent = 25
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
     val data = warmedData(
       active = maxConcurrent,

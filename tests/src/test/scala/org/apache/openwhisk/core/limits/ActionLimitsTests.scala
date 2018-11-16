@@ -125,12 +125,18 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
   }
 
+  val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+
   val perms = { // Assert for valid permutations that the values are set correctly
     for {
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
       log <- Seq(None, Some(LogLimit.minLogSize), Some(LogLimit.maxLogSize))
-      concurrency <- Seq(None, Some(ConcurrencyLimit.minConcurrent), Some(ConcurrencyLimit.maxConcurrent))
+      concurrency <- if (!concurrencyEnabled || (ConcurrencyLimit.minConcurrent == ConcurrencyLimit.maxConcurrent)) {
+        Seq(None, Some(ConcurrencyLimit.minConcurrent))
+      } else {
+        Seq(None, Some(ConcurrencyLimit.minConcurrent), Some(ConcurrencyLimit.maxConcurrent))
+      }
     } yield PermutationTestParameter(time, mem, log, concurrency)
   } ++
     // Add variations for negative tests

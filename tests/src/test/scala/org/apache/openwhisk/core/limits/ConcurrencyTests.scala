@@ -17,11 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
-import common.TestHelpers
-import common.TestUtils
-import common.WskActorSystem
-import common.WskProps
-import common.WskTestHelpers
+import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
@@ -30,6 +26,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import pureconfig.loadConfigOrThrow
+
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -55,6 +52,8 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
   //This tests generates a concurrent load against the concurrent.js action with concurrency set to 5
   it should "execute activations concurrently when concurrency > 1 " in withAssetCleaner(wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
     (wp, assetHelper) =>
       val name = "TestConcurrentAction"
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
@@ -102,6 +101,8 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
   //This tests generates the same load against the same action as previous test, BUT with concurrency set to 1
   it should "execute activations sequentially when concurrency = 1 " in withAssetCleaner(wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
     (wp, assetHelper) =>
       val name = "TestNonConcurrentAction"
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {

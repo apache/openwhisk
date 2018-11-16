@@ -22,8 +22,9 @@ import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestProbe
-import common.StreamLogging
+import common.{StreamLogging, WhiskProperties}
 import java.nio.charset.StandardCharsets
+
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.junit.runner.RunWith
@@ -31,6 +32,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -367,7 +369,8 @@ class ShardingContainerPoolBalancerTests
   implicit val am = ActorMaterializer()
   val config = new WhiskConfig(ExecManifest.requiredProperties)
   val invokerMem = 2000.MB
-  val concurrency = 5
+  val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+  val concurrency = if (concurrencyEnabled) 5 else 1
   val actionMem = 256.MB
   val actionMetaData =
     WhiskActionMetaData(
