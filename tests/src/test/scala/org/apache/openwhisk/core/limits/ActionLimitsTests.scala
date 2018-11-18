@@ -130,7 +130,11 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
       log <- Seq(None, Some(LogLimit.minLogSize), Some(LogLimit.maxLogSize))
-      concurrency <- Seq(None, Some(ConcurrencyLimit.minConcurrent), Some(ConcurrencyLimit.maxConcurrent))
+      concurrency <- if (ConcurrencyLimit.minConcurrent == ConcurrencyLimit.maxConcurrent) {
+        Seq(None, Some(ConcurrencyLimit.minConcurrent))
+      } else {
+        Seq(None, Some(ConcurrencyLimit.minConcurrent), Some(ConcurrencyLimit.maxConcurrent))
+      }
     } yield PermutationTestParameter(time, mem, log, concurrency)
   } ++
     // Add variations for negative tests
@@ -144,6 +148,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, None, BAD_REQUEST), // memory limit that is much higher than allowed
       PermutationTestParameter(None, None, Some((LogLimit.maxLogSize.toMB * 5).MB), None, BAD_REQUEST), // log size limit that is much higher than allowed
       PermutationTestParameter(None, None, None, Some(Int.MaxValue), BAD_REQUEST)) // concurrency limit that is much higher than allowed
+
   /**
    * Integration test to verify that valid timeout, memory, log size, and concurrency limits are accepted
    * when creating an action while any invalid limit is rejected.
@@ -153,7 +158,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    * deployment to verify that limit settings of the tested deployment fit with the values
    * used in this test.
    */
-  perms.distinct.foreach { parm =>
+  perms.foreach { parm =>
     it should s"${parm.toExpectedResultString} creation of an action with these limits: ${parm}" in withAssetCleaner(
       wskprops) { (wp, assetHelper) =>
       val file = Some(TestUtils.getTestActionFilename("hello.js"))
