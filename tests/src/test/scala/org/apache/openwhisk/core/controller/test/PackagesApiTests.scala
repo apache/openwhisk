@@ -725,6 +725,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       status should be(BadRequest)
       responseAs[ErrorResponse].error should include(Messages.bindingCannotReferenceBinding)
     }
+    // verify that the reference is still pointing to the original provider
+    Get(s"$collectionPath/${reference.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskPackage]
+      response should be(reference)
+      response.binding should be(provider.bind)
+    }
   }
 
   it should "reject update package reference when new binding refers to private package in another namespace" in {

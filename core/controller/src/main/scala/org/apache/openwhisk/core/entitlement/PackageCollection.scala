@@ -98,7 +98,10 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
           val pkgOwner = namespaces.contains(binding.namespace.asString)
           val pkgDocid = binding.docid
           logging.debug(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
-          checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
+          if (doc == pkgDocid)
+            Future.successful(true)
+          else
+            checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
         } else {
           logging.debug(this, s"entitlement check on package binding, '$right' allowed?: false")
           Future.successful(false)

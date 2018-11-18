@@ -299,9 +299,14 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
         logging.debug(this, s"fetching package '$docid' for reference")
-        getEntity(WhiskPackage.get(entityStore, docid), Some {
-          mergePackageWithBinding(Some { wp }) _
-        })
+        if (docid == wp.docid) {
+          logging.error(this, "unexpected package binding refers to itself: $docid")
+          terminate(InternalServerError)
+        } else {
+          getEntity(WhiskPackage.get(entityStore, docid), Some {
+            mergePackageWithBinding(Some { wp }) _
+          })
+        }
     } getOrElse {
       val pkg = ref map { _ inherit wp.parameters } getOrElse wp
       logging.debug(this, s"fetching package actions in '${wp.fullPath}'")
