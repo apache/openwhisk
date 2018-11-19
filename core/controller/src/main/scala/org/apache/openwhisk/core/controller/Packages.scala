@@ -242,7 +242,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     val validateBinding = content.binding map { binding =>
       wp.binding map {
         // pre-existing entity is a binding, check that new binding is valid
-        b =>
+        _ =>
           checkBinding(binding.fullyQualifiedName)
       } getOrElse {
         // pre-existing entity is a package, cannot make it a binding
@@ -301,7 +301,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         logging.debug(this, s"fetching package '$docid' for reference")
         if (docid == wp.docid) {
           logging.error(this, "unexpected package binding refers to itself: $docid")
-          terminate(InternalServerError)
+          terminate(UnprocessableEntity, Messages.packageBindingCircularReference(b.fullyQualifiedName.toString))
         } else {
           getEntity(WhiskPackage.get(entityStore, docid), Some {
             mergePackageWithBinding(Some { wp }) _
