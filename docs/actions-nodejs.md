@@ -43,7 +43,7 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
 
   The CLI automatically infers the type of the action by using the source file extension.
   For `.js` source files, the action runs by using a Node.js runtime. You may specify
-  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:10`, `--kind nodejs:8`, or `--kind nodejs:10`
+  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:10`, `--kind nodejs:8`, or `--kind nodejs:6`
 
 
 ## Creating asynchronous actions
@@ -220,7 +220,7 @@ To create an OpenWhisk action from this package:
   wsk action create packageAction --kind nodejs:6 action.zip
   ```
 
-  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:6`, `nodejs:8` or `nodejs:10`.
+  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
 
 4. You can invoke the action like any other:
 
