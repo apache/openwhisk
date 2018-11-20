@@ -18,14 +18,15 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
-import common.SynchronizedLoggedFunction
-import common.{LoggedFunction, StreamLogging}
+import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.util.concurrent.atomic.AtomicInteger
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -69,11 +70,13 @@ class ContainerProxyTests
 
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+  val testConcurrencyLimit = if (concurrencyEnabled) ConcurrencyLimit(2) else ConcurrencyLimit(1)
   val concurrentAction = ExecutableWhiskAction(
     EntityPath("actionSpace"),
     EntityName("actionName"),
     exec,
-    limits = ActionLimits(concurrency = ConcurrencyLimit(2)))
+    limits = ActionLimits(concurrency = testConcurrencyLimit))
 
   // create a transaction id to set the start time and control queue time
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
@@ -460,6 +463,8 @@ class ContainerProxyTests
   //without waiting for the completion of the previous Run message (signaled by NeedWork message)
   //Multiple messages can only be handled after Warming.
   it should "stay in Running state if others are still running" in within(timeout) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
     val initPromise = Promise[Interval]()
     val runPromises = Seq(
       Promise[(Interval, ActivationResponse)](),
