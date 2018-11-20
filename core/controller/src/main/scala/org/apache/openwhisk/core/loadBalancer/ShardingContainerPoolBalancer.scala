@@ -469,22 +469,6 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = {
 
-//    private val activeAckTopic = s"completed${controllerInstance.asString}"
-//    private val maxActiveAcksPerPoll = 128
-//    private val activeAckPollDuration = 1.second
-//    private val activeAckConsumer =
-//    messagingProvider.getConsumer(config, activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll)
-//
-//    private val activationFeed = actorSystem.actorOf(Props {
-//      new MessageFeed(
-//        "activeack",
-//        logging,
-//        activeAckConsumer,
-//        maxActiveAcksPerPoll,
-//        activeAckPollDuration,
-//        processAcknowledgement)
-//    })
-
     val activeAckTopic = s"completed${instance.asString}"
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
