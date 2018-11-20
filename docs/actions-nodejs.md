@@ -43,7 +43,7 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
 
   The CLI automatically infers the type of the action by using the source file extension.
   For `.js` source files, the action runs by using a Node.js runtime. You may specify
-  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:6` or `--kind nodejs:8`.
+  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:10`, `--kind nodejs:8`, or `--kind nodejs:6`
 
 
 ## Creating asynchronous actions
@@ -220,7 +220,7 @@ To create an OpenWhisk action from this package:
   wsk action create packageAction --kind nodejs:6 action.zip
   ```
 
-  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:6` or `nodejs:8`.
+  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
 
 4. You can invoke the action like any other:
 
@@ -330,9 +330,9 @@ JavaScript actions can be executed in Node.js version 6 or Node.js version 8.
 Currently actions are executed by default in a Node.js version 6 environment.
 
 ### Node.js version 6 environment
-The Node.js 6.14.2 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
+The Node.js 6.14.4 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
 
-The following packages are available to be used in the Node.js 6.14.2 environment:
+The following packages are available to be used in the Node.js 6 environment:
 
 - [apn v2.1.2](https://www.npmjs.com/package/apn) - A Node.js module for interfacing with the Apple Push Notification service.
 - [async v2.1.4](https://www.npmjs.com/package/async) - Provides functions for working with asynchronous functions.
@@ -358,7 +358,7 @@ The following packages are available to be used in the Node.js 6.14.2 environmen
 - [node-uuid v1.4.7](https://www.npmjs.com/package/node-uuid) - Deprecated UUID packaged.
 - [nodemailer v2.6.4](https://www.npmjs.com/package/nodemailer) - Send e-mails from Node.js – easy as cake!
 - [oauth2-server v2.4.1](https://www.npmjs.com/package/oauth2-server) - Complete, compliant, and well tested module for implementing an OAuth2 Server/Provider with express in Node.js.
-- [openwhisk v3.16.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 - [pkgcloud v1.4.0](https://www.npmjs.com/package/pkgcloud) - pkgcloud is a standard library for Node.js that abstracts away differences among multiple cloud providers.
 - [process v0.11.9](https://www.npmjs.com/package/process) - Require('process'); just like any other module.
 - [pug v2.0.0-beta6](https://www.npmjs.com/package/pug) - Implements the Pug templating language.
@@ -387,11 +387,18 @@ The following packages are available to be used in the Node.js 6.14.2 environmen
 - [yauzl v2.7.0](https://www.npmjs.com/package/yauzl) - Yet another unzip library for node. For zipping.
 
 ### Node.js version 8 environment
-The Node.js version 8.11.2 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:8' when creating or updating an Action.
+The Node.js version 8.12.0 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:8' when creating or updating an Action.
 
-The following packages are pre-installed in the Node.js version 8.11.2 environment:
+The following packages are pre-installed in the Node.js version 8 environment:
 
-- [openwhisk v3.16.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+
+### Node.js version 10 environment
+The Node.js version 10.13.0 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:10' when creating or updating an Action.
+
+The following packages are pre-installed in the Node.js version 10 environment:
+
+- [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 
 ### Packaging npm packages with your actions
 For any `npm` packages that are not pre-installed in the Node.js environment, you can bundle them as dependencies when you create or update your action.

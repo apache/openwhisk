@@ -56,7 +56,7 @@ paths more suitable. Or, you can [create a new runtime](actions-new.md).
 
 * [Go](actions-go.md)
 * [Java](actions-java.md)
-* [JavaScript](actions-node.md)
+* [JavaScript](actions-nodejs.md)
 * [PHP](actions-php.md)
 * [Python](actions-python.md)
 * [Ruby](actions-ruby.md)
