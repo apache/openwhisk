@@ -218,7 +218,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     val publisher =
       RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, newFeedOptions()))
-    val s = Source
+    val f = Source
       .fromPublisher(publisher)
       .wireTap(Sink.foreach(r => collectMetrics(queryToken, r.getRequestCharge)))
       .mapConcat(asSeq)
@@ -229,14 +229,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           .transformViewResult(ddoc, viewName, startKey, endKey, realIncludeDocs, js, CosmosDBArtifactStore.this))
       .mapAsync(1)(identity)
       .mapConcat(identity)
-
-    //If limit is specified then only take that many elements. With join its possible that
-    //number of entries become > limit
-    val s2 = if (limit > 0) s.take(limit) else s
-
-    val f = s2
       .runWith(Sink.seq)
       .map(_.toList)
+      .map(l => if (limit > 0) l.take(limit) else l)
 
     f.foreach { out =>
       transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
