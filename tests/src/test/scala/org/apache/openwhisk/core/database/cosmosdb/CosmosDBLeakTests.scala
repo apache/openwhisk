@@ -16,18 +16,34 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb
-
+import akka.stream.scaladsl.{Sink, Source}
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.entity.{
+  BasicAuthenticationAuthKey,
+  Identity,
+  Namespace,
+  Secret,
+  Subject,
+  UUID,
+  WhiskAuth,
+  WhiskNamespace
+}
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 
+import scala.concurrent.duration.DurationInt
+
+/**
+ * Performs query flow which causes leak multiple times. Post fix this test should always pass
+ * By default this test is disabled
+ */
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
-  override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
+class CosmosDBLeakTests extends FlatSpec with CosmosDBStoreBehaviorBase {
+
+  behavior of s"CosmosDB leak"
 
   private var initialLevel: Level = _
 
@@ -42,7 +58,31 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     super.afterAll()
     ResourceLeakDetector.setLevel(initialLevel)
 
-    //Try triggering GC which may trigger leak detection logic
+    withClue("Recorded leak count should be zero") {
+      RecordingLeakDetectorFactory.counter.cur shouldBe 0
+    }
+  }
+
+  it should "not happen in performing subject query" ignore {
+    implicit val tid: TransactionId = transid()
+    val uuid = UUID()
+    val ak = BasicAuthenticationAuthKey(uuid, Secret())
+    val ns = Namespace(aname(), uuid)
+    val subs =
+      Array(WhiskAuth(Subject(), Set(WhiskNamespace(ns, ak))))
+    subs foreach (put(authStore, _))
+
+    implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 30.minutes)
+
+    Source(1 to 500)
+      .filter(_ => RecordingLeakDetectorFactory.counter.cur == 0)
+      .mapAsync(5) { i =>
+        if (i % 5 == 0) println(i)
+        queryName(ns)
+      }
+      .runWith(Sink.ignore)
+      .futureValue
+
     System.gc()
 
     withClue("Recorded leak count should be zero") {
@@ -50,20 +90,8 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     }
   }
 
-  behavior of "CosmosDB Setup"
-
-  it should "be configured with default throughput" in {
-    //Trigger loading of the db
-    val stores = Seq(entityStore, authStore, activationStore)
-    stores.foreach { s =>
-      val doc = s.asInstanceOf[CosmosDBArtifactStore[_]].documentCollection()
-      val offer = client
-        .queryOffers(s"SELECT * from c where c.offerResourceId = '${doc.getResourceId}'", null)
-        .blockingOnlyResult()
-        .get
-      withClue(s"Collection ${doc.getId} : ") {
-        offer.getThroughput shouldBe storeConfig.throughput
-      }
-    }
+  def queryName(ns: Namespace)(implicit tid: TransactionId) = {
+    Identity.list(authStore, List(ns.name.asString), limit = 1)
   }
+
 }
