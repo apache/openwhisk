@@ -43,6 +43,23 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+object InvokerReactive {
+
+  /**
+   * An method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
+   * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
+   * messages for continuations (e.g., sequences and conductor actions).
+   *
+   * @param TransactionId the transaction id for the activation
+   * @param WhiskActivaiton is the activation result
+   * @param Boolean is true iff the activation was a blocking request
+   * @param ControllerInstanceId the originating controller/loadbalancer id
+   * @param UUID is the UUID for the namespace owning the activation
+   * @param Boolean is true this is resource free message and false if this is a result forwarding message
+   */
+  type ActiveAck = (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any]
+}
+
 class InvokerReactive(
   config: WhiskConfig,
   instance: InvokerInstanceId,
@@ -115,12 +132,12 @@ class InvokerReactive(
   })
 
   /** Sends an active-ack. */
-  private val ack = (tid: TransactionId,
-                     activationResult: WhiskActivation,
-                     blockingInvoke: Boolean,
-                     controllerInstance: ControllerInstanceId,
-                     userId: UUID,
-                     isSlotFree: Boolean) => {
+  private val ack: InvokerReactive.ActiveAck = (tid: TransactionId,
+                                                activationResult: WhiskActivation,
+                                                blockingInvoke: Boolean,
+                                                controllerInstance: ControllerInstanceId,
+                                                userId: UUID,
+                                                isSlotFree: Boolean) => {
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
