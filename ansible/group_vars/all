@@ -258,7 +258,8 @@ apigateway:
     api: 9000
     api_secure: 443
     mgmt: 9001
-  version: 0.9.10
+  # apigateway is an Apahce OpenWhisk project, so default to latest
+  version: latest
 
 redis:
   version: 4.0
