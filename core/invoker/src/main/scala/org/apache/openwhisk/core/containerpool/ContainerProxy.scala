@@ -24,6 +24,7 @@ import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
+
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -35,6 +36,7 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
 import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.Future
@@ -127,7 +129,7 @@ case object RunCompleted
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-  sendActiveAck: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any],
+  sendActiveAck: ActiveAck,
   storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InvokerInstanceId,
@@ -496,10 +498,16 @@ class ContainerProxy(
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
-    // Sending active ack. Entirely asynchronous and not waited upon.
-    if (job.msg.blocking) {
-      activation.foreach(
+    // Sending an active ack is an asynchronous operation. The result is forwarded as soon as
+    // possible for blocking activations so that dependent activations can be scheduled. The
+    // completion message which frees a load balancer slot is sent after the active ack future
+    // completes to ensure proper ordering.
+    val sendResult = if (job.msg.blocking) {
+      activation.map(
         sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, false))
+    } else {
+      // For non-blocking request, do not forward the result.
+      Future.successful(())
     }
 
     val context = UserContext(job.msg.user)
@@ -530,8 +538,17 @@ class ContainerProxy(
     activationWithLogs
       .map(_.fold(_.activation, identity))
       .foreach { activation =>
-        // Sending the completionMessage to the controller asynchronously.
-        sendActiveAck(tid, activation, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, true)
+        // Sending the completion message to the controller after the active ack ensures proper ordering
+        // (result is received before the completion message for blocking invokes).
+        sendResult.onComplete(
+          _ =>
+            sendActiveAck(
+              tid,
+              activation,
+              job.msg.blocking,
+              job.msg.rootControllerIndex,
+              job.msg.user.namespace.uuid,
+              true))
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
