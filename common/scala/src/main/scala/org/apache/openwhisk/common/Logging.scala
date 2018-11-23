@@ -271,6 +271,8 @@ object LoggingMarkers {
   // Time that is needed to produce message in kafka
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
 
+  // System overload and random invoker assignment
+  val SYSTEM_OVERLOAD = LogMarkerToken(controller, "systemOverload", count)
   /*
    * Invoker related markers
    */
