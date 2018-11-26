@@ -250,6 +250,10 @@ class CliActionOperations(override val wsk: RunCliCmd)
         Seq("-l", l.toMB.toString)
       } getOrElse Seq.empty
     } ++ {
+      concurrency map { c =>
+        Seq("-c", c.toString)
+      } getOrElse Seq.empty
+    } ++ {
       shared map { s =>
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq.empty
