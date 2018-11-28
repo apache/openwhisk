@@ -300,7 +300,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         val docid = b.fullyQualifiedName.toDocId
         logging.debug(this, s"fetching package '$docid' for reference")
         if (docid == wp.docid) {
-          logging.error(this, "unexpected package binding refers to itself: $docid")
+          logging.error(this, s"unexpected package binding refers to itself: $docid")
           terminate(UnprocessableEntity, Messages.packageBindingCircularReference(b.fullyQualifiedName.toString))
         } else {
           getEntity(WhiskPackage.get(entityStore, docid), Some {

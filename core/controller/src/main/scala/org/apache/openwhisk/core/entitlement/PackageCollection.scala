@@ -99,7 +99,7 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
           val pkgDocid = binding.docid
           logging.debug(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
           if (doc == pkgDocid) {
-            logging.error(this, "unexpected package binding refers to itself: $docid")
+            logging.error(this, s"unexpected package binding refers to itself: $doc")
             Future.failed(
               RejectRequest(
                 UnprocessableEntity,
