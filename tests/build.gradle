@@ -96,7 +96,7 @@ ext.testSets = [
     ],
     "REQUIRE_SYSTEM_BASIC" : [
         "includes" : [
-            "org/apache/openwhisk/testEntities/system/basic/**"
+            "system/basic/**"
         ]
     ]
 ]
