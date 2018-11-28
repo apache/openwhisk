@@ -112,6 +112,7 @@ object Messages {
   val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
   val notAllowedOnBinding = "Operation not permitted on package binding."
   def packageNameIsReserved(name: String) = s"Package name '$name' is reserved."
+  def packageBindingCircularReference(name: String) = s"Package binding '$name' contains a circular reference."
 
   /** Error messages for triggers */
   def triggerWithInactiveRule(rule: String, action: String) = {
