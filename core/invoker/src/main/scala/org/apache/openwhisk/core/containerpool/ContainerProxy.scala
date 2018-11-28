@@ -78,7 +78,9 @@ case class WarmedData(container: Container,
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
-case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, fromQueue: Boolean = false)
+case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, isFromQueue: Boolean = false) {
+  def fromQueue = copy(isFromQueue = true)
+}
 case object Remove
 
 // Events sent by the actor
@@ -347,8 +349,10 @@ class ContainerProxy(
 
   when(Removing) {
     case Event(job: Run, _) =>
-      // Send the job back to the pool to be rescheduled
-      context.parent ! job
+      // Send the job back to the pool to be rescheduled. As we already removed it from the queue, it needs to be added
+      // back, to be processed. Otherwise it is not guaranteed, that the currently processed message is the first
+      // one in the queue. But this may cause a change in order of execution.
+      context.parent ! job.copy(isFromQueue = false)
       stay
     case Event(ContainerRemoved, _)  => stop()
     case Event(_: FailureMessage, _) => stop()

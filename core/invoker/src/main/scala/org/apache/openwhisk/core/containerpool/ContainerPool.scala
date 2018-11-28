@@ -101,14 +101,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case r: Run =>
       // Checks if the current message is the first in the queue
       val isFirstInQueue = runBuffer.dequeueOption.exists(_._1.msg == r.msg)
-      // A resend is only valid, if the message is the first one in the queue. Otherwise it is a result of a race condition.
-      val isValidResent = r.fromQueue && isFirstInQueue
 
-      // Only process request, if there are no other requests waiting for free slots, or if the current request is the
-      // next request to process.
-      // If the current message is not the first of the queue (but if it is a resend), that's a result of a race
-      // condition.
-      if (runBuffer.isEmpty || isValidResent) {
+      if (!r.isFromQueue) {
+        // If the request is not from the queue, it will be added to the queue always.
+        runBuffer = runBuffer.enqueue(r)
+        runFirstMessageOfQueue()
+      } else if (r.isFromQueue && !isFirstInQueue) {
+        // The current message was already in buffer and it is not a resned form the container. But it is not the top most one of the buffer.
+        // This could happen because of a race condition of arriving messages in the actor.
+        // If there are two messages, that trigger the first message of the buffer to run, at the same time, the same
+        // Run-message will be sent twice. The first arriving Run-message will be handled correctly and removed from
+        // the buffer. The second one will end up here as it is not the first one in the buffer anymore. Instead we try
+        // to trigger the next Run-message.
+        runFirstMessageOfQueue()
+      } else {
+        // The current message is from the buffer and it is the top most one. So we will process it.
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
@@ -154,14 +161,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               freePool = freePool - actor
             }
             // Remove the action that get's executed now from the buffer and execute the next one afterwards.
-            if (r.fromQueue) {
-              // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
-              // from the buffer
-              val (_, newBuffer) = runBuffer.dequeue
-              runBuffer = newBuffer
-              // Check if there is also enough space for the next action in buffer.
-              runFirstMessageOfQueue()
-            }
+            // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
+            // from the buffer
+            val (_, newBuffer) = runBuffer.dequeue
+            runBuffer = newBuffer
+            // Check if there is also enough space for the next action in buffer.
+            runFirstMessageOfQueue()
             actor ! r // forwards the run request to the container
             logContainerStart(r, containerState, data.activeActivationCount)
           case None =>
@@ -177,24 +182,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                 s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
                 s"waiting messages: ${runBuffer.size}")(r.msg.transid)
-
-            if (!r.fromQueue) {
-              // Add this request to the buffer, as it is not there yet.
-              runBuffer = runBuffer.enqueue(r)
-            }
         }
-      } else if (r.fromQueue && !isValidResent) {
-        // The current message has been resent. But it is not the first one in the queue.
-        // This is the result of a race condition where several messages that free up the busypool arrive at the same time.
-        // Each of these messages will send the same Run-message again with the same activation. The first processing
-        // of the Run-message is valid. This also removes the message from the queue. The next run message will be
-        // invalid and end up here.
-        // So we will check now, if there is some more space, to execute the next run-message as well.
-        runFirstMessageOfQueue()
-      } else {
-        // There are currently actions waiting to be executed before this action gets executed.
-        // These waiting actions were not able to free up enough memory.
-        runBuffer = runBuffer.enqueue(r)
       }
 
     // Container is free to take more work
@@ -258,15 +246,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case RescheduleJob =>
       freePool = freePool - sender()
       busyPool = busyPool - sender()
-      runFirstMessageOfQueue()
   }
 
   /** Send the first run-Message of the queue again if there is enough space in the busypool now. */
   def runFirstMessageOfQueue(): Unit = {
     runBuffer.dequeueOption.foreach {
-      case (runMessage, newBuffer) =>
+      case (runMessage, _) =>
         if (hasPoolSpaceFor(busyPool, runMessage.action.limits.memory.megabytes.MB)) {
-          self ! runMessage.copy(fromQueue = true)
+          self ! runMessage.copy(isFromQueue = true)
         }
     }
   }

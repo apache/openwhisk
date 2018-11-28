@@ -134,11 +134,11 @@ class ContainerPoolTests
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
 
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
 
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(1).expectNoMessage(100.milliseconds)
   }
 
@@ -149,11 +149,11 @@ class ContainerPoolTests
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
 
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
 
     pool ! runMessageDifferentVersion
-    containers(0).expectMsg(runMessageDifferentVersion)
+    containers(0).expectMsg(runMessageDifferentVersion.fromQueue)
     containers(1).expectNoMessage(100.milliseconds)
   }
 
@@ -164,10 +164,10 @@ class ContainerPoolTests
     // Actions are created with default memory limit (MemoryLimit.stdMemory). This means 4 actions can be scheduled.
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     // Note that the container doesn't respond, thus it's not free to take work
     pool ! runMessage
-    containers(1).expectMsg(runMessage)
+    containers(1).expectMsg(runMessage.fromQueue)
   }
 
   it should "remove a container to make space in the pool if it is already full and a different action arrives" in within(
@@ -178,12 +178,12 @@ class ContainerPoolTests
     // a pool with only 1 slot
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory), feed.ref))
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentEverything
     containers(0).expectMsg(Remove)
-    containers(1).expectMsg(runMessageDifferentEverything)
+    containers(1).expectMsg(runMessageDifferentEverything.fromQueue)
   }
 
   it should "remove several containers to make space in the pool if it is already full and a different large action arrives" in within(
@@ -194,9 +194,9 @@ class ContainerPoolTests
     // a pool with slots for 2 actions with default memory limit.
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(512.MB), feed.ref))
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     pool ! runMessageDifferentAction // 2 * stdMemory taken -> full
-    containers(1).expectMsg(runMessageDifferentAction)
+    containers(1).expectMsg(runMessageDifferentAction.fromQueue)
 
     containers(0).send(pool, NeedWork(warmedData())) // first action finished -> 1 * stdMemory taken
     feed.expectMsg(MessageFeed.Processed)
@@ -206,7 +206,7 @@ class ContainerPoolTests
     pool ! runMessageLarge // need to remove both action to make space for the large action (needs 2 * stdMemory)
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
-    containers(2).expectMsg(runMessageLarge)
+    containers(2).expectMsg(runMessageLarge.fromQueue)
   }
 
   it should "cache a container if there is still space in the pool" in within(timeout) {
@@ -218,17 +218,17 @@ class ContainerPoolTests
 
     // Run the first container
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData(lastUsed = Instant.EPOCH)))
     feed.expectMsg(MessageFeed.Processed)
 
     // Run the second container, don't remove the first one
     pool ! runMessageDifferentEverything
-    containers(1).expectMsg(runMessageDifferentEverything)
+    containers(1).expectMsg(runMessageDifferentEverything.fromQueue)
     containers(1).send(pool, NeedWork(warmedData(lastUsed = Instant.now)))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentNamespace
-    containers(2).expectMsg(runMessageDifferentNamespace)
+    containers(2).expectMsg(runMessageDifferentNamespace.fromQueue)
 
     // 2 Slots exhausted, remove the first container to make space
     containers(0).expectMsg(Remove)
@@ -242,12 +242,12 @@ class ContainerPoolTests
     // a pool with only 1 slot
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory), feed.ref))
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentNamespace
     containers(0).expectMsg(Remove)
-    containers(1).expectMsg(runMessageDifferentNamespace)
+    containers(1).expectMsg(runMessageDifferentNamespace.fromQueue)
   }
 
   it should "reschedule job when container is removed prematurely without sending message to feed" in within(timeout) {
@@ -257,11 +257,11 @@ class ContainerPoolTests
     // a pool with only 1 slot
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory), feed.ref))
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, RescheduleJob) // emulate container failure ...
     containers(0).send(pool, runMessage) // ... causing job to be rescheduled
     feed.expectNoMessage(100.millis)
-    containers(1).expectMsg(runMessage) // job resent to new actor
+    containers(1).expectMsg(runMessage.fromQueue) // job resent to new actor
   }
 
   it should "not start a new container if there is not enough space in the pool" in within(timeout) {
@@ -272,7 +272,7 @@ class ContainerPoolTests
 
     // Start first action
     pool ! runMessage // 1 * stdMemory taken
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
 
     // Send second action to the pool
     pool ! runMessageLarge // message is too large to be processed immediately.
@@ -283,7 +283,7 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
 
     // Second action should run now
-    containers(1).expectMsg(runMessageLarge.copy(fromQueue = true))
+    containers(1).expectMsg(runMessageLarge.fromQueue)
 
     containers(1).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
@@ -333,7 +333,7 @@ class ContainerPoolTests
     containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
     containers(0).send(pool, NeedWork(preWarmedData(alternativeExec.kind)))
     pool ! runMessage
-    containers(1).expectMsg(runMessage) // but container1 is used
+    containers(1).expectMsg(runMessage.fromQueue) // but container1 is used
   }
 
   it should "not use a prewarmed container if it doesn't fit memory wise" in within(timeout) {
@@ -348,7 +348,7 @@ class ContainerPoolTests
     containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind, alternativeLimit)))
     pool ! runMessage
-    containers(1).expectMsg(runMessage) // but container1 is used
+    containers(1).expectMsg(runMessage.fromQueue) // but container1 is used
   }
 
   /*
@@ -362,12 +362,12 @@ class ContainerPoolTests
 
     // container0 is created and used
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
 
     // container0 is reused
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     containers(0).send(pool, NeedWork(warmedData()))
 
     // container0 is deleted
@@ -375,7 +375,7 @@ class ContainerPoolTests
 
     // container1 is created and used
     pool ! runMessage
-    containers(1).expectMsg(runMessage)
+    containers(1).expectMsg(runMessage.fromQueue)
   }
 
   /*
@@ -392,7 +392,7 @@ class ContainerPoolTests
 
     // Send action that blocks the pool
     pool ! runMessageLarge
-    containers(0).expectMsg(runMessageLarge)
+    containers(0).expectMsg(runMessageLarge.fromQueue)
 
     // Send action that should be written to the queue and retried in invoker
     pool ! runMessage
@@ -407,10 +407,10 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
 
     // Action 1 should start immediately
-    containers(0).expectMsg(runMessage.copy(fromQueue = true))
+    containers(0).expectMsg(runMessage.fromQueue)
 
     // Action 2 should start immediately as well (without any retries, as there is already enough space in the pool)
-    containers(1).expectMsg(runMessageDifferentAction.copy(fromQueue = true))
+    containers(1).expectMsg(runMessageDifferentAction.fromQueue)
   }
 
   it should "process activations in the order they are arriving" in within(timeout) {
@@ -422,7 +422,7 @@ class ContainerPoolTests
 
     // Send 4 actions to the ContainerPool (Action 0, Action 2 and Action 3 with each 265 MB and Action 1 with 512 MB)
     pool ! runMessage
-    containers(0).expectMsg(runMessage)
+    containers(0).expectMsg(runMessage.fromQueue)
     pool ! runMessageLarge
     containers(1).expectNoMessage(100.milliseconds)
     pool ! runMessageDifferentNamespace
@@ -434,7 +434,7 @@ class ContainerPoolTests
     containers(0).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
     // This message should have waited in the pool
-    containers(1).expectMsg(runMessageLarge.copy(fromQueue = true))
+    containers(1).expectMsg(runMessageLarge.fromQueue)
 
     // Send another action to the container pool, that would fit memory-wise
     pool ! runMessageDifferentEverything
@@ -443,15 +443,15 @@ class ContainerPoolTests
     // Action 1 is finished -> Action 2 and Action 3 should be executed now
     containers(1).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
-    containers(2).expectMsg(runMessageDifferentNamespace.copy(fromQueue = true))
+    containers(2).expectMsg(runMessageDifferentNamespace.fromQueue)
 
-    containers(3).expectMsg(runMessageDifferentAction.copy(fromQueue = true))
+    containers(3).expectMsg(runMessageDifferentAction.fromQueue)
 
     // Action 3 is finished -> Action 4 should start
     containers(3).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
 
-    containers(4).expectMsg(runMessageDifferentEverything.copy(fromQueue = true))
+    containers(4).expectMsg(runMessageDifferentEverything.fromQueue)
 
     // Action 2 and 4 are finished
     containers(2).send(pool, NeedWork(warmedData()))
@@ -472,7 +472,7 @@ class ContainerPoolTests
     (0 until 4).map { i =>
       val rm = createRunMessage(action, invocationNamespace)
       pool ! rm
-      containers(i).expectMsg(rm)
+      containers(i).expectMsg(rm.fromQueue)
     }
 
     // Add two more run messages that should be written into buffer
@@ -480,19 +480,19 @@ class ContainerPoolTests
     pool ! runMessageDifferentAction
 
     // Retrigger the runmessage should not cause something unexpected, because all slots are full anyway.
-    pool ! runMessage.copy(fromQueue = true)
+    pool ! runMessage.fromQueue
     feed.expectNoMessage(100.milliseconds)
     (0 until amountOfContainers).par.foreach(i => containers(i).expectNoMessage(100.milliseconds))
 
     // Free up one slot. First runmessage in queue should be retriggered.
     containers(0).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
-    containers(0).expectMsg(runMessage.copy(fromQueue = true))
+    containers(0).expectMsg(runMessage.fromQueue)
 
     // Retrigger the runmessage again. E.g. by two NeedWork-messages arriving at the same time (At the same time means,
     // that the second NeedWork-message arrives before the Run-message, that is generated by the first NeedWork-message).
     // This should not trigger the same action again.
-    pool ! runMessage.copy(fromQueue = true)
+    pool ! runMessage.fromQueue
     feed.expectNoMessage(100.milliseconds)
     (0 until amountOfContainers).par.foreach(i => containers(i).expectNoMessage(100.milliseconds))
 
@@ -500,7 +500,7 @@ class ContainerPoolTests
     containers(1).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
     containers(1).expectMsg(Remove)
-    containers(4).expectMsg(runMessageDifferentAction.copy(fromQueue = true))
+    containers(4).expectMsg(runMessageDifferentAction.fromQueue)
 
     // After finishing the next slot, no more actions should be started, because the queue is empty.
     containers(2).send(pool, NeedWork(warmedData()))
