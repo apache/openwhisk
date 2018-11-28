@@ -264,14 +264,13 @@ class ShardingContainerPoolBalancer(
 
     chosen
       .map { invoker =>
-        val entry = setupActivation(msg, action, invoker)
+        setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map { _ =>
           if (msg.blocking) {
-            blockingPromises.getOrElseUpdate(msg.activationId, entry.promise)
+            blockingPromises.getOrElseUpdate(msg.activationId, Promise[Either[ActivationId, WhiskActivation]]()).future
           } else {
-            entry.promise.trySuccess(Left(msg.activationId))
+            Future.successful(Left(msg.activationId))
           }
-          entry.promise.future
         }
       }
       .getOrElse {
@@ -320,8 +319,7 @@ class ShardingContainerPoolBalancer(
           action.limits.memory.megabytes.MB,
           action.limits.concurrency.maxConcurrent,
           action.fullyQualifiedName(true),
-          timeoutHandler,
-          Promise[Either[ActivationId, WhiskActivation]]())
+          timeoutHandler)
       })
   }
 
@@ -718,7 +716,6 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, timeout
  * @param namespaceId namespace that invoked the action
  * @param invokerName invoker the action is scheduled to
  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
- * @param promise the promise to be completed by the activation
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
@@ -726,5 +723,4 @@ case class ActivationEntry(id: ActivationId,
                            memory: ByteSize,
                            maxConcurrent: Int,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
-                           timeoutHandler: Cancellable,
-                           promise: Promise[Either[ActivationId, WhiskActivation]])
+                           timeoutHandler: Cancellable)
