@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.containerpool
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
-import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common.{AkkaLogging, Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -60,7 +60,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     extends Actor {
   import ContainerPool.memoryConsumptionOf
 
-  implicit val logging = new AkkaLogging(context.system.log)
+  implicit val logging: Logging = new AkkaLogging(context.system.log)
 
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
@@ -68,8 +68,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
-  var runBuffer = immutable.Queue.empty[Run]
-  val logMessageInterval = 10.seconds
+  var runBuffer: immutable.Queue[Run] = immutable.Queue.empty[Run]
+  val logMessageInterval: FiniteDuration = 10.seconds
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
@@ -99,13 +99,16 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
-      val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
+      // Checks if the current message is the first in the queue
+      val isFirstInQueue = runBuffer.dequeueOption.exists(_._1.msg == r.msg)
+      // A resend is only valid, if the message is the first one in the queue. Otherwise it is a result of a race condition.
+      val isValidResent = r.fromQueue && isFirstInQueue
 
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
-      // next request to process
-      // It is guaranteed, that only the first message on the buffer is resent.
-      if (runBuffer.isEmpty || isResentFromBuffer) {
+      // next request to process.
+      // If the current message is not the first of the queue (but if it is a resend), that's a result of a race
+      // condition.
+      if (runBuffer.isEmpty || isValidResent) {
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
@@ -151,12 +154,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               freePool = freePool - actor
             }
             // Remove the action that get's executed now from the buffer and execute the next one afterwards.
-            if (isResentFromBuffer) {
+            if (r.fromQueue) {
               // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
               // from the buffer
               val (_, newBuffer) = runBuffer.dequeue
               runBuffer = newBuffer
-              runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
+              // Check if there is also enough space for the next action in buffer.
+              runFirstMessageOfQueue()
             }
             actor ! r // forwards the run request to the container
             logContainerStart(r, containerState, data.activeActivationCount)
@@ -164,28 +168,29 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // this can also happen if createContainer fails to start a new container, or
             // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
             // (and a new container would over commit the pool)
-            val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
-            val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
-                this,
-                s"Rescheduling Run message, too many message in the pool, " +
-                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
-                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
-                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
-                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                  s"waiting messages: ${runBuffer.size}")(r.msg.transid)
-              Some(logMessageInterval.fromNow)
-            } else {
-              r.retryLogDeadline
-            }
-            if (!isResentFromBuffer) {
+            logging.error(
+              this,
+              s"Rescheduling Run message, too many message in the pool, " +
+                s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
+                s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
+                s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                s"waiting messages: ${runBuffer.size}")(r.msg.transid)
+
+            if (!r.fromQueue) {
               // Add this request to the buffer, as it is not there yet.
               runBuffer = runBuffer.enqueue(r)
             }
-            // As this request is the first one in the buffer, try again to execute it.
-            self ! Run(r.action, r.msg, retryLogDeadline)
         }
+      } else if (r.fromQueue && !isValidResent) {
+        // The current message has been resent. But it is not the first one in the queue.
+        // This is the result of a race condition where several messages that free up the busypool arrive at the same time.
+        // Each of these messages will send the same Run-message again with the same activation. The first processing
+        // of the Run-message is valid. This also removes the message from the queue. The next run message will be
+        // invalid and end up here.
+        // So we will check now, if there is some more space, to execute the next run-message as well.
+        runFirstMessageOfQueue()
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
         // These waiting actions were not able to free up enough memory.
@@ -200,6 +205,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         freePool = freePool + (sender() -> data)
         if (busyPool.contains(sender())) {
           busyPool = busyPool - sender()
+          runFirstMessageOfQueue()
           if (data.action.limits.concurrency.maxConcurrent > 1) {
             logging.info(
               this,
@@ -242,6 +248,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool - sender()
         feed ! MessageFeed.Processed
       }
+      runFirstMessageOfQueue()
 
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
@@ -251,6 +258,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case RescheduleJob =>
       freePool = freePool - sender()
       busyPool = busyPool - sender()
+      runFirstMessageOfQueue()
+  }
+
+  /** Send the first run-Message of the queue again if there is enough space in the busypool now. */
+  def runFirstMessageOfQueue(): Unit = {
+    runBuffer.dequeueOption.foreach {
+      case (runMessage, newBuffer) =>
+        if (hasPoolSpaceFor(busyPool, runMessage.action.limits.memory.megabytes.MB)) {
+          self ! runMessage.copy(fromQueue = true)
+        }
+    }
   }
 
   /** Creates a new container and updates state accordingly. */
@@ -294,7 +312,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Removes a container and updates state accordingly. */
-  def removeContainer(toDelete: ActorRef) = {
+  def removeContainer(toDelete: ActorRef): Unit = {
     toDelete ! Remove
     freePool = freePool - toDelete
     busyPool = busyPool - toDelete

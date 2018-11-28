@@ -23,12 +23,7 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
-import pureconfig.loadConfigOrThrow
-
-import scala.collection.immutable
-import spray.json.DefaultJsonProtocol._
-import spray.json._
-import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
@@ -38,9 +33,13 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
 import org.apache.openwhisk.http.Messages
+import pureconfig.loadConfigOrThrow
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
-import scala.concurrent.Future
+import scala.collection.immutable
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 // States
@@ -79,7 +78,7 @@ case class WarmedData(container: Container,
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
-case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
+case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, fromQueue: Boolean = false)
 case object Remove
 
 // Events sent by the actor
@@ -138,10 +137,12 @@ class ContainerProxy(
   pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
-  implicit val ec = context.system.dispatcher
-  implicit val logging = new AkkaLogging(context.system.log)
-  var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
-  var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
+  implicit val ec: ExecutionContext = context.system.dispatcher
+  implicit val logging: Logging = new AkkaLogging(context.system.log)
+  var rescheduleJob
+    : Boolean = false // true iff actor receives a job but cannot process it because actor will destroy itself
+  var runBuffer
+    : immutable.Queue[Run] = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -161,7 +162,7 @@ class ContainerProxy(
 
     // cold start (no container to reuse or available stem cell container)
     case Event(job: Run, _) =>
-      implicit val transid = job.msg.transid
+      implicit val transid: TransactionId = job.msg.transid
 
       // create a new container
       val container = factory(
@@ -269,7 +270,7 @@ class ContainerProxy(
     case Event(job: Run, data: WarmedData)
         if stateData.activeActivationCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
 
-      implicit val transid = job.msg.transid
+      implicit val transid: TransactionId = job.msg.transid
       val newData = data.incrementActive
 
       initializeAndRun(data.container, job)
@@ -294,7 +295,7 @@ class ContainerProxy(
 
   when(Ready, stateTimeout = pauseGrace) {
     case Event(job: Run, data: WarmedData) =>
-      implicit val transid = job.msg.transid
+      implicit val transid: TransactionId = job.msg.transid
       val newData = data.incrementActive
 
       initializeAndRun(data.container, job)
