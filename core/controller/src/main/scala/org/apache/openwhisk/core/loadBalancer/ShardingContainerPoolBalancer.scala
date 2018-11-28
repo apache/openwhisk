@@ -267,8 +267,11 @@ class ShardingContainerPoolBalancer(
         val entry = setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map { _ =>
           if (msg.blocking) {
-            blockingPromises.getOrElseUpdate(msg.activationId, Promise[Either[ActivationId, WhiskActivation]]()).future
-          } else entry.promise.future
+            blockingPromises.getOrElseUpdate(msg.activationId, entry.promise)
+          } else {
+            entry.promise.trySuccess(Left(msg.activationId))
+          }
+          entry.promise.future
         }
       }
       .getOrElse {
@@ -424,11 +427,9 @@ class ShardingContainerPoolBalancer(
           .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, entry.memory.toMB.toInt))
         if (!forced) {
           entry.timeoutHandler.cancel()
-          entry.promise.trySuccess(Left(aid))
         } else {
-          entry.promise.tryFailure(new Throwable("no completion ack received"))
           // remove blocking promise when timeout, if the ResultMessage is already processed, this will do nothing
-          blockingPromises.remove(aid).foreach(_.tryFailure(new Throwable("no result ack received")))
+          blockingPromises.remove(aid).foreach(_.tryFailure(new Throwable("no completion ack received")))
         }
 
         logging.info(this, s"${if (!forced) "received" else "forced"} completion ack for '$aid'")(tid)
