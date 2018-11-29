@@ -57,13 +57,22 @@ Map controllerEnv = null
 Map invokerEnv = null
 
 containerNames.each{cn ->
+
     //Inspect the specific container
     def inspectResult = "docker inspect $cn".execute().text
     def json = new JsonSlurper().parseText(inspectResult)
 
     def imageName = json[0].'Config'.'Image'
     if (imageName.contains("controller") || imageName.contains("invoker")){
-        def mappedPort = json.'NetworkSettings'.'Ports'.'8080/tcp'[0][0].'HostPort'
+        // extract all the ports exposed by this container
+        def hostPorts = []
+        def mappedPort = json[0].'NetworkSettings'.'Ports'.each{ port, portValue ->
+            if (portValue != null) {
+                hostPorts << portValue[0].'HostPort'
+            }
+        }
+        // look for the first port with [HostIp,HostPort] in range (8000,9000)
+        mappedPort = hostPorts.find{ it.toInteger() > 8000 && it.toInteger() < 9000 }
 
         def envBaseMap = getEnvMap(json[0].'Config'.'Env')
         String type
@@ -174,7 +183,7 @@ def getSysProps(def envMap, String type){
     def props = config[type].props
     def sysProps = transformEnv(envMap)
     sysProps.putAll(props)
-    sysProps.collect{k,v -> "-D$k='$v'"}.join(' ').replace('\'','')
+    sysProps.collect{k,v -> "-D$k='$v'"}.join(' ').replace('"','').replace('\'','')
 }
 
 //Implements the logic from transformEnvironment.sh
@@ -213,7 +222,7 @@ def transformEnv(Map<String, String> envMap){
  * This method converts it to map and add provided overrides with overrides from config
  */
 def getEnv(Map envMap, String type, Map overrides){
-    def ignoredKeys = ['PATH']
+    def ignoredKeys = ['PATH','JAVA_HOME','JAVA_VERSION','JAVA_TOOL_OPTIONS']
     def overridesFromConfig = config[type].env
     Map sortedMap = new TreeMap(envMap)
     sortedMap.putAll(overrides)
