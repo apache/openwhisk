@@ -104,8 +104,12 @@ protected class ApacheBlockingContainerClient(hostname: String,
   }
 
   // Annotation will make the compiler complain if no tail recursion is possible
-  @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, maxConcurrent: Int, retry: Boolean, retryCount: Int = 0)(
-    implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
+  @tailrec private def execute(
+    request: HttpRequestBase,
+    timeout: FiniteDuration,
+    maxConcurrent: Int,
+    retry: Boolean,
+    retryCount: Int = 0)(implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     val start = Instant.now
 
     Try(connection.execute(request)).map { response =>
@@ -158,7 +162,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
           Thread.sleep(sleepTime.toMillis)
           val newTimeout = timeout - sleepTime - waitTime
           val newRetryCount = retryCount + 1
-          execute(request, newTimeout, maxConcurrent, retry = newRetryCount < 3 , retryCount = newRetryCount)
+          execute(request, newTimeout, maxConcurrent, retry = newRetryCount < 3, retryCount = newRetryCount)
         } else {
           logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
           Left(Timeout(t))
