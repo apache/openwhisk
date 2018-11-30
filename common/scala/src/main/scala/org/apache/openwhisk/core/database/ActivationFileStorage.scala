@@ -15,29 +15,22 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package org.apache.openwhisk.core.database
 
-import java.time.Instant
+import java.nio.file.attribute.PosixFilePermission._
 import java.nio.file.{Files, Path}
-import java.nio.file.attribute.PosixFilePermission.{
-  GROUP_READ,
-  GROUP_WRITE,
-  OTHERS_READ,
-  OTHERS_WRITE,
-  OWNER_READ,
-  OWNER_WRITE
-}
+import java.time.Instant
 import java.util.EnumSet
 
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
 import akka.util.ByteString
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
+import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size._
 import spray.json._
-import whisk.common.Logging
-import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
-import whisk.core.entity._
-import whisk.core.entity.size._
 
 import scala.concurrent.duration._
 

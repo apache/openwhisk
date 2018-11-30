@@ -15,28 +15,26 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package org.apache.openwhisk.core.database
 
-import java.time.Instant
 import java.io.File
+import java.time.Instant
 
-import scala.concurrent.Future
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
-import akka.http.scaladsl.model.HttpRequest
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpecLike, Matchers}
-import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionId
-import whisk.core.entity._
-import whisk.core.entity.size.SizeInt
-
-import scala.concurrent.Await
+import spray.json._
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size.SizeInt
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.io.Source
 

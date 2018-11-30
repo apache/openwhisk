@@ -15,23 +15,19 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package org.apache.openwhisk.core.database
+
+import java.nio.file.Paths
 
 import akka.actor.ActorSystem
 import akka.stream._
-
+import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.entity.{DocInfo, _}
+import pureconfig.loadConfigOrThrow
 import spray.json._
 
-import whisk.common.{Logging, TransactionId}
-import whisk.core.entity._
-import whisk.core.ConfigKeys
-import whisk.core.entity.DocInfo
-
 import scala.concurrent.Future
-
-import pureconfig.loadConfigOrThrow
-
-import java.nio.file.Paths
 
 case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
                                                         logPath: String,
