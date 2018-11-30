@@ -95,7 +95,7 @@ containerNames.each{cn ->
         //Prepare system properties
         def sysProps = getSysProps(envMap,type)
         // disable log collection. See more at: https://github.com/apache/incubator-openwhisk/issues/3195
-        sysProps += " -Dwhisk.log-limit.max=0"
+        sysProps += " -Dwhisk.log-limit.max=0 -Dwhisk.log-limit.std=0"
         if (SystemUtils.IS_OS_MAC){
             sysProps += " -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider"
         }
