@@ -85,7 +85,10 @@ Key points to note:
    ```bash
    sudo ifconfig lo0 alias 172.17.0.1/24
    ```
-3. On a MAC
+3. Update `~/.wskprops` with `APIHOST=http://localhost:8888` so that the `wsk` CLI points directly to the controller.
+   Replace `8888` with the corresponding port configured for controller;
+   _the `PORT` is configured as an environment variable in the run configuration_.
+4. On a MAC
    * With Docker For Mac the invoker is configured to use a Container Factory that expose ports for actions on the host,
      as otherwise the invoker can't make HTTP requests to the actions.
      You can read more at [docker/for-mac#171][7].
