@@ -16,6 +16,7 @@
  */
 import groovy.json.JsonSlurper
 import groovy.text.SimpleTemplateEngine
+import org.apache.commons.lang3.SystemUtils
 
 assert args : "Expecting the OpenWhisk home directory to passed"
 owHome = args[0]
@@ -26,7 +27,7 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
     <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea" />
     <option name="MAIN_CLASS_NAME" value="$main" />
     <option name="VM_PARAMETERS" value="$sysProps" />
-    <option name="PROGRAM_PARAMETERS" value="0" />
+    <option name="PROGRAM_PARAMETERS" value="$programParams" />
     <option name="WORKING_DIRECTORY" value="$workingDir" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
     <option name="ALTERNATIVE_JRE_PATH" />
@@ -93,6 +94,11 @@ containerNames.each{cn ->
 
         //Prepare system properties
         def sysProps = getSysProps(envMap,type)
+        // disable log collection. See more at: https://github.com/apache/incubator-openwhisk/issues/3195
+        sysProps += " -Dwhisk.log-limit.max=0"
+        if (SystemUtils.IS_OS_MAC){
+            sysProps += " -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider"
+        }
 
         def templateBinding = [
                 main: meta[type].main,
@@ -101,7 +107,8 @@ containerNames.each{cn ->
                 env: encodeForXML(envMap),
                 sysProps : sysProps,
                 USER_HOME : '$USER_HOME$',
-                workingDir : getWorkDir(type)
+                workingDir : getWorkDir(type),
+                programParams: imageName.contains("controller") ? '0' : '--id  1'
         ]
 
         def engine = new SimpleTemplateEngine()
