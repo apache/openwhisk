@@ -67,13 +67,13 @@ containerNames.each{cn ->
     if (imageName.contains("controller") || imageName.contains("invoker")){
         // extract all the ports exposed by this container
         def hostPorts = []
-        def mappedPort = json[0].'NetworkSettings'.'Ports'.each{ port, portValue ->
+        json[0].'NetworkSettings'.'Ports'.each{ port, portValue ->
             if (portValue != null) {
                 hostPorts << portValue[0].'HostPort'
             }
         }
         // look for the first port with [HostIp,HostPort] in range (8000,9000)
-        mappedPort = hostPorts.find{ it.toInteger() > 8000 && it.toInteger() < 9000 }
+        def mappedPort = hostPorts.find{ it.toInteger() > 8000 && it.toInteger() < 9000 }
 
         def envBaseMap = getEnvMap(json[0].'Config'.'Env')
         String type
