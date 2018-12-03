@@ -65,15 +65,8 @@ containerNames.each{cn ->
 
     def imageName = json[0].'Config'.'Image'
     if (imageName.contains("controller") || imageName.contains("invoker")){
-        // extract all the ports exposed by this container
-        def hostPorts = []
-        json[0].'NetworkSettings'.'Ports'.each{ port, portValue ->
-            if (portValue != null) {
-                hostPorts << portValue[0].'HostPort'
-            }
-        }
-        // look for the first port with [HostIp,HostPort] in range (8000,9000)
-        def mappedPort = hostPorts.find{ it.toInteger() > 8000 && it.toInteger() < 9000 }
+        // pre-configure the local ports for controller and invoker
+        def mappedPort = imageName.contains("controller") ? '10001' : '12001'
 
         def envBaseMap = getEnvMap(json[0].'Config'.'Env')
         String type
@@ -108,7 +101,7 @@ containerNames.each{cn ->
                 sysProps : sysProps,
                 USER_HOME : '$USER_HOME$',
                 workingDir : getWorkDir(type),
-                programParams: imageName.contains("controller") ? '0' : '--id  1'
+                programParams: imageName.contains("controller") ? '0' : '--id  0'
         ]
 
         def engine = new SimpleTemplateEngine()

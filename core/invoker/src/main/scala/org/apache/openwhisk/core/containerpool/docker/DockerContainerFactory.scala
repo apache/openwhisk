@@ -25,7 +25,10 @@ import scala.concurrent.Future
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.containerpool._
+import org.apache.openwhisk.core.containerpool.Container
+import org.apache.openwhisk.core.containerpool.ContainerFactory
+import org.apache.openwhisk.core.containerpool.ContainerFactoryProvider
+import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.apache.openwhisk.core.entity.InvokerInstanceId

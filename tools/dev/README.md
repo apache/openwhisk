@@ -80,22 +80,21 @@ Now the docker container(s) (controller and/or invoker) can be stopped and they 
 
 Key points to note:
 
-1. Action activation logs are [disabled][2].
-2. Make sure you have the loopback interface configured
+1. Controller uses port `10001` and Invoker uses port `12001`.
+2. Action activation logs are [disabled][2].
+3. Make sure you have the loopback interface configured:
    ```bash
    sudo ifconfig lo0 alias 172.17.0.1/24
    ```
-3. Update `~/.wskprops` with `APIHOST=http://localhost:8888` so that the `wsk` CLI points directly to the controller.
-   Replace `8888` with the corresponding port configured for controller;
-   _the `PORT` is configured as an environment variable in the run configuration_.
-4. On a MAC
+4. Update `~/.wskprops` with `APIHOST=http://localhost:10001` so that the `wsk` CLI points directly to the controller.
+5. On a MAC
    * With Docker For Mac the invoker is configured to use a Container Factory that expose ports for actions on the host,
      as otherwise the invoker can't make HTTP requests to the actions.
      You can read more at [docker/for-mac#171][7].
 
-   * When containers are started with [docker-compose][8] update `/etc/hosts` with the line bellow:
+   * When using [docker-compose][8] locally you have to update `/etc/hosts` with the line bellow:
       ```
-      127.0.0.1       kafka zookeeper kafka.docker zookeeper.docker db.docker controller invoker whisk.controller
+      127.0.0.1       kafka zookeeper kafka.docker zookeeper.docker db.docker controller whisk.controller
       ```
 
 
