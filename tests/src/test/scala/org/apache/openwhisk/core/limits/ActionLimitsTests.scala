@@ -457,8 +457,9 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
         action.create(name, Some(actionName), memory = Some(allowedMemory))
     }
 
+    val payload = MemoryLimit.minMemory.toMB * 2
     (1 to 5).foreach { i =>
-      val run = wsk.action.invoke(name, Map("payload" -> 256.toJson))
+      val run = wsk.action.invoke(name, Map("payload" -> payload.toJson))
       withActivation(wsk.activation, run) {
         _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
       }
