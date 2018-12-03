@@ -33,6 +33,8 @@ trait RunCliCmd extends Matchers {
    */
   def baseCommand: Buffer[String]
 
+  val prohibitAuthOverride = false
+
   /**
    * Delegates execution of the command to an underlying implementation.
    *
@@ -69,14 +71,18 @@ trait RunCliCmd extends Matchers {
 
     val args = baseCommand
     if (verbose) args += "--verbose"
-    if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
+    val finalParams = if (!prohibitAuthOverride) { params } else {
+      params.filter(s =>
+        !s.equals("--auth") && !(params.indexOf(s) > 0 && params(params.indexOf(s) - 1).equals("--auth")))
+    }
+    if (showCmd) println(args.mkString(" ") + " " + finalParams.mkString(" "))
 
     val rr = retry(
       0,
       retriesOnNetworkError,
-      () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args ++ params))
+      () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args ++ finalParams))
 
-    withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
+    withClue(hideStr(reportFailure(args ++ finalParams, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
         val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
         if (!ok) {
