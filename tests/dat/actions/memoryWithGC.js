@@ -4,9 +4,9 @@
 function eat(memoryMB) {
     var bytes = 1*1024*1024*memoryMB;
     var data = "abcdefghijklmnopqrstuvwxyz";
-    var s = "foo"
-    while(s.length < bytes) {
-        s += data;
+    var arr = [];
+    while(arr.length * data.length < bytes) {
+        arr.push(data)
     }
     console.log('done.');
 }
