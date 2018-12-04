@@ -239,5 +239,6 @@ object ConfigKeys {
 
   val s3 = "whisk.s3"
   val query = "whisk.query-limit"
+  val execSizeLimit = "whisk.exec-size-limit"
 
 }
