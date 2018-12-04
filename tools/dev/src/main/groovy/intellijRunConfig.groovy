@@ -89,6 +89,8 @@ containerNames.each{cn ->
         def sysProps = getSysProps(envMap,type)
         // disable log collection. See more at: https://github.com/apache/incubator-openwhisk/issues/3195
         sysProps += " -Dwhisk.log-limit.max=0 -Dwhisk.log-limit.std=0"
+        // disable https protocol for controller and invoker
+        sysProps = sysProps.replaceAll("protocol=https", "protocol=http")
         if (SystemUtils.IS_OS_MAC){
             sysProps += " -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider"
         }

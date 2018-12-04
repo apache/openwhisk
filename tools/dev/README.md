@@ -82,13 +82,14 @@ Key points to note:
 
 1. Controller uses port `10001` and Invoker uses port `12001`.
 2. Action activation logs are [disabled][2].
-3. Make sure you have the loopback interface configured:
+3. SSL is disabled for Controller and Invoker.
+4. Make sure you have the loopback interface configured:
    ```bash
    sudo ifconfig lo0 alias 172.17.0.1/24
    ```
-4. Update `~/.wskprops` with `APIHOST=http://localhost:10001` so that the `wsk` CLI points directly to the controller.
-5. On a MAC
-   * With Docker For Mac the invoker is configured to use a Container Factory that expose ports for actions on the host,
+5. `~/.wskprops` must be updated with `APIHOST=http://localhost:10001` so that the `wsk` CLI communicates directly with the controller.
+6. On a MAC
+   * With Docker For Mac the invoker is configured to use a Container Factory that exposes ports for actions on the host,
      as otherwise the invoker can't make HTTP requests to the actions.
      You can read more at [docker/for-mac#171][7].
 
