@@ -81,9 +81,9 @@ by the IBM Corporation (http://www.ibm.com/) to the Apache Software Foundation (
 The following repositories were included in the donation:
 
 * openwhisk-composer:
-  * A new programming model for composing cloud functions built on Apache OpenWhisk
+  * A new programming model for composing cloud functions built on OpenWhisk
 * openwhisk-composer-python:
-  * A Python client library for openwhisk composer.
+  * A Python client library for OpenWhisk composer.
 
 
                           The Apache OpenWhisk Community
