@@ -21,15 +21,14 @@ import org.apache.openwhisk.core.entitlement.Privilege._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpMethods.DELETE
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
-
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.Identity
 import org.apache.openwhisk.core.entity.WhiskAction
 import org.apache.openwhisk.core.entity.WhiskActivation
@@ -37,6 +36,7 @@ import org.apache.openwhisk.core.entity.WhiskPackage
 import org.apache.openwhisk.core.entity.WhiskRule
 import org.apache.openwhisk.core.entity.WhiskTrigger
 import org.apache.openwhisk.core.entity.types.EntityStore
+import pureconfig._
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject
@@ -109,9 +109,12 @@ protected[core] case class Collection protected (val path: String,
 /** An enumeration of known collections. */
 protected[core] object Collection {
 
+  private case class QueryLimit(maxListLimit: Int, defaultListLimit: Int)
+  private val queryLimit = loadConfigOrThrow[QueryLimit](ConfigKeys.query)
+
   /** Number of records allowed per query. */
-  protected[core] val DEFAULT_LIST_LIMIT = 30
-  protected[core] val MAX_LIST_LIMIT = 200
+  protected[core] val DEFAULT_LIST_LIMIT = queryLimit.defaultListLimit
+  protected[core] val MAX_LIST_LIMIT = queryLimit.maxListLimit
   protected[core] val DEFAULT_SKIP_LIMIT = 0
 
   protected[core] val ACTIONS = WhiskAction.collectionName
