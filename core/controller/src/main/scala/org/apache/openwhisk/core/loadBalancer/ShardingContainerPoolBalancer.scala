@@ -243,7 +243,7 @@ class ShardingContainerPoolBalancer(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
     val isBlackboxInvocation = action.exec.pull
-    val actionType = if (!isBlackboxInvocation) "non-blackbox" else "blackbox"
+    val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
 
     val (invokersToUse, stepSizes) =
       if (!isBlackboxInvocation) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
@@ -269,7 +269,7 @@ class ShardingContainerPoolBalancer(
       .map { invoker =>
         logging.info(
           this,
-          s"activation ${msg.activationId} of $actionType-action '${msg.action.asString}' invoked by namespace '${msg.user.namespace.name.asString}' with memory-limit of ${action.limits.memory.megabytes} MB will be executed on ${invoker.instance}")
+          s"activation ${msg.activationId} for '${msg.action.asString}' ($actionType) by namespace '${msg.user.namespace.name.asString}' with memory limit ${action.limits.memory.megabytes}MB assigned to $invoker")
         val activationResult = setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map(_ => activationResult)
       }
@@ -346,11 +346,7 @@ class ShardingContainerPoolBalancer(
     val topic = s"invoker${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
-    val start = transid.started(
-      this,
-      LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting to '$invoker' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+    val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
