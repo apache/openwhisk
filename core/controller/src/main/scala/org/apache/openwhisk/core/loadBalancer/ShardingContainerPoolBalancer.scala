@@ -244,7 +244,6 @@ class ShardingContainerPoolBalancer(
 
     val isBlackboxInvocation = action.exec.pull
     val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
-
     val (invokersToUse, stepSizes) =
       if (!isBlackboxInvocation) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
