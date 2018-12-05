@@ -92,6 +92,7 @@ containerNames.each{cn ->
         // disable https protocol for controller and invoker
         sysProps = sysProps.replaceAll("protocol=https", "protocol=http")
         if (SystemUtils.IS_OS_MAC){
+            sysProps = sysProps.replaceAll("use-runc=True", "use-runc=False")
             sysProps += " -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider"
         }
 
