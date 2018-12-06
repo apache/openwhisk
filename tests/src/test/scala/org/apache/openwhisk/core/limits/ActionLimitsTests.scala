@@ -451,13 +451,14 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
   it should "be aborted when exceeding its memory limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "TestNodeJsMemoryExceeding"
     assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
-      val allowedMemory = 128.megabytes
+      val allowedMemory = MemoryLimit.minMemory
       val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
       (action, _) =>
         action.create(name, Some(actionName), memory = Some(allowedMemory))
     }
 
-    val run = wsk.action.invoke(name, Map("payload" -> 256.toJson))
+    val payload = MemoryLimit.minMemory.toMB * 2
+    val run = wsk.action.invoke(name, Map("payload" -> payload.toJson))
     withActivation(wsk.activation, run) {
       _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
