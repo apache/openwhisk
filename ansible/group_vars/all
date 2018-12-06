@@ -264,6 +264,7 @@ apigateway:
 redis:
   version: 4.0
   port: 6379
+  password: openwhisk 
 
 linux:
   version: 4.4.0-31
