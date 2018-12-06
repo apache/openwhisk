@@ -24,8 +24,7 @@ include 'tests'
 include 'tests:performance:gatling_tests'
 
 include 'tools:actionProxy'
-include 'tools:ansibleRunner'
-include 'tools:scriptRunner'
+include 'tools:ow-utils'
 include 'tools:dev'
 
 include 'tools:admin'

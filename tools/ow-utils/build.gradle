@@ -15,5 +15,5 @@
  * limitations under the License.
  */
 
-ext.dockerImageName = 'ansible-runner'
+ext.dockerImageName = 'ow-utils'
 apply from: '../../gradle/docker.gradle'
