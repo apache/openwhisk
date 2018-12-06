@@ -7,13 +7,13 @@
 // The actual value can be obtained with `getconf PAGESIZE`
 const pageSizeInB = 4096;
 
-// This array will be used to store all allocated pages
+// This array will be used to store all allocated blocks
 // such that they won't be garbage collected
-let pages = [];
+let blocks = [];
 
 // Allocates a byte array that has page size
-function allocateMemoryPage() {
-    return new Uint8Array(pageSizeInB);
+function allocateMemoryBlock(sizeInB) {
+    return new Uint8Array(sizeInB);
 }
 
 // Returns a random number between 0 (inclusive) and
@@ -31,20 +31,43 @@ function fillMemoryPage(byteArray) {
 }
 
 // Consumes the specified amount of physical memory
-// * The memory is allocated page-wise instead of allocating
-//   a large block of memory to prevent virtual OOM
+// * The memory is allocated in smaller blocks instead of
+//   allocating one large block of memory to prevent
+//   virtual OOM
+// * Size of allocated blocks is a multiple of page size
+// * The number of allocated blocks has an upper bound
+//   because a reference to each block is stored in an
+//   array. If the number of blocks gets too high, the
+//   resulting array grows so large that its contribution
+//   to memory consumption causes trouble.
+//   For this reason, the block size is adjusted to
+//   limit the number of blocks. The resulting allocation
+//   granularity can cause a slight over-consumption of
+//   memory. That's why the upper limit must be selected
+//   carefully.
 // * Fill randomly to prevent memory deduplication
 function eat(memoryInMiB) {
     const memoryInB = memoryInMiB * 1024 * 1024;
     const memoryInPages = Math.ceil(memoryInB / pageSizeInB);
-    console.log('helloEatMemory: memoryInB=' + memoryInB + ', memoryInPages='+memoryInPages);
+    console.log('helloEatMemory: memoryInB=' + memoryInB + ', memoryInPages=' + memoryInPages);
 
-    for(let p = 0; p < memoryInPages; p++) {
-        let byteArray = allocateMemoryPage();
-        fillMemoryPage(byteArray);
-        pages.push(byteArray);
+    let blockSizeInB = pageSizeInB;
+    let memoryInBlocks = memoryInPages;
+    let pagesPerBlock = 1;
+    const maxBlocks = 8192;
+    if (memoryInPages > maxBlocks) {
+        pagesPerBlock = Math.ceil(memoryInB / (maxBlocks * pageSizeInB));
+        blockSizeInB = pagesPerBlock * pageSizeInB;
+        memoryInBlocks = Math.ceil(memoryInB / blockSizeInB);
     }
-    console.log('helloEatMemory: pages.length=' + pages.length);
+    console.log('helloEatMemory: pagesPerBlock=' + pagesPerBlock + ', blockSizeInB=' + blockSizeInB + ', memoryInBlocks=' + memoryInBlocks);
+
+    for (let b = 0; b < memoryInBlocks; b++) {
+        let byteArray = allocateMemoryBlock(blockSizeInB);
+        fillMemoryPage(byteArray);
+        blocks.push(byteArray);
+    }
+    console.log('helloEatMemory: blocks.length=' + blocks.length);
 }
 
 function main(msg) {
@@ -61,7 +84,7 @@ function main(msg) {
     // we have a "fresh" instance on next invocation
     // Clean up after ourselves such that the warm container
     // does not keep memory
-    pages = [];
+    blocks = [];
     global.gc();
 
     return {msg: 'OK, buffer of size ' + msg.payload + ' MB has been filled.'};
