@@ -509,7 +509,7 @@ class ShardingContainerPoolBalancerTests
 
     //complete all
     val acks = ids.par.map { aid =>
-      val invoker = balancer.activations(aid).invokerName
+      val invoker = balancer.activationSlots(aid).invokerName
       completeActivation(invoker, balancer, aid)
     }
 
