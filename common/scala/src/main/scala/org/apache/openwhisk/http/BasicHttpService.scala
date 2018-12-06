@@ -63,6 +63,7 @@ trait BasicHttpService extends Directives {
   val prioritizeRejections = recoverRejections { rejections =>
     val priorityRejection = rejections.find {
       case rejection: UnacceptedResponseContentTypeRejection => true
+      case rejection: ValidationRejection                    => true
       case _                                                 => false
     }
 
