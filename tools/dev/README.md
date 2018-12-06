@@ -76,14 +76,28 @@ First setup OpenWhisk so that Controller and Invoker containers are up and runni
 It would inspect the running docker containers and then generate the launch configs with name 'controller0'
 and 'invoker0'.
 
+Now the docker container(s) (controller and/or invoker) can be stopped and they can be launched instead from within the IDE.
+
 Key points to note:
 
-1. Uses ~/tmp/openwhisk/controller (or invoker) as working directory.
-2. Changes the PORT to linked one. So controller gets started at 10001 only just like as its done in container.
+1. Controller uses port `10001` and Invoker uses port `12001`.
+2. Action activation logs are [disabled][2].
+3. SSL is disabled for Controller and Invoker.
+4. Make sure you have the loopback interface configured:
+   ```bash
+   sudo ifconfig lo0 alias 172.17.0.1/24
+   ```
+5. `~/.wskprops` must be updated with `APIHOST=http://localhost:10001` so that the `wsk` CLI communicates directly with the controller.
+6. On a MAC
+   * With Docker For Mac the invoker is configured to use a Container Factory that exposes ports for actions on the host,
+     as otherwise the invoker can't make HTTP requests to the actions.
+     You can read more at [docker/for-mac#171][7].
 
-Now the docker container can be stopped and application can be launched from within the IDE.
+   * When using [docker-compose][8] locally you have to update `/etc/hosts` with the line bellow:
+      ```
+      127.0.0.1       kafka zookeeper kafka.docker zookeeper.docker db.docker controller whisk.controller
+      ```
 
-**Note** - Currently only the controller can be run from IDE. Invoker posses some [problems][2].
 
 ### Configuration
 
@@ -168,3 +182,5 @@ $ ./gradlew :tools:dev:renderModuleDetails
 [4]: http://docs.groovy-lang.org/2.4.2/html/gapi/groovy/util/ConfigSlurper.html
 [5]: https://developer.github.com/v3/search/
 [6]: https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+[7]: https://github.com/docker/for-mac/issues/171
+[8]: https://github.com/apache/incubator-openwhisk-devtools/tree/master/docker-compose
