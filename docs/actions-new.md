@@ -26,7 +26,7 @@ following the guide described here.
 
 ### Runtime general requirements
 
-The unit of execution for all functions is a [Docker container](https://docs.docker.com) which 
+The unit of execution for all functions is a [Docker container](https://docs.docker.com) which
 must implement a specific [Action interface](#action-interface) that, in general performs:
 
 1. **[Initialization](#initialization)** - accepts an initialization payload (the code) and prepared for execution,
@@ -47,7 +47,7 @@ In order for your language runtime to be properly recognized by the OpenWhisk pl
 
 ### Project requirements
 
-If you wish to have your runtime officially recognized by the Apache OpenWhisk project, please follow these 
+If you wish to have your runtime officially recognized by the Apache OpenWhisk project, please follow these
 additional rqeuirements and best practices:
 
 1. implement the runtime in its own repository to permit a management lifecycle independent of the rest of the OpenWhisk platform,
@@ -55,7 +55,7 @@ additional rqeuirements and best practices:
 2. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests) (as shown below),
 3. automate and pass the following test suites:
     - [Action Interface tests](#action-interface-tests)
-    - [Runtime proxy tests](#runtime-proxy-tests) 
+    - [Runtime proxy tests](#runtime-proxy-tests)
 4. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
 5. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes).
 
@@ -87,7 +87,7 @@ As an example, the following entry add a new runtime family called `nodejs` with
 
 The `default` property indicates if the corresponding kind should be treated as the
 default for the runtime family. The JSON `image` structure defines the Docker image name
-that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` for the 
+that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` for the
 JSON example above).
 
 ### Canonical runtime repository
@@ -239,18 +239,18 @@ to denote the end of the log stream for an activation. This is done by emitting 
 as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
 or truncated activation logs.
 
-### Testing 
+### Testing
 
 #### Action Interface tests
 
 The [Action interface](#action-interface) is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates the initialization protocol, the runtime protocol, 
-ensures the activation context is correctly prepared, and that the logs are properly framed. Your 
+ensures the activation context is correctly prepared, and that the logs are properly framed. Your
 runtime should extend this test suite, and of course include additional tests as needed.
 
 #### Runtime proxy tests
 
 There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
-for validating a new runtime. 
+for validating a new runtime.
 
 The harness will performing the following:
 * Test the proxy can handle the identity functions (initialize and run).
