@@ -93,9 +93,6 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
     val wskprops = WskProps(token = "SOME TOKEN")
     wskprops.writeFile(cliWskPropsFile)
     println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
-    val halfThrottleTime = 60.seconds.toMillis / 2
-    println(s"Waiting ${halfThrottleTime} milliseconds to settle the throttle from previous tests")
-    Thread.sleep(halfThrottleTime)
   }
 
   /*

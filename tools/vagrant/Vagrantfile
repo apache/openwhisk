@@ -149,16 +149,7 @@ Vagrant.configure('2') do |config|
     echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
     cd ${ANSIBLE_HOME}
     su vagrant -c 'ansible-playbook -i environments/vagrant wipe.yml'
-
-    export LEAN=#{ENV['LEAN']} || "false"
-    if [[ $LEAN == "true" ]]; then
-      # Deploy Lean Openwhisk (consolidated controller + invoker without kafka, zookeeper etc.)
-      su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk-lean.yml -e invoker_use_runc=False -e controller_akka_provider=local'
-    else
-      # Deploy full Openwhisk stack
-      su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False'
-    fi
-
+    su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False'
     su vagrant -c 'ansible-playbook -i environments/vagrant postdeploy.yml'
     su vagrant -c 'ansible-playbook -i environments/vagrant apigateway.yml'
     su vagrant -c 'ansible-playbook -i environments/vagrant routemgmt.yml'

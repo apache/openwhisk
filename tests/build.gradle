@@ -51,20 +51,6 @@ def leanExcludes = [
     '**/MaxActionDurationTests*',
 ]
 
-def systemIncludes = [
-            "org/apache/openwhisk/core/limits/**",
-            "org/apache/openwhisk/core/admin/**",
-            "org/apache/openwhisk/core/cli/test/**",
-            "org/apache/openwhisk/core/apigw/actions/test/**",
-            "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
-            "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
-            "apigw/healthtests/**",
-            "ha/**",
-            "services/**",
-            "system/basic/**",
-            "system/rest/**",
-]
-
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
@@ -81,7 +67,19 @@ ext.testSets = [
         ]
     ],
     "REQUIRE_SYSTEM" : [
-        "includes" : systemIncludes,
+        "includes" : [
+            "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/admin/**",
+            "org/apache/openwhisk/core/cli/test/**",
+            "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
+            "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
+            "apigw/healthtests/**",
+            "ha/**",
+            "services/**",
+            "system/basic/**",
+            "system/rest/**",
+        ],
         "excludes": [
             "system/basic/WskMultiRuntimeTests*"
         ]
@@ -99,16 +97,6 @@ ext.testSets = [
     "REQUIRE_SYSTEM_BASIC" : [
         "includes" : [
             "system/basic/**"
-        ]
-    ],
-    "REQUIRE_LEAN_SYSTEM" : [
-        "includes" : systemIncludes,
-        
-        // Lean OpenWhisk doesn't use Kafka and has no Kafka installed as part of the setup.
-        // Tests suit below validating KafkaConnector so have to be excluded for Lean System tests
-        "excludes" : [
-            "**/*KafkaConnectorTests*",
-            "system/basic/WskMultiRuntimeTests*"
         ]
     ]
 ]

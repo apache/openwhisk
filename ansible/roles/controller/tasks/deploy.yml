@@ -6,15 +6,14 @@
 
 - import_tasks: docker_login.yml
 
-- name: get controller name, index and image name
+- name: get controller name and index
   set_fact:
     controller_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
     controller_index:
       "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
-    image_name: "{{ image_name | default('controller') }}"
 
-- name: pull the {{ image_name }}:{{ docker.image.tag }} image of controller
-  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/{{image_name}}:{{docker.image.tag}}"
+- name: "pull the {{ docker.image.tag }} image of controller"
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/controller:{{docker.image.tag}}"
   when: docker_registry != ""
   register: result
   until: (result.rc == 0)
@@ -277,32 +276,26 @@
     controller_volumes: "{{ controller_volumes|default({}) + [coverage_logs_dir+'/controller:/coverage']  }}"
   when: coverage_enabled
 
-- name: populate controller docker container parameters
-  set_fact:
-    controller_container_params:
-      name: "{{ controller_name }}"
-      image: "{{docker_registry~docker.image.prefix}}/{{ image_name }}:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
-      state: started
-      recreate: true
-      restart_policy: "{{ docker.restart.policy }}"
-      hostname: "{{ controller_name }}"
-      command:
-        /bin/sh -c
-        "exec /init.sh {{ controller_index }}
-        >> /logs/{{ controller_name }}_logs.log 2>&1"
-
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
 
 - name: (re)start controller
-  vars:
-    params:
-      env: "{{ env }}"
-      volumes: "{{ controller_volumes }}"
-      ports: "{{ ports_to_expose }}"
-
-  docker_container: "{{ controller_container_params | combine(params) }}"
+  docker_container:
+    name: "{{ controller_name }}"
+    image:
+      "{{docker_registry~docker.image.prefix}}/controller:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "{{ controller_name }}"
+    env: "{{ env }}"
+    volumes: "{{ controller_volumes }}"
+    ports: "{{ ports_to_expose }}"
+    command:
+      /bin/sh -c
+      "exec /init.sh {{ controller_index }}
+      >> /logs/{{ controller_name }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
