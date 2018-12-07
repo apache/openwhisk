@@ -1176,8 +1176,16 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "update action with a put" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val content = WhiskActionPut(Some(jsDefault("_")), Some(Parameters("x", "X")))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"), ActionLimits())
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.maxMemory)),
+          Some(LogLimit(LogLimit.maxLogSize)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.maxConcurrent)))))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
@@ -1189,6 +1197,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.name,
           content.exec.get,
           content.parameters.get,
+          ActionLimits(
+            content.limits.get.timeout.get,
+            content.limits.get.memory.get,
+            content.limits.get.logs.get,
+            content.limits.get.concurrency.get),
           version = action.version.upPatch,
           annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
       }
