@@ -92,7 +92,3 @@
   - name: generate invoker certificates
     when: invoker.protocol == 'https'
     local_action: shell "{{ playbook_dir }}/files/genssl.sh" "{{ invoker.ssl.cn }}" "server" "{{ playbook_dir }}/roles/invoker/files" {{ invoker.ssl.keystore.password }} {{ invoker.ssl.keyPrefix }} "generateKey"
-
-  - name: generate lean controller plugin invoker certificates
-    when: invoker.protocol == 'https'
-    local_action: shell "{{ playbook_dir }}/files/genssl.sh" "{{ invoker.ssl.cn }}" "server" "{{ playbook_dir }}/files" {{ invoker.ssl.keystore.password }} {{ invoker.ssl.keyPrefix }} "generateKey"

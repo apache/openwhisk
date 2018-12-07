@@ -309,7 +309,6 @@
     volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh --id {{ invoker_index }} --uniqueName {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
-  when: lean is undefined
 
 - name: wait until Invoker is up and running
   uri:
@@ -321,4 +320,3 @@
   until: result.status == 200
   retries: 12
   delay: 5
-  when: lean is undefined

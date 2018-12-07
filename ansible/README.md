@@ -280,17 +280,6 @@ This is usually not necessary, however in case you want to uninstall all prereqs
 ansible-playbook -i environments/<environment> prereq.yml -e mode=clean
 ```
 
-### Lean Setup
-To have a lean setup (no Kafka, Zookeeper and no Invokers as separate entities):
-
-At [Deploying Using CouchDB](ansible/README.md#deploying-using-cloudant) step, replace:
-```
-ansible-playbook -i environments/<environment> openwhisk.yml
-```
-by:
-```
-ansible-playbook -i environments/<environment> openwhisk-lean.yml
-```
 
 ### Troubleshooting
 Some of the more common problems and their solution are listed here.

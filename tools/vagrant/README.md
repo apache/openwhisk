@@ -307,12 +307,3 @@ Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when
 creating Vagrant VM using `gui-true`. Remember to use `gui=true` every time you
 do `vagrant reload`. Or, you can enable the GUI directly by editing the Vagrant
 file.
-
-## Lean Setup
-To have a lean setup (no Kafka, Zookeeper and no Invokers as separate entities)
-
-Set environment variable LEAN to true before creating vagrant VM
-```
-export LEAN=true
-```
-
