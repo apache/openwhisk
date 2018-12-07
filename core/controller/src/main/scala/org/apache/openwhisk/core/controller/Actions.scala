@@ -486,7 +486,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       ActionLimits(
         l.timeout getOrElse action.limits.timeout,
         l.memory getOrElse action.limits.memory,
-        l.logs getOrElse action.limits.logs)
+        l.logs getOrElse action.limits.logs,
+        l.concurrency getOrElse action.limits.concurrency)
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.
