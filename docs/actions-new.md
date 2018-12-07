@@ -243,7 +243,7 @@ or truncated activation logs.
 
 #### Action Interface tests
 
-The [Action interface](#action-interface) is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates the initialization protocol, the runtime protocol, 
+The [Action interface](#action-interface) is enforced via a [canonical test suite](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala) which validates the initialization protocol, the runtime protocol,
 ensures the activation context is correctly prepared, and that the logs are properly framed. Your
 runtime should extend this test suite, and of course include additional tests as needed.
 
