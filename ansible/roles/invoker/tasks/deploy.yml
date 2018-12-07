@@ -262,11 +262,16 @@
 
 - name: set invoker volumes
   set_fact:
-    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
+    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,\
       {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
       {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
       {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
+
+- name: set invoker runc volume
+  set_fact:
+    volumes: "{{ volumes }},/run/runc:/run/runc"
+  when: invoker.useRunc == true
 
 - name: define options when deploying invoker on Ubuntu
   set_fact:
