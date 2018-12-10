@@ -242,8 +242,11 @@ class ShardingContainerPoolBalancer(
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
+    val isBlackboxInvocation = action.exec.pull
+    val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
+
     val (invokersToUse, stepSizes) =
-      if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
+      if (!isBlackboxInvocation) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
     val chosen = if (invokersToUse.nonEmpty) {
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
@@ -264,12 +267,14 @@ class ShardingContainerPoolBalancer(
 
     chosen
       .map { invoker =>
+        logging.info(
+          this,
+          s"activation ${msg.activationId} for '${msg.action.asString}' ($actionType) by namespace '${msg.user.namespace.name.asString}' with memory limit ${action.limits.memory.megabytes}MB assigned to $invoker")
         val activationResult = setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map(_ => activationResult)
       }
       .getOrElse {
         // report the state of all invokers
-        val actionType = if (!action.exec.pull) "non-blackbox" else "blackbox"
         val invokerStates = invokersToUse.foldLeft(Map.empty[InvokerState, Int]) { (agg, curr) =>
           val count = agg.getOrElse(curr.status, 0) + 1
           agg + (curr.status -> count)
@@ -341,11 +346,7 @@ class ShardingContainerPoolBalancer(
     val topic = s"invoker${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
-    val start = transid.started(
-      this,
-      LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting to '$invoker' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+    val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
