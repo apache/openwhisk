@@ -44,7 +44,7 @@ import org.apache.openwhisk.spi.SpiLoader
 
 import scala.concurrent.ExecutionContext.Implicits
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
 /**
@@ -214,7 +214,6 @@ object Controller {
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
       Kamon.stopAllReporters().map(_ => Done)(Implicits.global)
-      Future.successful(Done)
     }
 
     // extract configuration data from the environment
