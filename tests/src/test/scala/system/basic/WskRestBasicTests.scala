@@ -93,7 +93,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     pack.getFieldJsValue("publish") shouldBe JsBoolean(true)
     pack.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     val packageList = wsk.pkg.list()
-    val packages = packageList.getBodyListJsObject()
+    val packages = packageList.getBodyListJsObject
     packages.exists(pack => RestResult.getField(pack, "name") == name) shouldBe true
   }
 
@@ -233,7 +233,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     action.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("b"), "value" -> JsString("B")))
     action.getFieldJsValue("publish") shouldBe JsBoolean(false)
     val actionList = wsk.action.list()
-    val actions = actionList.getBodyListJsObject()
+    val actions = actionList.getBodyListJsObject
     actions.exists(action => RestResult.getField(action, "name") == name) shouldBe true
   }
 
@@ -497,7 +497,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         action.create(name, None, docker = Some("fake-container"))
       }
 
-      wsk.action.get(name).stdout should not include (""""code"""")
+      wsk.action.get(name).stdout should not include """"code""""
   }
 
   behavior of "Wsk Trigger REST"
@@ -567,7 +567,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
 
     val triggerList = wsk.trigger.list()
-    val triggers = triggerList.getBodyListJsObject()
+    val triggers = triggerList.getBodyListJsObject
     triggers.exists(trigger => RestResult.getField(trigger, "name") == triggerName) shouldBe true
   }
 
@@ -862,7 +862,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     rule.getField("name") shouldBe ruleName
     RestResult.getField(rule.getFieldJsObject("trigger"), "name") shouldBe triggerName
     RestResult.getField(rule.getFieldJsObject("action"), "name") shouldBe actionName
-    val rules = wsk.rule.list().getBodyListJsObject()
+    val rules = wsk.rule.list().getBodyListJsObject
     rules.exists { rule =>
       RestResult.getField(rule, "name") == ruleName
     } shouldBe true
@@ -938,9 +938,9 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       val result = wsk.rule.get(ruleName)
       val trigger = result.getFieldJsValue("trigger").toString
       trigger should include(triggerName)
-      trigger should not include (actionName)
+      trigger should not include actionName
       val action = result.getFieldJsValue("action").toString
-      action should not include (triggerName)
+      action should not include triggerName
       action should include(actionName)
   }
 
@@ -1001,7 +1001,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
   it should "return a list of exactly one namespace" in {
     val lines = wsk.namespace.list()
-    lines.getBodyListString().size shouldBe 1
+    lines.getBodyListString.size shouldBe 1
   }
 
   behavior of "Wsk Activation REST"

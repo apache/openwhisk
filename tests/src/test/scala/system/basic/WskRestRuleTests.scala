@@ -40,14 +40,14 @@ class WskRestRuleTests extends WskRuleTests with WskActorSystem {
                               ruleNameEnable: String,
                               ruleName: String): org.scalatest.Assertion = {
     val ruleListResultRest = ruleListResult.asInstanceOf[RestResult]
-    val rules = ruleListResultRest.getBodyListJsObject()
+    val rules = ruleListResultRest.getBodyListJsObject
     val ruleEnable = wsk.rule.get(ruleNameEnable)
     ruleEnable.getField("status") shouldBe "active"
     val ruleDisable = wsk.rule.get(ruleName)
     ruleDisable.getField("status") shouldBe "inactive"
     rules.exists(rule => RestResult.getField(rule, "name") == ruleNameEnable) shouldBe true
     rules.exists(rule => RestResult.getField(rule, "name") == ruleName) shouldBe true
-    ruleListResultRest.respData should not include ("Unknown")
+    ruleListResultRest.respData should not include "Unknown"
   }
 
   it should "preserve rule status when a rule is updated" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
