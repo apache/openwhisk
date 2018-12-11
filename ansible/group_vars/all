@@ -6,7 +6,6 @@ lean: false
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
 openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
-openwhisk_build_dir: "{{ openwhisk_home }}/build"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -75,7 +74,6 @@ controller:
   blackboxFraction: "{{ controller_blackbox_fraction | default(__controller_blackbox_fraction) }}"
   timeoutFactor: "{{ controller_timeout_factor | default(2) }}"
   instances: "{{ groups['controllers'] | length }}"
-  localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:
     provider: cluster
     cluster:
@@ -176,7 +174,6 @@ invoker:
   heap: "{{ invoker_heap | default('2g') }}"
   arguments: "{{ invoker_arguments | default('') }}"
   userMemory: "{{ invoker_user_memory | default('2048m') }}"
-  instances: "{{ groups['invokers'] | length }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
   # Specify if it should use docker-runc or docker to pause/unpause containers
@@ -212,7 +209,6 @@ nginx:
   port:
     http: 80
     api: 443
-    adminportal: 8443
   ssl:
     path: "{{ openwhisk_home }}/ansible/roles/nginx/files"
     cert: "openwhisk-server-cert.pem"
@@ -259,7 +255,6 @@ db:
 apigateway:
   port:
     api: 9000
-    api_secure: 443
     mgmt: 9001
   # apigateway is an Apahce OpenWhisk project, so default to latest
   version: latest
@@ -292,14 +287,8 @@ docker:
     delay: 10
   timezone: "{{ docker_timezone | default('UTC') }}"
 
-sdk:
-  dir:
-    become: "{{ sdk_dir_become | default(false) }}"
-
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
-  dir:
-    become: "{{ cli_dir_become | default(false) }}"
 
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"
