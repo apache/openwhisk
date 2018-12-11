@@ -16,9 +16,6 @@ docker run  -p 9095:9095 --name user-metrics -e "KAFKA_HOSTS=172.17.0.1:9093"  -
 
 > `KAFKA_HOSTS` - Is the host address of Kafka cluster. For local OpenWhisk events it defaults to _172.17.0.1:9093_
 
-## Deploy
-New versions of the application will be built and deployed to [Artifactory][3] using [Jenkins][4]. 
-
 Integrations
 ------------
 
@@ -26,3 +23,4 @@ Integrations
 The docker container would run the service and expose the metrics in format required by Prometheus at `9095` port
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/metrics.md#user-specific-metrics
+[2]: https://github.com/apache/incubator-openwhisk-devtools/tree/master/docker-compose
