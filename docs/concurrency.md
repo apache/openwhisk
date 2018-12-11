@@ -33,10 +33,10 @@ Concurrent activation processing within the same action container can be enabled
 * enable concurrency at runtime container env (nodejs container only allows concurrency when started with an env var __OW_ALLOW_CONCURRENT=true)
   * e.g. CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0="__OW_ALLOW_CONCURRENT=true"
 * disable log collection at invoker
-  * e.g. CONFIG_whisk_spi_LogStoreProvider="whisk.core.containerpool.logging.LogDriverLogStoreProvider"
+  * e.g. CONFIG_whisk_spi_LogStoreProvider="org.apache.openwhisk.core.containerpool.logging.LogDriverLogStoreProvider"
 * (optional) enable alternate log retrieve at controller
   * If you want OW api /activations/\<id\>/logs to return logs, you need to have an alternate log collection mechanism for action containers
-  * e.g. CONFIG_whisk_spi_LogStoreProvider=whisk.core.containerpool.logging.SplunkLogStoreProvider
+  * e.g. CONFIG_whisk_spi_LogStoreProvider=org.apache.openwhisk.core.containerpool.logging.SplunkLogStoreProvider
 * set the concurrency limit > 1 on any action that you want to process activations concurrently.
 
 
