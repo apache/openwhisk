@@ -26,7 +26,7 @@ To enable MesosContainerFactory, use the following TypeSafe Config properties
 
 | property | required | details | example |
 | --- | --- | --- | --- |
-| `whisk.spi.ContainerFactoryProvider` | required | enable the MesosContainerFactory | whisk.core.mesos.MesosContainerFactoryProvider |
+| `whisk.spi.ContainerFactoryProvider` | required | enable the MesosContainerFactory | org.apache.openwhisk.core.mesos.MesosContainerFactoryProvider |
 | `whisk.mesos.master-url` | required | Mesos master HTTP endpoint to be accessed from the invoker for framework subscription | http://192.168.99.100:5050 |
 | `whisk.mesos.master-url-public` | optional (default to whisk.mesos.master-url) | public facing Mesos master HTTP endpoint for exposing logs to cli users | http://192.168.99.100:5050 |
 | `whisk.mesos.role` | optional (default *) | Mesos framework role| any string e.g. `openwhisk` |
@@ -39,7 +39,7 @@ To enable MesosContainerFactory, use the following TypeSafe Config properties
 
 To set these properties for your invoker, set the corresponding environment variables e.g.,
 ```properties
-CONFIG_whisk_spi_ContainerFactoryProvider=whisk.core.mesos.MesosContainerFactoryProvider
+CONFIG_whisk_spi_ContainerFactoryProvider=org.apache.openwhisk.core.mesos.MesosContainerFactoryProvider
 CONFIG_whisk_mesos_masterUrl=http://192.168.99.100:5050
 ```
 
