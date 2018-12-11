@@ -37,7 +37,7 @@ import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.util.{Failure, Try}
 
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
@@ -59,10 +59,8 @@ object Invoker {
   def initKamon(instance: Int): Unit = {
     // Replace the hostname of the invoker to the assigned id of the invoker.
     val newKamonConfig = Kamon.config
-      .withValue(
-        "kamon.statsd.simple-metric-key-generator.hostname-override",
-        ConfigValueFactory.fromAnyRef(s"invoker$instance"))
-    Kamon.start(newKamonConfig)
+      .withValue("kamon.environment.host", ConfigValueFactory.fromAnyRef(s"invoker$instance"))
+    Kamon.reconfigure(newKamonConfig)
   }
 
   def main(args: Array[String]): Unit = {
@@ -75,8 +73,7 @@ object Invoker {
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
-      Kamon.shutdown()
-      Future.successful(Done)
+      Kamon.stopAllReporters().map(_ => Done)
     }
 
     // load values for the required properties from the environment

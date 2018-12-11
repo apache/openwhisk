@@ -211,16 +211,15 @@ object LogMarkerToken {
 
 object MetricEmitter {
 
-  val metrics = Kamon.metrics
-
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics
-          .counter(token.toString, token.tags)
+        Kamon
+          .counter(token.toString)
+          .refine(token.tags)
           .increment(times)
       } else {
-        metrics.counter(token.toStringWithSubAction).increment(times)
+        Kamon.counter(token.toStringWithSubAction).increment(times)
       }
     }
   }
@@ -228,11 +227,12 @@ object MetricEmitter {
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics
-          .histogram(token.toString, token.tags)
+        Kamon
+          .histogram(token.toString)
+          .refine(token.tags)
           .record(value)
       } else {
-        metrics.histogram(token.toStringWithSubAction).record(value)
+        Kamon.histogram(token.toStringWithSubAction).record(value)
       }
     }
   }
