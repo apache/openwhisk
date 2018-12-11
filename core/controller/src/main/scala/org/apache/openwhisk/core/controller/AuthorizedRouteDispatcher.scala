@@ -23,18 +23,17 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.concurrent.Future
-
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
+import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.server.Directive1
-
 import org.apache.openwhisk.core.entitlement.Collection
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.entitlement._
 import org.apache.openwhisk.core.entitlement.Resource
 import org.apache.openwhisk.core.entity._
@@ -64,6 +63,8 @@ trait BasicAuthorizedRouteProvider extends Directives {
   /** Route directives for API. The methods that are supported on entities. */
   protected lazy val entityOps = get
 
+  protected implicit val logging: Logging
+
   /** JSON response formatter. */
   import RestApiCommons.jsonDefaultResponsePrinter
 
@@ -86,7 +87,13 @@ trait BasicAuthorizedRouteProvider extends Directives {
               case NotFound =>
                 handleEntitlementFailure(
                   RejectRequest(NotFound, Some(ErrorResponse(Messages.resourceDoesntExist(resource.fqname), transid))))
-              case _ => handleEntitlementFailure(t)
+              case code =>
+                if (code == TooManyRequests) {
+                  logging.debug(
+                    this,
+                    s"Unable to invoke action ${resource.fqname}, because namespace:${user.namespace.name} has exceeded its throttle limit, detail info: ${t}")
+                }
+                handleEntitlementFailure(t)
             }
         }
     }
