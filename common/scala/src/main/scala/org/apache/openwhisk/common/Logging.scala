@@ -210,16 +210,18 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
+  import kamon.metric.InstrumentFactory.InstrumentTypes._
+  import kamon.metric.InstrumentFactory._
 
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         Kamon
-          .counter(token.toString)
+          .counter(createName(token.toString, Counter))
           .refine(token.tags)
           .increment(times)
       } else {
-        Kamon.counter(token.toStringWithSubAction).increment(times)
+        Kamon.counter(createName(token.toStringWithSubAction, Counter)).increment(times)
       }
     }
   }
@@ -228,13 +230,22 @@ object MetricEmitter {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         Kamon
-          .histogram(token.toString)
+          .histogram(createName(token.toString, Histogram))
           .refine(token.tags)
           .record(value)
       } else {
-        Kamon.histogram(token.toStringWithSubAction).record(value)
+        Kamon.histogram(createName(token.toStringWithSubAction, Histogram)).record(value)
       }
     }
+  }
+
+  /**
+   * Kamon 1.0 onwards does not include the metric type in the metric name which cause issue
+   * for us as we use same metric name for counter and histogram. So to be backward compatible we
+   * need to prefix the name with type
+   */
+  private def createName(name: String, metricType: InstrumentType) = {
+    s"${metricType.name.toLowerCase}.$name"
   }
 }
 
