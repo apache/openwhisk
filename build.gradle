@@ -1,23 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+Copyright 2018 Adobe. All rights reserved.
+This file is licensed to you under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License. You may obtain a copy
+of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under
+the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+OF ANY KIND, either express or implied. See the License for the specific language
+governing permissions and limitations under the License.
+*/
+
 plugins {
     id 'scala'
     id 'application'
+    id "org.scoverage" version "2.5.0"
 }
+
 
 group 'com.adobe.api.platform.runtime'
 version '1.0-SNAPSHOT'
@@ -28,7 +26,9 @@ repositories {
     mavenCentral()
 }
 
+
 dependencies {
+
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile ('com.github.pureconfig:pureconfig_2.12:0.9.2') {
         exclude group: 'com.github.pureconfig', module: 'pureconfig-macros_2.12'
@@ -51,16 +51,23 @@ dependencies {
         exclude group: 'com.lihaoyi'
     }
     compile 'io.kamon:kamon-prometheus_2.12:1.1.1'
+    compile 'io.kamon:kamon-datadog_2.12:1.0.0'
 
     testCompile 'junit:junit:4.11'
     testCompile 'org.scalatest:scalatest_2.12:3.0.1'
     testCompile 'net.manub:scalatest-embedded-kafka_2.12:2.0.0'
     testCompile 'com.typesafe.akka:akka-testkit_2.12:2.5.17'
+
+    scoverage 'org.scoverage:scalac-scoverage-plugin_2.12:1.4.0-M4', 'org.scoverage:scalac-scoverage-runtime_2.12:1.4.0-M4'
+
 }
 
 tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
+
+
+
 
 mainClassName = 'com.adobe.api.platform.runtime.metrics.OpenWhiskEvents'
 
