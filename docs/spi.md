@@ -53,7 +53,7 @@ SpiLoader uses a TypesafeConfig key to use for resolving which implementation sh
 
 The config key used to find the implementations classname is `whisk.spi.<SpiInterface>`.
 
-For example, the SPI interface `whisk.core.database.ArtifactStoreProvider` would load a specific implementation indicated by the  `whisk.spi.ArtifactStoreProvider` config key.
+For example, the SPI interface `org.apache.openwhisk.core.database.ArtifactStoreProvider` would load a specific implementation indicated by the  `whisk.spi.ArtifactStoreProvider` config key.
 
 (so you cannot use multiple SPI interfaces with the same class name in different packages)
 

@@ -67,7 +67,7 @@ a string describing the language (e.g., `nodejs`) followed by a colon and the ve
 as in `nodejs:8` or `php:7.2`.
 
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
-schema are found in the [Exec Manifest](../common/scala/src/main/scala/whisk/core/entity/ExecManifest.scala).
+schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).
 As an example, the following entry add a new runtime family called `nodejs` with a single kind
 `nodejs:6`.
 
