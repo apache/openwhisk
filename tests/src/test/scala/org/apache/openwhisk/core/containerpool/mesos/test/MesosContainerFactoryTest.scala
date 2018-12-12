@@ -95,7 +95,7 @@ class MesosContainerFactoryTest
   val timeouts = MesosTimeoutConfig(1.seconds, 1.seconds, 1.seconds, 1.seconds, 1.seconds)
 
   val mesosConfig =
-    MesosConfig("http://master:5050", None, "*", true, Seq.empty, " ", Seq.empty, true, None, 1.seconds, timeouts)
+    MesosConfig("http://master:5050", None, "*", true, Seq.empty, " ", Seq.empty, true, None, 1.seconds, 2, timeouts)
 
   behavior of "MesosContainerFactory"
 
@@ -125,6 +125,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
+      2,
       timeouts)
 
     val factory =
