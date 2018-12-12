@@ -32,7 +32,7 @@ public Newtonsoft.Json.Linq.JObject Main(Newtonsoft.Json.Linq.JObject);
 For example, create a C# project called `Apache.OpenWhisk.Example.Dotnet`:
 
 ```bash
-dotnet new classlib -n Apache.OpenWhisk.Example.Dotnet -lang C#
+dotnet new classlib -n Apache.OpenWhisk.Example.Dotnet -lang "C#"
 cd Apache.OpenWhisk.Example.Dotnet
 ```
 
@@ -79,18 +79,21 @@ cd out
 zip -r -0 helloDotNet.bin *
 ```
 
+### Create the .NET Core Action
+
 You need to specify the name of the function handler using `--main` argument.
 The value for `main` needs to be in the following format:
 `{Assembly}::{Class Full Name}::{Method}`, e.q.,
 `Apache.OpenWhisk.Example.Dotnet::Apache.OpenWhisk.Example.Dotnet.Hello::Main`
 
-### Create the .NET Core Action
 To use on a deployment of OpenWhisk that contains the runtime as a kind:
+
 ```bash
 wsk action update helloDotNet helloDotNet.bin --main Apache.OpenWhisk.Example.Dotnet::Apache.OpenWhisk.Example.Dotnet.Hello::Main --kind dotnet:2.2
 ```
 
 ### Invoke the .NET Core Action
+
 Action invocation is the same for .NET Core actions as it is for Swift and JavaScript actions:
 
 ```bash
