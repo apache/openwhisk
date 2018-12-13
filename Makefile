@@ -1,6 +1,6 @@
 .PHONY: docker
 docker:
-	docker build -t adobeapiplatform/openwhisk-user-metrics .
+	docker build -t adobeapiplatform/openwhisk-user-events .
 
 .PHONY: gradle-build
 gradle-build:

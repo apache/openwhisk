@@ -8,7 +8,7 @@ networks:
 
 services:
   user-events:
-    image: bladerunner/user-metrics
+    image: adobeapiplatform/openwhisk-user-events
     ports:
       - "9095:9095"
     environment:
