@@ -253,7 +253,7 @@
             },
             "attached": {
                 "attachmentName": "codefile",
-                "attachmentType": "application/zip"
+                "attachmentType": "text/plain"
             }
         }
     ],
