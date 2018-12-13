@@ -102,12 +102,16 @@ class DockerContainerFactoryTests
       .rm(_: ContainerId)(_: TransactionId))
       .expects(ContainerId("fakecontainerid"), *)
       .returning(Future.successful(Unit))
+    //setup clientVersion exceptation
+    (dockerApiStub.clientVersion _)
+      .expects()
+      .returning("mock_test_client")
 
     val factory =
       new DockerContainerFactory(
         InvokerInstanceId(0, userMemory = defaultUserMemory),
         Map.empty,
-        ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("env" -> Set("e1", "e2"))),
+        ContainerArgsConfig("net1", Seq("dns1", "dns2"), Seq.empty, Seq.empty, Map("env" -> Set("e1", "e2"))),
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
 
     val cf = factory.createContainer(tid, "testContainer", image, false, 10.MB, 32)

@@ -34,6 +34,8 @@ class ContainerArgsConfigTest extends FlatSpec with Matchers {
     //check defaults
     config.network shouldBe "bridge"
     config.dnsServers shouldBe Seq[String]()
+    config.dnsSearch shouldBe Seq[String]()
+    config.dnsOptions shouldBe Seq[String]()
     config.extraArgs shouldBe Map[String, Set[String]]()
   }
 
@@ -46,10 +48,18 @@ class ContainerArgsConfigTest extends FlatSpec with Matchers {
 
     System.setProperty("whisk.container-factory.container-args.dns-servers.0", "google.com")
     System.setProperty("whisk.container-factory.container-args.dns-servers.1", "1.2.3.4")
+
+    System.setProperty("whisk.container-factory.container-args.dns-search.0", "a.b.c")
+    System.setProperty("whisk.container-factory.container-args.dns-search.1", "a.b")
+
+    System.setProperty("whisk.container-factory.container-args.dns-options.0", "ndots:5")
+
     val config = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs)
     //check defaults
     config.network shouldBe "bridge"
     config.dnsServers shouldBe Seq[String]("google.com", "1.2.3.4")
+    config.dnsSearch shouldBe Seq[String]("a.b.c", "a.b")
+    config.dnsOptions shouldBe Seq[String]("ndots:5")
     //check map parsing of extra-args config
     config.extraArgs.get("label") shouldBe Some(Set("l1", "l2", "l3"))
     config.extraArgs.get("env") shouldBe Some(Set("e1", "e2"))

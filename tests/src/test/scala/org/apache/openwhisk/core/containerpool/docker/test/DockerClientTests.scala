@@ -67,6 +67,7 @@ class DockerClientTests
   /** Returns a DockerClient with a mocked result for 'executeProcess' */
   def dockerClient(execResult: => Future[String]) = new DockerClient()(global) {
     override val dockerCmd = Seq(dockerCommand)
+    override def getClientVersion() = "mock-test-client"
     override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext, as: ActorSystem) =
       execResult
   }
@@ -189,6 +190,7 @@ class DockerClientTests
     var runCmdCount = 0
     val dc = new DockerClient()(global) {
       override val dockerCmd = Seq(dockerCommand)
+      override def getClientVersion() = "mock-test-client"
       override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
                                                                         as: ActorSystem) = {
         runCmdCount += 1
@@ -237,6 +239,7 @@ class DockerClientTests
     var runCmdCount = 0
     val dc = new DockerClient()(global) {
       override val dockerCmd = Seq(dockerCommand)
+      override def getClientVersion() = "mock-test-client"
       override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
                                                                         as: ActorSystem) = {
         runCmdCount += 1

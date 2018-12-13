@@ -807,6 +807,8 @@ class DockerContainerTests
     var pulls = mutable.Buffer.empty[String]
     var rawContainerLogsInvocations = mutable.Buffer.empty[(ContainerId, Long, Option[FiniteDuration])]
 
+    def clientVersion: String = "mock-test-client"
+
     def run(image: String, args: Seq[String] = Seq.empty[String])(
       implicit transid: TransactionId): Future[ContainerId] = {
       runs += ((image, args))
