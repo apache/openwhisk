@@ -1902,7 +1902,8 @@
                         "go:1.11",
                         "sequence",
                         "swift:3.1.1",
-                        "swift:4.1"
+                        "swift:4.1",
+                        "dotnet:2.2"
                     ],
                     "description": "the type of action"
                 },

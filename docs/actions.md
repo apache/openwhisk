@@ -61,6 +61,7 @@ paths more suitable. Or, you can [create a new runtime](actions-new.md).
 * [Python](actions-python.md)
 * [Ruby](actions-ruby.md)
 * [Swift](actions-swift.md)
+* [.NET Core](actions-dotnet.md)
 * [Docker and native binaries](actions-docker.md)
 
 Multiple actions from different languages may be composed together to create a longer processing

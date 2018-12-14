@@ -52,7 +52,9 @@ class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers wit
   def main(kind: String): Option[String] = {
     kind match {
       case "java" => Some("Unicode")
-      case _      => None
+      case s if (s.contains("dotnet")) =>
+        Some("Apache.OpenWhisk.UnicodeTests.Dotnet::Apache.OpenWhisk.UnicodeTests.Dotnet.Unicode::Main")
+      case _ => None
     }
   }
 
