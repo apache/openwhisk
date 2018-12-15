@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,20 +16,15 @@
 # limitations under the License.
 #
 
-sudo: required
+set -e
 
-services: docker
+# Build script for Travis-CI.
 
-# specific cache configuration for gradle based builds
-# see: https://docs.travis-ci.com/user/languages/java/#caching
-before_cache:
-  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+SECONDS=0
+SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+ROOTDIR="$SCRIPTDIR/../.."
 
-cache:
-  directories:
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
+./gradlew --console=plain --scan checkScalafmtAll reportScoverage
 
-script:
-  - ./tools/travis/build.sh
+bash <(curl -s https://codecov.io/bash)
+echo "Time taken for ${0##*/} is $SECONDS secs"

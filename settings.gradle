@@ -18,6 +18,5 @@ gradle.ext.scala = [
 ]
 
 gradle.ext.scalafmt = [
-    version: '1.5.1',
     config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]

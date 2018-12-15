@@ -14,16 +14,34 @@ plugins {
     id 'scala'
     id 'application'
     id "org.scoverage" version "2.5.0"
+    id "com.gradle.build-scan" version "1.14"
+    id "cz.alenkacz.gradle.scalafmt" version "1.5.1"
 }
 
 
 group 'com.adobe.api.platform.runtime'
 version '1.0-SNAPSHOT'
+scalafmt.configFilePath = gradle.scalafmt.config
 
 sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+}
+
+buildScan {
+    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+    termsOfServiceAgree = 'yes'
+    publishAlwaysIf(System.getenv('CI') != null)
+}
+
+tasks.withType(Test) {
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+    outputs.upToDateWhen { false } // force tests to run every time
 }
 
 
@@ -65,8 +83,6 @@ dependencies {
 tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
-
-
 
 
 mainClassName = 'com.adobe.api.platform.runtime.metrics.OpenWhiskEvents'
