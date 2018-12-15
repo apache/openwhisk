@@ -76,7 +76,7 @@ Zip the published files as follows:
 
 ```bash
 cd out
-zip -r -0 helloDotNet.bin *
+zip -r -0 helloDotNet.zip *
 ```
 
 ### Create the .NET Core Action
@@ -89,7 +89,7 @@ The value for `main` needs to be in the following format:
 To use on a deployment of OpenWhisk that contains the runtime as a kind:
 
 ```bash
-wsk action update helloDotNet helloDotNet.bin --main Apache.OpenWhisk.Example.Dotnet::Apache.OpenWhisk.Example.Dotnet.Hello::Main --kind dotnet:2.2
+wsk action update helloDotNet helloDotNet.zip --main Apache.OpenWhisk.Example.Dotnet::Apache.OpenWhisk.Example.Dotnet.Hello::Main --kind dotnet:2.2
 ```
 
 ### Invoke the .NET Core Action
