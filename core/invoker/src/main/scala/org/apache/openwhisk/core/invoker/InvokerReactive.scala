@@ -43,11 +43,29 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+object InvokerReactive {
+
+  /**
+   * An method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
+   * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
+   * messages for continuations (e.g., sequences and conductor actions).
+   *
+   * @param TransactionId the transaction id for the activation
+   * @param WhiskActivaiton is the activation result
+   * @param Boolean is true iff the activation was a blocking request
+   * @param ControllerInstanceId the originating controller/loadbalancer id
+   * @param UUID is the UUID for the namespace owning the activation
+   * @param Boolean is true this is resource free message and false if this is a result forwarding message
+   */
+  type ActiveAck = (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any]
+}
+
 class InvokerReactive(
   config: WhiskConfig,
   instance: InvokerInstanceId,
   producer: MessageProducer,
-  poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool))(
+  poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
+  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
   implicit actorSystem: ActorSystem,
   logging: Logging) {
 
@@ -101,24 +119,25 @@ class InvokerReactive(
   private val topic = s"invoker${instance.toInt}"
   private val maximumContainers = (poolConfig.userMemory / MemoryLimit.minMemory).toInt
   private val msgProvider = SpiLoader.get[MessagingProvider]
-  private val consumer = msgProvider.getConsumer(
-    config,
-    topic,
-    topic,
-    maximumContainers,
-    maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+
+  //number of peeked messages - increasing the concurrentPeekFactor improves concurrent usage, but adds risk for message loss in case of crash
+  private val maxPeek =
+    math.max(maximumContainers, (maximumContainers * limitsConfig.max * poolConfig.concurrentPeekFactor).toInt)
+
+  private val consumer =
+    msgProvider.getConsumer(config, topic, topic, maxPeek, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   private val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed("activation", logging, consumer, maximumContainers, 1.second, processActivationMessage)
+    new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
   /** Sends an active-ack. */
-  private val ack = (tid: TransactionId,
-                     activationResult: WhiskActivation,
-                     blockingInvoke: Boolean,
-                     controllerInstance: ControllerInstanceId,
-                     userId: UUID,
-                     isSlotFree: Boolean) => {
+  private val ack: InvokerReactive.ActiveAck = (tid: TransactionId,
+                                                activationResult: WhiskActivation,
+                                                blockingInvoke: Boolean,
+                                                controllerInstance: ControllerInstanceId,
+                                                userId: UUID,
+                                                isSlotFree: Boolean) => {
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {

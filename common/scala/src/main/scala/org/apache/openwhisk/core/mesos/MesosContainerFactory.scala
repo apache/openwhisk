@@ -82,6 +82,7 @@ case class MesosConfig(masterUrl: String,
                        teardownOnExit: Boolean,
                        healthCheck: Option[MesosContainerHealthCheckConfig],
                        offerRefuseDuration: FiniteDuration,
+                       heartbeatMaxFailures: Int,
                        timeouts: MesosTimeoutConfig) {}
 
 class MesosContainerFactory(config: WhiskConfig,
@@ -198,7 +199,8 @@ object MesosContainerFactory {
           mesosConfig.role,
           mesosConfig.timeouts.failover,
           taskStore = new LocalTaskStore,
-          refuseSeconds = mesosConfig.offerRefuseDuration.toSeconds.toDouble))
+          refuseSeconds = mesosConfig.offerRefuseDuration.toSeconds.toDouble,
+          heartbeatMaxFailures = mesosConfig.heartbeatMaxFailures))
 
   val counter = new Counter()
   val startTime = Instant.now.getEpochSecond

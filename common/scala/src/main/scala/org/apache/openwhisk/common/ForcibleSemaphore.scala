@@ -84,7 +84,7 @@ class ForcibleSemaphore(maxAllowed: Int) {
     }
   }
 
-  val sync = new Sync
+  private val sync = new Sync
 
   /**
    * Acquires the given numbers of permits.

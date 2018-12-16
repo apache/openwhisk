@@ -81,7 +81,7 @@ class MesosContainerFactoryTest
   }
 
   // 80 slots, each 265MB
-  val poolConfig = ContainerPoolConfig(21200.MB, false)
+  val poolConfig = ContainerPoolConfig(21200.MB, 0.5, false)
   val actionMemory = 265.MB
   val mesosCpus = poolConfig.cpuShare(actionMemory) / 1024.0
 
@@ -95,7 +95,7 @@ class MesosContainerFactoryTest
   val timeouts = MesosTimeoutConfig(1.seconds, 1.seconds, 1.seconds, 1.seconds, 1.seconds)
 
   val mesosConfig =
-    MesosConfig("http://master:5050", None, "*", true, Seq.empty, " ", Seq.empty, true, None, 1.seconds, timeouts)
+    MesosConfig("http://master:5050", None, "*", true, Seq.empty, " ", Seq.empty, true, None, 1.seconds, 2, timeouts)
 
   behavior of "MesosContainerFactory"
 
@@ -125,6 +125,7 @@ class MesosContainerFactoryTest
       true,
       None,
       1.seconds,
+      2,
       timeouts)
 
     val factory =

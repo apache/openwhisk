@@ -77,3 +77,12 @@ whisk {
         enabled = {{ user_events }}
     }
 }
+
+#test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
+test {
+  whisk {
+    concurrency-limit {
+      max = 200
+    }
+  }
+}

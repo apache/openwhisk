@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.docker
 
 import akka.actor.ActorSystem
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -27,14 +28,16 @@ import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.containerpool.Container
 import org.apache.openwhisk.core.containerpool.ContainerFactory
 import org.apache.openwhisk.core.containerpool.ContainerFactoryProvider
+import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.apache.openwhisk.core.entity.InvokerInstanceId
+
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+
 import pureconfig._
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 
 case class DockerContainerFactoryConfig(useRunc: Boolean)
 

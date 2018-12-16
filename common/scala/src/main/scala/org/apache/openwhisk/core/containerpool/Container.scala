@@ -94,7 +94,8 @@ trait Container {
   }
 
   /** Initializes code in the container. */
-  def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+  def initialize(initializer: JsObject, timeout: FiniteDuration, maxConcurrent: Int)(
+    implicit transid: TransactionId): Future[Interval] = {
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_ACTIVATION_INIT,
@@ -102,7 +103,7 @@ trait Container {
       logLevel = InfoLevel)
 
     val body = JsObject("value" -> initializer)
-    callContainer("/init", body, timeout, retry = true)
+    callContainer("/init", body, timeout, maxConcurrent, retry = true)
       .andThen { // never fails
         case Success(r: RunResult) =>
           transid.finished(
@@ -132,7 +133,7 @@ trait Container {
   }
 
   /** Runs code in the container. */
-  def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+  def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, maxConcurrent: Int)(
     implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
     val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
     val start =
@@ -144,7 +145,7 @@ trait Container {
 
     val parameterWrapper = JsObject("value" -> parameters)
     val body = JsObject(parameterWrapper.fields ++ environment.fields)
-    callContainer("/run", body, timeout, retry = false)
+    callContainer("/run", body, timeout, maxConcurrent, retry = false)
       .andThen { // never fails
         case Success(r: RunResult) =>
           transid.finished(
@@ -177,8 +178,11 @@ trait Container {
    * @param timeout timeout of the request
    * @param retry whether or not to retry the request
    */
-  protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false)(
-    implicit transid: TransactionId): Future[RunResult] = {
+  protected def callContainer(path: String,
+                              body: JsObject,
+                              timeout: FiniteDuration,
+                              maxConcurrent: Int,
+                              retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
@@ -187,7 +191,8 @@ trait Container {
         new ApacheBlockingContainerClient(
           s"${addr.host}:${addr.port}",
           timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          maxConcurrent)
       }
       httpConnection = Some(conn)
       conn

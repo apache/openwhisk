@@ -201,6 +201,7 @@ object ConfigKeys {
   val memory = "whisk.memory"
   val timeLimit = "whisk.time-limit"
   val logLimit = "whisk.log-limit"
+  val concurrencyLimit = "whisk.concurrency-limit"
   val activation = "whisk.activation"
   val userEvents = "whisk.user-events"
 
@@ -237,5 +238,6 @@ object ConfigKeys {
   val containerProxyTimeouts = s"$containerProxy.timeouts"
 
   val s3 = "whisk.s3"
+  val query = "whisk.query-limit"
 
 }

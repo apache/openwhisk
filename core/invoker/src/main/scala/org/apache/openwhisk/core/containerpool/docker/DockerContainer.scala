@@ -200,8 +200,11 @@ class DockerContainer(protected val id: ContainerId,
     }
   }
 
-  override protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false)(
-    implicit transid: TransactionId): Future[RunResult] = {
+  override protected def callContainer(path: String,
+                                       body: JsObject,
+                                       timeout: FiniteDuration,
+                                       maxConcurrent: Int,
+                                       retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
@@ -210,7 +213,8 @@ class DockerContainer(protected val id: ContainerId,
         new ApacheBlockingContainerClient(
           s"${addr.host}:${addr.port}",
           timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          maxConcurrent)
       }
       httpConnection = Some(conn)
       conn

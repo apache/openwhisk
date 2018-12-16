@@ -172,7 +172,7 @@ invoker:
   port: 12001
   heap: "{{ invoker_heap | default('2g') }}"
   arguments: "{{ invoker_arguments | default('') }}"
-  userMemory: "{{ invoker_user_memory | default('2048 m') }}"
+  userMemory: "{{ invoker_user_memory | default('2048m') }}"
   instances: "{{ groups['invokers'] | length }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
@@ -258,11 +258,13 @@ apigateway:
     api: 9000
     api_secure: 443
     mgmt: 9001
-  version: 0.9.10
+  # apigateway is an Apahce OpenWhisk project, so default to latest
+  version: latest
 
 redis:
   version: 4.0
   port: 6379
+  password: openwhisk 
 
 linux:
   version: 4.4.0-31

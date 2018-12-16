@@ -25,7 +25,7 @@ TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
 # Deploy Openwhisk
 cd $ROOTDIR/ansible
-ANSIBLE_CMD="$ANSIBLE_CMD -e limit_invocations_per_minute=999999 -e limit_invocations_concurrent=999999 -e controller_client_auth=false"
+ANSIBLE_CMD="$ANSIBLE_CMD -e limit_invocations_per_minute=999999 -e limit_invocations_concurrent=999999 -e controller_client_auth=false -e userLogs_spi=\"org.apache.openwhisk.core.containerpool.logging.LogDriverLogStoreProvider\""
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml

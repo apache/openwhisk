@@ -1744,6 +1744,12 @@
                     "format": "int32",
                     "description": "log size in megabytes",
                     "default": 10
+                },
+                "concurrency": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "number of concurrent activations allowed",
+                    "default": 1
                 }
             }
         },
@@ -1885,6 +1891,7 @@
                         "java:default",
                         "nodejs:6",
                         "nodejs:8",
+                        "nodejs:10",
                         "nodejs:default",
                         "php:7.1",
                         "php:7.2",
@@ -1895,7 +1902,8 @@
                         "go:1.11",
                         "sequence",
                         "swift:3.1.1",
-                        "swift:4.1"
+                        "swift:4.1",
+                        "dotnet:2.2"
                     ],
                     "description": "the type of action"
                 },

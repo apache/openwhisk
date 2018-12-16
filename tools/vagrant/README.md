@@ -101,7 +101,10 @@ same IP address.
 
 The CLI is available in `../../bin`.
 The CLI `../../bin/wsk` is for Linux amd64.
-The CLI for other operating systems and architectures can be found under `../../bin/openwhisk-cli/build/`
+The CLI for all other operating systems and architectures (as well as Linux) can be
+downloaded in a compressed format from [https://github.com/apache/incubator-openwhisk-cli/releases](https://github.com/apache/incubator-openwhisk-cli/releases) .
+For more details, please consult the relevant [documentation](https://openwhisk.apache.org/documentation.html) section "Download and
+install the wsk CLI from (Linux, Mac or Windows):".
 
 When using the CLI with a local deployment of OpenWhisk (which provides an
 insecure/self-signed SSL certificate), you must use the argument `-i` to permit
@@ -113,10 +116,12 @@ location of the binary that corresponds to your environment.
 
 From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk
 deployment and run the "echo" action again to test. The following commands
-assume that you have `wsk` setup correctly in your PATH.
+assume that you have `wsk` setup correctly in your PATH (and that you are using
+Powershell if your deployment is hosted in Windows).
 ```
 # Set your OpenWhisk Authorization Key.
-wsk property set --apihost 192.168.33.16 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+
+wsk property set --apihost 192.168.33.16 --auth $(vagrant ssh -- cat openwhisk/ansible/files/auth.guest)
 
 # Run the hello sample action
 wsk -i action invoke /whisk.system/utils/echo -p message hello --result
@@ -131,7 +136,7 @@ Vagrant installation is self-signed. Alternatively, you can configure your
 _apihost_ to use the non-SSL interface:
 
 ```
-wsk property set --apihost http://192.168.33.16:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk property set --apihost http://192.168.33.16:10001 --auth $(vagrant ssh -- cat openwhisk/ansible/files/auth.guest)
 ```
 
 You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk

@@ -282,6 +282,7 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     timeout: Option[Duration] = None,
     memory: Option[ByteSize] = None,
     logsize: Option[ByteSize] = None,
+    concurrency: Option[Int] = None,
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
@@ -359,7 +360,8 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     val limits: Map[String, JsValue] = {
       timeout.map(t => Map("timeout" -> t.toMillis.toJson)).getOrElse(Map.empty) ++
         logsize.map(log => Map("logs" -> log.toMB.toJson)).getOrElse(Map.empty) ++
-        memory.map(m => Map("memory" -> m.toMB.toJson)).getOrElse(Map.empty)
+        memory.map(m => Map("memory" -> m.toMB.toJson)).getOrElse(Map.empty) ++
+        concurrency.map(c => Map("concurrency" -> c.toInt.toJson)).getOrElse(Map.empty)
     }
 
     val body: Map[String, JsValue] = if (!update) {

@@ -681,7 +681,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val content = WhiskActionPut(
       Some(action.exec),
       Some(action.parameters),
-      Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+      Some(
+        ActionLimitsOption(
+          Some(action.limits.timeout),
+          Some(action.limits.memory),
+          Some(action.limits.logs),
+          Some(action.limits.concurrency))))
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)
@@ -710,7 +715,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(
           Some(action.exec),
           Some(action.parameters),
-          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+          Some(
+            ActionLimitsOption(
+              Some(action.limits.timeout),
+              Some(action.limits.memory),
+              Some(action.limits.logs),
+              Some(action.limits.concurrency))))
 
         // first request invalidates any previous entries and caches new result
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
@@ -807,7 +817,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(
           Some(action.exec),
           Some(action.parameters),
-          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+          Some(
+            ActionLimitsOption(
+              Some(action.limits.timeout),
+              Some(action.limits.memory),
+              Some(action.limits.logs),
+              Some(action.limits.concurrency))))
         val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
 
         val expectedPutLog =
@@ -890,7 +905,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val content = WhiskActionPut(
       Some(action.exec),
       Some(action.parameters),
-      Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+      Some(
+        ActionLimitsOption(
+          Some(action.limits.timeout),
+          Some(action.limits.memory),
+          Some(action.limits.logs),
+          Some(action.limits.concurrency))))
     val name = action.name
     val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
     val notExpectedGetLog = Seq(
@@ -968,7 +988,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(
           Some(action.exec),
           Some(action.parameters),
-          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+          Some(
+            ActionLimitsOption(
+              Some(action.limits.timeout),
+              Some(action.limits.memory),
+              Some(action.limits.logs),
+              Some(action.limits.concurrency))))
         val name = action.name
         val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
         val expectedGetLog = Seq(
@@ -1014,7 +1039,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(
           Some(action.exec),
           Some(action.parameters),
-          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+          Some(
+            ActionLimitsOption(
+              Some(action.limits.timeout),
+              Some(action.limits.memory),
+              Some(action.limits.logs),
+              Some(action.limits.concurrency))))
         val name = action.name
         val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
         val expectedPutLog =
@@ -1078,7 +1108,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         ActionLimitsOption(
           Some(actionOldSchema.limits.timeout),
           Some(actionOldSchema.limits.memory),
-          Some(actionOldSchema.limits.logs))))
+          Some(actionOldSchema.limits.logs),
+          Some(actionOldSchema.limits.concurrency))))
     val expectedPutLog =
       Seq(s"uploading attachment '[\\w-/:]+' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}")
         .mkString("(?s).*")
@@ -1145,8 +1176,16 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "update action with a put" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val content = WhiskActionPut(Some(jsDefault("_")), Some(Parameters("x", "X")))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"), ActionLimits())
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.maxMemory)),
+          Some(LogLimit(LogLimit.maxLogSize)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.maxConcurrent)))))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
@@ -1158,6 +1197,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.name,
           content.exec.get,
           content.parameters.get,
+          ActionLimits(
+            content.limits.get.timeout.get,
+            content.limits.get.memory.get,
+            content.limits.get.logs.get,
+            content.limits.get.concurrency.get),
           version = action.version.upPatch,
           annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
       }

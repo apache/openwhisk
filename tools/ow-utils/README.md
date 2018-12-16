@@ -17,12 +17,12 @@
 #
 -->
 
-Utility image for executing bash scripts
+Utility image for executing tasks
 ================
 
-The `script-runner` base image is intended to be used to execute
-utility tasks defined as bash scripts. The script to be executed
-should be mounted in the container as /task/myTask.sh by
-Kubernetes/Docker/Mesos.  The `wsk` cli is installed in /usr/local/bin
-to make it easily available to the scripts.
+This `ow-utils` image can be used to execute various utility tasks
+for OpenWhisk using most of the tools that are used in the project.
+It includes a JDK8, python/ansible, nodejs, and standard packages
+such as bash, git, wget, curl, and docker.
 
+It also includes the `wsk` and `wskdeploy` CLIs.

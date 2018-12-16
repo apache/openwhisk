@@ -22,17 +22,23 @@ currentDir="$(cd "$(dirname "$0")"; pwd)"
 host=$1
 # Credentials to use for the test. USER:PASS format.
 credentials=$2
+# Path to action src
+action_src=$3
 # concurrency level of the throughput test: How many requests should
 # open in parallel.
-concurrency=$3
+concurrency=$4
+# Action concurrency setting (how many concurrent activations does action allow?)
+action_concurrency=${5:-1}
 # How many threads to utilize, directly correlates to the number
 # of CPU cores
-threads=${4:-4}
+threads=${6:-4}
 # How long to run the test
-duration=${5:-30s}
+duration=${7:-30s}
 
-action="noopThroughput"
-"$currentDir/../preparation/create.sh" "$host" "$credentials" "$action"
+# Use the filename (without extension) of the action_src as the name of the action
+action="$(basename $action_src | cut -f 1 -d '.')_$action_concurrency"
+
+"$currentDir/../preparation/create.sh" "$host" "$credentials" "$action" "$action_src" "$action_concurrency"
 
 # run throughput tests
 encodedAuth=$(echo "$credentials" | tr -d '\n' | base64 | tr -d '\n')
@@ -41,6 +47,7 @@ docker run --pid=host --userns=host --rm -v "$currentDir":/data williamyeh/wrk \
   --connections "$concurrency" \
   --duration "$duration" \
   --header "Authorization: basic $encodedAuth" \
+  --header "X-Request-ID: throughput-$action" \
   "$host/api/v1/namespaces/_/actions/$action?blocking=true" \
   --latency \
   --timeout 10s \

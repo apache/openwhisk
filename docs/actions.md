@@ -44,6 +44,7 @@ advanced topics.
   * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
 * [Securing your action](security.md)
+* [Concurrency in actions](concurrency.md)
 
 ## Languages and Runtimes
 
@@ -55,11 +56,12 @@ paths more suitable. Or, you can [create a new runtime](actions-new.md).
 
 * [Go](actions-go.md)
 * [Java](actions-java.md)
-* [JavaScript](actions-node.md)
+* [JavaScript](actions-nodejs.md)
 * [PHP](actions-php.md)
 * [Python](actions-python.md)
 * [Ruby](actions-ruby.md)
 * [Swift](actions-swift.md)
+* [.NET Core](actions-dotnet.md)
 * [Docker and native binaries](actions-docker.md)
 
 Multiple actions from different languages may be composed together to create a longer processing
@@ -175,7 +177,7 @@ wsk action invoke /whisk.system/samples/greeting
 ok: invoked /whisk.system/samples/greeting with id 5a64676ec8aa46b5a4676ec8aaf6b5d2
  ```
 
-To retrieve the activation record, you use the `wsk activations get <id>` command, as in:
+To retrieve the activation record, you use the `wsk activation get <id>` command, as in:
 ```
 wsk activation get 5a64676ec8aa46b5a4676ec8aaf6b5d2
 ok: got activation 5a64676ec8aa46b5a4676ec8aaf6b5d2

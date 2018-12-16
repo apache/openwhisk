@@ -347,7 +347,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
         "memory" -> JsNumber(256),
-        "logs" -> JsNumber(10))
+        "logs" -> JsNumber(10),
+        "concurrency" -> JsNumber(1))
       result.getField("invalid") shouldBe ""
   }
 

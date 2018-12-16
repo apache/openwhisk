@@ -15,5 +15,20 @@
  * limitations under the License.
  */
 
-ext.dockerImageName = 'ansible-runner'
-apply from: '../../gradle/docker.gradle'
+package org.apache.openwhisk.core.database.cosmosdb;
+
+import io.netty.util.ResourceLeakDetector;
+import io.netty.util.ResourceLeakDetectorFactory;
+import org.apache.openwhisk.common.Counter;
+
+public class RecordingLeakDetectorFactory extends ResourceLeakDetectorFactory {
+    static final Counter counter = new Counter();
+    @Override
+    public <T> ResourceLeakDetector<T> newResourceLeakDetector(Class<T> resource, int samplingInterval, long maxActive) {
+        return new RecordingLeakDetector<T>(counter, resource, samplingInterval);
+    }
+
+    public static void register() {
+        ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(new RecordingLeakDetectorFactory());
+    }
+}

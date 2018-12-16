@@ -712,6 +712,28 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
+  it should "reject update package reference when new binding refers to itself" in {
+    implicit val tid = transid()
+    // create package and valid reference binding to it
+    val provider = WhiskPackage(namespace, aname())
+    val reference = WhiskPackage(namespace, aname(), provider.bind)
+    put(entityStore, provider)
+    put(entityStore, reference)
+    // manipulate package reference such that it attempts to bind to itself
+    val content = WhiskPackagePut(Some(Binding(namespace.root, reference.name)))
+    Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[ErrorResponse].error should include(Messages.bindingCannotReferenceBinding)
+    }
+    // verify that the reference is still pointing to the original provider
+    Get(s"$collectionPath/${reference.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskPackage]
+      response should be(reference)
+      response.binding should be(provider.bind)
+    }
+  }
+
   it should "reject update package reference when new binding refers to private package in another namespace" in {
     implicit val tid = transid()
     val privateCreds = WhiskAuthHelpers.newIdentity()

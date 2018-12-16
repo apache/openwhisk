@@ -87,9 +87,7 @@ subprojects {
                 enabled false
             }
 
-            configurations.archives.with {
-                artifacts.remove artifacts.find { it.archiveTask.is distZip }
-            }
+            configurations.archives.artifacts.removeAll {it.file =~ 'zip'}
         }
     }
 }

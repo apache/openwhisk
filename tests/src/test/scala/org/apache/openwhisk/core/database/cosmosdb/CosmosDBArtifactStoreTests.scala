@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import io.netty.util.ResourceLeakDetector
+import io.netty.util.ResourceLeakDetector.Level
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
@@ -26,6 +28,27 @@ import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 @RunWith(classOf[JUnitRunner])
 class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
   override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
+
+  private var initialLevel: Level = _
+
+  override protected def beforeAll(): Unit = {
+    RecordingLeakDetectorFactory.register()
+    initialLevel = ResourceLeakDetector.getLevel
+    ResourceLeakDetector.setLevel(Level.PARANOID)
+    super.beforeAll()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    ResourceLeakDetector.setLevel(initialLevel)
+
+    //Try triggering GC which may trigger leak detection logic
+    System.gc()
+
+    withClue("Recorded leak count should be zero") {
+      RecordingLeakDetectorFactory.counter.cur shouldBe 0
+    }
+  }
 
   behavior of "CosmosDB Setup"
 
