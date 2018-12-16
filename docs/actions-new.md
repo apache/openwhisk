@@ -64,7 +64,7 @@ additional rqeuirements and best practices:
 Actions when created specify the desired runtime for the function via a property called "kind".
 When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is a typically
 a string describing the language (e.g., `nodejs`) followed by a colon and the version for the runtime
-as in `nodejs:8` or `php:7.2`.
+as in `nodejs:8` or `php:7.3`.
 
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
 schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).

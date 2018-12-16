@@ -23,7 +23,7 @@ The process of creating PHP actions is similar to that of [other actions](action
 The following sections guide you through creating and invoking a single PHP action,
 and demonstrate how to bundle multiple PHP files and third party dependencies.
 
-PHP actions are executed using PHP 7.3. PHP 7.2 & PHP 7.1 are also available The specific
+PHP actions are executed using PHP 7.3. PHP 7.2 & PHP 7.1 are also available. The specific
 version of PHP is listed in the CHANGELOG files in the [PHP runtime repository](https://github.com/apache/incubator-openwhisk-runtime-php).
 
 To use a PHP runtime, specify the `wsk` CLI parameter `--kind` when creating or
