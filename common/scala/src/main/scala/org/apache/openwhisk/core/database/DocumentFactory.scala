@@ -231,7 +231,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
       val key = doc.asDocInfo(rev)
       _ =>
-        cacheLookup(CacheKey(key), db.get[W](key, Some(attachmentHandler)) flatMap { postProcess }, fromCache)
+        cacheLookup(CacheKey(key), db.get[W](key, Some(attachmentHandler)).flatMap(postProcess), fromCache)
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)
