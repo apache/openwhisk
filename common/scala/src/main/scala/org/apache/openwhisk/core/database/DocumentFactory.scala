@@ -198,15 +198,6 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     doc: DocId,
     rev: DocRevision = DocRevision.empty,
     fromCache: Boolean = cacheEnabled)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
-    getWithAttachment(db, doc, rev, fromCache, None)
-  }
-
-  protected def getWithAttachment[Wsuper >: W](
-    db: ArtifactStore[Wsuper],
-    doc: DocId,
-    rev: DocRevision = DocRevision.empty,
-    fromCache: Boolean,
-    attachmentHandler: Option[(W, Attached) => W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
     Try {
       require(db != null, "db undefined")
     } map {
@@ -214,7 +205,33 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
       val key = doc.asDocInfo(rev)
       _ =>
-        cacheLookup(CacheKey(key), db.get[W](key, attachmentHandler), fromCache)
+        cacheLookup(CacheKey(key), db.get[W](key, None), fromCache)
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
+    }
+  }
+
+  /**
+   *  Fetches document along with attachment. `postProcess` would be used to process the fetched document
+   *  before adding it to cache. This ensures that for documents having attachment the cache is updated only
+   *  post fetch of the attachment
+   */
+  protected def getWithAttachment[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: DocId,
+    rev: DocRevision = DocRevision.empty,
+    fromCache: Boolean,
+    attachmentHandler: (W, Attached) => W,
+    postProcess: W => Future[W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
+    Try {
+      require(db != null, "db undefined")
+    } map {
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
+      val key = doc.asDocInfo(rev)
+      _ =>
+        cacheLookup(CacheKey(key), db.get[W](key, Some(attachmentHandler)) flatMap { postProcess }, fromCache)
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)
