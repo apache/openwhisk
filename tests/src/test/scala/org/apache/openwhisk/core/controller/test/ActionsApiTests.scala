@@ -36,8 +36,8 @@ import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-
 import akka.http.scaladsl.model.headers.RawHeader
+import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.core.entity.Attachments.Inline
 
 /**
@@ -1025,6 +1025,61 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         stream.toString should include regex (expectedGetLog)
         stream.reset()
     }
+  }
+
+  it should "concurrently get an action with attachment that is not cached" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val kind = NODEJS6
+
+    val content = WhiskActionPut(
+      Some(action.exec),
+      Some(action.parameters),
+      Some(
+        ActionLimitsOption(
+          Some(action.limits.timeout),
+          Some(action.limits.memory),
+          Some(action.limits.logs),
+          Some(action.limits.concurrency))))
+    val name = action.name
+    val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
+    val expectedGetLog = Seq(
+      s"finding document: 'id: ${action.namespace}/${action.name}",
+      s"finding attachment '[\\w-/:]+' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
+
+    Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+      status should be(OK)
+    }
+
+    removeFromCache(action, WhiskAction)
+
+    stream.reset()
+
+    val expectedAction = WhiskAction(
+      action.namespace,
+      action.name,
+      action.exec,
+      action.parameters,
+      action.limits,
+      action.version,
+      action.publish,
+      action.annotations ++ Parameters(WhiskAction.execFieldName, kind))
+
+    (0 until 5).par.map { i =>
+      Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
+        status should be(OK)
+        val response = responseAs[WhiskAction]
+        response should be(expectedAction)
+      }
+    }
+
+    //Loading action with attachment concurrently should load only attachment once
+    val logs = stream.toString
+    withClue(s"db logs $logs") {
+      StringUtils.countMatches(logs, "finding document") shouldBe 1
+      StringUtils.countMatches(logs, "finding attachment") shouldBe 1
+    }
+    stream.reset()
   }
 
   it should "update an existing action with attachment that is not cached" in {

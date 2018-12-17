@@ -21,9 +21,6 @@ import java.io.InputStream
 import java.io.OutputStream
 
 import scala.concurrent.{Future, Promise}
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 import akka.http.scaladsl.model.ContentType
 import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
@@ -102,24 +99,12 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
   def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, old: Option[W])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    Try {
-      require(db != null, "db undefined")
-      require(doc != null, "doc undefined")
-    } map { _ =>
-      implicit val logger = db.logging
-      implicit val ec = db.executionContext
-
-      val key = CacheKey(doc)
-      val docInfo = doc.docinfo
-
-      cacheUpdate(doc, key, db.put(doc) map { newDocInfo =>
-        doc.revision[W](newDocInfo.rev)
-        doc.docinfo
-      })
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
-    }
+    implicit val logger = db.logging
+    implicit val ec = db.executionContext
+    cacheUpdate(doc, CacheKey(doc), db.put(doc) map { newDocInfo =>
+      doc.revision[W](newDocInfo.rev)
+      doc.docinfo
+    })
   }
 
   def putAndAttach[Wsuper >: W](db: ArtifactStore[Wsuper],
@@ -131,49 +116,31 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
                                 postProcess: Option[W => W] = None)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+    implicit val logger = db.logging
+    implicit val ec = db.executionContext
 
-    Try {
-      require(db != null, "db undefined")
-      require(doc != null, "doc undefined")
-    } map { _ =>
-      implicit val logger = db.logging
-      implicit val ec = db.executionContext
+    val key = CacheKey(doc)
+    val src = StreamConverters.fromInputStream(() => bytes)
 
-      val key = CacheKey(doc)
-      val src = StreamConverters.fromInputStream(() => bytes)
-
-      val p = Promise[W]
-      cacheUpdate(p.future, key, db.putAndAttach[W](doc, update, contentType, src, oldAttachment) map {
-        case (newDocInfo, attached) =>
-          val newDoc = update(doc, attached)
-          val cacheDoc = postProcess map { _(newDoc) } getOrElse newDoc
-          cacheDoc.revision[W](newDocInfo.rev)
-          p.success(cacheDoc)
-          newDocInfo
-      })
-
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
-    }
+    val p = Promise[W]
+    cacheUpdate(p.future, key, db.putAndAttach[W](doc, update, contentType, src, oldAttachment) map {
+      case (newDocInfo, attached) =>
+        val newDoc = update(doc, attached)
+        val cacheDoc = postProcess map { _(newDoc) } getOrElse newDoc
+        cacheDoc.revision[W](newDocInfo.rev)
+        p.success(cacheDoc)
+        newDocInfo
+    })
   }
 
   def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-    Try {
-      require(db != null, "db undefined")
-      require(doc != null, "doc undefined")
-    } map { _ =>
-      implicit val logger = db.logging
-      implicit val ec = db.executionContext
+    implicit val logger = db.logging
+    implicit val ec = db.executionContext
 
-      val key = CacheKey(doc.id.asDocInfo)
-      cacheInvalidate(key, db.del(doc))
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
-    }
+    val key = CacheKey(doc.id.asDocInfo)
+    cacheInvalidate(key, db.del(doc))
   }
 
   /**
@@ -198,77 +165,57 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     doc: DocId,
     rev: DocRevision = DocRevision.empty,
     fromCache: Boolean = cacheEnabled)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
-    getWithAttachment(db, doc, rev, fromCache, None)
+    implicit val logger = db.logging
+    implicit val ec = db.executionContext
+    val key = doc.asDocInfo(rev)
+    cacheLookup(CacheKey(key), db.get[W](key, None), fromCache)
   }
 
+  /**
+   *  Fetches document along with attachment. `postProcess` would be used to process the fetched document
+   *  before adding it to cache. This ensures that for documents having attachment the cache is updated only
+   *  post fetch of the attachment
+   */
   protected def getWithAttachment[Wsuper >: W](
     db: ArtifactStore[Wsuper],
     doc: DocId,
     rev: DocRevision = DocRevision.empty,
     fromCache: Boolean,
-    attachmentHandler: Option[(W, Attached) => W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
-    Try {
-      require(db != null, "db undefined")
-    } map {
-      implicit val logger = db.logging
-      implicit val ec = db.executionContext
-      val key = doc.asDocInfo(rev)
-      _ =>
-        cacheLookup(CacheKey(key), db.get[W](key, attachmentHandler), fromCache)
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
-    }
+    attachmentHandler: (W, Attached) => W,
+    postProcess: W => Future[W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
+    implicit val logger = db.logging
+    implicit val ec = db.executionContext
+    val key = doc.asDocInfo(rev)
+    cacheLookup(CacheKey(key), db.get[W](key, Some(attachmentHandler)).flatMap(postProcess), fromCache)
   }
 
-  def getAttachment[Wsuper >: W](
+  protected def getAttachment[Wsuper >: W](
     db: ArtifactStore[Wsuper],
     doc: W,
     attached: Attached,
     outputStream: OutputStream,
     postProcess: Option[W => W] = None)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
-
     implicit val ec = db.executionContext
     implicit val notifier: Option[CacheChangeNotification] = None
+    implicit val logger = db.logging
 
-    Try {
-      require(db != null, "db defined")
-      require(doc != null, "doc undefined")
-    } map { _ =>
-      implicit val logger = db.logging
-      implicit val ec = db.executionContext
+    val docInfo = doc.docinfo
+    val key = CacheKey(docInfo)
+    val sink = StreamConverters.fromOutputStream(() => outputStream)
 
-      val docInfo = doc.docinfo
-      val key = CacheKey(docInfo)
-      val sink = StreamConverters.fromOutputStream(() => outputStream)
+    db.readAttachment[IOResult](docInfo, attached, sink).map { _ =>
+      val cacheDoc = postProcess.map(_(doc)).getOrElse(doc)
 
-      db.readAttachment[IOResult](docInfo, attached, sink).map {
-        case _ =>
-          val cacheDoc = postProcess map { _(doc) } getOrElse doc
-
-          cacheUpdate(cacheDoc, key, Future.successful(docInfo)) map { newDocInfo =>
-            cacheDoc.revision[W](newDocInfo.rev)
-          }
-          cacheDoc
+      cacheUpdate(cacheDoc, key, Future.successful(docInfo)) map { newDocInfo =>
+        cacheDoc.revision[W](newDocInfo.rev)
       }
-
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
+      cacheDoc
     }
   }
 
   def deleteAttachments[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
     implicit transid: TransactionId): Future[Boolean] = {
-    Try {
-      require(db != null, "db defined")
-      require(doc != null, "doc undefined")
-    } map { _ =>
-      implicit val ec = db.executionContext
-      db.deleteAttachments(doc)
-    } match {
-      case Success(f) => f
-      case Failure(t) => Future.failed(t)
-    }
+    implicit val ec = db.executionContext
+    db.deleteAttachments(doc)
   }
 }

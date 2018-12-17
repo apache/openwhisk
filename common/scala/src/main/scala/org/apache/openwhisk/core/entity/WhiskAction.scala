@@ -376,9 +376,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     implicit val ec = db.executionContext
 
-    val fa = super.getWithAttachment(db, doc, rev, fromCache, Some(attachmentHandler _))
-
-    fa.flatMap { action =>
+    val inlineActionCode: WhiskAction => Future[WhiskAction] = { action =>
       def getWithAttachment(attached: Attached, binary: Boolean, exec: AttachedCode) = {
         val boas = new ByteArrayOutputStream()
         val wrapped = if (binary) Base64.getEncoder().wrap(boas) else boas
@@ -400,6 +398,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           Future.successful(action)
       }
     }
+    super.getWithAttachment(db, doc, rev, fromCache, attachmentHandler, inlineActionCode)
   }
 
   def attachmentHandler(action: WhiskAction, attached: Attached): WhiskAction = {
