@@ -219,6 +219,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         case Some(oldData: WarmingData) =>
           //init is done, but run is not; retain active count
           (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
+        case Some(oldData: PreWarmedData) =>
+          //init is done, but run is not; retain active count (WarmingData is ONLY used for concurrent actions, otherwise PrewarmedData)
+          (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
         case Some(oldData: NoData) =>
           //when NoData (cold start); retain active count
           (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
