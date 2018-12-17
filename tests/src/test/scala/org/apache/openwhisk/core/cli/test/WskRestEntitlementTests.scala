@@ -48,7 +48,7 @@ class WskRestEntitlementTests extends WskEntitlementTests with WskActorSystem {
                                  packageName: String,
                                  actionName: String): Unit = {
     val packageListResultRest = packageList.asInstanceOf[RestResult]
-    val packages = packageListResultRest.getBodyListJsObject()
+    val packages = packageListResultRest.getBodyListJsObject
     val ns = s"$namespace/$packageName"
     packages.exists(pack =>
       RestResult.getField(pack, "namespace") == ns && RestResult.getField(pack, "name") == actionName) shouldBe true
@@ -56,7 +56,7 @@ class WskRestEntitlementTests extends WskEntitlementTests with WskActorSystem {
 
   override def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val packageListResultRest = packageList.asInstanceOf[RestResult]
-    val packages = packageListResultRest.getBodyListJsObject()
+    val packages = packageListResultRest.getBodyListJsObject
     packages.exists(
       pack =>
         RestResult.getField(pack, "namespace") == namespace && RestResult
@@ -65,7 +65,7 @@ class WskRestEntitlementTests extends WskEntitlementTests with WskActorSystem {
 
   override def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val packageListResultRest = packageList.asInstanceOf[RestResult]
-    val packages = packageListResultRest.getBodyListJsObject()
+    val packages = packageListResultRest.getBodyListJsObject
     packages.exists(
       pack =>
         RestResult.getField(pack, "namespace") == namespace && RestResult
