@@ -109,7 +109,7 @@ then the runtime will include one for you with the following Composer packages:
 - guzzlehttp/guzzle
 - ramsey/uuid
 
-The specific versions of these packages depends on the PHP runtime in use and is listed in the 
+The specific versions of these packages depends on the PHP runtime in use and is listed in the
 CHANGELOG files in the [PHP runtime repository](https://github.com/apache/incubator-openwhisk-runtime-php).
 
 
