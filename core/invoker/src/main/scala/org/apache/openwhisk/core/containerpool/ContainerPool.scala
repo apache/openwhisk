@@ -143,7 +143,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             //increment active count before storing in pool map
             val (newData, container) = data match {
               case p: PreWarmedData =>
-                WarmingData(p.container, r.msg.user.namespace.name, r.action, Instant.now, 1) -> Some(p.container)
+                //only use WarmingData for concurrency-supporting actions
+                if (r.action.limits.concurrency.maxConcurrent > 1) {
+                  WarmingData(p.container, r.msg.user.namespace.name, r.action, Instant.now, 1) -> Some(p.container)
+                } else {
+                  p -> Some(p.container)
+                }
               case pw: WarmingData => pw.incrementActive -> Some(pw.container)
               case w: WarmedData   => w.incrementActive -> Some(w.container)
               case _               => data -> None //in case of NoData or MemoryData,
