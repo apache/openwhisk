@@ -1076,7 +1076,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     //Loading action with attachment concurrently should load only attachment once
     val logs = stream.toString
     withClue(s"db logs $logs") {
-      StringUtils.countMatches(logs, "finding attachment") shouldBe 1
+      StringUtils.countMatches(logs, "finding document") shouldBe 1
       StringUtils.countMatches(logs, "finding attachment") shouldBe 1
     }
     stream.reset()
