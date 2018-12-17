@@ -606,7 +606,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
                        actionName: Option[String] = None)(implicit wp: WskProps): RestResult = {
     require(duration > 1.second, "duration must be at least 1 second")
     val sinceTime = {
-      val now = System.currentTimeMillis()
+      val now = System.currentTimeMillis
       since.map(s => now - s.toMillis).getOrElse(now)
     }
 
@@ -1300,10 +1300,10 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   def getTransactionId(resp: HttpResponse): String = {
     val tidHeader = resp.headers.find(_.is(TransactionId.generatorConfig.lowerCaseHeader))
     withClue(
-      s"The header ${TransactionId.generatorConfig} is not set. This means that the request did not reach nginx (and not controller if nginx is skipped in that test).") {
+      s"The header ${TransactionId.generatorConfig} is not set. This means that the request did not reach nginx (or the controller if nginx is skipped in that test).") {
       tidHeader shouldBe defined
     }
-    tidHeader.get.value()
+    tidHeader.get.value
   }
 
   def getNamespaceEntityName(name: String)(implicit wp: WskProps): (String, String) = {
