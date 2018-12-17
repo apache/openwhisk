@@ -497,6 +497,13 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
                  active: Int = 0) =
     WarmedData(stub[Container], EntityName(namespace), action, lastUsed, active)
 
+  /** Helper to create WarmingData with sensible defaults */
+  def warmingData(action: ExecutableWhiskAction = createAction(),
+                  namespace: String = standardNamespace.asString,
+                  lastUsed: Instant = Instant.now,
+                  active: Int = 0) =
+    WarmingData(stub[Container], EntityName(namespace), action, lastUsed, active)
+
   /** Helper to create PreWarmedData with sensible defaults */
   def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
 
@@ -583,6 +590,22 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
       active = maxConcurrent - 1,
       action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
     val pool2 = Map('warm -> data2)
+
+    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
+
+  }
+
+  it should "use a warming when active activation count < maxconcurrent" in {
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
+
+    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val data = warmingData(active = maxConcurrent - 1, action = action)
+    val pool = Map('warming -> data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data)
+
+    val data2 = warmedData(active = maxConcurrent - 1, action = action)
+    val pool2 = pool ++ Map('warm -> data2)
 
     ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
 
