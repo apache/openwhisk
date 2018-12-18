@@ -63,6 +63,7 @@ case class PreWarmedData(container: Container,
                          override val memoryLimit: ByteSize,
                          override val activeActivationCount: Int = 0)
     extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount) {
+  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
   def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
   def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
 }
@@ -72,6 +73,7 @@ case class WarmingData(container: Container,
                        override val lastUsed: Instant,
                        override val activeActivationCount: Int = 0)
     extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount) {
+  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
   def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
   def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
 }
@@ -81,6 +83,7 @@ case class WarmedData(container: Container,
                       override val lastUsed: Instant,
                       override val activeActivationCount: Int = 0)
     extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount) {
+  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
   def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
   def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
 }

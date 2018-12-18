@@ -151,7 +151,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 }
               case pw: WarmingData => pw.incrementActive -> Some(pw.container)
               case w: WarmedData   => w.incrementActive -> Some(w.container)
-              case _               => data -> None //in case of NoData or MemoryData,
+              case _               => data -> None //in case of NoData or MemoryData
+              // TODO: tnorris handle cold case similar to WarmingData (currently cold start + concurrent activations will launch extra containers)
             }
             //only move to busyPool if max reached
             if (newData.activeActivationCount >= r.action.limits.concurrency.maxConcurrent) {
@@ -209,7 +210,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       }
 
     // Container is free to take more work
-    case NeedWork(data: WarmedData) =>
+    case NeedWork(warmData: WarmedData) =>
       feed ! MessageFeed.Processed
       val old = freePool.get(sender()).orElse(busyPool.get(sender()))
       val (newData, oldCount) = old match {
@@ -217,21 +218,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           //decrement active count (if previous was prewarm, the active count will be 0)
           (oldData.decrementActive, oldData.activeActivationCount)
         case Some(oldData: WarmingData) =>
-          //init is done, but run is not; retain active count
-          (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
+          //init is done, but run is not; retain active count (WarmindData only applies when concurrency > 1)
+          (warmData.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
         case Some(oldData: PreWarmedData) =>
-          //init is done, but run is not; retain active count (WarmingData is ONLY used for concurrent actions, otherwise PrewarmedData)
-          (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
+          //init is done, but run is not; active count remains 1
+          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
         case Some(oldData: NoData) =>
-          //when NoData (cold start); retain active count
-          (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
+          //when NoData (cold start); active count remains 1
+          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
         case Some(oldData: MemoryData) =>
-          //when MemoryData (cold start); retain active count
-          (data.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
+          //when MemoryData (cold start); active count remains 1
+          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
         case _ => {
           //should never happen
-          logging.warn(this, s"no pool ref found for container ${data.container}")
-          (data.copy(activeActivationCount = 0), 0)
+          logging.warn(this, s"no pool ref found for container ${warmData.container}")
+          (warmData.copy(activeActivationCount = 0), 0)
         }
       }
 
@@ -251,6 +252,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         }
       } else {
         busyPool = busyPool + (sender() -> newData)
+        freePool = freePool - sender()
       }
 
     // Container is prewarmed and ready to take work
