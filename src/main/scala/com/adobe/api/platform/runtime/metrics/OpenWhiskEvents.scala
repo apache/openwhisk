@@ -13,6 +13,9 @@ governing permissions and limitations under the License.
 package com.adobe.api.platform.runtime.metrics
 
 import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.event.slf4j.SLF4JLogging
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.ContentType
 import akka.kafka.ConsumerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
@@ -20,19 +23,29 @@ import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
+import pureconfig.loadConfigOrThrow
 
-object OpenWhiskEvents {
+import scala.concurrent.Future
 
-  def main(args: Array[String]): Unit = {
-    Kamon.addReporter(new PrometheusReporter())
-    implicit val system = ActorSystem("runtime-actor-system")
-    implicit val materializer = ActorMaterializer()
+object OpenWhiskEvents extends SLF4JLogging {
+  val textV4 = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
 
-    val kamonConsumer = KamonConsumer(eventConsumerSettings(defaultConsumerConfig(system)))
+  case class MetricConfig(port: Int)
 
+  def start(config: Config)(implicit system: ActorSystem,
+                            materializer: ActorMaterializer): Future[Http.ServerBinding] = {
+    val metricConfig = loadConfigOrThrow[MetricConfig](config, "user-events")
+    val prometheus = new PrometheusReporter()
+    Kamon.addReporter(prometheus)
+    val port = metricConfig.port
+    val kamonConsumer = KamonConsumer(eventConsumerSettings(defaultConsumerConfig(config)))
+    val api = new EventsApi(kamonConsumer, prometheus)
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
       kamonConsumer.shutdown()
     }
+    val httpBinding = Http().bindAndHandle(api.routes, "0.0.0.0", port)
+    httpBinding.foreach(_ => log.info(s"Started the http server on http://localhost:$port"))(system.dispatcher)
+    httpBinding
   }
 
   def eventConsumerSettings(config: Config): ConsumerSettings[String, String] =
@@ -40,6 +53,6 @@ object OpenWhiskEvents {
       .withGroupId("kamon")
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-  def defaultConsumerConfig(system: ActorSystem) = system.settings.config.getConfig("akka.kafka.consumer")
+  def defaultConsumerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.consumer")
 
 }

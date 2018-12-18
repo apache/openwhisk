@@ -55,20 +55,13 @@ class KamonConsumerTests extends KafkaSpecBase with BeforeAndAfterEach {
     val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
     withRunningKafkaOnFoundPort(kconfig) { implicit actualConfig =>
       createCustomTopic(KamonConsumer.userEventTopic)
-      val consumer = createConsumer(actualConfig.kafkaPort)
+      val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
       publishStringMessageToKafka(KamonConsumer.userEventTopic, newActivationEvent("a1").serialize)
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
       sleep(1.second, "sleeping for Kamon reporters to get invoked")
       TestReporter.counter("activations").get.value shouldBe 1
     }
-  }
-
-  private def createConsumer(kport: Int) = {
-    val settings = OpenWhiskEvents
-      .eventConsumerSettings(OpenWhiskEvents.defaultConsumerConfig(system))
-      .withBootstrapServers(s"localhost:$kport")
-    KamonConsumer(settings)
   }
 
   private def newActivationEvent(name: String, kind: String = "nodejs") =
