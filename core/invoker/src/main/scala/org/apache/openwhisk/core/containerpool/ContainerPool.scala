@@ -112,7 +112,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
-              .map(container => (container, "warm"))
+              .map { container =>
+                val warmState = container._2 match {
+                  case _: WarmedData      => "warm" //already warm
+                  case _: WarmingData     => "warming" //prewarm initing with concurrent support
+                  case _: WarmingColdData => "warmingCold" //cold initing with concurrent support
+                }
+                (container, warmState)
+              }
               .orElse(
                 // There was no warm container. Try to take a prewarm container or a cold container.
 
