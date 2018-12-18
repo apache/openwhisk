@@ -117,6 +117,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   case _: WarmedData      => "warm" //already warm
                   case _: WarmingData     => "warming" //prewarm initing with concurrent support
                   case _: WarmingColdData => "warmingCold" //cold initing with concurrent support
+                  case w =>
+                    logging.warn(this, s"unexpected warm data type ${w}")
+                    "warm" //already warm
                 }
                 (container, warmState)
               }
