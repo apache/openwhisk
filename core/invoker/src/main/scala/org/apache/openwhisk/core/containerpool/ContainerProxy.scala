@@ -22,7 +22,6 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
-import org.apache.openwhisk.common.Logging
 import pureconfig.loadConfigOrThrow
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
