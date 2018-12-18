@@ -174,6 +174,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   m.copy(activeActivationCount = 1) -> None
                 }
             }
+
+            if (newData.activeActivationCount < 1) {
+              logging.error(this, s"invalid activation count < 1 ${newData}")
+            }
+
             //only move to busyPool if max reached
             if (newData.activeActivationCount >= r.action.limits.concurrency.maxConcurrent) {
               if (r.action.limits.concurrency.maxConcurrent > 1) {
@@ -234,7 +239,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       feed ! MessageFeed.Processed
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
       val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
-
+      if (newData.activeActivationCount < 0) {
+        logging.error(this, s"invalid activation count after warming < 1 ${newData}")
+      }
       if (newData.activeActivationCount < newData.action.limits.concurrency.maxConcurrent) {
         //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
         freePool = freePool + (sender() -> newData)
