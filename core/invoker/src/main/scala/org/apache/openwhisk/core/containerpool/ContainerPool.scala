@@ -142,17 +142,30 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           case Some(((actor, data), containerState)) =>
             //increment active count before storing in pool map
             val (newData, container) = data match {
-              case p: PreWarmedData =>
-                //only use WarmingData for concurrency-supporting actions
+              case p: PreWarmedData => //convert PreWarmedData -> WarmingData for concurrent cases
                 if (r.action.limits.concurrency.maxConcurrent > 1) {
                   WarmingData(p.container, r.msg.user.namespace.name, r.action, Instant.now, 1) -> Some(p.container)
                 } else {
                   p -> Some(p.container)
                 }
-              case pw: WarmingData => pw.incrementActive -> Some(pw.container)
-              case w: WarmedData   => w.incrementActive -> Some(w.container)
-              case _               => data -> None //in case of NoData or MemoryData
-              // TODO: tnorris handle cold case similar to WarmingData (currently cold start + concurrent activations will launch extra containers)
+              case pw: WarmingData =>
+                pw.copy(activeActivationCount = pw.activeActivationCount + 1) -> Some(pw.container)
+              case wnd: WarmingColdData =>
+                wnd.copy(activeActivationCount = wnd.activeActivationCount + 1) -> None
+              case w: WarmedData =>
+                w.copy(activeActivationCount = w.activeActivationCount + 1) -> Some(w.container)
+              case n: NoData => //convert NoData -> WarmingColdData for concurrent cases
+                if (r.action.limits.concurrency.maxConcurrent > 1) {
+                  WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1) -> None
+                } else {
+                  n.copy(activeActivationCount = 1) -> None
+                }
+              case m: MemoryData => //convert MemoryData -> WarmingColdData for concurrent cases
+                if (r.action.limits.concurrency.maxConcurrent > 1) {
+                  WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1) -> None
+                } else {
+                  m.copy(activeActivationCount = 1) -> None
+                }
             }
             //only move to busyPool if max reached
             if (newData.activeActivationCount >= r.action.limits.concurrency.maxConcurrent) {
@@ -212,36 +225,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
       feed ! MessageFeed.Processed
-      val old = freePool.get(sender()).orElse(busyPool.get(sender()))
-      val (newData, oldCount) = old match {
-        case Some(oldData: WarmedData) =>
-          //decrement active count (if previous was prewarm, the active count will be 0)
-          (oldData.decrementActive, oldData.activeActivationCount)
-        case Some(oldData: WarmingData) =>
-          //init is done, but run is not; retain active count (WarmindData only applies when concurrency > 1)
-          (warmData.copy(activeActivationCount = oldData.activeActivationCount), oldData.activeActivationCount)
-        case Some(oldData: PreWarmedData) =>
-          //init is done, but run is not; active count remains 1
-          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
-        case Some(oldData: NoData) =>
-          //when NoData (cold start); active count remains 1
-          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
-        case Some(oldData: MemoryData) =>
-          //when MemoryData (cold start); active count remains 1
-          (warmData.copy(activeActivationCount = 1), oldData.activeActivationCount)
-        case _ => {
-          //should never happen
-          logging.warn(this, s"no pool ref found for container ${warmData.container}")
-          (warmData.copy(activeActivationCount = 0), 0)
-        }
-      }
+      val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
+      val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
 
       if (newData.activeActivationCount < newData.action.limits.concurrency.maxConcurrent) {
         //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
         freePool = freePool + (sender() -> newData)
-        if (newData.action.limits.concurrency.maxConcurrent > 1 && newData.activeActivationCount == 0 && oldCount >= 1) {
-          logging.info(this, s"concurrent container ${newData.container} completed all activations")
-        }
         if (busyPool.contains(sender())) {
           busyPool = busyPool - sender()
           if (newData.action.limits.concurrency.maxConcurrent > 1) {
@@ -385,12 +374,21 @@ object ContainerPool {
       .orElse {
         //if the action supports concurrency, we can schedule activations to it while it is warming
         if (action.limits.concurrency.maxConcurrent > 1) {
-          idles.find {
-            case (_, WarmingData(_, `invocationNamespace`, `action`, _, activeActivationCount))
-                if activeActivationCount < action.limits.concurrency.maxConcurrent =>
-              true
-            case _ => false
-          }
+          idles
+            .find { //prefer warming from prewarm
+              case (_, WarmingData(_, `invocationNamespace`, `action`, _, activeActivationCount))
+                  if activeActivationCount < action.limits.concurrency.maxConcurrent =>
+                true
+              case _ => false
+            }
+            .orElse {
+              idles.find { //next pref is warming from cold
+                case (_, WarmingColdData(`invocationNamespace`, `action`, _, activeActivationCount))
+                    if activeActivationCount < action.limits.concurrency.maxConcurrent =>
+                  true
+                case _ => false
+              }
+            }
         } else {
           None
         }

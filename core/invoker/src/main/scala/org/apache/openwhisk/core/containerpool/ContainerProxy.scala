@@ -55,38 +55,35 @@ case object Paused extends ContainerState
 case object Removing extends ContainerState
 
 // Data
-sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int)
-case class NoData() extends ContainerData(Instant.EPOCH, 0.B, 0)
-case class MemoryData(override val memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH, memoryLimit, 0)
+sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int) {
+  require(activeActivationCount >= 0, s"cannot set active count < 0 ${this}")
+}
+case class NoData(override val activeActivationCount: Int = 0)
+    extends ContainerData(Instant.EPOCH, 0.B, activeActivationCount) {}
+case class MemoryData(override val memoryLimit: ByteSize, override val activeActivationCount: Int = 0)
+    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount)
 case class PreWarmedData(container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
                          override val activeActivationCount: Int = 0)
-    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount) {
-  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
-  def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
-  def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
-}
+    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount)
 case class WarmingData(container: Container,
                        invocationNamespace: EntityName,
                        action: ExecutableWhiskAction,
                        override val lastUsed: Instant,
                        override val activeActivationCount: Int = 0)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount) {
-  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
-  def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
-  def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
-}
+    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+case class WarmingColdData(invocationNamespace: EntityName,
+                           action: ExecutableWhiskAction,
+                           override val lastUsed: Instant,
+                           override val activeActivationCount: Int = 0)
+    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
 case class WarmedData(container: Container,
                       invocationNamespace: EntityName,
                       action: ExecutableWhiskAction,
                       override val lastUsed: Instant,
                       override val activeActivationCount: Int = 0)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount) {
-  require(activeActivationCount >= 0, s"cannot set active count < 0 ${activeActivationCount}")
-  def incrementActive = this.copy(activeActivationCount = activeActivationCount + 1)
-  def decrementActive = this.copy(activeActivationCount = activeActivationCount - 1)
-}
+    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
@@ -263,8 +260,6 @@ class ContainerProxy(
 
     // Init was successful
     case Event(completed: InitCompleted, _: PreWarmedData) =>
-      //in case concurrency supported, multiple runs can begin as soon as init is complete
-      context.parent ! NeedWork(completed.data)
       stay using completed.data
 
     // Init was successful
@@ -292,12 +287,11 @@ class ContainerProxy(
         if activeCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
       activeCount += 1
       implicit val transid = job.msg.transid
-      val newData = data.incrementActive
 
       initializeAndRun(data.container, job)
         .map(_ => RunCompleted)
         .pipeTo(self)
-      stay() using newData
+      stay() using data
 
     // Failed after /init (the first run failed)
     case Event(_: FailureMessage, data: PreWarmedData) =>
