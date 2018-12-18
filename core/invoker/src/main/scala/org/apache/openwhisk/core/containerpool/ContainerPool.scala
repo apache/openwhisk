@@ -153,14 +153,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 if (r.action.limits.concurrency.maxConcurrent > 1) {
                   WarmingData(p.container, r.msg.user.namespace.name, r.action, Instant.now, 1) -> Some(p.container)
                 } else {
-                  p -> Some(p.container)
+                  p.copy(activeActivationCount = 1) -> Some(p.container)
                 }
+              case w: WarmedData =>
+                w.copy(activeActivationCount = w.activeActivationCount + 1) -> Some(w.container)
               case pw: WarmingData =>
                 pw.copy(activeActivationCount = pw.activeActivationCount + 1) -> Some(pw.container)
               case wnd: WarmingColdData =>
                 wnd.copy(activeActivationCount = wnd.activeActivationCount + 1) -> None
-              case w: WarmedData =>
-                w.copy(activeActivationCount = w.activeActivationCount + 1) -> Some(w.container)
               case n: NoData => //convert NoData -> WarmingColdData for concurrent cases
                 if (r.action.limits.concurrency.maxConcurrent > 1) {
                   WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1) -> None
