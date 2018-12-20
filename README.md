@@ -4,8 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![codecov](https://codecov.io/gh/adobe-apiplatform/openwhisk-user-events/branch/master/graph/badge.svg)](https://codecov.io/gh/adobe-apiplatform/openwhisk-user-events)
 
-This service connects to `events` topic and publishes the events to to various services like Prometheus, Datadog etc via 
-Kamon. Refer to [user specific metrics][1] on how to enable them
+This service connects to `events` topic and publishes the events to various services like Prometheus, Datadog etc via Kamon. Refer to [user specific metrics][1] on how to enable them
 
 ## Build
 

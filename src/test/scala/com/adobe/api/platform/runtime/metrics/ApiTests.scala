@@ -11,6 +11,7 @@ governing permissions and limitations under the License.
  */
 
 package com.adobe.api.platform.runtime.metrics
+
 import akka.http.scaladsl.model.headers.HttpEncodings._
 import akka.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
 import akka.http.scaladsl.model.{HttpCharsets, HttpResponse}
@@ -22,8 +23,11 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.Matcher
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.concurrent.duration.DurationInt
+
 @RunWith(classOf[JUnitRunner])
 class ApiTests extends FlatSpec with Matchers with ScalatestRouteTest with EventsTestHelper with ScalaFutures {
+  implicit val timeoutConfig = PatienceConfig(1.minute)
   behavior of "EventsApi"
 
   it should "respond ping request" in {

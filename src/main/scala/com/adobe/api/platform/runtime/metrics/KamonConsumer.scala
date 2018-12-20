@@ -59,8 +59,46 @@ object KamonConsumer {
       .collect { case e if e.eventType == Activation.typeName => e } //Look for only Activations
       .foreach { e =>
         val a = e.body.asInstanceOf[Activation]
-        Kamon.histogram("waitTime", MeasurementUnit.time.milliseconds).refine("name" -> a.name).record(a.waitTime)
-        Kamon.counter("activations").refine("name" -> a.name).increment()
+        val (namespace, action) = getNamespaceAction(a.name)
+
+        val tags = Map(
+          "namespace" -> namespace,
+          "action" -> action,
+          "kind" -> a.kind,
+          "memory" -> a.memory.toString,
+          "status" -> a.statusCode.toString)
+
+        Kamon.counter("openwhisk.counter.container.activations").refine(tags).increment()
+        Kamon
+          .counter("openwhisk.counter.container.coldStarts")
+          .refine(tags)
+          .increment(if (a.waitTime > 0) 1L else 0L)
+
+        Kamon
+          .histogram("openwhisk.histogram.container.waitTime", MeasurementUnit.time.milliseconds)
+          .refine(tags)
+          .record(a.waitTime)
+        Kamon
+          .histogram("openwhisk.histogram.container.initTime", MeasurementUnit.time.milliseconds)
+          .refine(tags)
+          .record(a.initTime)
+        Kamon
+          .histogram("openwhisk.histogram.container.duration", MeasurementUnit.time.milliseconds)
+          .refine(tags)
+          .record(a.duration)
       }
   }
+
+  /**
+   * Extract namespace and action from name
+   * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
+   *
+   * @param name
+   * @return namespace, action
+   */
+  private def getNamespaceAction(name: String): (String, String) = {
+    val nameArr = name.split("/", 2)
+    return (nameArr(0), nameArr(1))
+  }
+
 }

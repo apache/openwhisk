@@ -55,19 +55,57 @@ class KamonConsumerTests extends KafkaSpecBase with BeforeAndAfterEach {
     val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
     withRunningKafkaOnFoundPort(kconfig) { implicit actualConfig =>
       createCustomTopic(KamonConsumer.userEventTopic)
+
       val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
-      publishStringMessageToKafka(KamonConsumer.userEventTopic, newActivationEvent("a1").serialize)
+      publishStringMessageToKafka(
+        KamonConsumer.userEventTopic,
+        newActivationEvent("whisk.system/apimgmt/createApi").serialize)
+
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
       sleep(1.second, "sleeping for Kamon reporters to get invoked")
-      TestReporter.counter("activations").get.value shouldBe 1
+      TestReporter.counter("openwhisk.counter.container.activations").get.value shouldBe 1
+      TestReporter
+        .counter("openwhisk.counter.container.activations")
+        .get
+        .tags
+        .find(_._2 == "whisk.system")
+        .size shouldBe 1
+      TestReporter
+        .counter("openwhisk.counter.container.activations")
+        .get
+        .tags
+        .find(_._2 == "apimgmt/createApi")
+        .size shouldBe 1
+      TestReporter.counter("openwhisk.counter.container.activations").get.tags.find(_._2 == "nodejs:6").size shouldBe 1
+      TestReporter.counter("openwhisk.counter.container.activations").get.tags.find(_._2 == "256").size shouldBe 1
+      TestReporter.counter("openwhisk.counter.container.activations").get.tags.find(_._2 == "2").size shouldBe 1
+      TestReporter.counter("openwhisk.counter.container.coldStarts").get.value shouldBe 0
+
+      TestReporter.histogram("openwhisk.histogram.container.waitTime").get.distribution.count shouldBe 1
+      TestReporter.histogram("openwhisk.histogram.container.initTime").get.distribution.count shouldBe 1
+      TestReporter.histogram("openwhisk.histogram.container.duration").get.distribution.count shouldBe 1
+      TestReporter
+        .histogram("openwhisk.histogram.container.duration")
+        .get
+        .tags
+        .find(_._2 == "whisk.system")
+        .size shouldBe 1
+      TestReporter
+        .histogram("openwhisk.histogram.container.duration")
+        .get
+        .tags
+        .find(_._2 == "apimgmt/createApi")
+        .size shouldBe 1
+      TestReporter.histogram("openwhisk.histogram.container.duration").get.tags.find(_._2 == "nodejs:6").size shouldBe 1
+      TestReporter.histogram("openwhisk.histogram.container.duration").get.tags.find(_._2 == "256").size shouldBe 1
     }
   }
 
-  private def newActivationEvent(name: String, kind: String = "nodejs") =
+  private def newActivationEvent(name: String, kind: String = "nodejs:6") =
     EventMessage(
       "test",
-      Activation(name, 200, 3, 7, 11, kind, false, 256, None),
+      Activation(name, 2, 3, 0, 11, kind, false, 256, None),
       "testuser",
       "testNS",
       "test",
@@ -89,6 +127,10 @@ class KamonConsumerTests extends KafkaSpecBase with BeforeAndAfterEach {
 
     def counter(name: String) = {
       snapshotAccumulator.peek().metrics.counters.find(_.name == name)
+    }
+
+    def histogram(name: String) = {
+      snapshotAccumulator.peek().metrics.histograms.find(_.name == name)
     }
   }
 }
