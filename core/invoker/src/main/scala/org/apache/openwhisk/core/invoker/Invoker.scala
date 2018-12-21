@@ -64,6 +64,7 @@ object Invoker {
   }
 
   def main(args: Array[String]): Unit = {
+    Kamon.loadReportersFromConfig()
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
