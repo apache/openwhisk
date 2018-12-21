@@ -81,7 +81,7 @@ MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 
 You can run the simulation with (in OPENWHISK_HOME)
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ApiV1Simulation
+OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
 ```
 
 ##### Latency Simulation
@@ -119,7 +119,7 @@ for each kind by adding the kind as prefix in upper case, like `JAVA_MEAN_RESPON
 
 You can run the simulation with (in OPENWHISK_HOME)
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" MEAN_RESPONSE_TIME="20" API_KEY="UUID:KEY" ./gradlew gatlingRun-LatencySimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" MEAN_RESPONSE_TIME="20" API_KEY="UUID:KEY" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
 ```
 
 ##### BlockingInvokeOneActionSimulation
@@ -150,7 +150,7 @@ MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 
 You can run the simulation with
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-BlockingInvokeOneActionSimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
 ```
 
 ##### ColdBlockingInvokeSimulation
@@ -181,5 +181,5 @@ MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 
 You can run the simulation with
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" USERS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ColdBlockingInvokeSimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" USERS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
 ```
