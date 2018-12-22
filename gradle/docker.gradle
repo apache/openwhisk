@@ -54,7 +54,7 @@ if(project.hasProperty('dockerHost')) {
 }
 
 if(project.hasProperty('dockerBuildArgs')) {
-    dockerBuildArgs.each { arg  ->
+    dockerBuildArgs.tokenize().each { arg  ->
         dockerBuildArg += ['--build-arg', arg]
     }
 }
@@ -101,7 +101,7 @@ task distDockerCoverage() {
 def prepareBuildArgs(List buildArgs) {
     def result = ['build']
     if(project.hasProperty('dockerBuildArgs')) {
-        buildArgs.addAll(dockerBuildArgs)
+        buildArgs.addAll(dockerBuildArgs.tokenize())
     }
     buildArgs.each {arg ->
         result += ['--build-arg', arg]
