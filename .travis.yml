@@ -16,12 +16,12 @@
 #
 
 sudo: required
-
-group: deprecated-2017Q3
-
+dist: xenial
 language: scala
 scala:
    - 2.12.7
+jdk:
+  - openjdk8
 
 services:
   - docker
@@ -57,8 +57,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
-  - pip install --upgrade pip setuptools six
-  - pip3 install --upgrade pip setuptools six
+  - sudo apt-get install -y --no-install-recommends python3-pip
 
 install:
   - ./tools/travis/setup.sh
