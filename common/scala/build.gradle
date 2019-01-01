@@ -67,7 +67,7 @@ dependencies {
     compile 'io.kamon:kamon-core_2.12:0.6.7'
     compile 'io.kamon:kamon-statsd_2.12:0.6.7'
     //for mesos
-    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.15'
+    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.17'
 
     //tracing support
     compile 'io.opentracing:opentracing-api:0.31.0'
