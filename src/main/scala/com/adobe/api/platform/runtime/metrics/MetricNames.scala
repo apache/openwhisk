@@ -12,11 +12,14 @@ governing permissions and limitations under the License.
 
 package com.adobe.api.platform.runtime.metrics
 
-object MetricNames {
-  val activationMetric = "openwhisk_action_activations"
-  val coldStartMetric = "openwhisk_action_coldStarts"
-  val waitTimeMetric = "openwhisk_action_waitTime"
-  val initTimeMetric = "openwhisk_action_initTime"
-  val durationMetric = "openwhisk_action_duration"
-  val statusMetric = "openwhisk_action_status"
+trait MetricNames {
+  val actionNamespace = "namespace"
+  val actionName = "action"
+
+  def activationMetric: String
+  def coldStartMetric: String
+  def waitTimeMetric: String
+  def initTimeMetric: String
+  def durationMetric: String
+  def statusMetric: String
 }

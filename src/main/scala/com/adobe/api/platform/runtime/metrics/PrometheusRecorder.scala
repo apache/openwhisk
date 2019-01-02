@@ -19,23 +19,32 @@ import akka.http.scaladsl.model.{HttpEntity, MessageEntity}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.adobe.api.platform.runtime.metrics.Activation.getNamespaceAndActionName
-import com.adobe.api.platform.runtime.metrics.MetricNames._
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Histogram}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 
-object PrometheusRecorder extends MetricRecorder with PrometheusExporter {
+trait PrometheusMetricNames extends MetricNames {
+  val activationMetric = "openwhisk_action_activations_total"
+  val coldStartMetric = "openwhisk_action_coldStarts_total"
+  val waitTimeMetric = "openwhisk_action_waitTime_seconds"
+  val initTimeMetric = "openwhisk_action_initTime_seconds"
+  val durationMetric = "openwhisk_action_duration_seconds"
+  val statusMetric = "openwhisk_action_status"
+}
+
+object PrometheusRecorder extends MetricRecorder with PrometheusExporter with PrometheusMetricNames {
   private val metrics = new TrieMap[String, PrometheusMetrics]
-  private val activationCounter = counter(activationMetric, "Activation Count", "namespace", "action")
-  private val coldStartCounter = counter(coldStartMetric, "Cold start counts", "namespace", "action")
-  private val statusCounter = counter(statusMetric, "Activation failure status type", "namespace", "action", "status")
-  private val waitTimeHisto = histogram(waitTimeMetric, "Internal system hold time", "namespace", "action")
+  private val activationCounter = counter(activationMetric, "Activation Count", actionNamespace, actionName)
+  private val coldStartCounter = counter(coldStartMetric, "Cold start counts", actionNamespace, actionName)
+  private val statusCounter =
+    counter(statusMetric, "Activation failure status type", actionNamespace, actionName, "status")
+  private val waitTimeHisto = histogram(waitTimeMetric, "Internal system hold time", actionNamespace, actionName)
   private val initTimeHisto =
-    histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", "namespace", "action")
+    histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", actionNamespace, actionName)
   private val durationHisto =
-    histogram(durationMetric, "Actual time the action code was running", "namespace", "action")
+    histogram(durationMetric, "Actual time the action code was running", actionNamespace, actionName)
 
   private val metricSource = createSource()
 

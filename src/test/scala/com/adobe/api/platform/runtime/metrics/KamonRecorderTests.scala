@@ -22,12 +22,11 @@ import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
-import com.adobe.api.platform.runtime.metrics.MetricNames._
 
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach {
+class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with KamonMetricNames {
   val sleepAfterProduce: FiniteDuration = 4.seconds
   var reporterReg: Registration = _
 
@@ -119,7 +118,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach {
     override def stop(): Unit = {}
     override def reconfigure(config: Config): Unit = {}
 
-    def reset() = {
+    def reset(): Unit = {
       snapshotAccumulator = new PeriodSnapshotAccumulator(Duration.ofDays(1), Duration.ZERO)
     }
 

@@ -12,7 +12,6 @@ governing permissions and limitations under the License.
 
 package com.adobe.api.platform.runtime.metrics
 
-import com.adobe.api.platform.runtime.metrics.MetricNames._
 import io.prometheus.client.CollectorRegistry
 import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
@@ -22,7 +21,7 @@ import org.scalatest.junit.JUnitRunner
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach {
+class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with PrometheusMetricNames {
   val sleepAfterProduce: FiniteDuration = 4.seconds
 
   behavior of "PrometheusConsumer"

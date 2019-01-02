@@ -13,13 +13,21 @@ governing permissions and limitations under the License.
 package com.adobe.api.platform.runtime.metrics
 
 import com.adobe.api.platform.runtime.metrics.Activation.getNamespaceAndActionName
-import com.adobe.api.platform.runtime.metrics.MetricNames._
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 
 import scala.collection.concurrent.TrieMap
 
-object KamonRecorder extends MetricRecorder {
+trait KamonMetricNames extends MetricNames {
+  val activationMetric = "openwhisk.action.activations"
+  val coldStartMetric = "openwhisk.action.coldStarts"
+  val waitTimeMetric = "openwhisk.action.waitTime"
+  val initTimeMetric = "openwhisk.action.initTime"
+  val durationMetric = "openwhisk.action.duration"
+  val statusMetric = "openwhisk.action.status"
+}
+
+object KamonRecorder extends MetricRecorder with KamonMetricNames {
   private val metrics = new TrieMap[String, KamonMetrics]
 
   def processEvent(activation: Activation): Unit = {
@@ -34,7 +42,7 @@ object KamonRecorder extends MetricRecorder {
   }
 
   case class KamonMetrics(namespace: String, action: String) {
-    private val tags = Map("namespace" -> namespace, "action" -> action)
+    private val tags = Map(`actionNamespace` -> namespace, `actionName` -> action)
 
     private val activations = Kamon.counter(activationMetric).refine(tags)
     private val coldStarts = Kamon.counter(coldStartMetric).refine(tags)
