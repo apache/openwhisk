@@ -44,7 +44,8 @@ object EventMessageBody extends DefaultJsonProtocol {
  * @param source Originating source like invoker or controller (with id)
  * @param body Event body which varies based on `eventType`
  * @param subject
- * @param namespace
+ * @param namespace namespace of the user for whom the actual activation flow started. This may not be
+ *                  same as the namespace of actual action which got executed.
  * @param userId user uuid
  * @param eventType type of event. Currently 2 `Activation` and `Metric`
  * @param timestamp time when the event is produced
@@ -66,6 +67,29 @@ object EventMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
 
+/**
+ *
+ * Activation records the actual activation related stats
+ *
+ * TODO - Have a way to record totalTime for conductors
+ *
+ * @param name the fully qualified name. It does not include the version
+ * @param statusCode activation response status. See `status` method below
+ * @param duration actual time the action code was running.
+ *                 1. For composition it records the actual user time i.e. duration for which all sub actions executed
+ *                 and does not record the actual total time of the whole composition
+ * @param waitTime internal system hold time.
+ *                 1. For sequences the waitTime is not recorded for intermediate steps. See comment in
+ *                 `ContainerProxy#constructWhiskActivation`
+ *                 2. For composition - Its zero for top level action
+ * @param initTime time it took to initialize an action, e.g. docker init
+ *                 1. For composition and sequences - Its zero for top level action
+ * @param kind
+ * @param conductor true for conductor backed actions
+ * @param memory maximum memory allowed for action container
+ * @param causedBy contains the "causedBy" annotation (can be "sequence" or nothing at the moment)
+ *                 1. For sub actions in a sequence this is set. Its not set for top level activation
+ */
 case class Activation(name: String,
                       statusCode: Int,
                       duration: Long,
@@ -76,14 +100,29 @@ case class Activation(name: String,
                       memory: Int,
                       causedBy: Option[String])
     extends EventMessageBody {
+  import Activation._
   val typeName = Activation.typeName
   def serialize = toJson.compactPrint
   def toJson = Activation.activationFormat.write(this)
+
+  def status: String = statusCode match {
+    // Defined in ActivationResponse
+    case 0 => statusSuccess
+    case 1 => statusApplicationError
+    case 2 => statusDeveloperError
+    case 3 => statusInternalError
+    case x => x.toString
+  }
 }
 
 object Activation extends DefaultJsonProtocol {
   val typeName = "Activation"
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
+
+  val statusSuccess = "success"
+  val statusApplicationError = "application_error"
+  val statusDeveloperError = "developer_error"
+  val statusInternalError = "internal_error"
 
   implicit val activationFormat =
     jsonFormat(
@@ -97,6 +136,15 @@ object Activation extends DefaultJsonProtocol {
       "conductor",
       "memory",
       "causedBy")
+
+  /**
+   * Extract namespace and action from name
+   * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
+   */
+  def getNamespaceAndActionName(name: String): (String, String) = {
+    val nameArr = name.split("/", 2)
+    (nameArr(0), nameArr(1))
+  }
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {

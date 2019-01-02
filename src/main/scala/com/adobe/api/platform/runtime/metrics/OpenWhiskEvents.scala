@@ -15,12 +15,9 @@ package com.adobe.api.platform.runtime.metrics
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.ContentType
 import akka.kafka.ConsumerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
-import kamon.Kamon
-import kamon.prometheus.PrometheusReporter
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig.loadConfigOrThrow
@@ -28,18 +25,17 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.Future
 
 object OpenWhiskEvents extends SLF4JLogging {
-  val textV4 = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
 
-  case class MetricConfig(port: Int)
+  case class MetricConfig(port: Int, enableKamon: Boolean)
 
   def start(config: Config)(implicit system: ActorSystem,
                             materializer: ActorMaterializer): Future[Http.ServerBinding] = {
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "user-events")
-    val prometheus = new PrometheusReporter()
-    Kamon.addReporter(prometheus)
     val port = metricConfig.port
-    val kamonConsumer = KamonConsumer(eventConsumerSettings(defaultConsumerConfig(config)))
-    val api = new EventsApi(kamonConsumer, prometheus)
+    val recorders = if (metricConfig.enableKamon) Seq(PrometheusRecorder, KamonRecorder) else Seq(KamonRecorder)
+    //Make KamonConsumer configurable
+    val kamonConsumer = EventConsumer(eventConsumerSettings(defaultConsumerConfig(config)), recorders)
+    val api = new PrometheusEventsApi(kamonConsumer, PrometheusRecorder)
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
       kamonConsumer.shutdown()
     }
@@ -54,5 +50,4 @@ object OpenWhiskEvents extends SLF4JLogging {
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
   def defaultConsumerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.consumer")
-
 }
