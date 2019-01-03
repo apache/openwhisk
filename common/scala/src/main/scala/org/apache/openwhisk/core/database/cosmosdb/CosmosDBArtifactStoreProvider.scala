@@ -39,7 +39,7 @@ case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
 
 object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference
-  private var clientRef: ReferenceCounted[ClientHolder] = _
+  private val clients = collection.mutable.Map[CosmosDBConfig, ReferenceCounted[ClientHolder]]()
 
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
@@ -101,10 +101,14 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
    * Synchronization is required to ensure concurrent init of various store instances share same ref instance
    */
   private def getOrCreateReference(config: CosmosDBConfig) = synchronized {
-    if (clientRef == null || clientRef.isClosed) {
-      clientRef = createReference(config)
+    val clientRef = clients.getOrElseUpdate(config, createReference(config))
+    if (clientRef.isClosed) {
+      val newRef = createReference(config)
+      clients.put(config, newRef)
+      newRef.reference()
+    } else {
+      clientRef.reference()
     }
-    clientRef.reference()
   }
 
   private def createReference(config: CosmosDBConfig) =
