@@ -30,7 +30,7 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
   private val dbsToDelete = ListBuffer[Database]()
 
   lazy val storeConfigTry = Try { loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb) }
-  lazy val client = CosmosDBUtil.createClient(storeConfig)
+  lazy val client = storeConfig.createClient()
   val useExistingDB = java.lang.Boolean.getBoolean("whisk.cosmosdb.useExistingDB")
 
   def storeConfig = storeConfigTry.get

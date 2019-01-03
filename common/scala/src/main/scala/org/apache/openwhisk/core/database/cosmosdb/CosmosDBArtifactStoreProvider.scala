@@ -22,14 +22,12 @@ import java.io.Closeable
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
-import spray.json.RootJsonFormat
 import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.core.database._
-import pureconfig._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.createClient
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
+import pureconfig._
+import spray.json.RootJsonFormat
 
 import scala.reflect.ClassTag
 
@@ -107,6 +105,6 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   }
 
   private def createReference(config: CosmosDBConfig) =
-    new ReferenceCounted[ClientHolder](ClientHolder(createClient(config)))
+    new ReferenceCounted[ClientHolder](ClientHolder(config.createClient()))
 
 }

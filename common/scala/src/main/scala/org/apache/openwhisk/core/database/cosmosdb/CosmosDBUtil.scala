@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
-import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 
 import scala.collection.immutable.Iterable
@@ -79,8 +78,6 @@ private[cosmosdb] trait CosmosDBUtil {
     case m: Map[_, _] => asJsonLikeString(m)
     case x            => x.toString
   }
-
-  def createClient(config: CosmosDBConfig): AsyncDocumentClient = config.createClient()
 
   /**
    * CosmosDB id considers '/', '\' , '?' and '#' as invalid. EntityNames can include '/' so
