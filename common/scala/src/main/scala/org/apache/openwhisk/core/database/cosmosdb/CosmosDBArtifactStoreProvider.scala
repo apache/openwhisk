@@ -33,8 +33,6 @@ import org.apache.openwhisk.core.entity.{DocumentReader, WhiskActivation, WhiskA
 
 import scala.reflect.ClassTag
 
-case class CosmosDBConfig(endpoint: String, key: String, db: String, throughput: Int = 1000)
-
 case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
   override def close(): Unit = client.close()
 }
