@@ -18,13 +18,14 @@
 package org.apache.openwhisk.core.loadBalancer
 
 import scala.concurrent.Future
-import akka.actor.ActorSystem
+import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.spi.Spi
+import scala.concurrent.duration._
 
 /**
  * Describes an abstract invoker. An invoker is a local container pool manager that
@@ -85,6 +86,29 @@ trait LoadBalancerProvider extends Spi {
   def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
                                                                          logging: Logging,
                                                                          materializer: ActorMaterializer): LoadBalancer
+
+  /** Return default FeedFactory */
+  def createFeedFactory(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                                  logging: Logging): FeedFactory = {
+
+    val activeAckTopic = s"completed${instance.asString}"
+    val maxActiveAcksPerPoll = 128
+    val activeAckPollDuration = 1.second
+
+    new FeedFactory {
+      def createFeed(f: ActorRefFactory, provider: MessagingProvider, acker: Array[Byte] => Future[Unit]) = {
+        f.actorOf(Props {
+          new MessageFeed(
+            "activeack",
+            logging,
+            provider.getConsumer(whiskConfig, activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll),
+            maxActiveAcksPerPoll,
+            activeAckPollDuration,
+            acker)
+        })
+      }
+    }
+  }
 }
 
 /** Exception thrown by the loadbalancer */
