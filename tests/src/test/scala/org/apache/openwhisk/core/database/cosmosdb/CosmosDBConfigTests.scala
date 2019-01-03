@@ -26,7 +26,36 @@ import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBConfigTests extends FlatSpec with Matchers {
+  val globalConfig = ConfigFactory.defaultApplication()
   behavior of "CosmosDB Config"
+
+  it should "match SDK defaults" in {
+    val config = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  endpoint = "http://localhost"
+      |  key = foo
+      |  db  = openwhisk
+      | }
+         """.stripMargin).withFallback(globalConfig)
+    val cosmos = CosmosDBConfig(config, "WhiskAuth")
+
+    //Cosmos SDK does not have equals defined so match them explicitly
+    val policy = cosmos.connectionPolicy.asJava
+    val defaultPolicy = JConnectionPolicy.GetDefault()
+    policy.getConnectionMode shouldBe defaultPolicy.getConnectionMode
+    policy.getEnableEndpointDiscovery shouldBe defaultPolicy.getEnableEndpointDiscovery
+    policy.getIdleConnectionTimeoutInMillis shouldBe defaultPolicy.getIdleConnectionTimeoutInMillis
+    policy.getMaxPoolSize shouldBe defaultPolicy.getMaxPoolSize
+    policy.getPreferredLocations shouldBe defaultPolicy.getPreferredLocations
+    policy.getRequestTimeoutInMillis shouldBe defaultPolicy.getRequestTimeoutInMillis
+    policy.isUsingMultipleWriteLocations shouldBe defaultPolicy.isUsingMultipleWriteLocations
+
+    val retryOpts = policy.getRetryOptions
+    val defaultOpts = defaultPolicy.getRetryOptions
+
+    retryOpts.getMaxRetryAttemptsOnThrottledRequests shouldBe defaultOpts.getMaxRetryAttemptsOnThrottledRequests
+    retryOpts.getMaxRetryWaitTimeInSeconds shouldBe defaultOpts.getMaxRetryWaitTimeInSeconds
+  }
 
   it should "work with generic config" in {
     val config = ConfigFactory.parseString(s"""
@@ -35,9 +64,9 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       |  key = foo
       |  db  = openwhisk
       | }
-         """.stripMargin)
+         """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
-    cosmos shouldBe CosmosDBConfig("http://localhost", "foo", "openwhisk")
+    cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _) => }
   }
 
   it should "work with extended config" in {
@@ -50,7 +79,7 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       |     max-pool-size = 42
       |  }
       | }
-         """.stripMargin)
+         """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
     cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _) => }
 
@@ -83,7 +112,7 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       |     }
       |  }
       | }
-         """.stripMargin)
+         """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
     cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _) => }
 

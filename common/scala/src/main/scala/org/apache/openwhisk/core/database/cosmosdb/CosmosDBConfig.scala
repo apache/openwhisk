@@ -16,9 +16,6 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb
-import java.util.concurrent.TimeUnit
-
-import com.microsoft.azure.cosmosdb.ConnectionPolicy.GetDefault
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.microsoft.azure.cosmosdb.{
   ConsistencyLevel,
@@ -36,9 +33,9 @@ import scala.concurrent.duration._
 case class CosmosDBConfig(endpoint: String,
                           key: String,
                           db: String,
-                          throughput: Int = 1000,
-                          consistencyLevel: ConsistencyLevel = ConsistencyLevel.Session,
-                          connectionPolicy: ConnectionPolicy = ConnectionPolicy()) {
+                          throughput: Int,
+                          consistencyLevel: ConsistencyLevel,
+                          connectionPolicy: ConnectionPolicy) {
 
   def createClient(): AsyncDocumentClient = {
     new AsyncDocumentClient.Builder()
@@ -50,23 +47,21 @@ case class CosmosDBConfig(endpoint: String,
   }
 }
 
-case class ConnectionPolicy(maxPoolSize: Int = GetDefault().getMaxPoolSize,
-                            preferredLocations: Seq[String] = Seq.empty,
-                            usingMultipleWriteLocations: Boolean = GetDefault().isUsingMultipleWriteLocations,
-                            retryOptions: Option[RetryOptions] = None) {
+case class ConnectionPolicy(maxPoolSize: Int,
+                            preferredLocations: Seq[String],
+                            usingMultipleWriteLocations: Boolean,
+                            retryOptions: RetryOptions) {
   def asJava: JConnectionPolicy = {
     val p = new JConnectionPolicy
     p.setMaxPoolSize(maxPoolSize)
     p.setUsingMultipleWriteLocations(usingMultipleWriteLocations)
     p.setPreferredLocations(preferredLocations.asJava)
-    retryOptions.foreach(r => p.setRetryOptions(r.asJava))
+    p.setRetryOptions(retryOptions.asJava)
     p
   }
 }
 
-case class RetryOptions(
-  maxRetryAttemptsOnThrottledRequests: Int = GetDefault().getRetryOptions.getMaxRetryAttemptsOnThrottledRequests,
-  maxRetryWaitTime: Duration = Duration(GetDefault().getRetryOptions.getMaxRetryWaitTimeInSeconds, TimeUnit.SECONDS)) {
+case class RetryOptions(maxRetryAttemptsOnThrottledRequests: Int, maxRetryWaitTime: Duration) {
   def asJava: JRetryOptions = {
     val o = new JRetryOptions
     o.setMaxRetryAttemptsOnThrottledRequests(maxRetryAttemptsOnThrottledRequests)
