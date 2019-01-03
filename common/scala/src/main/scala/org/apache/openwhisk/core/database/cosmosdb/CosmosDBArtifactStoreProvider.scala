@@ -22,9 +22,11 @@ import java.io.Closeable
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database._
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
 import pureconfig._
 import spray.json.RootJsonFormat
@@ -37,7 +39,6 @@ case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
 
 object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference
-  private lazy val config = loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb)
   private var clientRef: ReferenceCounted[ClientHolder] = _
 
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
@@ -46,6 +47,8 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
+    val tag = implicitly[ClassTag[D]]
+    val config = CosmosDBConfig(ConfigFactory.load(), tag.runtimeClass.getSimpleName)
     makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore())
   }
 
