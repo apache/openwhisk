@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,26 +16,8 @@
 # limitations under the License.
 #
 
-sudo: required
+# Docker push for Travis-CI.
 
-services: docker
-
-# specific cache configuration for gradle based builds
-# see: https://docs.travis-ci.com/user/languages/java/#caching
-before_cache:
-  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
-
-cache:
-  directories:
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
-
-script:
-  - ./tools/travis/build.sh
-
-deploy:
-  provider: script
-  script: ./tools/travis/docker_push.sh
-  on:
-    branch: master
+echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+docker build -t adobeapiplatform/openwhisk-user-events .
+docker push adobeapiplatform/openwhisk-user-events
