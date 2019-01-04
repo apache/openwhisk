@@ -26,11 +26,16 @@ Compresses the contents of a folder and upload the result to Box.
  */
 """
 
+from __future__ import print_function
+
 import os
 import subprocess
 import sys
 import tempfile
 import urllib
+import humanize
+import requests
+import hashlib
 
 
 def upload_file(local_file, remote_file):
@@ -38,9 +43,15 @@ def upload_file(local_file, remote_file):
     if remote_file[0] == '/':
         remote_file = remote_file[1:]
 
-    subprocess.call(["curl", "-X", "POST", "--data-binary", "@%s" % local_file,
-                     "http://wsklogfwd.mybluemix.net/upload?%s" %
-                     urllib.urlencode({"name": remote_file})])
+    url = "http://DamCYhF8.mybluemix.net/upload?%s" % \
+        urllib.urlencode({"name": remote_file})
+
+    r = requests.post(url,
+            headers={"Content-Type": "application/gzip"},
+            data=open(local_file, 'rb'))
+
+    print("Posting result", r)
+    print(r.text)
 
 
 def tar_gz_dir(dir_path):
@@ -48,6 +59,19 @@ def tar_gz_dir(dir_path):
     _, dst = tempfile.mkstemp(suffix=".tar.gz")
     subprocess.call(["tar", "-cvzf", dst, dir_path])
     return dst
+
+
+def print_tarball_size(tarball):
+    """Get and print the size of the tarball"""
+    tarballsize = os.path.getsize(tarball)
+    print("Size of tarball", tarball, "is", humanize.naturalsize(tarballsize))
+
+    sha256_hash = hashlib.sha256()
+    with open(tarball, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    print("SHA256 hash of tarball is", sha256_hash.hexdigest())
+
 
 if __name__ == "__main__":
     dir_path = sys.argv[1]
@@ -59,5 +83,7 @@ if __name__ == "__main__":
 
     print("Compressing logs dir...")
     tar = tar_gz_dir(dir_path)
+    print_tarball_size(tar)
+
     print("Uploading to Box...")
     upload_file(tar, dst_path)
