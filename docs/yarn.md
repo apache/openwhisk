@@ -29,7 +29,7 @@ To enable YARNContainerFactory, use the following TypeSafe Config properties
 | `whisk.spi.ContainerFactoryProvider` | required | enable the YARNContainerFactory | org.apache.openwhisk.core.yarn.YARNContainerFactoryProvider |
 | `whisk.yarn.masterUrl` | required | YARN Resource Manager endpoint to be accessed from the invoker |  http://localhost:8088 |
 | `whisk.yarn.yarnLinkLogMessage` | optional (default true) | Display a log message with a link to YARN when using the default LogStore (or no log message) |  true |
-| `whisk.yarn.serviceName` | optional (default openwhisk) | Name of the YARN Service created by the invoker |  openwhisk-action-service |
+| `whisk.yarn.serviceName` | optional (default openwhisk) | Name of the YARN Service created by the invoker. The invoker number will be appended. |  openwhisk-action-service |
 | `whisk.yarn.authType` | optional (default simple) | Authentication type for YARN |  simple or kerberos |
 | `whisk.yarn.kerberosPrincipal` | optional (default "") | Kerberos principal to use for the YARN service. Note: must include a hostname |  user1/hostA@REALM |
 | `whisk.yarn.kerberosKeytabURI` | optional (default "") | Location of keytab accessible by all node managers |  hdfs:/user/user1/user1_hostA.keytab |
@@ -49,6 +49,9 @@ CONFIG_whisk_yarn_queue=default
 CONFIG_whisk_yarn_memory=256
 CONFIG_whisk_yarn_cpus=1
 ```
+
+## HA
+HA is supported. Each invoker will create its own YARN service with its invoker number appended to the configured service name (e.g. openwhisk-action-service-0).
 
 ## Security
 By default, OpenWhisk does not authenticate when communicating with YARN. Optionally, Kerberos/SPNEGO authentication can be used via JaaS with a few steps:
@@ -79,5 +82,3 @@ com.sun.security.jgss.initiate {
 * Logs are not collected from action containers.
 
   For now, the YARN public URL will be included in the logs retrieved via the wsk CLI. Once log retrieval from external sources is enabled, logs from yarn containers would have to be routed to the external source, and then retrieved from that source.
-
-* No HA or failover support (single invoker per cluster).

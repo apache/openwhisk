@@ -47,11 +47,12 @@ object YARNContainerFactoryProvider extends ContainerFactoryProvider {
                         config: WhiskConfig,
                         instance: InvokerInstanceId,
                         parameters: Map[String, Set[String]]): ContainerFactory =
-    new YARNContainerFactory(config, actorSystem, logging, parameters)
+    new YARNContainerFactory(actorSystem, logging, config, instance, parameters)
 }
-class YARNContainerFactory(config: WhiskConfig,
-                           actorSystem: ActorSystem,
+class YARNContainerFactory(actorSystem: ActorSystem,
                            logging: Logging,
+                           config: WhiskConfig,
+                           instance: InvokerInstanceId,
                            parameters: Map[String, Set[String]],
                            containerArgs: ContainerArgsConfig =
                              loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
@@ -59,7 +60,9 @@ class YARNContainerFactory(config: WhiskConfig,
     extends ContainerFactory {
 
   private val yarnServiceActor =
-    actorSystem.actorOf(Props(new YARNServiceActor(yarnConfig, logging, actorSystem)), name = "YARNServiceActor")
+    actorSystem.actorOf(
+      Props(new YARNServiceActor(actorSystem, logging, yarnConfig, instance)),
+      name = "YARNServiceActor")
 
   val serviceStartTimeoutMS = 60000
   val containerStartTimeoutMS = 60000

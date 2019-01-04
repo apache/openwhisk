@@ -22,6 +22,7 @@ import akka.http.scaladsl.model.{HttpMethod, HttpMethods, StatusCode, StatusCode
 import akka.stream.ActorMaterializer
 import java.nio.charset.StandardCharsets
 import java.security.Principal
+
 import javax.security.sasl.AuthenticationException
 import org.apache.commons.io.IOUtils
 import org.apache.http.auth.{AuthSchemeProvider, AuthScope, Credentials}
@@ -34,9 +35,10 @@ import org.apache.http.impl.auth.SPNegoSchemeFactory
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder, HttpClients}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.containerpool.{Container, ContainerAddress, ContainerId}
-import org.apache.openwhisk.core.entity.ExecManifest
+import org.apache.openwhisk.core.entity.{ExecManifest, InvokerInstanceId}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.yarn.YARNServiceActor.{CreateContainer, CreateService, RemoveContainer, RemoveService}
+
 import scala.concurrent.ExecutionContext
 import spray.json._
 
@@ -90,7 +92,8 @@ object YARNServiceActor {
   val SIMPLEAUTH = "simple"
   val KERBEROSAUTH = "kerberos"
 }
-class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: ActorSystem) extends Actor {
+class YARNServiceActor(actorSystem: ActorSystem, logging: Logging, yarnConfig: YARNConfig, instance: InvokerInstanceId)
+    extends Actor {
 
   case class httpresponse(statusCode: StatusCode, content: String)
 
@@ -100,6 +103,8 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
   val runCommand = ""
   val version = "1.0.0"
   val description = "OpenWhisk Action Service"
+
+  val serviceName = yarnConfig.serviceName + "-" + instance.toInt;
 
   implicit val as: ActorSystem = actorSystem
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -156,7 +161,7 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
         KerberosPrincipalDefinition(Some(yarnConfig.kerberosPrincipal), Some(yarnConfig.kerberosKeytab)))
 
     val service = ServiceDefinition(
-      yarnConfig.serviceName,
+      serviceName,
       Some(version),
       Some(description),
       "STABLE",
@@ -190,7 +195,7 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
     val body = "{\"number_of_containers\":" + newContainerCount + "}"
     val response = submitRequestWithAuth(
       HttpMethods.PUT,
-      s"${yarnConfig.masterUrl}/app/v1/services/${yarnConfig.serviceName}/components/${imageName.name}",
+      s"${yarnConfig.masterUrl}/app/v1/services/${serviceName}/components/${imageName.name}",
       body)
     response match {
       case httpresponse(StatusCodes.OK, content) =>
@@ -235,7 +240,7 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
       val body = "{\"number_of_containers\":" + (count - 1) + "}"
       val response = submitRequestWithAuth(
         HttpMethods.PUT,
-        s"${yarnConfig.masterUrl}/app/v1/services/${yarnConfig.serviceName}/components/${imageName.name}",
+        s"${yarnConfig.masterUrl}/app/v1/services/${serviceName}/components/${imageName.name}",
         body)
       response match {
         case httpresponse(StatusCodes.OK, content) =>
@@ -255,10 +260,8 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
   }
 
   def removeService(): Unit = {
-    val response: httpresponse = submitRequestWithAuth(
-      HttpMethods.DELETE,
-      s"${yarnConfig.masterUrl}/app/v1/services/${yarnConfig.serviceName}",
-      "")
+    val response: httpresponse =
+      submitRequestWithAuth(HttpMethods.DELETE, s"${yarnConfig.masterUrl}/app/v1/services/${serviceName}", "")
 
     response match {
       case httpresponse(StatusCodes.OK, _) =>
@@ -335,7 +338,7 @@ class YARNServiceActor(yarnConfig: YARNConfig, logging: Logging, actorSystem: Ac
 
   def downloadServiceDefinition(): ServiceDefinition = {
     val response: httpresponse =
-      submitRequestWithAuth(HttpMethods.GET, s"${yarnConfig.masterUrl}/app/v1/services/${yarnConfig.serviceName}", "")
+      submitRequestWithAuth(HttpMethods.GET, s"${yarnConfig.masterUrl}/app/v1/services/${serviceName}", "")
 
     response match {
       case httpresponse(StatusCodes.OK, content) =>
