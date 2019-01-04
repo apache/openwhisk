@@ -68,6 +68,9 @@ dependencies {
     compile ('io.kamon:kamon-core_2.12:1.1.3') {
         exclude group: 'com.lihaoyi'
     }
+    compile ('io.kamon:kamon-prometheus_2.12:1.1.1'){
+        exclude group: 'org.nanohttpd'
+    }
     compile 'io.kamon:kamon-datadog_2.12:1.0.0'
     compile 'io.prometheus:simpleclient:0.6.0'
     compile 'io.prometheus:simpleclient_common:0.6.0'

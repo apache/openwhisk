@@ -14,14 +14,13 @@ package com.adobe.api.platform.runtime.metrics
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import scala.concurrent.duration.DurationInt
 import akka.testkit.TestKit
 import net.manub.embeddedkafka.EmbeddedKafka
+import org.scalatest._
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers, Suite}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 abstract class KafkaSpecBase
     extends TestKit(ActorSystem("test"))
@@ -32,6 +31,7 @@ abstract class KafkaSpecBase
     with EmbeddedKafka
     with IntegrationPatience
     with BeforeAndAfterAll
+    with BeforeAndAfterEach
     with Eventually
     with EventsTestHelper { this: Suite =>
   val log: Logger = LoggerFactory.getLogger(getClass)

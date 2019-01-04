@@ -18,6 +18,8 @@ import akka.http.scaladsl.Http
 import akka.kafka.ConsumerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
+import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig.loadConfigOrThrow
@@ -30,15 +32,22 @@ object OpenWhiskEvents extends SLF4JLogging {
 
   def start(config: Config)(implicit system: ActorSystem,
                             materializer: ActorMaterializer): Future[Http.ServerBinding] = {
+    Kamon.reconfigure(config)
+    val prometheusReporter = new PrometheusReporter()
+    Kamon.addReporter(prometheusReporter)
+
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "user-events")
-    val port = metricConfig.port
-    val recorders = if (metricConfig.enableKamon) Seq(PrometheusRecorder, KamonRecorder) else Seq(KamonRecorder)
-    //Make KamonConsumer configurable
-    val kamonConsumer = EventConsumer(eventConsumerSettings(defaultConsumerConfig(config)), recorders)
-    val api = new PrometheusEventsApi(kamonConsumer, PrometheusRecorder)
+
+    val prometheusRecorder = PrometheusRecorder(prometheusReporter)
+    val recorders = if (metricConfig.enableKamon) Seq(prometheusRecorder, KamonRecorder) else Seq(prometheusRecorder)
+    val eventConsumer = EventConsumer(eventConsumerSettings(defaultConsumerConfig(config)), recorders)
+
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
-      kamonConsumer.shutdown()
+      eventConsumer.shutdown()
     }
+
+    val port = metricConfig.port
+    val api = new PrometheusEventsApi(eventConsumer, prometheusRecorder)
     val httpBinding = Http().bindAndHandle(api.routes, "0.0.0.0", port)
     httpBinding.foreach(_ => log.info(s"Started the http server on http://localhost:$port"))(system.dispatcher)
     httpBinding

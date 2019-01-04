@@ -15,9 +15,11 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
+import kamon.Kamon
 import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import scala.concurrent.duration._
 
 import scala.util.Try
 
@@ -35,20 +37,32 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
            | akka.kafka.consumer.kafka-clients {
            |  bootstrap.servers = "localhost:$kafkaPort"
            | }
-           | 
+           | kamon {
+           |  metric {
+           |    tick-interval = 50 ms
+           |    optimistic-tick-alignment = no
+           |  }
+           | }
            | user-events {
            |  port = $httpPort
            | }
          """.stripMargin).withFallback(globalConfig)
 
       val binding = OpenWhiskEvents.start(config).futureValue
-      val res = ping("localhost", httpPort, "/ping")
+      val res = get("localhost", httpPort, "/ping")
       res shouldBe Some(StatusCodes.OK, "pong")
+
+      //Check if metrics using Kamon API gets included in consolidated Prometheus
+      Kamon.counter("fooTest").increment(42)
+      sleep(1.second)
+      val metricRes = get("localhost", httpPort, "/metrics")
+      metricRes.get._2 should include("fooTest")
+
       binding.unbind().futureValue
     }
   }
 
-  def ping(host: String, port: Int, path: String = "/") = {
+  def get(host: String, port: Int, path: String = "/") = {
     val response = Try {
       Http()
         .singleRequest(HttpRequest(uri = s"http://$host:$port$path"))
