@@ -264,13 +264,13 @@ apigateway:
 redis:
   version: 4.0
   port: 6379
-  password: openwhisk 
+  password: openwhisk
 
 linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 2.1
+  version: 2.3
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
