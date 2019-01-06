@@ -57,6 +57,20 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
+  - |
+    sudo sed -i -e 's!^ExecStart=.*$!ExecStart=/usr/bin/dockerd!' \
+        /lib/systemd/system/docker.service
+    grep ExecStart /lib/systemd/system/docker.service
+  - |
+    echo '{ "hosts": ["tcp://0.0.0.0:4243", "unix:///var/run/docker.sock"] }' |
+        sudo tee /etc/docker/daemon.json
+  - sudo systemctl daemon-reload
+  - |
+    sudo systemctl restart docker || {
+      systemctl status docker.service
+      sudo journalctl -xe
+      exit 1
+    }
   - sudo apt-get install -y --no-install-recommends python3-pip
 
 install:
