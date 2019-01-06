@@ -27,7 +27,9 @@ RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD openwhisk.yml \
-  -e "{ \"manifest_file\": \"$RUNTIMES_MANIFEST\", \"invoker_use_runc\": false }"
+  -e "{ \"manifest_file\": \"$RUNTIMES_MANIFEST\",
+      \"invoker_use_runc\": false,
+      \"limit_invocations_per_minute\": 1200 }"
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD routemgmt.yml
 
