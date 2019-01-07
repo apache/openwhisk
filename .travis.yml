@@ -33,8 +33,7 @@ cache:
 script:
   - ./tools/travis/build.sh
 
-deploy:
-  provider: script
-  script: ./tools/travis/docker_push.sh
-  on:
-    branch: master
+after_success:
+  - if [[ "$TRAVIS_BRANCH" == "master" ]]; then
+      ./tools/travis/docker_push.sh ;
+    fi

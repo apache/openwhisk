@@ -24,7 +24,7 @@ SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
-./gradlew --console=plain --scan checkScalafmtAll reportScoverage
+./gradlew --console=plain --scan checkScalafmtAll reportScoverage build
 
 bash <(curl -s https://codecov.io/bash)
 echo "Time taken for ${0##*/} is $SECONDS secs"
