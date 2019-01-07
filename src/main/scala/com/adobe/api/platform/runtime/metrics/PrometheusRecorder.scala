@@ -61,6 +61,11 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
     private val initTime = initTimeHisto.labels(namespace, action)
     private val duration = durationHisto.labels(namespace, action)
 
+    private val statusSuccess = statusCounter.labels(namespace, action, Activation.statusSuccess)
+    private val statusApplicationError = statusCounter.labels(namespace, action, Activation.statusApplicationError)
+    private val statusDeveloperError = statusCounter.labels(namespace, action, Activation.statusDeveloperError)
+    private val statusInternalError = statusCounter.labels(namespace, action, Activation.statusInternalError)
+
     def record(a: Activation): Unit = {
       activations.inc()
 
@@ -73,8 +78,12 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
       waitTime.observe(seconds(a.waitTime))
       duration.observe(seconds(a.duration))
 
-      if (a.statusCode != 0) {
-        statusCounter.labels(namespace, action, a.status).inc()
+      a.status match {
+        case Activation.statusSuccess          => statusSuccess.inc()
+        case Activation.statusApplicationError => statusApplicationError.inc()
+        case Activation.statusDeveloperError   => statusDeveloperError.inc()
+        case Activation.statusInternalError    => statusInternalError.inc()
+        case x                                 => statusCounter.labels(namespace, action, x).inc()
       }
     }
   }

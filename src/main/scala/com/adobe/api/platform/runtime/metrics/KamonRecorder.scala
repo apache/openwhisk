@@ -62,9 +62,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames {
       waitTime.record(a.waitTime)
       duration.record(a.duration)
 
-      if (a.statusCode != 0) {
-        Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
-      }
+      Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
     }
   }
 }
