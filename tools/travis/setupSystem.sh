@@ -20,13 +20,17 @@ set -e
 
 # Build script for Travis-CI.
 SECONDS=0
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+SCRIPTDIR=$(cd "$(dirname "$0")" && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
+LIMIT_IPM=${2:-60}
 
 cd $ROOTDIR/ansible
 
-$ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST"
+$ANSIBLE_CMD openwhisk.yml \
+  -e "{ \"manifest_file\": \"$RUNTIMES_MANIFEST\",
+      \"invoker_use_runc\": false,
+      \"limit_invocations_per_minute\": $LIMIT_IPM }"
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD routemgmt.yml
 
