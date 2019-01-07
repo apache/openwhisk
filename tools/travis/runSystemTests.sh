@@ -19,7 +19,7 @@
 
 set -e
 
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+SCRIPTDIR=$(cd "$(dirname "$0")" && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR/tools/travis
@@ -27,10 +27,10 @@ cd $ROOTDIR/tools/travis
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
 export GRADLE_COVERAGE=true
 
-./setupPrereq.sh /ansible/files/runtimes-nodeonly.json
+./setupPrereq.sh /ansible/files/runtimes-nodeonly.json 240
 
 ./distDocker.sh
 
-./setupSystem.sh /ansible/files/runtimes-nodeonly.json
+./setupSystem.sh /ansible/files/runtimes-nodeonly.json 240
 
 ./runTests.sh
