@@ -15,14 +15,31 @@
 # limitations under the License.
 #
 
-sudo: required
-
-group: deprecated-2017Q3
-
-language: scala
-scala:
-   - 2.12.7
-
+dist: xenial
+#
+#  As tempting as it is to make the language scala, using Gradle for build
+#  manages the Scala compiler, etc, so we're going with a baseline Travis
+#  installation.  The fewer moving parts, the better.
+#
+language: java
+#
+#  Use OpenJDK because certain language features were introduced to Java in
+#  later versions that conflict with Scala language features.  Specifically,
+#  OpenJDK 10/11 delivers a compile error:
+#
+#    /DockerClient.scala:164: value toSeq is not a member of java.util.stream.Stream[String]
+#        runCmd(cmd, config.timeouts.ps).map(_.lines.toSeq.map(ContainerId.apply))
+#                                                    ^
+jdk:
+  - openjdk8
+#
+#  Use the baseline docker installation as well, though we do have to hack
+#  the Ubuntu install (below) to ensure a TCP port is available to certain
+#  tests.
+#
+#  TODO: Locate where the TCP port is being used and convert to a
+#  volume-mounted Unix socket instead.
+#
 services:
   - docker
 
@@ -30,6 +47,7 @@ env:
   global:
     - ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
     - GRADLE_PROJS_SKIP=""
+    - DEBIAN_FRONTEND=noninteractive
 
 notifications:
   email: false
@@ -57,8 +75,18 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
-  - pip install --upgrade pip setuptools six
-  - pip3 install --upgrade pip setuptools six
+  #
+  #  This block changes the docker install to use daemon.json coniguration
+  #  file and to honor the TCP port.
+  #
+  - |
+    sudo sed -i -e 's!^ExecStart=.*$!ExecStart=/usr/bin/dockerd!' \
+        /lib/systemd/system/docker.service
+    echo '{ "hosts": ["tcp://0.0.0.0:4243", "unix:///var/run/docker.sock"] }' |
+        sudo tee /etc/docker/daemon.json
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+  - sudo apt-get install -y --no-install-recommends python3-pip
 
 install:
   - ./tools/travis/setup.sh
