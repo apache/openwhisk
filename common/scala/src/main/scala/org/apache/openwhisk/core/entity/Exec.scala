@@ -234,7 +234,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
 
   require(
     sizeLimit <= maxSize,
-    s"Executable code size limit specified by ${ConfigKeys.execSizeLimit} should not be more than max size of $maxSize")
+    s"Executable code size limit $sizeLimit specified by '${ConfigKeys.execSizeLimit}' should not be more than max size of $maxSize")
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic
