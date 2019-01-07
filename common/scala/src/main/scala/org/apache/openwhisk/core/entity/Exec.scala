@@ -229,7 +229,12 @@ protected[core] case class SequenceExecMetaData(components: Vector[FullyQualifie
 
 protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
 
+  val maxSize: ByteSize = 48.MB
   val sizeLimit = loadConfigOrThrow[ByteSize](ConfigKeys.execSizeLimit)
+
+  require(
+    sizeLimit <= maxSize,
+    s"Executable code size limit specified by ${ConfigKeys.execSizeLimit} should not be more than max size of $maxSize")
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic
