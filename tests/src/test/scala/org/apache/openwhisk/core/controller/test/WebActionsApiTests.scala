@@ -261,6 +261,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   override protected[controller] def invokeAction(
     user: Identity,
     action: WhiskActionMetaData,
+    originActionFqn: FullyQualifiedEntityName,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {

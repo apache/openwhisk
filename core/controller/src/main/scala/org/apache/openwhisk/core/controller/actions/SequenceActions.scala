@@ -68,6 +68,7 @@ protected[actions] trait SequenceActions {
   protected[actions] def invokeAction(
     user: Identity,
     action: WhiskActionMetaData,
+    originActionFqn: FullyQualifiedEntityName,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
@@ -89,6 +90,7 @@ protected[actions] trait SequenceActions {
   protected[actions] def invokeSequence(
     user: Identity,
     action: WhiskActionMetaData,
+    originActionFqn: FullyQualifiedEntityName,
     components: Vector[FullyQualifiedEntityName],
     payload: Option[JsObject],
     waitForOutermostResponse: Option[FiniteDuration],
@@ -119,6 +121,7 @@ protected[actions] trait SequenceActions {
           atomicActionsCount),
         user,
         action,
+        originActionFqn,
         topmost,
         start,
         cause)
@@ -151,6 +154,7 @@ protected[actions] trait SequenceActions {
                                          futureSeqResult: Future[SequenceAccounting],
                                          user: Identity,
                                          action: WhiskActionMetaData,
+                                         originActionFqn: FullyQualifiedEntityName,
                                          topmost: Boolean,
                                          start: Instant,
                                          cause: Option[ActivationId])(
@@ -164,7 +168,7 @@ protected[actions] trait SequenceActions {
         // sequence terminated, the result of the sequence is the result of the last completed activation
         val end = Instant.now(Clock.systemUTC())
         val seqActivation =
-          makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end)
+          makeSequenceActivation(user, action, originActionFqn, seqActivationId, accounting, topmost, cause, start, end)
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
@@ -188,6 +192,7 @@ protected[actions] trait SequenceActions {
    */
   private def makeSequenceActivation(user: Identity,
                                      action: WhiskActionMetaData,
+                                     originActionFqn: FullyQualifiedEntityName,
                                      activationId: ActivationId,
                                      accounting: SequenceAccounting,
                                      topmost: Boolean,
@@ -207,6 +212,11 @@ protected[actions] trait SequenceActions {
       Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
     } else None
 
+    // set originPath if invoked action is resolved
+    val originPath = if (originActionFqn != action.fullyQualifiedName(false)) {
+      Some(Parameters(WhiskActivation.originPathAnnotation, JsString(originActionFqn.asString)))
+    } else None
+
     // create the whisk activation
     WhiskActivation(
       namespace = user.namespace.name.toPath,
@@ -223,7 +233,7 @@ protected[actions] trait SequenceActions {
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(topmost)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
-        causedBy ++
+        causedBy ++ originPath ++
         sequenceLimits,
       duration = Some(accounting.duration))
   }
@@ -260,8 +270,8 @@ protected[actions] trait SequenceActions {
     //
     // This action/parameter resolution is done in futures; the execution starts as soon as the first component
     // is resolved.
-    val resolvedFutureActions = resolveDefaultNamespace(components, user) map { c =>
-      WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, c)
+    val resolvedFutureActions = resolveDefaultNamespace(components, user) map { fqn =>
+      (WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, fqn), fqn)
     }
 
     // this holds the initial value of the accounting structure, including the input boxed as an ActivationResponse
@@ -274,7 +284,7 @@ protected[actions] trait SequenceActions {
       .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
-            invokeNextAction(user, futureAction, accounting, cause)
+            invokeNextAction(user, futureAction._1, futureAction._2, accounting, cause)
               .flatMap { accounting =>
                 if (!accounting.shortcircuit) {
                   Future.successful(accounting)
@@ -319,6 +329,7 @@ protected[actions] trait SequenceActions {
   private def invokeNextAction(
     user: Identity,
     futureAction: Future[WhiskActionMetaData],
+    originActionFqn: FullyQualifiedEntityName,
     accounting: SequenceAccounting,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[SequenceAccounting] = {
     futureAction.flatMap { action =>
@@ -329,7 +340,7 @@ protected[actions] trait SequenceActions {
       val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
 
       // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
-      val futureWhiskActivationTuple = action.toExecutableWhiskAction match {
+      val futureWhiskActivationTuple = action.toExecutableWhiskAction(originActionFqn) match {
         case None =>
           val SequenceExecMetaData(components) = action.exec
           logging.debug(this, s"sequence invoking an enclosed sequence $action")
@@ -337,6 +348,7 @@ protected[actions] trait SequenceActions {
           invokeSequence(
             user,
             action,
+            originActionFqn,
             components,
             inputPayload,
             None,
@@ -347,7 +359,7 @@ protected[actions] trait SequenceActions {
           // this is an invoke for an atomic action
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
-          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
+          invokeAction(user, action, originActionFqn, inputPayload, waitForResponse = Some(timeout), cause) map {
             case res => (res, accounting.atomicActionCnt + 1)
           }
       }

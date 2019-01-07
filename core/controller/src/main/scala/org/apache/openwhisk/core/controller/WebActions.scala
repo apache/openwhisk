@@ -497,11 +497,25 @@ trait WhiskWebActionsApi
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
                         } else {
-                          extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                          extractEntityAndProcessRequest(
+                            actionOwnerIdentity,
+                            action,
+                            fullActionName,
+                            extension,
+                            onBehalfOf,
+                            context,
+                            e)
                         }
                       }
                     } else {
-                      extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                      extractEntityAndProcessRequest(
+                        actionOwnerIdentity,
+                        action,
+                        fullActionName,
+                        extension,
+                        onBehalfOf,
+                        context,
+                        e)
                     }
 
                   case Failure(t: RejectRequest) =>
@@ -547,13 +561,21 @@ trait WhiskWebActionsApi
 
   private def extractEntityAndProcessRequest(actionOwnerIdentity: Identity,
                                              action: WhiskActionMetaData,
+                                             originActionFqn: FullyQualifiedEntityName,
                                              extension: MediaExtension,
                                              onBehalfOf: Option[Identity],
                                              context: Context,
                                              httpEntity: HttpEntity)(implicit transid: TransactionId) = {
 
     def process(body: Option[JsValue], isRawHttpAction: Boolean) = {
-      processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
+      processRequest(
+        actionOwnerIdentity,
+        action,
+        originActionFqn,
+        extension,
+        onBehalfOf,
+        context.withBody(body),
+        isRawHttpAction)
     }
 
     provide(action.annotations.getAs[Boolean](WhiskAction.rawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
@@ -595,6 +617,7 @@ trait WhiskWebActionsApi
 
   private def processRequest(actionOwnerIdentity: Identity,
                              action: WhiskActionMetaData,
+                             originActionFqn: FullyQualifiedEntityName,
                              responseType: MediaExtension,
                              onBehalfOf: Option[Identity],
                              context: Context,
@@ -611,7 +634,13 @@ trait WhiskWebActionsApi
       if (isRawHttpAction || context
             .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-        invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
+        invokeAction(
+          actionOwnerIdentity,
+          action,
+          originActionFqn,
+          Some(JsObject(content)),
+          maxWaitForWebActionResult,
+          cause = None)
       } else {
         Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
       }
