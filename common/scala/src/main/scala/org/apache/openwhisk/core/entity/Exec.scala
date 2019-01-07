@@ -19,15 +19,17 @@ package org.apache.openwhisk.core.entity
 
 import java.nio.charset.StandardCharsets
 
-import scala.language.postfixOps
-import scala.util.matching.Regex
+import org.apache.openwhisk.core.ConfigKeys
 
+import scala.util.matching.Regex
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.ExecManifest._
 import org.apache.openwhisk.core.entity.size.SizeInt
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.size.SizeString
+import pureconfig.loadConfigOrThrow
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -227,7 +229,12 @@ protected[core] case class SequenceExecMetaData(components: Vector[FullyQualifie
 
 protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
 
-  val sizeLimit = 48 MB
+  val maxSize: ByteSize = 48.MB
+  val sizeLimit = loadConfigOrThrow[ByteSize](ConfigKeys.execSizeLimit)
+
+  require(
+    sizeLimit <= maxSize,
+    s"Executable code size limit $sizeLimit specified by '${ConfigKeys.execSizeLimit}' should not be more than max size of $maxSize")
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic
@@ -359,8 +366,6 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
 }
 
 protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] with DefaultJsonProtocol {
-
-  val sizeLimit = 48 MB
 
   // The possible values of the JSON 'kind' field for certain runtimes:
   // - Sequence because it is an intrinsic
