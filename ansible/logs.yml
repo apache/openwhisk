@@ -49,7 +49,7 @@
     local_action: shell docker {{ docker_host_flag }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
     register: container_names
   - name: get logs from all containers
-    local_action: shell docker  {{ docker_host_flag }} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
+    local_action: shell docker {{ docker_host_flag }} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log" 2>&1; exit 0
     with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
     when: "'docker' not in exclude_logs_from"
   - name: workaround to make synchronize work
