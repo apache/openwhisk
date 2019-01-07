@@ -12,6 +12,9 @@ akka.http.client.idle-timeout = 90 s
 akka.http.host-connection-pool.idle-timeout = 90 s
 akka.http.host-connection-pool.client.idle-timeout = 90 s
 
+# Avoid system exit for test runs
+akka.jvm-exit-on-fatal-error = off
+
 whisk {
     # kafka related configuration
     kafka {
