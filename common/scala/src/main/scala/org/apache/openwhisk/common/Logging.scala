@@ -342,7 +342,7 @@ object LoggingMarkers {
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
 
   // System overload and random invoker assignment
-  val SYSTEM_OVERLOAD = LogMarkerToken(controller, "systemOverload", count)
+  def SYSTEM_OVERLOAD(actionType: String) = LogMarkerToken(controller, s"systemOverload$actionType", count)
   /*
    * Invoker related markers
    */
@@ -355,8 +355,8 @@ object LoggingMarkers {
 
   def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) =
     LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", count)
-  def LOADBALANCER_MEMORY_INFLIGHT(controllerInstance: ControllerInstanceId) =
-    LogMarkerToken(loadbalancer + controllerInstance.asString, "memoryInflight", count)
+  def LOADBALANCER_MEMORY_INFLIGHT(controllerInstance: ControllerInstanceId, actionType: String) =
+    LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)

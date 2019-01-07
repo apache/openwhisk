@@ -179,14 +179,53 @@ class ShardingContainerPoolBalancer(
     TrieMap[ActivationId, Promise[Either[ActivationId, WhiskActivation]]]()
   private val activationsPerNamespace = TrieMap[UUID, LongAdder]()
   private val totalActivations = new LongAdder()
-  private val totalActivationMemory = new LongAdder()
+  private val totalBBActivationMemory = new LongAdder()
+  private val totalManagedActivationMemory = new LongAdder()
 
   /** State needed for scheduling. */
   protected[loadBalancer] val schedulingState = ShardingContainerPoolBalancerState()(lbConfig)
 
   actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
     MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
-    MetricEmitter.emitHistogramMetric(LOADBALANCER_MEMORY_INFLIGHT(controllerInstance), totalActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
+      totalBBActivationMemory.longValue + totalManagedActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
+      totalBBActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
+      totalManagedActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      INVOKER_TOTALMEM_BLACKBOX,
+      schedulingState.blackboxInvokers.filter(_.status.isUsable).map(_.id.userMemory.toMB).sum)
+    MetricEmitter.emitHistogramMetric(
+      INVOKER_TOTALMEM_MANAGED,
+      schedulingState.managedInvokers.filter(_.status.isUsable).map(_.id.userMemory.toMB).sum)
+    MetricEmitter.emitHistogramMetric(
+      HEALTHY_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status.asString == "up"))
+    MetricEmitter.emitHistogramMetric(
+      UNHEALTHY_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status.asString == "unhealthy"))
+    MetricEmitter.emitHistogramMetric(
+      UNRESPONSIVE_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status.asString == "unresponsive"))
+    MetricEmitter.emitHistogramMetric(
+      DOWN_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status.asString == "down"))
+    MetricEmitter.emitHistogramMetric(
+      HEALTHY_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status.asString == "up"))
+    MetricEmitter.emitHistogramMetric(
+      UNHEALTHY_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status.asString == "unhealthy"))
+    MetricEmitter.emitHistogramMetric(
+      UNRESPONSIVE_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status.asString == "unresponsive"))
+    MetricEmitter.emitHistogramMetric(
+      DOWN_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status.asString == "down"))
   }
 
   /**
@@ -258,7 +297,8 @@ class ShardingContainerPoolBalancer(
         schedulingState.invokerSlots,
         action.limits.memory.megabytes,
         homeInvoker,
-        stepSize)
+        stepSize,
+        actionType = actionType)
       invoker
     } else {
       None
@@ -297,7 +337,12 @@ class ShardingContainerPoolBalancer(
                               instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
 
     totalActivations.increment()
-    totalActivationMemory.add(action.limits.memory.megabytes)
+    if (action.exec.pull) {
+      totalBBActivationMemory.add(action.limits.memory.megabytes)
+    } else {
+      totalManagedActivationMemory.add(action.limits.memory.megabytes)
+    }
+
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
     // Timeout is a multiple of the configured maximum action duration. The minimum timeout is the configured standard
@@ -328,7 +373,8 @@ class ShardingContainerPoolBalancer(
           action.limits.memory.megabytes.MB,
           action.limits.concurrency.maxConcurrent,
           action.fullyQualifiedName(true),
-          timeoutHandler)
+          timeoutHandler,
+          action.exec.pull)
       })
 
     resultPromise
@@ -425,7 +471,11 @@ class ShardingContainerPoolBalancer(
     activationSlots.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
-        totalActivationMemory.add(entry.memory.toMB * (-1))
+        if (entry.isBlackbox) {
+          totalBBActivationMemory.add(entry.memory.toMB * (-1))
+        } else {
+          totalManagedActivationMemory.add(entry.memory.toMB * (-1))
+        }
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots
           .lift(invoker.toInt)
@@ -561,7 +611,8 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
                slots: Int,
                index: Int,
                step: Int,
-               stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
+               stepsDone: Int = 0,
+               actionType: String)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -578,14 +629,14 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquireConcurrent(fqn, maxConcurrent, slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
-            MetricEmitter.emitCounterMetric(LoggingMarkers.SYSTEM_OVERLOAD)
+            MetricEmitter.emitCounterMetric(LoggingMarkers.SYSTEM_OVERLOAD(actionType))
             Some(random)
           } else {
             None
           }
         } else {
           val newIndex = (index + step) % numInvokers
-          schedule(maxConcurrent, fqn, invokers, dispatched, slots, newIndex, step, stepsDone + 1)
+          schedule(maxConcurrent, fqn, invokers, dispatched, slots, newIndex, step, stepsDone + 1, actionType)
         }
       }
     } else {
@@ -744,4 +795,5 @@ case class ActivationEntry(id: ActivationId,
                            memory: ByteSize,
                            maxConcurrent: Int,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
-                           timeoutHandler: Cancellable)
+                           timeoutHandler: Cancellable,
+                           isBlackbox: Boolean)
