@@ -41,7 +41,7 @@ task copyBootJarToBin(type:Copy){
 
 bootJar {
     classifier = 'cli'
-    mainClassName = 'whisk.core.cli.Main'
+    mainClassName = 'org.apache.openwhisk.core.cli.Main'
     launchScript()
     finalizedBy copyBootJarToBin
 }
