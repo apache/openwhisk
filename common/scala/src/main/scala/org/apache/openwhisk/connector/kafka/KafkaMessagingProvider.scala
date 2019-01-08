@@ -60,8 +60,9 @@ object KafkaMessagingProvider extends MessagingProvider {
       } getOrElse Map.empty)
 
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
+
     Try(AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)))
-      .map(client => {
+      .flatMap(client => {
         val partitions = 1
         val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
 
@@ -83,6 +84,7 @@ object KafkaMessagingProvider extends MessagingProvider {
 
         val result = createTopic()
         client.close()
+        result
       })
       .recoverWith {
         case e =>
