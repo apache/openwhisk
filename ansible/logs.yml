@@ -34,6 +34,11 @@
         - test-results
       ignore_errors: true
       when: "'tests' not in exclude_logs_from"
+    - name: create "perf reports" folder
+      file: path="{{ openwhisk_home }}/logs/perf-reports" state=directory
+    - name: collect perf logs
+      local_action: shell cp  "{{ openwhisk_home }}/tests/performance/gatling_tests/build/gatling.log" "{{ openwhisk_home }}/logs/perf-reports/"
+      ignore_errors: true
 
 - hosts: all:!ansible
   serial: 1
