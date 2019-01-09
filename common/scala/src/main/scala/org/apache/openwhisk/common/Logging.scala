@@ -20,9 +20,11 @@ package org.apache.openwhisk.common
 import java.io.PrintStream
 import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
+
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
+import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 trait Logging {
@@ -243,6 +245,22 @@ object MetricEmitter {
    */
   private def createName(name: String, metricType: String) = {
     s"$metricType.$name"
+  }
+}
+
+/**
+ * Name generator to make names compatible to pre Kamon 1.0 logic. Statsd reporter "normalizes"
+ * the key name by replacing all `.` with `_`. Pre 1.0 the metric category was added by Statsd
+ * reporter itself. However now we pass it explicitly. So to retain the pre 1.0 name we need to replace
+ * normalized name with one having category followed by `.` instead of `_`
+ */
+class WhiskStatsDMetricKeyGenerator(config: com.typesafe.config.Config) extends MetricKeyGenerator {
+  val simpleGen = new SimpleMetricKeyGenerator(config)
+  override def generateKey(name: String, tags: Map[String, String]): String = {
+    val key = simpleGen.generateKey(name, tags)
+    if (key.contains(".counter_")) key.replace(".counter_", ".counter.")
+    else if (key.contains(".histogram_")) key.replace(".histogram_", ".histogram.")
+    else key
   }
 }
 
