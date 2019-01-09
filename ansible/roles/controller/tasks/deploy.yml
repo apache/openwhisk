@@ -245,6 +245,8 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
+      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) }}"
+
 - name: merge extra env variables
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"

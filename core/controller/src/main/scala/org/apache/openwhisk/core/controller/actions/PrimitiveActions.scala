@@ -22,6 +22,7 @@ import java.time.{Clock, Instant}
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
+
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
 import org.apache.openwhisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
@@ -35,12 +36,15 @@ import org.apache.openwhisk.core.entity.types.EntityStore
 import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
+import org.apache.openwhisk.core.ConfigKeys
 
 import scala.collection.mutable.Buffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
+
+import pureconfig.loadConfigOrThrow
 
 protected[actions] trait PrimitiveActions {
   /** The core collections require backend services to be injected in this trait. */
@@ -593,11 +597,15 @@ protected[actions] trait PrimitiveActions {
     //    in case of an incomplete active-ack (record too large for example).
     activeAckResponse.foreach {
       case Right(activation) => result.trySuccess(Right(activation))
-      case _                 => pollActivation(docid, context, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
+      case _ if (controllerActivationConfig.pollingFromDb) =>
+        pollActivation(docid, context, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
+      case _ =>
     }
 
-    // 2. Poll the database slowly in case the active-ack never arrives
-    pollActivation(docid, context, result, _ => 15.seconds)
+    if (controllerActivationConfig.pollingFromDb) {
+      // 2. Poll the database slowly in case the active-ack never arrives
+      pollActivation(docid, context, result, _ => 15.seconds)
+    }
 
     // 3. Timeout forces a fallback to activationId
     val timeout = actorSystem.scheduler.scheduleOnce(totalWaitTime)(result.trySuccess(Left(activationId)))
@@ -644,4 +652,10 @@ protected[actions] trait PrimitiveActions {
 
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
+
+  private val controllerActivationConfig =
+    loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
+
 }
+
+case class ControllerActivationConfig(pollingFromDb: Boolean)

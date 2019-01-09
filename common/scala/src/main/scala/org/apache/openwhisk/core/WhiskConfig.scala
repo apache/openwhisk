@@ -241,4 +241,6 @@ object ConfigKeys {
   val query = "whisk.query-limit"
   val execSizeLimit = "whisk.exec-size-limit"
 
+  val controller = s"whisk.controller"
+  val controllerActivation = s"$controller.activation"
 }
