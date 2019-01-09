@@ -60,30 +60,37 @@ object KafkaMessagingProvider extends MessagingProvider {
       } getOrElse Map.empty)
 
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
-    val client = AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts))
-    val partitions = 1
-    val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
 
-    def createTopic(retries: Int = 5): Try[Unit] = {
-      Try(client.createTopics(List(nt).asJava).values().get(topic).get())
-        .map(_ => logging.info(this, s"created topic $topic"))
-        .recoverWith {
-          case CausedBy(_: TopicExistsException) =>
-            Success(logging.info(this, s"topic $topic already existed"))
-          case CausedBy(t: RetriableException) if retries > 0 =>
-            logging.warn(this, s"topic $topic could not be created because of $t, retries left: $retries")
-            Thread.sleep(1.second.toMillis)
-            createTopic(retries - 1)
-          case t =>
-            logging.error(this, s"ensureTopic for $topic failed due to $t")
-            Failure(t)
+    Try(AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)))
+      .flatMap(client => {
+        val partitions = 1
+        val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
+
+        def createTopic(retries: Int = 5): Try[Unit] = {
+          Try(client.createTopics(List(nt).asJava).values().get(topic).get())
+            .map(_ => logging.info(this, s"created topic $topic"))
+            .recoverWith {
+              case CausedBy(_: TopicExistsException) =>
+                Success(logging.info(this, s"topic $topic already existed"))
+              case CausedBy(t: RetriableException) if retries > 0 =>
+                logging.warn(this, s"topic $topic could not be created because of $t, retries left: $retries")
+                Thread.sleep(1.second.toMillis)
+                createTopic(retries - 1)
+              case t =>
+                logging.error(this, s"ensureTopic for $topic failed due to $t")
+                Failure(t)
+            }
         }
-    }
 
-    val result = createTopic()
-
-    client.close()
-    result
+        val result = createTopic()
+        client.close()
+        result
+      })
+      .recoverWith {
+        case e =>
+          logging.error(this, s"ensureTopic for $topic failed due to $e")
+          Failure(e)
+      }
   }
 }
 
