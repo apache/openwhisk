@@ -87,7 +87,7 @@ You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift --kind swift:4.1
+wsk action create helloSwift hello.swift --kind swift:4.2
 ```
 
 
@@ -113,7 +113,83 @@ When you create an OpenWhisk Swift action with a Swift source file, it has to be
 
 To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in.
 
-## Using a script to build Swift packaged action
+## Compiling Swift 4.2 packaged actions
+
+The docker runtime includes a compiler to help users compile and package Swift 4.2 actions.
+
+### Compiling a single source file for Swift 4.2
+
+To compile a single source file that doesn't depend on external libaries you can use the following command:
+```bash
+docker run -i openwhisk/action-swift-v4.2 -compile main <hello.swift >hello.zip
+```
+The docker container reads from stdin the content of the file, and writes to stdout a zip archive with the compiled swift executable.
+Use the flag `-compile` with the name of the main method.
+The zip archive is ready for deployment and invocation using the kind `swift:4.2`
+```bash
+wsk action update helloSwiftly hello.zip --kind swift:4.2
+wsk action invoke helloSwiftly -r -p name World
+```
+
+### Compiling dependencies and multi-file projects for Swift 4.2
+
+To compile multiple files and include external dependencies create the following directory structure.
+```
+.
+├── Package.swift
+└── Sources
+    └── main.swift
+```
+The directory `Sources/` should contain a file named `main.swift`.
+The `Package.swift` should start with a comment specifying version `4.2` for the Swift tooling:
+```swift
+// swift-tools-version:4.2
+import PackageDescription
+
+let package = Package(
+    name: "Action",
+    products: [
+    .executable(
+        name: "Action",
+        targets:  ["Action"]
+    )
+    ],
+    dependencies: [
+    .package(url: "https://github.com/IBM-Swift/SwiftyRequest.git", .upToNextMajor(from: "1.0.0"))
+    ],
+    targets: [
+    .target(
+        name: "Action",
+        dependencies: ["SwiftyRequest"],
+        path: "."
+    )
+    ]
+)
+```
+
+Create a zip archive with the content of the directory:
+```bash
+zip ../action-src.zip -r *
+```
+Pass the zip archive to the docker container over stdin, and the stdout will be a new zip archive with the compiled executable.
+The docker container reads from stdin the content of the zip archive, and writes to stdout a  new zip archive with the compiled swift executable.
+```
+docker run -i openwhisk/action-swift-v4.2 -compile main <action-src.zip >../action-bin.zip
+```
+In a Linux based system you can combined the `zip` and `docker run` steps in a single command:
+```
+zip - -r * | docker run -i openwhisk/action-swift-v4.2 -compile main >../action-bin.zip
+```
+
+The zip `action-bin.zip` archive is ready for deployment and invocation using the kind `swift:4.2`
+```bash
+wsk action update helloSwiftly action-bin.zip --kind swift:4.2
+wsk action invoke helloSwiftly -r
+```
+
+## Compiling Swift 4.1 packaged actions
+
+### Using a script to build Swift 3.1.1 and 4.1 packaged actions
 You can use a script to automate the packaging of the action. Create  script `compile.sh`h file the following.
 ```bash
 #!/bin/bash
@@ -256,7 +332,7 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
   ```
   wsk action update helloSwiftly build/hello.zip --kind swift:3.1.1
   ```
-  For Swift 4 use the kind `swift:3.1.1`
+  For Swift 4.1 use the kind `swift:4.1`
   ```
   wsk action update helloSwiftly build/hello.zip --kind swift:4.1
   ```
@@ -268,7 +344,7 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
 
   The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-## Error Handling in Swift 4
+## Error Handling in Swift 4.x
 
 With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
 [Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.
@@ -300,7 +376,7 @@ Swift 3.1.1 actions can use the following packages:
 - Watson Developer Cloud SDK version 0.16.0, https://github.com/watson-developer-cloud/swift-sdk
 
 ### Swift 4
-Swift 4 actions are executed using Swift 4.1  `--kind swift:4.1`.
-The default `--kind swift:default` is Swift 4.1.
+Swift 4 actions can be executed using Swift 4.1 or 4.2 using `--kind swift:4.1` or `--kind swift:4.2` respectively.
+The default `--kind swift:default` is Swift 4.2.
 
-Swift 4.1 action runtime doesn't embed any packages, follow the instructions for [packaged swift actions](./actions.md#packaging-an-action-as-a-swift-executable) to include dependencies using a Package.swift.
+Swift 4.x action runtimes don't embed any packages, follow the instructions for [packaged swift actions](./actions.md#packaging-an-action-as-a-swift-executable) to include dependencies using a Package.swift.
