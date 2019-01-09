@@ -210,18 +210,15 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
-  import kamon.metric.InstrumentFactory.InstrumentTypes._
-  import kamon.metric.InstrumentFactory._
-
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         Kamon
-          .counter(createName(token.toString, Counter))
+          .counter(createName(token.toString, "counter"))
           .refine(token.tags)
           .increment(times)
       } else {
-        Kamon.counter(createName(token.toStringWithSubAction, Counter)).increment(times)
+        Kamon.counter(createName(token.toStringWithSubAction, "counter")).increment(times)
       }
     }
   }
@@ -230,11 +227,11 @@ object MetricEmitter {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         Kamon
-          .histogram(createName(token.toString, Histogram))
+          .histogram(createName(token.toString, "histogram"))
           .refine(token.tags)
           .record(value)
       } else {
-        Kamon.histogram(createName(token.toStringWithSubAction, Histogram)).record(value)
+        Kamon.histogram(createName(token.toStringWithSubAction, "histogram")).record(value)
       }
     }
   }
@@ -244,8 +241,8 @@ object MetricEmitter {
    * for us as we use same metric name for counter and histogram. So to be backward compatible we
    * need to prefix the name with type
    */
-  private def createName(name: String, metricType: InstrumentType) = {
-    s"${metricType.name.toLowerCase}.$name"
+  private def createName(name: String, metricType: String) = {
+    s"$metricType.$name"
   }
 }
 
