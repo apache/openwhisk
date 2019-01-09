@@ -113,25 +113,25 @@ When you create an OpenWhisk Swift action with a Swift source file, it has to be
 
 To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in.
 
-## Compiling Swift 4.2 packaged actiona
+## Compiling Swift 4.2 packaged actions
 
-The docker runtime includes a compiler tool to help users compile and package Swift 4.2 actions.
+The docker runtime includes a compiler to help users compile and package Swift 4.2 actions.
 
-### Compiling single source file for Swift 4.2
+### Compiling a single source file for Swift 4.2
 
 To compile a single source file that doesn't depend on external libaries you can use the following command:
 ```bash
 docker run -i openwhisk/action-swift-v4.2 -compile main <hello.swift >hello.zip
 ```
-The docker container takes in stdin the content of the file, and writes to stdout a zip archive with the compiled swift executable.
+The docker container reads from stdin the content of the file, and writes to stdout a zip archive with the compiled swift executable.
 Use the flag `-compile` with the name of the main method.
 The zip archive is ready for deployment and invocation using the kind `swift:4.2`
 ```bash
 wsk action update helloSwiftly hello.zip --kind swift:4.2
-wsk action invoke helloSwift -r -p name World
+wsk action invoke helloSwiftly -r -p name World
 ```
 
-### Compiling dependencies and multi-file project for Swift 4.2
+### Compiling dependencies and multi-file projects for Swift 4.2
 
 To compile multiple files and include external dependencies create the following directory structure.
 ```
@@ -141,7 +141,7 @@ To compile multiple files and include external dependencies create the following
     └── main.swift
 ```
 The directory `Sources/` should contain a file named `main.swift`.
-The `Package.swift` should start with a comment specifying version `4.2` for the swift tooling:
+The `Package.swift` should start with a comment specifying version `4.2` for the Swift tooling:
 ```swift
 // swift-tools-version:4.2
 import PackageDescription
@@ -171,8 +171,8 @@ Create a zip archive with the content of the directory:
 ```bash
 zip ../action-src.zip -r *
 ```
-Pass the zip archive to the docker container over stdin, and the stdout will be a new zip archive with the compiled executable
-The docker container takes in stdin the content of the zip archive, and writes to stdout a  new zip archive with the compiled swift executable.
+Pass the zip archive to the docker container over stdin, and the stdout will be a new zip archive with the compiled executable.
+The docker container reads from stdin the content of the zip archive, and writes to stdout a  new zip archive with the compiled swift executable.
 ```
 docker run -i openwhisk/action-swift-v4.2 -compile main <action-src.zip >../action-bin.zip
 ```
@@ -184,7 +184,7 @@ zip - -r * | docker run -i openwhisk/action-swift-v4.2 -compile main >../action-
 The zip `action-bin.zip` archive is ready for deployment and invocation using the kind `swift:4.2`
 ```bash
 wsk action update helloSwiftly action-bin.zip --kind swift:4.2
-wsk action invoke helloSwift -r
+wsk action invoke helloSwiftly -r
 ```
 
 ## Compiling Swift 4.1 packaged actions
