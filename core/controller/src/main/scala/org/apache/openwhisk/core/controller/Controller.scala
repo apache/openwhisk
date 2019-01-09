@@ -42,8 +42,9 @@ import org.apache.openwhisk.core.loadBalancer.{InvokerState, LoadBalancerProvide
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
 
+import scala.concurrent.ExecutionContext.Implicits
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
 /**
@@ -206,15 +207,14 @@ object Controller {
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {
-    Kamon.start()
+    Kamon.loadReportersFromConfig()
     implicit val actorSystem = ActorSystem("controller-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
-      Kamon.shutdown()
-      Future.successful(Done)
+      Kamon.stopAllReporters().map(_ => Done)(Implicits.global)
     }
 
     // extract configuration data from the environment

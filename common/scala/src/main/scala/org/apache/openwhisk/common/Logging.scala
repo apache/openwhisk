@@ -20,9 +20,11 @@ package org.apache.openwhisk.common
 import java.io.PrintStream
 import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
+
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
+import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 trait Logging {
@@ -210,17 +212,15 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
-
-  val metrics = Kamon.metrics
-
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics
-          .counter(token.toString, token.tags)
+        Kamon
+          .counter(createName(token.toString, "counter"))
+          .refine(token.tags)
           .increment(times)
       } else {
-        metrics.counter(token.toStringWithSubAction).increment(times)
+        Kamon.counter(createName(token.toStringWithSubAction, "counter")).increment(times)
       }
     }
   }
@@ -228,13 +228,39 @@ object MetricEmitter {
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics
-          .histogram(token.toString, token.tags)
+        Kamon
+          .histogram(createName(token.toString, "histogram"))
+          .refine(token.tags)
           .record(value)
       } else {
-        metrics.histogram(token.toStringWithSubAction).record(value)
+        Kamon.histogram(createName(token.toStringWithSubAction, "histogram")).record(value)
       }
     }
+  }
+
+  /**
+   * Kamon 1.0 onwards does not include the metric type in the metric name which cause issue
+   * for us as we use same metric name for counter and histogram. So to be backward compatible we
+   * need to prefix the name with type
+   */
+  private def createName(name: String, metricType: String) = {
+    s"$metricType.$name"
+  }
+}
+
+/**
+ * Name generator to make names compatible to pre Kamon 1.0 logic. Statsd reporter "normalizes"
+ * the key name by replacing all `.` with `_`. Pre 1.0 the metric category was added by Statsd
+ * reporter itself. However now we pass it explicitly. So to retain the pre 1.0 name we need to replace
+ * normalized name with one having category followed by `.` instead of `_`
+ */
+class WhiskStatsDMetricKeyGenerator(config: com.typesafe.config.Config) extends MetricKeyGenerator {
+  val simpleGen = new SimpleMetricKeyGenerator(config)
+  override def generateKey(name: String, tags: Map[String, String]): String = {
+    val key = simpleGen.generateKey(name, tags)
+    if (key.contains(".counter_")) key.replace(".counter_", ".counter.")
+    else if (key.contains(".histogram_")) key.replace(".histogram_", ".histogram.")
+    else key
   }
 }
 
