@@ -187,6 +187,9 @@ case class LogMarkerToken(component: String,
                           tags: Map[String, String] = Map.empty) {
   private var finishToken: LogMarkerToken = _
   private var errorToken: LogMarkerToken = _
+
+  // Using var is safe wrt thread-safety because Kamon makes sure the instances
+  // (given the same key) are always the same, so a missed update is not harmful
   private var _counter: KCounter = _
   private var _histogram: KHistogram = _
 
