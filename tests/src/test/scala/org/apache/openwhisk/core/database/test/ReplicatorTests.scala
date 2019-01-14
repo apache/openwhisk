@@ -350,13 +350,18 @@ class ReplicatorTests
   it should "continuously update a database" in {
     // Create a database to backup
     val dbName = testDbPrefix + "database_for_continous_replication"
+    val backupDbName = s"continuous_$dbName"
+
+    // Pre-test cleanup of previously created entities
+    removeDatabase(backupDbName, true)
+    removeReplicationDoc(backupDbName)
+
     val client = createDatabase(dbName, Some(designDocPath))
 
     // Trigger replication and verify the created databases have the correct format
     val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, continuous = true)
     createdBackupDbs should have size 1
-    val backupDbName = createdBackupDbs.head
-    backupDbName shouldBe s"continuous_$dbName"
+    createdBackupDbs.head shouldBe backupDbName
 
     // Wait for the replicated database to appear
     val backupClient = waitForDatabase(backupDbName)
