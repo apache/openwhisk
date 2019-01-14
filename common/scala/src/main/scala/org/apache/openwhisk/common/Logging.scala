@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
+import kamon.metric.{Counter => KCounter, Histogram => KHistogram}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
@@ -184,13 +185,74 @@ case class LogMarkerToken(component: String,
                           state: String,
                           subAction: Option[String] = None,
                           tags: Map[String, String] = Map.empty) {
+  private var finishToken: LogMarkerToken = _
+  private var errorToken: LogMarkerToken = _
+
+  // Using var is safe wrt thread-safety because Kamon makes sure the instances
+  // (given the same key) are always the same, so a missed update is not harmful
+  private var _counter: KCounter = _
+  private var _histogram: KHistogram = _
 
   override val toString = component + "_" + action + "_" + state
-  val toStringWithSubAction =
+  val toStringWithSubAction: String =
     subAction.map(sa => component + "_" + action + "." + sa + "_" + state).getOrElse(toString)
 
-  def asFinish = copy(state = LoggingMarkers.finish)
-  def asError = copy(state = LoggingMarkers.error)
+  def asFinish: LogMarkerToken = {
+    if (finishToken == null) {
+      finishToken = copy(state = LoggingMarkers.finish)
+    }
+    finishToken
+  }
+
+  def asError: LogMarkerToken = {
+    if (errorToken == null) {
+      errorToken = copy(state = LoggingMarkers.error)
+    }
+    errorToken
+  }
+
+  def counter: KCounter = {
+    if (_counter == null) {
+      _counter = createCounter()
+    }
+    _counter
+  }
+
+  def histogram: KHistogram = {
+    if (_histogram == null) {
+      _histogram = createHistogram()
+    }
+    _histogram
+  }
+
+  private def createCounter() = {
+    if (TransactionId.metricsKamonTags) {
+      Kamon
+        .counter(createName(toString, "counter"))
+        .refine(tags)
+    } else {
+      Kamon.counter(createName(toStringWithSubAction, "counter"))
+    }
+  }
+
+  private def createHistogram() = {
+    if (TransactionId.metricsKamonTags) {
+      Kamon
+        .histogram(createName(toString, "histogram"))
+        .refine(tags)
+    } else {
+      Kamon.histogram(createName(toStringWithSubAction, "histogram"))
+    }
+  }
+
+  /**
+   * Kamon 1.0 onwards does not include the metric type in the metric name which cause issue
+   * for us as we use same metric name for counter and histogram. So to be backward compatible we
+   * need to prefix the name with type
+   */
+  private def createName(name: String, metricType: String) = {
+    s"$metricType.$name"
+  }
 }
 
 object LogMarkerToken {
@@ -214,37 +276,14 @@ object LogMarkerToken {
 object MetricEmitter {
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
-      if (TransactionId.metricsKamonTags) {
-        Kamon
-          .counter(createName(token.toString, "counter"))
-          .refine(token.tags)
-          .increment(times)
-      } else {
-        Kamon.counter(createName(token.toStringWithSubAction, "counter")).increment(times)
-      }
+      token.counter.increment(times)
     }
   }
 
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      if (TransactionId.metricsKamonTags) {
-        Kamon
-          .histogram(createName(token.toString, "histogram"))
-          .refine(token.tags)
-          .record(value)
-      } else {
-        Kamon.histogram(createName(token.toStringWithSubAction, "histogram")).record(value)
-      }
+      token.histogram.record(value)
     }
-  }
-
-  /**
-   * Kamon 1.0 onwards does not include the metric type in the metric name which cause issue
-   * for us as we use same metric name for counter and histogram. So to be backward compatible we
-   * need to prefix the name with type
-   */
-  private def createName(name: String, metricType: String) = {
-    s"$metricType.$name"
   }
 }
 
