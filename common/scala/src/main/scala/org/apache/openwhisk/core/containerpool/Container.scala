@@ -62,6 +62,11 @@ object Container {
     loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
 }
 
+/**
+ * Abstraction for Container operations.
+ * Container manipulation (specifically suspend/resume/destroy) is NOT thread-safe and MUST be synchronized by caller.
+ * Container access (specifically run) is thread-safe (e.g. for concurrent activation processing).
+ */
 trait Container {
 
   implicit protected val as: ActorSystem
@@ -73,7 +78,11 @@ trait Container {
   /** HTTP connection to the container, will be lazily established by callContainer */
   protected var httpConnection: Option[ContainerClient] = None
 
-  /** Stops the container from consuming CPU cycles. */
+  /** maxConcurrent+timeout are cached during first init, so that resuming connections can reference */
+  protected var containerHttpMaxConcurrent: Int = 1
+  protected var containerHttpTimeout: FiniteDuration = 60.seconds
+
+  /** Stops the container from consuming CPU cycles. NOT thread-safe - caller must synchronize. */
   def suspend()(implicit transid: TransactionId): Future[Unit] = {
     //close connection first, then close connection pool
     //(testing pool recreation vs connection closing, time was similar - so using the simpler recreation approach)
@@ -82,8 +91,11 @@ trait Container {
     closeConnections(toClose)
   }
 
-  /** Dual of halt. */
-  def resume()(implicit transid: TransactionId): Future[Unit]
+  /** Dual of halt. NOT thread-safe - caller must synchronize.*/
+  def resume()(implicit transid: TransactionId): Future[Unit] = {
+    httpConnection = Some(openConnections(containerHttpTimeout, containerHttpMaxConcurrent))
+    Future.successful({})
+  }
 
   /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any]
@@ -101,7 +113,8 @@ trait Container {
       LoggingMarkers.INVOKER_ACTIVATION_INIT,
       s"sending initialization to $id $addr",
       logLevel = InfoLevel)
-
+    containerHttpMaxConcurrent = maxConcurrent
+    containerHttpTimeout = timeout
     val body = JsObject("value" -> initializer)
     callContainer("/init", body, timeout, maxConcurrent, retry = true)
       .andThen { // never fails
@@ -132,7 +145,7 @@ trait Container {
       }
   }
 
-  /** Runs code in the container. */
+  /** Runs code in the container. Thread-safe - caller may invoke concurrently for concurrent activation processing. */
   def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, maxConcurrent: Int)(
     implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
     val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
@@ -185,15 +198,7 @@ trait Container {
                               retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = if (Container.config.akkaClient) {
-        new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
-      } else {
-        new ApacheBlockingContainerClient(
-          s"${addr.host}:${addr.port}",
-          timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-          maxConcurrent)
-      }
+      val conn = openConnections(timeout, maxConcurrent)
       httpConnection = Some(conn)
       conn
     }
@@ -203,6 +208,17 @@ trait Container {
         val finished = Instant.now()
         RunResult(Interval(started, finished), response)
       }
+  }
+  private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
+    if (Container.config.akkaClient) {
+      new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
+    } else {
+      new ApacheBlockingContainerClient(
+        s"${addr.host}:${addr.port}",
+        timeout,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+        maxConcurrent)
+    }
   }
   private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {
     toClose.map(_.close()).getOrElse(Future.successful(()))

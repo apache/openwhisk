@@ -174,8 +174,9 @@ class DockerContainer(protected val id: ContainerId,
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
     super.suspend().flatMap(_ => if (useRunc) runc.pause(id) else docker.pause(id))
   }
-  def resume()(implicit transid: TransactionId): Future[Unit] =
-    if (useRunc) { runc.resume(id) } else { docker.unpause(id) }
+  override def resume()(implicit transid: TransactionId): Future[Unit] = {
+    if (useRunc) { runc.resume(id) } else { docker.unpause(id) }.map(_ => super.resume())
+  }
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
     docker.rm(id)
