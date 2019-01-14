@@ -57,6 +57,18 @@
     dest: "{{ controller.confdir }}/{{ controller_name }}/jmxremote.access"
     mode: 0777
 
+- name: copy controller auth username file
+  template:
+    src: "controllerauth.username.j2"
+    dest: "{{ controller.confdir  }}/{{ controller_name }}/controllerauth.username"
+    mode: 0777
+
+- name: copy controller auth password file
+  template:
+    src: "controllerauth.password.j2"
+    dest: "{{ controller.confdir  }}/{{ controller_name }}/controllerauth.password"
+    mode: 0777
+
 - name: "copy kafka truststore/keystore"
   when: kafka.protocol == 'SSL'
   copy:

@@ -53,6 +53,14 @@ protected[core] object ExecManifest {
     mf
   }
 
+  protected[core] def initializePrewarm(prewarmRuntime: String): Try[Runtimes] = {
+    val rmc = loadConfigOrThrow[RuntimeManifestConfig](ConfigKeys.runtimes)
+    val mf = Try(prewarmRuntime.parseJson.asJsObject).flatMap(runtimes(_, rmc))
+    var manifest: Option[Runtimes] = None
+    mf.foreach(m => manifest = Some(m))
+    mf
+  }
+
   /**
    * Gets existing runtime manifests.
    *

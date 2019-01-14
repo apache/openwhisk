@@ -60,6 +60,14 @@ trait LoadBalancer {
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
   /**
+   * send runtime to all managed invokers
+   *
+   * @param runtime
+   * @param operType add runtime or delete runtime
+   */
+  def sendRuntimeToManageInvoker(runtime: String, operType: String): Unit
+
+  /**
    * Returns a message indicating the health of the containers and/or container pool in general.
    *
    * @return a Future[IndexedSeq[InvokerHealth]] representing the health of the pools managed by the loadbalancer.

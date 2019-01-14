@@ -22,6 +22,7 @@ import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import spray.json.{JsNumber, JsObject}
 
 import scala.collection.immutable
 import scala.concurrent.duration._
@@ -32,6 +33,9 @@ case object Busy extends WorkerState
 case object Free extends WorkerState
 
 case class WorkerData(data: ContainerData, state: WorkerState)
+case class AddPreWarmConfigList(list: List[PrewarmingConfig])
+case class DeletePreWarmConfigList(list: List[PrewarmingConfig])
+case class PreWarmConfig(kind: String, memory: ByteSize)
 
 /**
  * A pool managing containers to run actions on.
@@ -93,6 +97,30 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   def receive: Receive = {
+    case prewarmConfigList: AddPreWarmConfigList =>
+      prewarmConfigList.list foreach { config =>
+        logging.info(this, s"add extra pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+        (1 to config.count).foreach { _ =>
+          prewarmContainer(config.exec, config.memoryLimit)
+        }
+      }
+
+    case prewarmConfigList: DeletePreWarmConfigList =>
+      prewarmConfigList.list foreach { config =>
+        logging.info(this, s"delete pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+        (1 to config.count).foreach { _ =>
+          deletePrewarmContainer(config.exec.kind, config.memoryLimit)
+        }
+      }
+
+    case prewarmConfig: PreWarmConfig =>
+      val numberResponse = {
+        JsObject("number" -> JsNumber(getPrewarmContainerNumber(prewarmConfig.kind, prewarmConfig.memory)))
+      }
+      sender() ! numberResponse
+
     // A job to run on a container
     //
     // Run messages are received either via the feed or from child containers which cannot process
@@ -291,6 +319,38 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           prewarmContainer(action.exec, memory)
           (ref, data)
       }
+  }
+
+  /**
+   * Delete the prewarm container
+   * @param kind
+   * @param memory
+   * @return
+   */
+  def deletePrewarmContainer(kind: String, memory: ByteSize) = {
+    prewarmedPool
+      .find {
+        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
+        case _                                          => false
+      }
+      .map {
+        case (ref, data) =>
+          ref ! Remove
+          prewarmedPool = prewarmedPool - ref
+      }
+  }
+
+  /**
+   * get the prewarm container number
+   * @param kind
+   * @param memory
+   * @return
+   */
+  def getPrewarmContainerNumber(kind: String, memory: ByteSize) = {
+    prewarmedPool.filter {
+      case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
+      case _                                          => false
+    }.size
   }
 
   /** Removes a container and updates state accordingly. */

@@ -159,6 +159,18 @@
     dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.access"
     mode: 0777
 
+- name: copy invoker auth username file
+  template:
+    src: "invokerauth.username.j2"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/invokerauth.username"
+    mode: 0777
+
+- name: copy invoker auth password file
+  template:
+    src: "invokerauth.password.j2"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/invokerauth.password"
+    mode: 0777
+
 - name: add additional jvm params if jmxremote is enabled
   when: jmx.enabled
   set_fact:

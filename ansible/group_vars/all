@@ -88,6 +88,8 @@ controller:
   authentication:
     spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  username: "{{ controller_username | default(operation.username) }}"
+  password: "{{ controller_password | default(operation.password) }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"
   protocol: "{{ controller_protocol | default('https') }}"
@@ -183,6 +185,8 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  username: "{{ invoker_username | default(operation.username) }}"
+  password: "{{ invoker_password | default(operation.password) }}"
   jmxremote:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
     {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
@@ -379,3 +383,8 @@ metrics:
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
 user_events: "{{ user_events_enabled | default(false) }}"
+
+# Operation configuation
+operation:
+    username: "{{ operation_username | default('admin') }}"
+    password: "{{ operation_password | default('admin') }}"

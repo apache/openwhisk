@@ -21,7 +21,8 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import kamon.Kamon
@@ -78,6 +79,17 @@ class Controller(val instance: ControllerInstanceId,
                  implicit val logging: Logging)
     extends BasicRasService {
 
+  val controllerUsername = {
+    val source = scala.io.Source.fromFile("/conf/controllerauth.username");
+    try source.mkString.replaceAll("\r|\n", "")
+    finally source.close()
+  }
+  val controllerPassword = {
+    val source = scala.io.Source.fromFile("/conf/controllerauth.password");
+    try source.mkString.replaceAll("\r|\n", "")
+    finally source.close()
+  }
+
   TransactionId.controller.mark(
     this,
     LoggingMarkers.CONTROLLER_STARTUP(instance.asString),
@@ -95,7 +107,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ changeRuntime
   }
 
   // initialize datastores
@@ -150,6 +162,38 @@ class Controller(val instance: ControllerInstanceId,
             .invokerHealth()
             .map(_.count(_.status == InvokerState.Healthy).toJson)
         }
+      }
+    }
+  }
+
+  /**
+   * Handles POST/DELETE prewarm container
+   */
+  private val changeRuntime = {
+    implicit val executionContext = actorSystem.dispatcher
+    (path("prewarmContainer") & (post | delete)) {
+      extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) =>
+          if (username == controllerUsername && password == controllerPassword) {
+            extractMethod { method =>
+              entity(as[String]) { prewarmRuntime =>
+                val execManifest = ExecManifest.initializePrewarm(prewarmRuntime)
+                if (execManifest.isFailure) {
+                  logging.error(
+                    this,
+                    s"Received invalid prewarm runtimes manifest with ${method.name} request:${execManifest.failed.get}")
+                  complete(s"Received invalid prewarm runtimes manifest with ${method.name} request")
+                } else {
+                  logging.info(this, s"Received valid prewarm runtimes manifest with ${method.name} request")
+                  loadBalancer.sendRuntimeToManageInvoker(prewarmRuntime, method.name)
+                  complete(s"Change prewarm container request with ${method.name} is already sent to managed invokers")
+                }
+              }
+            }
+          } else {
+            complete("username or password is wrong")
+          }
+        case _ => complete(StatusCodes.Unauthorized)
       }
     }
   }

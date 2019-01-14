@@ -46,6 +46,8 @@ object Invoker {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 
+  var invokerReactive: Option[InvokerReactive] = None
+
   /**
    * An object which records the environment variables required for this component to run.
    */
@@ -157,7 +159,7 @@ object Invoker {
     }
     val producer = msgProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
     val invoker = try {
-      new InvokerReactive(config, invokerInstance, producer, poolConfig)
+      invokerReactive = Some(new InvokerReactive(config, invokerInstance, producer, poolConfig))
     } catch {
       case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
     }

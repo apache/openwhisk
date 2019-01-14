@@ -288,6 +288,13 @@ class ShardingContainerPoolBalancer(
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
   override def clusterSize: Int = schedulingState.clusterSize
 
+  /** send runtime to all managed invokers*/
+  override def sendRuntimeToManageInvoker(runtime: String, operType: String): Unit = {
+    schedulingState.managedInvokers foreach { invokerHealth =>
+      sendRuntimeToInvoker(messageProducer, runtime, invokerHealth.id, operType)
+    }
+  }
+
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -420,6 +427,21 @@ class ShardingContainerPoolBalancer(
           s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
           logLevel = InfoLevel)
       case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
+    }
+  }
+
+  /**  Send the runtime to the invoker */
+  private def sendRuntimeToInvoker(producer: MessageProducer,
+                                   runtime: String,
+                                   invoker: InvokerInstanceId,
+                                   operType: String): Future[RecordMetadata] = {
+    val topic = s"invoker${invoker.toInt}"
+    val runtimeMessage = RuntimeMessage(runtime, operType)
+    producer.send(topic, runtimeMessage).andThen {
+      case Success(_) =>
+        logging.info(this, s"Successfully posted runtime: ${runtime} to topic $topic")
+      case Failure(_) =>
+        logging.error(this, s"Failed posted runtime: ${runtime} to topic $topic")
     }
   }
 

@@ -282,3 +282,12 @@ object EventMessage extends DefaultJsonProtocol {
 
   def parse(msg: String) = format.read(msg.parseJson)
 }
+
+case class RuntimeMessage(runtime: String, operType: String) extends Message {
+  override def serialize = RuntimeMessage.serdes.write(this).compactPrint
+}
+
+object RuntimeMessage extends DefaultJsonProtocol {
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat(RuntimeMessage.apply _, "runtime", "operType")
+}
