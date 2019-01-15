@@ -119,8 +119,8 @@ class ApacheBlockingContainerClientTests
     result shouldBe Left(NoResponseReceived())
   }
 
-  it should "retry until timeout on HttpHostConnectException" in {
-    val timeout = 50.milliseconds
+  it should "retry till timeout on HttpHostConnectException" in {
+    val timeout = 5.seconds
     val badHostAndPort = "0.0.0.0:12345"
     val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
     testStatusCode = 204
@@ -136,24 +136,6 @@ class ApacheBlockingContainerClientTests
 
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
-  }
-
-  it should "retry until max retries count is exceeded" in {
-    val timeout = 5.seconds
-    val badHostAndPort = "0.0.0.0:12345"
-    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
-    testStatusCode = 204
-    val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
-    val end = Instant.now()
-    val waited = end.toEpochMilli - start.toEpochMilli
-    result match {
-      case Left(ConnectionError(RetryableConnectionError(_: HttpHostConnectException))) => // all good
-      case _ =>
-        fail(s"$result was not a ConnectionError(HttpHostConnectException))")
-    }
-
-    waited should be < timeout.toMillis
   }
 
   it should "not truncate responses within limit" in {
