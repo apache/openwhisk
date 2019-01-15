@@ -34,6 +34,11 @@ services:
     volumes:
       - ~/tmp/openwhisk/grafana:/var/lib/grafana
       - ./compose/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./compose/grafana/dashboards/:/var/lib/grafana/dashboards/
+
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=foobar
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin

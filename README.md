@@ -11,23 +11,22 @@ This service connects to `events` topic and publishes the events to various serv
 This command pulls the docker images for local testing and development.
 
 ```bash
-make docker-build
+make all
 ```
 
 ## Run
-The container will be run inside the openwhisk [docker-compose][2] environment
-
 ```bash
-make run
+make start-docker-compose
 ```
 
-This command would starts the user-events service along with [Prometheus][4] and Grafana[5]
+This command will start the `user-event` service along with [prometheus][3] and [grafana][4] inside the same [docker-compose openwhisk][2] network. 
+
 
 These ports must be available:
 
 - `9095` - user-events service
 - `9096` - prometheus
-- `3000` - Grafana
+- `3000` - grafana
 
 ## Logs
 
@@ -39,5 +38,15 @@ Integrations
 #### Prometheus
 The docker container would run the service and expose the metrics in format required by Prometheus at `9095` port
 
+#### Grafana
+The `Openwhisk - Action Performance Metrics` grafana dashboard is available on localhost port `3000` at this address: 
+[http://localhost:3000/d/Oew1lvymk/openwhisk-action-performance-metrics][5]
+
+The latest version of the dashboard can be found on [Grafana Labs][6].
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/metrics.md#user-specific-metrics
 [2]: https://github.com/apache/incubator-openwhisk-devtools/tree/master/docker-compose
+[3]: https://hub.docker.com/r/prom/prometheus/
+[4]: https://hub.docker.com/r/grafana/grafana/
+[5]: http://localhost:3000/d/Oew1lvymk/openwhisk-action-performance-metrics
+[6]: https://grafana.com/dashboards/9564
