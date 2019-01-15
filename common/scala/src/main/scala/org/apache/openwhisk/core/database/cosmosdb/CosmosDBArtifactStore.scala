@@ -21,7 +21,6 @@ import java.io.ByteArrayInputStream
 
 import _root_.rx.RxReactiveStreams
 import akka.actor.ActorSystem
-import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.{ContentType, StatusCodes, Uri}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source, StreamConverters}
@@ -57,8 +56,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     with DefaultJsonProtocol
     with DocumentProvider
     with CosmosDBSupport
-    with AttachmentSupport[DocumentAbstraction]
-    with SLF4JLogging {
+    with AttachmentSupport[DocumentAbstraction] {
 
   private val cosmosScheme = "cosmos"
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
@@ -76,7 +74,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val countToken = createToken("count")
   private val putAttachmentToken = createToken("putAttachment", read = false)
 
-  log.info(
+  logging.info(
+    this,
     s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}]")
 
