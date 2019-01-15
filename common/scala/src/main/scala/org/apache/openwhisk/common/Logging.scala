@@ -383,18 +383,18 @@ object LoggingMarkers {
   val CONTAINER_CLIENT_RETRIES =
     LogMarkerToken(containerClient, "retries", count)
 
-  val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(invoker, "totalCapacityBlackBox", count)
-  val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(invoker, "totalCapacityManaged", count)
+  val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", count)
+  val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", count)
 
-  val HEALTHY_INVOKER_MANAGED = LogMarkerToken(invoker, "totalHealthyInvokerManaged", count)
-  val UNHEALTHY_INVOKER_MANAGED = LogMarkerToken(invoker, "totalUnhealthyInvokerManaged", count)
-  val UNRESPONSIVE_INVOKER_MANAGED = LogMarkerToken(invoker, "totalUnresponsiveInvokerManaged", count)
-  val DOWN_INVOKER_MANAGED = LogMarkerToken(invoker, "totalDownInvokerManaged", count)
+  val HEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalHealthyInvokerManaged", count)
+  val UNHEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerManaged", count)
+  val UNRESPONSIVE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerManaged", count)
+  val DOWN_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalDownInvokerManaged", count)
 
-  val HEALTHY_INVOKER_BLACKBOX = LogMarkerToken(invoker, "totalHealthyInvokerBlackBox", count)
-  val UNHEALTHY_INVOKER_BLACKBOX = LogMarkerToken(invoker, "totalUnhealthyInvokerBlackBox", count)
-  val UNRESPONSIVE_INVOKER_BLACKBOX = LogMarkerToken(invoker, "totalUnresponsiveInvokerBlackBox", count)
-  val DOWN_INVOKER_BLACKBOX = LogMarkerToken(invoker, "totalDownInvokerBlackBox", count)
+  val HEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalHealthyInvokerBlackBox", count)
+  val UNHEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerBlackBox", count)
+  val UNRESPONSIVE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerBlackBox", count)
+  val DOWN_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalDownInvokerBlackBox", count)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
