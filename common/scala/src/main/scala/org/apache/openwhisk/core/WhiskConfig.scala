@@ -249,4 +249,6 @@ object ConfigKeys {
 
   val metrics = "whisk.metrics"
   val featureFlags = "whisk.feature-flags"
+  val lambda = "whisk.aws.lambda"
+  val aws = "whisk.aws"
 }
