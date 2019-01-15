@@ -44,18 +44,18 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
    * @return a future that resolves with Left(activation id) when the request is queued, or Right(activation) for a blocking request
    *         which completes in time iff waiting for an response
    */
-  protected[controller] def invokeAction(
-    user: Identity,
-    action: WhiskActionMetaData,
-    originActionFqn: FullyQualifiedEntityName,
-    payload: Option[JsObject],
-    waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-    action.toExecutableWhiskAction(originActionFqn) match {
+  protected[controller] def invokeAction(user: Identity,
+                                         action: WhiskActionMetaData,
+                                         payload: Option[JsObject],
+                                         waitForResponse: Option[FiniteDuration],
+                                         cause: Option[ActivationId],
+                                         binding: Option[EntityPath] = None)(
+    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    action.toExecutableWhiskAction(binding) match {
       // this is a topmost sequence
       case None =>
         val SequenceExecMetaData(components) = action.exec
-        invokeSequence(user, action, originActionFqn, components, payload, waitForResponse, cause, topmost = true, 0)
+        invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0, binding)
           .map(r => r._1)
       // a non-deprecated ExecutableWhiskAction
       case Some(executable) if !executable.exec.deprecated =>

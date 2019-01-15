@@ -116,35 +116,35 @@ class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSyste
     }
   }
 
-  it should "contain an origin path annotation if invoked action is in the package binding" in withAssetCleaner(
-    wskprops) { (wp, assetHelper) =>
-    val ns = wsk.namespace.whois()
-    val packageName = "package1"
-    val bindName = "package2"
-    val actionName = "print"
-    val packageActionName = packageName + "/" + actionName
-    val bindActionName = bindName + "/" + actionName
-    val file = TestUtils.getTestActionFilename("echo.js")
+  it should "contain an binding annotation if invoked action is in the package binding" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val ns = wsk.namespace.whois()
+      val packageName = "package1"
+      val bindName = "package2"
+      val actionName = "print"
+      val packageActionName = packageName + "/" + actionName
+      val bindActionName = bindName + "/" + actionName
+      val file = TestUtils.getTestActionFilename("echo.js")
 
-    assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
-      pkg.create(packageName)
-    }
-    assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
-      action.create(packageActionName, Some(file))
-    }
-    assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
-      pkg.bind(packageName, bindName)
-    }
+      assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+        pkg.create(packageName)
+      }
+      assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+        action.create(packageActionName, Some(file))
+      }
+      assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+        pkg.bind(packageName, bindName)
+      }
 
-    val run = wsk.action.invoke(bindActionName)
-    withActivation(wsk.activation, run, totalWait = LOG_DELAY) { activation =>
-      val originPath = activation.getAnnotationValue(WhiskActivation.originPathAnnotation)
-      originPath shouldBe defined
-      originPath.get shouldBe JsString(ns + "/" + bindActionName)
-    }
+      val run = wsk.action.invoke(bindActionName)
+      withActivation(wsk.activation, run, totalWait = LOG_DELAY) { activation =>
+        val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+        binding shouldBe defined
+        binding.get shouldBe JsString(ns + "/" + bindName)
+      }
   }
 
-  it should "not contain an origin path annotation if invoked action is not in the package binding" in withAssetCleaner(
+  it should "not contain an binding annotation if invoked action is not in the package binding" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     val packageName = "package1"
     val actionName = "print"
@@ -163,12 +163,12 @@ class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSyste
     }
 
     withActivation(wsk.activation, wsk.action.invoke(packageActionName), totalWait = LOG_DELAY) { activation =>
-      val originPath = activation.getAnnotationValue(WhiskActivation.originPathAnnotation)
-      originPath shouldBe empty
+      val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+      binding shouldBe empty
     }
     withActivation(wsk.activation, wsk.action.invoke(actionName), totalWait = LOG_DELAY) { activation =>
-      val originPath = activation.getAnnotationValue(WhiskActivation.originPathAnnotation)
-      originPath shouldBe empty
+      val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+      binding shouldBe empty
     }
   }
 

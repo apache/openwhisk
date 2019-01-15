@@ -748,8 +748,8 @@ object ContainerProxy {
       initInterval.map(initTime => Parameters(WhiskActivation.initTimeAnnotation, initTime.duration.toMillis.toJson))
     }
 
-    val originPath =
-      job.msg.originAction.map(f => Parameters(WhiskActivation.originPathAnnotation, JsString(f.asString)))
+    val binding =
+      job.msg.action.binding.map(f => Parameters(WhiskActivation.bindingAnnotation, JsString(f.asString)))
 
     WhiskActivation(
       activationId = job.msg.activationId,
@@ -767,8 +767,7 @@ object ContainerProxy {
           Parameters(WhiskActivation.pathAnnotation, JsString(job.action.fullyQualifiedName(false).asString)) ++
           Parameters(WhiskActivation.kindAnnotation, JsString(job.action.exec.kind)) ++
           Parameters(WhiskActivation.timeoutAnnotation, JsBoolean(isTimeout)) ++
-          causedBy ++ initTime
-          causedBy ++ initTime ++ originPath
+          causedBy ++ initTime ++ binding
       })
   }
 }

@@ -234,11 +234,10 @@ case class WhiskActionMetaData(namespace: EntityPath,
       None
   }
 
-  def toExecutableWhiskAction(originEntity: FullyQualifiedEntityName) = {
+  def toExecutableWhiskAction(binding: Option[EntityPath]) = {
 
     exec match {
       case execMetaData: ExecMetaData =>
-        val origin = if (originEntity.path == namespace) None else Some(originEntity.path)
         Some(
           ExecutableWhiskActionMetaData(
             namespace,
@@ -249,7 +248,7 @@ case class WhiskActionMetaData(namespace: EntityPath,
             version,
             publish,
             annotations,
-            origin)
+            binding)
             .revision[ExecutableWhiskActionMetaData](rev))
 
       case _ => None
@@ -275,7 +274,8 @@ case class WhiskActionMetaData(namespace: EntityPath,
  * @param limits the limits to impose on the action
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the action
+ * @param annotations the set of annotations to attribute to the action
+ * @param binding the path of the package binding
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -287,7 +287,7 @@ case class ExecutableWhiskAction(namespace: EntityPath,
                                  version: SemVer = SemVer(),
                                  publish: Boolean = false,
                                  annotations: Parameters = Parameters(),
-                                 originNamespace: Option[EntityPath] = None)
+                                 binding: Option[EntityPath] = None)
     extends WhiskActionLike(name) {
 
   require(exec != null, "exec undefined")
@@ -318,7 +318,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
                                          version: SemVer = SemVer(),
                                          publish: Boolean = false,
                                          annotations: Parameters = Parameters(),
-                                         originNamespace: Option[EntityPath] = None)
+                                         binding: Option[EntityPath] = None)
     extends WhiskActionLikeMetaData(name) {
 
   require(exec != null, "exec undefined")
@@ -328,8 +328,8 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
     WhiskActionMetaData(namespace, name, exec, parameters, limits, version, publish, annotations)
       .revision[WhiskActionMetaData](rev)
 
-  def originFullyQualifiedName =
-    originNamespace.map(ns => FullyQualifiedEntityName(ns, name, None))
+  def bindingFullyQualifiedName =
+    binding.map(ns => FullyQualifiedEntityName(ns, name, None))
 
 }
 

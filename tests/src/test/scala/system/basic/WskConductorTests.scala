@@ -272,14 +272,14 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
     }
   }
 
-  it should "invoke a conductor action in the package binding" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "invoke a conductor action in a package binding" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val ns = wsk.namespace.whois()
     val actionName = "echo" // echo conductor action
     val packageName = "package1"
     val bindName = "package2"
     val packageActionName = packageName + "/" + actionName
     val bindActionName = bindName + "/" + actionName
-    val bindActionNameFqn = ns + "/" + bindActionName
+    val bindNameWithNamespace = ns + "/" + bindName
 
     assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
       pkg.create(packageName)
@@ -302,9 +302,9 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       activation.response.status shouldBe "success"
       activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson, "state" -> testString.toJson))
 
-      val originPath = activation.getAnnotationValue("originPath")
-      originPath shouldBe defined
-      originPath.get shouldBe JsString(bindActionNameFqn)
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
 
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }
@@ -315,9 +315,9 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       activation.response.status shouldBe "application error"
       activation.response.result shouldBe Some(JsObject("error" -> testString.toJson))
 
-      val originPath = activation.getAnnotationValue("originPath")
-      originPath shouldBe defined
-      originPath.get shouldBe JsString(bindActionNameFqn)
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
 
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }
@@ -334,9 +334,9 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       activation.response.status shouldBe "success"
       activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson))
 
-      val originPath = activation.getAnnotationValue("originPath")
-      originPath shouldBe defined
-      originPath.get shouldBe JsString(bindActionNameFqn)
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
 
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }

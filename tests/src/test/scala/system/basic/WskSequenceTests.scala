@@ -299,7 +299,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
         new Regex(String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now)))
   }
 
-  it should "contain an origin path if invoked action is in a package binding" in withAssetCleaner(wskprops) {
+  it should "contain an binding annotation if invoked action is in a package binding" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val ns = wsk.namespace.whois()
       val packageName = "package1"
@@ -328,9 +328,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
 
       val run = wsk.action.invoke(bName)
       withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
-        val originPath = activation.getAnnotationValue(WhiskActivation.originPathAnnotation)
-        originPath shouldBe defined
-        originPath.get shouldBe JsString(ns + "/" + bName)
+        val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+        binding shouldBe defined
+        binding.get shouldBe JsString(ns + "/" + bindName)
 
         for (id <- activation.logs.get) {
           withActivation(
@@ -339,9 +339,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
             initialWait = 1 second,
             pollPeriod = 60 seconds,
             totalWait = allowedActionDuration) { componentActivation =>
-            val orgPath = componentActivation.getAnnotationValue(WhiskActivation.originPathAnnotation)
-            orgPath shouldBe defined
-            orgPath.get shouldBe JsString(ns + "/" + bindActionName)
+            val binding = componentActivation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+            binding shouldBe defined
+            binding.get shouldBe JsString(ns + "/" + bindName)
           }
         }
       }
