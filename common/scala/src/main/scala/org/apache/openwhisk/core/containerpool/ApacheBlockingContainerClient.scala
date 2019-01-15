@@ -156,11 +156,10 @@ protected class ApacheBlockingContainerClient(hostname: String,
     } match {
       case Success(response) => response
       case Failure(t: RetryableConnectionError) if retry =>
-        val waitTime = (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
         val sleepTime = 50.milliseconds
         if (timeout > Duration.Zero) {
           Thread.sleep(sleepTime.toMillis)
-          val newTimeout = timeout - sleepTime - waitTime
+          val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
           val newRetryCount = retryCount + 1
           execute(request, newTimeout, maxConcurrent, retry = newRetryCount < 3, retryCount = newRetryCount)
         } else {
