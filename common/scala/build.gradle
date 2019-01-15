@@ -15,10 +15,20 @@
  * limitations under the License.
  */
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE"
+    }
+}
+
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
+apply plugin: "io.spring.dependency-management"
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
@@ -27,6 +37,12 @@ project.archivesBaseName = "openwhisk-common"
 
 repositories {
     mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'software.amazon.awssdk:bom:2.0.0'
+    }
 }
 
 dependencies {
@@ -97,6 +113,8 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
+
+    compile 'software.amazon.awssdk:lambda'
     scoverage gradle.scoverage.deps
 }
 
