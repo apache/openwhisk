@@ -15,20 +15,10 @@
  * limitations under the License.
  */
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath "io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE"
-    }
-}
-
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
-apply plugin: "io.spring.dependency-management"
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
@@ -37,12 +27,6 @@ project.archivesBaseName = "openwhisk-common"
 
 repositories {
     mavenCentral()
-}
-
-dependencyManagement {
-    imports {
-        mavenBom 'software.amazon.awssdk:bom:2.0.0'
-    }
 }
 
 dependencies {
@@ -101,6 +85,10 @@ dependencies {
     compile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1'
     compile 'io.zipkin.reporter2:zipkin-reporter:2.6.1'
 
+    //TODO Review the final dependency set
+    compile 'software.amazon.awssdk:bom:2.3.2'
+    compile 'software.amazon.awssdk:lambda'
+
     compile 'io.reactivex:rxscala_2.12:0.26.5'
     compile 'io.reactivex:rxjava-reactive-streams:1.2.1'
     compile ('com.microsoft.azure:azure-cosmosdb:2.4.2'){
@@ -113,8 +101,6 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-
-    compile 'software.amazon.awssdk:lambda'
     scoverage gradle.scoverage.deps
 }
 

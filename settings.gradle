@@ -49,3 +49,6 @@ gradle.ext.scoverage = [
 ]
 
 gradle.ext.curator = [version:'4.0.0']
+
+//Can be removed post update to Gradle 5.0
+enableFeaturePreview("IMPROVED_POM_SUPPORT")
