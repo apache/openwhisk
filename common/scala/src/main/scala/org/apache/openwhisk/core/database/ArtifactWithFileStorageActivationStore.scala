@@ -31,10 +31,7 @@ import scala.concurrent.Future
 
 case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
                                                         logPath: String,
-                                                        userIdField: String,
-                                                        writeToArtifact: Boolean,
-                                                        writeLogsToArtifact: Boolean,
-                                                        writeResultToArtifact: Boolean)
+                                                        userIdField: String)
 
 class ArtifactWithFileStorageActivationStore(
   actorSystem: ActorSystem,
@@ -55,20 +52,7 @@ class ArtifactWithFileStorageActivationStore(
     val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)
 
     activationFileStorage.activationToFile(activation, context, additionalFields)
-
-    if (config.writeToArtifact) {
-      if (config.writeResultToArtifact && config.writeLogsToArtifact) {
-        super.store(activation, context)
-      } else if (config.writeResultToArtifact) {
-        super.store(activation.withoutLogs, context)
-      } else if (config.writeLogsToArtifact) {
-        super.store(activation.withoutResult, context)
-      } else {
-        super.store(activation.withoutLogsOrResult, context)
-      }
-    } else {
-      Future.successful(DocInfo(activation.activationId.asString))
-    }
+    super.store(activation, context)
   }
 
 }

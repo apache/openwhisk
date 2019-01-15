@@ -108,7 +108,7 @@ class ArtifactWithFileStorageActivationStoreTests()
   }
 
   it should "store activations in artifact store and to file" in {
-    val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId", true, true, true)
+    val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId")
     val activationStore = new ArtifactWithFileStorageActivationStore(system, materializer, logging, config)
     val logDir = new File(new File(".").getCanonicalPath, config.logPath)
 
