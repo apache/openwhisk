@@ -29,9 +29,7 @@ import spray.json._
 
 import scala.concurrent.Future
 
-case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
-                                                        logPath: String,
-                                                        userIdField: String)
+case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String, logPath: String, userIdField: String)
 
 class ArtifactWithFileStorageActivationStore(
   actorSystem: ActorSystem,
