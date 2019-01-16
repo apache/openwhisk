@@ -105,7 +105,7 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   }
 
   override def resume()(implicit transid: TransactionId): Future[Unit] =
-    kubernetes.resume(this).map(_ => super.resume())
+    kubernetes.resume(this).flatMap(_ => super.resume())
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
