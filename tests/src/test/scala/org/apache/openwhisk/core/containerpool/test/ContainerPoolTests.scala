@@ -86,6 +86,11 @@ class ContainerPoolTests
   val invocationNamespace = EntityName("invocationSpace")
   val differentInvocationNamespace = EntityName("invocationSpace2")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val concurrentAction = ExecutableWhiskAction(
+    EntityPath("actionSpace"),
+    EntityName("actionName"),
+    exec,
+    limits = ActionLimits(concurrency = ConcurrencyLimit(3)))
   val differentAction = action.copy(name = EntityName("actionName2"))
   val largeAction =
     action.copy(
@@ -98,6 +103,8 @@ class ContainerPoolTests
   val runMessageDifferentVersion = createRunMessage(action.copy().revision(DocRevision("v2")), invocationNamespace)
   val runMessageDifferentNamespace = createRunMessage(action, differentInvocationNamespace)
   val runMessageDifferentEverything = createRunMessage(differentAction, differentInvocationNamespace)
+  val runMessageConcurrent = createRunMessage(concurrentAction, invocationNamespace)
+  val runMessageConcurrentDifferentNamespace = createRunMessage(concurrentAction, differentInvocationNamespace)
 
   /** Helper to create PreWarmedData */
   def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
@@ -471,6 +478,82 @@ class ContainerPoolTests
     containers(4).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
   }
+
+  it should "increase activation counts when scheduling to containers whose actions that support concurrency" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
+  }
+
+  it should "schedule concurrent activations to different containers for different namespaces" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container1 is created and used
+    pool ! runMessageConcurrentDifferentNamespace
+    containers(1).expectMsg(runMessageConcurrentDifferentNamespace)
+
+  }
+  it should "decrease activation counts when receiving NeedWork for actions that support concurrency" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+    // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
+
+    // container1 is reused
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
+
+    // container1 is reused
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
+
+    containers(0).send(pool, NeedWork(warmedData(action = concurrentAction)))
+
+    // container0 is reused (since active count decreased)
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
+
+  }
 }
 
 /**
@@ -503,6 +586,13 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
                   lastUsed: Instant = Instant.now,
                   active: Int = 0) =
     WarmingData(stub[Container], EntityName(namespace), action, lastUsed, active)
+
+  /** Helper to create WarmingData with sensible defaults */
+  def warmingColdData(action: ExecutableWhiskAction = createAction(),
+                      namespace: String = standardNamespace.asString,
+                      lastUsed: Instant = Instant.now,
+                      active: Int = 0) =
+    WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
   def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
@@ -608,6 +698,56 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool2 = pool ++ Map('warm -> data2)
 
     ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
+
+  }
+  it should "prefer warm to warming when active activation count < maxconcurrent" in {
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
+
+    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val data = warmingColdData(active = maxConcurrent - 1, action = action)
+    val data2 = warmedData(active = maxConcurrent - 1, action = action)
+    val pool = Map('warming -> data, 'warm -> data2)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data)
+
+  }
+  it should "use a warmingCold when active activation count < maxconcurrent" in {
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
+
+    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val data = warmingColdData(active = maxConcurrent - 1, action = action)
+    val pool = Map('warmingCold -> data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warmingCold, data)
+
+    val data2 = warmedData(active = maxConcurrent - 1, action = action)
+    val pool2 = pool ++ Map('warm -> data2)
+
+    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
+
+  }
+
+  it should "prefer warm to warmingCold when active activation count < maxconcurrent" in {
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
+
+    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val data = warmingColdData(active = maxConcurrent - 1, action = action)
+    val data2 = warmedData(active = maxConcurrent - 1, action = action)
+    val pool = Map('warmingCold -> data, 'warm -> data2)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data2)
+
+  }
+
+  it should "prefer warming to warmingCold when active activation count < maxconcurrent" in {
+    val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
+    val maxConcurrent = if (concurrencyEnabled) 25 else 1
+
+    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val data = warmingColdData(active = maxConcurrent - 1, action = action)
+    val data2 = warmingData(active = maxConcurrent - 1, action = action)
+    val pool = Map('warmingCold -> data, 'warming -> data2)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data2)
 
   }
 

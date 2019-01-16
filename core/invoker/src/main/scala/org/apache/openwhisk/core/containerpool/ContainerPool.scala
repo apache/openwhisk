@@ -300,9 +300,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit = {
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit =
     childFactory(context) ! Start(exec, memoryLimit)
-  }
 
   /**
    * Takes a prewarm container out of the prewarmed pool
@@ -452,8 +451,7 @@ object ContainerPool {
   def props(factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: List[PrewarmingConfig] = List.empty,
-            maxConcurrent: Int = 1) =
+            prewarmConfig: List[PrewarmingConfig] = List.empty) =
     Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
 }
 
