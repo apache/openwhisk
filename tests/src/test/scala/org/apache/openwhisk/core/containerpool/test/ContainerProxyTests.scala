@@ -39,6 +39,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -1077,6 +1078,7 @@ class ContainerProxyTests
     override def suspend()(implicit transid: TransactionId): Future[Unit] = {
       suspendCount += 1
       val s = super.suspend()
+      Await.result(s, 5.seconds)
       //verify that httpconn is closed
       httpConnection should be(None)
       s
@@ -1084,6 +1086,7 @@ class ContainerProxyTests
     override def resume()(implicit transid: TransactionId): Future[Unit] = {
       resumeCount += 1
       val r = super.resume()
+      Await.result(r, 5.seconds)
       //verify that httpconn is recreated
       httpConnection should be('defined)
       r
