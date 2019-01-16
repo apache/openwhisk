@@ -22,18 +22,16 @@ import java.io.Closeable
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
-import spray.json.RootJsonFormat
+import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.core.database._
-import pureconfig._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.createClient
+import org.apache.openwhisk.core.database._
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
+import pureconfig._
+import spray.json.RootJsonFormat
 
 import scala.reflect.ClassTag
-
-case class CosmosDBConfig(endpoint: String, key: String, db: String, throughput: Int = 1000)
 
 case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
   override def close(): Unit = client.close()
@@ -41,8 +39,7 @@ case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
 
 object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference
-  private lazy val config = loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb)
-  private var clientRef: ReferenceCounted[ClientHolder] = _
+  private val clients = collection.mutable.Map[CosmosDBConfig, ReferenceCounted[ClientHolder]]()
 
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
@@ -50,6 +47,8 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
+    val tag = implicitly[ClassTag[D]]
+    val config = CosmosDBConfig(ConfigFactory.load(), tag.runtimeClass.getSimpleName)
     makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore())
   }
 
@@ -102,13 +101,17 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
    * Synchronization is required to ensure concurrent init of various store instances share same ref instance
    */
   private def getOrCreateReference(config: CosmosDBConfig) = synchronized {
-    if (clientRef == null || clientRef.isClosed) {
-      clientRef = createReference(config)
+    val clientRef = clients.getOrElseUpdate(config, createReference(config))
+    if (clientRef.isClosed) {
+      val newRef = createReference(config)
+      clients.put(config, newRef)
+      newRef.reference()
+    } else {
+      clientRef.reference()
     }
-    clientRef.reference()
   }
 
   private def createReference(config: CosmosDBConfig) =
-    new ReferenceCounted[ClientHolder](ClientHolder(createClient(config)))
+    new ReferenceCounted[ClientHolder](ClientHolder(config.createClient()))
 
 }

@@ -74,6 +74,11 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val countToken = createToken("count")
   private val putAttachmentToken = createToken("putAttachment", read = false)
 
+  logging.info(
+    this,
+    s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
+      s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}]")
+
   //Clone the returned instance as these are mutable
   def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
 
