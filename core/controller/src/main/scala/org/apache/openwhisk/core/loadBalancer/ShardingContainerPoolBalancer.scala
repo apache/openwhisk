@@ -38,6 +38,7 @@ import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 
@@ -179,7 +180,7 @@ class ShardingContainerPoolBalancer(
     TrieMap[ActivationId, Promise[Either[ActivationId, WhiskActivation]]]()
   private val activationsPerNamespace = TrieMap[UUID, LongAdder]()
   private val totalActivations = new LongAdder()
-  private val totalBBActivationMemory = new LongAdder()
+  private val totalBlackBoxActivationMemory = new LongAdder()
   private val totalManagedActivationMemory = new LongAdder()
 
   /** State needed for scheduling. */
@@ -189,43 +190,53 @@ class ShardingContainerPoolBalancer(
     MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
     MetricEmitter.emitHistogramMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
-      totalBBActivationMemory.longValue + totalManagedActivationMemory.longValue)
+      totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
     MetricEmitter.emitHistogramMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
-      totalBBActivationMemory.longValue)
+      totalBlackBoxActivationMemory.longValue)
     MetricEmitter.emitHistogramMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
       totalManagedActivationMemory.longValue)
-    MetricEmitter.emitHistogramMetric(
-      INVOKER_TOTALMEM_BLACKBOX,
-      schedulingState.blackboxInvokers.filter(_.status.isUsable).map(_.id.userMemory.toMB).sum)
-    MetricEmitter.emitHistogramMetric(
-      INVOKER_TOTALMEM_MANAGED,
-      schedulingState.managedInvokers.filter(_.status.isUsable).map(_.id.userMemory.toMB).sum)
+    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_BLACKBOX, schedulingState.blackboxInvokers.foldLeft(0L) {
+      (total, curr) =>
+        if (curr.status.isUsable) {
+          curr.id.userMemory.toMB + total
+        } else {
+          total
+        }
+    })
+    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_MANAGED, schedulingState.managedInvokers.foldLeft(0L) {
+      (total, curr) =>
+        if (curr.status.isUsable) {
+          curr.id.userMemory.toMB + total
+        } else {
+          total
+        }
+    })
     MetricEmitter.emitHistogramMetric(
       HEALTHY_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status.asString == "up"))
+      schedulingState.managedInvokers.count(_.status == Healthy))
     MetricEmitter.emitHistogramMetric(
       UNHEALTHY_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status.asString == "unhealthy"))
+      schedulingState.managedInvokers.count(_.status == Unhealthy))
     MetricEmitter.emitHistogramMetric(
       UNRESPONSIVE_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status.asString == "unresponsive"))
+      schedulingState.managedInvokers.count(_.status == Unresponsive))
     MetricEmitter.emitHistogramMetric(
-      DOWN_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status.asString == "down"))
+      OFFLINE_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status == Offline))
     MetricEmitter.emitHistogramMetric(
       HEALTHY_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status.asString == "up"))
+      schedulingState.blackboxInvokers.count(_.status == Healthy))
     MetricEmitter.emitHistogramMetric(
       UNHEALTHY_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status.asString == "unhealthy"))
+      schedulingState.blackboxInvokers.count(_.status == Unhealthy))
     MetricEmitter.emitHistogramMetric(
       UNRESPONSIVE_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status.asString == "unresponsive"))
+      schedulingState.blackboxInvokers.count(_.status == Unresponsive))
     MetricEmitter.emitHistogramMetric(
-      DOWN_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status.asString == "down"))
+      OFFLINE_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status == Offline))
   }
 
   /**
@@ -337,8 +348,9 @@ class ShardingContainerPoolBalancer(
                               instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
 
     totalActivations.increment()
-    if (action.exec.pull) {
-      totalBBActivationMemory.add(action.limits.memory.megabytes)
+    val isBlackboxInvocation = action.exec.pull
+    if (isBlackboxInvocation) {
+      totalBlackBoxActivationMemory.add(action.limits.memory.megabytes)
     } else {
       totalManagedActivationMemory.add(action.limits.memory.megabytes)
     }
@@ -472,7 +484,7 @@ class ShardingContainerPoolBalancer(
       case Some(entry) =>
         totalActivations.decrement()
         if (entry.isBlackbox) {
-          totalBBActivationMemory.add(entry.memory.toMB * (-1))
+          totalBlackBoxActivationMemory.add(entry.memory.toMB * (-1))
         } else {
           totalManagedActivationMemory.add(entry.memory.toMB * (-1))
         }
@@ -629,7 +641,11 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquireConcurrent(fqn, maxConcurrent, slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
-            MetricEmitter.emitCounterMetric(LoggingMarkers.SYSTEM_OVERLOAD(actionType))
+            if (actionType == "managed") {
+              MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
+            } else {
+              MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
+            }
             Some(random)
           } else {
             None

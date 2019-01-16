@@ -342,7 +342,8 @@ object LoggingMarkers {
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
 
   // System overload and random invoker assignment
-  def SYSTEM_OVERLOAD(actionType: String) = LogMarkerToken(controller, s"systemOverload$actionType", count)
+  val MANAGED_SYSTEM_OVERLOAD = LogMarkerToken(controller, "managedInvokerSystemOverload", count)
+  val BLACKBOX_SYSTEM_OVERLOAD = LogMarkerToken(controller, "blackBoxInvokerSystemOverload", count)
   /*
    * Invoker related markers
    */
@@ -389,12 +390,12 @@ object LoggingMarkers {
   val HEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalHealthyInvokerManaged", count)
   val UNHEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerManaged", count)
   val UNRESPONSIVE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerManaged", count)
-  val DOWN_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalDownInvokerManaged", count)
+  val OFFLINE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalOfflineInvokerManaged", count)
 
   val HEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalHealthyInvokerBlackBox", count)
   val UNHEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerBlackBox", count)
   val UNRESPONSIVE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerBlackBox", count)
-  val DOWN_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalDownInvokerBlackBox", count)
+  val OFFLINE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", count)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
