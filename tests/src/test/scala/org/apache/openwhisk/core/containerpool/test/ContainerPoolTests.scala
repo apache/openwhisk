@@ -708,7 +708,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val data = warmingColdData(active = maxConcurrent - 1, action = action)
     val data2 = warmedData(active = maxConcurrent - 1, action = action)
     val pool = Map('warming -> data, 'warm -> data2)
-    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data2)
 
   }
   it should "use a warmingCold when active activation count < maxconcurrent" in {
@@ -720,10 +720,11 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool = Map('warmingCold -> data)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warmingCold, data)
 
-    val data2 = warmedData(active = maxConcurrent - 1, action = action)
-    val pool2 = pool ++ Map('warm -> data2)
+    //after scheduling, the pool will update with new data to set active = maxConcurrent
+    val data2 = warmingColdData(active = maxConcurrent, action = action)
+    val pool2 = Map('warmingCold -> data2)
 
-    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
+    ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe None
 
   }
 
