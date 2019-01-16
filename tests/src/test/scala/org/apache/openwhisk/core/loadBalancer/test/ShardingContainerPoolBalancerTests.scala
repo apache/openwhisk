@@ -96,7 +96,7 @@ class ShardingContainerPoolBalancerTests
     IndexedSeq.fill(count)(new NestedSemaphore[FullyQualifiedEntityName](max))
 
   def lbConfig(blackboxFraction: Double) =
-    ShardingContainerPoolBalancerConfig(blackboxFraction, 1)
+    ShardingContainerPoolBalancerConfig(1.0 - blackboxFraction, blackboxFraction, 1)
 
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty

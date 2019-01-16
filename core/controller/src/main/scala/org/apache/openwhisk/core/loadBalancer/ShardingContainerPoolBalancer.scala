@@ -617,8 +617,16 @@ case class ShardingContainerPoolBalancerState(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
-  private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
-  logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
+  // Managed fraction and blackbox fraction can be between 0.0 and 1.0. The sum of these two fractions has to be between
+  // 1.0 and 2.0.
+  // If the sum is 1.0 that means, that there is no overlap of blackbox and managed invokers. If the sum is 2.0, that
+  // means, that there is no differentiation between managed and blackbox invokers.
+  // If the sum is below 1.0 with the initial values from config, the blackbox fraction will be set higher than
+  // specified in config and adapted to the managed fraction.
+  private val managedFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.managedFraction))
+  private val blackboxFraction: Double = Math.max(1.0 - managedFraction, Math.min(1.0, lbConfig.blackboxFraction))
+  logging.info(this, s"managedFraction = $managedFraction, blackboxFraction = $blackboxFraction")(
+    TransactionId.loadbalancer)
 
   /** Getters for the variables, setting from the outside is only allowed through the update methods below */
   def invokers: IndexedSeq[InvokerHealth] = _invokers
@@ -663,7 +671,7 @@ case class ShardingContainerPoolBalancerState(
 
     // for small N, allow the managed invokers to overlap with blackbox invokers, and
     // further assume that blackbox invokers << managed invokers
-    val managed = Math.max(1, Math.ceil(newSize.toDouble * (1 - blackboxFraction)).toInt)
+    val managed = Math.max(1, Math.ceil(newSize.toDouble * managedFraction).toInt)
     val blackboxes = Math.max(1, Math.floor(newSize.toDouble * blackboxFraction).toInt)
 
     _invokers = newInvokers
@@ -721,7 +729,7 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
  * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
  */
-case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, timeoutFactor: Int)
+case class ShardingContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction: Double, timeoutFactor: Int)
 
 /**
  * State kept for each activation slot until completion.
