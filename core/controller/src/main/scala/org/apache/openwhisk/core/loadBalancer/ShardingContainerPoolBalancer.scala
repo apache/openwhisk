@@ -301,16 +301,23 @@ class ShardingContainerPoolBalancer(
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
-      val invoker = ShardingContainerPoolBalancer.schedule(
+      val invoker: Option[(InvokerInstanceId, Boolean)] = ShardingContainerPoolBalancer.schedule(
         action.limits.concurrency.maxConcurrent,
         action.fullyQualifiedName(true),
         invokersToUse,
         schedulingState.invokerSlots,
         action.limits.memory.megabytes,
         homeInvoker,
-        stepSize,
-        actionType = actionType)
-      invoker
+        stepSize)
+      invoker.map(invoker => {
+        if (invoker._2) {
+          case `actionType` == "managed" =>
+            MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
+          case `actionType` == "blackbox" =>
+            MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
+        }
+        invoker._1
+      })
     } else {
       None
     }
@@ -616,22 +623,22 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    * @return an invoker to schedule to or None of no invoker is available
    */
   @tailrec
-  def schedule(maxConcurrent: Int,
-               fqn: FullyQualifiedEntityName,
-               invokers: IndexedSeq[InvokerHealth],
-               dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
-               slots: Int,
-               index: Int,
-               step: Int,
-               stepsDone: Int = 0,
-               actionType: String)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
+  def schedule(
+    maxConcurrent: Int,
+    fqn: FullyQualifiedEntityName,
+    invokers: IndexedSeq[InvokerHealth],
+    dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
+    slots: Int,
+    index: Int,
+    step: Int,
+    stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
       val invoker = invokers(index)
       //test this invoker - if this action supports concurrency, use the scheduleConcurrent function
       if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquireConcurrent(fqn, maxConcurrent, slots)) {
-        Some(invoker.id)
+        Some(invoker.id, true)
       } else {
         // If we've gone through all invokers
         if (stepsDone == numInvokers + 1) {
@@ -641,18 +648,13 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquireConcurrent(fqn, maxConcurrent, slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
-            if (actionType == "managed") {
-              MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
-            } else {
-              MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
-            }
-            Some(random)
+            Some(random, false)
           } else {
             None
           }
         } else {
           val newIndex = (index + step) % numInvokers
-          schedule(maxConcurrent, fqn, invokers, dispatched, slots, newIndex, step, stepsDone + 1, actionType)
+          schedule(maxConcurrent, fqn, invokers, dispatched, slots, newIndex, step, stepsDone + 1)
         }
       }
     } else {
