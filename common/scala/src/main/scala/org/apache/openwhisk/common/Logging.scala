@@ -26,6 +26,7 @@ import akka.event.LoggingAdapter
 import kamon.Kamon
 import kamon.metric.{Counter => KCounter, Histogram => KHistogram}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
+import kamon.system.SystemMetrics
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 trait Logging {
@@ -274,6 +275,10 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
+  if (TransactionId.metricsKamon) {
+    SystemMetrics.startCollecting()
+  }
+
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       token.counter.increment(times)
