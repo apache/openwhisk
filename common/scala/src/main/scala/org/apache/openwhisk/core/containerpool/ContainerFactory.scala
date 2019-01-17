@@ -27,6 +27,8 @@ import scala.concurrent.Future
 
 case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
+                               dnsSearch: Seq[String] = Seq.empty,
+                               dnsOptions: Seq[String] = Seq.empty,
                                extraArgs: Map[String, Set[String]] = Map.empty)
 
 case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Double, akkaClient: Boolean) {

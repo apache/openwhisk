@@ -69,6 +69,8 @@ class DockerContainerFactory(instance: InvokerInstanceId,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
       network = containerArgsConfig.network,
       dnsServers = containerArgsConfig.dnsServers,
+      dnsSearch = containerArgsConfig.dnsSearch,
+      dnsOptions = containerArgsConfig.dnsOptions,
       name = Some(name),
       useRunc = dockerContainerFactoryConfig.useRunc,
       parameters ++ containerArgsConfig.extraArgs.map { case (k, v) => ("--" + k, v) })

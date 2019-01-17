@@ -73,6 +73,7 @@ class DockerClientWithFileAccessTestsIp
                    readResult: Future[JsObject] = Future.successful(dockerConfig)) =
     new DockerClientWithFileAccess()(global) {
       override val dockerCmd = Seq(dockerCommand)
+      override def getClientVersion() = "mock-test-client"
       override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
                                                                         as: ActorSystem) = execResult
       override def configFileContents(configFile: File) = readResult
@@ -129,6 +130,7 @@ class DockerClientWithFileAccessTestsOom
   def dockerClient(readResult: Future[JsObject]) =
     new DockerClientWithFileAccess()(global) {
       override val dockerCmd = Seq("docker")
+      override def getClientVersion() = "mock-test-client"
       override def configFileContents(configFile: File) = readResult
     }
 

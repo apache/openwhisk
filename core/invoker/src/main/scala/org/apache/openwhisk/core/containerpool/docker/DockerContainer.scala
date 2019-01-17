@@ -65,6 +65,8 @@ object DockerContainer {
              environment: Map[String, String] = Map.empty,
              network: String = "bridge",
              dnsServers: Seq[String] = Seq.empty,
+             dnsSearch: Seq[String] = Seq.empty,
+             dnsOptions: Seq[String] = Seq.empty,
              name: Option[String] = None,
              useRunc: Boolean = true,
              dockerRunParameters: Map[String, Set[String]])(implicit docker: DockerApiWithFileAccess,
@@ -82,6 +84,8 @@ object DockerContainer {
       case (key, valueList) => valueList.toList.flatMap(Seq(key, _))
     }
 
+    // NOTE: --dns-option on modern versions of docker, but is --dns-opt on docker 1.12
+    val dnsOptString = if (docker.clientVersion.startsWith("1.12")) { "--dns-opt" } else { "--dns-option" }
     val args = Seq(
       "--cpu-shares",
       cpuShares.toString,
@@ -93,6 +97,8 @@ object DockerContainer {
       network) ++
       environmentArgs ++
       dnsServers.flatMap(d => Seq("--dns", d)) ++
+      dnsSearch.flatMap(d => Seq("--dns-search", d)) ++
+      dnsOptions.flatMap(d => Seq(dnsOptString, d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
       params
 

@@ -27,7 +27,7 @@ import akka.actor.ActorSystem
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.blocking
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -61,6 +61,7 @@ case class DockerClientTimeoutConfig(run: Duration,
                                      ps: Duration,
                                      pause: Duration,
                                      unpause: Duration,
+                                     version: Duration,
                                      inspect: Duration)
 
 /**
@@ -97,6 +98,20 @@ class DockerClient(dockerHost: Option[String] = None,
     val host = dockerHost.map(host => Seq("--host", s"tcp://$host")).getOrElse(Seq.empty[String])
     Seq(dockerBin) ++ host
   }
+
+  // Invoke docker CLI to determine client version.
+  // If the docker client version cannot be determined, an exception will be thrown and instance initialization will fail.
+  // Rationale: if we cannot invoke `docker version` successfully, it is unlikely subsequent `docker` invocations will succeed.
+  protected def getClientVersion(): String = {
+    val vf = executeProcess(dockerCmd ++ Seq("version", "--format", "{{.Client.Version}}"), config.timeouts.version)
+      .andThen {
+        case Success(version) => log.info(this, s"Detected docker client version $version")
+        case Failure(e) =>
+          log.error(this, s"Failed to determine docker client version: ${e.getClass} - ${e.getMessage}")
+      }
+    Await.result(vf, 2 * config.timeouts.version)
+  }
+  val clientVersion: String = getClientVersion()
 
   protected val maxParallelRuns = config.parallelRuns
   protected val runSemaphore =
@@ -196,6 +211,13 @@ class DockerClient(dockerHost: Option[String] = None,
 }
 
 trait DockerApi {
+
+  /**
+   * The version number of the docker client cli
+   *
+   * @return The version of the docker client cli being used by the invoker
+   */
+  def clientVersion: String
 
   /**
    * Spawns a container in detached mode.
