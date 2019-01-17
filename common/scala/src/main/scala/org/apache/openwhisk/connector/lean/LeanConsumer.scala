@@ -29,12 +29,10 @@ class LeanConsumer(queue: BlockingQueue[Array[Byte]], override val maxPeek: Int)
   /**
    */
   override def peek(duration: FiniteDuration, retry: Int): Iterable[(String, Int, Long, Array[Byte])] = {
-    logging.info(this, s"BBB in peek, Q.size: " + queue.size())
     val res = Option(queue.poll(duration.toMillis, TimeUnit.MILLISECONDS))
       .map(record => Iterable(("", 0, 0L, record)))
       .getOrElse(Iterable.empty)
 
-    logging.info(this, s"BBB in peek after poll, Q.size: " + queue.size())
     res
   }
 

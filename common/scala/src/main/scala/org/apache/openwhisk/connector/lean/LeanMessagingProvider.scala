@@ -48,7 +48,6 @@ object LeanMessagingProvider extends MessagingProvider {
 
     var queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
 
-    logging.info(this, s"AAA getConsumer for topic: " + topic + ", Q: " + queue.size())
     new LeanConsumer(queue, maxPeek)
   }
 
@@ -59,7 +58,6 @@ object LeanMessagingProvider extends MessagingProvider {
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfigKey: String, maxMessageBytes: Option[ByteSize] = None)(
     implicit logging: Logging): Try[Unit] = {
-    logging.info(this, s"AAA ensureTopic for topic: " + topic)
     if (queues.contains(topic)) {
       Success(logging.info(this, s"topic $topic already existed"))
     } else {

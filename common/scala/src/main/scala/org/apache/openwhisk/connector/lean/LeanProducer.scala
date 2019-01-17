@@ -41,7 +41,6 @@ class LeanProducer(queues: Map[String, BlockingQueue[Array[Byte]]])(implicit log
   override def send(topic: String, msg: Message, retry: Int = 3): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
-    logging.info(this, s"BBB in send with topic " + topic + " msg " + transid)
     var queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
 
     val res = Future {
@@ -49,8 +48,6 @@ class LeanProducer(queues: Map[String, BlockingQueue[Array[Byte]]])(implicit log
       sentCounter.next()
       null
     }
-
-    logging.info(this, s"BBB Q.size: " + queue.size())
 
     res
   }

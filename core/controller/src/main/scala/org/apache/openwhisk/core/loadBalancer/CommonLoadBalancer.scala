@@ -178,7 +178,6 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
   /** 4. Get the active-ack message and parse it */
   protected[loadBalancer] def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = Future {
-    logging.info(this, s"in processAcknowledgement")
     val raw = new String(bytes, StandardCharsets.UTF_8)
     AcknowledegmentMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
@@ -224,7 +223,6 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
                                                 isSystemError: Boolean,
                                                 invoker: InvokerInstanceId): Unit = {
 
-    logging.info(this, s"in processCompletion with " + aid)
     val invocationResult = if (forced) {
       InvocationFinishedResult.Timeout
     } else {
