@@ -79,11 +79,6 @@ def replicateDatabases(args):
         filterDesignDocument = sourceDb[db].get("_design/%s" % filterName)
         if not args.continuous and filterDesignDocument:
             replicateDesignDocument["filter"] = "%s/withoutDeletedAndDesignDocuments" % filterName
-
-        existingDoc = replicator.get(backupDb)
-        if existingDoc is not None:
-            replicateDesignDocument['_rev'] = existingDoc['_rev']
-
         replicator.save(replicateDesignDocument)
 
     def isBackupDb(dbName):
