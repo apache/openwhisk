@@ -52,7 +52,7 @@
   "editable": true,
   "gnetId": 9564,
   "graphTooltip": 0,
-  "iteration": 1547232303636,
+  "iteration": 1547662760282,
   "links": [],
   "panels": [
     {
@@ -64,6 +64,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
+      "datasource": "Prometheus",
       "decimals": 0,
       "description": "Total number of activation in the selected time interval",
       "format": "none",
@@ -145,6 +146,7 @@
         "#508642",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "decimals": 0,
       "description": "Total number of successful activations executed",
       "format": "none",
@@ -228,6 +230,7 @@
         "#e24d42",
         "#e24d42"
       ],
+      "datasource": "Prometheus",
       "decimals": 0,
       "description": "Total number of error activations in the selected time interval",
       "format": "none",
@@ -309,6 +312,7 @@
         "#1f78c1",
         "#1f78c1"
       ],
+      "datasource": "Prometheus",
       "decimals": 0,
       "description": "Total number of cold starts in the selected time interval",
       "format": "none",
@@ -403,6 +407,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "format": "percent",
       "gauge": {
         "maxValue": 100,
@@ -483,6 +488,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "format": "ms",
       "gauge": {
         "maxValue": 100,
@@ -564,6 +570,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
+      "datasource": "Prometheus",
       "format": "ms",
       "gauge": {
         "maxValue": 100,
@@ -651,6 +658,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 0,
       "gridPos": {
         "h": 9,
@@ -736,6 +744,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 9,
@@ -822,6 +831,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 9,
@@ -920,6 +930,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1025,6 +1036,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
         "h": 9,
@@ -1117,10 +1129,11 @@
       {
         "allValue": null,
         "current": {
+          "tags": [],
           "text": "All",
           "value": "$__all"
         },
-        "datasource": null,
+        "datasource": "Prometheus",
         "definition": "label_values(openwhisk_action_activations_total,namespace)",
         "hide": 0,
         "includeAll": true,
@@ -1142,11 +1155,12 @@
       {
         "allValue": "",
         "current": {
+          "tags": [],
           "text": "All",
           "value": "$__all"
         },
-        "datasource": null,
-        "definition": "label_values(openwhisk_counter_container_activations_total,action)",
+        "datasource": "Prometheus",
+        "definition": "label_values(openwhisk_action_activations_total{namespace=~\"$namespace\"},action)",
         "hide": 0,
         "includeAll": true,
         "label": null,
@@ -1271,5 +1285,5 @@
   "timezone": "",
   "title": "Openwhisk - Action Performance Metrics",
   "uid": "Oew1lvymk",
-  "version": 2
+  "version": 1
 }
