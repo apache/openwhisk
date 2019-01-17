@@ -854,7 +854,7 @@ function updateNamespace(apidoc, namespace) {
       // The action namespace does not have to match the CLI user's namespace
       // If it is different, leave it alone; otherwise use the replacement namespace
       // And only replace when the namespace is the default '_' which needs replacement
-      if (apidoc.namespace === apidoc.action.namespace && apidoc.namespace === '_') {
+      if (apidoc.action.namespace === '_') {
         apidoc.action.namespace = namespace;
         apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
     }
