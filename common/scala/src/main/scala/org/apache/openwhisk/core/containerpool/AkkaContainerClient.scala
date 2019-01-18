@@ -49,6 +49,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.http.PoolingRestClient
+import java.time.Instant
 
 /**
  * This HTTP client is used only in the invoker to communicate with the action container.
@@ -135,13 +136,17 @@ protected class AkkaContainerClient(
                               timeout: FiniteDuration,
                               retry: Boolean,
                               retryCount: Int = 0): Future[(HttpResponse, Int)] = {
+    val start = Instant.now
+
     request(req)
       .map((_, retryCount))
       .recoverWith {
         case t: StreamTcpException if retry =>
-          val newTimeout = timeout - retryInterval
-          if (newTimeout > Duration.Zero) {
-            akka.pattern.after(retryInterval, as.scheduler)(retryingRequest(req, newTimeout, retry, retryCount + 1))
+          if (timeout > Duration.Zero) {
+            akka.pattern.after(retryInterval, as.scheduler)({
+              val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
+              retryingRequest(req, newTimeout, retry, retryCount + 1)
+            })
           } else {
             logging.warn(
               this,
