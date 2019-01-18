@@ -22,8 +22,10 @@
 The following instructions were tested on Mac OS X El Capitan, Ubuntu 16.04 LTS.
 
 ## Requirements
--   Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.2.8)
--   Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 2.0.3)
+-   Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 6.0.2)
+-   Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 2.2.3)
+
+*There is an issue with the `ubuntu/xenial64` image (v20190118.0.0 at the time of writing this) on MacOS Mojave 10.14.2 and VirtualBox 6. This can be fixed by replacing this image with `bento/ubuntu-16.04`. See below the "Override Vagrant Box" section to find out how to use another image.*
 
 ## Setup
 
