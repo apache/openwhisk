@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.containerpool
 
 import java.net.NoRouteToHostException
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
@@ -105,6 +106,8 @@ protected class ApacheBlockingContainerClient(hostname: String,
   // Annotation will make the compiler complain if no tail recursion is possible
   @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, maxConcurrent: Int, retry: Boolean)(
     implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
+    val start = Instant.now
+
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
         .map { entity =>
@@ -149,10 +152,9 @@ protected class ApacheBlockingContainerClient(hostname: String,
     } match {
       case Success(response) => response
       case Failure(t: RetryableConnectionError) if retry =>
-        val sleepTime = 50.milliseconds
         if (timeout > Duration.Zero) {
-          Thread.sleep(sleepTime.toMillis)
-          val newTimeout = timeout - sleepTime
+          Thread.sleep(50) // Sleep for 50 milliseconds
+          val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
           execute(request, newTimeout, maxConcurrent, retry = true)
         } else {
           logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
