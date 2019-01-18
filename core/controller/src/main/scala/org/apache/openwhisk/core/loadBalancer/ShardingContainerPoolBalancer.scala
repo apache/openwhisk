@@ -309,15 +309,18 @@ class ShardingContainerPoolBalancer(
         action.limits.memory.megabytes,
         homeInvoker,
         stepSize)
-      invoker.map(invoker => {
-        if (invoker._2) {
-          case `actionType` == "managed" =>
-            MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
-          case `actionType` == "blackbox" =>
-            MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
+      invoker.map {
+        case (invoker, isOverloaded) => {
+          if (isOverloaded) {
+            if (isBlackboxInvocation) {
+              MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
+            } else {
+              MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
+            }
+          }
+          invoker
         }
-        invoker._1
-      })
+      }
     } else {
       None
     }
@@ -638,7 +641,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
       val invoker = invokers(index)
       //test this invoker - if this action supports concurrency, use the scheduleConcurrent function
       if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquireConcurrent(fqn, maxConcurrent, slots)) {
-        Some(invoker.id, true)
+        Some(invoker.id, false)
       } else {
         // If we've gone through all invokers
         if (stepsDone == numInvokers + 1) {
@@ -648,7 +651,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquireConcurrent(fqn, maxConcurrent, slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
-            Some(random, false)
+            Some(random, true)
           } else {
             None
           }
