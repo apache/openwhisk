@@ -24,11 +24,7 @@ import akka.http.scaladsl.server.Route
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 
-trait MetricsRoute {
-  def route: Route
-}
-
-class KamonPrometheus extends MetricsRoute with AutoCloseable {
+class KamonPrometheus extends AutoCloseable {
   private val reporter = new PrometheusReporter
   private val v4 = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
   private val ref = Kamon.addReporter(reporter)
@@ -46,14 +42,10 @@ class KamonPrometheus extends MetricsRoute with AutoCloseable {
   override def close(): Unit = ref.cancel()
 }
 
-private object NoopMetricsRoute extends MetricsRoute {
-  override def route: Route = pass()
-}
-
 object MetricsRoute {
   private val impl =
-    if (TransactionId.metricsKamon && TransactionId.metricConfig.prometheusEnabled) new KamonPrometheus
-    else NoopMetricsRoute
+    if (TransactionId.metricsKamon && TransactionId.metricConfig.prometheusEnabled) Some(new KamonPrometheus)
+    else None
 
-  def apply(): Route = impl.route
+  def apply(): Route = impl.map(_.route).getOrElse(reject)
 }
