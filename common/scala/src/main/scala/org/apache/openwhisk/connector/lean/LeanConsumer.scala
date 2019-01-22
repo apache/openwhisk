@@ -27,16 +27,19 @@ class LeanConsumer(queue: BlockingQueue[Array[Byte]], override val maxPeek: Int)
     extends MessageConsumer {
 
   /**
+   * Long poll for messages. Method returns once message available but no later than given
+   * duration.
+   *
+   * @param duration the maximum duration for the long poll
    */
   override def peek(duration: FiniteDuration, retry: Int): Iterable[(String, Int, Long, Array[Byte])] = {
-    val res = Option(queue.poll(duration.toMillis, TimeUnit.MILLISECONDS))
+    Option(queue.poll(duration.toMillis, TimeUnit.MILLISECONDS))
       .map(record => Iterable(("", 0, 0L, record)))
       .getOrElse(Iterable.empty)
-
-    res
   }
 
   /**
+   * There's no cursor to advance since that's done in the poll above.
    */
   override def commit(retry: Int): Unit = { /*do nothing*/ }
 

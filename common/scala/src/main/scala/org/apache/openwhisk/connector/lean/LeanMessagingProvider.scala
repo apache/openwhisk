@@ -35,10 +35,11 @@ import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.entity.ByteSize
 
 /**
- * A simple implementation of MessagingProvider
+ * A simple implementation of MessagingProvider.
  */
 object LeanMessagingProvider extends MessagingProvider {
 
+  /** Map to hold message queues, the key is the topic */
   val queues: Map[String, BlockingQueue[Array[Byte]]] =
     new TrieMap[String, BlockingQueue[Array[Byte]]]
 
@@ -46,7 +47,7 @@ object LeanMessagingProvider extends MessagingProvider {
     implicit logging: Logging,
     actorSystem: ActorSystem): MessageConsumer = {
 
-    var queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
+    val queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
 
     new LeanConsumer(queue, maxPeek)
   }

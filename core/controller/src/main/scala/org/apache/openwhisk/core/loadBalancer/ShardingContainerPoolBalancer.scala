@@ -321,7 +321,6 @@ class ShardingContainerPoolBalancer(
       Some(monitor))
 
   override protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry) = {
-    // guard this
     schedulingState.invokerSlots
       .lift(invoker.toInt)
       .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, entry.memory.toMB.toInt))

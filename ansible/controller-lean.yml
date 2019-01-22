@@ -29,7 +29,7 @@
     #   configuration settings.  (Plugins are found in the
     #   'roles/controller/tasks' directory for now.)
     controller_plugins:
-      # Join an akka cluster rather than running standalone akka
+      # Use lean plugin which provides a union of controller and invoker
       - "lean"
 
     image_name: "lean"

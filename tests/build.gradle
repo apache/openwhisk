@@ -104,8 +104,7 @@ ext.testSets = [
     "REQUIRE_LEAN_SYSTEM" : [
         "includes" : systemIncludes,
         
-        // Lean OpenWhisk doesn't use Kafka and has no Kafka installed as part of the setup.
-        // Tests suit below validating KafkaConnector so have to be excluded for Lean System tests
+        // Tests suits below require Kafka so they are excluded for Lean System tests
         "excludes" : [
             "**/*KafkaConnectorTests*",
             "system/basic/WskMultiRuntimeTests*"

@@ -41,15 +41,13 @@ class LeanProducer(queues: Map[String, BlockingQueue[Array[Byte]]])(implicit log
   override def send(topic: String, msg: Message, retry: Int = 3): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
-    var queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
+    val queue = queues.getOrElseUpdate(topic, new LinkedBlockingQueue[Array[Byte]]())
 
-    val res = Future {
+    Future {
       queue.put(msg.serialize.getBytes(StandardCharsets.UTF_8))
       sentCounter.next()
       null
     }
-
-    res
   }
 
   /** Closes producer. */
