@@ -27,6 +27,7 @@ import akka.stream.scaladsl.{Sink, Source, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import kamon.metric.MeasurementUnit
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
@@ -527,7 +528,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def createToken(action: String, read: Boolean = true): LogMarkerToken = {
     val mode = if (read) "read" else "write"
     val tags = Map("action" -> action, "mode" -> mode, "collection" -> collName)
-    if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)
-    else LogMarkerToken("cosmosdb", "ru", collName, Some(action))
+    if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)(MeasurementUnit.none)
+    else LogMarkerToken("cosmosdb", "ru", collName, Some(action))(MeasurementUnit.none)
   }
 }

@@ -146,8 +146,7 @@ trait BasicHttpService extends Directives {
           m.toLowerCase,
           LoggingMarkers.count,
           Some(res.status.intValue.toString),
-          Map("statusCode" -> res.status.intValue.toString),
-          MeasurementUnit.time.milliseconds)
+          Map("statusCode" -> res.status.intValue.toString))(MeasurementUnit.time.milliseconds)
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
       MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)

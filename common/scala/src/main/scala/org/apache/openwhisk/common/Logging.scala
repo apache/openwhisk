@@ -328,7 +328,7 @@ object LoggingMarkers {
   /*
    * Controller related markers
    */
-  def CONTROLLER_STARTUP(id: String) = LogMarkerToken(controller, s"startup$id", count)
+  def CONTROLLER_STARTUP(id: String) = LogMarkerToken(controller, s"startup$id", count)(MeasurementUnit.none)
 
   // Time of the activation in controller until it is delivered to Kafka
   val CONTROLLER_ACTIVATION =
@@ -336,7 +336,7 @@ object LoggingMarkers {
   val CONTROLLER_ACTIVATION_BLOCKING =
     LogMarkerToken(controller, "blockingActivation", start)(MeasurementUnit.time.milliseconds)
   val CONTROLLER_ACTIVATION_BLOCKING_DATABASE_RETRIEVAL =
-    LogMarkerToken(controller, "blockingActivationDatabaseRetrieval", count)
+    LogMarkerToken(controller, "blockingActivationDatabaseRetrieval", count)(MeasurementUnit.none)
 
   // Time that is needed load balance the activation
   val CONTROLLER_LOADBALANCER =
@@ -353,12 +353,12 @@ object LoggingMarkers {
   /*
    * Invoker related markers
    */
-  def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", count)
+  def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", count)(MeasurementUnit.none)
 
   // Check invoker healthy state from loadbalancer
   def LOADBALANCER_INVOKER_STATUS_CHANGE(state: String) =
-    LogMarkerToken(loadbalancer, "invokerState", count, Some(state))
-  val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
+    LogMarkerToken(loadbalancer, "invokerState", count, Some(state))(MeasurementUnit.none)
+  val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)(MeasurementUnit.none)
 
   def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) =
     LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", count)
@@ -378,22 +378,24 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "collectLogs", start)(MeasurementUnit.time.milliseconds)
 
   // Time in invoker
-  val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
+  val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)(MeasurementUnit.none)
   def INVOKER_DOCKER_CMD(cmd: String) =
     LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))
+    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
   def INVOKER_RUNC_CMD(cmd: String) =
     LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
-  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_KUBECTL_CMD(cmd: String) =
+    LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
   def INVOKER_MESOS_CMD(cmd: String) =
     LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_MESOS_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))
+    LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
   def INVOKER_CONTAINER_START(containerState: String) =
-    LogMarkerToken(invoker, "containerStart", count, Some(containerState), Map("containerState" -> containerState))
+    LogMarkerToken(invoker, "containerStart", count, Some(containerState), Map("containerState" -> containerState))(
+      MeasurementUnit.none)
   val CONTAINER_CLIENT_RETRIES =
-    LogMarkerToken(containerClient, "retries", count)
+    LogMarkerToken(containerClient, "retries", count)(MeasurementUnit.none)
 
   val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", count)
   val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", count)
@@ -409,15 +411,15 @@ object LoggingMarkers {
   val OFFLINE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", count)
 
   // Kafka related markers
-  def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
+  def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)(MeasurementUnit.none)
   def KAFKA_MESSAGE_DELAY(topic: String) =
     LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
 
   /*
    * General markers
    */
-  val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
-  val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)
+  val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)(MeasurementUnit.none)
+  val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)(MeasurementUnit.none)
   val DATABASE_SAVE =
     LogMarkerToken(database, "saveDocument", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_BULK_SAVE =
@@ -434,5 +436,5 @@ object LoggingMarkers {
     LogMarkerToken(database, "deleteDocumentAttachment", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_ATTS_DELETE =
     LogMarkerToken(database, "deleteDocumentAttachments", start)(MeasurementUnit.time.milliseconds)
-  val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)
+  val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)(MeasurementUnit.none)
 }
