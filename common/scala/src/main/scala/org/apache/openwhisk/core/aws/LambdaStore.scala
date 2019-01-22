@@ -50,7 +50,6 @@ import scala.util.control.NonFatal
 object LambdaStoreProvider {
 
   def makeStore(config: Config = ConfigFactory.defaultApplication())(implicit ec: ExecutionContext): LambdaStore = {
-    //TODO enable configuring unsecure access for dev purpose
     val awsConfig = config.atPath(ConfigKeys.aws)
     val client = LambdaAsyncClient
       .builder()
@@ -67,7 +66,7 @@ case class LambdaConfig(layerMappings: Map[String, String], accountId: String, c
 case class LambdaAction(arn: String, revisionId: String)
 
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig)(implicit ec: ExecutionContext) {
-
+  import LambdaStore._
   def invoke(name: String, body: JsObject)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val request = InvokeRequest
@@ -141,21 +140,6 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig)(implicit ec: 
     config.layerMappings.get(action.exec.kind)
   }
 
-  def getFunctionName(action: WhiskAction): String = {
-    //TODO Lambda places a 64 char limit and OW allows much larger names
-    //So need a way to encode name say via `<functionName{0,40}>_<10 letters from hash>`
-    val name = action.fullyQualifiedName(false).asString.replace("/", "_")
-    s"ow_$name"
-  }
-
-  def getFunctionMemory(action: WhiskAction): Int = {
-    val mb = action.limits.memory.megabytes
-    val delta = mb % 64
-
-    //Memory needs to be in chunk of 64 MB
-    mb + delta
-  }
-
   def getOrCreateRole(functionName: String): Future[String] = {
     //TODO Temp usage of a generic role. Need to create per function role
     Future.successful(config.commonRoleName)
@@ -177,11 +161,6 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig)(implicit ec: 
       "namespace" -> action.namespace.asString,
       "name" -> action.name.asString)
 
-  def getFunctionTimeout(action: WhiskAction): Int = {
-    //Lambda imposes max limit of 900 secs
-    action.limits.timeout.duration.toSeconds.toInt
-  }
-
   def getFunctionCode(action: WhiskAction): Option[FunctionCode] = {
     action.exec match {
       case exec @ CodeExecAsAttachment(_, Inline(code), entryPoint, binary) =>
@@ -191,25 +170,28 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig)(implicit ec: 
     }
   }
 
-  def createZip(bytes: Array[Byte], fileName: String): Array[Byte] = {
-    val baos = new ByteArrayOutputStream()
-    val zos = new ZipOutputStream(baos)
-    val zipEntry = new ZipEntry(fileName)
-    zos.putNextEntry(zipEntry)
-    zos.write(bytes, 0, bytes.length)
-    zos.closeEntry()
-    zos.close()
-    baos.toByteArray
+}
+
+object LambdaStore {
+
+  def getFunctionName(action: WhiskAction): String = {
+    //TODO Lambda places a 64 char limit and OW allows much larger names
+    //So need a way to encode name say via `<functionName{0,40}>_<10 letters from hash>`
+    val name = action.fullyQualifiedName(false).asString.replace("/", "_")
+    s"ow_$name"
   }
 
-  def adaptCode(code: String, entryPoint: Option[String], kind: String): Array[Byte] = {
-    val adaptedCode = if (isNodeJs(kind)) {
-      val main = entryPoint.getOrElse("main")
-      code + s"\nexports.$main = $main;"
-    } else {
-      code
-    }
-    adaptedCode.getBytes(UTF_8)
+  def getFunctionMemory(action: WhiskAction): Int = {
+    val mb = action.limits.memory.megabytes
+    val delta = mb % 64
+
+    //Memory needs to be in chunk of 64 MB
+    mb + delta
+  }
+
+  def getFunctionTimeout(action: WhiskAction): Int = {
+    //Lambda imposes max limit of 900 secs
+    action.limits.timeout.duration.toSeconds.toInt
   }
 
   def createFunctionCode(code: String, binary: Boolean, entryPoint: Option[String], kind: String): FunctionCode = {
@@ -221,9 +203,30 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig)(implicit ec: 
     FunctionCode.builder().zipFile(SdkBytes.fromByteArray(bytes)).build()
   }
 
-  def getFileName(kind: String): String =
+  private def adaptCode(code: String, entryPoint: Option[String], kind: String): Array[Byte] = {
+    val adaptedCode = if (isNodeJs(kind)) {
+      val main = entryPoint.getOrElse("main")
+      code + s"\nexports.$main = $main;"
+    } else {
+      code
+    }
+    adaptedCode.getBytes(UTF_8)
+  }
+
+  private def getFileName(kind: String): String =
     if (isNodeJs(kind)) "index.js" else throw new IllegalArgumentException(s"Unsupported kind [$kind]")
 
-  def isNodeJs(kind: String) = kind.startsWith("node")
+  private def isNodeJs(kind: String) = kind.startsWith("node")
+
+  private def createZip(bytes: Array[Byte], fileName: String): Array[Byte] = {
+    val baos = new ByteArrayOutputStream()
+    val zos = new ZipOutputStream(baos)
+    val zipEntry = new ZipEntry(fileName)
+    zos.putNextEntry(zipEntry)
+    zos.write(bytes, 0, bytes.length)
+    zos.closeEntry()
+    zos.close()
+    baos.toByteArray
+  }
 
 }
