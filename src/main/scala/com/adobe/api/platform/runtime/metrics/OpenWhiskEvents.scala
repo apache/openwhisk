@@ -20,6 +20,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
+import kamon.system.SystemMetrics
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig.loadConfigOrThrow
@@ -35,6 +36,7 @@ object OpenWhiskEvents extends SLF4JLogging {
     Kamon.reconfigure(config)
     val prometheusReporter = new PrometheusReporter()
     Kamon.addReporter(prometheusReporter)
+    SystemMetrics.startCollecting()
 
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "user-events")
 
