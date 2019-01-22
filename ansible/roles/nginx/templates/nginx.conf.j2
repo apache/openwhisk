@@ -146,6 +146,11 @@ http {
         # this is here for backward compatibility
         location /cli/go/download {
             rewrite /cli/go/download(.*) /cli$1 permanent;
+
+        }
+
+        location /metrics {
+            deny all;
         }
 
 {% if nginx.htmldir %}
