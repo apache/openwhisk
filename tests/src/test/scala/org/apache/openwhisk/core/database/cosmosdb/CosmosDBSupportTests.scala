@@ -21,19 +21,21 @@ import com.microsoft.azure.cosmosdb.IndexKind.Hash
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.DocumentCollection
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import com.typesafe.config.ConfigFactory
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFactory with Matchers {
 
-  behavior of "index"
+  behavior of "CosmosDB init"
 
-  it should "be created and updated on init" in {
+  it should "create and update index" in {
     val testDb = createTestDB()
     val config: CosmosDBConfig = storeConfig.copy(db = testDb.getId)
 
@@ -45,6 +47,26 @@ class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFa
     val indexedPaths2 = Set("/foo/?", "/bar2/?")
     val (_, coll2) = new CosmosTest(config, client, newMapper(indexedPaths2)).initialize()
     indexedPaths(coll2) should contain theSameElementsAs indexedPaths2
+  }
+
+  it should "set ttl" in {
+    val config = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  collections {
+      |     WhiskActivation = {
+      |        time-to-live = 60 s
+      |     }
+      |  }
+      | }
+         """.stripMargin).withFallback(ConfigFactory.load())
+
+    val cosmosDBConfig = CosmosDBConfig(config, "WhiskActivation")
+    cosmosDBConfig.timeToLive shouldBe Some(60.seconds)
+
+    val testDb = createTestDB()
+    val testConfig = cosmosDBConfig.copy(db = testDb.getId)
+    val (_, coll) = new CosmosTest(testConfig, client, ActivationViewMapper).initialize()
+    coll.getDefaultTimeToLive shouldBe 60.seconds.toSeconds
   }
 
   private def newMapper(paths: Set[String]) = {
