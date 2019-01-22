@@ -181,12 +181,12 @@ private object Emitter {
  * @param subAction more specific identifier for "action", like `runc.resume`
  * @param tags tags can be used for whatever granularity you might need.
  */
-case class LogMarkerToken(component: String,
-                          action: String,
-                          state: String,
-                          subAction: Option[String] = None,
-                          tags: Map[String, String] = Map.empty,
-                          measurementUnit: MeasurementUnit = MeasurementUnit.none) {
+case class LogMarkerToken(
+  component: String,
+  action: String,
+  state: String,
+  subAction: Option[String] = None,
+  tags: Map[String, String] = Map.empty)(measurementUnit: MeasurementUnit = MeasurementUnit.none) {
   private var finishToken: LogMarkerToken = _
   private var errorToken: LogMarkerToken = _
 
@@ -201,14 +201,14 @@ case class LogMarkerToken(component: String,
 
   def asFinish: LogMarkerToken = {
     if (finishToken == null) {
-      finishToken = copy(state = LoggingMarkers.finish)
+      finishToken = copy(state = LoggingMarkers.finish)(measurementUnit)
     }
     finishToken
   }
 
   def asError: LogMarkerToken = {
     if (errorToken == null) {
-      errorToken = copy(state = LoggingMarkers.error)
+      errorToken = copy(state = LoggingMarkers.error)(measurementUnit)
     }
     errorToken
   }
@@ -270,7 +270,7 @@ object LogMarkerToken {
       case a :: s :: _ => (a, Some(s))
     }
 
-    LogMarkerToken(component, generalAction, state, subAction)
+    LogMarkerToken(component, generalAction, state, subAction)(MeasurementUnit.none)
   }
 
 }
@@ -332,20 +332,20 @@ object LoggingMarkers {
 
   // Time of the activation in controller until it is delivered to Kafka
   val CONTROLLER_ACTIVATION =
-    LogMarkerToken(controller, activation, start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(controller, activation, start)(MeasurementUnit.time.milliseconds)
   val CONTROLLER_ACTIVATION_BLOCKING =
-    LogMarkerToken(controller, "blockingActivation", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(controller, "blockingActivation", start)(MeasurementUnit.time.milliseconds)
   val CONTROLLER_ACTIVATION_BLOCKING_DATABASE_RETRIEVAL =
     LogMarkerToken(controller, "blockingActivationDatabaseRetrieval", count)
 
   // Time that is needed load balance the activation
   val CONTROLLER_LOADBALANCER =
-    LogMarkerToken(controller, loadbalancer, start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(controller, loadbalancer, start)(MeasurementUnit.time.milliseconds)
   // Time that is needed to load balance the activation
   val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)
 
   // Time that is needed to produce message in kafka
-  val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start, measurementUnit = MeasurementUnit.time.milliseconds)
+  val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)(MeasurementUnit.time.milliseconds)
 
   // System overload and random invoker assignment
   val MANAGED_SYSTEM_OVERLOAD = LogMarkerToken(controller, "managedInvokerSystemOverload", count)
@@ -367,27 +367,27 @@ object LoggingMarkers {
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN =
-    LogMarkerToken(invoker, "activationRun", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "activationRun", start)(MeasurementUnit.time.milliseconds)
 
   // Time that is needed to init the action
   val INVOKER_ACTIVATION_INIT =
-    LogMarkerToken(invoker, "activationInit", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "activationInit", start)(MeasurementUnit.time.milliseconds)
 
   // Time needed to collect the logs
   val INVOKER_COLLECT_LOGS =
-    LogMarkerToken(invoker, "collectLogs", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "collectLogs", start)(MeasurementUnit.time.milliseconds)
 
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) =
-    LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd), MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
     LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_RUNC_CMD(cmd: String) =
-    LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd), MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_MESOS_CMD(cmd: String) =
-    LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd), MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_MESOS_CMD_TIMEOUT(cmd: String) =
     LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String) =
@@ -411,7 +411,7 @@ object LoggingMarkers {
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
   def KAFKA_MESSAGE_DELAY(topic: String) =
-    LogMarkerToken(kafka, topic, start, Some("delay"), measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
 
   /*
    * General markers
@@ -419,20 +419,20 @@ object LoggingMarkers {
   val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
   val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)
   val DATABASE_SAVE =
-    LogMarkerToken(database, "saveDocument", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "saveDocument", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_BULK_SAVE =
-    LogMarkerToken(database, "saveDocumentBulk", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "saveDocumentBulk", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_DELETE =
-    LogMarkerToken(database, "deleteDocument", start, measurementUnit = MeasurementUnit.time.milliseconds)
-  val DATABASE_GET = LogMarkerToken(database, "getDocument", start, measurementUnit = MeasurementUnit.time.milliseconds)
-  val DATABASE_QUERY = LogMarkerToken(database, "queryView", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "deleteDocument", start)(MeasurementUnit.time.milliseconds)
+  val DATABASE_GET = LogMarkerToken(database, "getDocument", start)(MeasurementUnit.time.milliseconds)
+  val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_ATT_GET =
-    LogMarkerToken(database, "getDocumentAttachment", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "getDocumentAttachment", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_ATT_SAVE =
-    LogMarkerToken(database, "saveDocumentAttachment", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "saveDocumentAttachment", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_ATT_DELETE =
-    LogMarkerToken(database, "deleteDocumentAttachment", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "deleteDocumentAttachment", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_ATTS_DELETE =
-    LogMarkerToken(database, "deleteDocumentAttachments", start, measurementUnit = MeasurementUnit.time.milliseconds)
+    LogMarkerToken(database, "deleteDocumentAttachments", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)
 }
