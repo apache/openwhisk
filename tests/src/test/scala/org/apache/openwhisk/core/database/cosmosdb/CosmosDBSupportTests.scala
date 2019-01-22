@@ -41,6 +41,7 @@ class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFa
 
     val indexedPaths1 = Set("/foo/?", "/bar/?")
     val (_, coll) = new CosmosTest(config, client, newMapper(indexedPaths1)).initialize()
+    coll.getDefaultTimeToLive shouldBe -1
     indexedPaths(coll) should contain theSameElementsAs indexedPaths1
 
     //Test if index definition is updated in code it gets updated in db also

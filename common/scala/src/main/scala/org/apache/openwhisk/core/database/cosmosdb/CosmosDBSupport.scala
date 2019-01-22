@@ -69,7 +69,8 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
     defn.setId(collName)
     defn.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
     defn.setPartitionKey(viewMapper.partitionKeyDefn)
-    config.timeToLive.foreach(d => defn.setDefaultTimeToLive(d.toSeconds.toInt))
+    val ttl = config.timeToLive.map(_.toSeconds.toInt).getOrElse(-1)
+    defn.setDefaultTimeToLive(ttl)
     defn
   }
 
