@@ -199,6 +199,8 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
 protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
+  private case class MetricConfig(prometheusEnabled: Boolean)
+  val metricConfig = loadConfigOrThrow[MetricConfig](ConfigKeys.metrics)
 
   // get the metric parameters directly from the environment since WhiskConfig can not be instantiated here
   val metricsKamon: Boolean = sys.env.get("METRICS_KAMON").getOrElse("False").toBoolean
