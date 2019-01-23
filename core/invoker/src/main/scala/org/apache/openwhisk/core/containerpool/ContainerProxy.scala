@@ -52,6 +52,7 @@ case object Paused extends ContainerState
 case object Removing extends ContainerState
 
 // Data
+/** Base data type */
 sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int) {
 
   /** When ContainerProxy in this state is scheduled, it may result in a new state (ContainerData)*/
@@ -62,9 +63,12 @@ sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: Byte
    *  Useful for cases where all ContainerData instances are handled, vs cases where only ContainerStarted
    *  instances are handled */
   def getContainer: Option[Container]
+
+  /** String to indicate the state of this container after scheduling */
   val initingState: String
 }
 
+/** abstract type to indicate an unstarted container */
 sealed abstract class ContainerNotStarted(override val lastUsed: Instant,
                                           override val memoryLimit: ByteSize,
                                           override val activeActivationCount: Int)
@@ -72,6 +76,8 @@ sealed abstract class ContainerNotStarted(override val lastUsed: Instant,
   override def getContainer = None
   override val initingState = "cold"
 }
+
+/** abstract type to indicate a started container */
 sealed abstract class ContainerStarted(val container: Container,
                                        override val lastUsed: Instant,
                                        override val memoryLimit: ByteSize,
@@ -80,6 +86,7 @@ sealed abstract class ContainerStarted(val container: Container,
   override def getContainer = Some(container)
 }
 
+/** trait representing a container that is in use and (potentially) usable by subsequent or concurrent activations */
 sealed abstract trait ContainerInUse {
   val activeActivationCount: Int
   val action: ExecutableWhiskAction
@@ -87,15 +94,19 @@ sealed abstract trait ContainerInUse {
     activeActivationCount < action.limits.concurrency.maxConcurrent
 }
 
+/** type representing a cold (not running) container */
 case class NoData(override val activeActivationCount: Int = 0)
     extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount) {
   override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
+
+/** type representing a cold (not running) container with specific memory allocation */
 case class MemoryData(override val memoryLimit: ByteSize, override val activeActivationCount: Int = 0)
     extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount) {
   override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
 
+/** type representing a prewarmed (running, but unused) container (with a specific memory allocation) */
 case class PreWarmedData(override val container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
@@ -105,6 +116,8 @@ case class PreWarmedData(override val container: Container,
   override def scheduleUsage(r: Run) =
     WarmingData(container, r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
+
+/** type representing a prewarm (running, but not used) container that is being initialized (for a specific action + invocation namespace) */
 case class WarmingData(override val container: Container,
                        invocationNamespace: EntityName,
                        action: ExecutableWhiskAction,
@@ -115,6 +128,8 @@ case class WarmingData(override val container: Container,
   override val initingState = "warming"
   override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
+
+/** type representing a cold (not yet running) container that is being initialized (for a specific action + invocation namespace) */
 case class WarmingColdData(invocationNamespace: EntityName,
                            action: ExecutableWhiskAction,
                            override val lastUsed: Instant,
@@ -124,6 +139,8 @@ case class WarmingColdData(invocationNamespace: EntityName,
   override val initingState = "warmingCold"
   override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
+
+/** type representing a warm container that has already been in use (for a specific action + invocation namespace) */
 case class WarmedData(override val container: Container,
                       invocationNamespace: EntityName,
                       action: ExecutableWhiskAction,
