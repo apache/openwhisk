@@ -80,6 +80,18 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         name = "allowedKinds",
         noshort = true,
         default = None)
+    val enableStoreActivations =
+      toggle(
+        name = "enableStoreActivations",
+        descrYes = "enable storing of activations to datastore for this namespace",
+        default = None,
+        noshort = true)
+    val disableStoreActivations =
+      toggle(
+        name = "disableStoreActivations",
+        descrYes = "disable storing of activations to datastore for this namespace",
+        default = None,
+        noshort = true)
 
     lazy val limits: LimitEntity =
       new LimitEntity(
@@ -88,7 +100,8 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
           invocationsPerMinute.toOption,
           concurrentInvocations.toOption,
           firesPerMinute.toOption,
-          allowedKinds.toOption.map(_.toSet)))
+          allowedKinds.toOption.map(_.toSet),
+          (enableStoreActivations.toOption ++ disableStoreActivations.toOption.map(!_)).headOption))
   }
   addSubcommand(set)
 
@@ -147,7 +160,8 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
           l.concurrentInvocations.map(ci => s"concurrentInvocations =  $ci"),
           l.invocationsPerMinute.map(i => s"invocationsPerMinute = $i"),
           l.firesPerMinute.map(i => s"firesPerMinute = $i"),
-          l.allowedKinds.map(k => s"allowedKinds = ${k.mkString(", ")}")).flatten.mkString(Properties.lineSeparator)
+          l.allowedKinds.map(k => s"allowedKinds = ${k.mkString(", ")}"),
+          l.storeActivations.map(sa => s"storeActivations = $sa")).flatten.mkString(Properties.lineSeparator)
         Right(msg)
       }
       .recover {

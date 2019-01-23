@@ -148,28 +148,32 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             if (activeRules.nonEmpty) {
               val triggerActivationId = activationIdFactory.make()
               logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
-              val triggerActivation = WhiskActivation(
-                namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace
-                entityName.name,
-                user.subject,
-                triggerActivationId,
-                Instant.now(Clock.systemUTC()),
-                Instant.EPOCH,
-                response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
-                version = trigger.version,
-                duration = None)
-              val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
+              if (user.limits.storeActivations.getOrElse(true)) {
+                val triggerActivation = WhiskActivation(
+                  namespace = user.namespace.name.toPath, // all activations should end up in the one space regardless trigger.namespace
+                  entityName.name,
+                  user.subject,
+                  triggerActivationId,
+                  Instant.now(Clock.systemUTC()),
+                  Instant.EPOCH,
+                  response = ActivationResponse.success(payload orElse Some(JsObject.empty)),
+                  version = trigger.version,
+                  duration = None)
+                val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject.empty)
 
-              activateRules(user, args, trigger.rules.getOrElse(Map.empty))
-                .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
-                .recover {
-                  case e =>
-                    logging.error(this, s"Failed to write action activation results to trigger activation: $e")
-                    triggerActivation
-                }
-                .map { activation =>
-                  activationStore.store(activation, context)
-                }
+                activateRules(user, args, trigger.rules.getOrElse(Map.empty))
+                  .map(results =>
+                    triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
+                  .recover {
+                    case e =>
+                      logging.error(this, s"Failed to write action activation results to trigger activation: $e")
+                      triggerActivation
+                  }
+                  .map { activation =>
+                    activationStore.store(activation, context)
+                  }
+              }
+
               respondWithActivationIdHeader(triggerActivationId) {
                 complete(Accepted, triggerActivationId.toJsObject)
               }
