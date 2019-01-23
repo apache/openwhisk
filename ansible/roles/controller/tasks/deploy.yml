@@ -228,9 +228,9 @@
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"
       "CONFIG_whisk_loadbalancer_managedFraction":
-        "{{ controller_managed_fraction | default() }}"
+        "{{ controller.managedFraction }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction":
-        "{{ controller_blackbox_fraction | default() }}"
+        "{{ controller.blackboxFraction }}"
       "CONFIG_whisk_loadbalancer_timeoutFactor":
         "{{ controller.timeoutFactor }}"
 
