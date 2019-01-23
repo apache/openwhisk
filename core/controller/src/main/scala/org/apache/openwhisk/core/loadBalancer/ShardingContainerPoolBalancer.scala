@@ -309,18 +309,17 @@ class ShardingContainerPoolBalancer(
         action.limits.memory.megabytes,
         homeInvoker,
         stepSize)
-      invoker.map {
-        case (invoker, isOverloaded) => {
-          if (isOverloaded) {
-            if (isBlackboxInvocation) {
-              MetricEmitter.emitCounterMetric(LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD)
-            } else {
-              MetricEmitter.emitCounterMetric(LoggingMarkers.MANAGED_SYSTEM_OVERLOAD)
-            }
-          }
-          invoker
-        }
+      invoker.foreach {
+        case (_, true) =>
+          val metric =
+            if (isBlackboxInvocation)
+              LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD
+            else
+              LoggingMarkers.MANAGED_SYSTEM_OVERLOAD
+          MetricEmitter.emitCounterMetric(metric)
+        case _ =>
       }
+      invoker.map(_._1)
     } else {
       None
     }
@@ -359,11 +358,9 @@ class ShardingContainerPoolBalancer(
 
     totalActivations.increment()
     val isBlackboxInvocation = action.exec.pull
-    if (isBlackboxInvocation) {
-      totalBlackBoxActivationMemory.add(action.limits.memory.megabytes)
-    } else {
-      totalManagedActivationMemory.add(action.limits.memory.megabytes)
-    }
+    val totalActivationMemory =
+      if (isBlackboxInvocation) totalBlackBoxActivationMemory else totalManagedActivationMemory
+    totalActivationMemory.add(action.limits.memory.megabytes)
 
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
@@ -386,7 +383,7 @@ class ShardingContainerPoolBalancer(
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
           processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
         }
-
+        val isBlackboxInvocation = action.exec.pull
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,
@@ -396,7 +393,7 @@ class ShardingContainerPoolBalancer(
           action.limits.concurrency.maxConcurrent,
           action.fullyQualifiedName(true),
           timeoutHandler,
-          action.exec.pull)
+          isBlackboxInvocation)
       })
 
     resultPromise
@@ -493,11 +490,9 @@ class ShardingContainerPoolBalancer(
     activationSlots.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
-        if (entry.isBlackbox) {
-          totalBlackBoxActivationMemory.add(entry.memory.toMB * (-1))
-        } else {
-          totalManagedActivationMemory.add(entry.memory.toMB * (-1))
-        }
+        val totalActivationMemory =
+          if (entry.isBlackbox) totalBlackBoxActivationMemory else totalManagedActivationMemory
+        totalActivationMemory.add(entry.memory.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots
           .lift(invoker.toInt)

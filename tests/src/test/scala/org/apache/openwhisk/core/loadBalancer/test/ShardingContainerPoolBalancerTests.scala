@@ -86,7 +86,6 @@ class ShardingContainerPoolBalancerTests
   behavior of "ShardingContainerPoolBalancerState"
 
   val defaultUserMemory: ByteSize = 1024.MB
-  val actionType: String = "managed"
 
   def healthy(i: Int, memory: ByteSize = defaultUserMemory) =
     new InvokerHealth(InvokerInstanceId(i, userMemory = memory), Healthy)
@@ -330,6 +329,15 @@ class ShardingContainerPoolBalancerTests
 
     bruteResult should contain allOf (0, 3)
     bruteResult should contain noneOf (1, 2)
+
+    val overloadResult = (0 to 100).map { _ =>
+      ShardingContainerPoolBalancer
+        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
+        .get
+        ._2
+    }
+
+    overloadResult should contain only true
   }
 
   it should "only take invokers that have enough free slots" in {
