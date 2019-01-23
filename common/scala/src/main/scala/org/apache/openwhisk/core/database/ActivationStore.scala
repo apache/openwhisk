@@ -34,7 +34,26 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 trait ActivationStore {
 
   /**
-   * Stores an activation.
+   * Checks if an activation should be stored in database and stores it.
+   *
+   * @param activation activation to store
+   * @param context user and request context
+   * @param transid transaction ID for request
+   * @param notifier cache change notifier
+   * @return Future containing DocInfo related to stored activation
+   */
+  def storeAfterCheck(activation: WhiskActivation, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+    if (context.user.limits.storeActivations.getOrElse(true)) {
+      store(activation, context)
+    } else {
+      Future.successful(DocInfo(activation.docid))
+    }
+  }
+
+  /**
+   * Stores an activation in the database.
    *
    * @param activation activation to store
    * @param context user and request context

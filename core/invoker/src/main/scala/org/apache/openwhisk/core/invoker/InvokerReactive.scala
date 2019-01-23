@@ -173,10 +173,8 @@ class InvokerReactive(
 
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
-    if (context.user.limits.storeActivations.getOrElse(true)) {
-      implicit val transid: TransactionId = tid
-      activationStore.store(activation, context)(tid, notifier = None)
-    } else Future.successful(DocInfo(activation.docid))
+    implicit val transid: TransactionId = tid
+    activationStore.storeAfterCheck(activation, context)(tid, notifier = None)
   }
 
   /** Creates a ContainerProxy Actor when being called. */

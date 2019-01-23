@@ -569,9 +569,7 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    if (user.limits.storeActivations.getOrElse(true)) {
-      activationStore.store(activation, context)(transid, notifier = None)
-    }
+    activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
 
     activation
   }
