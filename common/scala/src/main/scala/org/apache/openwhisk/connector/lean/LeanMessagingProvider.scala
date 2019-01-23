@@ -20,8 +20,7 @@ package org.apache.openwhisk.connector.lean
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 
-import scala.collection.concurrent.Map
-import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.Map
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 import scala.util.Try
@@ -41,7 +40,7 @@ object LeanMessagingProvider extends MessagingProvider {
 
   /** Map to hold message queues, the key is the topic */
   val queues: Map[String, BlockingQueue[Array[Byte]]] =
-    new TrieMap[String, BlockingQueue[Array[Byte]]]
+    Map[String, BlockingQueue[Array[Byte]]]()
 
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging,

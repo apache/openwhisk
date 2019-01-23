@@ -26,7 +26,7 @@ import org.apache.openwhisk.core.connector.Message
 import org.apache.openwhisk.core.connector.MessageProducer
 
 import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
-import scala.collection.concurrent.Map
+import scala.collection.mutable.Map
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 
