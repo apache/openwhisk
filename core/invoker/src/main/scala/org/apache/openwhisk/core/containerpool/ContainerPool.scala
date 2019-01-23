@@ -111,19 +111,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
-              .map { container =>
-                val warmState = container._2 match {
-                  case _: WarmedData      => "warm" //already warm
-                  case _: WarmingData     => "warming" //prewarm initing with concurrent support
-                  case _: WarmingColdData => "warmingCold" //cold initing with concurrent support
-                  case w =>
-                    logging.warn(this, s"unexpected warm data type ${w}")
-                    "warm" //already warm
-                }
-                (container, warmState)
-              }
+              .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
               .orElse(
-                // There was no warm container. Try to take a prewarm container or a cold container.
+                // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
                 if (hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)) {
@@ -357,19 +347,19 @@ object ContainerPool {
                                            idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles
       .find {
-        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
-        case _                                                                                      => false
+        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+        case _                                                                                => false
       }
       .orElse {
         idles.find {
-          case (_, c @ WarmingData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
-          case _                                                                                       => false
+          case (_, c @ WarmingData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+          case _                                                                                 => false
         }
       }
       .orElse {
         idles.find {
-          case (_, c @ WarmingColdData(`invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
-          case _                                                                                        => false
+          case (_, c @ WarmingColdData(`invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+          case _                                                                                  => false
         }
       }
   }
