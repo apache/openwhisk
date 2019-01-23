@@ -80,18 +80,13 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
         name = "allowedKinds",
         noshort = true,
         default = None)
-    val enableStoreActivations =
-      toggle(
-        name = "enableStoreActivations",
-        descrYes = "enable storing of activations to datastore for this namespace",
-        default = None,
-        noshort = true)
-    val disableStoreActivations =
-      toggle(
-        name = "disableStoreActivations",
-        descrYes = "disable storing of activations to datastore for this namespace",
-        default = None,
-        noshort = true)
+    val storeActivations =
+      opt[String](
+        descr = "enable or disable storing of activations to datastore for this namespace",
+        argName = "STOREACTIVATIONS",
+        name = "storeActivations",
+        noshort = true,
+        default = None)
 
     lazy val limits: LimitEntity =
       new LimitEntity(
@@ -101,7 +96,7 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
           concurrentInvocations.toOption,
           firesPerMinute.toOption,
           allowedKinds.toOption.map(_.toSet),
-          (enableStoreActivations.toOption ++ disableStoreActivations.toOption.map(!_)).headOption))
+          storeActivations.toOption.map(_.toBoolean)))
   }
   addSubcommand(set)
 

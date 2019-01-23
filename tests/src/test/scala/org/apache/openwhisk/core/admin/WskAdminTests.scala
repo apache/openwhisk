@@ -234,7 +234,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
     val subject = Subject().asString
     try {
       // set limit
-      wskadmin.cli(Seq("limits", "set", subject, "--disableStoreActivations"))
+      wskadmin.cli(Seq("limits", "set", subject, "--storeActivations", "false"))
       // check correctly set
       val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
       lines should have size 1

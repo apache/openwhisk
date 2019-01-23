@@ -348,7 +348,7 @@ class NamespaceSpecificThrottleTests
 
   // Create a subject where storing of activations in activationstore is disabled.
   val activationDisabled = getAdditionalTestSubject("activationDisabled")
-  wskadmin.cli(Seq("limits", "set", activationDisabled.namespace, "--disableStoreActivations"))
+  wskadmin.cli(Seq("limits", "set", activationDisabled.namespace, "--storeActivations", "false"))
 
   override def afterAll() = {
     sanitizeNamespaces(Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps, activationDisabled).map(_.namespace))

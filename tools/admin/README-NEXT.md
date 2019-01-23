@@ -130,11 +130,7 @@ $ wskadmin-next limits set --allowedKinds nodejs:6 python space1
 Limits successfully set for "space1"
 
 # set limits to disable saving of activations in activationstore
-$ wskadmin-next limits set space1 --disableStoreActivations
-Limits successfully set for "space1"
-
-# set limits to enable saving of activations in activationstore again
-$ wskadmin-next limits set space1 --enableStoreActivations
+$ wskadmin-next limits set space1 --storeActivations false
 Limits successfully set for "space1"
 ```
 
