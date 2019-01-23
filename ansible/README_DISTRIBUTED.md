@@ -46,7 +46,7 @@ private_key_file=/path/to/file.pem
 Ensure that the Ansible VM can authenticate to the OpenWhisk VMs via SSH using the following command.
 
 ```
-ansible all -i environments/distributed -m ping
+ansible all -i environments/distributed/hosts -m ping
 ```
 
 Generate config files
