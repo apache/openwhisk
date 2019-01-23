@@ -599,7 +599,8 @@ protected[actions] trait PrimitiveActions {
       case Right(activation) => result.trySuccess(Right(activation))
       case _ if (controllerActivationConfig.pollingFromDb) =>
         pollActivation(docid, context, result, i => 1.seconds + (2.seconds * i), maxRetries = 4)
-      case _ =>
+      case Left(activationId) =>
+        result.trySuccess(Left(activationId)) // complete the future immediately if it's configured to not poll db for blocking activations
     }
 
     if (controllerActivationConfig.pollingFromDb) {
