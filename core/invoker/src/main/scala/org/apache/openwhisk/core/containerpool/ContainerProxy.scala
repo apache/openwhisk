@@ -52,33 +52,82 @@ case object Paused extends ContainerState
 case object Removing extends ContainerState
 
 // Data
-sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int)
+sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int) {
+
+  /** When ContainerProxy in this state is scheduled, it may result in a new state (ContainerData)*/
+  def scheduleUsage(r: Run): ContainerData
+
+  /**
+   *  Return Some(container) (for ContainerStarted instances) or None(for ContainerNotStarted instances)
+   *  Useful for cases where all ContainerData instances are handled, vs cases where only ContainerStarted
+   *  instances are handled */
+  def getContainer: Option[Container]
+
+}
+
+sealed abstract class ContainerNotStarted(override val lastUsed: Instant,
+                                          override val memoryLimit: ByteSize,
+                                          override val activeActivationCount: Int)
+    extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
+  override def getContainer = None
+}
+sealed abstract class ContainerStarted(val container: Container,
+                                       override val lastUsed: Instant,
+                                       override val memoryLimit: ByteSize,
+                                       override val activeActivationCount: Int)
+    extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
+  override def getContainer = Some(container)
+}
+
+sealed abstract trait ContainerInUse {
+  val activeActivationCount: Int
+  def hasCapacity(action: ExecutableWhiskAction) =
+    activeActivationCount < action.limits.concurrency.maxConcurrent
+}
+
 case class NoData(override val activeActivationCount: Int = 0)
-    extends ContainerData(Instant.EPOCH, 0.B, activeActivationCount) {}
+    extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount) {
+  override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
+}
 case class MemoryData(override val memoryLimit: ByteSize, override val activeActivationCount: Int = 0)
-    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount)
-case class PreWarmedData(container: Container,
+    extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount) {
+  override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
+}
+
+case class PreWarmedData(override val container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
                          override val activeActivationCount: Int = 0)
-    extends ContainerData(Instant.EPOCH, memoryLimit, activeActivationCount)
-case class WarmingData(container: Container,
+    extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount) {
+  override def scheduleUsage(r: Run) =
+    WarmingData(container, r.msg.user.namespace.name, r.action, Instant.now, 1)
+}
+case class WarmingData(override val container: Container,
                        invocationNamespace: EntityName,
                        action: ExecutableWhiskAction,
                        override val lastUsed: Instant,
                        override val activeActivationCount: Int = 0)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+    extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+    with ContainerInUse {
+  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+}
 case class WarmingColdData(invocationNamespace: EntityName,
                            action: ExecutableWhiskAction,
                            override val lastUsed: Instant,
                            override val activeActivationCount: Int = 0)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
-case class WarmedData(container: Container,
+    extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+    with ContainerInUse {
+  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+}
+case class WarmedData(override val container: Container,
                       invocationNamespace: EntityName,
                       action: ExecutableWhiskAction,
                       override val lastUsed: Instant,
                       override val activeActivationCount: Int = 0)
-    extends ContainerData(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+    extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+    with ContainerInUse {
+  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+}
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)

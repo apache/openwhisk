@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.containerpool
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
-import java.time.Instant
 import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
@@ -151,32 +150,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         createdContainer match {
           case Some(((actor, data), containerState)) =>
             //increment active count before storing in pool map
-            val (newData, container) = data match {
-              case p: PreWarmedData => //convert PreWarmedData -> WarmingData for concurrent cases
-                if (r.action.limits.concurrency.maxConcurrent > 1) {
-                  WarmingData(p.container, r.msg.user.namespace.name, r.action, Instant.now, 1) -> Some(p.container)
-                } else {
-                  p.copy(activeActivationCount = 1) -> Some(p.container)
-                }
-              case w: WarmedData =>
-                w.copy(activeActivationCount = w.activeActivationCount + 1) -> Some(w.container)
-              case pw: WarmingData =>
-                pw.copy(activeActivationCount = pw.activeActivationCount + 1) -> Some(pw.container)
-              case wnd: WarmingColdData =>
-                wnd.copy(activeActivationCount = wnd.activeActivationCount + 1) -> None
-              case n: NoData => //convert NoData -> WarmingColdData for concurrent cases
-                if (r.action.limits.concurrency.maxConcurrent > 1) {
-                  WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1) -> None
-                } else {
-                  n.copy(activeActivationCount = 1) -> None
-                }
-              case m: MemoryData => //convert MemoryData -> WarmingColdData for concurrent cases
-                if (r.action.limits.concurrency.maxConcurrent > 1) {
-                  WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1) -> None
-                } else {
-                  m.copy(activeActivationCount = 1) -> None
-                }
-            }
+            val newData = data.scheduleUsage(r)
+            val container = newData.getContainer
 
             if (newData.activeActivationCount < 1) {
               logging.error(this, s"invalid activation count < 1 ${newData}")
@@ -382,31 +357,19 @@ object ContainerPool {
                                            idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles
       .find {
-        case (_, WarmedData(_, `invocationNamespace`, `action`, _, activeActivationCount))
-            if activeActivationCount < action.limits.concurrency.maxConcurrent =>
-          true
-        case _ => false
+        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
+        case _                                                                                      => false
       }
       .orElse {
-        //if the action supports concurrency, we can schedule activations to it while it is warming
-        if (action.limits.concurrency.maxConcurrent > 1) {
-          idles
-            .find { //prefer warming from prewarm
-              case (_, WarmingData(_, `invocationNamespace`, `action`, _, activeActivationCount))
-                  if activeActivationCount < action.limits.concurrency.maxConcurrent =>
-                true
-              case _ => false
-            }
-            .orElse {
-              idles.find { //next pref is warming from cold
-                case (_, WarmingColdData(`invocationNamespace`, `action`, _, activeActivationCount))
-                    if activeActivationCount < action.limits.concurrency.maxConcurrent =>
-                  true
-                case _ => false
-              }
-            }
-        } else {
-          None
+        idles.find {
+          case (_, c @ WarmingData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
+          case _                                                                                       => false
+        }
+      }
+      .orElse {
+        idles.find {
+          case (_, c @ WarmingColdData(`invocationNamespace`, `action`, _, _)) if c.hasCapacity(action) => true
+          case _                                                                                        => false
         }
       }
   }
