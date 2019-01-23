@@ -95,8 +95,8 @@ class ShardingContainerPoolBalancerTests
   def semaphores(count: Int, max: Int): IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]] =
     IndexedSeq.fill(count)(new NestedSemaphore[FullyQualifiedEntityName](max))
 
-  def lbConfig(blackboxFraction: Double) =
-    ShardingContainerPoolBalancerConfig(blackboxFraction, 1)
+  def lbConfig(blackboxFraction: Double, managedFraction: Option[Double] = None) =
+    ShardingContainerPoolBalancerConfig(managedFraction.getOrElse(1.0 - blackboxFraction), blackboxFraction, 1)
 
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty
@@ -168,6 +168,19 @@ class ShardingContainerPoolBalancerTests
         }
       }
     }
+  }
+
+  it should "return the same pools if managed- and blackbox-pools are overlapping" in {
+
+    val state = ShardingContainerPoolBalancerState()(lbConfig(1.0, Some(1.0)))
+    (1 to 100).foreach { i =>
+      state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.stdMemory)))
+    }
+
+    state.managedInvokers should have size 100
+    state.blackboxInvokers should have size 100
+
+    state.managedInvokers shouldBe state.blackboxInvokers
   }
 
   it should "update the cluster size, adjusting the invoker slots accordingly" in {

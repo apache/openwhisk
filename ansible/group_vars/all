@@ -60,6 +60,7 @@ limits:
 
 # Moved here to avoid recursions. Please do not use outside of controller-dict.
 __controller_ssl_keyPrefix: "controller-"
+__controller_blackbox_fraction: 0.10
 
 # port means outer port
 controller:
@@ -69,7 +70,8 @@ controller:
   basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
-  blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
+  managedFraction: "{{ controller_managed_fraction | default(1.0 - (controller_blackbox_fraction | default(__controller_blackbox_fraction))) }}"
+  blackboxFraction: "{{ controller_blackbox_fraction | default(__controller_blackbox_fraction) }}"
   timeoutFactor: "{{ controller_timeout_factor | default(2) }}"
   instances: "{{ groups['controllers'] | length }}"
   localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
@@ -264,7 +266,7 @@ apigateway:
 redis:
   version: 4.0
   port: 6379
-  password: openwhisk 
+  password: openwhisk
 
 linux:
   version: 4.4.0-31

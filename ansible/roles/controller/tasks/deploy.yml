@@ -227,6 +227,8 @@
         "{{ controller.ssl.storeFlavor }}"
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"
+      "CONFIG_whisk_loadbalancer_managedFraction":
+        "{{ controller.managedFraction }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction":
         "{{ controller.blackboxFraction }}"
       "CONFIG_whisk_loadbalancer_timeoutFactor":
