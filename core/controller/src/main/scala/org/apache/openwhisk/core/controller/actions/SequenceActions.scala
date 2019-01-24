@@ -175,7 +175,7 @@ protected[actions] trait SequenceActions {
               case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
             }
           }
-          activationStore.store(seqActivation, context)(transid, notifier = None)
+          activationStore.storeAfterCheck(seqActivation, context)(transid, notifier = None)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?

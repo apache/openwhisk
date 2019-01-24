@@ -569,7 +569,7 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    activationStore.store(activation, context)(transid, notifier = None)
+    activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
 
     activation
   }

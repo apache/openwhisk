@@ -34,10 +34,11 @@ import scala.util.Try
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,
                       firesPerMinute: Option[Int] = None,
-                      allowedKinds: Option[Set[String]] = None)
+                      allowedKinds: Option[Set[String]] = None,
+                      storeActivations: Option[Boolean] = None)
 
 object UserLimits extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat4(UserLimits.apply)
+  implicit val serdes = jsonFormat5(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

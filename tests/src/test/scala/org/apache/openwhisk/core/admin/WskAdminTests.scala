@@ -229,6 +229,21 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
       wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
     }
   }
+
+  it should "disable saving of activations in ActivationsStore" in {
+    val subject = Subject().asString
+    try {
+      // set limit
+      wskadmin.cli(Seq("limits", "set", subject, "--storeActivations", "false"))
+      // check correctly set
+      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+      lines should have size 1
+      lines(0) shouldBe "storeActivations = False"
+    } finally {
+      wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
+    }
+  }
+
   it should "adjust whitelist for namespace" in {
     val subject = Subject().asString
     try {

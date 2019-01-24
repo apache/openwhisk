@@ -317,7 +317,7 @@ class NamespaceSpecificThrottleTests
   }
 
   sanitizeNamespaces(
-    Seq("zeroSubject", "zeroConcSubject", "oneSubject", "oneSequenceSubject"),
+    Seq("zeroSubject", "zeroConcSubject", "oneSubject", "oneSequenceSubject", "activationDisabled"),
     expectedExitCode = DONTCARE_EXIT)
 
   // Create a subject with rate limits == 0
@@ -346,8 +346,12 @@ class NamespaceSpecificThrottleTests
   val oneSequenceProps = getAdditionalTestSubject("oneSequenceSubject")
   wskadmin.cli(Seq("limits", "set", oneSequenceProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
 
+  // Create a subject where storing of activations in activationstore is disabled.
+  val activationDisabled = getAdditionalTestSubject("activationDisabled")
+  wskadmin.cli(Seq("limits", "set", activationDisabled.namespace, "--storeActivations", "false"))
+
   override def afterAll() = {
-    sanitizeNamespaces(Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps).map(_.namespace))
+    sanitizeNamespaces(Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps, activationDisabled).map(_.namespace))
   }
 
   behavior of "Namespace-specific throttles"
@@ -462,5 +466,25 @@ class NamespaceSpecificThrottleTests
     wsk.action.invoke(actionName, expectedExitCode = TooManyRequests.intValue).stderr should {
       include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed: 0")
     }
+  }
+
+  it should "not store an activation if disabled for this namespace" in withAssetCleaner(activationDisabled) {
+    (wp, assetHelper) =>
+      implicit val props = wp
+      val actionName = "activationDisabled"
+
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(actionName, defaultAction)
+      }
+
+      val runResult = wsk.action.invoke(actionName)
+      val activationId = wsk.activation.extractActivationId(runResult)
+      withClue(s"did not find an activation id in '$runResult'") {
+        activationId shouldBe a[Some[_]]
+      }
+
+      val activation = wsk.activation.waitForActivation(activationId.get)
+
+      activation shouldBe 'Left
   }
 }

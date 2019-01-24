@@ -52,6 +52,8 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       "--allowedKinds",
       "nodejs:6",
       "blackbox",
+      "--storeActivations",
+      "false",
       ns) shouldBe CommandMessages.limitsSuccessfullySet(ns)
 
     val limits = limitsStore.get[LimitEntity](DocInfo(LimitsCommand.limitIdOf(EntityName(ns)))).futureValue
@@ -59,7 +61,8 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       invocationsPerMinute = Some(3),
       firesPerMinute = Some(7),
       concurrentInvocations = Some(11),
-      allowedKinds = Some(Set("nodejs:6", "blackbox")))
+      allowedKinds = Some(Set("nodejs:6", "blackbox")),
+      storeActivations = Some(false))
 
     resultOk("limits", "set", "--invocationsPerMinute", "13", ns) shouldBe CommandMessages.limitsSuccessfullyUpdated(ns)
 

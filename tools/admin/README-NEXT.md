@@ -128,6 +128,10 @@ Limits successfully set for "space1"
 # set limits on allowedKinds
 $ wskadmin-next limits set --allowedKinds nodejs:6 python space1
 Limits successfully set for "space1"
+
+# set limits to disable saving of activations in activationstore
+$ wskadmin-next limits set space1 --storeActivations false
+Limits successfully set for "space1"
 ```
 
 Note that limits apply to a namespace and will survive even if all users that share a namespace are deleted. You must manually delete them.
