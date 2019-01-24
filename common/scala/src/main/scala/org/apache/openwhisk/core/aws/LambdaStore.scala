@@ -187,6 +187,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
             .layers(layer)
             .runtime(LambdaRuntime.PROVIDED)
             .functionName(funcName)
+            .environment(e => e.variables(getFunctionEnv(action).asJava))
             .memorySize(getFunctionMemory(action))
             .timeout(getFunctionTimeout(action))
             .role(role)
@@ -200,9 +201,9 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
 
   def getFunctionWhiskRevision(arn: String)(implicit transid: TransactionId): Future[Option[String]] = {
     client
-      .listTags(r => r.resource(arn))
+      .getFunctionConfiguration(r => r.functionName(arn))
       .toScala
-      .map(r => r.tags().asScala.get(whiskRevision))
+      .map(r => r.environment().variables().asScala.get(whiskRevision))
       .recover {
         case CausedBy(_: ResourceNotFoundException) => None
       }
@@ -218,7 +219,6 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     for {
       _ <- updateFunctionConfiguration(arn, action, layer, handlerName)
       _ <- updateFunctionCode(arn, code)
-      _ <- updateFunctionTag(arn, getTags(action))
     } yield Some(LambdaAction(arn))
   }
 
@@ -232,10 +232,6 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
             .memorySize(getFunctionMemory(action))
             .timeout(getFunctionTimeout(action)))
       .toScala
-  }
-
-  private def updateFunctionTag(arn: String, tags: Map[String, String]) = {
-    client.tagResource(r => r.resource(arn).tags(tags.asJava)).toScala
   }
 
   private def updateFunctionCode(arn: String, code: FunctionCode) = {
@@ -267,13 +263,13 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
   }
 
   //TODO Other attributes to add
-  //TODO Remove revision from tags
   def getTags(action: WhiskAction): Map[String, String] =
     Map(
       "fqn" -> action.fullyQualifiedName(true).asString,
-      whiskRevision -> action.rev.asString,
       "namespace" -> action.namespace.asString,
       "name" -> action.name.asString)
+
+  def getFunctionEnv(action: WhiskAction): Map[String, String] = Map(whiskRevision -> action.rev.asString)
 
   def getFunctionCode(action: WhiskAction): Option[FunctionCode] = {
     action.exec match {
@@ -286,7 +282,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
 }
 
 object LambdaStore {
-  val whiskRevision = "ow_rev"
+  val whiskRevision = "OW_ACTION_REV"
 
   def getFunctionName(fqn: FullyQualifiedEntityName): String = {
     //TODO Lambda places a 64 char limit and OW allows much larger names
