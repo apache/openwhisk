@@ -221,14 +221,11 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
 
   private def updateFunction(arn: ARN, action: WhiskAction, layer: String, handlerName: String, code: FunctionCode)(
     implicit transid: TransactionId): Future[Option[LambdaAction]] = {
-    //By design it should be update by only single process. So update the tag at end
-    //Which would ensure that code is matching the action revision in OW
-
-    //TODO Looks like tags are not part of revision. So we may need to add rev to configuration (say description or env)
-    //And then publish it
+    //By design it should be update by only single process. So update the config at end
+    //which also contains the rev.
     for {
-      _ <- updateFunctionConfiguration(arn, action, layer, handlerName)
       _ <- updateFunctionCode(arn, code)
+      _ <- updateFunctionConfiguration(arn, action, layer, handlerName)
     } yield Some(LambdaAction(arn))
   }
 
