@@ -68,7 +68,18 @@ object LambdaStoreProvider {
 
 case class LambdaConfig(layerMappings: Map[String, String], accountId: String, commonRoleName: String)
 
-case class LambdaAction(arn: String)
+case class LambdaAction(arn: ARN)
+
+case class ARN private (private val arn: String) extends AnyVal {
+  def name = arn
+}
+
+object ARN {
+  def apply(arn: String): ARN = {
+    //TODO Add validation
+    new ARN(arn)
+  }
+}
 
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Region)(implicit ec: ExecutionContext,
                                                                                    logging: Logging) {
@@ -193,15 +204,14 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
             .role(role)
             .tags(getTags(action).asJava))
       .toScala
-      .map(response => Some(LambdaAction(response.functionArn())))
+      .map(response => Some(LambdaAction(ARN(response.functionArn()))))
   }
 
-  //TODO Create a AnyVal for ARN
-  def functionARN(funcName: String): String = s"arn:aws:lambda:${region.id()}:${config.accountId}:function:$funcName"
+  def functionARN(funcName: String): ARN = ARN(s"arn:aws:lambda:${region.id()}:${config.accountId}:function:$funcName")
 
-  def getFunctionWhiskRevision(arn: String)(implicit transid: TransactionId): Future[Option[String]] = {
+  def getFunctionWhiskRevision(arn: ARN)(implicit transid: TransactionId): Future[Option[String]] = {
     client
-      .getFunctionConfiguration(r => r.functionName(arn))
+      .getFunctionConfiguration(r => r.functionName(arn.name))
       .toScala
       .map(r => r.environment().variables().asScala.get(whiskRevision))
       .recover {
@@ -209,7 +219,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       }
   }
 
-  private def updateFunction(arn: String, action: WhiskAction, layer: String, handlerName: String, code: FunctionCode)(
+  private def updateFunction(arn: ARN, action: WhiskAction, layer: String, handlerName: String, code: FunctionCode)(
     implicit transid: TransactionId): Future[Option[LambdaAction]] = {
     //By design it should be update by only single process. So update the tag at end
     //Which would ensure that code is matching the action revision in OW
@@ -222,20 +232,21 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     } yield Some(LambdaAction(arn))
   }
 
-  private def updateFunctionConfiguration(arn: String, action: WhiskAction, layer: String, handlerName: String) = {
+  private def updateFunctionConfiguration(arn: ARN, action: WhiskAction, layer: String, handlerName: String) = {
     client
       .updateFunctionConfiguration(
         r =>
           r.handler(handlerName)
-            .functionName(arn)
+            .functionName(arn.name)
             .layers(layer)
             .memorySize(getFunctionMemory(action))
             .timeout(getFunctionTimeout(action)))
       .toScala
   }
 
-  private def updateFunctionCode(arn: String, code: FunctionCode) = {
+  private def updateFunctionCode(arn: ARN, code: FunctionCode) = {
     val builder = UpdateFunctionCodeRequest.builder()
+    builder.functionName(arn.name)
     if (code.zipFile() != null) {
       builder.zipFile(code.zipFile())
     } else {
