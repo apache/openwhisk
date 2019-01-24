@@ -225,8 +225,8 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     //which also contains the rev.
     for {
       _ <- updateFunctionCode(arn, code)
-      _ <- updateFunctionConfiguration(arn, action, layer, handlerName)
-    } yield Some(LambdaAction(arn))
+      fr <- updateFunctionConfiguration(arn, action, layer, handlerName)
+    } yield Some(LambdaAction(ARN(fr.functionArn())))
   }
 
   private def updateFunctionConfiguration(arn: ARN, action: WhiskAction, layer: String, handlerName: String) = {
