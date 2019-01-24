@@ -1386,7 +1386,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[JsObject]
-          response should be(activation.withoutLogs.toExtendedJson)
+          response should be(activation.withoutLogs.toExtendedJson())
         }
 
         // repeat invoke, get only result back
@@ -1422,7 +1422,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
-        response should be(activation.withoutLogs.toExtendedJson)
+        response should be(activation.withoutLogs.toExtendedJson())
       }
 
       // repeat invoke, get only result back
@@ -1475,7 +1475,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Post(s"$collectionPath/${action.name}?blocking=true&timeout=500") ~> Route.seal(routes(creds)) ~> check {
         status shouldBe OK
         val response = responseAs[JsObject]
-        response shouldBe activation.withoutLogs.toExtendedJson
+        response shouldBe activation.withoutLogs.toExtendedJson()
         headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
       }
     } finally {
@@ -1504,7 +1504,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
           status should be(InternalServerError)
           val response = responseAs[JsObject]
-          response should be(activation.withoutLogs.toExtendedJson)
+          response should be(activation.withoutLogs.toExtendedJson())
           headers should contain(RawHeader(ActivationIdHeader, response.fields("activationId").convertTo[String]))
         }
       } finally {

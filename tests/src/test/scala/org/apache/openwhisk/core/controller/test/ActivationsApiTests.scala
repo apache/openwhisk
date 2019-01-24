@@ -188,7 +188,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
           status should be(OK)
           val response = responseAs[List[JsObject]]
           activations.length should be(response.length)
-          response should contain theSameElementsAs activations.map(_.toExtendedJson)
+          response should contain theSameElementsAs activations.map(_.toExtendedJson())
         }
       }
     } finally {
@@ -270,7 +270,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
             status should be(OK)
             val response = responseAs[List[JsObject]]
             expected.length should be(response.length)
-            response should contain theSameElementsAs expected.map(_.toExtendedJson)
+            response should contain theSameElementsAs expected.map(_.toExtendedJson())
           }
         }
       }
@@ -286,7 +286,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
             status should be(OK)
             val response = responseAs[List[JsObject]]
             expected.length should be(response.length)
-            response should contain theSameElementsAs expected.map(_.toExtendedJson)
+            response should contain theSameElementsAs expected.map(_.toExtendedJson())
           }
         }
       }
@@ -302,7 +302,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
             status should be(OK)
             val response = responseAs[List[JsObject]]
             expected.length should be(response.length)
-            response should contain theSameElementsAs expected.map(_.toExtendedJson)
+            response should contain theSameElementsAs expected.map(_.toExtendedJson())
           }
         }
       }
@@ -538,14 +538,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       Get(s"$collectionPath/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
-        response should be(activation.toExtendedJson)
+        response should be(activation.toExtendedJson())
       }
 
       // it should "get activation by name in explicit namespace owned by subject" in
       Get(s"/$namespace/${collection.path}/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
-        response should be(activation.toExtendedJson)
+        response should be(activation.toExtendedJson())
       }
 
       // it should "reject get activation by name in explicit namespace not owned by subject" in

@@ -125,7 +125,9 @@ protected trait ControllerTestCommon
       () => {
         val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
           activationStore.listActivationsInNamespace(namespace, 0, 0, context = context)
-        val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
+        val listFuture: Future[List[JsObject]] = activations map (_.fold(
+          (js) => js,
+          (wa) => wa.map(_.toExtendedJson())))
 
         listFuture map { l =>
           if (l.length != count) {
@@ -146,7 +148,9 @@ protected trait ControllerTestCommon
       () => {
         val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
           activationStore.listActivationsMatchingName(namespace, name, 0, 0, context = context)
-        val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
+        val listFuture: Future[List[JsObject]] = activations map (_.fold(
+          (js) => js,
+          (wa) => wa.map(_.toExtendedJson())))
 
         listFuture map { l =>
           if (l.length != count) {
