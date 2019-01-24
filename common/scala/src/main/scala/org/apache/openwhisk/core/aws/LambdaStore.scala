@@ -30,7 +30,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{Interval, RunResult}
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, ContainerResponse}
 import org.apache.openwhisk.core.entity.Attachments.Inline
-import org.apache.openwhisk.core.entity.{CodeExecAsAttachment, WhiskAction}
+import org.apache.openwhisk.core.entity.{CodeExecAsAttachment, FullyQualifiedEntityName, WhiskAction}
 import pureconfig._
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.regions.Region
@@ -127,7 +127,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
 
     r.map {
         case (layer, handlerName, code) =>
-          val funcName = getFunctionName(action)
+          val funcName = getFunctionName(action.fullyQualifiedName(false))
           val arn = functionARN(funcName)
           val actionRev = action.rev.asString
           getFunctionWhiskRevision(arn).flatMap {
@@ -146,20 +146,18 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       .getOrElse(Future.successful(None))
   }
 
-  def delete(action: WhiskAction)(implicit transid: TransactionId): Future[Done] = {
-    val funcName = getFunctionName(action)
+  def delete(fqn: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Done] = {
+    val funcName = getFunctionName(fqn)
     client
       .deleteFunction(r => r.functionName(funcName))
       .toScala
       .map { _ =>
-        logging.info(
-          this,
-          s"Deleted lambda function [$funcName] which mapped to action [${action.fullyQualifiedName(false)}]")
+        logging.info(this, s"Deleted lambda function [$funcName] which mapped to action [$fqn]")
         Done
       }
       .recover {
         case CausedBy(_: ResourceNotFoundException) =>
-          logging.warn(this, s"No lambda function found for [${action.fullyQualifiedName(false)}]")
+          logging.warn(this, s"No lambda function found for [$fqn]")
           Done
       }
   }
@@ -290,10 +288,10 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
 object LambdaStore {
   val whiskRevision = "ow_rev"
 
-  def getFunctionName(action: WhiskAction): String = {
+  def getFunctionName(fqn: FullyQualifiedEntityName): String = {
     //TODO Lambda places a 64 char limit and OW allows much larger names
     //So need a way to encode name say via `<functionName{0,40}>_<10 letters from hash>`
-    val name = action.fullyQualifiedName(false).asString.replace("/", "_")
+    val name = fqn.copy(version = None).asString.replace("/", "_")
     s"ow_$name"
   }
 
