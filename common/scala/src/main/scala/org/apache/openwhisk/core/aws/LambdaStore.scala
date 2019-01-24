@@ -73,7 +73,7 @@ case class LambdaAction(arn: String)
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Region)(implicit ec: ExecutionContext,
                                                                                    logging: Logging) {
   import LambdaStore._
-  def invoke(name: String, body: JsObject)(implicit transid: TransactionId): Future[RunResult] = {
+  def invokeLambda(name: String, body: JsObject)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val request = InvokeRequest
       .builder()
@@ -116,7 +116,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       }
   }
 
-  def createOrUpdate(action: WhiskAction)(implicit transid: TransactionId): Future[Option[LambdaAction]] = {
+  def createOrUpdateLambda(action: WhiskAction)(implicit transid: TransactionId): Future[Option[LambdaAction]] = {
     require(!action.rev.empty, s"WhiskAction [$action] needs to have revision specified")
 
     val r = for {
@@ -146,7 +146,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       .getOrElse(Future.successful(None))
   }
 
-  def delete(fqn: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Done] = {
+  def deleteLambda(fqn: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Done] = {
     val funcName = getFunctionName(fqn)
     client
       .deleteFunction(r => r.functionName(funcName))

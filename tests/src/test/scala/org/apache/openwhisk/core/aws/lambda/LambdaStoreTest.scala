@@ -50,13 +50,13 @@ class LambdaStoreTest extends FlatSpec with Matchers with WskActorSystem with Sc
        |    "foo" : "bar"
        |  }
        |}""".stripMargin.parseJson.asJsObject
-    val r = store.invoke("hello-world-custom-1", body).futureValue
+    val r = store.invokeLambda("hello-world-custom-1", body).futureValue
     println(r.response.right.get.entity)
   }
 
   it should "create hello world function" in {
     val action = WhiskAction(EntityPath("test"), EntityName("hello-1"), jsDefault(helloWorld))
-    val la = store.createOrUpdate(action).futureValue
+    val la = store.createOrUpdateLambda(action).futureValue
     println(la)
   }
 
@@ -67,16 +67,16 @@ class LambdaStoreTest extends FlatSpec with Matchers with WskActorSystem with Sc
       .revision[WhiskAction](DocRevision("foo"))
     val fqn = action.fullyQualifiedName(false)
     val lambdaName = LambdaStore.getFunctionName(fqn)
-    val la = store.createOrUpdate(action).futureValue
+    val la = store.createOrUpdateLambda(action).futureValue
     println(la)
     val body = """{
                  |  "value": {
                  |    "payload" : "bar"
                  |  }
                  |}""".stripMargin.parseJson.asJsObject
-    val r = store.invoke(lambdaName, body).futureValue
+    val r = store.invokeLambda(lambdaName, body).futureValue
     println(r.response.right.get.entity)
-    store.delete(fqn)
+    store.deleteLambda(fqn)
   }
 
 }
