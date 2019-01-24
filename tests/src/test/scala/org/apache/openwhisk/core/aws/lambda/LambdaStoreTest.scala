@@ -18,9 +18,9 @@
 package org.apache.openwhisk.core.aws.lambda
 import common.WskActorSystem
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.aws.LambdaStoreProvider
+import org.apache.openwhisk.core.aws.{LambdaStore, LambdaStoreProvider}
 import org.apache.openwhisk.core.entity.test.ExecHelpers
-import org.apache.openwhisk.core.entity.{EntityName, EntityPath, WhiskAction}
+import org.apache.openwhisk.core.entity.{DocRevision, EntityName, EntityPath, WhiskAction}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
@@ -58,6 +58,24 @@ class LambdaStoreTest extends FlatSpec with Matchers with WskActorSystem with Sc
     val action = WhiskAction(EntityPath("test"), EntityName("hello-1"), jsDefault(helloWorld))
     val la = store.createOrUpdate(action).futureValue
     println(la)
+  }
+
+  it should "sanity check" in {
+    val name = "hello-sanity-1"
+    val ns = "test"
+    val action = WhiskAction(EntityPath(ns), EntityName(name), jsDefault(helloWorld))
+      .revision[WhiskAction](DocRevision("foo"))
+    val lambdaName = LambdaStore.getFunctionName(action)
+    val la = store.createOrUpdate(action).futureValue
+    println(la)
+    val body = """{
+                 |  "value": {
+                 |    "payload" : "bar"
+                 |  }
+                 |}""".stripMargin.parseJson.asJsObject
+    val r = store.invoke(lambdaName, body).futureValue
+    println(r.response.right.get.entity)
+    store.delete(action)
   }
 
 }
