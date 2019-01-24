@@ -50,6 +50,17 @@ import scala.compat.java8.FutureConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
+case class ARN private (private val arn: String) extends AnyVal {
+  def name = arn
+}
+
+object ARN {
+  def apply(arn: String): ARN = {
+    //TODO Add validation
+    new ARN(arn)
+  }
+}
+
 object LambdaStoreProvider {
 
   def makeStore(config: Config = ConfigFactory.defaultApplication())(implicit ec: ExecutionContext,
@@ -66,20 +77,9 @@ object LambdaStoreProvider {
   }
 }
 
-case class LambdaConfig(layerMappings: Map[String, String], accountId: String, commonRoleName: String)
+case class LambdaConfig(layerMappings: Map[String, ARN], accountId: String, commonRoleName: ARN)
 
 case class LambdaAction(arn: ARN)
-
-case class ARN private (private val arn: String) extends AnyVal {
-  def name = arn
-}
-
-object ARN {
-  def apply(arn: String): ARN = {
-    //TODO Add validation
-    new ARN(arn)
-  }
-}
 
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Region)(implicit ec: ExecutionContext,
                                                                                    logging: Logging) {
@@ -257,12 +257,12 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
   }
 
   def getMatchingLayer(action: WhiskAction): Option[String] = {
-    config.layerMappings.get(action.exec.kind)
+    config.layerMappings.get(action.exec.kind).map(_.name)
   }
 
   def getOrCreateRole(functionName: String): Future[String] = {
     //TODO Temp usage of a generic role. Need to create per function role
-    Future.successful(config.commonRoleName)
+    Future.successful(config.commonRoleName.name)
   }
 
   def getHandlerName(action: WhiskAction): Option[String] = {
