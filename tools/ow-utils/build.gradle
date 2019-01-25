@@ -17,3 +17,17 @@
 
 ext.dockerImageName = 'ow-utils'
 apply from: '../../gradle/docker.gradle'
+
+distDocker.dependsOn 'copyWskadmin'
+distDocker.finalizedBy('cleanup')
+
+task copyWskadmin(type: Copy) {
+    from '../admin/wskadmin', '../admin/wskutil.py', '../admin/wskprop.py'
+    into '.'
+}
+
+task cleanup(type: Delete) {
+    delete 'wskadmin'
+    delete 'wskprop.py'
+    delete 'wskutil.py'
+}
