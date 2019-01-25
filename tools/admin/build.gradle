@@ -52,4 +52,5 @@ dependencies {
     scoverage gradle.scoverage.deps
 }
 
-
+ext.dockerImageName = 'wskadmin'
+apply from: '../../gradle/docker.gradle'
