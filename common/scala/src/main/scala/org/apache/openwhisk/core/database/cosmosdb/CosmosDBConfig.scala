@@ -36,7 +36,7 @@ case class CosmosDBConfig(endpoint: String,
                           throughput: Int,
                           consistencyLevel: ConsistencyLevel,
                           connectionPolicy: ConnectionPolicy,
-                          timeToLive: Option[Duration] = None) {
+                          timeToLive: Option[Duration]) {
 
   def createClient(): AsyncDocumentClient = {
     new AsyncDocumentClient.Builder()
