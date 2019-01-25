@@ -62,7 +62,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
 
   protected val client: AsyncDocumentClient = clientRef.get.client
-  private val (database, collection) = initialize()
+  private[cosmosdb] val (database, collection) = initialize()
 
   private val _id = "_id"
   private val _rev = "_rev"

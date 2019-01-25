@@ -17,11 +17,20 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.IndexKind.Hash
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.DocumentCollection
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.typesafe.config.ConfigFactory
+import common.{StreamLogging, WskActorSystem}
+import org.apache.openwhisk.core.entity.{
+  DocumentReader,
+  WhiskActivation,
+  WhiskDocumentReader,
+  WhiskEntity,
+  WhiskEntityJsonFormat
+}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
@@ -31,9 +40,17 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFactory with Matchers {
+class CosmosDBSupportTests
+    extends FlatSpec
+    with CosmosDBTestSupport
+    with MockFactory
+    with Matchers
+    with StreamLogging
+    with WskActorSystem {
 
   behavior of "CosmosDB init"
+
+  protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   it should "create and update index" in {
     val testDb = createTestDB()
@@ -51,6 +68,7 @@ class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFa
   }
 
   it should "set ttl" in {
+    implicit val docReader: DocumentReader = WhiskDocumentReader
     val config = ConfigFactory.parseString(s"""
       | whisk.cosmosdb {
       |  collections {
@@ -66,8 +84,31 @@ class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFa
 
     val testDb = createTestDB()
     val testConfig = cosmosDBConfig.copy(db = testDb.getId)
-    val (_, coll) = new CosmosTest(testConfig, client, ActivationViewMapper).initialize()
+    val coll = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskActivation](testConfig, None).collection
     coll.getDefaultTimeToLive shouldBe 60.seconds.toSeconds
+  }
+
+  it should "not set ttl for WhiskEntity" in {
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    implicit val format = WhiskEntityJsonFormat
+    val config = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  collections {
+      |     WhiskEntity = {
+      |        time-to-live = 60 s
+      |     }
+      |  }
+      | }
+         """.stripMargin).withFallback(ConfigFactory.load())
+
+    val cosmosDBConfig = CosmosDBConfig(config, "WhiskEntity")
+    cosmosDBConfig.timeToLive shouldBe Some(60.seconds)
+
+    val testConfig = cosmosDBConfig.copy(db = "foo")
+
+    an[IllegalArgumentException] shouldBe thrownBy {
+      CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](testConfig, None).collection
+    }
   }
 
   private def newMapper(paths: Set[String]) = {
