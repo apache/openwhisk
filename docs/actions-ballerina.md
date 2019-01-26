@@ -54,7 +54,7 @@ You can create an OpenWhisk action called `bello` from the function above as fol
 ballerina build hello.bal
 
 # use the .balx file to create the action
-wsk action create bello hello.balx --kind ballerina:0.990.2
+wsk action create bello hello.balx --kind ballerina:0.990
 ```
 
 The CLI does not yet automatically infer the type of the action from the source file extension.

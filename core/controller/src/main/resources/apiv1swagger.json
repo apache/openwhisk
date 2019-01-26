@@ -1906,7 +1906,7 @@
                         "swift:4.1",
                         "swift:4.2",
                         "dotnet:2.2",
-                        "ballerina:0.990.2"
+                        "ballerina:0.990"
                     ],
                     "description": "the type of action"
                 },

@@ -286,7 +286,7 @@
         ],
         "ballerina": [
             {
-                "kind": "ballerina:0.990.2",
+                "kind": "ballerina:0.990",
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
