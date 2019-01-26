@@ -40,24 +40,21 @@ The specifics of the [Action interface](#action-interface) and its functions are
 
 ### Platform requirements
 
-In order for your language runtime to be properly recognized by the OpenWhisk platform, the following additional requirments must be fulfilled:
+In order for your language runtime to be properly recognized by the OpenWhisk platform,
+and officially recognized by the Apache OpenWhisk project, please follow these
+requirements and best practices:
 
-1. introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
-2. add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json)
+1. Implement the runtime in its own repository to permit a management lifecycle independent of the rest of the OpenWhisk platform.
+2. Introduce the runtime specification into the [runtimes manifest](../ansible/files/runtimes.json),
+3. Add the runtime to the [Swagger file](../core/controller/src/main/resources/apiv1swagger.json)
+4. Add a new `actions-<your runtime>.md` file to the [docs](.) directory,
+5. Add a link to your new runtime doc to the [top level actions index](actions.md#languages-and-runtimes).
+6. Add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests) (as shown below),
 
-### Project requirements
-
-If you wish to have your runtime officially recognized by the Apache OpenWhisk project, please follow these
-additional rqeuirements and best practices:
-
-1. implement the runtime in its own repository to permit a management lifecycle independent of the rest of the OpenWhisk platform,
-    - The repository should conform to the [Canonical runtime repository](#canonical-runtime-repository) layout (as shown below).
-2. add a standard [test action](#the-test-action) to the [tests artifacts directory](../tests/dat/actions/unicode.tests) (as shown below),
-3. automate and pass the following test suites:
-    - [Action Interface tests](#action-interface-tests)
-    - [Runtime proxy tests](#runtime-proxy-tests)
-4. add a new `actions-<your runtime>.md` file to the [docs](.) directory,
-5. add a link to your new language or runtime to the [top level index](actions.md#languages-and-runtimes).
+The new runtime repository should conform to the [Canonical runtime repository](#canonical-runtime-repository) layout (as shown below).
+Further, you should automate and pass the following test suites:
+- [Action Interface tests](#action-interface-tests)
+- [Runtime proxy tests](#runtime-proxy-tests)
 
 ### The runtimes manifest
 
@@ -109,7 +106,7 @@ The runtime repository should follow the canonical structure used by other runti
 The [Docker skeleton repository](https://github.com/apache/incubator-openwhisk-runtime-docker)
 is an example starting point to fork and modify for your new runtime.
 
-#### The test action
+### The test action
 
 The standard test action is shown below in JavaScript. It should be adapted for the
 new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
