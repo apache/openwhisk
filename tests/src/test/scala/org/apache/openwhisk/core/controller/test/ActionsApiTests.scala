@@ -68,7 +68,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("action_tests")
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
-  override protected val controllerActivationConfig = loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
+  override protected val controllerActivationConfig =
+    loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
 
   //// GET /actions
   it should "return empty list when no actions exist" in {

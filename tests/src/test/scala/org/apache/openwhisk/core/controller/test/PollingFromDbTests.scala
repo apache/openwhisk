@@ -85,7 +85,6 @@ class PollingFromDbTests extends ControllerTestCommon with WhiskActionsApi {
   }
 }
 
-
 class AlwaysReturnLeftLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
     extends DegenerateLoadBalancerService(config) {
 
