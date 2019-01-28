@@ -654,7 +654,7 @@ protected[actions] trait PrimitiveActions {
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-  private val controllerActivationConfig =
+  protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
 
 }
