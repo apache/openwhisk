@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "5.3.2"
+      "version": "5.4.3"
     },
     {
       "type": "panel",
@@ -52,7 +52,8 @@
   "editable": true,
   "gnetId": 9564,
   "graphTooltip": 0,
-  "iteration": 1547662760282,
+  "id": null,
+  "iteration": 1548707435650,
   "links": [],
   "panels": [
     {
@@ -756,6 +757,8 @@
       "legend": {
         "avg": false,
         "current": false,
+        "hideEmpty": true,
+        "hideZero": true,
         "max": false,
         "min": false,
         "show": true,
@@ -1128,24 +1131,20 @@
     "list": [
       {
         "allValue": null,
-        "current": {
-          "tags": [],
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "label_values(openwhisk_action_activations_total,namespace)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace) > 0)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": null,
         "multi": false,
         "name": "namespace",
         "options": [],
-        "query": "label_values(openwhisk_action_activations_total,namespace)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace) > 0)",
         "refresh": 1,
-        "regex": "",
+        "regex": "/.*namespace=\"(.*)\".*/",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
@@ -1154,24 +1153,20 @@
       },
       {
         "allValue": "",
-        "current": {
-          "tags": [],
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "label_values(openwhisk_action_activations_total{namespace=~\"$namespace\"},action)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (action) > 0)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": false,
         "name": "action",
         "options": [],
-        "query": "label_values(openwhisk_action_activations_total{namespace=~\"$namespace\"},action)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (action) > 0)",
         "refresh": 1,
-        "regex": "",
+        "regex": "/.*action=\"(.*)\".*/",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
