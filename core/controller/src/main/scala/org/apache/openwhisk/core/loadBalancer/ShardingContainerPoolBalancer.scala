@@ -383,7 +383,7 @@ class ShardingContainerPoolBalancer(
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
           processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
         }
-        val isBlackboxInvocation = action.exec.pull
+
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,

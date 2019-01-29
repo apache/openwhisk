@@ -269,7 +269,8 @@ class ShardingContainerPoolBalancerTests
 
   it should "choose the first available invoker, jumping in stepSize steps, falling back to randomized scheduling once all invokers are full" in {
     val invokerCount = 3
-    val invokerSlots = semaphores(invokerCount + 3, 3) // needs to be offset by 3 as well
+    val slotPerInvoker = 3
+    val invokerSlots = semaphores(invokerCount + 3, slotPerInvoker) // needs to be offset by 3 as well
     val invokers = (0 until invokerCount).map(i => healthy(i + 3)) // offset by 3 to asset InstanceId is returned
 
     val expectedResult = Seq(3, 3, 3, 5, 5, 5, 4, 4, 4)
@@ -287,25 +288,16 @@ class ShardingContainerPoolBalancerTests
       ShardingContainerPoolBalancer
         .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
         .get
-        ._1
-        .toInt
     }
 
-    bruteResult should contain allOf (3, 4, 5)
-
-    val overloadResult = (0 to 100).map { _ =>
-      ShardingContainerPoolBalancer
-        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
-        .get
-        ._2
-    }
-
-    overloadResult should contain only true
+    bruteResult.map(_._1.toInt) should contain allOf (3, 4, 5)
+    bruteResult.map(_._2).count(_) shouldBe (100 - invokerCount * slotPerInvoker)
   }
 
   it should "ignore unhealthy or offline invokers" in {
     val invokers = IndexedSeq(healthy(0), unhealthy(1), offline(2), healthy(3))
-    val invokerSlots = semaphores(invokers.size, 3)
+    val slotPerInvoker = 3
+    val invokerSlots = semaphores(invokers.size, slotPerInvoker)
 
     val expectedResult = Seq(0, 0, 0, 3, 3, 3)
     val result = expectedResult.map { _ =>
@@ -323,21 +315,11 @@ class ShardingContainerPoolBalancerTests
       ShardingContainerPoolBalancer
         .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
         .get
-        ._1
-        .toInt
     }
 
-    bruteResult should contain allOf (0, 3)
-    bruteResult should contain noneOf (1, 2)
-
-    val overloadResult = (0 to 100).map { _ =>
-      ShardingContainerPoolBalancer
-        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
-        .get
-        ._2
-    }
-
-    overloadResult should contain only true
+    bruteResult.map(_._1.toInt) should contain allOf (0, 3)
+    bruteResult.map(_._1.toInt) should contain noneOf (1, 2)
+    bruteResult.map(_._2).count(_) shouldBe (100 - invokers.size * slotPerInvoker)
   }
 
   it should "only take invokers that have enough free slots" in {
