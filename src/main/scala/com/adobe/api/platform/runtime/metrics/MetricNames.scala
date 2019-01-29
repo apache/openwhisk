@@ -15,6 +15,9 @@ package com.adobe.api.platform.runtime.metrics
 trait MetricNames {
   val actionNamespace = "namespace"
   val actionName = "action"
+  val actionStatus = "status"
+  val actionMemory = "memory"
+  val actionKind = "kind"
 
   def activationMetric: String
   def coldStartMetric: String

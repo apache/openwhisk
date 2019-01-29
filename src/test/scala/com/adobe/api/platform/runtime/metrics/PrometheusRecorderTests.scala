@@ -27,6 +27,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   behavior of "PrometheusConsumer"
   val namespace = "whisk.system"
   val action = "apimgmt/createApi"
+  val kind = "nodejs:10"
+  val memory = "256"
 
   it should "push user events to kamon" in {
     val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
@@ -34,11 +36,13 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       createCustomTopic(EventConsumer.userEventTopic)
 
       val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
-      publishStringMessageToKafka(EventConsumer.userEventTopic, newActivationEvent(s"$namespace/$action").serialize)
+      publishStringMessageToKafka(
+        EventConsumer.userEventTopic,
+        newActivationEvent(s"$namespace/$action", kind, memory).serialize)
 
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
-      counter(activationMetric) shouldBe 1
+      counterTotal(activationMetric) shouldBe 1
       counter(coldStartMetric) shouldBe 1
       counterStatus(statusMetric, Activation.statusDeveloperError) shouldBe 1
 
@@ -48,10 +52,10 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     }
   }
 
-  private def newActivationEvent(name: String, kind: String = "nodejs:6") =
+  private def newActivationEvent(name: String, kind: String, memory: String) =
     EventMessage(
       "test",
-      Activation(name, 2, 3, 5, 11, kind, false, 256, None),
+      Activation(name, 2, 3, 5, 11, kind, false, memory.toInt, None),
       "testuser",
       "testNS",
       "test",
@@ -59,6 +63,12 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
 
   private def counter(name: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(name, Array("namespace", "action"), Array(namespace, action))
+
+  private def counterTotal(name: String) =
+    CollectorRegistry.defaultRegistry.getSampleValue(
+      name,
+      Array("namespace", "action", "kind", "memory"),
+      Array(namespace, action, kind, memory))
 
   private def counterStatus(name: String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(

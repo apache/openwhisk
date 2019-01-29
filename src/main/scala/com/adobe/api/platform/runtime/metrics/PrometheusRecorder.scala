@@ -40,22 +40,25 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
   private val metrics = new TrieMap[String, PrometheusMetrics]
 
   def processEvent(activation: Activation): Unit = {
-    lookup(activation.name).record(activation)
+    lookup(activation).record(activation)
   }
 
   override def getReport(): MessageEntity =
     HttpEntity(PrometheusExporter.textV4, createSource())
 
-  private def lookup(name: String): PrometheusMetrics = {
+  private def lookup(activation: Activation): PrometheusMetrics = {
     //TODO Unregister unused actions
+    val name = activation.name
+    val kind = activation.kind
+    val memory = activation.memory.toString
     metrics.getOrElseUpdate(name, {
       val (namespace, action) = getNamespaceAndActionName(name)
-      PrometheusMetrics(namespace, action)
+      PrometheusMetrics(namespace, action, kind, memory)
     })
   }
 
-  case class PrometheusMetrics(namespace: String, action: String) {
-    private val activations = activationCounter.labels(namespace, action)
+  case class PrometheusMetrics(namespace: String, action: String, kind: String, memory: String) {
+    private val activations = activationCounter.labels(namespace, action, kind, memory)
     private val coldStarts = coldStartCounter.labels(namespace, action)
     private val waitTime = waitTimeHisto.labels(namespace, action)
     private val initTime = initTimeHisto.labels(namespace, action)
@@ -120,10 +123,11 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
 }
 
 object PrometheusRecorder extends PrometheusMetricNames {
-  private val activationCounter = counter(activationMetric, "Activation Count", actionNamespace, actionName)
+  private val activationCounter =
+    counter(activationMetric, "Activation Count", actionNamespace, actionName, actionKind, actionMemory)
   private val coldStartCounter = counter(coldStartMetric, "Cold start counts", actionNamespace, actionName)
   private val statusCounter =
-    counter(statusMetric, "Activation failure status type", actionNamespace, actionName, "status")
+    counter(statusMetric, "Activation failure status type", actionNamespace, actionName, actionStatus)
   private val waitTimeHisto = histogram(waitTimeMetric, "Internal system hold time", actionNamespace, actionName)
   private val initTimeHisto =
     histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", actionNamespace, actionName)

@@ -31,20 +31,25 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames {
   private val metrics = new TrieMap[String, KamonMetrics]
 
   def processEvent(activation: Activation): Unit = {
-    lookup(activation.name).record(activation)
+    lookup(activation).record(activation)
   }
 
-  def lookup(name: String): KamonMetrics = {
+  def lookup(activation: Activation): KamonMetrics = {
+    val name = activation.name
+    val kind = activation.kind
+    val memory = activation.memory.toString
     metrics.getOrElseUpdate(name, {
       val (namespace, action) = getNamespaceAndActionName(name)
-      KamonMetrics(namespace, action)
+      KamonMetrics(namespace, action, kind, memory)
     })
   }
 
-  case class KamonMetrics(namespace: String, action: String) {
+  case class KamonMetrics(namespace: String, action: String, kind: String, memory: String) {
+    private val activationTags =
+      Map(`actionNamespace` -> namespace, `actionName` -> action, `kind` -> kind, `memory` -> memory)
     private val tags = Map(`actionNamespace` -> namespace, `actionName` -> action)
 
-    private val activations = Kamon.counter(activationMetric).refine(tags)
+    private val activations = Kamon.counter(activationMetric).refine(activationTags)
     private val coldStarts = Kamon.counter(coldStartMetric).refine(tags)
     private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
     private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
