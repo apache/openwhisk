@@ -29,7 +29,10 @@ import spray.json._
 
 import scala.concurrent.Future
 
-case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String, logPath: String, userIdField: String)
+case class ArtifactWithFileStorageActivationStoreConfig(logFilePrefix: String,
+                                                        logPath: String,
+                                                        userIdField: String,
+                                                        writeResultToFile: Boolean)
 
 class ArtifactWithFileStorageActivationStore(
   actorSystem: ActorSystem,
@@ -40,7 +43,12 @@ class ArtifactWithFileStorageActivationStore(
     extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
 
   private val activationFileStorage =
-    new ActivationFileStorage(config.logFilePrefix, Paths.get(config.logPath), actorMaterializer, logging)
+    new ActivationFileStorage(
+      config.logFilePrefix,
+      Paths.get(config.logPath),
+      config.writeResultToFile,
+      actorMaterializer,
+      logging)
 
   def getLogFile = activationFileStorage.getLogFile
 
