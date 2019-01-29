@@ -53,7 +53,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class PollingFromDbTests extends ControllerTestCommon with WhiskActionsApi {
 
   val creds = WhiskAuthHelpers.newIdentity()
-  val context = UserContext(creds)
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
   def aname() = MakeName.next("action_tests")
@@ -65,22 +64,15 @@ class PollingFromDbTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
     val timeLimit = TimeLimit(1.minute)
     val action = WhiskAction(namespace, aname(), jsDefault("??"), limits = ActionLimits(timeLimit))
-    val activation = WhiskActivation(
-      action.namespace,
-      action.name,
-      creds.subject,
-      activationIdFactory.make(),
-      start = Instant.now,
-      end = Instant.now,
-      response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))),
-      logs = ActivationLogs(Vector("first line", "second line")))
+    val activationId = activationIdFactory.make()
+    val start = Instant.now
     put(entityStore, action)
     Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(Accepted)
-      val duration = Instant.now.toEpochMilli - activation.start.toEpochMilli
+      val duration = Instant.now.toEpochMilli - start.toEpochMilli
       duration should be < timeLimit.millis.toLong
       val response = responseAs[JsObject]
-      response should be(JsObject("activationId" -> JsString(activation.activationId.asString)))
+      response should be(JsObject("activationId" -> JsString(activationId.asString)))
     }
   }
 }
@@ -93,11 +85,7 @@ class AlwaysReturnLeftLoadBalancerService(config: WhiskConfig)(implicit ec: Exec
 
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-    Future {
-      Future {
-        Left(msg.activationId)
-      }
-    }
+    Future.successful(Future.successful(Left(msg.activationId)))
   }
 
   override def invokerHealth() = Future.successful(IndexedSeq.empty)
