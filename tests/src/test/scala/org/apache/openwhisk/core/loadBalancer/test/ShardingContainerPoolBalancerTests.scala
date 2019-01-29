@@ -291,7 +291,7 @@ class ShardingContainerPoolBalancerTests
     }
 
     bruteResult.map(_._1.toInt) should contain allOf (3, 4, 5)
-    bruteResult.map(_._2).count(_) shouldBe (100 - invokerCount * slotPerInvoker)
+    bruteResult.map(_._2) should contain only true
   }
 
   it should "ignore unhealthy or offline invokers" in {
@@ -319,7 +319,7 @@ class ShardingContainerPoolBalancerTests
 
     bruteResult.map(_._1.toInt) should contain allOf (0, 3)
     bruteResult.map(_._1.toInt) should contain noneOf (1, 2)
-    bruteResult.map(_._2).count(_) shouldBe (100 - invokers.size * slotPerInvoker)
+    bruteResult.map(_._2) should contain only true
   }
 
   it should "only take invokers that have enough free slots" in {
