@@ -269,7 +269,8 @@ class ShardingContainerPoolBalancerTests
 
   it should "choose the first available invoker, jumping in stepSize steps, falling back to randomized scheduling once all invokers are full" in {
     val invokerCount = 3
-    val invokerSlots = semaphores(invokerCount + 3, 3) // needs to be offset by 3 as well
+    val slotPerInvoker = 3
+    val invokerSlots = semaphores(invokerCount + 3, slotPerInvoker) // needs to be offset by 3 as well
     val invokers = (0 until invokerCount).map(i => healthy(i + 3)) // offset by 3 to asset InstanceId is returned
 
     val expectedResult = Seq(3, 3, 3, 5, 5, 5, 4, 4, 4)
@@ -277,6 +278,7 @@ class ShardingContainerPoolBalancerTests
       ShardingContainerPoolBalancer
         .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
         .get
+        ._1
         .toInt
     }
 
@@ -286,21 +288,23 @@ class ShardingContainerPoolBalancerTests
       ShardingContainerPoolBalancer
         .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 2)
         .get
-        .toInt
     }
 
-    bruteResult should contain allOf (3, 4, 5)
+    bruteResult.map(_._1.toInt) should contain allOf (3, 4, 5)
+    bruteResult.map(_._2) should contain only true
   }
 
   it should "ignore unhealthy or offline invokers" in {
     val invokers = IndexedSeq(healthy(0), unhealthy(1), offline(2), healthy(3))
-    val invokerSlots = semaphores(invokers.size, 3)
+    val slotPerInvoker = 3
+    val invokerSlots = semaphores(invokers.size, slotPerInvoker)
 
     val expectedResult = Seq(0, 0, 0, 3, 3, 3)
     val result = expectedResult.map { _ =>
       ShardingContainerPoolBalancer
         .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
         .get
+        ._1
         .toInt
     }
 
@@ -308,11 +312,14 @@ class ShardingContainerPoolBalancerTests
 
     // more schedules will result in randomized invokers, but the unhealthy and offline invokers should not be part
     val bruteResult = (0 to 100).map { _ =>
-      ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1).get.toInt
+      ShardingContainerPoolBalancer
+        .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
+        .get
     }
 
-    bruteResult should contain allOf (0, 3)
-    bruteResult should contain noneOf (1, 2)
+    bruteResult.map(_._1.toInt) should contain allOf (0, 3)
+    bruteResult.map(_._1.toInt) should contain noneOf (1, 2)
+    bruteResult.map(_._2) should contain only true
   }
 
   it should "only take invokers that have enough free slots" in {
@@ -322,15 +329,35 @@ class ShardingContainerPoolBalancerTests
     val invokers = (0 until invokerCount).map(i => healthy(i))
 
     // Ask for three slots -> First invoker should be used
-    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 3, index = 0, step = 1).get.toInt shouldBe 0
+    ShardingContainerPoolBalancer
+      .schedule(1, fqn, invokers, invokerSlots, 3, index = 0, step = 1)
+      .get
+      ._1
+      .toInt shouldBe 0
     // Ask for two slots -> Second invoker should be used
-    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
+    ShardingContainerPoolBalancer
+      .schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1)
+      .get
+      ._1
+      .toInt shouldBe 1
     // Ask for 1 slot -> First invoker should be used
-    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1).get.toInt shouldBe 0
+    ShardingContainerPoolBalancer
+      .schedule(1, fqn, invokers, invokerSlots, 1, index = 0, step = 1)
+      .get
+      ._1
+      .toInt shouldBe 0
     // Ask for 4 slots -> Third invoker should be used
-    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 4, index = 0, step = 1).get.toInt shouldBe 2
+    ShardingContainerPoolBalancer
+      .schedule(1, fqn, invokers, invokerSlots, 4, index = 0, step = 1)
+      .get
+      ._1
+      .toInt shouldBe 2
     // Ask for 2 slots -> Second invoker should be used
-    ShardingContainerPoolBalancer.schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1).get.toInt shouldBe 1
+    ShardingContainerPoolBalancer
+      .schedule(1, fqn, invokers, invokerSlots, 2, index = 0, step = 1)
+      .get
+      ._1
+      .toInt shouldBe 1
 
     invokerSlots.foreach(_.availablePermits shouldBe 0)
   }
@@ -367,6 +394,7 @@ class ShardingContainerPoolBalancerTests
           ShardingContainerPoolBalancer
             .schedule(concurrency, fqn, invokers, invokerSlots, 1, 0, 1)
             .get
+            ._1
             .toInt shouldBe i
           invokerSlots
             .lift(i)

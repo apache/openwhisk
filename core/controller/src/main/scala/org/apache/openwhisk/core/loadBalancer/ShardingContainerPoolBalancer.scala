@@ -38,6 +38,7 @@ import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 
@@ -179,14 +180,63 @@ class ShardingContainerPoolBalancer(
     TrieMap[ActivationId, Promise[Either[ActivationId, WhiskActivation]]]()
   private val activationsPerNamespace = TrieMap[UUID, LongAdder]()
   private val totalActivations = new LongAdder()
-  private val totalActivationMemory = new LongAdder()
+  private val totalBlackBoxActivationMemory = new LongAdder()
+  private val totalManagedActivationMemory = new LongAdder()
 
   /** State needed for scheduling. */
   protected[loadBalancer] val schedulingState = ShardingContainerPoolBalancerState()(lbConfig)
 
   actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
     MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
-    MetricEmitter.emitHistogramMetric(LOADBALANCER_MEMORY_INFLIGHT(controllerInstance), totalActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
+      totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
+      totalBlackBoxActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(
+      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
+      totalManagedActivationMemory.longValue)
+    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_BLACKBOX, schedulingState.blackboxInvokers.foldLeft(0L) {
+      (total, curr) =>
+        if (curr.status.isUsable) {
+          curr.id.userMemory.toMB + total
+        } else {
+          total
+        }
+    })
+    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_MANAGED, schedulingState.managedInvokers.foldLeft(0L) {
+      (total, curr) =>
+        if (curr.status.isUsable) {
+          curr.id.userMemory.toMB + total
+        } else {
+          total
+        }
+    })
+    MetricEmitter.emitHistogramMetric(
+      HEALTHY_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status == Healthy))
+    MetricEmitter.emitHistogramMetric(
+      UNHEALTHY_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status == Unhealthy))
+    MetricEmitter.emitHistogramMetric(
+      UNRESPONSIVE_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status == Unresponsive))
+    MetricEmitter.emitHistogramMetric(
+      OFFLINE_INVOKER_MANAGED,
+      schedulingState.managedInvokers.count(_.status == Offline))
+    MetricEmitter.emitHistogramMetric(
+      HEALTHY_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status == Healthy))
+    MetricEmitter.emitHistogramMetric(
+      UNHEALTHY_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status == Unhealthy))
+    MetricEmitter.emitHistogramMetric(
+      UNRESPONSIVE_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status == Unresponsive))
+    MetricEmitter.emitHistogramMetric(
+      OFFLINE_INVOKER_BLACKBOX,
+      schedulingState.blackboxInvokers.count(_.status == Offline))
   }
 
   /**
@@ -244,7 +294,6 @@ class ShardingContainerPoolBalancer(
 
     val isBlackboxInvocation = action.exec.pull
     val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
-
     val (invokersToUse, stepSizes) =
       if (!isBlackboxInvocation) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
@@ -252,7 +301,7 @@ class ShardingContainerPoolBalancer(
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace.name, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
-      val invoker = ShardingContainerPoolBalancer.schedule(
+      val invoker: Option[(InvokerInstanceId, Boolean)] = ShardingContainerPoolBalancer.schedule(
         action.limits.concurrency.maxConcurrent,
         action.fullyQualifiedName(true),
         invokersToUse,
@@ -260,7 +309,17 @@ class ShardingContainerPoolBalancer(
         action.limits.memory.megabytes,
         homeInvoker,
         stepSize)
-      invoker
+      invoker.foreach {
+        case (_, true) =>
+          val metric =
+            if (isBlackboxInvocation)
+              LoggingMarkers.BLACKBOX_SYSTEM_OVERLOAD
+            else
+              LoggingMarkers.MANAGED_SYSTEM_OVERLOAD
+          MetricEmitter.emitCounterMetric(metric)
+        case _ =>
+      }
+      invoker.map(_._1)
     } else {
       None
     }
@@ -298,7 +357,11 @@ class ShardingContainerPoolBalancer(
                               instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
 
     totalActivations.increment()
+    val isBlackboxInvocation = action.exec.pull
+    val totalActivationMemory =
+      if (isBlackboxInvocation) totalBlackBoxActivationMemory else totalManagedActivationMemory
     totalActivationMemory.add(action.limits.memory.megabytes)
+
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
     // Timeout is a multiple of the configured maximum action duration. The minimum timeout is the configured standard
@@ -329,7 +392,8 @@ class ShardingContainerPoolBalancer(
           action.limits.memory.megabytes.MB,
           action.limits.concurrency.maxConcurrent,
           action.fullyQualifiedName(true),
-          timeoutHandler)
+          timeoutHandler,
+          isBlackboxInvocation)
       })
 
     resultPromise
@@ -426,6 +490,8 @@ class ShardingContainerPoolBalancer(
     activationSlots.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
+        val totalActivationMemory =
+          if (entry.isBlackbox) totalBlackBoxActivationMemory else totalManagedActivationMemory
         totalActivationMemory.add(entry.memory.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots
@@ -555,21 +621,22 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    * @return an invoker to schedule to or None of no invoker is available
    */
   @tailrec
-  def schedule(maxConcurrent: Int,
-               fqn: FullyQualifiedEntityName,
-               invokers: IndexedSeq[InvokerHealth],
-               dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
-               slots: Int,
-               index: Int,
-               step: Int,
-               stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[InvokerInstanceId] = {
+  def schedule(
+    maxConcurrent: Int,
+    fqn: FullyQualifiedEntityName,
+    invokers: IndexedSeq[InvokerHealth],
+    dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
+    slots: Int,
+    index: Int,
+    step: Int,
+    stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
       val invoker = invokers(index)
       //test this invoker - if this action supports concurrency, use the scheduleConcurrent function
       if (invoker.status.isUsable && dispatched(invoker.id.toInt).tryAcquireConcurrent(fqn, maxConcurrent, slots)) {
-        Some(invoker.id)
+        Some(invoker.id, false)
       } else {
         // If we've gone through all invokers
         if (stepsDone == numInvokers + 1) {
@@ -579,8 +646,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquireConcurrent(fqn, maxConcurrent, slots)
             logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
-            MetricEmitter.emitCounterMetric(LoggingMarkers.SYSTEM_OVERLOAD)
-            Some(random)
+            Some(random, true)
           } else {
             None
           }
@@ -745,4 +811,5 @@ case class ActivationEntry(id: ActivationId,
                            memory: ByteSize,
                            maxConcurrent: Int,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
-                           timeoutHandler: Cancellable)
+                           timeoutHandler: Cancellable,
+                           isBlackbox: Boolean)
