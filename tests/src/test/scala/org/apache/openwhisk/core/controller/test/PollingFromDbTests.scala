@@ -32,7 +32,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.controller.WhiskActionsApi
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.controller.actions.ControllerActivationConfig
 
 import scala.concurrent.{ExecutionContext, Future}
