@@ -140,7 +140,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         createdContainer match {
           case Some(((actor, data), containerState)) =>
             //increment active count before storing in pool map
-            val newData = data.scheduleUsage(r)
+            val newData = data.nextRun(r)
             val container = newData.getContainer
 
             if (newData.activeActivationCount < 1) {
@@ -148,7 +148,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             }
 
             //only move to busyPool if max reached
-            if (newData.activeActivationCount >= r.action.limits.concurrency.maxConcurrent) {
+            if (!newData.hasCapacity()) {
               if (r.action.limits.concurrency.maxConcurrent > 1) {
                 logging.info(
                   this,
@@ -210,7 +210,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       if (newData.activeActivationCount < 0) {
         logging.error(this, s"invalid activation count after warming < 1 ${newData}")
       }
-      if (newData.activeActivationCount < newData.action.limits.concurrency.maxConcurrent) {
+      if (newData.hasCapacity()) {
         //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
         freePool = freePool + (sender() -> newData)
         if (busyPool.contains(sender())) {

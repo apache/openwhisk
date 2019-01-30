@@ -56,7 +56,7 @@ case object Removing extends ContainerState
 sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int) {
 
   /** When ContainerProxy in this state is scheduled, it may result in a new state (ContainerData)*/
-  def scheduleUsage(r: Run): ContainerData
+  def nextRun(r: Run): ContainerData
 
   /**
    *  Return Some(container) (for ContainerStarted instances) or None(for ContainerNotStarted instances)
@@ -66,6 +66,9 @@ sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: Byte
 
   /** String to indicate the state of this container after scheduling */
   val initingState: String
+
+  /** Inidicates whether this container can service additional activations */
+  def hasCapacity(): Boolean
 }
 
 /** abstract type to indicate an unstarted container */
@@ -94,16 +97,23 @@ sealed abstract trait ContainerInUse {
     activeActivationCount < action.limits.concurrency.maxConcurrent
 }
 
+/** trait representing a container that is NOT in use and is usable by subsequent activation(s) */
+sealed abstract trait ContainerNotInUse {
+  def hasCapacity() = true
+}
+
 /** type representing a cold (not running) container */
 case class NoData(override val activeActivationCount: Int = 0)
-    extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount) {
-  override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
+    extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount)
+    with ContainerNotInUse {
+  override def nextRun(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
 
 /** type representing a cold (not running) container with specific memory allocation */
 case class MemoryData(override val memoryLimit: ByteSize, override val activeActivationCount: Int = 0)
-    extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount) {
-  override def scheduleUsage(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
+    extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount)
+    with ContainerNotInUse {
+  override def nextRun(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
 
 /** type representing a prewarmed (running, but unused) container (with a specific memory allocation) */
@@ -111,9 +121,10 @@ case class PreWarmedData(override val container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
                          override val activeActivationCount: Int = 0)
-    extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount) {
+    extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount)
+    with ContainerNotInUse {
   override val initingState = "prewarmed"
-  override def scheduleUsage(r: Run) =
+  override def nextRun(r: Run) =
     WarmingData(container, r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
 
@@ -126,7 +137,7 @@ case class WarmingData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warming"
-  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a cold (not yet running) container that is being initialized (for a specific action + invocation namespace) */
@@ -137,7 +148,7 @@ case class WarmingColdData(invocationNamespace: EntityName,
     extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmingCold"
-  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a warm container that has already been in use (for a specific action + invocation namespace) */
@@ -149,7 +160,7 @@ case class WarmedData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmed"
-  override def scheduleUsage(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
 // Events received by the actor
