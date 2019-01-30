@@ -34,7 +34,6 @@ import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.common.LoggingMarkers._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
@@ -43,115 +42,115 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 
 /**
-  * A loadbalancer that schedules workload based on a hashing-algorithm.
-  *
-  * ## Algorithm
-  *
-  * At first, for every namespace + action pair a hash is calculated and then an invoker is picked based on that hash
-  * (`hash % numInvokers`). The determined index is the so called "home-invoker". This is the invoker where the following
-  * progression will **always** start. If this invoker is healthy (see "Invoker health checking") and if there is
-  * capacity on that invoker (see "Capacity checking"), the request is scheduled to it.
-  *
-  * If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes available are the
-  * all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions while progressing
-  * through the invokers). The step-size is picked by the same hash calculated above (`hash & numStepSizes`). The
-  * home-invoker-index is now incremented by the step-size and the checks (healthy + capacity) are done on the invoker
-  * we land on now.
-  *
-  * This procedure is repeated until all invokers have been checked at which point the "overload" strategy will be
-  * employed, which is to choose a healthy invoker randomly. In a steadily running system, that overload means that there
-  * is no capacity on any invoker left to schedule the current request to.
-  *
-  * If no invokers are available or if there are no healthy invokers in the system, the loadbalancer will return an error
-  * stating that no invokers are available to take any work. Requests are not queued anywhere in this case.
-  *
-  * An example:
-  * - availableInvokers: 10 (all healthy)
-  * - hash: 13
-  * - homeInvoker: hash % availableInvokers = 13 % 10 = 3
-  * - stepSizes: 1, 3, 7 (note how 2 and 5 is not part of this because it's not coprime to 10)
-  * - stepSizeIndex: hash % numStepSizes = 13 % 3 = 1 => stepSize = 3
-  *
-  * Progression to check the invokers: 3, 6, 9, 2, 5, 8, 1, 4, 7, 0 --> done
-  *
-  * This heuristic is based on the assumption, that the chance to get a warm container is the best on the home invoker
-  * and degrades the more steps you make. The hashing makes sure that all loadbalancers in a cluster will always pick the
-  * same home invoker and do the same progression for a given action.
-  *
-  * Known caveats:
-  * - This assumption is not always true. For instance, two heavy workloads landing on the same invoker can override each
-  *   other, which results in many cold starts due to all containers being evicted by the invoker to make space for the
-  *   "other" workload respectively. Future work could be to keep a buffer of invokers last scheduled for each action and
-  *   to prefer to pick that one. Then the second-last one and so forth.
-  *
-  * ## Capacity checking
-  *
-  * The maximum capacity per invoker is configured using `user-memory`, which is the maximum amount of memory of actions
-  * running in parallel on that invoker.
-  *
-  * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
-  * is made to update the books and a slot for each MB of the actions memory limit in a Semaphore is taken. These slots
-  * are only released after the response from the invoker (active-ack) arrives **or** after the active-ack times out.
-  * The Semaphore has as many slots as MBs are configured in `user-memory`.
-  *
-  * Known caveats:
-  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
-  *   unpredictable. Timing out active-acks in that case can cause the loadbalancer to prematurely assign new load to an
-  *   overloaded invoker, which can cause uneven queues.
-  * - The same is true if an invoker is extraordinarily slow in processing activations. The queue on this invoker will
-  *   slowly rise if it gets slow to the point of still sending pings, but handling the load so slowly, that the
-  *   active-acks time out. The loadbalancer again will think there is capacity, when there is none.
-  *
-  * Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
-  * centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
-  * following.
-  *
-  * ## Invoker health checking
-  *
-  * Invoker health is determined via a kafka-based protocol, where each invoker pings the loadbalancer every second. If
-  * no ping is seen for a defined amount of time, the invoker is considered "Offline".
-  *
-  * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
-  * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
-  * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
-  * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
-  *
-  * To summarize:
-  * - "Offline": Ping missing for > 10 seconds
-  * - "Unhealthy": > 3 **system-errors** in the last 10 activations, pings arriving as usual
-  * - "Healthy": < 3 **system-errors** in the last 10 activations, pings arriving as usual
-  *
-  * ## Horizontal sharding
-  *
-  * Sharding is employed to avoid both loadbalancers having to share any data, because the metrics used in scheduling
-  * are very fast changing.
-  *
-  * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
-  * has at most 16 slots available (invoker-busy-threshold = 16), those will be divided to 8 slots for each loadbalancer
-  * (if there are 2).
-  *
-  * If concurrent activation processing is enabled (and concurrency limit is > 1), accounting of containers and
-  * concurrency capacity per container will limit the number of concurrent activations routed to the particular
-  * slot at an invoker. Default max concurrency is 1.
-  *
-  * Known caveats:
-  * - If a loadbalancer leaves or joins the cluster, all state is removed and created from scratch. Those events should
-  *   not happen often.
-  * - If concurrent activation processing is enabled, it only accounts for the containers that the current loadbalancer knows.
-  *   So the actual number of containers launched at the invoker may be less than is counted at the loadbalancer, since
-  *   the invoker may skip container launch in case there is concurrent capacity available for a container launched via
-  *   some other loadbalancer.
-  */
+ * A loadbalancer that schedules workload based on a hashing-algorithm.
+ *
+ * ## Algorithm
+ *
+ * At first, for every namespace + action pair a hash is calculated and then an invoker is picked based on that hash
+ * (`hash % numInvokers`). The determined index is the so called "home-invoker". This is the invoker where the following
+ * progression will **always** start. If this invoker is healthy (see "Invoker health checking") and if there is
+ * capacity on that invoker (see "Capacity checking"), the request is scheduled to it.
+ *
+ * If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes available are the
+ * all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions while progressing
+ * through the invokers). The step-size is picked by the same hash calculated above (`hash & numStepSizes`). The
+ * home-invoker-index is now incremented by the step-size and the checks (healthy + capacity) are done on the invoker
+ * we land on now.
+ *
+ * This procedure is repeated until all invokers have been checked at which point the "overload" strategy will be
+ * employed, which is to choose a healthy invoker randomly. In a steadily running system, that overload means that there
+ * is no capacity on any invoker left to schedule the current request to.
+ *
+ * If no invokers are available or if there are no healthy invokers in the system, the loadbalancer will return an error
+ * stating that no invokers are available to take any work. Requests are not queued anywhere in this case.
+ *
+ * An example:
+ * - availableInvokers: 10 (all healthy)
+ * - hash: 13
+ * - homeInvoker: hash % availableInvokers = 13 % 10 = 3
+ * - stepSizes: 1, 3, 7 (note how 2 and 5 is not part of this because it's not coprime to 10)
+ * - stepSizeIndex: hash % numStepSizes = 13 % 3 = 1 => stepSize = 3
+ *
+ * Progression to check the invokers: 3, 6, 9, 2, 5, 8, 1, 4, 7, 0 --> done
+ *
+ * This heuristic is based on the assumption, that the chance to get a warm container is the best on the home invoker
+ * and degrades the more steps you make. The hashing makes sure that all loadbalancers in a cluster will always pick the
+ * same home invoker and do the same progression for a given action.
+ *
+ * Known caveats:
+ * - This assumption is not always true. For instance, two heavy workloads landing on the same invoker can override each
+ *   other, which results in many cold starts due to all containers being evicted by the invoker to make space for the
+ *   "other" workload respectively. Future work could be to keep a buffer of invokers last scheduled for each action and
+ *   to prefer to pick that one. Then the second-last one and so forth.
+ *
+ * ## Capacity checking
+ *
+ * The maximum capacity per invoker is configured using `user-memory`, which is the maximum amount of memory of actions
+ * running in parallel on that invoker.
+ *
+ * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
+ * is made to update the books and a slot for each MB of the actions memory limit in a Semaphore is taken. These slots
+ * are only released after the response from the invoker (active-ack) arrives **or** after the active-ack times out.
+ * The Semaphore has as many slots as MBs are configured in `user-memory`.
+ *
+ * Known caveats:
+ * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
+ *   unpredictable. Timing out active-acks in that case can cause the loadbalancer to prematurely assign new load to an
+ *   overloaded invoker, which can cause uneven queues.
+ * - The same is true if an invoker is extraordinarily slow in processing activations. The queue on this invoker will
+ *   slowly rise if it gets slow to the point of still sending pings, but handling the load so slowly, that the
+ *   active-acks time out. The loadbalancer again will think there is capacity, when there is none.
+ *
+ * Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
+ * centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
+ * following.
+ *
+ * ## Invoker health checking
+ *
+ * Invoker health is determined via a kafka-based protocol, where each invoker pings the loadbalancer every second. If
+ * no ping is seen for a defined amount of time, the invoker is considered "Offline".
+ *
+ * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
+ * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
+ * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
+ * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
+ *
+ * To summarize:
+ * - "Offline": Ping missing for > 10 seconds
+ * - "Unhealthy": > 3 **system-errors** in the last 10 activations, pings arriving as usual
+ * - "Healthy": < 3 **system-errors** in the last 10 activations, pings arriving as usual
+ *
+ * ## Horizontal sharding
+ *
+ * Sharding is employed to avoid both loadbalancers having to share any data, because the metrics used in scheduling
+ * are very fast changing.
+ *
+ * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
+ * has at most 16 slots available (invoker-busy-threshold = 16), those will be divided to 8 slots for each loadbalancer
+ * (if there are 2).
+ *
+ * If concurrent activation processing is enabled (and concurrency limit is > 1), accounting of containers and
+ * concurrency capacity per container will limit the number of concurrent activations routed to the particular
+ * slot at an invoker. Default max concurrency is 1.
+ *
+ * Known caveats:
+ * - If a loadbalancer leaves or joins the cluster, all state is removed and created from scratch. Those events should
+ *   not happen often.
+ * - If concurrent activation processing is enabled, it only accounts for the containers that the current loadbalancer knows.
+ *   So the actual number of containers launched at the invoker may be less than is counted at the loadbalancer, since
+ *   the invoker may skip container launch in case there is concurrent capacity available for a container launched via
+ *   some other loadbalancer.
+ */
 class ShardingContainerPoolBalancer(
-                                     config: WhiskConfig,
-                                     controllerInstance: ControllerInstanceId,
-                                     feedFactory: FeedFactory,
-                                     val invokerPoolFactory: InvokerPoolFactory,
-                                     implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
-                                     implicit actorSystem: ActorSystem,
-                                     logging: Logging,
-                                     materializer: ActorMaterializer)
-  extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
+  config: WhiskConfig,
+  controllerInstance: ControllerInstanceId,
+  feedFactory: FeedFactory,
+  val invokerPoolFactory: InvokerPoolFactory,
+  implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
+  implicit actorSystem: ActorSystem,
+  logging: Logging,
+  materializer: ActorMaterializer)
+    extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
   private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
@@ -165,22 +164,25 @@ class ShardingContainerPoolBalancer(
   }
 
   override protected def emitHistogramMetric() = {
-    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_BLACKBOX, schedulingState.blackboxInvokers.foldLeft(0L) {
-      (total, curr) =>
+    super.emitHistogramMetric()
+    MetricEmitter.emitHistogramMetric(
+      INVOKER_TOTALMEM_BLACKBOX,
+      schedulingState.blackboxInvokers.foldLeft(0L) { (total, curr) =>
         if (curr.status.isUsable) {
           curr.id.userMemory.toMB + total
         } else {
           total
         }
-    })
-    MetricEmitter.emitHistogramMetric(INVOKER_TOTALMEM_MANAGED, schedulingState.managedInvokers.foldLeft(0L) {
-      (total, curr) =>
+      })
+    MetricEmitter.emitHistogramMetric(
+      INVOKER_TOTALMEM_MANAGED,
+      schedulingState.managedInvokers.foldLeft(0L) { (total, curr) =>
         if (curr.status.isUsable) {
           curr.id.userMemory.toMB + total
         } else {
           total
         }
-    })
+      })
     MetricEmitter.emitHistogramMetric(
       HEALTHY_INVOKER_MANAGED,
       schedulingState.managedInvokers.count(_.status == Healthy))
@@ -211,12 +213,12 @@ class ShardingContainerPoolBalancer(
   val schedulingState = ShardingContainerPoolBalancerState()(lbConfig)
 
   /**
-    * Monitors invoker supervision and the cluster to update the state sequentially
-    *
-    * All state updates should go through this actor to guarantee that
-    * [[ShardingContainerPoolBalancerState.updateInvokers]] and [[ShardingContainerPoolBalancerState.updateCluster]]
-    * are called exclusive of each other and not concurrently.
-    */
+   * Monitors invoker supervision and the cluster to update the state sequentially
+   *
+   * All state updates should go through this actor to guarantee that
+   * [[ShardingContainerPoolBalancerState.updateInvokers]] and [[ShardingContainerPoolBalancerState.updateCluster]]
+   * are called exclusive of each other and not concurrently.
+   */
   private val monitor = actorSystem.actorOf(Props(new Actor {
     override def preStart(): Unit = {
       cluster.foreach(_.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent]))
@@ -336,11 +338,11 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(
-                                      actorRefFactory: ActorRefFactory,
-                                      messagingProvider: MessagingProvider,
-                                      messagingProducer: MessageProducer,
-                                      sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-                                      monitor: Option[ActorRef]): ActorRef = {
+        actorRefFactory: ActorRefFactory,
+        messagingProvider: MessagingProvider,
+        messagingProducer: MessageProducer,
+        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+        monitor: Option[ActorRef]): ActorRef = {
 
         InvokerPool.prepare(instance, WhiskEntityStore.datastore())
 
@@ -380,27 +382,27 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     })
 
   /**
-    * Scans through all invokers and searches for an invoker tries to get a free slot on an invoker. If no slot can be
-    * obtained, randomly picks a healthy invoker.
-    *
-    * @param maxConcurrent concurrency limit supported by this action
-    * @param invokers a list of available invokers to search in, including their state
-    * @param dispatched semaphores for each invoker to give the slots away from
-    * @param slots Number of slots, that need to be acquired (e.g. memory in MB)
-    * @param index the index to start from (initially should be the "homeInvoker"
-    * @param step stable identifier of the entity to be scheduled
-    * @return an invoker to schedule to or None of no invoker is available
-    */
+   * Scans through all invokers and searches for an invoker tries to get a free slot on an invoker. If no slot can be
+   * obtained, randomly picks a healthy invoker.
+   *
+   * @param maxConcurrent concurrency limit supported by this action
+   * @param invokers a list of available invokers to search in, including their state
+   * @param dispatched semaphores for each invoker to give the slots away from
+   * @param slots Number of slots, that need to be acquired (e.g. memory in MB)
+   * @param index the index to start from (initially should be the "homeInvoker"
+   * @param step stable identifier of the entity to be scheduled
+   * @return an invoker to schedule to or None of no invoker is available
+   */
   @tailrec
   def schedule(
-                maxConcurrent: Int,
-                fqn: FullyQualifiedEntityName,
-                invokers: IndexedSeq[InvokerHealth],
-                dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
-                slots: Int,
-                index: Int,
-                step: Int,
-                stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
+    maxConcurrent: Int,
+    fqn: FullyQualifiedEntityName,
+    invokers: IndexedSeq[InvokerHealth],
+    dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
+    slots: Int,
+    index: Int,
+    step: Int,
+    stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -433,26 +435,26 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 }
 
 /**
-  * Holds the state necessary for scheduling of actions.
-  *
-  * @param _invokers all of the known invokers in the system
-  * @param _managedInvokers all invokers for managed runtimes
-  * @param _blackboxInvokers all invokers for blackbox runtimes
-  * @param _managedStepSizes the step-sizes possible for the current managed invoker count
-  * @param _blackboxStepSizes the step-sizes possible for the current blackbox invoker count
-  * @param _invokerSlots state of accessible slots of each invoker
-  */
+ * Holds the state necessary for scheduling of actions.
+ *
+ * @param _invokers all of the known invokers in the system
+ * @param _managedInvokers all invokers for managed runtimes
+ * @param _blackboxInvokers all invokers for blackbox runtimes
+ * @param _managedStepSizes the step-sizes possible for the current managed invoker count
+ * @param _blackboxStepSizes the step-sizes possible for the current blackbox invoker count
+ * @param _invokerSlots state of accessible slots of each invoker
+ */
 case class ShardingContainerPoolBalancerState(
-                                               private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-                                               private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-                                               private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-                                               private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-                                               private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-                                               protected[loadBalancer] var _invokerSlots: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]] =
-                                               IndexedSeq.empty[NestedSemaphore[FullyQualifiedEntityName]],
-                                               private var _clusterSize: Int = 1)(
-                                               lbConfig: ShardingContainerPoolBalancerConfig =
-                                               loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
+  private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  protected[loadBalancer] var _invokerSlots: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]] =
+    IndexedSeq.empty[NestedSemaphore[FullyQualifiedEntityName]],
+  private var _clusterSize: Int = 1)(
+  lbConfig: ShardingContainerPoolBalancerConfig =
+    loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
   // Managed fraction and blackbox fraction can be between 0.0 and 1.0. The sum of these two fractions has to be between
   // 1.0 and 2.0.
@@ -475,9 +477,9 @@ case class ShardingContainerPoolBalancerState(
   def clusterSize: Int = _clusterSize
 
   /**
-    * @param memory
-    * @return calculated invoker slot
-    */
+   * @param memory
+   * @return calculated invoker slot
+   */
   private def getInvokerSlot(memory: ByteSize): ByteSize = {
     val newTreshold = if (memory / _clusterSize < MemoryLimit.minMemory) {
       logging.warn(
@@ -492,16 +494,16 @@ case class ShardingContainerPoolBalancerState(
   }
 
   /**
-    * Updates the scheduling state with the new invokers.
-    *
-    * This is okay to not happen atomically since dirty reads of the values set are not dangerous. It is important though
-    * to update the "invokers" variables last, since they will determine the range of invokers to choose from.
-    *
-    * Handling a shrinking invokers list is not necessary, because InvokerPool won't shrink its own list but rather
-    * report the invoker as "Offline".
-    *
-    * It is important that this method does not run concurrently to itself and/or to [[updateCluster]]
-    */
+   * Updates the scheduling state with the new invokers.
+   *
+   * This is okay to not happen atomically since dirty reads of the values set are not dangerous. It is important though
+   * to update the "invokers" variables last, since they will determine the range of invokers to choose from.
+   *
+   * Handling a shrinking invokers list is not necessary, because InvokerPool won't shrink its own list but rather
+   * report the invoker as "Offline".
+   *
+   * It is important that this method does not run concurrently to itself and/or to [[updateCluster]]
+   */
   def updateInvokers(newInvokers: IndexedSeq[InvokerHealth]): Unit = {
     val oldSize = _invokers.size
     val newSize = newInvokers.size
@@ -534,13 +536,13 @@ case class ShardingContainerPoolBalancerState(
   }
 
   /**
-    * Updates the size of a cluster. Throws away all state for simplicity.
-    *
-    * This is okay to not happen atomically, since a dirty read of the values set are not dangerous. At worst the
-    * scheduler works on outdated invoker-load data which is acceptable.
-    *
-    * It is important that this method does not run concurrently to itself and/or to [[updateInvokers]]
-    */
+   * Updates the size of a cluster. Throws away all state for simplicity.
+   *
+   * This is okay to not happen atomically, since a dirty read of the values set are not dangerous. At worst the
+   * scheduler works on outdated invoker-load data which is acceptable.
+   *
+   * It is important that this method does not run concurrently to itself and/or to [[updateInvokers]]
+   */
   def updateCluster(newSize: Int): Unit = {
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
     if (_clusterSize != actualSize) {
@@ -554,28 +556,28 @@ case class ShardingContainerPoolBalancerState(
 }
 
 /**
-  * Configuration for the cluster created between loadbalancers.
-  *
-  * @param useClusterBootstrap Whether or not to use a bootstrap mechanism
-  */
+ * Configuration for the cluster created between loadbalancers.
+ *
+ * @param useClusterBootstrap Whether or not to use a bootstrap mechanism
+ */
 case class ClusterConfig(useClusterBootstrap: Boolean)
 
 /**
-  * Configuration for the sharding container pool balancer.
-  *
-  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
-  * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
-  */
+ * Configuration for the sharding container pool balancer.
+ *
+ * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
+ * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
+ */
 case class ShardingContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction: Double, timeoutFactor: Int)
 
 /**
-  * State kept for each activation slot until completion.
-  *
-  * @param id id of the activation
-  * @param namespaceId namespace that invoked the action
-  * @param invokerName invoker the action is scheduled to
-  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
-  */
+ * State kept for each activation slot until completion.
+ *
+ * @param id id of the activation
+ * @param namespaceId namespace that invoked the action
+ * @param invokerName invoker the action is scheduled to
+ * @param timeoutHandler times out completion of this activation, should be canceled on good paths
+ */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
                            invokerName: InvokerInstanceId,

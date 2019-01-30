@@ -35,19 +35,19 @@ import org.apache.openwhisk.core.entity.size._
 import scala.concurrent.Future
 
 /**
-  * Lean loadbalancer implemetation.
-  *
-  * Communicates with Invoker directly without Kafka in the middle. Invoker does not exist as a separate entity, it is built together with Controller
-  * Uses LeanMessagingProvider to use in-memory queue instead of Kafka
-  */
+ * Lean loadbalancer implemetation.
+ *
+ * Communicates with Invoker directly without Kafka in the middle. Invoker does not exist as a separate entity, it is built together with Controller
+ * Uses LeanMessagingProvider to use in-memory queue instead of Kafka
+ */
 class LeanBalancer(config: WhiskConfig,
                    feedFactory: FeedFactory,
                    controllerInstance: ControllerInstanceId,
                    implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
-                    implicit actorSystem: ActorSystem,
-                    logging: Logging,
-                    materializer: ActorMaterializer)
-  extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
+  implicit actorSystem: ActorSystem,
+  logging: Logging,
+  materializer: ActorMaterializer)
+    extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Loadbalancer interface methods */
   override def invokerHealth(): Future[IndexedSeq[InvokerHealth]] = Future.successful(IndexedSeq.empty[InvokerHealth])

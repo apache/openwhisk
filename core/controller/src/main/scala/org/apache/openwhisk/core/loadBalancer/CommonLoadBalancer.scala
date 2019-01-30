@@ -39,15 +39,15 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 /**
-  * Abstract class which provides common logic for all LoadBalancer implementations.
-  */
+ * Abstract class which provides common logic for all LoadBalancer implementations.
+ */
 abstract class CommonLoadBalancer(config: WhiskConfig,
                                   feedFactory: FeedFactory,
                                   controllerInstance: ControllerInstanceId)(implicit val actorSystem: ActorSystem,
                                                                             logging: Logging,
                                                                             materializer: ActorMaterializer,
                                                                             messagingProvider: MessagingProvider)
-  extends LoadBalancer {
+    extends LoadBalancer {
 
   protected implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -64,35 +64,33 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected val totalBlackBoxActivationMemory = new LongAdder()
   protected val totalManagedActivationMemory = new LongAdder()
 
-  protected def emitHistogramMetric()
-
-  actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
-    MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
-    MetricEmitter.emitHistogramMetric(
-      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
-      totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
-    MetricEmitter.emitHistogramMetric(
-      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
-      totalBlackBoxActivationMemory.longValue)
-    MetricEmitter.emitHistogramMetric(
-      LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
-      totalManagedActivationMemory.longValue)
-
-    emitHistogramMetric()
+  protected def emitHistogramMetric() = {
+      MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
+      MetricEmitter.emitHistogramMetric(
+        LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
+        totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
+      MetricEmitter.emitHistogramMetric(
+        LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
+        totalBlackBoxActivationMemory.longValue)
+      MetricEmitter.emitHistogramMetric(
+        LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
+        totalManagedActivationMemory.longValue)
   }
+
+  actorSystem.scheduler.schedule(0.seconds, 10.seconds) (emitHistogramMetric())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue()).getOrElse(0))
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
 
   /**
-    * 2. Update local state with the activation to be executed scheduled.
-    *
-    * All activations are tracked in the activationSlots map. Additionally, blocking invokes
-    * are tracked in the activation results map. When a result is received via activeack, it
-    * will cause the result to be forwarded to the caller waiting on the result, and cancel
-    * the DB poll which is also trying to do the same.
-    */
+   * 2. Update local state with the activation to be executed scheduled.
+   *
+   * All activations are tracked in the activationSlots map. Additionally, blocking invokes
+   * are tracked in the activation results map. When a result is received via activeack, it
+   * will cause the result to be forwarded to the caller waiting on the result, and cancel
+   * the DB poll which is also trying to do the same.
+   */
   protected def setupActivation(msg: ActivationMessage,
                                 action: ExecutableWhiskActionMetaData,
                                 instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
@@ -170,9 +168,9 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   }
 
   /**
-    * Subscribes to active acks (completion messages from the invokers), and
-    * registers a handler for received active acks from invokers.
-    */
+   * Subscribes to active acks (completion messages from the invokers), and
+   * registers a handler for received active acks from invokers.
+   */
   private val activationFeed: ActorRef =
     feedFactory.createFeed(actorSystem, messagingProvider, processAcknowledgement)
 
