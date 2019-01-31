@@ -338,18 +338,16 @@ object LoggingMarkers {
   val CONTROLLER_ACTIVATION_BLOCKING_DATABASE_RETRIEVAL =
     LogMarkerToken(controller, "blockingActivationDatabaseRetrieval", count)(MeasurementUnit.none)
 
-  // Time that is needed load balance the activation
-  val CONTROLLER_LOADBALANCER =
-    LogMarkerToken(controller, loadbalancer, start)(MeasurementUnit.time.milliseconds)
   // Time that is needed to load balance the activation
-  val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)
+  val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)(MeasurementUnit.none)
 
   // Time that is needed to produce message in kafka
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)(MeasurementUnit.time.milliseconds)
 
   // System overload and random invoker assignment
-  val MANAGED_SYSTEM_OVERLOAD = LogMarkerToken(controller, "managedInvokerSystemOverload", count)
-  val BLACKBOX_SYSTEM_OVERLOAD = LogMarkerToken(controller, "blackBoxInvokerSystemOverload", count)
+  val MANAGED_SYSTEM_OVERLOAD = LogMarkerToken(controller, "managedInvokerSystemOverload", count)(MeasurementUnit.none)
+  val BLACKBOX_SYSTEM_OVERLOAD =
+    LogMarkerToken(controller, "blackBoxInvokerSystemOverload", count)(MeasurementUnit.none)
   /*
    * Invoker related markers
    */
@@ -361,9 +359,10 @@ object LoggingMarkers {
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)(MeasurementUnit.none)
 
   def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) =
-    LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", count)
+    LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", count)(MeasurementUnit.none)
   def LOADBALANCER_MEMORY_INFLIGHT(controllerInstance: ControllerInstanceId, actionType: String) =
-    LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", count)
+    LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", count)(
+      MeasurementUnit.none)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN =
@@ -397,18 +396,24 @@ object LoggingMarkers {
   val CONTAINER_CLIENT_RETRIES =
     LogMarkerToken(containerClient, "retries", count)(MeasurementUnit.none)
 
-  val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", count)
-  val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", count)
+  val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", count)(MeasurementUnit.none)
+  val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", count)(MeasurementUnit.none)
 
-  val HEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalHealthyInvokerManaged", count)
-  val UNHEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerManaged", count)
-  val UNRESPONSIVE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerManaged", count)
-  val OFFLINE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalOfflineInvokerManaged", count)
+  val HEALTHY_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalHealthyInvokerManaged", count)(MeasurementUnit.none)
+  val UNHEALTHY_INVOKER_MANAGED =
+    LogMarkerToken(loadbalancer, "totalUnhealthyInvokerManaged", count)(MeasurementUnit.none)
+  val UNRESPONSIVE_INVOKER_MANAGED =
+    LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerManaged", count)(MeasurementUnit.none)
+  val OFFLINE_INVOKER_MANAGED = LogMarkerToken(loadbalancer, "totalOfflineInvokerManaged", count)(MeasurementUnit.none)
 
-  val HEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalHealthyInvokerBlackBox", count)
-  val UNHEALTHY_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnhealthyInvokerBlackBox", count)
-  val UNRESPONSIVE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerBlackBox", count)
-  val OFFLINE_INVOKER_BLACKBOX = LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", count)
+  val HEALTHY_INVOKER_BLACKBOX =
+    LogMarkerToken(loadbalancer, "totalHealthyInvokerBlackBox", count)(MeasurementUnit.none)
+  val UNHEALTHY_INVOKER_BLACKBOX =
+    LogMarkerToken(loadbalancer, "totalUnhealthyInvokerBlackBox", count)(MeasurementUnit.none)
+  val UNRESPONSIVE_INVOKER_BLACKBOX =
+    LogMarkerToken(loadbalancer, "totalUnresponsiveInvokerBlackBox", count)(MeasurementUnit.none)
+  val OFFLINE_INVOKER_BLACKBOX =
+    LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", count)(MeasurementUnit.none)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)(MeasurementUnit.none)
