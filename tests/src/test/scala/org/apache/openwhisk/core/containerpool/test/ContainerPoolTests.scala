@@ -479,7 +479,7 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
   }
 
-  it should "increase activation counts when scheduling to containers whose actions that support concurrency" in {
+  it should "increase activation counts when scheduling to containers whose actions support concurrency" in {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
 
@@ -515,8 +515,8 @@ class ContainerPoolTests
     // container1 is created and used
     pool ! runMessageConcurrentDifferentNamespace
     containers(1).expectMsg(runMessageConcurrentDifferentNamespace)
-
   }
+
   it should "decrease activation counts when receiving NeedWork for actions that support concurrency" in {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
@@ -552,7 +552,6 @@ class ContainerPoolTests
     // container0 is reused (since active count decreased)
     pool ! runMessageConcurrent
     containers(0).expectMsg(runMessageConcurrent)
-
   }
 }
 
@@ -698,8 +697,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool2 = pool ++ Map('warm -> data2)
 
     ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
-
   }
+
   it should "prefer warm to warming when active activation count < maxconcurrent" in {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
@@ -709,8 +708,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val data2 = warmedData(active = maxConcurrent - 1, action = action)
     val pool = Map('warming -> data, 'warm -> data2)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data2)
-
   }
+
   it should "use a warmingCold when active activation count < maxconcurrent" in {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
@@ -725,7 +724,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool2 = Map('warmingCold -> data2)
 
     ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe None
-
   }
 
   it should "prefer warm to warmingCold when active activation count < maxconcurrent" in {
@@ -737,7 +735,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val data2 = warmedData(active = maxConcurrent - 1, action = action)
     val pool = Map('warmingCold -> data, 'warm -> data2)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warm, data2)
-
   }
 
   it should "prefer warming to warmingCold when active activation count < maxconcurrent" in {
@@ -749,7 +746,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val data2 = warmingData(active = maxConcurrent - 1, action = action)
     val pool = Map('warmingCold -> data, 'warming -> data2)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data2)
-
   }
 
   behavior of "ContainerPool remove()"
