@@ -30,7 +30,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{Interval, RunResult}
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, ContainerResponse}
 import org.apache.openwhisk.core.entity.Attachments.Inline
-import org.apache.openwhisk.core.entity.{CodeExecAsAttachment, FullyQualifiedEntityName, WhiskAction}
+import org.apache.openwhisk.core.entity.{CodeExecAsAttachment, DocRevision, FullyQualifiedEntityName, WhiskAction}
 import pureconfig._
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.regions.Region
@@ -79,7 +79,8 @@ object LambdaStoreProvider {
 
 case class LambdaConfig(layerMappings: Map[String, ARN], accountId: String, commonRoleName: ARN)
 
-case class LambdaAction(arn: ARN)
+//TODO Use dedicated type Lambda Revision
+case class LambdaAction(arn: ARN, lambdaRevision: String, whiskRevision: DocRevision)
 
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Region)(implicit ec: ExecutionContext,
                                                                                    logging: Logging) {
@@ -140,11 +141,11 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
         case (layer, handlerName, code) =>
           val funcName = getFunctionName(action.fullyQualifiedName(false))
           val arn = functionARN(funcName)
-          val actionRev = action.rev.asString
+          val actionRev = action.rev
           getFunctionWhiskRevision(arn).flatMap {
-            case Some(`actionRev`) =>
+            case Some(l @ LambdaAction(_, _, `actionRev`)) =>
               //Function exists and uptodate. No change needed
-              Future.successful(Some(LambdaAction(arn)))
+              Future.successful(Some(l))
             case Some(x) =>
               logging.info(
                 this,
@@ -204,16 +205,25 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
             .role(role)
             .tags(getTags(action).asJava))
       .toScala
-      .map(response => Some(LambdaAction(ARN(response.functionArn()))))
+      .map(response => Some(LambdaAction(ARN(response.functionArn()), response.revisionId(), action.rev)))
   }
 
   def functionARN(funcName: String): ARN = ARN(s"arn:aws:lambda:${region.id()}:${config.accountId}:function:$funcName")
 
-  def getFunctionWhiskRevision(arn: ARN)(implicit transid: TransactionId): Future[Option[String]] = {
+  def getFunctionWhiskRevision(arn: ARN)(implicit transid: TransactionId): Future[Option[LambdaAction]] = {
     client
       .getFunctionConfiguration(r => r.functionName(arn.name))
       .toScala
-      .map(r => r.environment().variables().asScala.get(whiskRevision))
+      .map { r =>
+        val revStr = r
+          .environment()
+          .variables()
+          .asScala
+          .getOrElse(
+            whiskRevision,
+            throw new IllegalStateException(s"Function $arn does not have $whiskRevision defined in env"))
+        Some(LambdaAction(arn, r.revisionId(), DocRevision(revStr)))
+      }
       .recover {
         case CausedBy(_: ResourceNotFoundException) => None
       }
@@ -226,7 +236,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     for {
       _ <- updateFunctionCode(arn, code)
       fr <- updateFunctionConfiguration(arn, action, layer, handlerName)
-    } yield Some(LambdaAction(ARN(fr.functionArn())))
+    } yield Some(LambdaAction(ARN(fr.functionArn()), fr.revisionId(), action.rev))
   }
 
   private def updateFunctionConfiguration(arn: ARN, action: WhiskAction, layer: String, handlerName: String) = {
