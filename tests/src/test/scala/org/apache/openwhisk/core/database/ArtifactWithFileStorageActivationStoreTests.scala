@@ -85,11 +85,10 @@ class ArtifactWithFileStorageActivationStoreTests()
         "activationId" -> activation.activationId.toJson,
         "namespaceId" -> user.namespace.uuid.toJson)
     }
-    val expectedResult = includeResult match {
-      case true =>
-        JsString(activation.response.result.getOrElse(JsNull).compactPrint)
-      case false =>
-        s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson
+    val expectedResult = if (includeResult) {
+      JsString(activation.response.result.getOrElse(JsNull).compactPrint)
+    } else {
+      s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson
     }
     val expectedActivation = JsObject(
       "type" -> "activation_record".toJson,

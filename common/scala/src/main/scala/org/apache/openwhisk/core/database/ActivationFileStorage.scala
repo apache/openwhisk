@@ -93,11 +93,10 @@ class ActivationFileStorage(logFilePrefix: String,
 
   private def transcribeActivation(activation: WhiskActivation, additionalFields: Map[String, JsValue]) = {
     val transactionType = Map("type" -> "activation_record".toJson)
-    val message = writeResultToFile match {
-      case true =>
-        Map("message" -> JsString(activation.response.result.getOrElse(JsNull).compactPrint))
-      case false =>
-        Map("message" -> s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson)
+    val message = if (writeResultToFile) {
+      Map("message" -> JsString(activation.response.result.getOrElse(JsNull).compactPrint))
+    } else {
+      Map("message" -> s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson)
     }
     val annotations = activation.annotations.toJsObject.fields
     val addFields = transactionType ++ annotations ++ message ++ additionalFields
