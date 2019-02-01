@@ -85,11 +85,12 @@ case class LambdaAction(arn: ARN, lambdaRevision: String, whiskRevision: DocRevi
 class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Region)(implicit ec: ExecutionContext,
                                                                                    logging: Logging) {
   import LambdaStore._
-  def invokeLambda(name: String, body: JsObject)(implicit transid: TransactionId): Future[RunResult] = {
+  def invokeLambda(action: LambdaAction, body: JsObject)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val request = InvokeRequest
       .builder()
-      .functionName(name)
+      .functionName(action.arn.name)
+      .qualifier(action.lambdaRevision)
       .invocationType(InvocationType.REQUEST_RESPONSE)
       .payload(SdkBytes.fromUtf8String(body.toString()))
       .build()
@@ -174,6 +175,10 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       }
   }
 
+  def getLambda(fqn: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Option[LambdaAction]] = {
+    getFunctionWhiskRevision(functionARN(getFunctionName(fqn)))
+  }
+
   private def createFunction(action: WhiskAction,
                              layer: String,
                              handlerName: String,
@@ -205,7 +210,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
             .role(role)
             .tags(getTags(action).asJava))
       .toScala
-      .map(response => Some(LambdaAction(ARN(response.functionArn()), response.revisionId(), action.rev)))
+      .map(response => Some(LambdaAction(ARN(response.functionArn()), response.version(), action.rev)))
   }
 
   def functionARN(funcName: String): ARN = ARN(s"arn:aws:lambda:${region.id()}:${config.accountId}:function:$funcName")
@@ -222,7 +227,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
           .getOrElse(
             whiskRevision,
             throw new IllegalStateException(s"Function $arn does not have $whiskRevision defined in env"))
-        Some(LambdaAction(arn, r.revisionId(), DocRevision(revStr)))
+        Some(LambdaAction(arn, r.version(), DocRevision(revStr)))
       }
       .recover {
         case CausedBy(_: ResourceNotFoundException) => None
@@ -236,7 +241,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     for {
       _ <- updateFunctionCode(arn, code)
       fr <- updateFunctionConfiguration(arn, action, layer, handlerName)
-    } yield Some(LambdaAction(ARN(fr.functionArn()), fr.revisionId(), action.rev))
+    } yield Some(LambdaAction(ARN(fr.functionArn()), fr.version(), action.rev))
   }
 
   private def updateFunctionConfiguration(arn: ARN, action: WhiskAction, layer: String, handlerName: String) = {

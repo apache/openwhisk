@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.aws.lambda
 import common.WskActorSystem
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.aws.{LambdaStore, LambdaStoreProvider}
+import org.apache.openwhisk.core.aws.LambdaStoreProvider
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.entity.{DocRevision, EntityName, EntityPath, WhiskAction}
 import org.junit.runner.RunWith
@@ -36,37 +36,19 @@ class LambdaStoreTest extends FlatSpec with Matchers with WskActorSystem with Sc
   behavior of "invoke"
 
   val helloWorld = """function main(params) {
-                     |    greeting = 'hello, ' + params.payload + '!'
+                     |    greeting = 'hello new2, ' + params.payload + '!'
                      |    console.log(greeting);
                      |    return {payload: greeting}
                      |}""".stripMargin
 
   val store = LambdaStoreProvider.makeStore()
 
-  it should "hello world" in {
-
-    val body = """{
-       |  "value": {
-       |    "foo" : "bar"
-       |  }
-       |}""".stripMargin.parseJson.asJsObject
-    val r = store.invokeLambda("hello-world-custom-1", body).futureValue
-    println(r.response.right.get.entity)
-  }
-
-  it should "create hello world function" in {
-    val action = WhiskAction(EntityPath("test"), EntityName("hello-1"), jsDefault(helloWorld))
-    val la = store.createOrUpdateLambda(action).futureValue
-    println(la)
-  }
-
   it should "sanity check" in {
     val name = "hello-sanity-1"
     val ns = "test"
     val action = WhiskAction(EntityPath(ns), EntityName(name), jsDefault(helloWorld))
-      .revision[WhiskAction](DocRevision("foo"))
+      .revision[WhiskAction](DocRevision("foo3"))
     val fqn = action.fullyQualifiedName(false)
-    val lambdaName = LambdaStore.getFunctionName(fqn)
     val la = store.createOrUpdateLambda(action).futureValue
     println(la)
     val body = """{
@@ -74,7 +56,7 @@ class LambdaStoreTest extends FlatSpec with Matchers with WskActorSystem with Sc
                  |    "payload" : "bar"
                  |  }
                  |}""".stripMargin.parseJson.asJsObject
-    val r = store.invokeLambda(lambdaName, body).futureValue
+    val r = store.invokeLambda(la.get, body).futureValue
     println(r.response.right.get.entity)
     store.deleteLambda(fqn)
   }
