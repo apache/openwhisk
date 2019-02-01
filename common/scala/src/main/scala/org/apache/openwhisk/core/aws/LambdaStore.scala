@@ -50,7 +50,7 @@ import scala.compat.java8.FutureConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
-case class ARN private (private val arn: String) extends AnyVal {
+case class ARN private (arn: String) extends AnyVal {
   def name = arn
 }
 
