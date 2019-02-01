@@ -32,9 +32,8 @@ import org.apache.openwhisk.core.containerpool.{
   ContainerFactoryProvider,
   RuntimesRegistryConfig
 }
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ByteSize, ExecutableWhiskAction, InvokerInstanceId}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
-import org.apache.openwhisk.core.entity.InvokerInstanceId
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 
 class KubernetesContainerFactory(
@@ -64,12 +63,14 @@ class KubernetesContainerFactory(
     Await.ready(cleaning, 30.seconds)
   }
 
-  override def createContainer(tid: TransactionId,
-                               name: String,
-                               actionImage: ImageName,
-                               userProvidedImage: Boolean,
-                               memory: ByteSize,
-                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+  override def createContainer(
+    tid: TransactionId,
+    name: String,
+    actionImage: ImageName,
+    userProvidedImage: Boolean,
+    memory: ByteSize,
+    cpuShares: Int,
+    action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {

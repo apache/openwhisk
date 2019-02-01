@@ -26,9 +26,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.containerpool._
-import org.apache.openwhisk.core.entity.ByteSize
-import org.apache.openwhisk.core.entity.ExecManifest
-import org.apache.openwhisk.core.entity.InvokerInstanceId
+import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, ExecutableWhiskAction, InvokerInstanceId}
 
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
@@ -54,12 +52,14 @@ class DockerContainerFactory(instance: InvokerInstanceId,
     extends ContainerFactory {
 
   /** Create a container using docker cli */
-  override def createContainer(tid: TransactionId,
-                               name: String,
-                               actionImage: ExecManifest.ImageName,
-                               userProvidedImage: Boolean,
-                               memory: ByteSize,
-                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+  override def createContainer(
+    tid: TransactionId,
+    name: String,
+    actionImage: ExecManifest.ImageName,
+    userProvidedImage: Boolean,
+    memory: ByteSize,
+    cpuShares: Int,
+    action: Option[ExecutableWhiskAction] = None)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     DockerContainer.create(
       tid,
       image =

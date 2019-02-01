@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
+import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, ExecutableWhiskAction, InvokerInstanceId}
 import org.apache.openwhisk.spi.Spi
 
 import scala.concurrent.Future
@@ -76,12 +76,14 @@ trait ContainerFactory {
    * - It is desired that the container supports and enforces the specified memory limit and CPU shares.
    *   In particular, action memory limits rely on the underlying container technology.
    */
-  def createContainer(tid: TransactionId,
-                      name: String,
-                      actionImage: ExecManifest.ImageName,
-                      userProvidedImage: Boolean,
-                      memory: ByteSize,
-                      cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container]
+  def createContainer(
+    tid: TransactionId,
+    name: String,
+    actionImage: ExecManifest.ImageName,
+    userProvidedImage: Boolean,
+    memory: ByteSize,
+    cpuShares: Int,
+    action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container]
 
   /** perform any initialization */
   def init(): Unit

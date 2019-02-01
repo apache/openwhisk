@@ -214,7 +214,13 @@ case object RunCompleted
  * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
-  factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
+  factory: (TransactionId,
+            String,
+            ImageName,
+            Boolean,
+            ByteSize,
+            Int,
+            Option[ExecutableWhiskAction]) => Future[Container],
   sendActiveAck: ActiveAck,
   storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
@@ -242,7 +248,8 @@ class ContainerProxy(
         job.exec.image,
         job.exec.pull,
         job.memoryLimit,
-        poolConfig.cpuShare(job.memoryLimit))
+        poolConfig.cpuShare(job.memoryLimit),
+        None)
         .map(container => PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit)))
         .pipeTo(self)
 
@@ -259,7 +266,8 @@ class ContainerProxy(
         job.action.exec.image,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
-        poolConfig.cpuShare(job.action.limits.memory.megabytes.MB))
+        poolConfig.cpuShare(job.action.limits.memory.megabytes.MB),
+        Some(job.action))
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting
@@ -683,7 +691,13 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 
 object ContainerProxy {
   def props(
-    factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
+    factory: (TransactionId,
+              String,
+              ImageName,
+              Boolean,
+              ByteSize,
+              Int,
+              Option[ExecutableWhiskAction]) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any],
     store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
