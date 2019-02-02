@@ -15,6 +15,22 @@
   fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db.provider }}, it has to be CouchDB, pls double check"
   when: db.provider != "CouchDB"
 
+- name: ensure directory for persisting db exists
+  stat:
+    path: "{{ db.persist_path }}"
+  register: db_persist_path_exists
+  when: db.persist_path
+
+- name: fail if path to persist db does not exist
+  fail:
+    msg: directory for persisting db does not exist '{{ db.persist_path }}'
+  when: db.persist_path and not (db_persist_path_exists.stat.exists and db_persist_path_exists.stat.isdir)
+
+- name: "mount directory for persisting dbs"
+  set_fact:
+    volumes: "{{ volumes }} + [ '{{ db.persist_path }}:/opt/couchdb/data' ]"
+  when: db.persist_path
+
 - include_tasks: gen_erl_cookie.yml
   when: (db.instances|int >= 2)
 
