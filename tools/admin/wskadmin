@@ -106,6 +106,9 @@ def parseArgs():
     subcmd.add_argument('subject', help='the subject to create')
     subcmd.add_argument('-u', '--auth', help='the uuid:key to initialize the subject authorization key with')
     subcmd.add_argument('-ns', '--namespace', help='create key for given namespace instead (defaults to subject id')
+    subcmd.add_argument('-r', '--revoke', help='revoke existing key and create a new one', action='store_true')
+    subcmd.add_argument('-g', '--genonly', help='generate a uuid and key but do not store them in the database', action='store_true')
+    subcmd.add_argument('-s', '--silent', help='do not should the new key on the console', action='store_true')
 
     subcmd = subparser.add_parser('delete', help='delete a user')
     subcmd.add_argument('subject', help='the subject to delete')
@@ -244,6 +247,10 @@ def createUserCmd(args, props):
         uid = str(uuid.uuid4())
         key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
 
+    if args.genonly:
+        print('%s:%s' % (uid, key))
+        return 0
+
     (doc, res) = getDocumentFromDb(props, args.subject, args.verbose)
     if doc is None:
         doc = {
@@ -266,6 +273,13 @@ def createUserCmd(args, props):
                     'uuid': uid,
                     'key': key
                 })
+            elif args.revoke:
+                if len(namespaces) == 1:
+                    namespaces[0]['uuid'] = uid
+                    namespaces[0]['key'] = key
+                else:
+                    print('Namespace is not unique')
+                    return 1
             else:
                 print('Namespace already exists')
                 return 1
@@ -275,7 +289,8 @@ def createUserCmd(args, props):
 
     res = insertIntoDatabase(props, doc, args.verbose)
     if res.status in [201, 202]:
-        print('%s:%s' % (uid, key))
+        if not args.silent:
+            print('%s:%s' % (uid, key))
     else:
         print('Failed to create subject (%s)' % res.read().strip())
         return 1
