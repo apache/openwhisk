@@ -2,21 +2,8 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs",
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "nodejsaction",
-                    "tag": "latest"
-                },
-                "deprecated": true,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
                 "kind": "nodejs:6",
-                "default": true,
+                "default": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "nodejs6action",
@@ -50,7 +37,7 @@
             },
             {
                 "kind": "nodejs:10",
-                "default": false,
+                "default": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v10",
@@ -65,21 +52,8 @@
         ],
         "python": [
             {
-                "kind": "python",
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "python2action",
-                    "tag": "latest"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
                 "kind": "python:2",
-                "default": true,
+                "default": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python2action",
@@ -93,6 +67,7 @@
             },
             {
                 "kind": "python:3",
+                "default": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python3action",
@@ -106,59 +81,6 @@
             }
         ],
         "swift": [
-            {
-                "kind": "swift",
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "swiftaction",
-                    "tag": "latest"
-                },
-                "deprecated": true,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "swift:3",
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "swift3action",
-                    "tag": "latest"
-                },
-                "deprecated": true,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "swift:3.1.1",
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-swift-v3.1.1",
-                    "tag": "latest"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "swift:4.1",
-                "default": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-swift-v4.1",
-                    "tag": "latest"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
             {
                 "kind": "swift:4.2",
                 "default": true,
@@ -192,34 +114,6 @@
             }
         ],
         "php": [
-            {
-                "kind": "php:7.1",
-                "default": false,
-                "deprecated": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-php-v7.1",
-                    "tag": "latest"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "php:7.2",
-                "default": false,
-                "deprecated": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-php-v7.2",
-                    "tag": "latest"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
             {
                 "kind": "php:7.3",
                 "default": true,
