@@ -205,6 +205,7 @@ userLogs:
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
+  htmldir: "{{ ui_path | default(false) }}"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
   version: "{{ nginx_version | default('1.13') }}"

@@ -5,7 +5,7 @@
 
 - name: grab the local CLI from the binaries unarchived into nginx
   get_url:
-    url: "https://{{host}}/cli/go/download/{{os}}/{{arch}}/{{wsk}}"
+    url: "https://{{host}}/cli/{{os}}/{{arch}}/{{wsk}}"
     dest: "{{ openwhisk_home }}/bin"
     mode: "0755"
     validate_certs: no
