@@ -87,22 +87,22 @@ subprojects {
                 enabled false
             }
 
-            configurations.archives.artifacts.removeAll {it.file =~ 'zip'}
+            configurations.archives.artifacts.removeAll { it.file =~ 'zip' }
         }
     }
 }
 
 def configureUnixClasspath(File script) {
     script
-        .readLines()
-        .collect { line ->
-            // Looking for the line that starts with CLASSPATH=
-            line = line.replaceAll(~/^CLASSPATH=.*$/) { original ->
+            .readLines()
+            .collect { line ->
+        // Looking for the line that starts with CLASSPATH=
+        line = line.replaceAll(~/^CLASSPATH=.*$/) { original ->
 
-                // Get original line and append it
-                // with the configuration directory.
-                original += ':$APP_HOME/ext-lib/*:$APP_HOME/config'
-            }
+            // Get original line and append it
+            // with the configuration directory.
+            original += ':$APP_HOME/ext-lib/*:$APP_HOME/config'
         }
-        .join('\n')
+    }
+    .join('\n')
 }

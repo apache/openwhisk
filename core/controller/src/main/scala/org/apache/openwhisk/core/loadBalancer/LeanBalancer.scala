@@ -83,7 +83,7 @@ class LeanBalancer(config: WhiskConfig,
   }
 
   override protected def emitHistogramMetric() = {
-    // Currently do nothing
+    super.emitHistogramMetric()
   }
 }
 
@@ -98,7 +98,7 @@ object LeanBalancer extends LoadBalancerProvider {
   }
 
   def requiredProperties =
-    Map(servicePort -> 8080.toString(), runtimesRegistry -> "") ++
+    Map(runtimesRegistry -> "") ++
       ExecManifest.requiredProperties ++
       wskApiHost
 }

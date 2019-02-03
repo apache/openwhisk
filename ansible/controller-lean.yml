@@ -32,7 +32,6 @@
       # Use lean plugin which provides a union of controller and invoker
       - "lean"
 
-    image_name: "lean"
     lean: true
 
   roles:
