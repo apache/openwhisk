@@ -77,13 +77,18 @@ class ArtifactWithFileStorageActivationStoreTests()
           "2018-03-05T02:10:38.196754258Z stdout: second log line of multiple lines")))
   }
 
-  def expectedFileContent(activation: WhiskActivation) = {
+  def expectedFileContent(activation: WhiskActivation, includeResult: Boolean) = {
     val expectedLogs = activation.logs.logs.map { log =>
       JsObject(
         "type" -> "user_log".toJson,
         "message" -> log.toJson,
         "activationId" -> activation.activationId.toJson,
         "namespaceId" -> user.namespace.uuid.toJson)
+    }
+    val expectedResult = if (includeResult) {
+      JsString(activation.response.result.getOrElse(JsNull).compactPrint)
+    } else {
+      JsString(s"Activation record '${activation.activationId}' for entity '${activation.name}'")
     }
     val expectedActivation = JsObject(
       "type" -> "activation_record".toJson,
@@ -97,7 +102,7 @@ class ArtifactWithFileStorageActivationStoreTests()
       "version" -> activation.version.toJson,
       "response" -> activation.response.withoutResult.toExtendedJson,
       "end" -> activation.end.toEpochMilli.toJson,
-      "message" -> s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson,
+      "message" -> expectedResult,
       "kind" -> activation.annotations.get("kind").toJson.toJson,
       "start" -> activation.start.toEpochMilli.toJson,
       "limits" -> activation.annotations.get("limits").toJson.toJson,
@@ -107,8 +112,8 @@ class ArtifactWithFileStorageActivationStoreTests()
     expectedLogs ++ Seq(expectedActivation)
   }
 
-  it should "store activations in artifact store and to file" in {
-    val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId")
+  it should "store activations in artifact store and to file without result" in {
+    val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId", false)
     val activationStore = new ArtifactWithFileStorageActivationStore(system, materializer, logging, config)
     val logDir = new File(new File(".").getCanonicalPath, config.logPath)
 
@@ -147,7 +152,62 @@ class ArtifactWithFileStorageActivationStoreTests()
         .toList
         .map(_.parseJson)
         .toJson
-        .convertTo[JsArray] shouldBe activations.map(expectedFileContent).flatten.toJson.convertTo[JsArray]
+        .convertTo[JsArray] shouldBe activations
+        .map(a => expectedFileContent(a, false))
+        .flatten
+        .toJson
+        .convertTo[JsArray]
+    } finally {
+      activationStore.getLogFile.toFile.getAbsoluteFile.delete
+      logDir.delete
+    }
+  }
+
+  it should "store activations in artifact store and to file with result" in {
+    val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId", true)
+    val activationStore = new ArtifactWithFileStorageActivationStore(system, materializer, logging, config)
+    val logDir = new File(new File(".").getCanonicalPath, config.logPath)
+
+    try {
+      logDir.mkdir
+
+      val activations = responsePermutations.map { response =>
+        logPermutations.map { logs =>
+          val activation = WhiskActivation(
+            namespace = EntityPath(subject.asString),
+            name = EntityName("name"),
+            subject = subject,
+            activationId = ActivationId.generate(),
+            start = Instant.now,
+            end = Instant.now,
+            response = response,
+            logs = logs,
+            duration = Some(101L),
+            annotations = Parameters("kind", "nodejs:6") ++ Parameters(
+              "limits",
+              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
+              Parameters("waitTime", 16.toJson) ++
+              Parameters("initTime", 44.toJson))
+          val docInfo = await(activationStore.store(activation, context))
+          val fullyQualifiedActivationId = ActivationId(docInfo.id.asString)
+
+          await(activationStore.get(fullyQualifiedActivationId, context)) shouldBe activation
+          await(activationStore.delete(fullyQualifiedActivationId, context))
+          activation
+        }
+      }.flatten
+
+      Source
+        .fromFile(activationStore.getLogFile.toFile.getAbsoluteFile)
+        .getLines
+        .toList
+        .map(_.parseJson)
+        .toJson
+        .convertTo[JsArray] shouldBe activations
+        .map(a => expectedFileContent(a, true))
+        .flatten
+        .toJson
+        .convertTo[JsArray]
     } finally {
       activationStore.getLogFile.toFile.getAbsoluteFile.delete
       logDir.delete
