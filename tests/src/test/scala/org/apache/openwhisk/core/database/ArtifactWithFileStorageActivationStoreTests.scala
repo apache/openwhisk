@@ -88,7 +88,7 @@ class ArtifactWithFileStorageActivationStoreTests()
     val expectedResult = if (includeResult) {
       JsString(activation.response.result.getOrElse(JsNull).compactPrint)
     } else {
-      s"Activation record '${activation.activationId}' for entity '${activation.name}'".toJson
+      JsString(s"Activation record '${activation.activationId}' for entity '${activation.name}'")
     }
     val expectedActivation = JsObject(
       "type" -> "activation_record".toJson,
