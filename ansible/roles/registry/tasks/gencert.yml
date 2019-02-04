@@ -1,7 +1,0 @@
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements; and to You under the Apache License, Version 2.0.
----
-# Generate a new self-signed certificate for the registry. To be used later.
-
-- name: generate new cert
-  shell: "openssl req -nodes -x509 -newkey rsa:2048 -keyout files/whisk_docker_registry.key -out files/whisk_docker_registry.crt -days 356 -subj '/C=US/ST=NY/L={{location | default('New York')}}/O=WHISK/CN={{ groups['registry']|first }}'"
