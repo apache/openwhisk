@@ -5,7 +5,8 @@
 # It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 # It assumes that wipe.yml have being deployed at least once
 
-- import_playbook: controller-lean.yml
+
+- import_playbook: controller.yml lean=true controller_plugins="['lean']"
 
 - import_playbook: edge.yml
 
