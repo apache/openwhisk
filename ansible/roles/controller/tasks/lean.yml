@@ -6,7 +6,6 @@
 - name: set inventory_hostname to invoker and save controllers data that can be changed by invoker task
   set_fact:
     controller_env: "{{ env }}"
-    controller_ports: "{{ ports_to_expose }}"
     inventory_hostname: "invoker0"
     invoker_index_base: 0
     name_prefix: "invoker"
@@ -14,16 +13,6 @@
 
 - name: include invoker data
   include_tasks: "../invoker/tasks/deploy.yml"
-
-- name: filter invoker ports
-  set_fact:
-    invoker_ports_to_expose: "{{ ports_to_expose | reject('search','8080') | reject('search','jmx_remote_port') | reject('search','jmx_remote_rmi_port') | list }}"
-
-- name: add invoker ports to ports_to_expose
-  set_fact:
-    ports_to_expose: >-
-      {{ controller_ports }} +
-      {{ invoker_ports_to_expose }}
 
 - name: save invoker volumes
   set_fact:

@@ -176,12 +176,12 @@
 
 - name: prepare invoker ports
   set_fact:
-    ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
+    invoker_ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
+    invoker_ports_to_expose: "{{ invoker_ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
 
 - name: populate environment variables for invoker
   set_fact:
@@ -328,9 +328,9 @@
     recreate: true
     env: "{{ env }}"
     volumes: "{{ volumes }}"
-    ports: "{{ ports_to_expose }}"
+    ports: "{{ invoker_ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh --id {{ invoker_index }} --uniqueName {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
-  when: lean is undefined
+  when: not lean
 
 - name: wait until Invoker is up and running
   uri:
@@ -342,4 +342,4 @@
   until: result.status == 200
   retries: 12
   delay: 5
-  when: lean is undefined
+  when: not lean

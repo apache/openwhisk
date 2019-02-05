@@ -289,7 +289,7 @@ ansible-playbook -i environments/<environment> openwhisk.yml
 ```
 by:
 ```
-ansible-playbook -i environments/<environment> openwhisk-lean.yml
+ansible-playbook -i environments/<environment> openwhisk.yml -e lean=true
 ```
 
 ### Troubleshooting

@@ -34,5 +34,5 @@ $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
 
-$ANSIBLE_CMD controller-lean.yml
+$ANSIBLE_CMD controller.yml -e lean=true
 $ANSIBLE_CMD edge.yml

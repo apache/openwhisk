@@ -266,17 +266,6 @@ Components = [
                   modes = 'clean',
                   gradle = ':core:invoker'),
 
-    makeComponent('lean-fresh',
-                  'setup, build, and deploy fresh lean setup of whisk system using couchdb',
-                  yaml = False,
-                  steps = 'setup, couchdb, initdb, wipedb, lean-deploy, catalog'),
-
-    makeComponent('lean-deploy',
-                  'build/deploy lean system',
-                  modes = 'clean',
-                  yaml = 'openwhisk-lean.yml',
-                  gradle = True),
-
     makeComponent('edge',
                   'deploy edge'),
 

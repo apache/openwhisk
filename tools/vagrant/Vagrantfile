@@ -153,7 +153,7 @@ Vagrant.configure('2') do |config|
     export LEAN=#{ENV['LEAN']} || "false"
     if [[ $LEAN == "true" ]]; then
       # Deploy Lean Openwhisk (consolidated controller + invoker without kafka, zookeeper etc.)
-      su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk-lean.yml -e invoker_use_runc=False -e controller_akka_provider=local'
+      su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False -e controller_akka_provider=local -e lean=true'
     else
       # Deploy full Openwhisk stack
       su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False'

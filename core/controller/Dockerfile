@@ -8,6 +8,9 @@ ENV UID=1001 \
 ENV SWAGGER_UI_DOWNLOAD_SHA256=3d7ef5ddc59e10f132fe99771498f0f1ba7a2cbfb9585f9863d4191a574c96e7 \
     SWAGGER_UI_VERSION=3.6.0
 
+###################################################################################################
+# It's needed for lean mode where the controller is also an invoker
+###################################################################################################
 ENV DOCKER_VERSION=1.12.0 \
     DOCKER_DOWNLOAD_SHA256=3dd07f65ea4a7b4c8829f311ab0213bca9ac551b5b24706f3e79a97e22097f8b
 
@@ -22,6 +25,7 @@ tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/d
 rm -f docker-${DOCKER_VERSION}.tgz && \
 chmod +x /usr/bin/docker && \
 chmod +x /usr/bin/docker-runc
+##################################################################################################
 
 # Install swagger-ui
 RUN curl -sSL -o swagger-ui-v${SWAGGER_UI_VERSION}.tar.gz --no-verbose https://github.com/swagger-api/swagger-ui/archive/v${SWAGGER_UI_VERSION}.tar.gz && \
@@ -38,6 +42,9 @@ COPY init.sh /
 RUN chmod +x init.sh
 
 RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
+
+# It is possible to run as non root if you dont need invoker capabilities out of the controller today
+#USER ${NOT_ROOT_USER}
 
 EXPOSE 8080
 CMD ["./init.sh", "0"]

@@ -6,11 +6,14 @@
 # playbook (currently cloudant.yml or couchdb.yml).
 # It assumes that wipe.yml have being deployed at least once.
 
+
 - import_playbook: kafka.yml
+  when: not lean
 
 - import_playbook: controller.yml
 
 - import_playbook: invoker.yml
+  when: not lean
 
 - import_playbook: edge.yml
 

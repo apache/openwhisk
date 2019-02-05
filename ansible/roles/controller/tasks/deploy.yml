@@ -6,15 +6,14 @@
 
 - import_tasks: docker_login.yml
 
-- name: get controller name, index and image name
+- name: get controller name and index
   set_fact:
     controller_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
     controller_index:
       "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
-    image_name: "{{ image_name | default('controller') }}"
 
-- name: pull the {{ image_name }}:{{ docker.image.tag }} image of controller
-  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/{{image_name}}:{{docker.image.tag}}"
+- name: "pull the {{ docker.image.tag }} image of controller"
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/controller:{{docker.image.tag}}"
   when: docker_registry != ""
   register: result
   until: (result.rc == 0)
@@ -284,6 +283,11 @@
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
+  when: not lean
+
+- name: lean controller setup
+  include_tasks: "lean.yml"
+  when: lean
 
 - name: (re)start controller
   docker_container:
@@ -297,9 +301,10 @@
     env: "{{ env }}"
     volumes: "{{ controller_volumes }}"
     ports: "{{ ports_to_expose }}"
+    # userns_mode, pid_mode and privileged required when controller running in lean mode
     userns_mode: "{{ userns_mode | default('') }}"
     pid_mode: "{{ pid_mode | default('') }}"
-    privileged: "{{ privileged  | default('no') }}"
+    privileged: "{{ privileged | default('no') }}"
     command:
       /bin/sh -c
       "exec /init.sh {{ controller_index }}

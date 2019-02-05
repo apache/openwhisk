@@ -26,8 +26,7 @@ RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 
 cd $ROOTDIR/ansible
 
-#$ANSIBLE_CMD openwhisk-lean.yml  -e manifest_file="$RUNTIMES_MANIFEST"
-$ANSIBLE_CMD openwhisk-lean.yml -e manifest_file="$RUNTIMES_MANIFEST"
+$ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST" -e lean=true
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD routemgmt.yml
 

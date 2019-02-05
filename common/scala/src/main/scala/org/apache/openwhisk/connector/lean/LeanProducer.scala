@@ -20,6 +20,7 @@ package org.apache.openwhisk.connector.lean
 import akka.actor.ActorSystem
 import scala.concurrent.Future
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.common.TopicPartition
 import org.apache.openwhisk.common.Counter
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.connector.Message
@@ -46,7 +47,7 @@ class LeanProducer(queues: Map[String, BlockingQueue[Array[Byte]]])(implicit log
     Future {
       queue.put(msg.serialize.getBytes(StandardCharsets.UTF_8))
       sentCounter.next()
-      null
+      new RecordMetadata(new TopicPartition(topic, 0), -1, -1, System.currentTimeMillis(), null, -1, -1)
     }
   }
 
