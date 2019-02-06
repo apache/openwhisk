@@ -34,22 +34,6 @@ http {
 {% endif %}
 
     gzip_static on;
-    types {
-        text/html                                        html htm shtml;
-        text/css                                         css;
-        text/xml                                         xml;
-        image/gif                                        gif;
-        image/jpeg                                       jpeg jpg;
-        image/png                                        png;
-        image/svg+xml                                    svg svgz;
-        image/x-icon                                     ico;
-        image/x-jng                                      jng;
-        image/x-ms-bmp                                   bmp;
-        application/javascript                           js;
-        application/json                                 json;
-        application/java-archive                         jar war ear;
-        application/pdf                                  pdf;
-    }
 
     upstream controllers {
         # fail_timeout: period of time the server will be considered unavailable
