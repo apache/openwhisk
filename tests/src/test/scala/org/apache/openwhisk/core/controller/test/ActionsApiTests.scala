@@ -36,12 +36,9 @@ import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.controller.actions.ControllerActivationConfig
 import akka.http.scaladsl.model.headers.RawHeader
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.core.entity.Attachments.Inline
-import pureconfig.loadConfigOrThrow
 
 /**
  * Tests Actions API.
@@ -68,7 +65,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("action_tests")
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
-  val controllerActivationConfig = loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
 
   //// GET /actions
   it should "return empty list when no actions exist" in {
