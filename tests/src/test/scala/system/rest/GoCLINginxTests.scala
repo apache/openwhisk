@@ -32,7 +32,7 @@ import DefaultJsonProtocol._
  */
 @RunWith(classOf[JUnitRunner])
 class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
-  val DownloadLinkGoCli = "cli/go/download"
+  val DownloadLinkGoCli = "cli"
   val ServiceURL = getServiceURL()
 
   it should s"respond to all files in root directory" in {
