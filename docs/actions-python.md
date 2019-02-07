@@ -44,9 +44,9 @@ You can create an OpenWhisk action called `helloPython` from this function as fo
 wsk action create helloPython hello.py
 ```
 The CLI automatically infers the type of the action from the source file extension.
-For `.py` source files, the action runs using a Python 2.7 runtime.
-You can also create an action that runs with Python 3.6 by explicitly specifying the parameter
-`--kind python:3`.
+For `.py` source files, the action runs using a Python 3.6 runtime.
+You can also create an action that runs with Python 2.7 by explicitly specifying the parameter
+`--kind python:2`.
 
 Action invocation is the same for Python actions as it is for any other actions:
 
@@ -108,7 +108,7 @@ While the steps above are shown for Python 3.6, you can do the same for Python 2
 
 ## Python 3 actions
 
-Python 3 actions are executed using Python 3.6.1. To use this runtime, specify the `wsk` CLI parameter `--kind python:3` when creating or updating an action.
+Python 3 actions are executed using Python 3.6.1. This is the default runtime for Python actions, unless you specify the `--kind` flag when creating or updating an action.
 The following packages are available for use by Python actions, in addition to the Python 3.6 standard libraries.
 
 - aiohttp v1.3.3
@@ -156,7 +156,7 @@ The following packages are available for use by Python actions, in addition to t
 
 ## Python 2 actions
 
-Python 2 actions are executed using Python 2.7.12. This is the default runtime for Python actions, unless you specify the `--kind` flag when creating or updating an action. To explicitly select this runtime, use `--kind python:2`. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
+Python 2 actions are executed using Python 2.7.12. To use this runtime, specify the `wsk` CLI parameter `--kind python:2` when creating or updating an action. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
 
 - appdirs v1.4.3
 - asn1crypto v0.21.1

@@ -23,15 +23,13 @@ The process of creating PHP actions is similar to that of [other actions](action
 The following sections guide you through creating and invoking a single PHP action,
 and demonstrate how to bundle multiple PHP files and third party dependencies.
 
-PHP actions are executed using PHP 7.3. PHP 7.2 & PHP 7.1 are also available. The specific
+PHP actions are executed using PHP 7.3. The specific
 version of PHP is listed in the CHANGELOG files in the [PHP runtime repository](https://github.com/apache/incubator-openwhisk-runtime-php).
 
 To use a PHP runtime, specify the `wsk` CLI parameter `--kind` when creating or
 updating an action. The available PHP kinds are:
 
 * PHP 7.3: `--kind php:7.3`
-* PHP 7.2: `--kind php:7.2`
-* PHP 7.1: `--kind php:7.1`
 
 An action is simply a top-level PHP function. For example, create a file called `hello.php`
 with the following source code:
@@ -88,7 +86,7 @@ zip -r helloPHP.zip index.php helper.php
 and then create the action:
 
 ```bash
-wsk action create helloPHP --kind php:7.1 helloPHP.zip
+wsk action create helloPHP --kind php:7.3 helloPHP.zip
 ```
 
 ## Including Composer dependencies
@@ -99,7 +97,7 @@ Add this directory to your action's zip file and create the action:
 
 ```bash
 zip -r helloPHP.zip index.php vendor
-wsk action create helloPHP --kind php:7.1 helloPHP.zip
+wsk action create helloPHP --kind php:7.3 helloPHP.zip
 ```
 
 The PHP runtime will automatically include Composer's autoloader for you, so you can immediately
