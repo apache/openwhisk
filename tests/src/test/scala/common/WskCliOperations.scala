@@ -972,10 +972,5 @@ class CliGatewayOperations(val wsk: RunCliCmd) extends GatewayOperations {
 
 object Wsk {
   val binaryName = "wsk"
-  val defaultCliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
-
-  /** What is the path to a downloaded CLI? **/
-  private def getDownloadedGoCLIPath = {
-    s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
-  }
+  val defaultCliPath = WhiskProperties.getCLIPath
 }
