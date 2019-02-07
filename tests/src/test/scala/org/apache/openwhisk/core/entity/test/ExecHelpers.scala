@@ -47,7 +47,13 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   }
 
   protected def jsOld(code: String, main: Option[String] = None) = {
-    CodeExecAsString(RuntimeManifest(NODEJS10, imagename(NODEJS10), deprecated = Some(true)), trim(code), main.map(_.trim))
+    CodeExecAsString(
+      RuntimeManifest(
+        NODEJS10,
+        imagename(NODEJS10),
+        deprecated = Some(true)),
+      trim(code),
+      main.map(_.trim))
   }
 
   protected def js(code: String, main: Option[String] = None) = {
