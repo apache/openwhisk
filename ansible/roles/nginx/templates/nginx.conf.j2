@@ -115,18 +115,19 @@ http {
         location /blackbox.tar.gz {
             return 301 https://github.com/apache/incubator-openwhisk-runtime-docker/releases/download/sdk%400.1.0/blackbox-0.1.0.tar.gz;
         }
-        # leaving this for a while for clients out there to update to the new endpoint
-        location /blackbox-0.1.0.tar.gz {
-            return 301 /blackbox.tar.gz;
-        }
 
         location /OpenWhiskIOSStarterApp.zip {
             return 301 https://github.com/apache/incubator-openwhisk-client-swift/releases/download/0.3.0/starterapp-0.3.0.zip;
         }
 
-        location /cli/go/download {
+        location /cli {
             autoindex on;
-            root /etc/nginx;
+            alias /etc/nginx/cli/go/download;
+        }
+
+        # this is here for backward compatibility
+        location /cli/go/download {
+            rewrite /cli/go/download(.*) /cli$1 permanent;
         }
     }
 }

@@ -26,8 +26,7 @@ OpenWhisk offers a powerful command line interface that allows complete manageme
 
 - To download the CLI from an existing deployment, you will need to download the CLI using the deployment's base URL.
 A list of downloadable CLIs for various operating systems, and CPU architectures can be obtained from the following
-location `{BASE URL}/cli/go/download`. The `{BASE URL}` is the OpenWhisk API hostname or IP address
-(e.g., openwhisk.ng.bluemix.net).
+location `{BASE URL}/cli`. The `{BASE URL}` is the OpenWhisk API hostname or IP address.
 
 There are two required properties to configure in order to use the CLI:
 
