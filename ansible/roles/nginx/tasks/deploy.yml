@@ -52,6 +52,28 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
+- name: ensure html directory exists
+  stat:
+    path: "{{ nginx.htmldir }}"
+  register: nginx_html_dir_exists
+  when: nginx.htmldir
+
+- name: check if html directory exists
+  fail:
+    msg: html directory does not exist '{{ nginx.htmldir }}'
+  when: nginx.htmldir and not (nginx_html_dir_exists.stat.exists and nginx_html_dir_exists.stat.isdir)
+
+- name: configuration volumes to mount
+  set_fact:
+    volumes:
+      - "{{ whisk_logs_dir }}/nginx:/logs"
+      - "{{ nginx.confdir }}:/etc/nginx"
+
+- name: "optional html volume to mount"
+  set_fact:
+    volumes: "{{ volumes }} + [ '{{ nginx.htmldir }}:/usr/share/nginx/html' ]"
+  when: nginx.htmldir
+
 - name: (re)start nginx
   docker_container:
     name: nginx
@@ -60,9 +82,9 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "nginx"
-    volumes:
-      - "{{ whisk_logs_dir }}/nginx:/logs"
-      - "{{ nginx.confdir }}:/etc/nginx"
+    volumes: "{{ volumes }}"
+    expose:
+      - 8443
     ports:
       - "{{ nginx.port.http }}:80"
       - "{{ nginx.port.api }}:443"
