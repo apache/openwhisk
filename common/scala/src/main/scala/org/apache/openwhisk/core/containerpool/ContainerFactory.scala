@@ -52,7 +52,23 @@ case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Doubl
  */
 trait ContainerFactory {
 
-  /** create a new Container */
+  /**
+   * Create a new Container
+   *
+   * The created container has to satisfy following requirements:
+   * - The container's file system is based on the provided action image and has a read/write layer on top.
+   * - If the specified image is not available on the system, it is pulled from an image
+   *   repository - for example, Docker Hub.
+   * - The container has a network interface which is able to connect to the internet
+   *   (in particular, to the specified DNS servers). In addition, the invoker must be able
+   *   to connect to the container's interface.
+   * - The IPv4 address of said interface is stored in the created Container instance.
+   * - The default process specified in the action image is run.
+   * - It is desired that all stdout / stderr written by processes in the container is captured such
+   *   that it can be obtained using the logs() method of the Container trait.
+   * - It is desired that the container supports and enforces the specified memory limit and CPU shares.
+   *   In particular, action memory limits rely on the underlying container technology.
+   */
   def createContainer(tid: TransactionId,
                       name: String,
                       actionImage: ExecManifest.ImageName,
