@@ -98,9 +98,9 @@
     dest: "{{ invoker.confdir }}/{{ invoker_name }}"
   become: "{{ invoker.dir.become }}"
   with_items:
-  - "files/{{ invoker.ssl.keystore.name }}"
-  - "files/{{ invoker.ssl.key }}"
-  - "files/{{ invoker.ssl.cert }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.key }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.cert }}"
   loop_control:
     loop_var: inv_item
 
