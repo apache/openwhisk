@@ -52,7 +52,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def js(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS).get
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS10).get
 
     CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }
