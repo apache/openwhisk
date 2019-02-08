@@ -57,6 +57,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
       trim(code),
       main.map(_.trim))
   }
+
   protected def js10(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
     val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS10).get

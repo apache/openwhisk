@@ -1562,51 +1562,90 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   // get and delete allowed, create/update with deprecated exec not allowed, post/invoke not allowed
   it should "report proper error when runtime is deprecated" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), swift("??"))
-    val okUpdate = WhiskActionPut(Some(swift("_")))
-    val badUpdate = WhiskActionPut(Some(swift("_")))
 
-    Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+    try {
+      val okKind = "test:1"
+      val deprecatedKind = "test:2"
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> Route.seal(
-      routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val customManifest = Some(s"""
+                   |{ "runtimes": {
+                   |    "test": [
+                   |      {
+                   |        "kind": "$okKind",
+                   |        "deprecated": false,
+                   |        "default": true,
+                   |        "image": {
+                   |          "name": "xyz"
+                   |        }
+                   |      }, {
+                   |        "kind": "$deprecatedKind",
+                   |        "deprecated": true,
+                   |        "image": {
+                   |          "name": "xyz"
+                   |        }
+                   |      }
+                   |    ]
+                   |  }
+                   |}
+                   |""".stripMargin)
+      ExecManifest.initialize(whiskConfig, customManifest)
 
-    put(entityStore, action)
+      val deprecatedManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(deprecatedKind).get
+      val deprecatedExec =
+        CodeExecAsAttachment(deprecatedManifest, Attachments.serdes[String].read(JsString("??")), None)
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val okManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(okKind).get
+      val okExec = CodeExecAsAttachment(okManifest, Attachments.serdes[String].read(JsString("??")), None)
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val action = WhiskAction(namespace, aname(), deprecatedExec)
+      val okUpdate = WhiskActionPut(Some(okExec))
+      val badUpdate = WhiskActionPut(Some(deprecatedExec))
 
-    Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe OK
-    }
+      Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> Route.seal(
+        routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe OK
-    }
+      put(entityStore, action)
 
-    put(entityStore, action)
+      Put(s"$collectionPath/${action.name}?overwrite=true", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(action.docid)
-      status shouldBe OK
+      Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
+
+      Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
+
+      Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe OK
+      }
+
+      Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe OK
+      }
+
+      put(entityStore, action)
+
+      Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> Route.seal(routes(creds)) ~> check {
+        deleteAction(action.docid)
+        status shouldBe OK
+      }
+    } finally {
+      // restore manifest
+      ExecManifest.initialize(whiskConfig)
     }
   }
 }
