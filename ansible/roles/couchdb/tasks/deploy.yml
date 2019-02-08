@@ -52,7 +52,17 @@
   retries: 12
   delay: 5
 
-- name: create '_users' database for singleton mode
+- name: check if '_users' database exists
+  uri:
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_users"
+    method: HEAD
+    status_code: 200,404
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
+    force_basic_auth: yes
+  register: create_users_db
+
+- name: create '_users' database for singleton mode if necessary
   uri:
     url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_users"
     method: PUT
@@ -60,7 +70,7 @@
     user: "{{ db.credentials.admin.user }}"
     password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
-  when: (inventory_hostname == coordinator) and (couchdb.version is version_compare('2.0','>='))
+  when: (create_users_db.status == 404) and (inventory_hostname == coordinator) and (couchdb.version is version_compare('2.0','>='))
 
 - name: enable the cluster setup mode
   uri:
