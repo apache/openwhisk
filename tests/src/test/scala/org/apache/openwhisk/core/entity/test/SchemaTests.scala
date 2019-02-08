@@ -496,7 +496,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     assert(execs(0) == jsDefault("js1") && json(0) == jsDefault("js1").asJson)
     assert(execs(1) == jsDefault("js2") && json(1) != jsDefault("js2").asJson) // ignores unknown properties
     assert(execs(2) == swift("swift1") && json(2) == swift("swift1").asJson)
-    assert(execs(3) == swift3(b64Body) && json(3) == swift3(b64Body).asJson)
+    assert(execs(3) == swift(b64Body) && json(3) == swift(b64Body).asJson)
     assert(execs(4) == jsDefault(b64Body) && json(4) == jsDefault(b64Body).asJson)
   }
 

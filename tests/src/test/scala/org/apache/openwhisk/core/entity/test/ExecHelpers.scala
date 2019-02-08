@@ -46,20 +46,6 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
   }
 
-  protected def jsOld(code: String, main: Option[String] = None) = {
-    CodeExecAsString(
-      RuntimeManifest(NODEJS10, imagename(NODEJS10), deprecated = Some(true)),
-      trim(code),
-      main.map(_.trim))
-  }
-
-  protected def js(code: String, main: Option[String] = None) = {
-    val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS10).get
-
-    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
-  }
-
   protected def js10Old(code: String, main: Option[String] = None) = {
     CodeExecAsString(
       RuntimeManifest(
@@ -113,18 +99,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     CodeExecMetaDataAsAttachment(manifest, binary, main.map(_.trim))
   }
 
-  protected def swiftOld(code: String, main: Option[String] = None) = {
-    CodeExecAsString(RuntimeManifest(SWIFT4, imagename(SWIFT4), deprecated = Some(true)), trim(code), main.map(_.trim))
-  }
-
   protected def swift(code: String, main: Option[String] = None) = {
-    val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT4).get
-
-    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
-  }
-
-  protected def swift3(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
     val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT4).get
 
