@@ -486,7 +486,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val parameters = keys map { key =>
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
-    val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
     Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
@@ -502,7 +502,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val annotations = keys map { key =>
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
-    val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
     Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
