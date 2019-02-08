@@ -67,12 +67,13 @@
             },
             {
                 "kind": "python:3",
+                "default": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python3action",
                     "tag": "latest"
                 },
-                "deprecated": true,
+                "deprecated": false,
                 "attached": {
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
