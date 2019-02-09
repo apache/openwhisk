@@ -226,6 +226,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |    "nodef": [
                  |      {
                  |        "kind": "nodejs:6",
+                 |        "deprecated": true,
                  |        "image": {
                  |          "name": "nodejsaction"
                  |        },
@@ -275,7 +276,11 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |}
                  |""".stripMargin.parseJson.asJsObject
 
-    val js6 = RuntimeManifest("nodejs:6", ImageName("nodejsaction"), stemCells = Some(List(StemCell(1, 128.MB))))
+    val js6 = RuntimeManifest(
+      "nodejs:6",
+      ImageName("nodejsaction"),
+      deprecated = Some(true),
+      stemCells = Some(List(StemCell(1, 128.MB))))
     val js8 = RuntimeManifest(
       "nodejs:8",
       ImageName("nodejsaction"),

@@ -245,23 +245,23 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     // String: binary: true, main: jsMain
     val jsAction1 = WhiskAction(namespace, aname(), jsDefault("RHViZWU=", Some("jsMain")))
     val jsAction1Content =
-      Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction1ExecMetaData = js6MetaData(Some("jsMain"), true)
+      Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction1ExecMetaData = js10MetaData(Some("jsMain"), true)
 
     // String: binary: false, main: jsMain
     val jsAction2 = WhiskAction(namespace, aname(), jsDefault("", Some("jsMain")))
-    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction2ExecMetaData = js6MetaData(Some("jsMain"), false)
+    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction2ExecMetaData = js10MetaData(Some("jsMain"), false)
 
     // String: binary: true, no main
     val jsAction3 = WhiskAction(namespace, aname(), jsDefault("RHViZWU="))
-    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=")).toJson.asJsObject
-    val jsAction3ExecMetaData = js6MetaData(None, true)
+    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=")).toJson.asJsObject
+    val jsAction3ExecMetaData = js10MetaData(None, true)
 
     // String: binary: false, no main
     val jsAction4 = WhiskAction(namespace, aname(), jsDefault(""))
-    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "")).toJson.asJsObject
-    val jsAction4ExecMetaData = js6MetaData(None, false)
+    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "")).toJson.asJsObject
+    val jsAction4ExecMetaData = js10MetaData(None, false)
 
     // Sequence
     val component = WhiskAction(namespace, aname(), jsDefault("??"))
@@ -486,7 +486,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val parameters = keys map { key =>
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
-    val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
     Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
@@ -502,7 +502,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val annotations = keys map { key =>
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
-    val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
     Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
@@ -542,7 +542,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
     }
   }
 
@@ -612,7 +612,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS6)
+      response.exec.kind should be(NODEJS10)
       response.parameters shouldBe Parameters()
     }
   }
@@ -631,7 +631,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS6)
+      response.exec.kind should be(NODEJS10)
       response.parameters should be(Parameters("a", "A"))
     }
   }
@@ -660,7 +660,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
     }
   }
 
@@ -700,7 +700,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
     }
   }
 
@@ -708,7 +708,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val javaAction =
       WhiskAction(namespace, aname(), javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
     val nodeAction = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS6))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10))
 
     actions.foreach {
       case (action, kind) =>
@@ -808,9 +808,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         javaDefault(nonInlinedCode(entityStore), Some("hello")),
         annotations = Parameters("exec", "java"))
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val swiftAction = WhiskAction(namespace, aname(), swift3(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS6), (swiftAction, SWIFT3), (bbAction, BLACKBOX))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -979,9 +979,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "get an action with attachment that is not cached" in {
     implicit val tid = transid()
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val swiftAction = WhiskAction(namespace, aname(), swift3(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS6), (swiftAction, SWIFT3), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1030,7 +1030,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "concurrently get an action with attachment that is not cached" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val kind = NODEJS6
+    val kind = NODEJS10
 
     val content = WhiskActionPut(
       Some(action.exec),
@@ -1085,9 +1085,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "update an existing action with attachment that is not cached" in {
     implicit val tid = transid()
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val swiftAction = WhiskAction(namespace, aname(), swift3(nonInlinedCode(entityStore)), Parameters("x", "b"))
+    val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS6), (swiftAction, SWIFT3), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1154,7 +1154,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "ensure old and new action schemas are supported" in {
     implicit val tid = transid()
     val code = nonInlinedCode(entityStore)
-    val actionOldSchema = WhiskAction(namespace, aname(), js6Old(code))
+    val actionOldSchema = WhiskAction(namespace, aname(), js10Old(code))
     val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(code))
     val content = WhiskActionPut(
       Some(actionOldSchema.exec),
@@ -1191,7 +1191,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1215,7 +1215,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
     }
   }
 
@@ -1258,7 +1258,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.logs.get,
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
-          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
+          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10))
       }
     }
   }
@@ -1279,7 +1279,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.exec,
           content.parameters.get,
           version = action.version.upPatch,
-          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
+          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10))
       }
     }
   }
@@ -1562,51 +1562,90 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   // get and delete allowed, create/update with deprecated exec not allowed, post/invoke not allowed
   it should "report proper error when runtime is deprecated" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), swift("??"))
-    val okUpdate = WhiskActionPut(Some(swift3("_")))
-    val badUpdate = WhiskActionPut(Some(swift("_")))
 
-    Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+    try {
+      val okKind = "test:1"
+      val deprecatedKind = "test:2"
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> Route.seal(
-      routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val customManifest = Some(s"""
+                   |{ "runtimes": {
+                   |    "test": [
+                   |      {
+                   |        "kind": "$okKind",
+                   |        "deprecated": false,
+                   |        "default": true,
+                   |        "image": {
+                   |          "name": "xyz"
+                   |        }
+                   |      }, {
+                   |        "kind": "$deprecatedKind",
+                   |        "deprecated": true,
+                   |        "image": {
+                   |          "name": "xyz"
+                   |        }
+                   |      }
+                   |    ]
+                   |  }
+                   |}
+                   |""".stripMargin)
+      ExecManifest.initialize(whiskConfig, customManifest)
 
-    put(entityStore, action)
+      val deprecatedManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(deprecatedKind).get
+      val deprecatedExec =
+        CodeExecAsAttachment(deprecatedManifest, Attachments.serdes[String].read(JsString("??")), None)
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val okManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(okKind).get
+      val okExec = CodeExecAsAttachment(okManifest, Attachments.serdes[String].read(JsString("??")), None)
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      val action = WhiskAction(namespace, aname(), deprecatedExec)
+      val okUpdate = WhiskActionPut(Some(okExec))
+      val badUpdate = WhiskActionPut(Some(deprecatedExec))
 
-    Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe BadRequest
-      responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
-    }
+      Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe OK
-    }
+      Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> Route.seal(
+        routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status shouldBe OK
-    }
+      put(entityStore, action)
 
-    put(entityStore, action)
+      Put(s"$collectionPath/${action.name}?overwrite=true", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
 
-    Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(action.docid)
-      status shouldBe OK
+      Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
+
+      Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe BadRequest
+        responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+      }
+
+      Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe OK
+      }
+
+      Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+        status shouldBe OK
+      }
+
+      put(entityStore, action)
+
+      Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> Route.seal(routes(creds)) ~> check {
+        deleteAction(action.docid)
+        status shouldBe OK
+      }
+    } finally {
+      // restore manifest
+      ExecManifest.initialize(whiskConfig)
     }
   }
 }

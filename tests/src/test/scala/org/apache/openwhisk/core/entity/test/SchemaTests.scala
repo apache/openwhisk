@@ -476,19 +476,18 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "initialize exec manifest" in {
     val runtimes = ExecManifest.runtimesManifest
-    runtimes.resolveDefaultRuntime("nodejs:default").get.kind shouldBe "nodejs:6"
-    runtimes.resolveDefaultRuntime("swift").get.deprecated shouldBe Some(true)
+    runtimes.resolveDefaultRuntime("nodejs:default").get.kind shouldBe "nodejs:10"
   }
 
   it should "properly deserialize and reserialize JSON" in {
     val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
 
     val json = Seq[JsObject](
-      JsObject("kind" -> "nodejs:6".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "nodejs:6".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
-      JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "swift:3.1.1".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
-      JsObject("kind" -> "nodejs:6".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
+      JsObject("kind" -> "nodejs:10".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
+      JsObject("kind" -> "nodejs:10".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
+      JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
+      JsObject("kind" -> "swift:4.2".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
+      JsObject("kind" -> "nodejs:10".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
     val execs = json.map { e =>
       Exec.serdes.read(e)
@@ -497,7 +496,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     assert(execs(0) == jsDefault("js1") && json(0) == jsDefault("js1").asJson)
     assert(execs(1) == jsDefault("js2") && json(1) != jsDefault("js2").asJson) // ignores unknown properties
     assert(execs(2) == swift("swift1") && json(2) == swift("swift1").asJson)
-    assert(execs(3) == swift3(b64Body) && json(3) == swift3(b64Body).asJson)
+    assert(execs(3) == swift(b64Body) && json(3) == swift(b64Body).asJson)
     assert(execs(4) == jsDefault(b64Body) && json(4) == jsDefault(b64Body).asJson)
   }
 
@@ -585,8 +584,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject.empty,
       JsNull,
       JsObject("init" -> "zipfile".toJson),
-      JsObject("kind" -> "nodejs:6".toJson, "code" -> JsNumber(42)),
-      JsObject("kind" -> "nodejs:6".toJson, "init" -> "zipfile".toJson),
+      JsObject("kind" -> "nodejs:10".toJson, "code" -> JsNumber(42)),
+      JsObject("kind" -> "nodejs:10".toJson, "init" -> "zipfile".toJson),
       JsObject("kind" -> "turbopascal".toJson, "code" -> "BEGIN1".toJson),
       JsObject("kind" -> "blackbox".toJson, "code" -> "js".toJson),
       JsObject("kind" -> "swift".toJson, "swiftcode" -> "swift".toJson))
@@ -614,9 +613,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "serialize to json" in {
     val execs = Seq(bb("container"), jsDefault("js"), jsDefault("js"), swift("swift")).map { _.asJson }
     assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson))
-    assert(execs(1) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
-    assert(execs(2) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
-    assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
+    assert(execs(1) == JsObject("kind" -> "nodejs:10".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(2) == JsObject("kind" -> "nodejs:10".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(3) == JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
   }
 
   behavior of "Parameter"

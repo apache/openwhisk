@@ -66,16 +66,16 @@ as in `nodejs:8` or `php:7.3`.
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
 schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).
 As an example, the following entry add a new runtime family called `nodejs` with a single kind
-`nodejs:6`.
+`nodejs:10`.
 
 ```json
 {
   "nodejs": [{
-    "kind": "nodejs:6",
+    "kind": "nodejs:10",
     "default": true,
     "image": {
       "prefix": "openwhisk",
-      "name": "nodejs6action",
+      "name": "nodejs10action",
       "tag": "latest"
     }
   }]
@@ -84,7 +84,7 @@ As an example, the following entry add a new runtime family called `nodejs` with
 
 The `default` property indicates if the corresponding kind should be treated as the
 default for the runtime family. The JSON `image` structure defines the Docker image name
-that is used for actions of this kind (e.g., `openwhisk/nodejs6action:latest` for the
+that is used for actions of this kind (e.g., `openwhisk/nodejs10action:latest` for the
 JSON example above).
 
 ### Canonical runtime repository

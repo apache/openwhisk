@@ -44,11 +44,12 @@ protected[core] object ExecManifest {
    * singleton Runtime instance.
    *
    * @param config a valid configuration
+   * @param manifestOverride an optional inline manifest (used for testing)
    * @return the manifest if initialized successfully, or an failure
    */
-  protected[core] def initialize(config: WhiskConfig): Try[Runtimes] = {
+  protected[core] def initialize(config: WhiskConfig, manifestOverride: Option[String] = None): Try[Runtimes] = {
     val rmc = loadConfigOrThrow[RuntimeManifestConfig](ConfigKeys.runtimes)
-    val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_, rmc))
+    val mf = Try(manifestOverride.getOrElse(config.runtimesManifest).parseJson.asJsObject).flatMap(runtimes(_, rmc))
     mf.foreach(m => manifest = Some(m))
     mf
   }
@@ -102,7 +103,7 @@ protected[core] object ExecManifest {
    * @param bypassPullForLocalImages if true, allow images with a prefix that matches localImagePrefix
    *                                 to skip docker pull on invoker even if the image is not part of the blackbox set;
    *                                 this is useful for testing with local images that aren't published to the runtimes registry
-   * @param localImagePrefix image prefix for bypassPullForLocalImages
+   * @param localImagePrefix         image prefix for bypassPullForLocalImages
    */
   protected[core] case class RuntimeManifestConfig(bypassPullForLocalImages: Option[Boolean] = None,
                                                    localImagePrefix: Option[String] = None)
@@ -110,14 +111,14 @@ protected[core] object ExecManifest {
   /**
    * A runtime manifest describes the "exec" runtime support.
    *
-   * @param kind the name of the kind e.g., nodejs:6
-   * @param deprecated true iff the runtime is deprecated (allows get/delete but not create/update/invoke)
-   * @param default true iff the runtime is the default kind for its family (nodejs:default -> nodejs:6)
-   * @param attached true iff the source is an attachments (not inlined source)
-   * @param requireMain true iff main entry point is not optional
+   * @param kind            the name of the kind e.g., nodejs:6
+   * @param deprecated      true iff the runtime is deprecated (allows get/delete but not create/update/invoke)
+   * @param default         true iff the runtime is the default kind for its family (nodejs:default -> nodejs:6)
+   * @param attached        true iff the source is an attachments (not inlined source)
+   * @param requireMain     true iff main entry point is not optional
    * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
-   * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
-   * @param stemCells optional list of stemCells to be initialized by invoker per kind
+   * @param image           optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
+   * @param stemCells       optional list of stemCells to be initialized by invoker per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
                                              image: ImageName,
@@ -131,7 +132,7 @@ protected[core] object ExecManifest {
   /**
    * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
    *
-   * @param count the number of stemcell containers to create
+   * @param count  the number of stemcell containers to create
    * @param memory the max memory this stemcell will allocate
    */
   protected[entity] case class StemCell(count: Int, memory: ByteSize) {
@@ -256,7 +257,8 @@ protected[core] object ExecManifest {
 
   /**
    * A runtime family manifest is a collection of runtimes grouped by a family (e.g., swift with versions swift:2 and swift:3).
-   * @param family runtime family
+   *
+   * @param name runtime family
    * @version set of runtime manifests
    */
   protected[entity] case class RuntimeFamily(name: String, versions: Set[RuntimeManifest])
@@ -264,7 +266,9 @@ protected[core] object ExecManifest {
   /**
    * A collection of runtime families.
    *
-   * @param set of supported runtime families
+   * @param runtimes                 set of supported runtime families
+   * @param blackboxImages           set of blackbox container images
+   * @param bypassPullForLocalImages container image prefix that is exempted from docker pull operations
    */
   protected[core] case class Runtimes(runtimes: Set[RuntimeFamily],
                                       blackboxImages: Set[ImageName],

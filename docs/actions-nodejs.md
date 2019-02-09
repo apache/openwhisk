@@ -217,7 +217,7 @@ To create an OpenWhisk action from this package:
 3. Create the action:
 
   ```
-  wsk action create packageAction --kind nodejs:6 action.zip
+  wsk action create packageAction --kind nodejs:10 action.zip
   ```
 
   When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
