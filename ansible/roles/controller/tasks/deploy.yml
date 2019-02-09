@@ -283,6 +283,11 @@
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
+  when: not lean
+
+- name: lean controller setup
+  include_tasks: "lean.yml"
+  when: lean
 
 - name: (re)start controller
   docker_container:
@@ -296,6 +301,10 @@
     env: "{{ env }}"
     volumes: "{{ controller_volumes }}"
     ports: "{{ ports_to_expose }}"
+    # userns_mode, pid_mode and privileged required when controller running in lean mode
+    userns_mode: "{{ userns_mode | default('') }}"
+    pid_mode: "{{ pid_mode | default('') }}"
+    privileged: "{{ privileged | default('no') }}"
     command:
       /bin/sh -c
       "exec /init.sh {{ controller_index }}

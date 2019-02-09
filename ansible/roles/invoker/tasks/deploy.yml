@@ -26,25 +26,29 @@
 # must include a trailing '/'.
 #
 - name: "pull runtime action images per manifest"
-  shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
+  shell: "docker pull {{runtimes_registry | default()}}{{inv_item.prefix}}/{{inv_item.name}}:{{inv_item.tag | default()}}"
   loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
   when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
   register: result
   until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+  loop_control:
+    loop_var: inv_item
 
 ###
 # See comment above for pulling other runtime images.
 #
 - name: "pull blackboxes action images per manifest"
-  shell: "docker pull {{runtimes_registry | default()}}{{item.prefix}}/{{item.name}}:{{item.tag | default()}}"
+  shell: "docker pull {{runtimes_registry | default()}}{{inv_item.prefix}}/{{inv_item.name}}:{{inv_item.tag | default()}}"
   loop: "{{ runtimesManifest.blackboxes }}"
   when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
   register: result
   until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: "determine docker root dir on docker-machine"
   uri:  url="http://{{ ansible_host }}:{{ docker.port }}/info" return_content=yes
@@ -89,24 +93,28 @@
 - name: copy keystore, key and cert
   when: invoker.protocol == "https"
   copy:
-    src: "{{ item }}"
+    src: "{{ inv_item }}"
     mode: 0666
     dest: "{{ invoker.confdir }}/{{ invoker_name }}"
   become: "{{ invoker.dir.become }}"
   with_items:
-  - "files/{{ invoker.ssl.keystore.name }}"
-  - "files/{{ invoker.ssl.key }}"
-  - "files/{{ invoker.ssl.cert }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.key }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.cert }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: check, that required databases exist
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
-    dbName: "{{ item }}"
+    dbName: "{{ inv_item }}"
     dbUser: "{{ db.credentials.invoker.user }}"
     dbPass: "{{ db.credentials.invoker.pass }}"
   with_items:
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
@@ -141,9 +149,11 @@
 
 - name: determine if index of invoker is same with index of inventory host
   fail:
-    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
+    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ inv_item.Names[0] }}"
   with_items: "{{ invokerInfo }}"
-  when: not invoker.allowMultipleInstances and item.Names[0] != "/{{ invoker_name }}"
+  when: not invoker.allowMultipleInstances and inv_item.Names[0] != "/{{ invoker_name }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: copy jmxremote password file
   when: jmx.enabled
@@ -166,12 +176,12 @@
 
 - name: prepare invoker ports
   set_fact:
-    ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
+    invoker_ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
+    invoker_ports_to_expose: "{{ invoker_ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
 
 - name: populate environment variables for invoker
   set_fact:
@@ -249,16 +259,20 @@
 
 - name: extend invoker dns env
   set_fact:
-    env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+    env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ inv_item.0: inv_item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
+  loop_control:
+    loop_var: inv_item
 
 - name: merge extra env variables
   set_fact:
     env: "{{ env | combine(invoker.extraEnv) }}"
 
 - name: include plugins
-  include_tasks: "{{ item }}.yml"
+  include_tasks: "{{ inv_item }}.yml"
   with_items: "{{ invoker_plugins | default([]) }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: set invoker volumes
   set_fact:
@@ -285,7 +299,7 @@
 
 - name: ensure invoker coverage directory is created with permissions
   file:
-    path: "{{ coverage_logs_dir }}/invoker/{{ item }}"
+    path: "{{ coverage_logs_dir }}/invoker/{{ inv_item }}"
     state: directory
     mode: 0777
   with_items:
@@ -293,6 +307,8 @@
     - common
   become: "{{ logs.dir.become }}"
   when: coverage_enabled
+  loop_control:
+    loop_var: inv_item
 
 - name: extend invoker volume for coverage
   set_fact:
@@ -312,8 +328,9 @@
     recreate: true
     env: "{{ env }}"
     volumes: "{{ volumes }}"
-    ports: "{{ ports_to_expose }}"
+    ports: "{{ invoker_ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh --id {{ invoker_index }} --uniqueName {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
+  when: not lean
 
 - name: wait until Invoker is up and running
   uri:
@@ -325,3 +342,4 @@
   until: result.status == 200
   retries: 12
   delay: 5
+  when: not lean

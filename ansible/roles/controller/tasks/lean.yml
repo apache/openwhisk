@@ -1,0 +1,40 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This plugin will  provide controller with Lean Controller parameters
+
+- name: set inventory_hostname to invoker and save controllers data that can be changed by invoker task
+  set_fact:
+    controller_env: "{{ env }}"
+    inventory_hostname: "invoker0"
+    invoker_index_base: 0
+    name_prefix: "invoker"
+    host_group: "{{ groups['invokers'] }}"
+
+- name: include invoker data
+  include_tasks: "../invoker/tasks/deploy.yml"
+
+- name: save invoker volumes
+  set_fact:
+    invoker_volumes: "{{ volumes.split(',') | reject('search','/logs') | reject('search','/conf') | reject('search','/coverage') | list }}"
+
+- name: populate volumes
+  set_fact:
+    controller_volumes: >-
+      {{ invoker_volumes }} +
+      {{ controller_volumes }}
+
+- name: populate environment variables for LEAN controller
+  vars:
+    lean_env:
+      "CONFIG_whisk_spi_MessagingProvider": "org.apache.openwhisk.connector.lean.LeanMessagingProvider"
+      "CONFIG_whisk_spi_LoadBalancerProvider": "org.apache.openwhisk.core.loadBalancer.LeanBalancer"
+  set_fact:
+    env: "{{ env | combine(controller_env) | combine(lean_env) }}"
+
+- name: provide extended docker container params for controller
+  set_fact:
+    userns_mode: "host"
+    pid_mode: "host"
+    privileged: "yes"
+
