@@ -3,7 +3,7 @@
         "nodejs": [
             {
                 "kind": "nodejs:6",
-                "default": false,
+                "default": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "nodejs6action",
@@ -37,7 +37,7 @@
             },
             {
                 "kind": "nodejs:10",
-                "default": true,
+                "default": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v10",
