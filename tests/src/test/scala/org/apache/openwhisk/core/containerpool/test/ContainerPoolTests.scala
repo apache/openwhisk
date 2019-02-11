@@ -91,7 +91,7 @@ class ContainerPoolTests
     EntityPath("actionSpace"),
     EntityName("actionName"),
     exec,
-    limits = ActionLimits(concurrency = ConcurrencyLimit(3)))
+    limits = ActionLimits(concurrency = ConcurrencyLimit(if (concurrencyEnabled) 3 else 1)))
   val differentAction = action.copy(name = EntityName("actionName2"))
   val largeAction =
     action.copy(
@@ -480,81 +480,82 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
   }
 
-  if (concurrencyEnabled) {
-    it should "increase activation counts when scheduling to containers whose actions support concurrency" in {
-      val (containers, factory) = testContainers(2)
-      val feed = TestProbe()
+  it should "increase activation counts when scheduling to containers whose actions support concurrency" in {
+    assume(concurrencyEnabled)
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
 
-      val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
 
-      // container0 is created and used
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container0 is reused
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container0 is reused
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
-      pool ! runMessageConcurrent
-      containers(1).expectMsg(runMessageConcurrent)
-    }
+    // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
+  }
 
-    it should "schedule concurrent activations to different containers for different namespaces" in {
-      val (containers, factory) = testContainers(2)
-      val feed = TestProbe()
+  it should "schedule concurrent activations to different containers for different namespaces" in {
+    assume(concurrencyEnabled)
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
 
-      val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
 
-      // container0 is created and used
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container1 is created and used
-      pool ! runMessageConcurrentDifferentNamespace
-      containers(1).expectMsg(runMessageConcurrentDifferentNamespace)
-    }
+    // container1 is created and used
+    pool ! runMessageConcurrentDifferentNamespace
+    containers(1).expectMsg(runMessageConcurrentDifferentNamespace)
+  }
 
-    it should "decrease activation counts when receiving NeedWork for actions that support concurrency" in {
-      val (containers, factory) = testContainers(2)
-      val feed = TestProbe()
+  it should "decrease activation counts when receiving NeedWork for actions that support concurrency" in {
+    assume(concurrencyEnabled)
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
 
-      val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.stdMemory * 4), feed.ref))
 
-      // container0 is created and used
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is created and used
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container0 is reused
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container0 is reused
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
+    // container0 is reused
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
 
-      // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
-      pool ! runMessageConcurrent
-      containers(1).expectMsg(runMessageConcurrent)
+    // container1 is created and used (these concurrent containers are configured with max 3 concurrent activations)
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
 
-      // container1 is reused
-      pool ! runMessageConcurrent
-      containers(1).expectMsg(runMessageConcurrent)
+    // container1 is reused
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
 
-      // container1 is reused
-      pool ! runMessageConcurrent
-      containers(1).expectMsg(runMessageConcurrent)
+    // container1 is reused
+    pool ! runMessageConcurrent
+    containers(1).expectMsg(runMessageConcurrent)
 
-      containers(0).send(pool, NeedWork(warmedData(action = concurrentAction)))
+    containers(0).send(pool, NeedWork(warmedData(action = concurrentAction)))
 
-      // container0 is reused (since active count decreased)
-      pool ! runMessageConcurrent
-      containers(0).expectMsg(runMessageConcurrent)
-    }
+    // container0 is reused (since active count decreased)
+    pool ! runMessageConcurrent
+    containers(0).expectMsg(runMessageConcurrent)
   }
 }
 
