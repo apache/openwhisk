@@ -1,3 +1,7 @@
 {
-  "main": "deleteApi.js"
+  "main": "deleteApi.js",
+  "dependencies" : {
+    "lodash": "4.17.11",
+    "request": "2.88.0"
+  }
 }
