@@ -132,7 +132,7 @@
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
 
-      "PORT": 8080
+      "PORT": "8080"
       "TZ": "{{ docker.timezone }}"
 
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
@@ -183,7 +183,7 @@
       "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
       "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
-      "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | string }}"
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
@@ -211,13 +211,13 @@
       "CONFIG_whisk_runtimes_defaultImageTag":
         "{{ runtimes_default_image_tag | default() }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages":
-        "{{ runtimes_bypass_pull_for_local_images | default() }}"
+        "{{ runtimes_bypass_pull_for_local_images | default() | string }}"
       "CONFIG_whisk_runtimes_localImagePrefix":
         "{{ runtimes_local_image_prefix | default() }}"
 
-      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
-      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
-      "METRICS_LOG": "{{ metrics.log.enabled }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | string }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | string }}"
+      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | string }}"
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
       "CONFIG_whisk_controller_https_keystorePath":
         "/conf/{{ controller.ssl.keystore.name }}"
@@ -247,7 +247,7 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) }}"
+      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) | string }}"
 
 - name: merge extra env variables
   set_fact:
@@ -323,5 +323,3 @@
   until: result.status == 200
   retries: 12
   delay: 5
-
-# VIM: let b:syntastic_yaml_yamllint_args="-c '".expand('%:p:h')."../../../yamllint.yml'"
