@@ -58,7 +58,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
 
     makeStoreForClient(config, createReference(config).reference(), attachmentStore)
   }
@@ -70,7 +70,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
@@ -100,7 +100,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
    * This method ensures that all store instances share same client instance and thus the underlying connection pool.
    * Synchronization is required to ensure concurrent init of various store instances share same ref instance
    */
-  private def getOrCreateReference(config: CosmosDBConfig) = synchronized {
+  private def getOrCreateReference[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig) = synchronized {
     val clientRef = clients.getOrElseUpdate(config, createReference(config))
     if (clientRef.isClosed) {
       val newRef = createReference(config)
@@ -111,7 +111,12 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     }
   }
 
-  private def createReference(config: CosmosDBConfig) =
+  private def createReference[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig) = {
+    val clazz = implicitly[ClassTag[D]].runtimeClass
+    if (clazz != classOf[WhiskActivation]) {
+      require(config.timeToLive.isEmpty, s"'timeToLive' should not  be specified for ${clazz.getSimpleName}")
+    }
     new ReferenceCounted[ClientHolder](ClientHolder(config.createClient()))
+  }
 
 }

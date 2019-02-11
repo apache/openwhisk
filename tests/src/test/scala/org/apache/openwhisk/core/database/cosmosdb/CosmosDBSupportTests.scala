@@ -17,34 +17,98 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.IndexKind.Hash
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.DocumentCollection
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import com.typesafe.config.ConfigFactory
+import common.{StreamLogging, WskActorSystem}
+import org.apache.openwhisk.core.entity.{
+  DocumentReader,
+  WhiskActivation,
+  WhiskDocumentReader,
+  WhiskEntity,
+  WhiskEntityJsonFormat
+}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBSupportTests extends FlatSpec with CosmosDBTestSupport with MockFactory with Matchers {
+class CosmosDBSupportTests
+    extends FlatSpec
+    with CosmosDBTestSupport
+    with MockFactory
+    with Matchers
+    with StreamLogging
+    with WskActorSystem {
 
-  behavior of "index"
+  behavior of "CosmosDB init"
 
-  it should "be created and updated on init" in {
+  protected implicit val materializer: ActorMaterializer = ActorMaterializer()
+
+  it should "create and update index" in {
     val testDb = createTestDB()
     val config: CosmosDBConfig = storeConfig.copy(db = testDb.getId)
 
     val indexedPaths1 = Set("/foo/?", "/bar/?")
     val (_, coll) = new CosmosTest(config, client, newMapper(indexedPaths1)).initialize()
+    coll.getDefaultTimeToLive shouldBe -1
     indexedPaths(coll) should contain theSameElementsAs indexedPaths1
 
     //Test if index definition is updated in code it gets updated in db also
     val indexedPaths2 = Set("/foo/?", "/bar2/?")
     val (_, coll2) = new CosmosTest(config, client, newMapper(indexedPaths2)).initialize()
     indexedPaths(coll2) should contain theSameElementsAs indexedPaths2
+  }
+
+  it should "set ttl" in {
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    val config = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  collections {
+      |     WhiskActivation = {
+      |        time-to-live = 60 s
+      |     }
+      |  }
+      | }
+         """.stripMargin).withFallback(ConfigFactory.load())
+
+    val cosmosDBConfig = CosmosDBConfig(config, "WhiskActivation")
+    cosmosDBConfig.timeToLive shouldBe Some(60.seconds)
+
+    val testDb = createTestDB()
+    val testConfig = cosmosDBConfig.copy(db = testDb.getId)
+    val coll = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskActivation](testConfig, None).collection
+    coll.getDefaultTimeToLive shouldBe 60.seconds.toSeconds
+  }
+
+  it should "not set ttl for WhiskEntity" in {
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    implicit val format = WhiskEntityJsonFormat
+    val config = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  collections {
+      |     WhiskEntity = {
+      |        time-to-live = 60 s
+      |     }
+      |  }
+      | }
+         """.stripMargin).withFallback(ConfigFactory.load())
+
+    val cosmosDBConfig = CosmosDBConfig(config, "WhiskEntity")
+    cosmosDBConfig.timeToLive shouldBe Some(60.seconds)
+
+    val testConfig = cosmosDBConfig.copy(db = "foo")
+
+    an[IllegalArgumentException] shouldBe thrownBy {
+      CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](testConfig, None).collection
+    }
   }
 
   private def newMapper(paths: Set[String]) = {
