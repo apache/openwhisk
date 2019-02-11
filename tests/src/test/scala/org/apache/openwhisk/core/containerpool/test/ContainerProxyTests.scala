@@ -127,13 +127,10 @@ class ContainerProxyTests
   }
 
   /** Run the common action on the state-machine, assumes good cases */
-  def run(machine: ActorRef, currentState: ContainerState, expectInit: Boolean = true) = {
+  def run(machine: ActorRef, currentState: ContainerState) = {
     machine ! Run(action, message)
     expectMsg(Transition(machine, currentState, Running))
-    if (expectInit) {
-      expectWarmed(invocationNamespace.name, action, 1)
-    }
-    expectWarmed(invocationNamespace.name, action, 0)
+    expectWarmed(invocationNamespace.name, action)
     expectMsg(Transition(machine, Running, Ready))
   }
 
@@ -143,16 +140,10 @@ class ContainerProxyTests
   }
 
   /** Expect a NeedWork message with warmed data */
-  def expectWarmed(namespace: String, action: ExecutableWhiskAction, count: Int) = {
+  def expectWarmed(namespace: String, action: ExecutableWhiskAction) = {
     val test = EntityName(namespace)
     expectMsgPF() {
-      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) if a.data.activeActivationCount == count => //matched, otherwise will fail
-    }
-  }
-  def expectAnyWarmed(namespace: String, action: ExecutableWhiskAction) = {
-    val test = EntityName(namespace)
-    expectMsgPF() {
-      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) =>
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) => //matched, otherwise will fail
     }
   }
 
@@ -257,7 +248,7 @@ class ContainerProxyTests
     registerCallback(machine)
 
     preWarm(machine)
-    run(machine, Started, true)
+    run(machine, Started)
 
     // Timeout causes the container to pause
     timeout(machine)
@@ -303,7 +294,7 @@ class ContainerProxyTests
 
     run(machine, Started)
     // Note that there are no intermediate state changes
-    run(machine, Ready, false)
+    run(machine, Ready)
 
     awaitAssert {
       factory.calls should have size 1
@@ -359,7 +350,7 @@ class ContainerProxyTests
     run(machine, Started)
     timeout(machine)
     expectPause(machine)
-    run(machine, Paused, false)
+    run(machine, Paused)
 
     awaitAssert {
       factory.calls should have size 1
@@ -400,7 +391,7 @@ class ContainerProxyTests
             poolConfig,
             pauseGrace = pauseGrace))
     registerCallback(machine)
-    run(machine, Uninitialized, true)
+    run(machine, Uninitialized)
 
     awaitAssert {
       factory.calls should have size 1
@@ -443,8 +434,7 @@ class ContainerProxyTests
 
     machine ! Run(noLogsAction, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectWarmed(invocationNamespace.name, noLogsAction, 1)
-    expectWarmed(invocationNamespace.name, noLogsAction, 0)
+    expectWarmed(invocationNamespace.name, noLogsAction)
     expectMsg(Transition(machine, Running, Ready))
 
     awaitAssert {
@@ -505,17 +495,16 @@ class ContainerProxyTests
 
     //complete the init
     initPromise.success(initInterval)
-    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when init completes
 
     //complete the first run
     runPromises(0).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when first completes (count is 0 since stashed not counted)
+    expectWarmed(invocationNamespace.name, concurrentAction) //when first completes (count is 0 since stashed not counted)
     expectMsg(Transition(machine, Running, Ready)) //wait for first to complete to skip the delay step that can only reliably be tested in single threaded
     expectMsg(Transition(machine, Ready, Running)) //when second starts (after delay...)
 
     //complete the second run
     runPromises(1).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when second completes
+    expectWarmed(invocationNamespace.name, concurrentAction) //when second completes
 
     //go back to ready after first and second runs are complete
     expectMsg(Transition(machine, Running, Ready))
@@ -536,13 +525,12 @@ class ContainerProxyTests
 
     //complete the fifth run (request new work, 1 active remain)
     runPromises(4).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when fifth completes
+    expectWarmed(invocationNamespace.name, concurrentAction) //when fifth completes
 
     //complete the sixth run (request new work 0 active remain)
     runPromises(5).success(runInterval, ActivationResponse.success())
 
-    //expectWarmed(invocationNamespace.name, concurrentAction, 1) //when sixth completes
-    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when sixth completes
+    expectWarmed(invocationNamespace.name, concurrentAction) //when sixth completes
 
     // back to ready
     expectMsg(Transition(machine, Running, Ready))
@@ -611,7 +599,7 @@ class ContainerProxyTests
 
     // Note that there are no intermediate state changes
     //second one will succeed
-    run(machine, Ready, false)
+    run(machine, Ready)
 
     //With exception of the error on first run, the assertions should be the same as in
     //         `run an action and continue with a next run without pausing the container`
@@ -763,7 +751,6 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -802,7 +789,6 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -840,7 +826,6 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectWarmed(invocationNamespace.name, action, 1)
     expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
@@ -978,8 +963,7 @@ class ContainerProxyTests
 
     // Finish /init, note that /run and log-collecting happens nonetheless
     initPromise.success(Interval.zero)
-    expectWarmed(invocationNamespace.name, action, 1)
-    expectWarmed(invocationNamespace.name, action, 0)
+    expectWarmed(invocationNamespace.name, action)
     expectMsg(Transition(machine, Running, Ready))
 
     // Remove the container after the transaction finished
@@ -1062,7 +1046,7 @@ class ContainerProxyTests
   class TestContainer(initPromise: Option[Promise[Interval]] = None,
                       runPromises: Seq[Promise[(Interval, ActivationResponse)]] = Seq.empty)
       extends Container {
-    protected val id = ContainerId("testcontainer")
+    protected[core] val id = ContainerId("testcontainer")
     protected val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher

@@ -137,7 +137,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       }
 
       //none of the actions will complete till the requestCount is reached
-      Await.result(Future.sequence(runs), 30.seconds).foreach { run =>
+      Await.result(Future.sequence(runs), 50.seconds).foreach { run =>
         withActivation(wsk.activation, run) { response =>
           val logs = response.logs.get
           withClue(logs) { logs.size shouldBe 0 }

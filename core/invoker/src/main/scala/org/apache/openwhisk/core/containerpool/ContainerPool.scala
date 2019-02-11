@@ -22,7 +22,6 @@ import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
-
 import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.util.Try
@@ -79,7 +78,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     }
   }
 
-  def logContainerStart(r: Run, containerState: String, activeActivations: Int): Unit = {
+  def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
     val actionName = r.action.name.name
     val maxConcurrent = r.action.limits.concurrency.maxConcurrent
@@ -88,7 +87,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     r.msg.transid.mark(
       this,
       LoggingMarkers.INVOKER_CONTAINER_START(containerState),
-      s"containerStart containerState: $containerState ($activeActivations of max $maxConcurrent) action: $actionName namespace: $namespaceName activationId: $activationId",
+      s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
       akka.event.Logging.InfoLevel)
   }
 
@@ -112,9 +111,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
-              .map(container => (container, "warm"))
+              .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
               .orElse(
-                // There was no warm container. Try to take a prewarm container or a cold container.
+                // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
                 if (hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)) {
@@ -140,15 +139,26 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
         createdContainer match {
           case Some(((actor, data), containerState)) =>
+            //increment active count before storing in pool map
+            val newData = data.nextRun(r)
+            val container = newData.getContainer
+
+            if (newData.activeActivationCount < 1) {
+              logging.error(this, s"invalid activation count < 1 ${newData}")
+            }
+
             //only move to busyPool if max reached
-            if (data.activeActivationCount + 1 >= r.action.limits.concurrency.maxConcurrent) {
+            if (!newData.hasCapacity()) {
               if (r.action.limits.concurrency.maxConcurrent > 1) {
                 logging.info(
                   this,
-                  s"container for ${r.action} is now busy with ${data.activeActivationCount + 1} activations")
+                  s"container ${container} is now busy with ${newData.activeActivationCount} activations")
               }
-              busyPool = busyPool + (actor -> data)
+              busyPool = busyPool + (actor -> newData)
               freePool = freePool - actor
+            } else {
+              //update freePool to track counts
+              freePool = freePool + (actor -> newData)
             }
             // Remove the action that get's executed now from the buffer and execute the next one afterwards.
             if (isResentFromBuffer) {
@@ -159,7 +169,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
             }
             actor ! r // forwards the run request to the container
-            logContainerStart(r, containerState, data.activeActivationCount)
+            logContainerStart(r, containerState, newData.activeActivationCount, container)
           case None =>
             // this can also happen if createContainer fails to start a new container, or
             // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
@@ -193,34 +203,27 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       }
 
     // Container is free to take more work
-    case NeedWork(data: WarmedData) =>
+    case NeedWork(warmData: WarmedData) =>
       feed ! MessageFeed.Processed
-      if (data.activeActivationCount < data.action.limits.concurrency.maxConcurrent) {
+      val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
+      val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
+      if (newData.activeActivationCount < 0) {
+        logging.error(this, s"invalid activation count after warming < 1 ${newData}")
+      }
+      if (newData.hasCapacity()) {
         //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
-        freePool = freePool + (sender() -> data)
+        freePool = freePool + (sender() -> newData)
         if (busyPool.contains(sender())) {
           busyPool = busyPool - sender()
-          if (data.action.limits.concurrency.maxConcurrent > 1) {
+          if (newData.action.limits.concurrency.maxConcurrent > 1) {
             logging.info(
               this,
-              s"container for ${data.action} is no longer busy with ${data.activeActivationCount} activations")
+              s"concurrent container ${newData.container} is no longer busy with ${newData.activeActivationCount} activations")
           }
         }
       } else {
-        //update freePool IFF it was previously PreWarmedData (it is still free, but now has WarmedData)
-        //otherwise update busyPool to reflect the updated activation counts
-        freePool.get(sender()) match {
-          case Some(_: PreWarmedData) =>
-            freePool = freePool + (sender() -> data)
-          case None =>
-            if (data.action.limits.concurrency.maxConcurrent > 1) {
-              logging.info(
-                this,
-                s"container for ${data.action} is now busy with ${data.activeActivationCount} activations")
-            }
-            busyPool = busyPool + (sender() -> data)
-          case _ => //was free+WarmedData - do nothing
-        }
+        busyPool = busyPool + (sender() -> newData)
+        freePool = freePool - sender()
       }
 
     // Container is prewarmed and ready to take work
@@ -342,12 +345,23 @@ object ContainerPool {
   protected[containerpool] def schedule[A](action: ExecutableWhiskAction,
                                            invocationNamespace: EntityName,
                                            idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
-    idles.find {
-      case (_, WarmedData(_, `invocationNamespace`, `action`, _, activeActivationCount))
-          if activeActivationCount < action.limits.concurrency.maxConcurrent =>
-        true
-      case _ => false
-    }
+    idles
+      .find {
+        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+        case _                                                                                => false
+      }
+      .orElse {
+        idles.find {
+          case (_, c @ WarmingData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+          case _                                                                                 => false
+        }
+      }
+      .orElse {
+        idles.find {
+          case (_, c @ WarmingColdData(`invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
+          case _                                                                                  => false
+        }
+      }
   }
 
   /**

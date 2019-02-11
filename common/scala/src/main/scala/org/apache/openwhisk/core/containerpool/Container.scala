@@ -223,6 +223,10 @@ trait Container {
   private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {
     toClose.map(_.close()).getOrElse(Future.successful(()))
   }
+
+  /** This is so that we can easily log the container id during ContainerPool.logContainerStart().
+   *  Null check is here since some tests use stub[Container] so id is null during those tests. */
+  override def toString() = if (id == null) "no-container-id" else id.toString
 }
 
 /** Indicates a general error with the container */
