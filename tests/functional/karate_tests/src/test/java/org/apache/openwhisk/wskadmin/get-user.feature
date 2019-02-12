@@ -7,8 +7,8 @@ Feature: Create Namespace
   Background:
     * configure ssl = true
     * def nameSpace = 'guest'
-    * def base64encoding = read('classpath:com/karate/openwhisk/utils/base64.js')
-    #* def authFile = '/com/karate/openwhisk/utils'
+    * def base64encoding = read('classpath:org/apache/openwhisk/utils/base64.js')
+
 
   Scenario: Get NS credentials
     Given url AdminBaseUrl

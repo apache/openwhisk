@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.karate.openwhisk.smoketests;
+package org.apache.openwhisk.smoketests;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;

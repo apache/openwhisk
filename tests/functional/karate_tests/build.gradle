@@ -1,7 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'maven'
 
-group = 'com.karate.openwhisk'
+group = 'org.apache.openwhisk'
 version = '1.0-SNAPSHOT'
 
 sourceCompatibility = 1.8

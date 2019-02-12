@@ -10,13 +10,13 @@ Feature: This feature file will test all the wsk functions
     * configure ssl = true
     * def nameSpace = 'guest'
     * def params = '?blocking=true&result=false'
-    * def script = call read('classpath:com/karate/openwhisk/functions/hello-world.js')
-    * def base64encoding = read('classpath:com/karate/openwhisk/utils/base64.js')
+    * def script = call read('classpath:org/apache/openwhisk/functions/hello-world.js')
+    * def base64encoding = read('classpath:org/apache/openwhisk/utils/base64.js')
 
   Scenario: TC01-As a user I want to verify and validate create, invoke and delete action
     # Get User Auth
     * print "Test case started-->verify and validate create, invoke and delete action"
-    * def getNSCreds = call read('classpath:com/karate/openwhisk/wskadmin/get-user.feature') {nameSpace:'#(nameSpace)'}
+    * def getNSCreds = call read('classpath:org/apache/openwhisk/wskadmin/get-user.feature') {nameSpace:'#(nameSpace)'}
     * def result = getNSCreds.result
     * def Auth = base64encoding(result)
     * print "Got the Creds for the guest user"
@@ -47,7 +47,7 @@ Feature: This feature file will test all the wsk functions
     * print 'Action name for the created action ' + actName
     
     #Invoke a Blocking Action and asset the activationID
-    * def webhooks = callonce read('classpath:com/karate/openwhisk/utils/sleep.feature') {sheepCount:'5'}
+    * def webhooks = callonce read('classpath:org/apache/openwhisk/utils/sleep.feature') {sheepCount:'5'}
     * string payload = requestBody
     * def requestBody = {}    
     * def path = '/api/v1/namespaces/'+nameSpace+'/actions/'+actionName+params
