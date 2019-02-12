@@ -148,6 +148,10 @@ http {
             rewrite /cli/go/download(.*) /cli$1 permanent;
         }
 
+        location /metrics {
+            deny all;
+        }
+
 {% if nginx.htmldir %}
         location /ui {
             alias /usr/share/nginx/html;

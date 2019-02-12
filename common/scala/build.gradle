@@ -71,6 +71,9 @@ dependencies {
     compile ('io.kamon:kamon-system-metrics_2.12:1.0.0') {
         exclude group: 'io.kamon', module: 'sigar-loader'
     }
+    compile ('io.kamon:kamon-prometheus_2.12:1.1.1'){
+        exclude group: 'org.nanohttpd'
+    }
     //for mesos
     compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.17'
 
