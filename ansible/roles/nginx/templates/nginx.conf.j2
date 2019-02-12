@@ -33,6 +33,24 @@ http {
     proxy_ssl_certificate_key /etc/nginx/{{ controller.ssl.key }};
 {% endif %}
 
+    gzip_static on;
+    types {
+        text/html                                        html htm shtml;
+        text/css                                         css;
+        text/xml                                         xml;
+        image/gif                                        gif;
+        image/jpeg                                       jpeg jpg;
+        image/png                                        png;
+        image/svg+xml                                    svg svgz;
+        image/x-icon                                     ico;
+        image/x-jng                                      jng;
+        image/x-ms-bmp                                   bmp;
+        application/javascript                           js;
+        application/json                                 json;
+        application/java-archive                         jar war ear;
+        application/pdf                                  pdf;
+    }
+
     upstream controllers {
         # fail_timeout: period of time the server will be considered unavailable
         # Mark the controller as unavailable for at least 60 seconds, to not get any requests during restart.
@@ -115,18 +133,29 @@ http {
         location /blackbox.tar.gz {
             return 301 https://github.com/apache/incubator-openwhisk-runtime-docker/releases/download/sdk%400.1.0/blackbox-0.1.0.tar.gz;
         }
-        # leaving this for a while for clients out there to update to the new endpoint
-        location /blackbox-0.1.0.tar.gz {
-            return 301 /blackbox.tar.gz;
-        }
 
         location /OpenWhiskIOSStarterApp.zip {
             return 301 https://github.com/apache/incubator-openwhisk-client-swift/releases/download/0.3.0/starterapp-0.3.0.zip;
         }
 
-        location /cli/go/download {
+        location /cli {
             autoindex on;
-            root /etc/nginx;
+            alias /etc/nginx/cli/go/download;
         }
+
+        # this is here for backward compatibility
+        location /cli/go/download {
+            rewrite /cli/go/download(.*) /cli$1 permanent;
+        }
+
+        location /metrics {
+            deny all;
+        }
+
+{% if nginx.htmldir %}
+        location /ui {
+            alias /usr/share/nginx/html;
+        }
+{% endif %}
     }
 }

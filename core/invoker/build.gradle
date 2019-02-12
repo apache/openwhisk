@@ -26,6 +26,11 @@ apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-invoker"
+ext.coverageJars = [
+    "${buildDir}/libs/${project.archivesBaseName}-$version-scoverage.jar",
+    "${project(':common:scala').buildDir.absolutePath}/libs/openwhisk-common-$version-scoverage.jar"
+]
+distDockerCoverage.dependsOn ':common:scala:jarScoverage', 'jarScoverage'
 
 repositories {
     mavenCentral()
@@ -35,7 +40,9 @@ dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 
-    compile 'org.apache.curator:curator-recipes:4.0.0', { exclude group: 'org.apache.zookeeper', module:'zookeeper' }
+    compile ("org.apache.curator:curator-recipes:${gradle.curator.version}") {
+        exclude group: 'org.apache.zookeeper', module:'zookeeper'
+    }
     compile ('org.apache.zookeeper:zookeeper:3.4.11') {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
@@ -48,4 +55,4 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-mainClassName = "whisk.core.invoker.Invoker"
+mainClassName = "org.apache.openwhisk.core.invoker.Invoker"

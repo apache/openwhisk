@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# Grant the specified users permissions to the specified database.
+# dbName - name of the database
+# dbHostname - hostname of the database
+# dbAdminUser - admin user, which is able to grant permissions
+# dbAdminPassword - password of the admin user, which is able to grant permissions
+# admins - all users which should have admin access on this database afterwards
+# readers - all users which should have read access on this database afterwards
+# writers - all users which should have write access on this database afterwards
+
+- set_fact:
+    dbUser: "{{ dbAdminUser | default(db.credentials.admin.user) }}"
+    dbPassword: "{{ dbAdminPassword | default(db.credentials.admin.pass) }}"
+    dbHost: "{{ dbHostname | default(db.host) }}"
+
+# If a component uses admin credentials, the admin user will not be added to the list (as it already has all access rights).
+- set_fact:
+    readerList: "{{ readers | default([]) | difference([dbUser]) }}"
+    writerList: "{{ writers | default([]) | difference([dbUser]) }}"
+    adminList: "{{ admins | default([]) | difference([dbUser]) }}"
+
+# http://docs.couchdb.org/en/2.0.0/api/database/security.html
+- name: grant permissions for CouchDB
+  uri:
+    url: "{{ db.protocol }}://{{ dbHost }}:{{ db.port }}/{{ dbName }}/_security"
+    method: PUT
+    status_code: 200
+    body_format: json
+    body: |
+      {
+        "admins": {
+          "names": [ "{{ adminList | join('", "') }}" ],
+          "roles": []
+        },
+        "members": {
+          "names": [ "{{ readerList | union(writerList) | join('", "') }}" ],
+          "roles": []
+        }
+      }
+    user: "{{ dbUser }}"
+    password: "{{ dbPassword }}"
+    force_basic_auth: yes
+  when: db.provider == 'CouchDB'
+
+# https://console.bluemix.net/docs/services/Cloudant/api/authorization.html#authorization
+- name: grant permissions for Cloudant
+  uri:
+    url: "{{ db.protocol }}://{{ dbHost }}:{{ db.port }}/{{ dbName }}/_security"
+    method: PUT
+    status_code: 200
+    body_format: json
+    body: |
+      {
+        "cloudant": {
+          {% for item in readerList | union(writerList) | union(adminList) %}"{{ item }}": [ {% if item in readerList %}"_reader"{% if item in writerList %}, "_writer"{% if item in adminList %}, "_admin"{% endif %}{% endif %}{% endif %} ], {% endfor %}
+        }
+      }
+    user: "{{ dbUser }}"
+    password: "{{ dbPassword }}"
+    force_basic_auth: yes
+  when: db.provider == 'Cloudant'

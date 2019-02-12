@@ -1,14 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <immediateFlush>false</immediateFlush>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-            <immediateFlush>false</immediateFlush>
+        </encoder>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <immediateFlush>false</immediateFlush>
+        <file>build/gatling.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
     <!-- This will log the details of the failed requests -->
-    <logger name="io.gatling.http.ahc" level="DEBUG" />
+    <logger name="io.gatling.http.ahc" level="DEBUG" additivity="false" >
+        <appender-ref ref="FILE" />
+    </logger>
+
     <root level="WARN">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE" />
     </root>
 </configuration>

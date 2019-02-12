@@ -13,12 +13,12 @@
 # fetches the revision of previous view (to update it) if it exists
 - name: check for {{ doc['_id'] }} document in {{ dbName }} database
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}/{{ doc['_id'] }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}/{{ doc['_id'] }}"
     return_content: yes
     method: GET
     status_code: 200, 404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   register: response
 
@@ -44,12 +44,12 @@
 
 - name: recreate or update the document on the {{ dbName }} database
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: POST
     status_code: 200, 201
     body_format: json
     body: "{{ document }}"
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: create == True

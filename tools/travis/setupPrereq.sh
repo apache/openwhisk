@@ -22,6 +22,7 @@ set -e
 SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
+RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 
 cd $ROOTDIR/ansible
 
@@ -31,5 +32,5 @@ $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
 
-$ANSIBLE_CMD properties.yml
+$ANSIBLE_CMD properties.yml -e manifest_file="$RUNTIMES_MANIFEST"
 echo "Time taken for ${0##*/} is $SECONDS secs"

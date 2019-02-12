@@ -37,7 +37,7 @@ import common.WskTestHelpers
 import common.rest.HttpConnection
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
+import org.apache.openwhisk.core.WhiskConfig
 import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
@@ -67,7 +67,7 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
 
   val timeout = 15.seconds
 
-  def retry[T](fn: => T) = whisk.utils.retry(fn, 15, Some(1.second))
+  def retry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 15, Some(1.second))
 
   def updateAction(name: String, code: String, controllerInstance: Int = 0) = {
     val body = JsObject(

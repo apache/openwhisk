@@ -5,6 +5,8 @@
 
 - name: "pull the redis:{{ redis.version }} image"
   shell: "docker pull redis:{{ redis.version }}"
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -17,10 +19,15 @@
     restart_policy: "{{ docker.restart.policy }}"
     ports:
       - "{{ redis.port }}:6379"
+    env:
+      TZ: "{{ docker.timezone }}"
+    command:
+      /bin/sh -c
+      "docker-entrypoint.sh --requirepass {{ redis.password }}"
 
 - name: wait until redis is up and running
-  action: shell (echo PING; sleep 1) | nc {{ ansible_host }} {{ redis.port }}
+  shell: "docker run --link redis:redis --rm redis:{{ redis.version }} redis-cli -h redis -p 6379 -a {{ redis.password }} ping"
   register: result
-  until: (result.rc == 0) and (result.stdout == '+PONG')
+  until: (result.rc == 0) and (result.stdout == 'PONG')
   retries: 12
   delay: 5

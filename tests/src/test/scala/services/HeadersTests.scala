@@ -29,7 +29,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 import common.TestUtils
 import common.WhiskProperties
-import common.rest.{HttpConnection, WskRest}
+import common.rest.{HttpConnection, WskRestOperations}
 import common.WskProps
 import common.WskTestHelpers
 import akka.http.scaladsl.model.Uri
@@ -60,12 +60,17 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
   implicit val materializer = ActorMaterializer()
 
   val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
-  println(loadConfigOrThrow[String]("whisk"))
   val whiskAuth = WhiskProperties.getBasicAuth
   val creds = BasicHttpCredentials(whiskAuth.fst, whiskAuth.snd)
   val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))
   val allowOrigin = `Access-Control-Allow-Origin`.*
-  val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
+  val allowHeaders = `Access-Control-Allow-Headers`(
+    "Authorization",
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "User-Agent")
   val url = Uri(s"$controllerProtocol://${WhiskProperties.getBaseControllerAddress()}")
 
   def request(method: HttpMethod, uri: Uri, headers: Option[Seq[HttpHeader]] = None): Future[HttpResponse] = {
@@ -82,7 +87,7 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
 
   val basePath = Path("/api/v1")
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
 
   /**
    * Checks, if the required headers are in the list of all headers.

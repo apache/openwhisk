@@ -16,6 +16,7 @@
  */
 import groovy.json.JsonSlurper
 import groovy.text.SimpleTemplateEngine
+import org.apache.commons.lang3.SystemUtils
 
 assert args : "Expecting the OpenWhisk home directory to passed"
 owHome = args[0]
@@ -26,7 +27,7 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
     <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea" />
     <option name="MAIN_CLASS_NAME" value="$main" />
     <option name="VM_PARAMETERS" value="$sysProps" />
-    <option name="PROGRAM_PARAMETERS" value="0" />
+    <option name="PROGRAM_PARAMETERS" value="$programParams" />
     <option name="WORKING_DIRECTORY" value="$workingDir" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
     <option name="ALTERNATIVE_JRE_PATH" />
@@ -44,8 +45,8 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
 '''
 
 def meta = [
-        controller : [main:"whisk.core.controller.Controller"],
-        invoker : [main:"whisk.core.invoker.Invoker"]
+        controller : [main:"org.apache.openwhisk.core.controller.Controller"],
+        invoker : [main:"org.apache.openwhisk.core.invoker.Invoker"]
 ]
 
 //Get names of all running containers
@@ -57,13 +58,15 @@ Map controllerEnv = null
 Map invokerEnv = null
 
 containerNames.each{cn ->
+
     //Inspect the specific container
     def inspectResult = "docker inspect $cn".execute().text
     def json = new JsonSlurper().parseText(inspectResult)
 
     def imageName = json[0].'Config'.'Image'
     if (imageName.contains("controller") || imageName.contains("invoker")){
-        def mappedPort = json.'NetworkSettings'.'Ports'.'8080/tcp'[0][0].'HostPort'
+        // pre-configure the local ports for controller and invoker
+        def mappedPort = imageName.contains("controller") ? '10001' : '12001'
 
         def envBaseMap = getEnvMap(json[0].'Config'.'Env')
         String type
@@ -84,6 +87,14 @@ containerNames.each{cn ->
 
         //Prepare system properties
         def sysProps = getSysProps(envMap,type)
+        // disable log collection. See more at: https://github.com/apache/incubator-openwhisk/issues/3195
+        sysProps += " -Dwhisk.log-limit.max=0 -Dwhisk.log-limit.std=0"
+        // disable https protocol for controller and invoker
+        sysProps = sysProps.replaceAll("protocol=https", "protocol=http")
+        if (SystemUtils.IS_OS_MAC){
+            sysProps = sysProps.replaceAll("use-runc=True", "use-runc=False")
+            sysProps += " -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider"
+        }
 
         def templateBinding = [
                 main: meta[type].main,
@@ -92,7 +103,8 @@ containerNames.each{cn ->
                 env: encodeForXML(envMap),
                 sysProps : sysProps,
                 USER_HOME : '$USER_HOME$',
-                workingDir : getWorkDir(type)
+                workingDir : getWorkDir(type),
+                programParams: imageName.contains("controller") ? '0' : '--id  0'
         ]
 
         def engine = new SimpleTemplateEngine()
@@ -174,7 +186,7 @@ def getSysProps(def envMap, String type){
     def props = config[type].props
     def sysProps = transformEnv(envMap)
     sysProps.putAll(props)
-    sysProps.collect{k,v -> "-D$k='$v'"}.join(' ').replace('\'','')
+    sysProps.collect{k,v -> "-D$k='$v'"}.join(' ').replace('"','').replace('\'','')
 }
 
 //Implements the logic from transformEnvironment.sh
@@ -213,7 +225,7 @@ def transformEnv(Map<String, String> envMap){
  * This method converts it to map and add provided overrides with overrides from config
  */
 def getEnv(Map envMap, String type, Map overrides){
-    def ignoredKeys = ['PATH']
+    def ignoredKeys = ['PATH','JAVA_HOME','JAVA_VERSION','JAVA_TOOL_OPTIONS']
     def overridesFromConfig = config[type].env
     Map sortedMap = new TreeMap(envMap)
     sortedMap.putAll(overrides)

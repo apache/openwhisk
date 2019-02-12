@@ -37,13 +37,17 @@ import sys
 import time
 import traceback
 import argparse
-import httplib
+if sys.version_info.major >= 3:
+    from http.client import HTTPConnection, HTTPSConnection, TEMPORARY_REDIRECT, OK
+    from urllib.parse import urlparse
+else:
+    from httplib import HTTPConnection, HTTPSConnection, TEMPORARY_REDIRECT, OK
+    from urlparse import urlparse
 import re
 import threading
 import json
 from xml.dom import minidom
 from subprocess import Popen, PIPE, STDOUT
-from urlparse import urlparse
 
 def main():
     exitCode = 0
@@ -64,7 +68,8 @@ def parseArgs():
     parser = argparse.ArgumentParser(description='tool for analyzing logs from CI')
     subparsers = parser.add_subparsers(title='available commands', dest='cmd')
 
-    parser.add_argument('job', help='job number')
+    parser.add_argument('job', help='job number; for matrix jobs add the matrix index after a period (e.g., 401881768.2)')
+
     parser.add_argument('-b', '--build', help='build name', default='travis')
     parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
     parser.add_argument('-i', '--input-file', help='read logs from file rather than CI', action='store_true', dest='ifile')
@@ -87,9 +92,9 @@ def parseArgs():
 def request(method, urlString, body = "", headers = {}, auth = None, verbose = False):
     url = urlparse(urlString)
     if url.scheme == 'http':
-        conn = httplib.HTTPConnection(url.netloc)
+        conn = HTTPConnection(url.netloc)
     else:
-        conn = httplib.HTTPSConnection(url.netloc)
+        conn = HTTPSConnection(url.netloc)
 
     if verbose:
         print("%s %s" % (method, urlString))
@@ -124,22 +129,48 @@ def shell(cmd, data = None, verbose = False):
 
 def getTravisHeaders():
     return {'User-Agent': 'wsk citool/0.0.1',
+            'Travis-API-Version': 3,
             'Accept': 'application/vnd.travis-ci.2+json'
     }
+
+def getTravisMatrixId(parts, values):
+    N = len(values)
+    if len(parts) == 1:
+        return -1
+    else:
+        try:
+            matrix = int(parts[1]) -1
+            if matrix < 0:
+                print('Matrix id must be positive. Valid values are [1..%s].' % N)
+                exit(-1)
+            if matrix >= N:
+                print('Matrix id is out of bounds. Valid values are [1..%s].' % N)
+                exit(-1)
+            return matrix
+        except Exception:
+            print('Matrix id is not an integer as expected. Valid values are [1..%s].' % N)
+            exit(-1)
 
 def getJobUrl(args):
     if args.build.lower() == 'travis':
         # Get build information
-        buildUrl = '%s/builds/%s' % (args.url, args.job)
+        parts = args.job.split('.')
+        jobid = parts[0]
+        if len(parts) > 2:
+            print('Job is malformed')
+            exit(-1)
+
+        buildUrl = '%s/build/%s' % (args.url, jobid)
         buildRes = request('get', buildUrl, headers = getTravisHeaders(), verbose = args.verbose)
         body = validateResponse(buildRes)
         try:
             body = json.loads(body)
-            job = body['build']['job_ids'][-1]
+            index = getTravisMatrixId(parts, body['jobs'])
+            job = body['jobs'][index]['id']
         except Exception:
-            print('expected response to contain build and job-ids properties in %s' % body)
+            print('Expected response to contain build and job-ids properties in %s' % body)
             exit(-1)
-        url = '%s/jobs/%s' % (args.url, job)
+        url = '%s/job/%s' % (args.url, job)
     else: # assume jenkins
         url = '%s/job/%s/%s' % (args.url, args.build, args.job)
     return url
@@ -164,8 +195,8 @@ def monitorOnce(args):
     else:
         if args.build.lower() == 'travis':
             url = '%s/log.txt' % getJobUrl(args)
-            res = request('get', url, verbose = args.verbose)
-            if res.status == httplib.TEMPORARY_REDIRECT:
+            res = request('get', url, headers = getTravisHeaders(), verbose = args.verbose)
+            if res.status == TEMPORARY_REDIRECT:
                 url = res.getheader('location')
                 res = request('get', url, headers = getTravisHeaders(), verbose = args.verbose)
         else: # assume jenkins
@@ -178,7 +209,7 @@ def monitorOnce(args):
         file = open('%s-console.log' % args.job, 'w')
         file.write(body)
         file.close()
-    if args.ifile or res.status == httplib.OK:
+    if args.ifile or res.status == OK:
         grepForFailingTests(args, body)
         return reportBuildStatus(args, body)
     elif args.ofile is False:
@@ -188,7 +219,7 @@ def monitorOnce(args):
 def validateResponse(res):
     body = res.read()
 
-    if res.status != httplib.OK:
+    if res.status != OK:
         if body.startswith('<'):
             dom = minidom.parseString(body)
             print(dom.toprettyxml()),
@@ -196,7 +227,7 @@ def validateResponse(res):
             print(body)
         exit(res.status)
     elif not body:
-        print('build log is empty')
+        print('Build log is empty.')
         exit(-1)
     else:
         return body
@@ -206,21 +237,24 @@ def grepForFailingTests(args, body):
     # check that tests ran
     (time, output, error) = shell(cmd, body, args.verbose)
     if output == '':
-        print('no tests detected')
+        print('No tests detected.')
     # no tests: either build failure or task not yet reached, skip further check
     else:
         cmd = 'grep -E "^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
         (time, output, error) = shell(cmd, body, args.verbose)
         if output == '':
-            print('all tests passing')
+            print('All tests passing.')
         else:
             print(output.replace('&gt;', '>')),
 
 def reportBuildStatus(args, body):
-    lines = body.rstrip('\n').rsplit('\n', 1)
+    lines = body.decode('utf8').rstrip('\n').rsplit('\n', 1)
+
     if len(lines) == 2:
         output = lines[1]
         output = re.sub('<[^<]+?>', '', output).strip()
+    else:
+        output = None
 
     if output and ('Finished: ' in output or output.startswith('Done.') or ('exceeded' in output and 'terminated' in output)):
         print(output)
@@ -246,7 +280,7 @@ def cat(args):
         url = '%s/artifact/%s/%s/%s_logs.log' % (getJobUrl(args), args.artifactPath, component, component)
         res = request('get', url, verbose = args.verbose)
         body = res.read()
-        if res.status == httplib.OK:
+        if res.status == OK:
             return body
         else:
             return ''
@@ -267,7 +301,7 @@ def cat(args):
         joined = file.read()
         file.close()
     elif args.build.lower == 'travis':
-        print('feature not yet supported for Travis builds')
+        print('Feature not yet supported for Travis builds.')
         return 2
     else:
         components = {

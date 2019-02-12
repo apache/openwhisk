@@ -29,6 +29,8 @@ export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
 
 ./setupPrereq.sh
 
+cat "$ROOTDIR/tests/src/test/resources/application.conf"
+
 ./distDocker.sh
 
 ./runTests.sh

@@ -44,7 +44,7 @@ def deleteLogsFromOldActivations(args):
     while True:
         activations = db.view("logCleanup/byDateWithLogs", limit=args.docsPerRequest, start_key=0, end_key=endkey, include_docs=True)
         if activations:
-            activationsWithoutLogs = map(removeLogFromActivation, activations)
+            activationsWithoutLogs = [removeLogFromActivation(activation) for activation in activations]
             db.update(activationsWithoutLogs)
         else:
             return

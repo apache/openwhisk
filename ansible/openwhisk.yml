@@ -2,15 +2,19 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 ---
 # This playbook deploys an Openwhisk stack.
-# It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
-# It assumes that wipe.yml have being deployed at least once
+# It assumes you have already set up your database with the respective db provider
+# playbook (currently cloudant.yml or couchdb.yml).
+# It assumes that wipe.yml have being deployed at least once.
+
 
 - import_playbook: kafka.yml
+  when: not lean
 
 - import_playbook: controller.yml
 
 - import_playbook: invoker.yml
+  when: not lean
 
 - import_playbook: edge.yml
 
-- import_playbook: routemgmt.yml
+- import_playbook: downloadcli.yml

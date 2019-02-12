@@ -86,6 +86,14 @@ def main():
             exitCode = 1
     sys.exit(exitCode)
 
+def str_to_bool(value):
+    if value.lower() in ("yes", "true"):
+        return True
+    elif value.lower() in ("no", "false"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("%s is not a valid boolean." % value)
+
 def parseArgs():
     parser = argparse.ArgumentParser(description='OpenWhisk admin command line tool')
     parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
@@ -98,6 +106,9 @@ def parseArgs():
     subcmd.add_argument('subject', help='the subject to create')
     subcmd.add_argument('-u', '--auth', help='the uuid:key to initialize the subject authorization key with')
     subcmd.add_argument('-ns', '--namespace', help='create key for given namespace instead (defaults to subject id')
+    subcmd.add_argument('-r', '--revoke', help='revoke existing key and create a new one', action='store_true')
+    subcmd.add_argument('-g', '--genonly', help='generate a uuid and key but do not store them in the database', action='store_true')
+    subcmd.add_argument('-s', '--silent', help='do not should the new key on the console', action='store_true')
 
     subcmd = subparser.add_parser('delete', help='delete a user')
     subcmd.add_argument('subject', help='the subject to delete')
@@ -131,6 +142,8 @@ def parseArgs():
     subcmd.add_argument('--invocationsPerMinute', help='invocations per minute allowed', type=int)
     subcmd.add_argument('--firesPerMinute', help='trigger fires per minute allowed', type=int)
     subcmd.add_argument('--concurrentInvocations', help='concurrent invocations allowed for this namespace', type=int)
+    subcmd.add_argument('--allowedKinds', help='list of runtime kinds allowed in this namespace', nargs='+', type=str)
+    subcmd.add_argument('--storeActivations', help='enable or disable storing of activations to datastore for this namespace', default=None, type=str_to_bool)
 
     subcmd = subparser.add_parser('get', help='get limits for a given namespace (if none exist, system defaults apply)')
     subcmd.add_argument('namespace', help='the namespace to get limits for')
@@ -234,6 +247,10 @@ def createUserCmd(args, props):
         uid = str(uuid.uuid4())
         key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
 
+    if args.genonly:
+        print('%s:%s' % (uid, key))
+        return 0
+
     (doc, res) = getDocumentFromDb(props, args.subject, args.verbose)
     if doc is None:
         doc = {
@@ -256,6 +273,13 @@ def createUserCmd(args, props):
                     'uuid': uid,
                     'key': key
                 })
+            elif args.revoke:
+                if len(namespaces) == 1:
+                    namespaces[0]['uuid'] = uid
+                    namespaces[0]['key'] = key
+                else:
+                    print('Namespace is not unique')
+                    return 1
             else:
                 print('Namespace already exists')
                 return 1
@@ -265,7 +289,8 @@ def createUserCmd(args, props):
 
     res = insertIntoDatabase(props, doc, args.verbose)
     if res.status in [201, 202]:
-        print('%s:%s' % (uid, key))
+        if not args.silent:
+            print('%s:%s' % (uid, key))
     else:
         print('Failed to create subject (%s)' % res.read().strip())
         return 1
@@ -516,7 +541,7 @@ def setLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
     doc = dbDoc or {'_id': docId}
 
-    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations']
+    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds', 'storeActivations']
     for limit in limits:
         givenLimit = argsDict.get(limit)
         toSet = givenLimit if givenLimit != None else doc.get(limit)
@@ -535,7 +560,7 @@ def getLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
 
     if dbDoc is not None:
-        limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations']
+        limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds', 'storeActivations']
         for limit in limits:
             givenLimit = dbDoc.get(limit)
             if givenLimit != None:

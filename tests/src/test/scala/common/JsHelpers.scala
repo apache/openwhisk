@@ -29,11 +29,11 @@ import spray.json.JsValue
 trait JsHelpers {
   implicit class JsObjectHelper(js: JsObject) {
     def getFieldPath(path: String*): Option[JsValue] = {
-      whisk.utils.JsHelpers.getFieldPath(js, path.toList)
+      org.apache.openwhisk.utils.JsHelpers.getFieldPath(js, path.toList)
     }
 
     def fieldPathExists(path: String*): Boolean = {
-      whisk.utils.JsHelpers.fieldPathExists(js, path.toList)
+      org.apache.openwhisk.utils.JsHelpers.fieldPathExists(js, path.toList)
     }
   }
 }

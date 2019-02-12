@@ -4,5 +4,25 @@
 # This playbook deploys Openwhisk Invokers.
 
 - hosts: invokers
+  vars:
+    #
+    # host_group - usually "{{ groups['...'] }}" where '...' is what was used
+    #   for 'hosts' above.  The hostname of each host will be looked up in this
+    #   group to assign a zero-based index.  That index will be used in concert
+    #   with 'name_prefix' below to assign a host/container name.
+    host_group: "{{ groups['invokers'] }}"
+    #
+    # name_prefix - a unique prefix for this set of invokers.  The prefix
+    #   will be used in combination with an index (determined using
+    #   'host_group' above) to name host/invokers.
+    name_prefix: "invoker"
+    #
+    # invoker_index_base - the deployment process allocates host docker
+    #   ports to individual invokers based on their indices.  This is an
+    #   additional offset to prevent collisions between different invoker
+    #   groups. Usually 0 if only one group is being deployed, otherwise
+    #   something like "{{ groups['firstinvokergroup']|length }}"
+    invoker_index_base: 0
+
   roles:
-  - invoker
+    - invoker

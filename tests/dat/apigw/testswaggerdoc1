@@ -21,6 +21,38 @@
                     "url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http"
                 }
             }
+        },
+        "/pathSecure1": {
+            "get": {
+                "operationId": "get_/pathSecure1",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "CLI_APIGWTEST7_action",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http"
+                }
+            }
+        },
+        "/pathSecure2": {
+            "get": {
+                "operationId": "get_/pathSecure2",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "CLI_APIGWTEST7_action",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http"
+                }
+            }
         }
     },
     "x-ibm-configuration": {
@@ -50,6 +82,52 @@
                                 ],
                                 "operations": [
                                     "get_/path"
+                                ]
+                            },
+                            {
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http",
+                                            "verb": "keep"
+                                        }
+                                    },
+                                    {
+                                        "set-variable": {
+                                            "actions": [
+                                                {
+                                                    "set": "message.headers.X-Require-Whisk-Auth",
+                                                    "value": "my-secret"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "operations": [
+                                    "get_/pathSecure1"
+                                ]
+                            },
+                            {
+                                "execute": [
+                                    {
+                                        "set-variable": {
+                                            "actions": [
+                                                {
+                                                    "set": "message.headers.X-Require-Whisk-Auth",
+                                                    "value": "my-secret"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http",
+                                            "verb": "keep"
+                                        }
+                                    }
+                                ],
+                                "operations": [
+                                    "get_/pathSecure2"
                                 ]
                             }
                         ]

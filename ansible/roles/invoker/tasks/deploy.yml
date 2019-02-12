@@ -5,59 +5,81 @@
 
 - import_tasks: docker_login.yml
 
+- name: get invoker name and index
+  set_fact:
+    invoker_name: "{{ name_prefix ~ ((invoker_index_base | int) + host_group.index(inventory_hostname)) }}"
+    invoker_index: "{{ (invoker_index_base | int) + host_group.index(inventory_hostname) }}"
+
 - name: "pull invoker image with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{item}}:{{docker.image.tag}}"
-  with_items:
-    - '{{ docker.image.prefix }}/invoker'
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/invoker:{{docker.image.tag}}"
   when: docker_registry != ""
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: "pull runtime action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item}}:{{docker.image.tag}}"
-  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image.name') | list | unique }}"
-  when: docker_registry != ""
+###
+# This task assumes that the images are local to the invoker host already if there is no prefix or tag
+# which is usually the case for a local deployment. A distributed deployment will specify the prefix, or tag
+# to pull the images from the appropriate registry. If a runtimes_registry is optionally specified, pull images
+# from there; this permits a (private) registry to be used for caching the images. The registry if specified
+# must include a trailing '/'.
+#
+- name: "pull runtime action images per manifest"
+  shell: "docker pull {{runtimes_registry | default()}}{{inv_item.prefix}}/{{inv_item.name}}:{{inv_item.tag | default()}}"
+  loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
+  when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+  loop_control:
+    loop_var: inv_item
 
-- name: "pull blackboxes action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item.name}}:{{docker.image.tag}}"
-  with_items:
-    - "{{ runtimesManifest.blackboxes }}"
-  when: docker_registry != ""
+###
+# See comment above for pulling other runtime images.
+#
+- name: "pull blackboxes action images per manifest"
+  shell: "docker pull {{runtimes_registry | default()}}{{inv_item.prefix}}/{{inv_item.name}}:{{inv_item.tag | default()}}"
+  loop: "{{ runtimesManifest.blackboxes }}"
+  when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: "determine docker root dir on docker-machine"
   uri:  url="http://{{ ansible_host }}:{{ docker.port }}/info" return_content=yes
   register: dockerInfo_output
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == 'docker-machine'
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output['json'] }}"
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - name: "determine docker root dir"
   shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
   args:
     executable: /bin/bash
   register: dockerInfo_output
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output.stdout|from_json }}"
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - name: ensure invoker log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
 
 - name: ensure invoker config directory is created with permissions
   file:
-    path: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    path: "{{ invoker.confdir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
   become: "{{ invoker.dir.become }}"
@@ -66,24 +88,42 @@
   when: kafka.protocol == 'SSL'
   copy:
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
-    dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    dest: "{{ invoker.confdir }}/{{ invoker_name }}"
+
+- name: copy keystore, key and cert
+  when: invoker.protocol == "https"
+  copy:
+    src: "{{ inv_item }}"
+    mode: 0666
+    dest: "{{ invoker.confdir }}/{{ invoker_name }}"
+  become: "{{ invoker.dir.become }}"
+  with_items:
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.key }}"
+  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.cert }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: check, that required databases exist
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
-    dbName: "{{ item }}"
+    dbName: "{{ inv_item }}"
+    dbUser: "{{ db.credentials.invoker.user }}"
+    dbPass: "{{ db.credentials.invoker.pass }}"
   with_items:
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output['json'] }}"
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - name: "get invoker info"
   shell: |
@@ -96,11 +136,11 @@
   args:
     executable: /bin/bash
   register: invokerInfo_output
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output.stdout|from_json }}"
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - name: determine if more than one invoker is running
   fail:
@@ -109,22 +149,24 @@
 
 - name: determine if index of invoker is same with index of inventory host
   fail:
-    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
+    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ inv_item.Names[0] }}"
   with_items: "{{ invokerInfo }}"
-  when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+  when: not invoker.allowMultipleInstances and inv_item.Names[0] != "/{{ invoker_name }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: copy jmxremote password file
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.password"
+    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.access"
+    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.access"
     mode: 0777
 
 - name: add additional jvm params if jmxremote is enabled
@@ -134,21 +176,21 @@
 
 - name: prepare invoker ports
   set_fact:
-    ports_to_expose: ["{{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080"]
+    invoker_ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ]"
+    invoker_ports_to_expose: "{{ invoker_ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
 
-- name: prepare invoker env
+- name: populate environment variables for invoker
   set_fact:
-    invoker_env:
+    env:
       "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
-      "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}"
       "PORT": 8080
+      "TZ": "{{ docker.timezone }}"
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
@@ -161,12 +203,12 @@
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
-      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
-      "CONFIG_whisk_couchdb_host": "{{ db_host }}"
-      "CONFIG_whisk_couchdb_port": "{{ db_port }}"
-      "CONFIG_whisk_couchdb_username": "{{ db_username }}"
-      "CONFIG_whisk_couchdb_password": "{{ db_password }}"
-      "CONFIG_whisk_couchdb_provider": "{{ db_provider }}"
+      "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
+      "CONFIG_whisk_couchdb_host": "{{ db.host }}"
+      "CONFIG_whisk_couchdb_port": "{{ db.port }}"
+      "CONFIG_whisk_couchdb_username": "{{ db.credentials.invoker.user }}"
+      "CONFIG_whisk_couchdb_password": "{{ db.credentials.invoker.pass }}"
+      "CONFIG_whisk_couchdb_provider": "{{ db.provider }}"
       "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
       "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
       "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}"
@@ -179,20 +221,15 @@
       "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
       "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
       "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
+      "RUNTIMES_REGISTRY": "{{ runtimes_registry | default('') }}"
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
-      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
-      "DOCKER_REGISTRY": "{{ docker_registry }}"
-      "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}"
-      "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}"
       "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
       "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
-      "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
-      "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
+      "CONFIG_whisk_containerPool_userMemory": "{{ hostvars[groups['invokers'][invoker_index | int]].user_memory | default(invoker.userMemory) }}"
+      "CONFIG_whisk_docker_client_parallelRuns": "{{ invoker_parallel_runs | default() }}"
       "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
-      "INVOKER_NAME": "{{ groups['invokers'].index(inventory_hostname) }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
@@ -207,51 +244,102 @@
       "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+      "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
+      "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
+      "CONFIG_whisk_containerPool_akkaClient": "{{ container_pool_akka_client | default('false') }}"
+      "CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0": "__OW_ALLOW_CONCURRENT={{ runtimes_enable_concurrency | default('false') }}"
+      "CONFIG_whisk_invoker_protocol": "{{ invoker.protocol }}"
+      "CONFIG_whisk_invoker_https_keystorePath": "/conf/{{ invoker.ssl.keystore.name }}"
+      "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
+      "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
+      "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
 
 - name: extend invoker dns env
   set_fact:
-    invoker_env: "{{ invoker_env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+    env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ inv_item.0: inv_item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
+  loop_control:
+    loop_var: inv_item
 
 - name: merge extra env variables
   set_fact:
-    invoker_env: "{{ invoker_env | combine(invoker.extraEnv) }}"
+    env: "{{ env | combine(invoker.extraEnv) }}"
+
+- name: include plugins
+  include_tasks: "{{ inv_item }}.yml"
+  with_items: "{{ invoker_plugins | default([]) }}"
+  loop_control:
+    loop_var: inv_item
 
 - name: set invoker volumes
   set_fact:
-    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
-      {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs,\
-      {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf,\
+    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,\
+      {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
+      {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
       {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
+
+- name: set invoker runc volume
+  set_fact:
+    volumes: "{{ volumes }},/run/runc:/run/runc"
+  when: invoker.useRunc == true
 
 - name: define options when deploying invoker on Ubuntu
   set_fact:
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
-- name: start invoker using docker cli
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
+- name: ensure invoker coverage directory is created with permissions
+  file:
+    path: "{{ coverage_logs_dir }}/invoker/{{ inv_item }}"
+    state: directory
+    mode: 0777
+  with_items:
+    - invoker
+    - common
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+  loop_control:
+    loop_var: inv_item
+
+- name: extend invoker volume for coverage
+  set_fact:
+    volumes: "{{ volumes|default('') }},{{ coverage_logs_dir }}/invoker:/coverage"
+  when: coverage_enabled
+
+- name: start invoker
   docker_container:
     userns_mode: "host"
     pid_mode: "host"
     privileged: "yes"
-    name: invoker{{ groups['invokers'].index(inventory_hostname) }}
-    hostname: "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    name: "{{ invoker_name }}"
+    hostname: "{{ invoker_name }}"
     restart_policy: "{{ docker.restart.policy }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
     state: started
     recreate: true
-    env: "{{ invoker_env }}"
+    env: "{{ env }}"
     volumes: "{{ volumes }}"
-    ports: "{{ ports_to_expose }}"
-    command: /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
+    ports: "{{ invoker_ports_to_expose }}"
+    command: /bin/sh -c "exec /init.sh --id {{ invoker_index }} --uniqueName {{ invoker_index }} >> /logs/{{ invoker_name }}_logs.log 2>&1"
+  when: not lean
 
 - name: wait until Invoker is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/ping"
+    url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
+    validate_certs: "no"
+    client_key: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.key }}"
+    client_cert: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.cert }}"
   register: result
   until: result.status == 200
   retries: 12
   delay: 5
+  when: not lean

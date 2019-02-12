@@ -22,9 +22,10 @@
       "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
       "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
-      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
+      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.offsetsTopicReplicationFactor }}"
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
       "KAFKA_NUM_NETWORK_THREADS": "{{ kafka.networkThreads }}"
+      "TZ": "{{ docker.timezone }}"
 
 - name: add kafka non-ssl vars
   when: kafka.protocol != 'SSL'
@@ -51,6 +52,7 @@
       "KAFKA_SSL_TRUSTSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
       "KAFKA_SSL_CLIENT_AUTH": "{{ kafka.ssl.client_authentication }}"
       "KAFKA_SSL_CIPHER_SUITES": "{{ kafka.ssl.cipher_suites | join(',') }}"
+      "KAFKA_SSL_ENABLED_PROTOCOLS": "{{ kafka.ssl.protocols | join(',') }}"
     # The sed script passed in CUSTOM_INIT_SCRIPT fixes a bug in the wurstmeister dcoker image
     # by patching the server.configuration file right before kafka is started.
     # The script adds the missing advertized hostname to the advertised.listener property
@@ -84,12 +86,13 @@
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
     pull: true
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
 
 - name: wait until the kafka server started up
-  shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
+  shell:
+    (echo dump; sleep 1) |
+    nc {{hostvars[groups['zookeepers']|first].ansible_host}} {{zookeeper.port}} |
+    grep /brokers/ids/{{ groups['kafkas'].index(inventory_hostname) }}
   register: result
-  until: (('[Kafka Server ' + (groups['kafkas'].index(inventory_hostname)|string) + '], started') in result.stdout)
+  until: (result.rc == 0)
   retries: 10
   delay: 5

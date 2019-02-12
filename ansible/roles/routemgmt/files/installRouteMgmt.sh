@@ -13,7 +13,6 @@
 # WSK_CLI="$OPENWHISK_HOME/bin/wsk"
 
 set -e
-set -x
 
 if [ $# -eq 0 ]
 then
@@ -40,6 +39,11 @@ fi
 # first argument as the key itself.
 if [ -f "$AUTH" ]; then
     AUTH=`cat $AUTH`
+fi
+
+if [ ! -f $WSK_CLI ]; then
+    echo $WSK_CLI is missing
+    exit 1
 fi
 
 export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes

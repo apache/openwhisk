@@ -22,35 +22,31 @@ import akka.http.scaladsl.model.StatusCodes.BadGateway
 import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.Unauthorized
 import akka.http.scaladsl.model.StatusCodes.NotFound
-
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.TestHelpers
-import common.TestUtils
-import common.rest.WskRest
+import common._
+import common.rest.WskRestOperations
 import common.rest.RestResult
-import common.WskProps
-import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.http.Messages
+import org.apache.openwhisk.core.containerpool.Container
+import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class WskRestBasicTests extends TestHelpers with WskTestHelpers {
+class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
-  implicit val wskprops: common.WskProps = WskProps()
-  val wsk: common.rest.WskRest = new WskRest
+  implicit val wskprops = WskProps()
+  val wsk = new WskRestOperations
+
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
   /**
    * Retry operations that need to settle the controller cache
    */
-  def cacheRetry[T](fn: => T) = whisk.utils.retry(fn, 5, Some(1.second))
+  def cacheRetry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 5, Some(1.second))
 
   behavior of "Wsk REST"
 
@@ -97,7 +93,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
     pack.getFieldJsValue("publish") shouldBe JsBoolean(true)
     pack.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     val packageList = wsk.pkg.list()
-    val packages = packageList.getBodyListJsObject()
+    val packages = packageList.getBodyListJsObject
     packages.exists(pack => RestResult.getField(pack, "name") == name) shouldBe true
   }
 
@@ -120,7 +116,11 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
     }
 
     wsk.action.create(packageName + "/" + actionName, defaultAction, annotations = actionAnnots)
-    val result = wsk.pkg.get(packageName)
+    val result = cacheRetry({
+      val p = wsk.pkg.get(packageName)
+      p.getFieldListJsObject("actions") should have size 1
+      p
+    })
     val ns = wsk.namespace.whois()
     wsk.action.delete(packageName + "/" + actionName)
 
@@ -175,7 +175,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       result.getField("name") shouldBe name
       result.getField("version") shouldBe "0.0.1"
       result.getFieldJsValue("publish") shouldBe JsBoolean(false)
-      result.getFieldJsValue("binding") shouldBe JsObject()
+      result.getFieldJsValue("binding") shouldBe JsObject.empty
       result.getField("invalid") shouldBe ""
   }
 
@@ -233,7 +233,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
     action.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("b"), "value" -> JsString("B")))
     action.getFieldJsValue("publish") shouldBe JsBoolean(false)
     val actionList = wsk.action.list()
-    val actions = actionList.getBodyListJsObject()
+    val actions = actionList.getBodyListJsObject
     actions.exists(action => RestResult.getField(action, "name") == name) shouldBe true
   }
 
@@ -294,13 +294,13 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
           action.create(name, Some(TestUtils.getTestActionFilename("blackbox.zip")), kind = Some("native"))
       }
 
-      val run = wsk.action.invoke(name, Map())
+      val run = wsk.action.invoke(name, Map.empty)
       withActivation(wsk.activation, run) { activation =>
         activation.response.result shouldBe Some(JsObject("msg" -> "hello zip".toJson))
         activation.logs shouldBe defined
         val logs = activation.logs.get.toString
         logs should include("This is an example zip used with the docker skeleton action.")
-        logs should not include ("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX")
+        logs should not include Container.ACTIVATION_LOG_SENTINEL
       }
   }
 
@@ -347,7 +347,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
         "memory" -> JsNumber(256),
-        "logs" -> JsNumber(10))
+        "logs" -> JsNumber(10),
+        "concurrency" -> JsNumber(1))
       result.getField("invalid") shouldBe ""
   }
 
@@ -471,7 +472,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       }
 
       val result = wsk.action.invoke(name, blocking = true, result = true)
-      result.stdout.parseJson.asJsObject shouldBe JsObject()
+      result.stdout.parseJson.asJsObject shouldBe JsObject.empty
   }
 
   it should "create, and invoke an action that times out to ensure the proper response is received" in withAssetCleaner(
@@ -482,7 +483,6 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
     // Sleep time must be larger than 60 seconds to see the expected exit code
     // Set sleep time to a value smaller than allowedActionDuration to not raise a timeout
     val sleepTime = allowedActionDuration - 20.seconds
-    sleepTime should be >= 60.seconds
     val params = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson)
     val res = assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("sleep.js")), timeout = Some(allowedActionDuration))
@@ -497,7 +497,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
         action.create(name, None, docker = Some("fake-container"))
       }
 
-      wsk.action.get(name).stdout should not include (""""code"""")
+      wsk.action.get(name).stdout should not include """"code""""
   }
 
   behavior of "Wsk Trigger REST"
@@ -559,15 +559,15 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       logs shouldBe expectedLogs
     }
 
-    val runWithNoParams = wsk.trigger.fire(triggerName, Map())
+    val runWithNoParams = wsk.trigger.fire(triggerName, Map.empty)
     withActivation(wsk.activation, runWithNoParams) { activation =>
-      activation.response.result shouldBe Some(JsObject())
+      activation.response.result shouldBe Some(JsObject.empty)
       activation.duration shouldBe 0L // shouldn't exist but CLI generates it
       activation.end shouldBe Instant.EPOCH // shouldn't exist but CLI generates it
     }
 
     val triggerList = wsk.trigger.list()
-    val triggers = triggerList.getBodyListJsObject()
+    val triggers = triggerList.getBodyListJsObject
     triggers.exists(trigger => RestResult.getField(trigger, "name") == triggerName) shouldBe true
   }
 
@@ -656,7 +656,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       result.getFieldJsValue("annotations").toString shouldBe "[]"
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
-      result.getFieldJsValue("limits") shouldBe JsObject()
+      result.getFieldJsValue("limits") shouldBe JsObject.empty
       result.getField("invalid") shouldBe ""
   }
 
@@ -679,7 +679,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
 
     val run = wsk.trigger.fire(triggerName)
     withActivation(wsk.activation, run) { activation =>
-      activation.response.result shouldBe Some(JsObject())
+      activation.response.result shouldBe Some(JsObject.empty)
     }
   }
 
@@ -862,7 +862,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
     rule.getField("name") shouldBe ruleName
     RestResult.getField(rule.getFieldJsObject("trigger"), "name") shouldBe triggerName
     RestResult.getField(rule.getFieldJsObject("action"), "name") shouldBe actionName
-    val rules = wsk.rule.list().getBodyListJsObject()
+    val rules = wsk.rule.list().getBodyListJsObject
     rules.exists { rule =>
       RestResult.getField(rule, "name") == ruleName
     } shouldBe true
@@ -938,9 +938,9 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       val result = wsk.rule.get(ruleName)
       val trigger = result.getFieldJsValue("trigger").toString
       trigger should include(triggerName)
-      trigger should not include (actionName)
+      trigger should not include actionName
       val action = result.getFieldJsValue("action").toString
-      action should not include (triggerName)
+      action should not include triggerName
       action should include(actionName)
   }
 
@@ -1001,7 +1001,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
 
   it should "return a list of exactly one namespace" in {
     val lines = wsk.namespace.list()
-    lines.getBodyListString().size shouldBe 1
+    lines.getBodyListString.size shouldBe 1
   }
 
   behavior of "Wsk Activation REST"
@@ -1034,9 +1034,9 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
       result.getFieldJsValue("publish") shouldBe JsBoolean(false)
       result.getField("subject") shouldBe ns
       result.getField("activationId") shouldBe activation.activationId
-      result.getFieldJsValue("start").toString should not be JsObject().toString
-      result.getFieldJsValue("end").toString shouldBe JsObject().toString
-      result.getFieldJsValue("duration").toString shouldBe JsObject().toString
+      result.getFieldJsValue("start").toString should not be JsObject.empty.toString
+      result.getFieldJsValue("end").toString shouldBe JsObject.empty.toString
+      result.getFieldJsValue("duration").toString shouldBe JsObject.empty.toString
       result.getFieldListJsObject("annotations").length shouldBe 0
     }
   }

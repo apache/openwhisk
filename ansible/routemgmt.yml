@@ -3,9 +3,6 @@
 ---
 # This playbook deploys the Openwhisk API Gateway route management actions.
 
-- import_playbook: properties.yml
-
 - hosts: ansible
   roles:
-  - cli-install
   - routemgmt

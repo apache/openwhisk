@@ -5,32 +5,32 @@
 # dbName - name of the database to (re)create
 # forceRecreation - if true, the databases will be deleted (if it exists) and recreated. If false, it will not be recreated.
 
-- name: check if {{ dbName }} with {{ db_provider }} exists
+- name: check if {{ dbName }} with {{ db.provider }} exists
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: HEAD
     status_code: 200,404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   register: response
 
-- name: delete the {{ dbName }} with {{ db_provider }}
+- name: delete the {{ dbName }} with {{ db.provider }}
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: DELETE
     status_code: 200,404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: forceRecreation == True and response.status == 200
 
-- name: create {{ dbName }} with {{ db_provider }}
+- name: create {{ dbName }} with {{ db.provider }}
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
     method: PUT
     status_code: 200,201
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: forceRecreation == True or response.status == 404

@@ -34,7 +34,7 @@ import com.jayway.restassured.RestAssured
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
-import common.BaseWsk
+import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -54,8 +54,8 @@ abstract class ApiGwEndToEndTests
     with BeforeAndAfterAll {
 
   implicit val wskprops: common.WskProps = WskProps()
-  val wsk: BaseWsk
-  val namespace: String = wsk.namespace.whois()
+  val wsk: WskOperations
+  lazy val namespace: String = wsk.namespace.whois()
   val createCode: Int
 
   // Custom CLI properties file
@@ -98,12 +98,10 @@ abstract class ApiGwEndToEndTests
     val bw = new BufferedWriter(new FileWriter(swaggerfile))
     bw.write(rr.stdout)
     bw.close()
-    return swaggerfile
+    swaggerfile
   }
 
-  def getSwaggerApiUrl(rr: RunResult): String = {
-    return rr.stdout.split("\n")(1)
-  }
+  def getSwaggerApiUrl(rr: RunResult): String = rr.stdout.split("\n")(1)
 
   behavior of "Wsk api"
 
@@ -180,7 +178,7 @@ abstract class ApiGwEndToEndTests
       val start = java.lang.System.currentTimeMillis
       val apiToInvoke = s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue&guid=$start"
       println(s"Invoking: '${apiToInvoke}'")
-      val response = whisk.utils.retry({
+      val response = org.apache.openwhisk.utils.retry({
         val response = RestAssured.given().config(sslconfig).get(s"$apiToInvoke")
         println("URL invocation response status: " + response.statusCode)
         response.statusCode should be(200)

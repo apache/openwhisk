@@ -21,12 +21,12 @@ set -e
 # Build script for Travis-CI.
 
 SECONDS=0
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+SCRIPTDIR=$(cd "$(dirname "$0")" && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
 cat whisk.properties
-TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage
+TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage :tests:testSwaggerCodegen
 
 bash <(curl -s https://codecov.io/bash)
 echo "Time taken for ${0##*/} is $SECONDS secs"

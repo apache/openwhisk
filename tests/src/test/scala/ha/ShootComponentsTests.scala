@@ -33,15 +33,15 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common._
-import common.rest.{HttpConnection, WskRest}
+import common.rest.{HttpConnection, WskRestOperations}
 import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
-import whisk.core.ConfigKeys
-import whisk.core.database.CouchDbConfig
-import whisk.core.database.test.ExtendedCouchDbRestClient
-import whisk.utils.retry
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.database.CouchDbConfig
+import org.apache.openwhisk.core.database.test.ExtendedCouchDbRestClient
+import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ShootComponentsTests
@@ -54,7 +54,7 @@ class ShootComponentsTests
     with ShootComponentUtils {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRest
+  val wsk = new WskRestOperations
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   implicit val materializer = ActorMaterializer()

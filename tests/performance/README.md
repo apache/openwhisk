@@ -70,16 +70,18 @@ The test is doing as many requests as possible for the given amount of time (`SE
 Available environment variables:
 
 ```
-OPENWHISK_HOST          (required)
-CONNECTIONS             (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+CONNECTIONS                   (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with (in OPENWHISK_HOME)
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ApiV1Simulation
+OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
 ```
 
 ##### Latency Simulation
@@ -87,7 +89,8 @@ OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" .
 This simulation creates actions of the following four kinds: `nodejs:default`, `swift:default`, `java:default` and
 `python:default`.
 Afterwards the action is invoked once. This is the cold-start and will not be part of the thresholds.
-Next, the action will be invoked 100 times blocking and one after each other. The last step is, that the action will be deleted.
+Next, the action will be invoked 100 times blocking and one after each other. Between each invoke is a pause of
+`PAUSE_BETWEEN_INVOKES` milliseconds. The last step is to delete the action.
 
 Once one language is finished, the next kind will be taken. They are not running in parallel. There are never more than
 1 activations in the system, as we only want to meassure latency of warm activations.
@@ -100,16 +103,23 @@ The comparison of the thresholds is against the mean response times of the warm 
 Available environment variables:
 
 ```
-OPENWHISK_HOST          (required)
-API_KEY                 (required, format: UUID:KEY)
-MEAN_RESPONSE_TIME      (required)
-MAX_MEAN_RESPONSE_TIME  (default: MEAN_RESPONSE_TIME)
-EXCLUDED_KINDS          (default: "", format: "python:default,java:default,swift:default")
+OPENWHISK_HOST                (required)
+API_KEY                       (required, format: UUID:KEY)
+PAUSE_BETWEEN_INVOKES         (default: 0)
+MEAN_RESPONSE_TIME            (required)
+MAX_MEAN_RESPONSE_TIME        (default: MEAN_RESPONSE_TIME)
+EXCLUDED_KINDS                (default: "", format: "python:default,java:default,swift:default")
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
+
+It is possible to override the `MEAN_RESPONSE_TIME`, `MAX_MEAN_RESPONSE_TIME`, `MAX_ERRORS_ALLOWED` and `MAX_ERRORS_ALLOWED_PERCENTAGE`
+for each kind by adding the kind as prefix in upper case, like `JAVA_MEAN_RESPONSE_TIME`.
+
 
 You can run the simulation with (in OPENWHISK_HOME)
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" MEAN_RESPONSE_TIME="20" API_KEY="UUID:KEY" ./gradlew gatlingRun-LatencySimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" MEAN_RESPONSE_TIME="20" API_KEY="UUID:KEY" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
 ```
 
 ##### BlockingInvokeOneActionSimulation
@@ -128,17 +138,19 @@ The test is doing as many requests as possible for the given amount of time (`SE
 
 Available environment variables:
 ```
-OPENWHISK_HOST          (required)
-API_KEY                 (required, format: UUID:KEY)
-CONNECTIONS             (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+API_KEY                       (required, format: UUID:KEY)
+CONNECTIONS                   (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-BlockingInvokeOneActionSimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" API_KEY="UUID:KEY" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
 ```
 
 ##### ColdBlockingInvokeSimulation
@@ -158,14 +170,16 @@ The test is doing as many requests as possible for the given amount of time (`SE
 
 Available environment variables:
 ```
-OPENWHISK_HOST          (required)
-USERS                   (required)
-SECONDS                 (default: 10)
-REQUESTS_PER_SEC        (required)
-MIN_REQUESTS_PER_SEC    (default: REQUESTS_PER_SEC)
+OPENWHISK_HOST                (required)
+USERS                         (required)
+SECONDS                       (default: 10)
+REQUESTS_PER_SEC              (required)
+MIN_REQUESTS_PER_SEC          (default: REQUESTS_PER_SEC)
+MAX_ERRORS_ALLOWED            (default: 0)
+MAX_ERRORS_ALLOWED_PERCENTAGE (default: 0)
 ```
 
 You can run the simulation with
 ```
-OPENWHISK_HOST="openwhisk.mydomain.com" USERS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ColdBlockingInvokeSimulation
+OPENWHISK_HOST="openwhisk.mydomain.com" USERS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
 ```

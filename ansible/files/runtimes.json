@@ -2,86 +2,98 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs",
-                "image": {
-                    "name": "nodejsaction"
-                },
-                "deprecated": true
-            },
-            {
                 "kind": "nodejs:6",
                 "default": true,
                 "image": {
-                    "name": "nodejs6action"
+                    "prefix": "openwhisk",
+                    "name": "nodejs6action",
+                    "tag": "latest"
                 },
                 "deprecated": false,
-                "stemCells": [{
-                    "count": 2,
-                    "memory": "256 MB"
-                }]
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "stemCells": [
+                    {
+                        "count": 2,
+                        "memory": "256 MB"
+                    }
+                ]
             },
             {
                 "kind": "nodejs:8",
                 "default": false,
                 "image": {
-                    "name": "action-nodejs-v8"
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v8",
+                    "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "nodejs:10",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v10",
+                    "tag": "latest"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
             {
-                "kind": "python",
-                "image": {
-                    "name": "python2action"
-                },
-                "deprecated": false
-            },
-            {
                 "kind": "python:2",
-                "default": true,
+                "default": false,
                 "image": {
-                    "name": "python2action"
+                    "prefix": "openwhisk",
+                    "name": "python2action",
+                    "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "python:3",
+                "default": true,
                 "image": {
-                    "name": "python3action"
+                    "prefix": "openwhisk",
+                    "name": "python3action",
+                    "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "swift": [
             {
-                "kind": "swift",
-                "image": {
-                    "name": "swiftaction"
-                },
-                "deprecated": true
-            },
-            {
-                "kind": "swift:3",
-                "image": {
-                    "name": "swift3action"
-                },
-                "deprecated": true
-            },
-            {
-                "kind": "swift:3.1.1",
-                "image": {
-                    "name": "action-swift-v3.1.1"
-                },
-                "deprecated": false
-            },
-            {
-                "kind": "swift:4.1",
+                "kind": "swift:4.2",
                 "default": true,
                 "image": {
-                    "name": "action-swift-v4.1"
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v4.2",
+                    "tag": "latest"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "java": [
@@ -89,31 +101,105 @@
                 "kind": "java",
                 "default": true,
                 "image": {
-                    "name": "java8action"
+                    "prefix": "openwhisk",
+                    "name": "java8action",
+                    "tag": "latest"
                 },
                 "deprecated": false,
                 "attached": {
-                    "attachmentName": "jarfile",
-                    "attachmentType": "application/java-archive"
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 },
-                "sentinelledLogs": false,
                 "requireMain": true
             }
         ],
         "php": [
             {
-                "kind": "php:7.1",
+                "kind": "php:7.3",
                 "default": true,
                 "deprecated": false,
                 "image": {
-                    "name": "action-php-v7.1"
+                    "prefix": "openwhisk",
+                    "name": "action-php-v7.3",
+                    "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            }
+        ],
+        "ruby": [
+            {
+                "kind": "ruby:2.5",
+                "default": true,
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-ruby-v2.5",
+                    "tag": "latest"
+                }
+            }
+        ],
+        "go": [
+            {
+                "kind": "go:1.11",
+                "default": true,
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "actionloop-golang-v1.11",
+                    "tag": "latest"
+                }
+            }
+        ],
+        "dotnet": [
+            {
+                "kind": "dotnet:2.2",
+                "default": true,
+                "deprecated": false,
+                "requireMain": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-dotnet-v2.2",
+                    "tag": "latest"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            }
+        ],
+        "ballerina": [
+            {
+                "kind": "ballerina:0.990",
+                "default": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-ballerina-v0.990.2",
+                    "tag": "latest"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 }
             }
         ]
     },
     "blackboxes": [
         {
-            "name": "dockerskeleton"
+            "prefix": "openwhisk",
+            "name": "dockerskeleton",
+            "tag": "latest"
         }
     ]
 }

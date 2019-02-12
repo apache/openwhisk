@@ -21,12 +21,12 @@ buildscript {
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-        classpath 'org.scoverage:gradle-scoverage:2.1.0'
+        classpath 'org.scoverage:gradle-scoverage:2.3.0'
     }
 }
 
 plugins {
-    id "com.gradle.build-scan" version "1.12.1"
+    id "com.gradle.build-scan" version "1.14"
 }
 
 buildScan {
@@ -61,6 +61,7 @@ subprojects {
             task testSourcesJar(type: Jar, dependsOn: testClasses) {
                 classifier = 'test-sources'
                 from sourceSets.test.allSource
+                exclude("logback-test.xml")
             }
 
             task testClassesJar(type: Jar, dependsOn: testClasses) {
@@ -86,9 +87,7 @@ subprojects {
                 enabled false
             }
 
-            configurations.archives.with {
-                artifacts.remove artifacts.find { it.archiveTask.is distZip }
-            }
+            configurations.archives.artifacts.removeAll {it.file =~ 'zip'}
         }
     }
 }

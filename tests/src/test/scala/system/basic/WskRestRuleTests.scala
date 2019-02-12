@@ -21,10 +21,11 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestUtils.RunResult
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.rest.RestResult
+import common.WskActorSystem
 
-import whisk.utils.retry
+import org.apache.openwhisk.utils.retry
 
 import scala.concurrent.duration._
 
@@ -32,21 +33,21 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-class WskRestRuleTests extends WskRuleTests {
-  override val wsk: common.rest.WskRest = new WskRest
+class WskRestRuleTests extends WskRuleTests with WskActorSystem {
+  override val wsk = new WskRestOperations
 
   override def verifyRuleList(ruleListResult: RunResult,
                               ruleNameEnable: String,
                               ruleName: String): org.scalatest.Assertion = {
     val ruleListResultRest = ruleListResult.asInstanceOf[RestResult]
-    val rules = ruleListResultRest.getBodyListJsObject()
+    val rules = ruleListResultRest.getBodyListJsObject
     val ruleEnable = wsk.rule.get(ruleNameEnable)
     ruleEnable.getField("status") shouldBe "active"
     val ruleDisable = wsk.rule.get(ruleName)
     ruleDisable.getField("status") shouldBe "inactive"
     rules.exists(rule => RestResult.getField(rule, "name") == ruleNameEnable) shouldBe true
     rules.exists(rule => RestResult.getField(rule, "name") == ruleName) shouldBe true
-    ruleListResultRest.respData should not include ("Unknown")
+    ruleListResultRest.respData should not include "Unknown"
   }
 
   it should "preserve rule status when a rule is updated" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -71,8 +72,8 @@ class WskRestRuleTests extends WskRuleTests {
         retry({
           val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
           val getStdout = wsk.rule.get(ruleName).stdout
-          getJSONFromResponse(createStdout, false).fields.get("status") shouldBe status
-          getJSONFromResponse(getStdout, false).fields.get("status") shouldBe status
+          wsk.parseJsonString(createStdout).fields.get("status") shouldBe status
+          wsk.parseJsonString(getStdout).fields.get("status") shouldBe status
         }, 10, Some(1.second))
     }
   }

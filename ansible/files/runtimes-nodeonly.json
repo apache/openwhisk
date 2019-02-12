@@ -1,0 +1,32 @@
+{
+    "runtimes": {
+        "nodejs": [
+            {
+                "kind": "nodejs:6",
+                "default": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "nodejs6action",
+                    "tag": "latest"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "stemCells": [{
+                    "count": 2,
+                    "memory": "256 MB"
+                }]
+            }
+        ]
+
+    },
+    "blackboxes": [
+        {
+            "prefix": "openwhisk",
+            "name": "dockerskeleton",
+            "tag": "latest"
+        }
+    ]
+}

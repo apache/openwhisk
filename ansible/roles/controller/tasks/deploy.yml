@@ -13,10 +13,10 @@
       "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
 
 - name: "pull the {{ docker.image.tag }} image of controller"
-  shell:
-    docker pull
-    {{ docker_registry~docker.image.prefix }}/controller:{{docker.image.tag}}
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/controller:{{docker.image.tag}}"
   when: docker_registry != ""
+  register: result
+  until: (result.rc == 0)
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -26,6 +26,15 @@
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
+
+# We need to create the file with proper permissions because the dir creation above
+# does not result in a dir with full permissions in docker machine especially with macos mounts
+- name: ensure controller log file is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/{{ controller_name }}/{{ controller_name }}_logs.log"
+    state: touch
+    mode: 0777
+  when: environment_type is defined and environment_type == "docker-machine"
 
 - name: ensure controller config directory is created with permissions
   file:
@@ -58,7 +67,7 @@
 - name: copy nginx certificate keystore
   when: controller.protocol == 'https'
   copy:
-    src: files/{{ controllerKeystoreName }}
+    src: files/{{ controller.ssl.keystore.name }}
     mode: 0666
     dest: "{{ controller.confdir }}/{{ controller_name }}"
   become: "{{ controller.dir.become }}"
@@ -78,6 +87,8 @@
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
     dbName: "{{ item }}"
+    dbUser: "{{ db.credentials.controller.user }}"
+    dbPass: "{{ db.credentials.controller.pass }}"
   with_items:
     - "{{ db.whisk.actions }}"
     - "{{ db.whisk.auth }}"
@@ -109,7 +120,7 @@
 
 - name: populate environment variables for controller
   set_fact:
-    controller_env:
+    env:
       "JAVA_OPTS":
         -Xmx{{ controller.heap }}
         -XX:+CrashOnOutOfMemoryError
@@ -121,12 +132,11 @@
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
 
-      "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
+      "TZ": "{{ docker.timezone }}"
 
-      "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
-      "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
-      "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
+      "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
+      "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":
@@ -160,12 +170,12 @@
       "CONFIG_whisk_kafka_common_sslKeystorePassword":
         "{{ kafka.ssl.keystore.password }}"
 
-      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
-      "CONFIG_whisk_couchdb_host": "{{ db_host }}"
-      "CONFIG_whisk_couchdb_port": "{{ db_port }}"
-      "CONFIG_whisk_couchdb_username": "{{ db_username }}"
-      "CONFIG_whisk_couchdb_password": "{{ db_password }}"
-      "CONFIG_whisk_couchdb_provider": "{{ db_provider }}"
+      "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
+      "CONFIG_whisk_couchdb_host": "{{ db.host }}"
+      "CONFIG_whisk_couchdb_port": "{{ db.port }}"
+      "CONFIG_whisk_couchdb_username": "{{ db.credentials.controller.user }}"
+      "CONFIG_whisk_couchdb_password": "{{ db.credentials.controller.pass }}"
+      "CONFIG_whisk_couchdb_provider": "{{ db.provider }}"
       "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
       "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
       "CONFIG_whisk_couchdb_databases_WhiskActivation":
@@ -177,8 +187,6 @@
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
-      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM":
-        "{{ limits.concurrentInvocationsSystem }}"
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
       "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
 
@@ -189,6 +197,10 @@
       "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+
+      "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
+      "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
 
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
@@ -208,23 +220,19 @@
       "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
       "CONFIG_whisk_controller_https_keystorePath":
-        "{{ controller.ssl.keystore.path }}"
+        "/conf/{{ controller.ssl.keystore.name }}"
       "CONFIG_whisk_controller_https_keystorePassword":
         "{{ controller.ssl.keystore.password }}"
       "CONFIG_whisk_controller_https_keystoreFlavor":
         "{{ controller.ssl.storeFlavor }}"
-      "CONFIG_whisk_controller_https_truststorePath":
-        "{{ controller.ssl.truststore.path }}"
-      "CONFIG_whisk_controller_https_truststorePassword":
-        "{{ controller.ssl.truststore.password }}"
-      "CONFIG_whisk_controller_https_truststoreFlavor":
-        "{{ controller.ssl.storeFlavor }}"
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"
-      "CONFIG_whisk_loadbalancer_invokerBusyThreshold":
-        "{{ invoker.busyThreshold }}"
+      "CONFIG_whisk_loadbalancer_managedFraction":
+        "{{ controller.managedFraction }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction":
         "{{ controller.blackboxFraction }}"
+      "CONFIG_whisk_loadbalancer_timeoutFactor":
+        "{{ controller.timeoutFactor }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
@@ -232,32 +240,71 @@
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       "CONFIG_whisk_spi_LoadBalancerProvider":
         "{{ controller.loadbalancer.spi }}"
+      "CONFIG_whisk_spi_EntitlementSpiProvider": "{{ controller.entitlement.spi }}"
+
+      "CONFIG_whisk_spi_AuthenticationDirectiveProvider": "{{ controller.authentication.spi }}"
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
+      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) }}"
+
 - name: merge extra env variables
   set_fact:
-    controller_env: "{{ controller_env | combine(controller.extraEnv) }}"
+    env: "{{ env | combine(controller.extraEnv) }}"
+
+- name: populate volumes for controller
+  set_fact:
+    controller_volumes:
+       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
+       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
+- name: ensure controller coverage directory is created with permissions
+  file:
+    path: "{{ coverage_logs_dir }}/controller/{{ item }}"
+    state: directory
+    mode: 0777
+  with_items:
+    - controller
+    - common
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
+- name: extend controller volume for coverage
+  set_fact:
+    controller_volumes: "{{ controller_volumes|default({}) + [coverage_logs_dir+'/controller:/coverage']  }}"
+  when: coverage_enabled
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ controller_plugins | default([]) }}"
+  when: not lean
+
+- name: lean controller setup
+  include_tasks: "lean.yml"
+  when: lean
 
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
     image:
-      "{{docker_registry~docker.image.prefix}}/controller:{{docker.image.tag}}"
+      "{{docker_registry~docker.image.prefix}}/controller:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "{{ controller_name }}"
-    env: "{{ controller_env }}"
-    volumes:
-      - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
-      - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+    env: "{{ env }}"
+    volumes: "{{ controller_volumes }}"
     ports: "{{ ports_to_expose }}"
+    # userns_mode, pid_mode and privileged required when controller running in lean mode
+    userns_mode: "{{ userns_mode | default('') }}"
+    pid_mode: "{{ pid_mode | default('') }}"
+    privileged: "{{ privileged | default('no') }}"
     command:
       /bin/sh -c
       "exec /init.sh {{ controller_index }}

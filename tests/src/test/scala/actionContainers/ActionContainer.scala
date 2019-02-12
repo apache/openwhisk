@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintWriter
 
+import scala.util.Try
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -34,11 +35,15 @@ import scala.util.{Failure, Success}
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.{FlatSpec, Matchers}
 import akka.actor.ActorSystem
+
+import scala.concurrent.ExecutionContext
 import spray.json._
 import common.StreamLogging
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.entity.Exec
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.entity.Exec
+import common.WhiskProperties
+import org.apache.openwhisk.core.containerpool.Container
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -47,6 +52,7 @@ import whisk.core.entity.Exec
 trait ActionContainer {
   def init(value: JsValue): (Int, Option[JsObject])
   def run(value: JsValue): (Int, Option[JsObject])
+  def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
@@ -60,17 +66,30 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLo
         "binary" -> JsBoolean(Exec.isBinaryCode(code))))
 
   def runPayload(args: JsValue, other: Option[JsObject] = None): JsObject =
-    JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
+    JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map.empty))
 
   def checkStreams(out: String,
                    err: String,
                    additionalCheck: (String, String) => Unit,
-                   sentinelCount: Int = 1): Unit = {
+                   sentinelCount: Int = 1,
+                   concurrent: Boolean = false): Unit = {
     withClue("expected number of stdout sentinels") {
       sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
     }
+    //sentinels should be all together
+    if (concurrent) {
+      withClue("expected grouping of stdout sentinels") {
+        out should include((1 to sentinelCount).map(_ => sentinel + "\n").mkString)
+      }
+    }
     withClue("expected number of stderr sentinels") {
       sentinelCount shouldBe StringUtils.countMatches(err, sentinel)
+    }
+    //sentinels should be all together
+    if (concurrent) {
+      withClue("expected grouping of stderr sentinels") {
+        err should include((1 to sentinelCount).map(_ => sentinel + "\n").mkString)
+      }
     }
 
     val (o, e) = (filterSentinel(out), filterSentinel(err))
@@ -87,11 +106,19 @@ object ActionContainer {
     }.get // This fails if the docker binary couldn't be located.
   }
 
-  private lazy val dockerCmd: String = {
+  lazy val dockerCmd: String = {
     /*
      * The docker host is set to a provided property 'docker.host' if it's
-     * available; otherwise by the environment variable DOCKER_HOST
-     * (which is usually set, especially for DOCKER_MACHINE).
+     * available; otherwise we check with WhiskProperties to see whether we are
+     * running on a docker-machine.
+     *
+     * IMPLICATION:  The test must EITHER have the 'docker.host' system
+     * property set OR the 'OPENWHISK_HOME' environment variable set and a
+     * valid 'whisk.properties' file generated.  The 'docker.host' system
+     * property takes precedence.
+     *
+     * WARNING:  Adding a non-docker-machine environment that contains 'mac'
+     * (i.e. 'environments/local-mac') will likely break things.
      *
      * The plan is to move builds to using 'gradle-docker-plugin', which know
      * its docker socket and to have it pass the docker socket implicitly using
@@ -104,19 +131,29 @@ object ActionContainer {
       sys.props
         .get("docker.host")
         .orElse(sys.env.get("DOCKER_HOST"))
+        .orElse {
+          Try { // whisk.properties file may not exist
+            // Check if we are running on docker-machine env.
+            Option(WhiskProperties.getProperty("environment.type"))
+              .filter(_.toLowerCase.contains("docker-machine"))
+              .map {
+                case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
+              }
+          }.toOption.flatten
+        }
         .map(" --host " + _)
         .getOrElse("")
+
     // Test here that this actually works, otherwise throw a somewhat understandable error message
     proc(s"$dockerCmdString info").onComplete {
-      case Success((v, _, _)) if (v != 0) =>
-        throw new RuntimeException(s"""Unable to connect to docker host using $dockerCmdString as command string.
-          |The docker host is determined using the Java property 'docker.host' or
-          |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
-          |other is set for your build/test process.""".stripMargin)
-      case Success((v, _, _)) if (v == 0) =>
-      // Do nothing
-      case Failure(t) =>
-        throw t
+      case Success((v, _, _)) if v != 0 =>
+        throw new RuntimeException(s"""
+              |Unable to connect to docker host using $dockerCmdString as command string.
+              |The docker host is determined using the Java property 'docker.host' or
+              |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+              |other is set for your build/test process.""".stripMargin)
+      case Success((v, _, _)) if v == 0 => // Do nothing
+      case Failure(t)                   => throw t
     }
 
     dockerCmdString
@@ -145,8 +182,8 @@ object ActionContainer {
     Await.result(proc(docker(cmd)), t)
   }
 
-  // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
-  val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+  // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker)
+  val sentinel = Container.ACTIVATION_LOG_SENTINEL
   def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
 
   def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
@@ -189,6 +226,8 @@ object ActionContainer {
     val mock = new ActionContainer {
       def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
       def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
+        concurrentSyncPost(ip, port, "/run", values)
     }
 
     try {
@@ -205,10 +244,21 @@ object ActionContainer {
   }
 
   private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
-    implicit logging: Logging): (Int, Option[JsObject]) = {
+    implicit logging: Logging,
+    as: ActorSystem): (Int, Option[JsObject]) = {
 
     implicit val transid = TransactionId.testing
 
-    whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
+    org.apache.openwhisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
   }
+  private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
+    implicit logging: Logging,
+    as: ActorSystem): Seq[(Int, Option[JsObject])] = {
+
+    implicit val transid = TransactionId.testing
+
+    org.apache.openwhisk.core.containerpool.AkkaContainerClient
+      .concurrentPost(host, port, endPoint, contents, 30.seconds)
+  }
+
 }

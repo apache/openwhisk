@@ -47,6 +47,12 @@ For example, the following is handy to run a subset of all tests from the comman
 
   * `redo tests -a '--tests package.name.TestClass.evenMethodName'`
 
+Some components are dynamically generated. This is supported by a generic component name
+which specifies a regex. The `runtime:([\w]+)` is one such component, useful for rebuilding
+action runtime images.
+
+  * `redo --dir /path/to/incubator-openwhisk-runtime-nodejs runtime:nodejs6action`
+
 ## How to use `citool`
 
 This script allows for monitoring of ongoing Jenkins and Travis builds.
@@ -57,6 +63,7 @@ To change the Travis (or Jenkins) host URL, use `-u`.
 - monitor a Travis CI build with job number `N`: `citool monitor N`
 - monitor same job `N` until completion: `citool monitor -p N`
 - save job output to a file: `citool -o monitor N`
+- for Travis CI matrix builds, use the matrix index after the job number as in `citool monitor N.i` where 1 <= i <= matrix buidls.
 
 To monitor a Jenkins build `B` with job number `N` on host `https://jenkins.host:port`:
 ```

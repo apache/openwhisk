@@ -20,8 +20,8 @@ package common
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 
-import whisk.common.Logging
-import whisk.common.PrintStreamLogging
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.PrintStreamLogging
 import java.nio.charset.StandardCharsets
 
 /**

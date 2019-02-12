@@ -18,6 +18,10 @@
 import org.scoverage.ScoverageReport
 import static groovy.json.JsonOutput.*
 
+plugins {
+    id 'org.hidetake.swagger.generator' version '2.12.0'
+}
+
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
@@ -27,6 +31,8 @@ compileTestScala.options.encoding = 'UTF-8'
 repositories {
     mavenCentral()
 }
+
+install.dependsOn ':tools:admin:install'
 
 project.archivesBaseName = "openwhisk-tests"
 
@@ -42,45 +48,67 @@ tasks.withType(Test) {
 }
 
 def leanExcludes = [
-    '**/*Swift*',
-    '**/*Python*',
-    '**/*Java*',
-    '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
+]
+
+def systemIncludes = [
+            "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/admin/**",
+            "org/apache/openwhisk/core/cli/test/**",
+            "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
+            "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
+            "apigw/healthtests/**",
+            "ha/**",
+            "services/**",
+            "system/basic/**",
+            "system/rest/**",
 ]
 
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
-            "actionContainers/**",
-            "ha/**",
-            "whisk/**"
+            "org/apache/openwhisk/**"
         ],
         "excludes" : [
-            "whisk/core/admin/**",
-            "whisk/core/apigw/actions/test/**",
-            "whisk/core/cli/test/**",
-            "whisk/core/limits/**",
+            "org/apache/openwhisk/core/admin/**",
+            "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/core/cli/test/**",
+            "org/apache/openwhisk/core/limits/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
+            "org/apache/openwhisk/testEntities/**",
         ]
     ],
     "REQUIRE_SYSTEM" : [
+        "includes" : systemIncludes,
+        "excludes": [
+            "system/basic/WskMultiRuntimeTests*"
+        ]
+    ],
+    "REQUIRE_MULTI_RUNTIME" : [
         "includes" : [
-            "apigw/healthtests/**",
-            "services/**",
-            "system/basic/**",
-            "system/rest/**",
-            "whisk/core/admin/**",
-            "whisk/core/cli/test/**",
-            "whisk/core/apigw/actions/test/**",
-            "whisk/core/limits/**",
-            "whisk/core/database/test/*CacheConcurrencyTests*",
-            "whisk/core/controller/test/*ControllerApiTests*",
+            "system/basic/*MultiRuntimeTests*",
+            "system/basic/*UnicodeTests*",
+            "limits/**"
         ]
     ],
     "LEAN" : [
         "excludes" : leanExcludes
+    ],
+    "REQUIRE_SYSTEM_BASIC" : [
+        "includes" : [
+            "system/basic/**"
+        ]
+    ],
+    "REQUIRE_LEAN_SYSTEM" : [
+        "includes" : systemIncludes,
+        
+        // Tests suits below require Kafka so they are excluded for Lean System tests
+        "excludes" : [
+            "**/*KafkaConnectorTests*",
+            "system/basic/WskMultiRuntimeTests*"
+        ]
     ]
 ]
 
@@ -115,8 +143,13 @@ task testLean(type: Test) {
     include getPattern(testSetName, "includes")
 }
 
+task testSystemBasic(type: Test) {
+    exclude getPattern("REQUIRE_SYSTEM_BASIC", "excludes")
+    include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
+}
+
 task testUnit(type: Test) {
-    systemProperty("whisk.spi.ArtifactStoreProvider", "whisk.core.database.memory.MemoryArtifactStoreProvider")
+    systemProperty("whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider")
     exclude getPattern("REQUIRE_ONLY_DB", "excludes")
     include getPattern("REQUIRE_ONLY_DB", "includes")
 
@@ -131,31 +164,7 @@ task testUnit(type: Test) {
     ]
 
     exclude couchDbExcludes
-    exclude "actionContainers/**"
 }
-
-task testLeanCli(type: Test) {
-    exclude '**/*Swift*'
-    exclude '**/*Python*'
-    exclude '**/*Java*'
-    exclude '**/*ThrottleTests*'
-    exclude '**/MaxActionDurationTests*'
-    exclude '**/*ApiGwRestBasicTests*'
-    exclude '**/*Rest*'
-}
-
-// Add all images needed for local testing here
-test.dependsOn([
-    ':actionRuntimes:nodejs6Action:distDocker',
-    ':actionRuntimes:actionProxy:distDocker',
-    ':actionRuntimes:pythonAction:distDocker',
-    ':actionRuntimes:python2Action:distDocker',
-    ':actionRuntimes:javaAction:distDocker',
-    ':actionRuntimes:swift3.1.1Action:distDocker',
-    ':sdk:docker:distDocker',
-    ':tests:dat:blackbox:badaction:distDocker',
-    ':tests:dat:blackbox:badproxy:distDocker'
-])
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
@@ -164,19 +173,29 @@ dependencies {
     compile 'org.apache.httpcomponents:httpmime:4.3.6'
     compile 'junit:junit:4.11'
     compile 'com.jayway.restassured:rest-assured:2.6.0'
-    compile 'org.scalatest:scalatest_2.11:3.0.1'
-    compile 'com.typesafe.akka:akka-testkit_2.11:2.5.12'
+    compile 'org.scalatest:scalatest_2.12:3.0.1'
+    compile 'com.typesafe.akka:akka-testkit_2.12:2.5.12'
     compile 'com.google.code.gson:gson:2.3.1'
-    compile 'org.scalamock:scalamock-scalatest-support_2.11:3.4.2'
-    compile 'com.typesafe.akka:akka-http-testkit_2.11:10.1.1'
+    compile 'org.scalamock:scalamock-scalatest-support_2.12:3.4.2'
+    compile 'com.typesafe.akka:akka-http-testkit_2.12:10.1.1'
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
     compile "org.mockito:mockito-core:2.15.0"
+    compile 'io.opentracing:opentracing-mock:0.31.0'
+    compile "org.apache.curator:curator-test:${gradle.curator.version}"
+    compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
+
+    compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
 
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':tools:admin')
+
+
 
     scoverage gradle.scoverage.deps
+
+    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'
 }
 
 tasks.withType(ScalaCompile) {
@@ -189,16 +208,24 @@ task deleteKeystore(type: Delete) {
 }
 task createKeystore(dependsOn: deleteKeystore) {
     doLast {
-        Properties props = new Properties()
-        props.load(new FileInputStream(file('../whisk.properties')))
-        keystorePath.parentFile.mkdirs()
-        def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
-        cmd.execute().waitForProcessOutput(System.out, System.err)
+        def propsFile = file('../whisk.properties')
+        if (propsFile.exists()) {
+            Properties props = new Properties()
+            props.load(new FileInputStream(propsFile))
+            keystorePath.parentFile.mkdirs()
+            def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
+            cmd.execute().waitForProcessOutput(System.out, System.err)
+        }
     }
 }
 
-afterEvaluate {
-    task testCoverageLean(type:Test) {
+tasks.withType(Test) {
+    dependsOn createKeystore
+}
+createKeystore.mustRunAfter(testClasses)
+
+gradle.projectsEvaluated {
+    task testCoverageLean(type: Test) {
         doFirst {
             logTestSetInfo()
         }
@@ -207,11 +234,27 @@ afterEvaluate {
         include getPattern(testSetName, "includes")
     }
 
-    task testCoverage(type:Test) {
+    task testCoverage(type: Test) {
         classpath = getScoverageClasspath(project)
     }
-    tasks.withType(Test) {
-        dependsOn createKeystore
+}
+
+task copyMeasurementFiles() {
+    doLast{
+        Project common = project(":common:scala")
+        Project controller = project(":core:controller")
+        Project invoker = project(":core:invoker")
+
+        Properties wskProps = loadWhiskProps()
+        String covLogsDir = wskProps.getProperty('whisk.coverage.logs.dir')
+        assert covLogsDir : "Did not find coverage logs property 'whisk.coverage.logs.dir' in whisk props"
+
+        File covLogs = new File(covLogsDir)
+
+        copyAndRenameMeasurementFile(covLogs, 'controller', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'controller', "controller", controller)
+        copyAndRenameMeasurementFile(covLogs, 'invoker', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'invoker', "invoker", invoker)
     }
 }
 
@@ -221,10 +264,39 @@ afterEvaluate {
  */
 task reportCoverage(type: ScoverageReport) {
     dependsOn([
+        copyMeasurementFiles,
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
-        ':core:invoker:reportScoverage'
+        ':core:invoker:reportScoverage',
+        ':tools:admin:reportScoverage'
     ])
+
+}
+
+/**
+ * Scoverage measurement files are named like scoverage.measurements.xxx. Where xxx is thread id. While
+ * consolidating the files between container run and normal test run we need to rename the files generated by
+ * container run so that the file name becomes unique
+ */
+def copyAndRenameMeasurementFile(File covLogDir, String containerName, String moduleName, Project dest){
+    File dir = new File(new File(covLogDir, containerName), moduleName)
+    if (!dir.exists()) {
+        println "Coverage logs directory ${dir.absolutePath} does not exist. Skipping measurement file collection"
+        return
+    }
+    copy{
+        from(dir)
+        into("${dest.buildDir.absolutePath}/scoverage")
+        rename {it+".$containerName-container"}
+    }
+}
+
+def loadWhiskProps(){
+    Properties p = new Properties()
+    file('../whisk.properties').withInputStream {is ->
+        p.load(is)
+    }
+    p
 }
 
 /**
@@ -254,11 +326,30 @@ def getScoverageClasspath(Project project) {
     def projectNames = [
         ':common:scala',
         ':core:controller',
-        ':core:invoker'
+        ':core:invoker',
+        ':tools:admin'
     ]
-    def combinedClasspath = projectNames.inject(project.files([])){result, name ->
-        result + project.project(name).sourceSets.scoverage.runtimeClasspath
+    def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
+        def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
+        result + cp.filter {it.name.contains('scoverage')}
     }
 
     combinedClasspath + sourceSets.test.runtimeClasspath
+}
+
+swaggerSources {
+    java {
+        inputFile = file("$projectDir/../core/controller/src/main/resources/apiv1swagger.json")
+        code {
+            language = 'java'
+            configFile = file('src/test/resources/swagger-config.json')
+            dependsOn validation
+        }
+    }
+}
+
+task testSwaggerCodegen(type: GradleBuild) {
+    dependsOn swaggerSources.java.code
+    buildFile = "${buildDir}/swagger-code-java/build.gradle"
+    tasks = ['build']
 }

@@ -1,9 +1,0 @@
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor
-# license agreements; and to You under the Apache License, Version 2.0.
----
-# Add user and patch kernel.
-
-- import_tasks: addUser.yml
-  when: docker.user is defined
-
-- import_tasks: patchKernel.yml

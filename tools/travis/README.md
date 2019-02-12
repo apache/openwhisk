@@ -33,4 +33,4 @@ These jobs make use of following scripts
 4. `setupSystem.sh` - Runs the various containers which are part of an OpenWhisk setup like Controller, Invoker etc.
 5. `runTests.sh` - Runs the tests. It make use of `ORG_GRADLE_PROJECT_testSetName` env setting to determine which test
    suite to run.
-6. `checkAndUploadLogs.sh` -  Collect the logs, check them and then upload them https://app.box.com/v/openwhisk-travis-logs
+6. `checkAndUploadLogs.sh` -  Collects the logs, checks them and uploads them to https://openwhisk.box.com/v/travis-logs.

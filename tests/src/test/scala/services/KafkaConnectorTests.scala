@@ -18,6 +18,7 @@
 package services
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.util.Calendar
 
 import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
@@ -26,11 +27,11 @@ import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import whisk.common.TransactionId
-import whisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
-import whisk.core.WhiskConfig
-import whisk.core.connector.Message
-import whisk.utils.{retry, ExecutionContextFactory}
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.connector.Message
+import org.apache.openwhisk.utils.{retry, ExecutionContextFactory}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext}
@@ -54,6 +55,7 @@ class KafkaConnectorTests
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
   val maxPollInterval = 10.seconds
+  System.setProperty("whisk.kafka.consumer.max-poll-interval-ms", maxPollInterval.toMillis.toString)
 
   // Need to overwrite replication factor for tests that shut down and start
   // Kafka instances intentionally. These tests will fail if there is more than
@@ -61,11 +63,9 @@ class KafkaConnectorTests
   val kafkaHosts: Array[String] = config.kafkaHosts.split(",")
   val replicationFactor: Int = kafkaHosts.length / 2 + 1
   System.setProperty("whisk.kafka.replication-factor", replicationFactor.toString)
-  println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
 
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
+  KafkaMessagingProvider.ensureTopic(config, topic, topic) shouldBe 'success
 
   val producer = new KafkaProducerConnector(config.kafkaHosts)
   val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
@@ -94,7 +94,8 @@ class KafkaConnectorTests
       val sent = Await.result(producer.send(topic, message), waitForSend)
       println(s"Successfully sent message to topic: $sent")
       println(s"Receiving message from topic.")
-      val received = consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+      val received =
+        consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, StandardCharsets.UTF_8) }
       val end = java.lang.System.currentTimeMillis
       val elapsed = end - start
       println(s"Received ${received.size}. Took $elapsed msec: $received")

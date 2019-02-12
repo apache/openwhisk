@@ -27,10 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,11 +51,12 @@ import junit.runner.Version;
 public class TestUtils {
     protected static final Logger logger = Logger.getLogger("basic");
 
-    public static final int SUCCESS_EXIT    = 0;
-    public static final int ERROR_EXIT      = 1;
-    public static final int MISUSE_EXIT     = 2;
-    public static final int DONTCARE_EXIT   = -1;       // any value is ok
-    public static final int ANY_ERROR_EXIT  = -2;       // any non-zero value is ok
+    public static final int SUCCESS_EXIT        = 0;
+    public static final int ERROR_EXIT          = 1;
+    public static final int MISUSE_EXIT         = 2;
+    public static final int NETWORK_ERROR_EXIT  = 3;
+    public static final int DONTCARE_EXIT       = -1;       // any value is ok
+    public static final int ANY_ERROR_EXIT      = -2;       // any non-zero value is ok
 
     public static final int ACCEPTED        = 202;      // 202
     public static final int BAD_REQUEST     = 144;      // 400 - 256 = 144
@@ -197,6 +195,19 @@ public class TestUtils {
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
         return sdf.format(date);
+    }
+
+    /**
+     * Determines if the test build is running for main repo and not on any fork or PR
+     */
+    public static boolean isBuildingOnMainRepo(){
+        //Based on https://docs.travis-ci.com/user/environment-variables/#Default-Environment-Variables
+        String repoName = System.getenv("TRAVIS_REPO_SLUG");
+        if (repoName == null) {
+            return false; //Not a travis build
+        } else {
+            return repoName.startsWith("apache/") && "false".equals(System.getenv("TRAVIS_PULL_REQUEST"));
+        }
     }
 
     /**

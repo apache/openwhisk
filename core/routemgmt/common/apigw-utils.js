@@ -41,7 +41,7 @@ function generateTargetUrlMap(ibmConfig) {
         var execs = element['execute'];
         //each nth element of execs and operations go together, so lets add those to the map.
         for (var i = 0; i < operations.length ; ++i) {
-          if(i < execs.length && execs[i] && execs[i]['invoke']['target-url']) {
+          if(i < execs.length && execs[i] && execs[i]['invoke'] && execs[i]['invoke']['target-url']) {
             targetUrls[operations[i]] = execs[i]['invoke']['target-url'];
           }
         }
@@ -529,8 +529,6 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
   responsetype = responsetype || 'json';
   console.log('addEndpointToSwaggerApi: operationid = '+operationId);
   try {
-    var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
-
     // If the relative path already exists, append to it; otherwise create it
     if (!swaggerApi.paths[endpoint.gatewayPath]) {
       swaggerApi.paths[endpoint.gatewayPath] = {};
@@ -568,7 +566,7 @@ function setActionOperationInvocationDetails(swagger, endpoint, operationId, res
   var caseIdx = getCaseOperationIdx(caseArr, operationId);
   var operations = [operationId];
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype, getPathParameters(endpoint.gatewayPath)));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype, true) );
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
   if (endpoint.action.secureKey) {
     _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[1].set-variable.actions[0].set', 'message.headers.X-Require-Whisk-Auth' );
@@ -601,12 +599,12 @@ function getCaseOperationIdx(caseArr, operationId) {
 //   parameters           - the parameters defined in the path, if any.
 // Returns:
 //   string               - web-action URL
-function makeWebActionBackendUrl(endpointAction, endpointResponseType, parameters) {
+function makeWebActionBackendUrl(endpointAction, endpointResponseType, isTargetUrl = false) {
   host = getHostFromActionUrl(endpointAction.backendUrl);
   ns = endpointAction.namespace;
   pkg = getPackageNameFromFqActionName(endpointAction.name) || 'default';
   name = getActionNameFromFqActionName(endpointAction.name);
-  reqPath = parameters != null && parameters.length > 0 ? "$(request.path)" : "";
+  reqPath = isTargetUrl && endpointResponseType === 'http' ? "$(request.path)" : "";
   return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType + reqPath;
 }
 
@@ -855,7 +853,8 @@ function updateNamespace(apidoc, namespace) {
     if (apidoc.action) {
       // The action namespace does not have to match the CLI user's namespace
       // If it is different, leave it alone; otherwise use the replacement namespace
-      if (apidoc.namespace === apidoc.action.namespace) {
+      // And only replace when the namespace is the default '_' which needs replacement
+      if (apidoc.action.namespace === '_') {
         apidoc.action.namespace = namespace;
         apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
     }
@@ -890,7 +889,7 @@ function replaceNamespaceInUrl(url, namespace) {
  *     {
  *        statusCode: 502,    <- signifies an application error
  *        headers: {'Content-Type': 'application/json'},
- *        body: Base64 encoded JSON error string
+ *        body: JSON object or JSON string
  *     }
  * Otherwise, the action was invoked as a regular OpenWhisk action
  * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
@@ -909,18 +908,16 @@ function makeErrorResponseObject(err, isWebAction) {
     return err;
   }
 
-  var bodystr;
+  var bodystr = err;
   if (typeof err === 'string') {
-    bodystr = JSON.stringify({
+    bodystr = {
       "error": JSON.parse(makeJsonString(err)),  // Make sure err is plain old string to avoid duplicate JSON escaping
-    });
-  } else {
-    bodystr = JSON.stringify(err);
+    };
   }
   return {
     statusCode: 502,
     headers: { 'Content-Type': 'application/json' },
-    body: new Buffer(bodystr).toString('base64'),
+    body: bodystr
   };
 }
 
@@ -935,7 +932,7 @@ function makeErrorResponseObject(err, isWebAction) {
  *     {
  *        statusCode: 200,    <- signifies a successful action
  *        headers: {'Content-Type': 'application/json'},
- *        body: Base64 encoded JSON error string
+ *        body: JSON object or JSON string
  *     }
  * Otherwise, the action was invoked as a regular OpenWhisk action
  * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
@@ -950,20 +947,18 @@ function makeErrorResponseObject(err, isWebAction) {
 function makeResponseObject(resp, isWebAction) {
   console.log('makeResponseObject: isWebAction: '+isWebAction);
   if (!isWebAction) {
-    console.log('makeErrorResponseObject: not called as a web action');
+    console.log('makeResponseObject: not called as a web action');
     return resp;
   }
 
-  var bodystr;
+  var bodystr = resp;
   if (typeof resp === 'string') {
-    bodystr = makeJsonString(resp);
-  } else {
-    bodystr = JSON.stringify(resp);
+    bodystr = JSON.parse(makeJsonString(resp));
   }
   retobj = {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: new Buffer(bodystr).toString('base64')
+    body: bodystr
   };
   return retobj;
 }

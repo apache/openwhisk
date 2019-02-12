@@ -18,26 +18,24 @@
 package system.basic
 
 import java.util.Date
+
 import scala.language.postfixOps
 import scala.collection.mutable.HashMap
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import common.TestUtils
-import common.BaseWsk
-import common.WskProps
+import common._
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import common.TestHelpers
-import common.WskTestHelpers
-import common.TestHelpers
 import common.WskProps
+import common.rest.WskRestOperations
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
+class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations = new WskRestOperations
+
   val LOG_DELAY = 80 seconds
 
   behavior of "Wsk Package"
@@ -45,7 +43,7 @@ abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
   it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "simplepackage"
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
-      pkg.create(name, Map())
+      pkg.create(name, Map.empty)
     }
   }
 

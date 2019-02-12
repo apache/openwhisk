@@ -146,12 +146,12 @@ The controller will pass along the action-specified headers, if any, to the HTTP
 
 All web actions, when invoked, receives additional HTTP request details as parameters to the action input argument. They are:
 
-1. `__ow_method` (type: string). the HTTP method of the request.
-2. `__ow_headers` (type: map string to string): A the request headers.
+1. `__ow_method` (type: string): the HTTP method of the request.
+2. `__ow_headers` (type: map string to string): the request headers.
 3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
-4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
-5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise
-6. `__ow_query` (type: string): the query parameters from the request as an unparsed string
+4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject.
+5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise.
+6. `__ow_query` (type: string): the query parameters from the request as an unparsed string.
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 
@@ -164,7 +164,7 @@ Web actions bring some additional features that include:
 1. `Content extensions`: the request must specify its desired content type as one of `.json`, `.html`, `.http`, `.svg` or `.text`. This is done by adding an extension to the action name in the URI, so that an action `/guest/demo/hello` is referenced as `/guest/demo/hello.http` for example to receive an HTTP response back. For convenience, the `.http` extension is assumed when no extension is detected.
 2. `Projecting fields from the result`: When used with content extensions other than `.http`, the path that follows the action name is used to project out one or more levels of the response. For example, 
 `/guest/demo/hello.html/body`. This allows an action which returns a dictionary `{body: "..." }` to project the `body` property and directly return its string value instead. The projected path follows an absolute path model (as in XPath).
-3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
+3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, binding parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
 5. `Activation via multiple HTTP verbs`: a web action may be invoked via any of these HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`, as well as `HEAD` and `OPTIONS`.
 6. `Non JSON body and raw HTTP entity handling`: A web action may accept an HTTP request body other than a JSON object, and may elect to always receive such values as opaque values (plain text when not binary, or base64 encoded string otherwise).
@@ -372,7 +372,7 @@ $ wsk update create /guest/demo/hello hello.js --web false
 ### Decoding binary body content from Base64
 
 When using raw HTTP handling, the `__ow_body` content will be encoded in Base64 when the request content-type is binary.
-Below are functions demonstrating how to decode the body content in Node, Python, and Swift. Simply save a method shown
+Below are functions demonstrating how to decode the body content in Node, Python, Swift and PHP. Simply save a method shown
 below to file, create a raw HTTP web action utilizing the saved artifact, and invoke the web action.
 
 #### Node
@@ -450,7 +450,7 @@ if it is present in the HTTP request. Otherwise, a default value is generated as
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
-Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Headers: Authorization, Origin, X-Requested-With, Content-Type, Accept, User-Agent
 ```
 
 Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a
@@ -484,6 +484,17 @@ $ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTI
 < Access-Control-Allow-Methods: OPTIONS, GET
 < Access-Control-Allow-Origin: example.com
 ```
+
+## Web Actions in Shared Packages
+
+A web action in a shared (i.e., public) package is accessible as a web action either directly via the package's fully
+qualified name, or via a package binding. It is important to note that a web action in a public package will be
+accessible for all bindings of the package even if the binding is private. This is because the web action annotation
+is carried on the action and cannot be overridden. If you do not wish to expose a web action through your package
+bindings, then you should clone-and-own the package instead.
+
+Action parameters are inherited from its package, and the binding if there is one. You can make package parameters
+[immutable](./annotations.md#protected-parameters) by defining their values through a package binding.
 
 ## Error Handling
 

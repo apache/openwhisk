@@ -23,12 +23,12 @@ import org.scalatest.TestData
 
 trait TestHelpers extends FlatSpec with BeforeAndAfterEachTestData {
 
-  override def beforeEach(td: TestData) {
+  override def beforeEach(td: TestData): Unit = {
     println(s"\nStarting test ${td.name} at ${TestUtils.getDateTime()}")
     super.beforeEach(td)
   }
 
-  override def afterEach(td: TestData) {
+  override def afterEach(td: TestData): Unit = {
     println(s"\nFinished test ${td.name} at ${TestUtils.getDateTime()}")
     super.afterEach(td)
   }

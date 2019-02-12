@@ -37,7 +37,7 @@ import socket
 # on HTTPS connections
 httpRequestProps = {'secure': True}
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 10):
+def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 60):
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = HTTPConnection(url.netloc, timeout = timeout)

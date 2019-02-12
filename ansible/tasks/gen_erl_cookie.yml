@@ -1,0 +1,35 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+
+# generate erlang cookie for CouchDB
+
+- name: "generate erlang cookie"
+  local_action: command openssl rand -base64 32op
+  register: random_stdout
+  run_once: true
+  when: erlang_cookie is not defined
+
+- set_fact:
+    erlang_cookie: "{{ random_stdout.stdout }}"
+  when: erlang_cookie is not defined
+
+- name: "ensure config root dir exists"
+  file:
+    path: "{{ config_root_dir }}"
+    state: directory
+
+# when enable uid namespace mode, couchdb container doesn't have permission to change the owner of files which mounted
+# from host, so the container will be failed to start. Use a temporary container here to create the file erlang.cookie
+# with the correct user 'couchdb' as its owner
+- name: "create the erlang cookie file on remote"
+  vars:
+    couchdb_image: "{{ couchdb.docker_image | default('apache/couchdb:' ~ couchdb.version ) }}"
+  command: "docker run --rm -v /tmp:/tmp -u couchdb {{ couchdb_image }} sh -c 'echo {{ erlang_cookie }} >> /tmp/erlang.cookie'"
+  become: true
+
+- name: "move erlang.cookie from /tmp to {{ config_root_dir }}"
+  shell: "chmod 400 /tmp/erlang.cookie && mv /tmp/erlang.cookie {{ config_root_dir }}/erlang.cookie"
+  args:
+    warn: false
+  become: true

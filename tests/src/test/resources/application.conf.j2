@@ -1,6 +1,9 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
 whisk.spi {
-  SimpleSpi = whisk.spi.SimpleSpiImpl
-  MissingSpi = whisk.spi.MissingImpl
+  SimpleSpi = org.apache.openwhisk.spi.SimpleSpiImpl
+  MissingSpi = org.apache.openwhisk.spi.MissingImpl
   MissingModule = missing.module
 }
 
@@ -8,6 +11,9 @@ whisk.spi {
 akka.http.client.idle-timeout = 90 s
 akka.http.host-connection-pool.idle-timeout = 90 s
 akka.http.host-connection-pool.client.idle-timeout = 90 s
+
+# Avoid system exit for test runs
+akka.jvm-exit-on-fatal-error = off
 
 whisk {
     # kafka related configuration
@@ -33,12 +39,12 @@ whisk {
     }
 
     couchdb {
-        protocol = "{{ db_protocol }}"
-        host     = "{{ db_host }}"
-        port     = "{{ db_port }}"
-        username = "{{ db_username }}"
-        password = "{{ db_password }}"
-        provider = "{{ db_provider }}"
+        protocol = "{{ db.protocol }}"
+        host     = "{{ db.host }}"
+        port     = "{{ db.port }}"
+        username = "{{ db.credentials.admin.user }}"
+        password = "{{ db.credentials.admin.pass }}"
+        provider = "{{ db.provider }}"
         databases {
           WhiskAuth       = "{{ db.whisk.auth }}"
           WhiskEntity     = "{{ db.whisk.actions }}"
@@ -46,19 +52,40 @@ whisk {
         }
     }
 
+    cosmosdb {
+        endpoint = ${?COSMOSDB_ENDPOINT}
+        key      = ${?COSMOSDB_KEY}
+        db       = ${?COSMOSDB_NAME}
+    }
+
     controller {
       protocol = {{ controller.protocol }}
       https {
         keystore-flavor = "{{ controller.ssl.storeFlavor }}"
-        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controller.ssl.keystore.name }}"
         keystore-password = "{{ controller.ssl.keystore.password }}"
-        truststore-flavor = "{{ controller.ssl.storeFlavor }}"
-        truststore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
-        truststore-password = "{{ controller.ssl.keystore.password }}"
         client-auth = "{{ controller.ssl.clientAuth }}"
+      }
+    }
+    invoker {
+      protocol = {{ invoker.protocol }}
+      https {
+        keystore-flavor = "{{ invoker.ssl.storeFlavor }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+        keystore-password = "{{ invoker.ssl.keystore.password }}"
+        client-auth = "{{ invoker.ssl.clientAuth }}"
       }
     }
     user-events {
         enabled = {{ user_events }}
     }
+}
+
+#test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
+test {
+  whisk {
+    concurrency-limit {
+      max = 200
+    }
+  }
 }

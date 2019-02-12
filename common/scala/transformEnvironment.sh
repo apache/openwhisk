@@ -34,6 +34,19 @@ configVariables=$(compgen -v | grep $prefix)
 
 props=()
 
+if [ -n "$OPENWHISK_CONFIG" ]; then
+    config="$OPENWHISK_CONFIG"
+elif [ -n "$OPENWHISK_ENCODED_CONFIG" ]; then
+    config=$(echo "$OPENWHISK_ENCODED_CONFIG" | base64 -d)
+fi
+
+if [ -n "$config" ]
+then
+    location="$HOME/config.conf"
+    printf "%s" "$config" > "$location"
+    props+=("-Dconfig.file='$location'")
+fi
+
 for var in $configVariables
 do
     value=$(printenv "$var")

@@ -20,43 +20,31 @@ package system.basic
 import java.time.Instant
 import java.util.Date
 
+import com.jayway.restassured.RestAssured
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import common.ActivationResult
-import common.StreamLogging
-import common.TestHelpers
-import common.TestUtils
+import common._
 import common.TestUtils._
-import common.BaseWsk
-import common.WskProps
-import common.RuleActivationResult
-import common.WskTestHelpers
-
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-
+import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
-import whisk.core.WhiskConfig
-import whisk.http.Messages.sequenceIsTooLong
+import system.rest.RestUtil
+import org.apache.openwhisk.http.Messages.sequenceIsTooLong
 
 /**
  * Tests sequence execution
  */
 @RunWith(classOf[JUnitRunner])
-abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestHelpers with StreamLogging {
+class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLogging with RestUtil with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk: BaseWsk
+  val wsk: WskOperations = new WskRestOperations
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
-
-  val whiskConfig: WhiskConfig
 
   behavior of "Wsk Sequence"
 
@@ -200,7 +188,11 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
       result.fields.get("payload") shouldBe Some(argsJson)
     }
     // update x with limit echo
-    val limit = whiskConfig.actionSequenceLimit.toInt
+    val limit: Int = {
+      val response = RestAssured.given.config(sslconfig).get(getServiceURL)
+      response.statusCode should be(200)
+      response.body.asString.parseJson.asJsObject.fields("limits").asJsObject.fields("sequence_length").convertTo[Int]
+    }
     val manyEcho = for (i <- 1 to limit) yield echo
 
     wsk.action.create(xName, Some(manyEcho.mkString(",")), kind = Some("sequence"), update = true)

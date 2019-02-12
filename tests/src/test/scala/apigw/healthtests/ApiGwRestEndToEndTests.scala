@@ -27,14 +27,15 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestUtils._
-import common.rest.WskRest
+import common.rest.WskRestOperations
 import common.rest.RestResult
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class ApiGwRestEndToEndTests extends ApiGwEndToEndTests {
+class ApiGwRestEndToEndTests extends ApiGwEndToEndTests with WskActorSystem {
 
-  override lazy val wsk: common.rest.WskRest = new WskRest
-  override val createCode: Int = OK.intValue
+  override lazy val wsk = new WskRestOperations
+  override val createCode = OK.intValue
 
   override def verifyAPICreated(rr: RunResult): Unit = {
     val apiResultRest = rr.asInstanceOf[RestResult]
@@ -83,11 +84,11 @@ class ApiGwRestEndToEndTests extends ApiGwEndToEndTests {
     val apidoc = RestResult.getFieldJsObject(apiValue, "apidoc")
     bw.write(apidoc.toString())
     bw.close()
-    return swaggerfile
+    swaggerfile
   }
 
   override def getSwaggerApiUrl(rr: RunResult): String = {
     val apiResultRest = rr.asInstanceOf[RestResult]
-    return apiResultRest.getField("gwApiUrl") + "/path"
+    apiResultRest.getField("gwApiUrl") + "/path"
   }
 }
