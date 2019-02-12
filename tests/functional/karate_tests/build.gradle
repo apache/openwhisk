@@ -29,8 +29,6 @@ repositories {
 }
 dependencies {
     compile group: 'com.jcraft', name: 'jsch', version:'0.1.53'
-    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version:'2.10.0'
-    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version:'2.10.0'
     compile group: 'com.intuit.karate', name: 'karate-netty', version:'0.8.0.1'
     testCompile group: 'net.masterthought', name: 'cucumber-reporting', version:'3.8.0'
     testCompile group: 'com.intuit.karate', name: 'karate-apache', version:'0.9.1'
