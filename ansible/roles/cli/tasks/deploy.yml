@@ -34,6 +34,7 @@
   unarchive:
     src: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
     dest: "{{ openwhisk_cli.nginxdir.name }}"
+    remote_src: yes
 
 - name: "Delete temp directory"
   file:
@@ -52,6 +53,7 @@
   unarchive:
     src: "{{ item.path }}"
     dest: "{{ item.path | dirname }}"
+    remote_src: yes
   with_items: "{{ individual_tarballs.files }}"
 
 - name: "Generate a list of individual zipfiles to expand"
@@ -65,4 +67,5 @@
   unarchive:
     src: "{{ item.path }}"
     dest: "{{ item.path | dirname }}"
+    remote_src: yes
   with_items: "{{ individual_zipfiles.files }}"
