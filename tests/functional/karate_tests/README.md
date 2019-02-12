@@ -24,7 +24,7 @@ It is based of karate (https://github.com/intuit/karate) framework.
 
 ### How to run functional test
 1. Navigate to the root folder
-2. Use the following command to run the above selected suite: `gradle clean test --tests com.karate.openwhisk.smoketests.SmokeTestRunner` (This will run all the tests in com.karate.openwhisk.smoketests package.)
+2. Use the following command to run the above selected suite: `./gradlew clean test --tests org.apache.openwhisk.smoketests.SmokeTestRunner` (This will run all the tests in org.apache.openwhisk.smoketests package.)
 
 ### How to add more tests
 1. Select a package(Type of test).Example Smoke test
@@ -32,7 +32,7 @@ It is based of karate (https://github.com/intuit/karate) framework.
 
 ### How to add a new test type
 1. Create a package in `src/test/java`.
-2. We can create test types like regression, sanity etc.For example `com.karate.openwhisk.sanitytests`
+2. We can create test types like regression, sanity etc.For example `org.apache.openwhisk.sanitytests`
 3. Create a feature and runner file inside the above package
 
 
