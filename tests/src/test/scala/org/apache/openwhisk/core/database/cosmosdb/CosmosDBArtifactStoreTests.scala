@@ -19,11 +19,14 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
+import org.apache.openwhisk.common.TransactionId
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Pending}
 import org.scalatest.junit.JUnitRunner
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
+import org.apache.openwhisk.core.entity.WhiskActivation
+import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
@@ -79,5 +82,34 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
         offer.getThroughput shouldBe storeConfig.throughput
       }
     }
+  }
+
+  behavior of "CosmosDB query debug"
+
+  it should "log query metrics in debug flow" in {
+    val debugTid = TransactionId("42", extraLogging = true)
+    val tid = TransactionId("42")
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _)(tid))
+
+    val entityPath = s"${ns.asString}/testact"
+    stream.reset()
+    query[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List(entityPath, 1050),
+      List(entityPath, TOP, TOP))(tid)
+
+    stream.toString should not include ("[QueryMetricsEnabled]")
+    stream.reset()
+
+    query[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List(entityPath, 1050),
+      List(entityPath, TOP, TOP))(debugTid)
+    stream.toString should include("[QueryMetricsEnabled]")
+
   }
 }
