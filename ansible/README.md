@@ -82,8 +82,8 @@ The following step must be executed once per development environment.
 It will generate the `hosts` configuration file based on your environment settings.
 
 The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
-You may elect to enable high-availability (HA) mode by passing tne ansible option `-e mode=HA` when executing this playbook.
-This will configure your deployment with multiple instances (e.g., two kafka instancess, and two invokers).
+You may elect to enable high-availability (HA) mode by passing tne Ansible option `-e mode=HA` when executing this playbook.
+This will configure your deployment with multiple instances (e.g., two Kafka instances, and two invokers).
 
 In addition to the host file generation, you need to configure the database for your deployment. This is done
 by modifying the file `ansible/db_local.ini` to provide the following properties.
@@ -98,7 +98,7 @@ db_host=
 db_port=
 ```
 
-This file is generated automatically for an ephermeral CouchDB instance during `setup.yml`. If you want to use Cloudant, you have to modify the file.
+This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`. If you want to use Cloudant, you have to modify the file.
 For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```
@@ -220,7 +220,7 @@ cd "$OPENWHISK_HOME/../incubator-openwhisk-cli"
 ```
 
 The binaries are generated and put into a tarball in the folder
-`../incubator-openwhisk-cli/release`.  Then, use the following ansible command
+`../incubator-openwhisk-cli/release`.  Then, use the following Ansible command
 to (re-)configure the CLI installation:
 
 ```

@@ -28,7 +28,7 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | Package | Description |
 | --- | --- |
 | [/whisk.system/alarms](https://github.com/apache/incubator-openwhisk-package-alarms/blob/master/README.md) | Package to create periodic triggers |
-| [/whisk.system/cloudant](https://github.com/apache/incubator-openwhisk-package-cloudant/blob/master/README.md) | Package to work with [Cloudant noSQL DB](https://console.ng.bluemix.net/docs/services/Cloudant/index.html) service |
+| [/whisk.system/cloudant](https://github.com/apache/incubator-openwhisk-package-cloudant/blob/master/README.md) | Package to work with [Cloudant NoSQL DB](https://console.ng.bluemix.net/docs/services/Cloudant/index.html) service |
 | [/whisk.system/github](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/github/README.md) | Package to create webhook triggers for [GitHub](https://developer.github.com/) |
 | [/whisk.system/messaging](https://github.com/apache/incubator-openwhisk-package-kafka/blob/master/README.md) | Package to work with [Message Hub](https://console.ng.bluemix.net/docs/services/MessageHub/index.html) service |
 | [/whisk.system/pushnotifications](https://github.com/apache/incubator-openwhisk-package-pushnotifications/blob/master/README.md) | Package to work with [Push Notification](https://console.ng.bluemix.net/docs/services/mobilepush/index.html) service |

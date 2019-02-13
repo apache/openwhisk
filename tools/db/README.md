@@ -36,7 +36,7 @@ To try out OpenWhisk without managing your own CouchDB installation, you can sta
   * you will need to run `ansible-playbook couchdb.yml` every time you `clean` or `teardown` the system (see below)
   * you will need to initialize the data store each time (`ansible-playbook initdb.yml`, see below)
 
-Detailed instructions are found in the [ansible readme](../../ansible/README.md).
+Detailed instructions are found in the [Ansible README](../../ansible/README.md).
 
 ## Using Cloudant
 

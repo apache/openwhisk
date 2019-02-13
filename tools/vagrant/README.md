@@ -71,7 +71,7 @@ export OW_DB_PORT=5984 ./hello
 **Note:**
 Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart),
 but will be destroyed if you
-initialze the DB. For more information on data store configurations see
+initialize the DB. For more information on data store configurations see
 [tools/db/README.md](../db/README.md).
 
 
@@ -177,7 +177,7 @@ cd ${OPENWHISK_HOME}
 ```
 
 ## Building OpenWhisk
-Use gradle to build docker images from inside the VM, this is done automatically
+Use Gradle to build docker images from inside the VM, this is done automatically
 once at VM creation.
 
 ```
@@ -207,9 +207,9 @@ Then update line with the curl download command like
 ```
 RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz && \
 ```
-Notice that the hostname where to download the cli is different for newer versions.
+Notice that the hostname where to download the CLI is different for newer versions.
 
-Then update the ansible configuration to enable the use of runc, edit [](../../ansible/environments/vagrant/group_vars/all)
+Then update the Ansible configuration to enable the use of runc, edit [](../../ansible/environments/vagrant/group_vars/all)
 ```
 invoker_use_runc: true
 ```

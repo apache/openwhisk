@@ -63,7 +63,7 @@ To change the Travis (or Jenkins) host URL, use `-u`.
 - monitor a Travis CI build with job number `N`: `citool monitor N`
 - monitor same job `N` until completion: `citool monitor -p N`
 - save job output to a file: `citool -o monitor N`
-- for Travis CI matrix builds, use the matrix index after the job number as in `citool monitor N.i` where 1 <= i <= matrix buidls.
+- for Travis CI matrix builds, use the matrix index after the job number as in `citool monitor N.i` where 1 <= i <= matrix builds.
 
 To monitor a Jenkins build `B` with job number `N` on host `https://jenkins.host:port`:
 ```
@@ -94,8 +94,8 @@ citool -i -b B cat -s -g "tid_124" whisk/logs N
 
 ## Gradle Build Scan Integration
 
-OpenWhisk builds on CI setups have [Gradle Build Scan](https://gradle.com/build-scans) integrated. Each build on travis pushes scan reports to
-[Gradle Scan Community Hosted Server](https://scans.gradle.com). To see the scan report you need to check the travis build logs for lines like
+OpenWhisk builds on CI setups have [Gradle Build Scan](https://gradle.com/build-scans) integrated. Each build on Travis pushes scan reports to
+[Gradle Scan Community Hosted Server](https://scans.gradle.com). To see the scan report you need to check the Travis build logs for lines like
 below
 
 ```

@@ -119,7 +119,7 @@ The docker runtime includes a compiler to help users compile and package Swift 4
 
 ### Compiling a single source file for Swift 4.2
 
-To compile a single source file that doesn't depend on external libaries you can use the following command:
+To compile a single source file that doesn't depend on external libraries you can use the following command:
 ```bash
 docker run -i openwhisk/action-swift-v4.2 -compile main <hello.swift >hello.zip
 ```

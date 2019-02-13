@@ -154,14 +154,14 @@ incubator-openwhisk-apigateway
 incubator-openwhisk-catalog
 ...
 Stored the list in /openwhisk_home/build/repos/repos.txt
-Stored the json details in /openwhisk_home/build/repos/repos.json
+Stored the JSON details in /openwhisk_home/build/repos/repos.json
 
 ```
 
 It generates 2 files
 
 * `repos.txt` - List repository names one per line.
-* `repos.json` - Stores an array of repository details json containing various repository related details.
+* `repos.json` - Stores an array of repository details JSON containing various repository related details.
 
 ## OpenWhisk Module Status Generator
 

@@ -105,7 +105,7 @@ The instructions that follow show you how to use the OpenWhisk Docker skeleton.
   Notice the use of `--docker` when creating an action. Currently all Docker images are assumed
   to be hosted on Docker Hub.
 
-  *Note:* It is considered best-practice for production images to be versioned via docker image tags. The absence of a tag will be treated the same as using the tag "latest", which will guarantee to pull from the registry when creating new containers. That contains the possibility of failing because pulling the image fails. For tagged images however, the system will allow a failing pull and gracefully recover it by using the image that is already locally available, making it much more resilient against Dockerhub outages etc.
+  *Note:* It is considered best-practice for production images to be versioned via docker image tags. The absence of a tag will be treated the same as using a "latest" tag, which will result in a pull from the registry when creating new containers. Pulling an image may fail due to a network interruption or Docker Hub outage. For tagged images however, the system will gracefully recover from a failed pull by using the image that is already locally available, making it much more resilient against Docker Hub outages, etc.
 
   The "latest" tag should therefore only be used for rapid prototyping where guaranteeing the latest code state is more important than runtime stability at scale.
 

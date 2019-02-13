@@ -220,7 +220,7 @@ whisk.urlSession = session
 
 All actions and triggers have a fully qualified name that is made up of a namespace, a package, and an action or trigger name. The SDK can accept these elements as parameters when you are invoking an action or firing a trigger. The SDK also provides a function that accepts a fully qualified name that looks like `/mynamespace/mypackage/nameOfActionOrTrigger`. The qualified name string supports unnamed default values for namespaces and packages that all OpenWhisk users have, so the following parsing rules apply:
 
-- qName = "foo" results in namespace = default, package = default, action/trrigger = "foo"
+- qName = "foo" results in namespace = default, package = default, action/trigger = "foo"
 - qName = "mypackage/foo" results in namespace = default, package = mypackage, action/trigger = "foo"
 - qName = "/mynamespace/foo" results in namespace = mynamespace, package = default, action/trigger = "foo"
 - qName = "/mynamespace/mypackage/foo results in namespace = mynamespace, package = mypackage, action/trigger = "foo"
