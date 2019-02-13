@@ -126,7 +126,7 @@ cd /your/path/to/openwhisk
 cd /your/path/to/openwhisk
 ./gradlew distDocker
 ```
-**Tip** Using `gradlew` handles the installation of the correct version of gradle to use.
+**Tip** Using `gradlew` handles the installation of the correct version of Gradle to use.
 
 # Deploy
 

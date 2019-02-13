@@ -280,7 +280,7 @@ ok: updated action greeting
 
 Sometimes it is necessary or just convenient to provide values for function parameters. These can serve as
 defaults, or as a way of reusing an action but with different parameters. Parameters can be bound to an action
-and unless overriden later by an invocation, they will provide the specified value to the function.
+and unless overridden later by an invocation, they will provide the specified value to the function.
 
 Here is an example.
 
@@ -301,7 +301,7 @@ wsk action invoke greeting --result
 }
 ```
 
-You may still provide additional parmaeters, as in the `place`:
+You may still provide additional parameters, as in the `place`:
 ```
 wsk action invoke greeting --result --param place Kansas
 {
@@ -320,7 +320,7 @@ wsk action invoke greeting --result --param place Kansas --param name Dorothy
 
 When an invocation request is received, the system records the request and dispatches an activation.
 
-The system returns an activation ID (in the case of a nonblocking invocation) to confirm that the invocation was received.
+The system returns an activation ID (in the case of a non-blocking invocation) to confirm that the invocation was received.
 Notice that if there's a network failure or other failure which intervenes before you receive an HTTP response, it is possible
 that OpenWhisk received and processed the request.
 

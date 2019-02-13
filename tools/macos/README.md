@@ -81,7 +81,7 @@ No matter which JDK is used, make sure you correctly configure the environment v
 cd /your/path/to/openwhisk
 ./gradlew distDocker
 ```
-**Tip** Using `gradlew` handles the installation of the correct version of gradle to use.
+**Tip** Using `gradlew` handles the installation of the correct version of Gradle to use.
 
 # Deploy
 Follow instructions in [ansible/README.md](../../ansible/README.md)

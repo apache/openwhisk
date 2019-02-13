@@ -110,7 +110,7 @@ The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environm
 The CLI has an extra level of security from client to apihost, system provides default client certificate configuration which deployment process generated, then you can refer to below steps to use client certificate:
 * The client certificate verification is off default, you can configure `nginx_ssl_verify_client` to `on` or `optional` to open it for your corresponding environment configuration.
 * Create your own client certificate instead of system provides if you want, after created, you can configure `openwhisk_client_ca_cert` to your own ca cert path for your corresponding environment configuration.
-* Run the follwing command to pass client certificate:
+* Run the following command to pass client certificate:
 ```
 ./bin/wsk property set --cert <client_cert_path> --key <client_key_path>
 ```

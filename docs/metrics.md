@@ -223,7 +223,7 @@ Following metrics capture stats around various docker command executions.
 
 Metrics below are emitted per kafka topic.
 
-* `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to kafka and when it is read within a consumer. This metric is recorded for every message read.
+* `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to Kafka and when it is read within a consumer. This metric is recorded for every message read.
 * `openwhisk.histogram.kafka_<topic name>_count` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
 
 Metrics per topic

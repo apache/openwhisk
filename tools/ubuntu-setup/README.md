@@ -65,7 +65,7 @@ Follow instructions [tools/db/README.md](../db/README.md) on how to configure a 
 Follow the instructions in [ansible/README.md](../../ansible/README.md) to deploy and teardown OpenWhisk within a single machine or VM.
 
 Once deployed, several Docker containers will be running in your machine.
-You can check that containers are running by using the docker cli with the command `docker ps`.
+You can check that containers are running by using the docker CLI with the command `docker ps`.
 
 ### Configure the CLI
 Follow instructions in [Configure CLI](../../docs/cli.md). The API host
