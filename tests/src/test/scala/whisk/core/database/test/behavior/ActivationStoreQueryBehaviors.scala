@@ -28,10 +28,6 @@ import scala.util.Random
 
 trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
-  private val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
-  private val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
-  private val action2 = s"action2_${Random.alphanumeric.take(4).mkString}"
-
   protected def checkQueryActivations(namespace: String,
                                       name: Option[String] = None,
                                       skip: Int = 0,
@@ -67,7 +63,7 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
               context = context)
         }
         .map { r =>
-          r.fold((left) => left, (right) => right.map(wa => if (includeDocs) wa.toExtendedJson else wa.summaryAsJson))
+          r.fold(left => left, right => right.map(wa => if (includeDocs) wa.toExtendedJson else wa.summaryAsJson))
         }
         .futureValue
 
@@ -98,6 +94,9 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "find all entities" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
+    val action2 = s"action2_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -110,6 +109,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support since and upto filters" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -136,6 +137,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support skipping results" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -145,6 +148,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support limiting results" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -154,6 +159,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support including complete docs" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -175,6 +182,9 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "find all entities matching name" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
+    val action2 = s"action2_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -187,6 +197,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support since and upto filters" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -216,6 +228,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support skipping results" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -225,6 +239,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support limiting results" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -234,6 +250,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "support including complete docs" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -263,6 +281,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "should count all created activations" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -272,6 +292,9 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "count with option name" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
+    val action2 = s"action2_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -286,6 +309,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "count with since and upto" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))
@@ -305,6 +330,8 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
 
   it should "count with skip" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
 
     val activations = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
     activations foreach (store(_, context))

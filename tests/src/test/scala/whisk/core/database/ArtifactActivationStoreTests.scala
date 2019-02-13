@@ -42,7 +42,7 @@ class ArtifactActivationStoreTests
                                      context: UserContext,
                                      expected: IndexedSeq[WhiskActivation])(implicit transid: TransactionId): Unit = {
     // This is for compatible with CouchDB as it use option `StaleParameter.UpdateAfter`
-    retry(super.checkQueryActivations(namespace, name, skip, limit, includeDocs, since, upto, context, expected), 5)
+    retry(super.checkQueryActivations(namespace, name, skip, limit, includeDocs, since, upto, context, expected), 100)
   }
 
   override def checkCountActivations(namespace: String,
@@ -52,6 +52,6 @@ class ArtifactActivationStoreTests
                                      upto: Option[Instant] = None,
                                      context: UserContext,
                                      expected: Long)(implicit transid: TransactionId): Unit = {
-    retry(super.checkCountActivations(namespace, name, skip, since, upto, context, expected), 5)
+    retry(super.checkCountActivations(namespace, name, skip, since, upto, context, expected), 100)
   }
 }

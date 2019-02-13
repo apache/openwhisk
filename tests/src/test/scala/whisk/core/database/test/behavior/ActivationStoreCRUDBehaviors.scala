@@ -25,13 +25,12 @@ import scala.util.Random
 
 trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
 
-  private val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
-  private val action = s"action1_${Random.alphanumeric.take(4).mkString}"
-
   behavior of s"${storeType}ActivationStore store"
 
   it should "put activation and get docinfo" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
     val doc = store(activation, context)
     doc shouldBe activation.docinfo
@@ -41,6 +40,8 @@ trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
 
   it should "deletes existing activation" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
     store(activation, context)
     activationStore.delete(ActivationId(activation.docid.asString), context).futureValue shouldBe true
@@ -55,6 +56,8 @@ trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
 
   it should "get existing activation matching id" in {
     implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
     store(activation, context)
     activationStore.get(ActivationId(activation.docid.asString), context).futureValue shouldBe activation
