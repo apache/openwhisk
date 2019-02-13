@@ -115,17 +115,10 @@ public class WhiskProperties {
     }
 
     /**
-     * The path to the CLI directory.
-     */
-    public static String getCLIDir() {
-        return whiskHome + "/bin";
-    }
-
-    /**
      * The path to the Go CLI executable.
      */
     public static String getCLIPath() {
-        return getCLIDir() + "/wsk";
+        return whiskHome + "/bin/wsk";
     }
 
     public static File getFileRelativeToWhiskHome(String name) {
@@ -150,10 +143,6 @@ public class WhiskProperties {
 
     public static String getMainDockerEndpoint() {
         return whiskProperties.getProperty("main.docker.endpoint");
-    }
-
-    public static boolean useCLIDownload() {
-        return whiskProperties.getProperty("use.cli.download").equals("true");
     }
 
     public static String[] getInvokerHosts() {
