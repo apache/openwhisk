@@ -303,6 +303,10 @@ class ContainerProxyTests
       collector.calls should have size 2
       container.suspendCount shouldBe 0
       acker.calls should have size 2
+
+      // Add debugging information for the case of failure.
+      println(acker.calls.map(_._2.toJson.compactPrint))
+
       store.calls should have size 2
 
       val initRunActivation = acker.calls(0)._2
@@ -360,6 +364,10 @@ class ContainerProxyTests
       container.suspendCount shouldBe 1
       container.resumeCount shouldBe 1
       acker.calls should have size 2
+
+      // Add debugging information for the case of failure.
+      println(acker.calls.map(_._2.toJson.compactPrint))
+
       store.calls should have size 2
       acker
         .calls(0)
@@ -548,6 +556,10 @@ class ContainerProxyTests
       container.suspendCount shouldBe 1
       container.resumeCount shouldBe 0
       acker.calls should have size 6
+
+      // Add debugging information for the case of failure.
+      println(acker.calls.map(_._2.toJson.compactPrint))
+
       store.calls should have size 6
       acker
         .calls(0)
@@ -611,6 +623,10 @@ class ContainerProxyTests
       container.suspendCount shouldBe 0
       container.destroyCount shouldBe 0
       acker.calls should have size 2
+
+      // Add debugging information for the case of failure.
+      println(acker.calls.map(_._2.toJson.compactPrint))
+
       store.calls should have size 2
 
       val initErrorActivation = acker.calls(0)._2
