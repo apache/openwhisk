@@ -37,7 +37,7 @@ It is based of karate (https://github.com/intuit/karate) framework.
 
 
 ### Config Variable(Optional) to run the tests
-The variables in karate.config
+By default the tests would run using guest namespace.The variables in karate.config
 
 * env-->Environment Name (Optional)
 * adminauth-->Admin Auth,Used for Admin API's
@@ -50,4 +50,3 @@ The variables in karate.config
 1. https://github.com/intuit/karate/tree/master/karate-demo
 2. https://github.com/intuit/karate
 3. https://gatling.io/docs/2.3/general/simulation_setup/
-4. http://toolsqa.com/cucumber/cucumber-jvm-feature-file/
