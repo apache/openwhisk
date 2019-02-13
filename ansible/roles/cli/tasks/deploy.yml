@@ -14,7 +14,7 @@
 
 - name: "Ensure temporary directory exists"
   file:
-    path: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}"
+    path: "{{ nginx.confdir }}/cli_temp"
     state: directory
 
 - name: "Download release archive to build directory ..."
@@ -30,19 +30,11 @@
     dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "local"
 
-#
-#   I really wanted to use 'unarchive' here, but it was quite buggy and didn't
-#   want to cooperate, so we do a good old-fashioned tar x instead
-#
 - name: "Expand the archive into the build directory"
-  shell: >
-    tar zxf {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz
-    -C {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/
-
-# Remote copy does not support recursive copy of directories. That's why I'm using the shell.
-- name: "Copy expanded archive to final configuration directory"
-  #  WARNING:  The trailing slash is significant, signalling to copy contents
-  shell: "cp -r {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/* {{ openwhisk_cli.nginxdir.name }}"
+  unarchive:
+    src: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
+    dest: "{{ openwhisk_cli.nginxdir.name }}"
+    remote_src: yes
 
 - name: "Delete temp directory"
   file:
@@ -58,7 +50,10 @@
   register: individual_tarballs
 
 - name: "Unarchive the individual tarballs"
-  shell: tar zxf {{ item.path }} -C {{ item.path | dirname }}
+  unarchive:
+    src: "{{ item.path }}"
+    dest: "{{ item.path | dirname }}"
+    remote_src: yes
   with_items: "{{ individual_tarballs.files }}"
 
 - name: "Generate a list of individual zipfiles to expand"
@@ -68,8 +63,9 @@
       recurse: true
   register: individual_zipfiles
 
-# Use old good unzip instead of unarchive due to a known issue on MacOS
-# https://github.com/ansible/ansible-modules-core/issues/3952
 - name: "Unarchive the individual zipfiles into binaries"
-  shell: unzip -o {{ item.path }} -d {{ item.path | dirname }}
+  unarchive:
+    src: "{{ item.path }}"
+    dest: "{{ item.path | dirname }}"
+    remote_src: yes
   with_items: "{{ individual_zipfiles.files }}"
