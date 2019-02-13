@@ -308,7 +308,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskActionMetaData.execFieldName, action.exec.kind))
+          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind))
 
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
@@ -1327,7 +1327,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "not invoke an action when final parameters are redefined" in {
     implicit val tid = transid()
-    val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
+    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
     val parameters = Parameters("a", "A") ++ Parameters("empty", JsNull)
     val action = WhiskAction(namespace, aname(), jsDefault("??"), parameters = parameters, annotations = annotations)
     put(entityStore, action)

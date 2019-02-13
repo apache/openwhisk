@@ -309,6 +309,12 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   val execFieldName = "exec"
   val finalParamsAnnotationName = "final"
+  val webActionAnnotationName = "web-export"
+  val webCustomOptionsAnnotationName = "web-custom-options"
+  val rawHttpAnnotationName = "raw-http"
+  val requireWhiskAuthAnnotation = "require-whisk-auth"
+  val requireWhiskAuthHeader = "x-require-whisk-auth"
+  val provideApiKeyAnnotationName = "provide-key"
 
   override val collectionName = "actions"
 
@@ -324,9 +330,6 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     "annotations")
 
   override val cacheEnabled = true
-
-  val requireWhiskAuthAnnotation = "require-whisk-auth"
-  val requireWhiskAuthHeader = "x-require-whisk-auth"
 
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
@@ -511,9 +514,6 @@ object WhiskActionMetaData
     extends DocumentFactory[WhiskActionMetaData]
     with WhiskEntityQueries[WhiskActionMetaData]
     with DefaultJsonProtocol {
-
-  val execFieldName = "exec"
-  val finalParamsAnnotationName = "final"
 
   override val collectionName = "actions"
 
