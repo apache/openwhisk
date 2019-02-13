@@ -20,7 +20,7 @@ import com.typesafe.config.ConfigFactory
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
-import com.microsoft.azure.cosmosdb.{ConnectionPolicy => JConnectionPolicy}
+import com.microsoft.azure.cosmosdb.{ConnectionMode, ConnectionPolicy => JConnectionPolicy}
 
 import scala.collection.JavaConverters._
 
@@ -108,6 +108,7 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       |        connection-policy {
       |           using-multiple-write-locations = true
       |           preferred-locations = [a, b]
+      |           connection-mode = Direct
       |        }
       |     }
       |  }
@@ -119,6 +120,7 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
     val policy = cosmos.connectionPolicy.asJava
     policy.isUsingMultipleWriteLocations shouldBe true
     policy.getMaxPoolSize shouldBe 42
+    policy.getConnectionMode shouldBe ConnectionMode.Direct
     policy.getPreferredLocations.asScala.toSeq should contain only ("a", "b")
     policy.getRetryOptions.getMaxRetryWaitTimeInSeconds shouldBe 120
   }
