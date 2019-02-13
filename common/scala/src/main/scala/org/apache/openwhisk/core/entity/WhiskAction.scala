@@ -314,7 +314,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   val rawHttpAnnotationName = "raw-http"
   val requireWhiskAuthAnnotation = "require-whisk-auth"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
-  val provideApiKeyAnnotationName = "provide-key"
+  val provideApiKeyAnnotationName = "provide-api-key"
 
   override val collectionName = "actions"
 

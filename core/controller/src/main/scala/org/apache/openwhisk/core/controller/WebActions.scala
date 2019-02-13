@@ -490,7 +490,9 @@ trait WhiskWebActionsApi
                         this,
                         "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
                       terminate(Unauthorized)
-                    } else if (!action.annotations.getAs[Boolean](WhiskAction.webCustomOptionsAnnotationName).getOrElse(false)) {
+                    } else if (!action.annotations
+                                 .getAs[Boolean](WhiskAction.webCustomOptionsAnnotationName)
+                                 .getOrElse(false)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)

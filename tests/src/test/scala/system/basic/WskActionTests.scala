@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
+import org.apache.openwhisk.core.entity.WhiskAction
 import org.apache.commons.io.FileUtils
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -248,7 +249,10 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     val child = "wc"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("wcbin.js")))
+      action.create(
+        name,
+        Some(TestUtils.getTestActionFilename("wcbin.js")),
+        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
     }
     assetHelper.withCleaner(wsk.action, child) { (action, _) =>
       action.create(child, Some(TestUtils.getTestActionFilename("wc.js")))
