@@ -560,7 +560,9 @@ class ContainerProxy(
         }
         val parameters = job.msg.content getOrElse JsObject.empty
 
-        val authEnvironment = job.msg.user.authkey.toEnvironment
+        val authEnvironment = if (job.action.annotations.isTruthy(WhiskAction.provideApiKeyAnnotationName)) {
+          job.msg.user.authkey.toEnvironment
+        } else JsObject.empty
 
         val environment = JsObject(
           "namespace" -> job.msg.user.namespace.name.toJson,
