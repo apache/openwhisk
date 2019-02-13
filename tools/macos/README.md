@@ -48,6 +48,8 @@ brew tap caskroom/versions
 brew cask install java8
 # install scala
 brew install scala
+# install gnu tar
+brew install gnu-tar
 # install pip
 sudo easy_install pip
 # install script prerequisites
