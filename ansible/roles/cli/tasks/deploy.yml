@@ -30,6 +30,8 @@
     dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "local"
 
+# Unarchiving here may fail for a local Mac development environment with an error stating "GNU tar required." To fix the
+# problem run "brew install gnu-tar".
 - name: "Expand the archive into the build directory"
   unarchive:
     src: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
