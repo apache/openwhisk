@@ -25,8 +25,7 @@ import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId, SizeUnits}
-import org.apache.openwhisk.core.yarn.YARNServiceActor._
-import org.apache.openwhisk.core.yarn.{YARNConfig, YARNContainerFactory}
+import org.apache.openwhisk.core.yarn.{YARNConfig, YARNContainerFactory, YARNRESTUtil, YARNTask}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Suite}
@@ -59,7 +58,7 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
       "http://localhost:8088",
       yarnLinkLogMessage = true,
       "openwhisk-action-service",
-      SIMPLEAUTH,
+      YARNRESTUtil.SIMPLEAUTH,
       "",
       "",
       "default",
@@ -67,8 +66,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
       1)
   val instance0 = new InvokerInstanceId(0, Some("invoker0"), Some("invoker0"), ByteSize(0, SizeUnits.BYTE))
   val instance1 = new InvokerInstanceId(1, Some("invoker1"), Some("invoker1"), ByteSize(0, SizeUnits.BYTE))
-  val serviceName0 = yarnConfig.serviceName + "-0";
-  val serviceName1 = yarnConfig.serviceName + "-1";
+  val serviceName0 = yarnConfig.serviceName + "-0"
+  val serviceName1 = yarnConfig.serviceName + "-1"
 
   //System.setProperty("java.security.auth.login.config", "~/login.conf")
   //System.setProperty("java.security.krb5.conf", "/etc/krb5.conf")
@@ -111,7 +110,7 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
     assert(missingImages.isEmpty)
 
     //All components have zero containers
-    assert(rm.services.get(serviceName0).orNull.components.forall(c => c.number_of_containers == 0))
+    assert(rm.services.get(serviceName0).orNull.components.forall(c => c.number_of_containers.get == 0))
 
     rm.stop()
   }
@@ -157,7 +156,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         .components
         .find(c => c.name.equals(imageToCreate.name))
         .orNull
-        .number_of_containers == 1)
+        .number_of_containers
+        .get == 1)
 
     //Factory waited for container to be stable
     assert(
@@ -168,7 +168,7 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
     rm.stop()
   }
 
-  it should "destroy a container" in {
+  it should "destroy the correct container" in {
     val rm = new MockYARNRM(8088, 1000)
     rm.start()
     val factory =
@@ -182,38 +182,111 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         yarnConfig)
     factory.init()
 
-    val imageToCreate = images(0)
-    val containerFuture = factory.createContainer(
+    val imageToDelete = images(0)
+    val imageNotToDelete = images(1)
+
+    val containerFuture1 = factory.createContainer(
       TransactionId.testing,
       "name",
-      imageToCreate,
+      imageNotToDelete,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
       1)
 
-    val container = Await.result(containerFuture, 30.seconds)
-    val destroyFuture = container.destroy()(TransactionId.testing)
+    val containerFuture2 = factory.createContainer(
+      TransactionId.testing,
+      "name",
+      imageToDelete,
+      unuseduserProvidedImage = true,
+      ByteSize(256, SizeUnits.MB),
+      1)
+
+    val containerFuture3 = factory.createContainer(
+      TransactionId.testing,
+      "name",
+      imageToDelete,
+      unuseduserProvidedImage = true,
+      ByteSize(256, SizeUnits.MB),
+      1)
+
+    val containerFuture4 = factory.createContainer(
+      TransactionId.testing,
+      "name",
+      imageToDelete,
+      unuseduserProvidedImage = true,
+      ByteSize(256, SizeUnits.MB),
+      1)
+
+    val container1 = Await.result(containerFuture1, 30.seconds)
+    val container2 = Await.result(containerFuture2, 30.seconds)
+    val container3 = Await.result(containerFuture3, 30.seconds)
+    val container4 = Await.result(containerFuture4, 30.seconds)
+
+    //Ensure container was created
+    val containerToRemoveName = container2.asInstanceOf[YARNTask].component_instance_name
+    assert(
+      rm.services
+        .get(serviceName0)
+        .orNull
+        .components
+        .find(c => c.name.equals(imageToDelete.name))
+        .orNull
+        .containers
+        .get
+        .map(c => c.component_instance_name)
+        .contains(containerToRemoveName))
+
+    val destroyFuture = container2.destroy()(TransactionId.testing)
     Await.result(destroyFuture, 30.seconds)
 
-    //Container of the correct type was deleted
+    //Ensure container of the correct type was deleted
     assert(rm.services.contains(serviceName0))
     assert(
       rm.services
         .get(serviceName0)
         .orNull
         .components
-        .find(c => c.name.equals(imageToCreate.name))
+        .find(c => c.name.equals(imageNotToDelete.name))
         .orNull != null)
     assert(
       rm.services
         .get(serviceName0)
         .orNull
         .components
-        .find(c => c.name.equals(imageToCreate.name))
+        .find(c => c.name.equals(imageNotToDelete.name))
         .orNull
-        .number_of_containers == 0)
+        .number_of_containers
+        .get == 1)
 
-    //no need to wait for stability
+    assert(
+      rm.services
+        .get(serviceName0)
+        .orNull
+        .components
+        .find(c => c.name.equals(imageToDelete.name))
+        .orNull != null)
+    assert(
+      rm.services
+        .get(serviceName0)
+        .orNull
+        .components
+        .find(c => c.name.equals(imageToDelete.name))
+        .orNull
+        .number_of_containers
+        .get == 2)
+
+    assert(
+      !rm.services
+        .get(serviceName0)
+        .orNull
+        .components
+        .find(c => c.name.equals(imageToDelete.name))
+        .orNull
+        .containers
+        .get
+        .map(c => c.component_instance_name)
+        .contains(containerToRemoveName))
+
     rm.stop()
   }
   it should "create and destroy multiple containers" in {
@@ -274,7 +347,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         .components
         .find(c => c.name.equals(images(1).name))
         .orNull
-        .number_of_containers == 0)
+        .number_of_containers
+        .get == 0)
 
     assert(rm.services.get(serviceName0).orNull.components.find(c => c.name.equals(images(0).name)).orNull != null)
     assert(
@@ -284,7 +358,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         .components
         .find(c => c.name.equals(images(0).name))
         .orNull
-        .number_of_containers == 1)
+        .number_of_containers
+        .get == 1)
 
     //Factory waited for container to be stable
     assert(
@@ -376,7 +451,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         .components
         .find(c => c.name.equals(imageToCreate.name))
         .orNull
-        .number_of_containers == 1)
+        .number_of_containers
+        .get == 1)
 
     assert(rm.services.contains(serviceName1))
     assert(
@@ -393,7 +469,8 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
         .components
         .find(c => c.name.equals(imageToCreate.name))
         .orNull
-        .number_of_containers == 1)
+        .number_of_containers
+        .get == 1)
 
     //Both factories waited for container to be stable
     assert(

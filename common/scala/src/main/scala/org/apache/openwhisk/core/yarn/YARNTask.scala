@@ -28,7 +28,7 @@ import org.apache.openwhisk.core.containerpool.{Container, ContainerAddress, Con
 import org.apache.openwhisk.core.containerpool.logging.LogLine
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
-import org.apache.openwhisk.core.yarn.YARNServiceActor.RemoveContainer
+import org.apache.openwhisk.core.yarn.YARNComponentActor.RemoveContainer
 import akka.pattern.ask
 import scala.concurrent.duration._
 
@@ -47,13 +47,13 @@ class YARNTask(override protected val id: ContainerId,
                override protected val ec: ExecutionContext,
                override protected val logging: Logging,
                override protected val as: ActorSystem,
-               iName: ImageName,
+               val component_instance_name: String,
+               imageName: ImageName,
                yarnConfig: YARNConfig,
-               parentActor: ActorRef)
+               yarnComponentActor: ActorRef)
     extends Container {
 
   val containerRemoveTimeoutMS = 60000
-  val imageName: ImageName = iName
 
   /** Stops the container from consuming CPU cycles. */
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
@@ -71,7 +71,7 @@ class YARNTask(override protected val id: ContainerId,
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
 
     implicit val timeout: Timeout = Timeout(containerRemoveTimeoutMS.milliseconds)
-    ask(parentActor, RemoveContainer(imageName)).mapTo[Unit]
+    ask(yarnComponentActor, RemoveContainer(component_instance_name)).mapTo[Unit]
   }
 
   /**
