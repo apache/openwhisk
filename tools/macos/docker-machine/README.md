@@ -53,6 +53,8 @@ brew install docker-machine
 brew cask install java
 # install scala
 brew install scala
+# install gnu tar
+brew install gnu-tar
 # install pip
 sudo easy_install pip
 # install script prerequisites
