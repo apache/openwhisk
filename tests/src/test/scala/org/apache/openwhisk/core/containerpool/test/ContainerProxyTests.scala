@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
@@ -25,6 +26,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.util.concurrent.atomic.AtomicInteger
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -39,6 +41,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -304,12 +307,17 @@ class ContainerProxyTests
       container.suspendCount shouldBe 0
       acker.calls should have size 2
 
-      // Add debugging information for the case of failure.
-      println(acker.calls.map(_._2.toJson.compactPrint))
-
       store.calls should have size 2
 
-      val initRunActivation = acker.calls(0)._2
+      // As the active acks are sent asynchronously, it is possible, that the activation with the init time is not the
+      // first one in the buffer.
+      val (initRunActivation, runOnlyActivation) = {
+        // false is sorted before true
+        val sorted = acker.calls.sortBy(_._2.annotations.get(WhiskActivation.initTimeAnnotation).isEmpty)
+        (sorted.head._2, sorted(1)._2)
+      }
+
+      initRunActivation.annotations.get(WhiskActivation.initTimeAnnotation) should not be empty
       initRunActivation.duration shouldBe Some((initInterval.duration + runInterval.duration).toMillis)
       initRunActivation.annotations
         .get(WhiskActivation.initTimeAnnotation)
@@ -321,7 +329,6 @@ class ContainerProxyTests
         .convertTo[Int] shouldBe
         Interval(message.transid.meta.start, initInterval.start).duration.toMillis
 
-      val runOnlyActivation = acker.calls(1)._2
       runOnlyActivation.duration shouldBe Some(runInterval.duration.toMillis)
       runOnlyActivation.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
       runOnlyActivation.annotations.get(WhiskActivation.waitTimeAnnotation).get.convertTo[Int] shouldBe {
@@ -365,18 +372,18 @@ class ContainerProxyTests
       container.resumeCount shouldBe 1
       acker.calls should have size 2
 
-      // Add debugging information for the case of failure.
-      println(acker.calls.map(_._2.toJson.compactPrint))
-
       store.calls should have size 2
-      acker
-        .calls(0)
-        ._2
-        .annotations
+
+      // As the active acks are sent asynchronously, it is possible, that the activation with the init time is not the
+      // first one in the buffer.
+      val initializedActivations =
+        acker.calls.filter(_._2.annotations.get(WhiskActivation.initTimeAnnotation).isDefined)
+      initializedActivations should have size 1
+
+      initializedActivations.head._2.annotations
         .get(WhiskActivation.initTimeAnnotation)
         .get
         .convertTo[Int] shouldBe initInterval.duration.toMillis
-      acker.calls(1)._2.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
     }
   }
 
@@ -557,18 +564,18 @@ class ContainerProxyTests
       container.resumeCount shouldBe 0
       acker.calls should have size 6
 
-      // Add debugging information for the case of failure.
-      println(acker.calls.map(_._2.toJson.compactPrint))
-
       store.calls should have size 6
-      acker
-        .calls(0)
-        ._2
-        .annotations
+
+      // As the active acks are sent asynchronously, it is possible, that the activation with the init time is not the
+      // first one in the buffer.
+      val initializedActivations =
+        acker.calls.filter(_._2.annotations.get(WhiskActivation.initTimeAnnotation).isDefined)
+      initializedActivations should have size 1
+
+      initializedActivations.head._2.annotations
         .get(WhiskActivation.initTimeAnnotation)
         .get
         .convertTo[Int] shouldBe initInterval.duration.toMillis
-      acker.calls(1)._2.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
     }
 
   }
@@ -624,12 +631,17 @@ class ContainerProxyTests
       container.destroyCount shouldBe 0
       acker.calls should have size 2
 
-      // Add debugging information for the case of failure.
-      println(acker.calls.map(_._2.toJson.compactPrint))
-
       store.calls should have size 2
 
-      val initErrorActivation = acker.calls(0)._2
+      // As the active acks are sent asynchronously, it is possible, that the activation with the init time is not the
+      // first one in the buffer.
+      val (initErrorActivation, runOnlyActivation) = {
+        // false is sorted before true
+        val sorted = acker.calls.sortBy(_._2.annotations.get(WhiskActivation.initTimeAnnotation).isEmpty)
+        (sorted.head._2, sorted(1)._2)
+      }
+
+      initErrorActivation.annotations.get(WhiskActivation.initTimeAnnotation) should not be empty
       initErrorActivation.duration shouldBe Some((initInterval.duration + errorInterval.duration).toMillis)
       initErrorActivation.annotations
         .get(WhiskActivation.initTimeAnnotation)
@@ -641,7 +653,6 @@ class ContainerProxyTests
         .convertTo[Int] shouldBe
         Interval(message.transid.meta.start, initInterval.start).duration.toMillis
 
-      val runOnlyActivation = acker.calls(1)._2
       runOnlyActivation.duration shouldBe Some(runInterval.duration.toMillis)
       runOnlyActivation.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
       runOnlyActivation.annotations.get(WhiskActivation.waitTimeAnnotation).get.convertTo[Int] shouldBe {
