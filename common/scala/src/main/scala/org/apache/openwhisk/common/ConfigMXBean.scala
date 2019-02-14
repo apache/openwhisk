@@ -22,6 +22,15 @@ import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import javax.management.ObjectName
 
 trait ConfigMXBean {
+
+  /**
+   * Renders the config value to a string
+   *
+   * @param path root of subtree which needs to be rendered. Pass `.` for getting whole subtree rendered
+   * @param originComment {@link ConfigValue#origin} of that setting's value. For example these
+   *                            comments might tell you which file a setting comes from.
+   * @return rendered config
+   */
   def getConfig(path: String, originComment: Boolean): String
 }
 
@@ -30,8 +39,11 @@ object ConfigMXBean extends ConfigMXBean {
   private val renderOptions =
     ConfigRenderOptions.defaults().setComments(false).setOriginComments(true).setFormatted(true).setJson(false)
 
-  override def getConfig(path: String, originComment: Boolean): String =
-    ConfigFactory.load().getConfig(path).root().render(renderOptions.setOriginComments(originComment))
+  override def getConfig(path: String, originComment: Boolean): String = {
+    val config = ConfigFactory.load()
+    val co = if (path == ".") config.root() else config.getConfig(path).root()
+    co.render(renderOptions.setOriginComments(originComment))
+  }
 
   def register(): Unit = {
     ManagementFactory.getPlatformMBeanServer.registerMBean(ConfigMXBean, name)
