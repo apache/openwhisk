@@ -39,6 +39,8 @@ import org.apache.openwhisk.core.database.UserContext
 import akka.http.scaladsl.model.headers.RawHeader
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.core.entity.Attachments.Inline
+import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
  * Tests Actions API.
@@ -62,7 +64,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val context = UserContext(creds)
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
+
   def aname() = MakeName.next("action_tests")
+
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
 
@@ -80,7 +84,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(collectionPath) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -140,7 +146,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -155,7 +163,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -428,9 +438,10 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should reject request with malformed property exec" in {
     implicit val tid = transid()
-    val content = """|{"name":"name",
-                         |"publish":true,
-                         |"exec":""}""".stripMargin.parseJson.asJsObject
+    val content =
+      """|{"name":"name",
+         |"publish":true,
+         |"exec":""}""".stripMargin.parseJson.asJsObject
     Put(s"$collectionPath/xxx", content) ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[String]
       status should be(BadRequest)
@@ -595,6 +606,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+
   private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
     Parameters("_actions", seq.map("/" + _.asString).toJson)
 
@@ -1568,26 +1580,26 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val deprecatedKind = "test:2"
 
       val customManifest = Some(s"""
-                   |{ "runtimes": {
-                   |    "test": [
-                   |      {
-                   |        "kind": "$okKind",
-                   |        "deprecated": false,
-                   |        "default": true,
-                   |        "image": {
-                   |          "name": "xyz"
-                   |        }
-                   |      }, {
-                   |        "kind": "$deprecatedKind",
-                   |        "deprecated": true,
-                   |        "image": {
-                   |          "name": "xyz"
-                   |        }
-                   |      }
-                   |    ]
-                   |  }
-                   |}
-                   |""".stripMargin)
+           |{ "runtimes": {
+           |    "test": [
+           |      {
+           |        "kind": "$okKind",
+           |        "deprecated": false,
+           |        "default": true,
+           |        "image": {
+           |          "name": "xyz"
+           |        }
+           |      }, {
+           |        "kind": "$deprecatedKind",
+           |        "deprecated": true,
+           |        "image": {
+           |          "name": "xyz"
+           |        }
+           |      }
+           |    ]
+           |  }
+           |}
+           |""".stripMargin)
       ExecManifest.initialize(whiskConfig, customManifest)
 
       val deprecatedManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(deprecatedKind).get
@@ -1646,6 +1658,44 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     } finally {
       // restore manifest
       ExecManifest.initialize(whiskConfig)
+    }
+  }
+}
+
+@RunWith(classOf[JUnitRunner])
+class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
+  import WhiskActionsApi.amendAnnotations
+  import WhiskAction.provideApiKeyAnnotationName
+  import WhiskAction.execFieldName
+
+  val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
+  val keyTruthyAnnotation = Parameters(provideApiKeyAnnotationName, JsBoolean(true))
+  val keyFalsyAnnotation = Parameters(provideApiKeyAnnotationName, JsString("")) // falsy other than JsBoolean(false)
+  val execAnnotation = Parameters(execFieldName, JsString("foo"))
+  val exec: Exec = jsDefault("??")
+
+  it should "add key annotation if it is not present already" in {
+    Seq(Parameters(), baseParams).foreach { p =>
+      amendAnnotations(p, exec) shouldBe {
+        p ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++
+          Parameters(WhiskAction.execFieldName, exec.kind)
+      }
+    }
+  }
+
+  it should "not add key annotation if already present regardless of value" in {
+    Seq(keyTruthyAnnotation, keyFalsyAnnotation).foreach { p =>
+      amendAnnotations(p, exec) shouldBe {
+        p ++ Parameters(WhiskAction.execFieldName, exec.kind)
+      }
+    }
+  }
+
+  it should "override system annotation as necessary" in {
+    amendAnnotations(baseParams ++ execAnnotation, exec) shouldBe {
+      baseParams ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++ Parameters(
+        WhiskAction.execFieldName,
+        exec.kind)
     }
   }
 }

@@ -106,7 +106,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   /**
    *  Retrieves parameter by name if it exist.
    *  @param p the parameter to check for a truthy value
-   *           @param valueForNonExistent the value to return for a missing parameter (default false)
+   *  @param valueForNonExistent the value to return for a missing parameter (default false)
    *  @return true if parameter exists and has truthy value, otherwise returns the specified value for non-existent keys
    */
   protected[core] def isTruthy(p: String, valueForNonExistent: Boolean = false): Boolean = {
