@@ -143,7 +143,7 @@ case class WhiskAction(namespace: EntityPath,
    * Merges parameters (usually from package) with existing action parameters.
    * Existing parameters supersede those in p.
    */
-  def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
+  def inherit(p: Parameters): WhiskAction = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
 
   /**
    * Resolves sequence components if they contain default namespace.
@@ -166,7 +166,7 @@ case class WhiskAction(namespace: EntityPath,
     }
   }
 
-  def toExecutableWhiskAction = exec match {
+  def toExecutableWhiskAction: Option[ExecutableWhiskAction] = exec match {
     case codeExec: CodeExec[_] =>
       Some(
         ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
@@ -178,7 +178,7 @@ case class WhiskAction(namespace: EntityPath,
    * This the action summary as computed by the database view.
    * Strictly used in view testing to enforce alignment.
    */
-  override def summaryAsJson = {
+  override def summaryAsJson: JsObject = {
     val binary = exec match {
       case c: CodeExec[_] => c.binary
       case _              => false
