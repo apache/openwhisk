@@ -15,22 +15,23 @@
  * limitations under the License.
  */
 
-package whisk.core.database.test.behavior
+package org.apache.openwhisk.core.database.test.behavior
 
 import java.time.Instant
 
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, UserContext}
+import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
+import org.apache.openwhisk.core.entity._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers, Outcome}
-import whisk.common.TransactionId
-import whisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
-import whisk.core.database._
-import whisk.core.entity._
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Random, Try}
 
@@ -93,7 +94,7 @@ trait ActivationStoreBehaviorBase
    * Deletes all documents added to gc queue.
    */
   def cleanup()(implicit timeout: Duration = 10 seconds): Unit = {
-    implicit val tid = transId()
+    implicit val tid: TransactionId = transId()
     docsToDelete.map { e =>
       Try {
         Await.result(activationStore.delete(e._2, e._1), timeout)

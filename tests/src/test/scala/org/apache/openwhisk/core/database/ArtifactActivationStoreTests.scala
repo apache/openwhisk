@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package org.apache.openwhisk.core.database
 
 import java.time.Instant
 
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehavior
+import org.apache.openwhisk.core.entity.{EntityPath, WhiskActivation}
+import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.common.TransactionId
-import whisk.core.database.test.behavior.ActivationStoreBehavior
-import whisk.core.entity.{EntityPath, WhiskActivation}
-import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ArtifactActivationStoreTests

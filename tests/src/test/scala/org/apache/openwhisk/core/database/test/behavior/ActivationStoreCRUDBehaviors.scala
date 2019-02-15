@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package whisk.core.database.test.behavior
+package org.apache.openwhisk.core.database.test.behavior
 
-import whisk.common.TransactionId
-import whisk.core.database.NoDocumentException
-import whisk.core.entity._
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.database.NoDocumentException
+import org.apache.openwhisk.core.entity.ActivationId
 
 import scala.util.Random
 

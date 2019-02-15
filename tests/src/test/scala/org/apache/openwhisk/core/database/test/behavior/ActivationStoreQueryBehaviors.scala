@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package whisk.core.database.test.behavior
+package org.apache.openwhisk.core.database.test.behavior
 
 import java.time.Instant
 
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.entity.{EntityPath, WhiskActivation}
 import spray.json.{JsNumber, JsObject}
-import whisk.common.TransactionId
-import whisk.core.database.UserContext
-import whisk.core.entity.{EntityPath, WhiskActivation}
 
 import scala.util.Random
 
@@ -63,11 +63,12 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
               context = context)
         }
         .map { r =>
-          r.fold(left => left, right => right.map(wa => if (includeDocs) wa.toExtendedJson else wa.summaryAsJson))
+          r.fold(left => left, right => right.map(wa => if (includeDocs) wa.toExtendedJson() else wa.summaryAsJson))
         }
         .futureValue
 
-    result should contain theSameElementsAs expected.map(wa => if (includeDocs) wa.toExtendedJson else wa.summaryAsJson)
+    result should contain theSameElementsAs expected.map(wa =>
+      if (includeDocs) wa.toExtendedJson() else wa.summaryAsJson)
   }
 
   protected def checkCountActivations(namespace: String,

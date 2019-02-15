@@ -15,19 +15,9 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package org.apache.openwhisk.core.database.test.behavior
 
-import akka.stream.ActorMaterializer
-import org.scalatest.FlatSpec
-import whisk.core.controller.test.WhiskAuthHelpers
-import whisk.core.database.test.behavior.ActivationStoreBehaviorBase
-
-trait ArtifactActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
-  override def storeType = "Artifact"
-
-  override val context = UserContext(WhiskAuthHelpers.newIdentity())
-
-  override lazy val activationStore = {
-    ArtifactActivationStoreProvider.instance(actorSystem, ActorMaterializer.create(actorSystem), logging)
-  }
-}
+trait ActivationStoreBehavior
+    extends ActivationStoreBehaviorBase
+    with ActivationStoreCRUDBehaviors
+    with ActivationStoreQueryBehaviors
