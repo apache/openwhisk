@@ -45,6 +45,6 @@
     version: "{{ version }}"
 
 - name: install the catalog from the catalog location
-  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages"
+  shell: ./installCatalogUsingWskdeploy.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages"
   environment: "{{ environment_catalog }}"
   when: skip_catalog_install == false
