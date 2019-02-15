@@ -41,6 +41,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.entity.WhiskAction.provideApiKeyAnnotationName
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -71,6 +72,7 @@ class ContainerProxyTests
 
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
   val testConcurrencyLimit = if (concurrencyEnabled) ConcurrencyLimit(2) else ConcurrencyLimit(1)
   val concurrentAction = ExecutableWhiskAction(
@@ -1067,11 +1069,54 @@ class ContainerProxyTests
     }
   }
 
+  // This tests ensures the user api key is not present in the action context if not requested
+  it should "omit api key from action run context" in within(timeout) {
+    val container = new TestContainer(apiKeyMustBePresent = false)
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    preWarm(machine)
+
+    val keyFalsyAnnotation = Parameters(provideApiKeyAnnotationName, JsBoolean(false))
+    val actionWithFalsyKeyAnnotation =
+      ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec, annotations = keyFalsyAnnotation)
+
+    machine ! Run(actionWithFalsyKeyAnnotation, message)
+    expectMsg(Transition(machine, Started, Running))
+    expectWarmed(invocationNamespace.name, actionWithFalsyKeyAnnotation)
+    expectMsg(Transition(machine, Running, Ready))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+      collector.calls should have size 1
+      acker.calls should have size 1
+      store.calls should have size 1
+    }
+  }
+
   /**
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
   class TestContainer(initPromise: Option[Promise[Interval]] = None,
-                      runPromises: Seq[Promise[(Interval, ActivationResponse)]] = Seq.empty)
+                      runPromises: Seq[Promise[(Interval, ActivationResponse)]] = Seq.empty,
+                      apiKeyMustBePresent: Boolean = true)
       extends Container {
     protected[core] val id = ContainerId("testcontainer")
     protected val addr = ContainerAddress("0.0.0.0")
@@ -1121,7 +1166,12 @@ class ContainerProxyTests
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
-      message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
+      if (apiKeyMustBePresent) {
+        message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
+      } else {
+        authEnvironment shouldBe empty
+      }
+
       val deadline = Instant.ofEpochMilli(environment.fields("deadline").convertTo[String].toLong)
       val maxDeadline = Instant.now.plusMillis(timeout.toMillis)
 
