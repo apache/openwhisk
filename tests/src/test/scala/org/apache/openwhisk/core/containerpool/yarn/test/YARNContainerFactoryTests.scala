@@ -51,7 +51,12 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
     Map(wskApiHostname -> "apihost", runtimesManifest -> runtimes) ++ wskApiHost)
 
   val containerArgsConfig =
-    ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
+    new ContainerArgsConfig(
+      "net1",
+      Seq("dns1", "dns2"),
+      Seq.empty,
+      Seq.empty,
+      Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
 
   val yarnConfig =
     YARNConfig(
