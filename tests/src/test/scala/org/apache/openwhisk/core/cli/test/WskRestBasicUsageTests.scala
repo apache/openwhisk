@@ -433,6 +433,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val action = wsk.action.get(name)
       action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe Set(
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
         JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
@@ -453,6 +454,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("final"), "value" -> JsBoolean(true)),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
   }
 

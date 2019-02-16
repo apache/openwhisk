@@ -188,7 +188,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
         JsObject("key" -> JsString("copiedAnnot2"), "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("copiedAnnot1"), "value" -> JsString("copiedAnnotValue1")),
         JsObject("key" -> JsString("origAnnot2"), "value" -> JsBoolean(true)),
-        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)))
 
       assetHelper.withCleaner(wsk.action, origName) {
         val file = Some(TestUtils.getTestActionFilename("echo.js"))
