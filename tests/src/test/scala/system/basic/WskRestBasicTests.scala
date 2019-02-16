@@ -347,7 +347,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("annotations") shouldBe JsArray(
         JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-        result.getFieldJsValue("limits") shouldBe JsObject(
+      result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
         "memory" -> JsNumber(256),
         "logs" -> JsNumber(10),

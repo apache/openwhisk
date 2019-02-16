@@ -605,6 +605,48 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  // this test is to ensure pre-existing actions can continue to to opt-out of new system annotations
+  it should "preserve annotations on pre-existing actions" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault(""))
+    put(entityStore, action, false) // install the action into the database directly
+
+    var content = JsObject("exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson))
+
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version.upPatch,
+          action.publish,
+          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind)))
+    }
+
+    content = """{"annotations":[{"key":"a","value":"B"}]}""".parseJson.asJsObject
+
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      deleteAction(action.docid)
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version.upPatch.upPatch,
+          action.publish,
+          action.annotations ++ Parameters("a", "B") ++ Parameters(WhiskAction.execFieldName, action.exec.kind)))
+    }
+  }
+
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
 
   private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
@@ -1203,7 +1245,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1227,7 +1269,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
     }
   }
 
@@ -1270,7 +1312,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.logs.get,
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10))
+          annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false))
       }
     }
   }
@@ -1291,7 +1333,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.exec,
           content.parameters.get,
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10))
+          annotations = action.annotations ++ systemAnnotations(NODEJS10, false))
       }
     }
   }

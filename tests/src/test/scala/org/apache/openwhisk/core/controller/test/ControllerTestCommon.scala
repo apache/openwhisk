@@ -85,9 +85,13 @@ protected trait ControllerTestCommon
     }
   }
 
-  def systemAnnotations(kind: String): Parameters = {
-    Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false)) ++
-      Parameters(WhiskAction.execFieldName, kind)
+  def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
+    val base = if (create) {
+      Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+    } else {
+      Parameters()
+    }
+    base ++ Parameters(WhiskAction.execFieldName, kind)
   }
 
   val entityStore = WhiskEntityStore.datastore()

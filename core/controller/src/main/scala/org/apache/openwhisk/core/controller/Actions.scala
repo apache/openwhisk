@@ -66,13 +66,18 @@ object WhiskActionsApi {
    * 1. [[WhiskAction.provideApiKeyAnnotationName]] with the value false iff the annotation is not already defined in the action annotations
    * 2. An [[execAnnotation]] consistent with the action kind; this annotation is always added and overrides a pre-existing value
    */
-  protected[core] def amendAnnotations(annotations: Parameters, exec: Exec): Parameters = {
-    val newAnnotations = annotations
-      .get(WhiskAction.provideApiKeyAnnotationName)
-      .map(_ => annotations)
-      .getOrElse {
-        annotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
-      }
+  protected[core] def amendAnnotations(annotations: Parameters, exec: Exec, create: Boolean = true): Parameters = {
+    val newAnnotations = if (create) {
+      // these annotations are only added on newly created actions
+      // since they can break existing actions created before the
+      // annotation was created
+      annotations
+        .get(WhiskAction.provideApiKeyAnnotationName)
+        .map(_ => annotations)
+        .getOrElse {
+          annotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+        }
+    } else annotations
     newAnnotations ++ execAnnotation(exec)
   }
 
@@ -558,7 +563,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
-      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec))
+      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec, create = false))
       .revision[WhiskAction](action.docinfo.rev)
   }
 
