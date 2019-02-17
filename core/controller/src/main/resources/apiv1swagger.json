@@ -1,2602 +1,2675 @@
 {
-    "swagger": "2.0",
-    "info": {
-        "title": "OpenWhisk REST API",
-        "description": "API for OpenWhisk",
-        "version": "0.1.0"
-    },
-    "produces": [
-        "application/json"
-    ],
-    "basePath": "/api/v1",
-    "securityDefinitions": {
-        "basicAuth": {
-            "type": "basic"
-        }
-    },
-    "security": [
-        {
-            "basicAuth": []
-        }
-    ],
-    "tags": [
-        {
-            "name": "Actions"
-        },
-        {
-            "name": "Rules"
-        },
-        {
-            "name": "Triggers"
-        },
-        {
-            "name": "Activations"
-        },
-        {
-            "name": "Packages"
-        },
-        {
-            "name": "Namespaces"
-        }
-    ],
-    "paths": {
-        "/namespaces": {
-            "get": {
-                "tags": [
-                    "Namespaces"
-                ],
-                "description": "Get all namespaces for authenticated user",
-                "summary": "Get all namespaces for authenticated user",
-                "operationId": "getAllNamespaces",
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Array of namespaces",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/actions": {
-            "get": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Get all actions",
-                "summary": "Get all actions",
-                "operationId": "getAllActions",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "skip",
-                        "in": "query",
-                        "description": "Number of entities to skip in the result.",
-                        "required": false,
-                        "type": "integer"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Actions response",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/Action"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/actions/{actionName}": {
-            "parameters": [
-                {
-                    "name": "namespace",
-                    "in": "path",
-                    "description": "The entity namespace",
-                    "required": true,
-                    "type": "string"
-                },
-                {
-                    "name": "actionName",
-                    "in": "path",
-                    "description": "Name of action to fetch",
-                    "required": true,
-                    "type": "string"
-                }
-            ],
-            "get": {
-                "tags": [
-                    "Actions"
-                ],
-                "summary": "Get action information",
-                "description": "Get action information.",
-                "operationId": "getActionByName",
-                "parameters": [
-                    {
-                        "name": "code",
-                        "in": "query",
-                        "description": "Include action code in the result",
-                        "required": false,
-                        "type": "boolean"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returned action",
-                        "schema": {
-                            "$ref": "#/definitions/Action"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Create or update an action",
-                "summary": "Create or update an action",
-                "operationId": "updateAction",
-                "parameters": [
-                    {
-                        "name": "overwrite",
-                        "in": "query",
-                        "description": "Overwrite item if it exists. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "action",
-                        "in": "body",
-                        "description": "The action being updated",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/ActionPut"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated Action",
-                        "schema": {
-                            "$ref": "#/definitions/Action"
-                        }
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "413": {
-                        "$ref": "#/responses/RequestEntityTooLarge"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Delete an action",
-                "summary": "Delete an action",
-                "operationId": "deleteAction",
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/DeletedItem"
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Invoke an action",
-                "summary": "Invoke an action",
-                "operationId": "invokeAction",
-                "parameters": [
-                    {
-                        "name": "blocking",
-                        "in": "query",
-                        "description": "Blocking or non-blocking invocation. Default is non-blocking.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "result",
-                        "in": "query",
-                        "description": "Return only the result of a blocking activation. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "timeout",
-                        "in": "query",
-                        "description": "Wait no more than specified duration in milliseconds for a blocking response. Default value and max allowed timeout are 60000.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "payload",
-                        "in": "body",
-                        "description": "The parameters for the action being invoked",
-                        "required": false,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful activation"
-                    },
-                    "202": {
-                        "$ref": "#/responses/AcceptedActivation"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "408": {
-                        "$ref": "#/responses/Timeout"
-                    },
-                    "429": {
-                        "$ref": "#/responses/TooManyRequsts"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    },
-                    "502": {
-                        "description": "Activation produced an application error"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/actions/{packageName}/{actionName}": {
-            "parameters": [
-                {
-                    "name": "namespace",
-                    "in": "path",
-                    "description": "The entity namespace",
-                    "required": true,
-                    "type": "string"
-                },
-                {
-                    "name": "packageName",
-                    "in": "path",
-                    "description": "Name of package that contains action",
-                    "required": true,
-                    "type": "string"
-                },
-                {
-                    "name": "actionName",
-                    "in": "path",
-                    "description": "Name of action to fetch",
-                    "required": true,
-                    "type": "string"
-                }
-            ],
-            "get": {
-                "tags": [
-                    "Actions"
-                ],
-                "summary": "Get action information",
-                "description": "Get action information.",
-                "operationId": "getActionInPackageByName",
-                "parameters": [
-                    {
-                        "name": "code",
-                        "in": "query",
-                        "description": "Include action code in the result",
-                        "required": false,
-                        "type": "boolean"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returned action",
-                        "schema": {
-                            "$ref": "#/definitions/Action"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Create or update an action",
-                "summary": "Create or update an action",
-                "operationId": "updateActionInPackage",
-                "parameters": [
-                    {
-                        "name": "overwrite",
-                        "in": "query",
-                        "description": "Overwrite item if it exists. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "action",
-                        "in": "body",
-                        "description": "The action being updated",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/ActionPut"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated Action",
-                        "schema": {
-                            "$ref": "#/definitions/Action"
-                        }
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "413": {
-                        "$ref": "#/responses/RequestEntityTooLarge"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Delete an action",
-                "summary": "Delete an action",
-                "operationId": "deleteActionInPackage",
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/DeletedItem"
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Actions"
-                ],
-                "description": "Invoke an action",
-                "summary": "Invoke an action",
-                "operationId": "invokeActionInPackage",
-                "parameters": [
-                    {
-                        "name": "blocking",
-                        "in": "query",
-                        "description": "Blocking or non-blocking invocation. Default is non-blocking.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "result",
-                        "in": "query",
-                        "description": "Return only the result of a blocking activation. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "timeout",
-                        "in": "query",
-                        "description": "Wait no more than specified duration in milliseconds for a blocking response. Default value and max allowed timeout are 60000.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "payload",
-                        "in": "body",
-                        "description": "The parameters for the action being invoked",
-                        "required": false,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successful activation"
-                    },
-                    "202": {
-                        "$ref": "#/responses/AcceptedActivation"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "408": {
-                        "$ref": "#/responses/Timeout"
-                    },
-                    "429": {
-                        "$ref": "#/responses/TooManyRequsts"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    },
-                    "502": {
-                        "description": "Activation produced an application error"
-                    }
-                }
-            }
-        },
-        "/web/{namespace}/{packageName}/{actionName}.{extension}": {
-            "parameters": [
-                {
-                    "name": "namespace",
-                    "type": "string",
-                    "in": "path",
-                    "required": true
-                },
-                {
-                    "name": "packageName",
-                    "type": "string",
-                    "in": "path",
-                    "required": true
-                },
-                {
-                    "name": "actionName",
-                    "type": "string",
-                    "in": "path",
-                    "required": true
-                },
-                {
-                    "name": "extension",
-                    "type": "string",
-                    "in": "path",
-                    "required": true
-                }
-            ],
-            "get": {
-                "tags": [
-                    "Actions"
-                ],
-                "responses": {
-                    "default": {
-                        "description": "any response",
-                        "schema": {}
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Actions"
-                ],
-                "responses": {
-                    "default": {
-                        "description": "any response",
-                        "schema": {}
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Actions"
-                ],
-                "responses": {
-                    "default": {
-                        "description": "any response",
-                        "schema": {}
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Actions"
-                ],
-                "parameters": [
-                    {
-                        "name": "payload",
-                        "in": "body",
-                        "description": "The parameters for the action being invoked",
-                        "required": false,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "default": {
-                        "description": "any response",
-                        "schema": {}
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/rules": {
-            "get": {
-                "tags": [
-                    "Rules"
-                ],
-                "description": "Get all rules",
-                "summary": "Get all rules",
-                "operationId": "getAllRules",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "skip",
-                        "in": "query",
-                        "description": "Number of entities to skip in the result.",
-                        "required": false,
-                        "type": "integer"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Rules response",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/Rule"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/rules/{ruleName}": {
-            "get": {
-                "tags": [
-                    "Rules"
-                ],
-                "description": "Get rule information",
-                "summary": "Get rule information",
-                "operationId": "getRuleByName",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "ruleName",
-                        "in": "path",
-                        "description": "Name of rule to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returned rule",
-                        "schema": {
-                            "$ref": "#/definitions/Rule"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Rules"
-                ],
-                "description": "Update a rule",
-                "summary": "Update a rule",
-                "operationId": "updateRule",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "ruleName",
-                        "in": "path",
-                        "description": "Name of rule to update",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "overwrite",
-                        "in": "query",
-                        "description": "Overwrite item if it exists. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "rule",
-                        "in": "body",
-                        "description": "The rule being updated",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/RulePut"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated rule",
-                        "schema": {
-                            "$ref": "#/definitions/Rule"
-                        }
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "413": {
-                        "$ref": "#/responses/RequestEntityTooLarge"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Rules"
-                ],
-                "description": "Delete a rule",
-                "summary": "Delete a rule",
-                "operationId": "deleteRule",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "ruleName",
-                        "in": "path",
-                        "description": "Name of rule to delete",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/DeletedItem"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Rules"
-                ],
-                "description": "Enable or disable a rule",
-                "summary": "Enable or disable a rule",
-                "operationId": "setState",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "ruleName",
-                        "in": "path",
-                        "description": "Name of rule to update",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "status",
-                        "in": "body",
-                        "description": "Set status to active or inactive",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "required": [
-                                "status"
-                            ],
-                            "properties": {
-                                "status": {
-                                    "type": "string",
-                                    "enum": [
-                                        "inactive",
-                                        "active"
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                ],
-                "produces": [
-                    "application/json",
-                    "text/plain"
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/AcceptedRuleStateChange"
-                    },
-                    "202": {
-                        "$ref": "#/responses/AcceptedRuleStateChange"
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/triggers": {
-            "get": {
-                "tags": [
-                    "Triggers"
-                ],
-                "description": "Get all triggers",
-                "summary": "Get all triggers",
-                "operationId": "getAllTriggers",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "skip",
-                        "in": "query",
-                        "description": "Number of entities to skip in the result.",
-                        "required": false,
-                        "type": "integer"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Triggers response",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/Trigger"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/triggers/{triggerName}": {
-            "get": {
-                "tags": [
-                    "Triggers"
-                ],
-                "description": "Get trigger information",
-                "summary": "Get trigger information",
-                "operationId": "getTriggerByName",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "triggerName",
-                        "in": "path",
-                        "description": "Name of trigger to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returned trigger",
-                        "schema": {
-                            "$ref": "#/definitions/Trigger"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Triggers"
-                ],
-                "description": "Update a trigger",
-                "summary": "Update a trigger",
-                "operationId": "updateTrigger",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "triggerName",
-                        "in": "path",
-                        "description": "Name of trigger to update",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "overwrite",
-                        "in": "query",
-                        "description": "Overwrite item if it exists. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "trigger",
-                        "in": "body",
-                        "description": "The trigger being updated",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/TriggerPut"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated trigger",
-                        "schema": {
-                            "$ref": "#/definitions/Trigger"
-                        }
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "413": {
-                        "$ref": "#/responses/RequestEntityTooLarge"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Triggers"
-                ],
-                "description": "Delete a trigger",
-                "summary": "Delete a trigger",
-                "operationId": "deleteTrigger",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "triggerName",
-                        "in": "path",
-                        "description": "Name of trigger to delete",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/DeletedItem"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Triggers"
-                ],
-                "description": "Fire a trigger",
-                "summary": "Fire a trigger",
-                "operationId": "fireTrigger",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "triggerName",
-                        "in": "path",
-                        "description": "Name of trigger being fired",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "payload",
-                        "in": "body",
-                        "description": "The trigger payload",
-                        "required": false,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Activation id",
-                        "schema": {
-                            "$ref": "#/definitions/ActivationId"
-                        }
-                    },
-                    "204": {
-                        "$ref": "#/responses/NoActiveRules"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "408": {
-                        "$ref": "#/responses/Timeout"
-                    },
-                    "429": {
-                        "$ref": "#/responses/TooManyRequests"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/packages": {
-            "get": {
-                "tags": [
-                    "Packages"
-                ],
-                "description": "Get all packages",
-                "summary": "Get all packages",
-                "operationId": "getAllPackages",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "public",
-                        "in": "query",
-                        "description": "Include publicly shared entitles in the result.",
-                        "required": false,
-                        "type": "boolean"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "skip",
-                        "in": "query",
-                        "description": "Number of entities to skip in the result.",
-                        "required": false,
-                        "type": "integer"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Packages response",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/Package"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/packages/{packageName}": {
-            "get": {
-                "tags": [
-                    "Packages"
-                ],
-                "summary": "Get package information",
-                "description": "Get package information.",
-                "operationId": "getPackageByName",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "packageName",
-                        "in": "path",
-                        "description": "Name of package to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Returned package",
-                        "schema": {
-                            "$ref": "#/definitions/Package"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Packages"
-                ],
-                "description": "Create or update a package",
-                "summary": "Create or update a package",
-                "operationId": "updatePackage",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "packageName",
-                        "in": "path",
-                        "description": "Name of package",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "overwrite",
-                        "in": "query",
-                        "description": "Overwrite item if it exists. Default is false.",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "true",
-                            "false"
-                        ]
-                    },
-                    {
-                        "name": "package",
-                        "in": "body",
-                        "description": "The package being updated",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/PackagePut"
-                        }
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated Package",
-                        "schema": {
-                            "$ref": "#/definitions/Package"
-                        }
-                    },
-                    "400": {
-                        "$ref": "#/responses/BadRequest"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "403": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "413": {
-                        "$ref": "#/responses/RequestEntityTooLarge"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Packages"
-                ],
-                "description": "Delete a package",
-                "summary": "Delete a package",
-                "operationId": "deletePackage",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "packageName",
-                        "in": "path",
-                        "description": "Name of package",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/responses/DeletedItem"
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "409": {
-                        "$ref": "#/responses/Conflict"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/activations": {
-            "get": {
-                "tags": [
-                    "Activations"
-                ],
-                "summary": "Get activation ids",
-                "description": "Get activation ids.",
-                "operationId": "getActivations",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "name",
-                        "in": "query",
-                        "description": "Name of item",
-                        "required": false,
-                        "type": "string"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "skip",
-                        "in": "query",
-                        "description": "Number of entities to skip in the result.",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "since",
-                        "in": "query",
-                        "description": "Only include entities later than this timestamp (measured in milliseconds since Thu, 01 Jan 1970)",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "upto",
-                        "in": "query",
-                        "description": "Only include entities earlier than this timestamp (measured in milliseconds since Thu, 01 Jan 1970)",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "docs",
-                        "in": "query",
-                        "description": "Whether to include full entity description.",
-                        "required": false,
-                        "type": "boolean"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Activations response",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/EntityBrief"
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/activations/{activationid}": {
-            "get": {
-                "tags": [
-                    "Activations"
-                ],
-                "summary": "Get activation information",
-                "description": "Get activation information.",
-                "operationId": "getActivationById",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "activationid",
-                        "in": "path",
-                        "description": "Name of activation to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Return output",
-                        "schema": {
-                            "$ref": "#/definitions/Activation"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/activations/{activationid}/logs": {
-            "get": {
-                "tags": [
-                    "Activations"
-                ],
-                "summary": "Get the logs for an activation",
-                "description": "Get activation logs information.",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "activationid",
-                        "in": "path",
-                        "description": "Name of activation to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Return output",
-                        "schema": {
-                            "$ref": "#/definitions/ActivationLogs"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        },
-        "/namespaces/{namespace}/activations/{activationid}/result": {
-            "get": {
-                "tags": [
-                    "Activations"
-                ],
-                "summary": "Get the result of an activation",
-                "description": "Get activation result.",
-                "parameters": [
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "description": "The entity namespace",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "activationid",
-                        "in": "path",
-                        "description": "Name of activation to fetch",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Return output",
-                        "schema": {
-                            "$ref": "#/definitions/ActivationResult"
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/responses/UnauthorizedRequest"
-                    },
-                    "404": {
-                        "$ref": "#/responses/ItemNotFound"
-                    },
-                    "500": {
-                        "$ref": "#/responses/ServerError"
-                    }
-                }
-            }
-        }
-    },
-    "definitions": {
-        "KeyValue": {
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "value": {
-                    "description": "Any JSON value"
-                }
-            }
-        },
-        "ItemId": {
-            "required": [
-                "id"
-            ],
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "PathName": {
-            "required": [
-                "path",
-                "name"
-            ],
-            "properties": {
-                "path": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "ErrorMessage": {
-            "required": [
-                "error"
-            ],
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                }
-            }
-        },
-        "ActionLimits": {
-            "description": "Limits on a specific action",
-            "properties": {
-                "timeout": {
-                    "type": "integer",
-                    "format": "int32",
-                    "description": "timeout in milliseconds",
-                    "default": 60000
-                },
-                "memory": {
-                    "type": "integer",
-                    "format": "int32",
-                    "description": "memory in megabytes",
-                    "default": 256
-                },
-                "logs": {
-                    "type": "integer",
-                    "format": "int32",
-                    "description": "log size in megabytes",
-                    "default": 10
-                },
-                "concurrency": {
-                    "type": "integer",
-                    "format": "int32",
-                    "description": "number of concurrent activations allowed",
-                    "default": 1
-                }
-            }
-        },
-        "EntityBrief": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                }
-            }
-        },
-        "Action": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish",
-                "exec",
-                "limits"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "exec": {
-                    "$ref": "#/definitions/ActionExec"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings included in the context passed to the action"
-                },
-                "limits": {
-                    "$ref": "#/definitions/ActionLimits"
-                },
-                "updated": {
-                    "type": "integer",
-                    "description": "Time when the action was updated"
-                }
-            }
-        },
-        "ActionPut": {
-            "description": "A restricted Action view used when updating an Action",
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "exec": {
-                    "$ref": "#/definitions/ActionExec"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings included in the context passed to the action"
-                },
-                "limits": {
-                    "$ref": "#/definitions/ActionLimits"
-                }
-            }
-        },
-        "ActionExec": {
-            "properties": {
-                "kind": {
-                    "type": "string",
-                    "enum": [
-                        "blackbox",
-                        "java",
-                        "java:default",
-                        "nodejs:6",
-                        "nodejs:8",
-                        "nodejs:10",
-                        "nodejs:default",
-                        "php:7.3",
-                        "php:default",
-                        "python:2",
-                        "python:3",
-                        "python:default",
-                        "ruby:2.5",
-                        "ruby:default",
-                        "go:1.11",
-                        "go:default",
-                        "sequence",
-                        "swift:4.2",
-                        "swift:default",
-                        "dotnet:2.2",
-                        "dotnet:default",
-                        "ballerina:0.990",
-                        "ballerina:default"
-                    ],
-                    "description": "the type of action"
-                },
-                "code": {
-                    "type": "string",
-                    "description": "The code to execute when kind is not 'blackbox'"
-                },
-                "image": {
-                    "type": "string",
-                    "description": "container image name when kind is 'blackbox'"
-                },
-                "main": {
-                    "type": "string",
-                    "description": "main entrypoint of the action code"
-                },
-                "init": {
-                    "type": "string",
-                    "description": "optional zipfile reference when code kind is 'nodejs'"
-                },
-                "binary": {
-                    "type": "boolean",
-                    "description": "Whether the action has a binary attachment or not"
-                },
-                "components": {
-                    "type": "array",
-                    "description": "For sequence actions, the individual action components",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            "description": "definition of the action, such as javascript code or the name of a container"
-        },
-        "ActionPayload": {
-            "required": [
-                "payload"
-            ],
-            "properties": {
-                "payload": {
-                    "type": "string",
-                    "description": "The payload to pass to the action."
-                }
-            }
-        },
-        "Rule": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish",
-                "trigger",
-                "action"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "status": {
-                    "type": "string",
-                    "description": "Status of a rule",
-                    "enum": [
-                        "active",
-                        "inactive",
-                        "activating",
-                        "deactivating"
-                    ]
-                },
-                "trigger": {
-                    "$ref": "#/definitions/PathName"
-                },
-                "action": {
-                    "$ref": "#/definitions/PathName"
-                }
-            }
-        },
-        "RulePut": {
-            "description": "A restricted Rule view used when updating a Rule",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "status": {
-                    "type": "string",
-                    "description": "Status of a rule",
-                    "enum": [
-                        "active",
-                        "inactive",
-                        ""
-                    ]
-                },
-                "trigger": {
-                    "type": "string",
-                    "description": "Name of the trigger",
-                    "minLength": 1
-                },
-                "action": {
-                    "type": "string",
-                    "description": "Name of the action",
-                    "minLength": 1
-                }
-            }
-        },
-        "Trigger": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings for the trigger"
-                },
-                "limits": {
-                    "$ref": "#/definitions/TriggerLimits"
-                },
-                "rules": {
-                    "type": "object",
-                    "description": "rules associated with the trigger"
-                },
-                "updated": {
-                    "type": "integer",
-                    "description": "Time when the trigger was updated"
-                }
-            }
-        },
-        "TriggerPut": {
-            "description": "A restricted Trigger view used when updating the Trigger",
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings included in the context passed to the trigger"
-                },
-                "limits": {
-                    "$ref": "#/definitions/TriggerLimits"
-                }
-            }
-        },
-        "TriggerPayload": {
-            "required": [
-                "payload"
-            ],
-            "properties": {
-                "payload": {
-                    "type": "string",
-                    "description": "The payload of the trigger event."
-                }
-            }
-        },
-        "TriggerLimits": {
-            "description": "Limits on a specific trigger",
-            "type": "object"
-        },
-        "Package": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter for the package"
-                },
-                "binding": {
-                    "$ref": "#/definitions/PackageBinding"
-                },
-                "actions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/PackageAction"
-                    },
-                    "description": "Actions contained in this package"
-                },
-                "feeds": {
-                    "type": "array",
-                    "items": {
-                        "type": "object"
-                    },
-                    "description": "Feeds contained in this package"
-                },
-                "updated": {
-                    "type": "integer",
-                    "description": "Time when the package was updated"
-                }
-            }
-        },
-        "PackagePut": {
-            "description": "A restricted Package view used when updating a Package",
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item",
-                    "minLength": 1
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter for the package"
-                },
-                "binding": {
-                    "$ref": "#/definitions/PackageBinding"
-                }
-            }
-        },
-        "PackageBinding": {
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the item"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item"
-                }
-            }
-        },
-        "PackageAction": {
-            "description": "A restricted Action view used when listing actions in a package",
-            "required": [
-                "name",
-                "version"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item",
-                    "minLength": 1
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item",
-                    "minLength": 1
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings included in the context passed to the action"
-                }
-            }
-        },
-        "Activation": {
-            "required": [
-                "namespace",
-                "name",
-                "version",
-                "publish",
-                "subject",
-                "activationId",
-                "start",
-                "response",
-                "logs"
-            ],
-            "properties": {
-                "namespace": {
-                    "type": "string",
-                    "description": "Namespace of the associated item"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the item"
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Semantic version of the item"
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the item or not"
-                },
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "annotations on the item"
-                },
-                "subject": {
-                    "type": "string",
-                    "description": "The subject that activated the item"
-                },
-                "activationId": {
-                    "type": "string",
-                    "description": "Id of the activation"
-                },
-                "start": {
-                    "type": "integer",
-                    "description": "Time when the activation began"
-                },
-                "end": {
-                    "type": "integer",
-                    "description": "Time when the activation completed"
-                },
-                "duration": {
-                    "type": "integer",
-                    "description": "How long the invocation took, in millisecnods"
-                },
-                "response": {
-                    "$ref": "#/definitions/ActivationResult"
-                },
-                "logs": {
-                    "type": "array",
-                    "description": "Logs generated by the activation",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "cause": {
-                    "type": "string",
-                    "description": "the activation id that caused this activation"
-                }
-            }
-        },
-        "ActivationId": {
-            "required": [
-                "activationId"
-            ],
-            "properties": {
-                "activationId": {
-                    "type": "string"
-                }
-            }
-        },
-        "ActivationIds": {
-            "properties": {
-                "ids": {
-                    "type": "array",
-                    "description": "Array of activation ids",
-                    "items": {
-                        "$ref": "#/definitions/ActivationId"
-                    }
-                }
-            }
-        },
-        "ActivationInfo": {
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "description": "Activation id",
-                    "minLength": 1
-                },
-                "result": {
-                    "type": "object",
-                    "description": "Activation result",
-                    "required": [
-                        "status"
-                    ],
-                    "properties": {
-                        "status": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "stdout": {
-                    "type": "string",
-                    "description": "Standard output from activation"
-                },
-                "stderr": {
-                    "type": "string",
-                    "description": "Standard error from activation"
-                }
-            }
-        },
-        "ActivationLogs": {
-            "properties": {
-                "logs": {
-                    "type": "array",
-                    "description": "Interleaved standard output and error of an activation",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "ActivationStderr": {
-            "properties": {
-                "stderr": {
-                    "type": "string",
-                    "description": "Standard error of an activation"
-                }
-            }
-        },
-        "ActivationResult": {
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "description": "Exit status of the activation"
-                },
-                "result": {
-                    "description": "The return value from the activation"
-                },
-                "success": {
-                    "type": "boolean",
-                    "description": "Whether the activation was successful or not"
-                }
-            }
-        },
-        "ProviderTrigger": {
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the trigger",
-                    "minLength": 1
-                }
-            }
-        },
-        "ProviderAction": {
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the action",
-                    "minLength": 1
-                }
-            }
-        },
-        "ProviderBinding": {
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the binding",
-                    "minLength": 1
-                }
-            }
-        },
-        "Provider": {
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the provider",
-                    "minLength": 1
-                },
-                "publish": {
-                    "type": "boolean",
-                    "description": "Whether to publish the provider or not"
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/KeyValue"
-                    },
-                    "description": "parameter bindings included in the context passed to the provider"
-                }
-            }
-        }
-    },
-    "responses": {
-        "BadRequest": {
-            "description": "Bad request",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "UnauthorizedRequest": {
-            "description": "Unauthorized request",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "ServerError": {
-            "description": "Server error",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "AddedItem": {
-            "description": "Added Item",
-            "schema": {
-                "$ref": "#/definitions/ItemId"
-            }
-        },
-        "UpdatedItem": {
-            "description": "Updated Item",
-            "schema": {
-                "$ref": "#/definitions/ItemId"
-            }
-        },
-        "DeletedItem": {
-            "description": "Deleted Item"
-        },
-        "ItemNotFound": {
-            "description": "Item not found",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "Timeout": {
-            "description": "Request timed out"
-        },
-        "Conflict": {
-            "description": "Conflicting item already exists",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "AcceptedActivation": {
-            "description": "Accepted activation request",
-            "schema": {
-                "$ref": "#/definitions/ActivationId"
-            }
-        },
-        "AcceptedRuleStateChange": {
-            "description": "Rule has been enabled or disabled"
-        },
-        "RequestEntityTooLarge": {
-            "description": "Request entity too large",
-            "schema": {
-                "$ref": "#/definitions/ErrorMessage"
-            }
-        },
-        "NoActiveRules": {
-            "description": "Trigger has no active rules"
-        },
-        "TooManyRequests": {
-            "description": "Too many requests in a given time period"
-        }
+  "swagger": "2.0",
+  "info": {
+    "title": "OpenWhisk REST API",
+    "description": "API for OpenWhisk",
+    "version": "0.1.0"
+  },
+  "produces": [
+    "application/json"
+  ],
+  "basePath": "/api/v1",
+  "securityDefinitions": {
+    "basicAuth": {
+      "type": "basic"
     }
+  },
+  "security": [
+    {
+      "basicAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Actions"
+    },
+    {
+      "name": "Rules"
+    },
+    {
+      "name": "Triggers"
+    },
+    {
+      "name": "Activations"
+    },
+    {
+      "name": "Packages"
+    },
+    {
+      "name": "Namespaces"
+    }
+  ],
+  "paths": {
+    "/namespaces": {
+      "get": {
+        "tags": [
+          "Namespaces"
+        ],
+        "description": "Get all namespaces for authenticated user",
+        "summary": "Get all namespaces for authenticated user",
+        "operationId": "getAllNamespaces",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of namespaces",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/actions": {
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Get all actions",
+        "summary": "Get all actions",
+        "operationId": "getAllActions",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of entities to skip in the result.",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Actions response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Action"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/actions/{actionName}": {
+      "parameters": [
+        {
+          "name": "namespace",
+          "in": "path",
+          "description": "The entity namespace",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "actionName",
+          "in": "path",
+          "description": "Name of action to fetch",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "summary": "Get action information",
+        "description": "Get action information.",
+        "operationId": "getActionByName",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Include action code in the result",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned action",
+            "schema": {
+              "$ref": "#/definitions/Action"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Create or update an action",
+        "summary": "Create or update an action",
+        "operationId": "updateAction",
+        "parameters": [
+          {
+            "name": "overwrite",
+            "in": "query",
+            "description": "Overwrite item if it exists. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "action",
+            "in": "body",
+            "description": "The action being updated",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ActionPut"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Action",
+            "schema": {
+              "$ref": "#/definitions/Action"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/responses/RequestEntityTooLarge"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Delete an action",
+        "summary": "Delete an action",
+        "operationId": "deleteAction",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/DeletedItem"
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Invoke an action",
+        "summary": "Invoke an action",
+        "operationId": "invokeAction",
+        "parameters": [
+          {
+            "name": "blocking",
+            "in": "query",
+            "description": "Blocking or non-blocking invocation. Default is non-blocking.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "description": "Return only the result of a blocking activation. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "description": "Wait no more than specified duration in milliseconds for a blocking response. Default value and max allowed timeout are 60000.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "payload",
+            "in": "body",
+            "description": "The parameters for the action being invoked",
+            "required": false,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful activation"
+          },
+          "202": {
+            "$ref": "#/responses/AcceptedActivation"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "408": {
+            "$ref": "#/responses/Timeout"
+          },
+          "429": {
+            "$ref": "#/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          },
+          "502": {
+            "description": "Activation produced an application error"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/actions/{packageName}/{actionName}": {
+      "parameters": [
+        {
+          "name": "namespace",
+          "in": "path",
+          "description": "The entity namespace",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "packageName",
+          "in": "path",
+          "description": "Name of package that contains action",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "actionName",
+          "in": "path",
+          "description": "Name of action to fetch",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "summary": "Get action information",
+        "description": "Get action information.",
+        "operationId": "getActionInPackageByName",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Include action code in the result",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned action",
+            "schema": {
+              "$ref": "#/definitions/Action"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Create or update an action",
+        "summary": "Create or update an action",
+        "operationId": "updateActionInPackage",
+        "parameters": [
+          {
+            "name": "overwrite",
+            "in": "query",
+            "description": "Overwrite item if it exists. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "action",
+            "in": "body",
+            "description": "The action being updated",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ActionPut"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Action",
+            "schema": {
+              "$ref": "#/definitions/Action"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/responses/RequestEntityTooLarge"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Delete an action",
+        "summary": "Delete an action",
+        "operationId": "deleteActionInPackage",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/DeletedItem"
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Actions"
+        ],
+        "description": "Invoke an action",
+        "summary": "Invoke an action",
+        "operationId": "invokeActionInPackage",
+        "parameters": [
+          {
+            "name": "blocking",
+            "in": "query",
+            "description": "Blocking or non-blocking invocation. Default is non-blocking.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "description": "Return only the result of a blocking activation. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "timeout",
+            "in": "query",
+            "description": "Wait no more than specified duration in milliseconds for a blocking response. Default value and max allowed timeout are 60000.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "payload",
+            "in": "body",
+            "description": "The parameters for the action being invoked",
+            "required": false,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful activation"
+          },
+          "202": {
+            "$ref": "#/responses/AcceptedActivation"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "408": {
+            "$ref": "#/responses/Timeout"
+          },
+          "429": {
+            "$ref": "#/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          },
+          "502": {
+            "description": "Activation produced an application error"
+          }
+        }
+      }
+    },
+    "/web/{namespace}/{packageName}/{actionName}.{extension}": {
+      "parameters": [
+        {
+          "name": "namespace",
+          "type": "string",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "packageName",
+          "type": "string",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "actionName",
+          "type": "string",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "extension",
+          "type": "string",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "responses": {
+          "default": {
+            "description": "any response",
+            "schema": {}
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Actions"
+        ],
+        "responses": {
+          "default": {
+            "description": "any response",
+            "schema": {}
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Actions"
+        ],
+        "responses": {
+          "default": {
+            "description": "any response",
+            "schema": {}
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Actions"
+        ],
+        "parameters": [
+          {
+            "name": "payload",
+            "in": "body",
+            "description": "The parameters for the action being invoked",
+            "required": false,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "any response",
+            "schema": {}
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/rules": {
+      "get": {
+        "tags": [
+          "Rules"
+        ],
+        "description": "Get all rules",
+        "summary": "Get all rules",
+        "operationId": "getAllRules",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of entities to skip in the result.",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Rule"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/rules/{ruleName}": {
+      "get": {
+        "tags": [
+          "Rules"
+        ],
+        "description": "Get rule information",
+        "summary": "Get rule information",
+        "operationId": "getRuleByName",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ruleName",
+            "in": "path",
+            "description": "Name of rule to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned rule",
+            "schema": {
+              "$ref": "#/definitions/Rule"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Rules"
+        ],
+        "description": "Create or update a rule",
+        "summary": "Create or update a rule",
+        "operationId": "updateRule",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ruleName",
+            "in": "path",
+            "description": "Name of rule to update",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "overwrite",
+            "in": "query",
+            "description": "Overwrite item if it exists. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "rule",
+            "in": "body",
+            "description": "The rule being updated",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RulePut"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated rule",
+            "schema": {
+              "$ref": "#/definitions/Rule"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/responses/RequestEntityTooLarge"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Rules"
+        ],
+        "description": "Delete a rule",
+        "summary": "Delete a rule",
+        "operationId": "deleteRule",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ruleName",
+            "in": "path",
+            "description": "Name of rule to delete",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/DeletedItem"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rules"
+        ],
+        "description": "Enable or disable a rule",
+        "summary": "Enable or disable a rule",
+        "operationId": "setState",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ruleName",
+            "in": "path",
+            "description": "Name of rule to update",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "body",
+            "description": "Set status to active or inactive",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "inactive",
+                    "active"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "produces": [
+          "application/json",
+          "text/plain"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AcceptedRuleStateChange"
+          },
+          "202": {
+            "$ref": "#/responses/AcceptedRuleStateChange"
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/triggers": {
+      "get": {
+        "tags": [
+          "Triggers"
+        ],
+        "description": "Get all triggers",
+        "summary": "Get all triggers",
+        "operationId": "getAllTriggers",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of entities to skip in the result.",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Triggers response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Trigger"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/triggers/{triggerName}": {
+      "get": {
+        "tags": [
+          "Triggers"
+        ],
+        "description": "Get trigger information",
+        "summary": "Get trigger information",
+        "operationId": "getTriggerByName",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "triggerName",
+            "in": "path",
+            "description": "Name of trigger to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned trigger",
+            "schema": {
+              "$ref": "#/definitions/Trigger"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Triggers"
+        ],
+        "description": "Create or update a trigger",
+        "summary": "Create or update a trigger",
+        "operationId": "updateTrigger",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "triggerName",
+            "in": "path",
+            "description": "Name of trigger to update",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "overwrite",
+            "in": "query",
+            "description": "Overwrite item if it exists. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "trigger",
+            "in": "body",
+            "description": "The trigger being updated",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TriggerPut"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated trigger",
+            "schema": {
+              "$ref": "#/definitions/Trigger"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/responses/RequestEntityTooLarge"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Triggers"
+        ],
+        "description": "Delete a trigger",
+        "summary": "Delete a trigger",
+        "operationId": "deleteTrigger",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "triggerName",
+            "in": "path",
+            "description": "Name of trigger to delete",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/DeletedItem"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Triggers"
+        ],
+        "description": "Fire a trigger",
+        "summary": "Fire a trigger",
+        "operationId": "fireTrigger",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "triggerName",
+            "in": "path",
+            "description": "Name of trigger being fired",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "payload",
+            "in": "body",
+            "description": "The trigger payload",
+            "required": false,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Activation id",
+            "schema": {
+              "$ref": "#/definitions/ActivationId"
+            }
+          },
+          "204": {
+            "$ref": "#/responses/NoActiveRules"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "408": {
+            "$ref": "#/responses/Timeout"
+          },
+          "429": {
+            "$ref": "#/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/packages": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "description": "Get all packages",
+        "summary": "Get all packages",
+        "operationId": "getAllPackages",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "public",
+            "in": "query",
+            "description": "Include publicly shared entitles in the result.",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of entities to skip in the result.",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Packages response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Package"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/packages/{packageName}": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Get package information",
+        "description": "Get package information.",
+        "operationId": "getPackageByName",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "packageName",
+            "in": "path",
+            "description": "Name of package to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returned package",
+            "schema": {
+              "$ref": "#/definitions/Package"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Packages"
+        ],
+        "description": "Create or update a package",
+        "summary": "Create or update a package",
+        "operationId": "updatePackage",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "packageName",
+            "in": "path",
+            "description": "Name of package",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "overwrite",
+            "in": "query",
+            "description": "Overwrite item if it exists. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          {
+            "name": "package",
+            "in": "body",
+            "description": "The package being updated",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PackagePut"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Package",
+            "schema": {
+              "$ref": "#/definitions/Package"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "403": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/responses/RequestEntityTooLarge"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Packages"
+        ],
+        "description": "Delete a package",
+        "summary": "Delete a package",
+        "operationId": "deletePackage",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "packageName",
+            "in": "path",
+            "description": "Name of package",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/DeletedItem"
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "409": {
+            "$ref": "#/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/activations": {
+      "get": {
+        "tags": [
+          "Activations"
+        ],
+        "summary": "Get activation summary",
+        "description": "Get activation summary.",
+        "operationId": "getActivations",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Name of item",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "Number of entities to skip in the result.",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Only include entities later than this timestamp (measured in milliseconds since Thu, 01 Jan 1970)",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "upto",
+            "in": "query",
+            "description": "Only include entities earlier than this timestamp (measured in milliseconds since Thu, 01 Jan 1970)",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "docs",
+            "in": "query",
+            "description": "Whether to include full entity description.",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Activations response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActivationBrief"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/activations/{activationid}": {
+      "get": {
+        "tags": [
+          "Activations"
+        ],
+        "summary": "Get activation information",
+        "description": "Get activation information.",
+        "operationId": "getActivationById",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "activationid",
+            "in": "path",
+            "description": "Name of activation to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Return output",
+            "schema": {
+              "$ref": "#/definitions/Activation"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/activations/{activationid}/logs": {
+      "get": {
+        "tags": [
+          "Activations"
+        ],
+        "summary": "Get the logs for an activation",
+        "description": "Get activation logs information.",
+        "operationId": "getActivationLogs",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "activationid",
+            "in": "path",
+            "description": "Name of activation to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Return output",
+            "schema": {
+              "$ref": "#/definitions/ActivationLogs"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/activations/{activationid}/result": {
+      "get": {
+        "tags": [
+          "Activations"
+        ],
+        "summary": "Get the result of an activation",
+        "description": "Get activation result.",
+        "operationId": "getActivationResult",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "activationid",
+            "in": "path",
+            "description": "Name of activation to fetch",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Return output",
+            "schema": {
+              "$ref": "#/definitions/ActivationResult"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "404": {
+            "$ref": "#/responses/ItemNotFound"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "KeyValue": {
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "description": "Any JSON value"
+        }
+      }
+    },
+    "ItemId": {
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "PathName": {
+      "required": [
+        "path",
+        "name"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ErrorMessage": {
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        }
+      }
+    },
+    "ActionLimits": {
+      "description": "Limits on a specific action",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "format": "int32",
+          "description": "timeout in milliseconds",
+          "default": 60000
+        },
+        "memory": {
+          "type": "integer",
+          "format": "int32",
+          "description": "memory in megabytes",
+          "default": 256
+        },
+        "logs": {
+          "type": "integer",
+          "format": "int32",
+          "description": "log size in megabytes",
+          "default": 10
+        },
+        "concurrency": {
+          "type": "integer",
+          "format": "int32",
+          "description": "number of concurrent activations allowed",
+          "default": 1
+        }
+      }
+    },
+    "EntityBrief": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        }
+      }
+    },
+    "Action": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "exec",
+        "limits"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "exec": {
+          "$ref": "#/definitions/ActionExec"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings included in the context passed to the action"
+        },
+        "limits": {
+          "$ref": "#/definitions/ActionLimits"
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the action was updated"
+        }
+      }
+    },
+    "ActionPut": {
+      "description": "A restricted Action view used when updating an Action",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "exec": {
+          "$ref": "#/definitions/ActionExec"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings included in the context passed to the action"
+        },
+        "limits": {
+          "$ref": "#/definitions/ActionLimits"
+        }
+      }
+    },
+    "ActionExec": {
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "blackbox",
+            "java",
+            "java:default",
+            "nodejs:6",
+            "nodejs:8",
+            "nodejs:10",
+            "nodejs:default",
+            "php:7.3",
+            "php:default",
+            "python:2",
+            "python:3",
+            "python:default",
+            "ruby:2.5",
+            "ruby:default",
+            "go:1.11",
+            "go:default",
+            "sequence",
+            "swift:4.2",
+            "swift:default",
+            "dotnet:2.2",
+            "dotnet:default",
+            "ballerina:0.990",
+            "ballerina:default"
+          ],
+          "description": "the type of action"
+        },
+        "code": {
+          "type": "string",
+          "description": "The code to execute when kind is not 'blackbox'"
+        },
+        "image": {
+          "type": "string",
+          "description": "container image name when kind is 'blackbox'"
+        },
+        "main": {
+          "type": "string",
+          "description": "main entrypoint of the action code"
+        },
+        "binary": {
+          "type": "boolean",
+          "description": "Whether the action has a binary attachment or not. This attribute is ignored when creating or updating an action."
+        },
+        "components": {
+          "type": "array",
+          "description": "For sequence actions, the individual action components",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "definition of the action, such as javascript code or the name of a container"
+    },
+    "ActionPayload": {
+      "required": [
+        "payload"
+      ],
+      "properties": {
+        "payload": {
+          "type": "string",
+          "description": "The payload to pass to the action."
+        }
+      }
+    },
+    "Rule": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "trigger",
+        "action"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of a rule",
+          "enum": [
+            "active",
+            "inactive",
+            "activating",
+            "deactivating"
+          ]
+        },
+        "trigger": {
+          "$ref": "#/definitions/PathName"
+        },
+        "action": {
+          "$ref": "#/definitions/PathName"
+        }
+      }
+    },
+    "RulePut": {
+      "description": "A restricted Rule view used when updating a Rule",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of a rule",
+          "enum": [
+            "active",
+            "inactive",
+            ""
+          ]
+        },
+        "trigger": {
+          "type": "string",
+          "description": "Name of the trigger",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "description": "Name of the action",
+          "minLength": 1
+        }
+      }
+    },
+    "Trigger": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings for the trigger"
+        },
+        "limits": {
+          "$ref": "#/definitions/TriggerLimits"
+        },
+        "rules": {
+          "type": "object",
+          "description": "rules associated with the trigger"
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the trigger was updated"
+        }
+      }
+    },
+    "TriggerPut": {
+      "description": "A restricted Trigger view used when updating the Trigger",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings included in the context passed to the trigger"
+        },
+        "limits": {
+          "$ref": "#/definitions/TriggerLimits"
+        }
+      }
+    },
+    "TriggerPayload": {
+      "required": [
+        "payload"
+      ],
+      "properties": {
+        "payload": {
+          "type": "string",
+          "description": "The payload of the trigger event."
+        }
+      }
+    },
+    "TriggerLimits": {
+      "description": "Limits on a specific trigger",
+      "type": "object"
+    },
+    "Package": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter for the package"
+        },
+        "binding": {
+          "$ref": "#/definitions/PackageBinding"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PackageAction"
+          },
+          "description": "Actions contained in this package"
+        },
+        "feeds": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Feeds contained in this package"
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the package was updated"
+        }
+      }
+    },
+    "PackagePut": {
+      "description": "A restricted Package view used when updating a Package",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter for the package"
+        },
+        "binding": {
+          "$ref": "#/definitions/PackageBinding"
+        }
+      }
+    },
+    "PackageBinding": {
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item"
+        }
+      }
+    },
+    "PackageAction": {
+      "description": "A restricted Action view used when listing actions in a package",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings included in the context passed to the action"
+        }
+      }
+    },
+    "ActivationBrief": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "activationId",
+        "start"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the associated item"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item"
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "activationId": {
+          "type": "string",
+          "description": "Id of the activation"
+        },
+        "start": {
+          "type": "integer",
+          "description": "Time when the activation began"
+        },
+        "end": {
+          "type": "integer",
+          "description": "Time when the activation completed"
+        },
+        "duration": {
+          "type": "integer",
+          "description": "How long the invocation took, in millisecnods"
+        },
+        "cause": {
+          "type": "string",
+          "description": "the activation id that caused this activation"
+        },
+        "statusCode": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The status code",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        }
+      }
+    },
+    "Activation": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "subject",
+        "activationId",
+        "start",
+        "response",
+        "logs"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the associated item"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item"
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "subject": {
+          "type": "string",
+          "description": "The subject that activated the item"
+        },
+        "activationId": {
+          "type": "string",
+          "description": "Id of the activation"
+        },
+        "start": {
+          "type": "integer",
+          "description": "Time when the activation began"
+        },
+        "end": {
+          "type": "integer",
+          "description": "Time when the activation completed"
+        },
+        "duration": {
+          "type": "integer",
+          "description": "How long the invocation took, in millisecnods"
+        },
+        "response": {
+          "$ref": "#/definitions/ActivationResult"
+        },
+        "logs": {
+          "type": "array",
+          "description": "Logs generated by the activation",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cause": {
+          "type": "string",
+          "description": "the activation id that caused this activation"
+        },
+        "statusCode": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The status code",
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        }
+      }
+    },
+    "ActivationId": {
+      "required": [
+        "activationId"
+      ],
+      "properties": {
+        "activationId": {
+          "type": "string"
+        }
+      }
+    },
+    "ActivationIds": {
+      "properties": {
+        "ids": {
+          "type": "array",
+          "description": "Array of activation ids",
+          "items": {
+            "$ref": "#/definitions/ActivationId"
+          }
+        }
+      }
+    },
+    "ActivationInfo": {
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Activation id",
+          "minLength": 1
+        },
+        "result": {
+          "type": "object",
+          "description": "Activation result",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            }
+          }
+        },
+        "stdout": {
+          "type": "string",
+          "description": "Standard output from activation"
+        },
+        "stderr": {
+          "type": "string",
+          "description": "Standard error from activation"
+        }
+      }
+    },
+    "ActivationLogs": {
+      "properties": {
+        "logs": {
+          "type": "array",
+          "description": "Interleaved standard output and error of an activation",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ActivationStderr": {
+      "properties": {
+        "stderr": {
+          "type": "string",
+          "description": "Standard error of an activation"
+        }
+      }
+    },
+    "ActivationResult": {
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Exit status of the activation"
+        },
+        "result": {
+          "description": "The return value from the activation"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the activation was successful or not"
+        }
+      }
+    },
+    "ProviderTrigger": {
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the trigger",
+          "minLength": 1
+        }
+      }
+    },
+    "ProviderAction": {
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the action",
+          "minLength": 1
+        }
+      }
+    },
+    "ProviderBinding": {
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the binding",
+          "minLength": 1
+        }
+      }
+    },
+    "Provider": {
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the provider",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the provider or not"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "parameter bindings included in the context passed to the provider"
+        }
+      }
+    }
+  },
+  "responses": {
+    "BadRequest": {
+      "description": "Bad request",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "UnauthorizedRequest": {
+      "description": "Unauthorized request",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "ServerError": {
+      "description": "Server error",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "AddedItem": {
+      "description": "Added Item",
+      "schema": {
+        "$ref": "#/definitions/ItemId"
+      }
+    },
+    "UpdatedItem": {
+      "description": "Updated Item",
+      "schema": {
+        "$ref": "#/definitions/ItemId"
+      }
+    },
+    "DeletedItem": {
+      "description": "Deleted Item"
+    },
+    "ItemNotFound": {
+      "description": "Item not found",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "Timeout": {
+      "description": "Request timed out"
+    },
+    "Conflict": {
+      "description": "Conflicting item already exists",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "AcceptedActivation": {
+      "description": "Accepted activation request",
+      "schema": {
+        "$ref": "#/definitions/ActivationId"
+      }
+    },
+    "AcceptedRuleStateChange": {
+      "description": "Rule has been enabled or disabled"
+    },
+    "RequestEntityTooLarge": {
+      "description": "Request entity too large",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "NoActiveRules": {
+      "description": "Trigger has no active rules"
+    },
+    "TooManyRequests": {
+      "description": "Too many requests in a given time period"
+    }
+  }
 }
