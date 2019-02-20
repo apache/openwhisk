@@ -247,6 +247,14 @@ Each action invocation results in an activation record which contains the follow
       - the action specified a wrong docker container name
       - the action did not properly implement the expected [runtime protocol](actions-new.md)
     - *"whisk internal error"*: the system was unable to invoke the action.
+  - `statusCode`: A value between 0 and 3 that maps to the activation result, as described by the *status* field:
+
+    | statusCode | status                 |
+    |:---------- |:---------------------- |
+    | 0          | success                |
+    | 1          | application error      |
+    | 2          | action developer error |
+    | 3          | whisk internal error   |
   - `success`: Is *true* if and only if the status is *"success"*.
   - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
 
