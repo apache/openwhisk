@@ -23,14 +23,16 @@ import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.yarn.YARNComponentActor.{CreateContainerAsync, RemoveContainer}
+import spray.json.{JsArray, JsNumber, JsObject, JsString}
 
 import scala.concurrent.ExecutionContext
 
-//Submits create command to YARN and submits decommission command to YARN
+/** Submits create and decommission commands to YARN */
 object YARNComponentActor {
   case object CreateContainerAsync
   case class RemoveContainer(component_instance_name: String)
 }
+
 class YARNComponentActor(actorSystem: ActorSystem,
                          logging: Logging,
                          yarnConfig: YARNConfig,
@@ -42,6 +44,8 @@ class YARNComponentActor(actorSystem: ActorSystem,
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
+  //Adding a container via the YARN REST API is actually done by flexing the component's container pool to a certain size.
+  // This actor must track the current containerCount in order to make the correct scale-up request.
   var containerCount: Int = 0
 
   def receive: PartialFunction[Any, Unit] = {
@@ -57,10 +61,9 @@ class YARNComponentActor(actorSystem: ActorSystem,
   }
 
   def createContainerAsync(): Unit = {
-
     logging.info(this, s"Using YARN to create a container with image ${imageName.name}...")
 
-    val body = "{\"number_of_containers\":" + (containerCount + 1) + "}"
+    val body = JsObject("number_of_containers" -> JsNumber(containerCount + 1)).compactPrint
     val response = YARNRESTUtil.submitRequestWithAuth(
       yarnConfig.authType,
       HttpMethods.PUT,
@@ -80,8 +83,11 @@ class YARNComponentActor(actorSystem: ActorSystem,
     if (containerCount <= 0) {
       logging.warn(this, "Already at 0 containers")
     } else {
-      val body =
-        s"""{"components":[ { "name":"${imageName.name}", "decommissioned_instances":["$component_instance_name"] }]}"""
+      val body = JsObject(
+        "components" -> JsArray(
+          JsObject(
+            "name" -> JsString(imageName.name),
+            "decommissioned_instances" -> JsArray(JsString(component_instance_name))))).compactPrint
       val response = YARNRESTUtil.submitRequestWithAuth(
         yarnConfig.authType,
         HttpMethods.PUT,

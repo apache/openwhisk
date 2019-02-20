@@ -54,6 +54,7 @@ object YARNContainerFactoryProvider extends ContainerFactoryProvider {
                         parameters: Map[String, Set[String]]): ContainerFactory =
     new YARNContainerFactory(actorSystem, logging, config, instance, parameters)
 }
+
 class YARNContainerFactory(actorSystem: ActorSystem,
                            logging: Logging,
                            config: WhiskConfig,
@@ -132,12 +133,10 @@ class YARNContainerFactory(actorSystem: ActorSystem,
   }
   override def cleanup(): Unit = {
     removeService()
-    yarnComponentActors.foreach({ case (k, v)     => actorSystem.stop(v) })
-    YARNContainerInfoActors.foreach({ case (k, v) => actorSystem.stop(v) })
+    yarnComponentActors foreach { case (k, v)     => actorSystem.stop(v) }
+    YARNContainerInfoActors foreach { case (k, v) => actorSystem.stop(v) }
   }
-
   def createService(): Unit = {
-
     logging.info(this, "Creating Service with images: " + images.map(i => i.publicImageName).mkString(", "))
 
     val componentList = images
@@ -216,7 +215,6 @@ class YARNContainerFactory(actorSystem: ActorSystem,
     }
     if (!started)
       throw new Exception(s"After ${serviceStartTimeoutMS}ms YARN service did not achieve stable state")
-
   }
   def removeService(): Unit = {
     val response: httpresponse =
