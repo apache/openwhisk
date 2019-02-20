@@ -463,4 +463,30 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
   }
+
+  /**
+   * Test that a heavy logging action is interrupted within its timeout limits.
+   */
+  it should "interrupt the heavy logging action within its time limits" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "NodeJsTestLoggingActionCausingTimeout-" + System.currentTimeMillis()
+      print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
+      assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
+        action.create(
+          name,
+          Some(TestUtils.getTestActionFilename("loggingTimeout.js")),
+          timeout = Some(allowedActionDuration))
+      }
+      val run = wsk.action.invoke(name, Map("durationMillis" -> 120000.toJson, "logDeltaMillis" -> 100.toJson))
+      withActivation(wsk.activation, run) { result =>
+        withClue("Activation result not as expected:") {
+          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
+          result.response.result.get.toString should include("""exceeded its time limits""")
+          result.logs.get.mkString(" ") should include(Messages.logFailure)
+          val startLogMillis = Instant.parse(result.logs.get.head.split(' ')(0)).toEpochMilli()
+          val endLogMillis = Instant.parse(result.logs.get.last.split(' ')(0)).toEpochMilli()
+          (endLogMillis - startLogMillis).toInt should be < (allowedActionDuration + 60.seconds).toMillis.toInt
+        }
+      }
+  }
 }

@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
+import java.time.Instant
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -76,14 +77,21 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
+    // wait for a sentinel only if no container (developer) error occurred to avoid
+    // that log collection continues if the action code still logs after timeout
+    val sentinel = action.exec.sentinelledLogs && !activation.response.isContainerError
+
     container
-      .logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
+      .logs(action.limits.logs.asMegaBytes, sentinel)(transid)
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
         val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
         val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
-        val logs = ActivationLogs(seq.toVector)
+        val logs = ActivationLogs(
+          if (activation.response.isContainerError)
+            seq.toVector :+ LogLine(Instant.now.toString, "stderr", Messages.logFailure).toFormattedString
+          else seq.toVector)
         if (!errored) {
           Future.successful(logs)
         } else {
