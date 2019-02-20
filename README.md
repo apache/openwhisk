@@ -37,7 +37,7 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 * [Slack](#slack)
 
 ### Quick Start
-The easiest way to start using OpenWhisk is to get Docker installed on on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has details instructions on getting the tools installed. This does not give you a production deployment but gives you enough of the pieces to start writing functions and seeing them run.
+The easiest way to start using OpenWhisk is to get Docker installed on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has detailed instructions on getting the tools installed. This does not give you a production deployment but gives you enough of the pieces to start writing functions and seeing them run.
 
 ```
 git clone https://github.com/apache/incubator-openwhisk-devtools.git
