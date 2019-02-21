@@ -56,13 +56,16 @@ trait ContainerFactory {
    * Create a new Container
    *
    * The created container has to satisfy following requirements:
-   * - The container's file system is based on the provided action image and has a read/write layer on top.
+   * - The container's file system is based on the provided action image and may have a read/write layer on top.
+   *   Some managed action runtimes may need the capability to write files.
    * - If the specified image is not available on the system, it is pulled from an image
    *   repository - for example, Docker Hub.
-   * - The container has a network interface which is able to connect to the internet
-   *   (in particular, to the specified DNS servers). In addition, the invoker must be able
-   *   to connect to the container's interface.
-   * - The IPv4 address of said interface is stored in the created Container instance.
+   * - The container needs a network setup - usually, a network interface - such that the invoker is able
+   *   to connect the action container. The container must be able to perform DNS resolution based
+   *   on the settings provided via ContainerArgsConfig. If needed by action authors,
+   *   the container should be able to connect to other systems or even the internet to consume services.
+   * - The IP address of said interface is stored in the created Container instance if you want to use
+   *   the standard init / run behaviour defined in the Container trait.
    * - The default process specified in the action image is run.
    * - It is desired that all stdout / stderr written by processes in the container is captured such
    *   that it can be obtained using the logs() method of the Container trait.
