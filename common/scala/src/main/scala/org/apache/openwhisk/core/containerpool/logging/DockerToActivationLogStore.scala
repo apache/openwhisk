@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 
 import org.apache.openwhisk.common.TransactionId
@@ -79,19 +80,22 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
 
     // wait for a sentinel only if no container (developer) error occurred to avoid
     // that log collection continues if the action code still logs after timeout
-    val sentinel = action.exec.sentinelledLogs && !activation.response.isContainerError
+    val isContainerTimeoutError = activation.response.isContainerTimeoutError(action.limits.timeout.duration)
+    val sentinel = action.exec.sentinelledLogs && !isContainerTimeoutError
 
-    container
-      .logs(action.limits.logs.asMegaBytes, sentinel)(transid)
+    val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
+    val logsWithPossibleError = if (isContainerTimeoutError) {
+      logs.concat(
+        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
+    } else logs
+
+    logsWithPossibleError
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
         val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-        val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
-        val logs = ActivationLogs(
-          if (activation.response.isContainerError)
-            seq.toVector :+ LogLine(Instant.now.toString, "stderr", Messages.logFailure).toFormattedString
-          else seq.toVector)
+        val errored = isContainerTimeoutError || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+        val logs = ActivationLogs(seq.toVector)
         if (!errored) {
           Future.successful(logs)
         } else {

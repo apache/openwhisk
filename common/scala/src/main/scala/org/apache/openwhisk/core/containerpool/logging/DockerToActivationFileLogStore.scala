@@ -125,9 +125,14 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     // wait for a sentinel only if no container (developer) error occurred to avoid
     // that log collection continues if the action code still logs after timeout
-    val sentinel = action.exec.sentinelledLogs && !activation.response.isContainerError
+    val isContainerTimeoutError = activation.response.isContainerTimeoutError(action.limits.timeout.duration)
+    val sentinel = action.exec.sentinelledLogs && !isContainerTimeoutError
 
     val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
+    val logsWithPossibleError = if (isContainerTimeoutError) {
+      logs.concat(
+        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
+    } else logs
 
     // Adding the userId field to every written record, so any background process can properly correlate.
     val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)
@@ -152,13 +157,10 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     val combined = OwSink.combine(toSeq, toFile)(Broadcast[ByteString](_))
 
-    logs.runWith(combined)._1.flatMap { seq =>
+    logsWithPossibleError.runWith(combined)._1.flatMap { seq =>
       val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-      val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
-      val logs = ActivationLogs(
-        if (activation.response.isContainerError)
-          seq.toVector :+ LogLine(Instant.now.toString, "stderr", Messages.logFailure).toFormattedString
-        else seq.toVector)
+      val errored = isContainerTimeoutError || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+      val logs = ActivationLogs(seq.toVector)
       if (!errored) {
         Future.successful(logs)
       } else {

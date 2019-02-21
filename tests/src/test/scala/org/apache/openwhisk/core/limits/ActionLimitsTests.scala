@@ -475,17 +475,21 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
         action.create(
           name,
           Some(TestUtils.getTestActionFilename("loggingTimeout.js")),
-          timeout = Some(allowedActionDuration))
+          timeout = Some(allowedActionDuration),
+          kind = Some("nodejs:8"))
       }
-      val run = wsk.action.invoke(name, Map("durationMillis" -> 120000.toJson, "logDeltaMillis" -> 100.toJson))
+      val durationMillis = allowedActionDuration + 3.minutes
+      val checkDurationMillis = allowedActionDuration + 1.minutes
+      val run =
+        wsk.action.invoke(name, Map("durationMillis" -> durationMillis.toMillis.toJson, "delayMillis" -> 100.toJson))
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
           result.response.result.get.toString should include("""exceeded its time limits""")
-          result.logs.get.mkString(" ") should include(Messages.logFailure)
+          result.logs.get.last should include(Messages.logFailure)
           val startLogMillis = Instant.parse(result.logs.get.head.split(' ')(0)).toEpochMilli()
           val endLogMillis = Instant.parse(result.logs.get.last.split(' ')(0)).toEpochMilli()
-          (endLogMillis - startLogMillis).toInt should be < (allowedActionDuration + 60.seconds).toMillis.toInt
+          (endLogMillis - startLogMillis).toInt should be < (checkDurationMillis).toMillis.toInt
         }
       }
   }

@@ -25,7 +25,10 @@ import spray.json._
 import spray.json.DefaultJsonProtocol
 
 import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.http.Messages._
+
+import scala.concurrent.duration.FiniteDuration
 
 protected[core] case class ActivationResponse private (val statusCode: Int, val result: Option[JsValue]) {
 
@@ -45,6 +48,15 @@ protected[core] case class ActivationResponse private (val statusCode: Int, val 
   def isSuccess = statusCode == ActivationResponse.Success
   def isApplicationError = statusCode == ActivationResponse.ApplicationError
   def isContainerError = statusCode == ActivationResponse.DeveloperError
+  def isContainerTimeoutError(timeout: FiniteDuration) = {
+    statusCode == ActivationResponse.DeveloperError &&
+    (result.get match {
+      case JsObject(fields) =>
+        fields.contains(ActivationResponse.ERROR_FIELD) && fields(ActivationResponse.ERROR_FIELD)
+          .toString() == '"' + Messages.timedoutActivation(timeout, false) + '"'
+      case _ => false
+    })
+  }
   def isWhiskError = statusCode == ActivationResponse.WhiskError
   def withoutResult = ActivationResponse(statusCode, None)
 
