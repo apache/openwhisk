@@ -125,11 +125,12 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     // wait for a sentinel only if no container (developer) error occurred to avoid
     // that log collection continues if the action code still logs after timeout
-    val isContainerTimeoutError = activation.response.isContainerTimeoutError(action.limits.timeout.duration)
-    val sentinel = action.exec.sentinelledLogs && !isContainerTimeoutError
+    val isTimedoutActivation =
+      activation.annotations.getAs[Boolean](WhiskActivation.timeoutAnnotation).getOrElse(false)
+    val sentinel = action.exec.sentinelledLogs && !isTimedoutActivation
 
     val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
-    val logsWithPossibleError = if (isContainerTimeoutError) {
+    val logsWithPossibleError = if (isTimedoutActivation) {
       logs.concat(
         Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
     } else logs
@@ -159,7 +160,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     logsWithPossibleError.runWith(combined)._1.flatMap { seq =>
       val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-      val errored = isContainerTimeoutError || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+      val errored = isTimedoutActivation || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
       val logs = ActivationLogs(seq.toVector)
       if (!errored) {
         Future.successful(logs)

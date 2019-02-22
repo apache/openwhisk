@@ -469,7 +469,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   it should "interrupt the heavy logging action within its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "NodeJsTestLoggingActionCausingTimeout-" + System.currentTimeMillis()
+      val name = s"NodeJsTestLoggingActionCausingTimeout-${System.currentTimeMillis()}"
       print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
         action.create(
@@ -485,7 +485,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-          result.response.result.get.toString should include("""exceeded its time limits""")
+          result.response.result.get.toString should include("exceeded its time limits")
           result.logs.get.last should include(Messages.logFailure)
           val startLogMillis = Instant.parse(result.logs.get.head.split(' ')(0)).toEpochMilli()
           val endLogMillis = Instant.parse(result.logs.get.last.split(' ')(0)).toEpochMilli()

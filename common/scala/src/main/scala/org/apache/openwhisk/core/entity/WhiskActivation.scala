@@ -124,6 +124,7 @@ case class WhiskActivation(namespace: EntityPath,
   }
   def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
   def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
+
 }
 
 object WhiskActivation
@@ -140,6 +141,7 @@ object WhiskActivation
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
   val conductorAnnotation = "conductor"
+  val timeoutAnnotation = "timeout"
 
   /** Some field names for compositions */
   val actionField = "action"
