@@ -32,23 +32,17 @@ import com.intuit.karate.cucumber.KarateStats;
 import cucumber.api.CucumberOptions;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
+import org.apache.openwhisk.utils.*;
 
 @CucumberOptions(tags = {"~@ignore"})
-public class WskAdminRunner {
+public class WskAdminRunner extends GenerateReports {
     @Test
     public void WskAdminRunner() {
 
         String karateOutputPath = "target/surefire-reports";
         KarateStats stats = CucumberRunner.parallel(getClass(), 5, karateOutputPath);
-        generateReport(karateOutputPath);
+        GenerateReports reports = new GenerateReports();
+        reports.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
-    }
-    private static void generateReport(String karateOutputPath) {
-        Collection<File> jsonFiles = FileUtils.listFiles(new File(karateOutputPath), new String[] {"json"}, true);
-        List<String> jsonPaths = new ArrayList(jsonFiles.size());
-        jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
-        Configuration config = new Configuration(new File("target"), "openwhisk");
-        ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
-        reportBuilder.generateReports();
     }
 }

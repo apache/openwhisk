@@ -22,6 +22,7 @@ include 'core:invoker'
 
 include 'tests'
 include 'tests:performance:gatling_tests'
+include 'tests:functional:karate_tests'
 
 include 'tools:actionProxy'
 include 'tools:ow-utils'

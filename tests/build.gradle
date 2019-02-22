@@ -192,7 +192,6 @@ dependencies {
     compile project(':tools:admin')
 
 
-
     scoverage gradle.scoverage.deps
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'
@@ -352,4 +351,9 @@ task testSwaggerCodegen(type: GradleBuild) {
     dependsOn swaggerSources.java.code
     buildFile = "${buildDir}/swagger-code-java/build.gradle"
     tasks = ['build']
+}
+
+task smokeTestKarate(type: GradleBuild) {
+    buildFile = "${projectDir}/functional/karate_tests/build.gradle"
+    tasks = ['test']
 }

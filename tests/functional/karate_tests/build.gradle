@@ -6,6 +6,7 @@ version = '1.0-SNAPSHOT'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
+
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 }
@@ -15,6 +16,7 @@ sourceSets {
         java 
             {
                 srcDir file('src/test/java')
+                //exclude '**/*UiRunner*.java'
             }
         resources
             {
@@ -33,4 +35,27 @@ dependencies {
     testCompile group: 'net.masterthought', name: 'cucumber-reporting', version:'3.8.0'
     testCompile group: 'com.intuit.karate', name: 'karate-apache', version:'0.9.1'
     testCompile group: 'com.intuit.karate', name: 'karate-junit4', version:'0.9.1'
+}
+
+test {
+    // When running the test task, only run the base Test class which runs all cucumber
+    // tests in parallel.
+    include '**/*SmokeTestRunner*'
+    // Pull karate options into the runtime
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
+    // Pull karate options into the JVM
+    systemProperty "karate.env", System.properties.getProperty("karate.env")
+    systemProperty "adminauth", System.properties.getProperty("adminauth")
+    systemProperty "server", System.properties.getProperty("server")
+    systemProperty "adminbaseurl", System.properties.getProperty("adminbaseurl")
+    // Ensure tests are always run
+    outputs.upToDateWhen { false }
+    // attach debugger
+    if (System.getProperty('debug', 'false') == 'true') {
+        jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9009'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
 }

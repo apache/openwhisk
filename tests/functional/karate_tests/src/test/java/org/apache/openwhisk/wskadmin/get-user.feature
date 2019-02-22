@@ -2,7 +2,7 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 
 # Summary :This feature file can be used to get action destils using action name
-#@ignore
+@ignore
 
 Feature: Create Namespace
 
@@ -15,23 +15,7 @@ Feature: Create Namespace
   Scenario: Get NS credentials
     Given url AdminBaseUrl
     * print "I am here in get-user"
-    * def DBpath =
-    """
-   
-    if (BaseUrl.match ('rtbeta'))
-    {
-     DBpath = '/whisk_dev_subjects/';
-    }
-    if (AdminBaseUrl.match ('bluemix'))
-    {
-     DBpath = '/whisk_dev_subjects/';
-    }
-    else{
-     DBpath = '/local_subjects/';
-    }
-    
-    """
-    #And path '/whisk_local_subjects/'+nameSpace
+    * def DBpath = '/local_subjects/'
     And path DBpath+nameSpace
     And header Authorization = AdminAuth
     And header Content-Type = 'application/json'

@@ -34,7 +34,7 @@ import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 import org.apache.openwhisk.utils.*;
 
-@CucumberOptions(tags = {"~@ignore","~@driver","~@reliability","~@resiliency","~@concurrent","~@wskfunctions"})
+@CucumberOptions(tags = {"~@ignore"})
 public class SmokeTestRunner extends GenerateReports {
     @Test
     public void testwskFunctions() {
@@ -44,6 +44,7 @@ public class SmokeTestRunner extends GenerateReports {
         GenerateReports reports = new GenerateReports();
         reports.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
+
     }
 
 }
