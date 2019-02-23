@@ -469,7 +469,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   it should "interrupt the heavy logging action within its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = s"PythonTestLoggingActionCausingTimeout-${System.currentTimeMillis()}"
+      val name = "PythonTestLoggingActionCausingTimeout-" + System.currentTimeMillis()
       print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
         action.create(
