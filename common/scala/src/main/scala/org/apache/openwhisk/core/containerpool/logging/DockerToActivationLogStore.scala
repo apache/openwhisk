@@ -35,7 +35,6 @@ import org.apache.openwhisk.core.database.UserContext
 import scala.concurrent.{ExecutionContext, Future}
 
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 
 /**
  * Represents a single log line as read from a docker log
@@ -73,25 +72,32 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] =
     Future.successful(activation.logs)
 
+  def getLogs(transid: TransactionId,
+              container: Container,
+              action: ExecutableWhiskAction,
+              isTimedoutActivation: Boolean) = {
+
+    // wait for a sentinel only if no container (developer) error occurred to avoid
+    // that log collection continues if the action code still logs after timeout
+    val sentinel = action.exec.sentinelledLogs && !isTimedoutActivation
+    val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
+    val logsWithPossibleError = if (isTimedoutActivation) {
+      logs.concat(
+        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
+    } else logs
+    logsWithPossibleError
+  }
+
   override def collectLogs(transid: TransactionId,
                            user: Identity,
                            activation: WhiskActivation,
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    // wait for a sentinel only if no container (developer) error occurred to avoid
-    // that log collection continues if the action code still logs after timeout
-    val isTimedoutActivation =
-      activation.annotations.getAs[Boolean](WhiskActivation.timeoutAnnotation).getOrElse(false)
-    val sentinel = action.exec.sentinelledLogs && !isTimedoutActivation
+    val isTimedoutActivation = activation.isTimedoutActivation
+    val logs = getLogs(transid, container, action, isTimedoutActivation)
 
-    val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
-    val logsWithPossibleError = if (isTimedoutActivation) {
-      logs.concat(
-        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
-    } else logs
-
-    logsWithPossibleError
+    logs
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>

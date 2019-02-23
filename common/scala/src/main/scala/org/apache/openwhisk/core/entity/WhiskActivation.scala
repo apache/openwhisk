@@ -125,6 +125,10 @@ case class WhiskActivation(namespace: EntityPath,
   def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
   def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
 
+  def isTimedoutActivation = {
+    annotations.getAs[Boolean](WhiskActivation.timeoutAnnotation).getOrElse(false)
+  }
+
 }
 
 object WhiskActivation

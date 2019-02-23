@@ -474,9 +474,8 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
         action.create(
           name,
-          Some(TestUtils.getTestActionFilename("loggingTimeout.js")),
-          timeout = Some(allowedActionDuration),
-          kind = Some("nodejs:8"))
+          Some(TestUtils.getTestActionFilename("loggingTimeout.py")),
+          timeout = Some(allowedActionDuration))
       }
       val durationMillis = allowedActionDuration + 3.minutes
       val checkDurationMillis = allowedActionDuration + 1.minutes
