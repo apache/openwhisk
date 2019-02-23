@@ -233,6 +233,7 @@ object ConfigKeys {
   val logStoreElasticSearch = s"$logStore.elasticsearch"
 
   val mesos = "whisk.mesos"
+  val yarn = "whisk.yarn"
 
   val containerProxy = "whisk.container-proxy"
   val containerProxyTimeouts = s"$containerProxy.timeouts"
