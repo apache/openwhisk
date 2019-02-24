@@ -124,7 +124,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
     val isTimedoutActivation = activation.isTimedoutActivation
-    val logs = getLogs(transid, container, action, isTimedoutActivation)
+    val logs = logStream(transid, container, action, isTimedoutActivation)
 
     // Adding the userId field to every written record, so any background process can properly correlate.
     val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)

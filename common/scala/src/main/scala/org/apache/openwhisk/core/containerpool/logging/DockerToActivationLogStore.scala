@@ -72,10 +72,23 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] =
     Future.successful(activation.logs)
 
-  def getLogs(transid: TransactionId,
+  /**
+    * Obtains the container's stdout and stderr output.
+    *
+    * In case of a timedout activation do not wait for a sentinel to appear but instead
+    * add a message to the log that data might be missing
+    *
+    * @param transid transaction id
+    * @param container container to obtain the log from
+    * @param action action that defines the log limit
+    * @param isTimedoutActivation is activation timed out
+    *
+    * @return a vector of Strings with log lines in our own JSON format
+    */
+  protected def logStream(transid: TransactionId,
               container: Container,
               action: ExecutableWhiskAction,
-              isTimedoutActivation: Boolean) = {
+              isTimedoutActivation: Boolean): Source[ByteString, Any] = {
 
     // wait for a sentinel only if no container (developer) error occurred to avoid
     // that log collection continues if the action code still logs after timeout
@@ -95,7 +108,7 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
     val isTimedoutActivation = activation.isTimedoutActivation
-    val logs = getLogs(transid, container, action, isTimedoutActivation)
+    val logs = logStream(transid, container, action, isTimedoutActivation)
 
     logs
       .via(DockerToActivationLogStore.toFormattedString)
