@@ -469,18 +469,20 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   it should "interrupt the heavy logging action within its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "PythonTestLoggingActionCausingTimeout-" + System.currentTimeMillis()
+      val name = "NodeJsTestLoggingActionCausingTimeout-" + System.currentTimeMillis()
       print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
         action.create(
           name,
-          Some(TestUtils.getTestActionFilename("loggingTimeout.py")),
+          Some(TestUtils.getTestActionFilename("loggingTimeout2.js")),
           timeout = Some(allowedActionDuration))
       }
       val durationMillis = allowedActionDuration + 3.minutes
       val checkDurationMillis = allowedActionDuration + 1.minutes
+      //val run =
+      //  wsk.action.invoke(name, Map("durationMillis" -> durationMillis.toMillis.toJson, "delayMillis" -> 100.toJson))
       val run =
-        wsk.action.invoke(name, Map("durationMillis" -> durationMillis.toMillis.toJson, "delayMillis" -> 100.toJson))
+        wsk.action.invoke(name, Map("durationMillis" -> durationMillis.toMillis.toJson, "logDeltaMillis" -> 100.toJson))
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
