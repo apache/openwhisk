@@ -73,22 +73,22 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
     Future.successful(activation.logs)
 
   /**
-    * Obtains the container's stdout and stderr output.
-    *
-    * In case of a timedout activation do not wait for a sentinel to appear but instead
-    * add a message to the log that data might be missing
-    *
-    * @param transid transaction id
-    * @param container container to obtain the log from
-    * @param action action that defines the log limit
-    * @param isTimedoutActivation is activation timed out
-    *
-    * @return a vector of Strings with log lines in our own JSON format
-    */
+   * Obtains the container's stdout and stderr output.
+   *
+   * In case of a timedout activation do not wait for a sentinel to appear but instead
+   * add a message to the log that data might be missing
+   *
+   * @param transid transaction id
+   * @param container container to obtain the log from
+   * @param action action that defines the log limit
+   * @param isTimedoutActivation is activation timed out
+   *
+   * @return a vector of Strings with log lines in our own JSON format
+   */
   protected def logStream(transid: TransactionId,
-              container: Container,
-              action: ExecutableWhiskAction,
-              isTimedoutActivation: Boolean): Source[ByteString, Any] = {
+                          container: Container,
+                          action: ExecutableWhiskAction,
+                          isTimedoutActivation: Boolean): Source[ByteString, Any] = {
 
     // wait for a sentinel only if no container (developer) error occurred to avoid
     // that log collection continues if the action code still logs after timeout
