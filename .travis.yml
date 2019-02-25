@@ -71,11 +71,11 @@ jobs:
       name: "Unit Tests"
     - script:
        - ./tools/travis/runSystemTests.sh
+       - ./tools/travis/checkAndUploadLogs.sh system
        - echo "/home/travis/build/apache/incubator-openwhisk/logs/controller0/controller0_logs.log:0.."
        - cat /home/travis/build/apache/incubator-openwhisk/logs/controller0/controller0_logs.log
        - echo "/home/travis/build/apache/incubator-openwhisk/logs/controller0.log.."
        - cat /home/travis/build/apache/incubator-openwhisk/logs/controller0.log
-       - ./tools/travis/checkAndUploadLogs.sh system
       name: "System Tests"
     - script:
       - ./tools/travis/runMultiRuntimeTests.sh
