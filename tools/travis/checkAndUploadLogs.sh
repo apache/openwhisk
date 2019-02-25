@@ -35,6 +35,12 @@ ansible-playbook -i ansible/environments/local ansible/logs.yml
 
 ./tools/build/checkLogs.py logs "$TAGS"
 
+env
+echo "TRAVIS_BUILD_DIR: $TRAVIS_BUILD_DIR"
+echo "$TRAVIS_BUILD_DIR/logs/controller0/controller0_logs.log:0.."
+cat $TRAVIS_BUILD_DIR/logs/controller0/controller0_logs.log || true
+echo "$TRAVIS_BUILD_DIR/logs/controller0.log.."
+cat $TRAVIS_BUILD_DIR/logs/controller0.log || true
 ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "$LOG_TAR_NAME"
 
 echo "Uploaded Logs with name $LOG_TAR_NAME"
