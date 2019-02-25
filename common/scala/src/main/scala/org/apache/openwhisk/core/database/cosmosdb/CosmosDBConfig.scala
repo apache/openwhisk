@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.database.cosmosdb
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.microsoft.azure.cosmosdb.{
+  ConnectionMode,
   ConsistencyLevel,
   ConnectionPolicy => JConnectionPolicy,
   RetryOptions => JRetryOptions
@@ -51,13 +52,15 @@ case class CosmosDBConfig(endpoint: String,
 case class ConnectionPolicy(maxPoolSize: Int,
                             preferredLocations: Seq[String],
                             usingMultipleWriteLocations: Boolean,
-                            retryOptions: RetryOptions) {
+                            retryOptions: RetryOptions,
+                            connectionMode: ConnectionMode) {
   def asJava: JConnectionPolicy = {
     val p = new JConnectionPolicy
     p.setMaxPoolSize(maxPoolSize)
     p.setUsingMultipleWriteLocations(usingMultipleWriteLocations)
     p.setPreferredLocations(preferredLocations.asJava)
     p.setRetryOptions(retryOptions.asJava)
+    p.setConnectionMode(connectionMode)
     p
   }
 }
