@@ -19,12 +19,13 @@ package org.apache.openwhisk.core.containerpool.yarn.test
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.DateTime
-import org.apache.openwhisk.common.{PrintStreamLogging, TransactionId}
+import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId, SizeUnits}
+import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.yarn.{YARNConfig, YARNContainerFactory, YARNRESTUtil, YARNTask}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -35,21 +36,11 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecLike {
-
+class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecLike with ExecHelpers {
   val images = Array(
-    ImageName("nodejs6action", Option("openwhisk"), Option("latest")),
-    ImageName("python3action", Option("openwhisk"), Option("latest")))
-
-  val runtimes: String = "{\"runtimes\":{" +
-    "\"nodejs\":[{\"kind\":\"nodejs:6\",\"image\":{\"prefix\":\"openwhisk\",\"name\":\"nodejs6action\",\"tag\":\"latest\"}}]," +
-    "\"python\":[{\"kind\":\"python:3\",\"image\":{\"prefix\":\"openwhisk\",\"name\":\"python3action\",\"tag\":\"latest\"}}]" +
-    "}}"
-
-  implicit val logging: PrintStreamLogging = new PrintStreamLogging()
-  implicit val whiskConfig: WhiskConfig = new WhiskConfig(
-    Map(wskApiHostname -> "apihost", runtimesManifest -> runtimes) ++ wskApiHost)
-
+    ImageName("nodejs6action", Option("openwhisk"), imageTag("nodejs:6")),
+    ImageName("python3action", Option("openwhisk"), imageTag("python:3")))
+  val runtimes = ExecManifest.runtimesManifest.toJson.compactPrint
   val containerArgsConfig =
     new ContainerArgsConfig(
       "net1",
@@ -57,7 +48,6 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
       Seq.empty,
       Seq.empty,
       Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
-
   val yarnConfig =
     YARNConfig(
       "http://localhost:8088",
@@ -73,16 +63,16 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
   val instance1 = new InvokerInstanceId(1, Some("invoker1"), Some("invoker1"), ByteSize(0, SizeUnits.BYTE))
   val serviceName0 = yarnConfig.serviceName + "-0"
   val serviceName1 = yarnConfig.serviceName + "-1"
-
-  //System.setProperty("java.security.auth.login.config", "~/login.conf")
-  //System.setProperty("java.security.krb5.conf", "/etc/krb5.conf")
-
   val properties: Map[String, Set[String]] = Map[String, Set[String]]()
+
+  implicit val whiskConfig: WhiskConfig = new WhiskConfig(
+    Map(wskApiHostname -> "apihost", runtimesManifest -> runtimes) ++ wskApiHost)
+
   ExecManifest.initialize(whiskConfig)
 
   behavior of "YARNContainerFactory"
 
-  it should "initalize correctly with zero containers" in {
+  it should "initialize correctly with zero containers" in {
 
     val rm = new MockYARNRM(8088, 1000)
     rm.start()
