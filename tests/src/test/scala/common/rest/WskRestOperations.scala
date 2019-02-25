@@ -371,6 +371,7 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
       if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(body).toString))
       else requestEntity(PUT, path, body = Some(JsObject(body).toString))
     val rr = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))
+    print(s"\n rest result: ${rr}, ${rr.toString}")
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
     rr
   }
