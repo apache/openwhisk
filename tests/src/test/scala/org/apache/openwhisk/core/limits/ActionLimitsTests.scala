@@ -472,10 +472,12 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       val name = s"PythonTestLoggingActionCausingTimeout-${System.currentTimeMillis()}"
       print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-        action.create(
+        val rr = action.create(
           name,
           Some(TestUtils.getTestActionFilename("loggingTimeout.py")),
           timeout = Some(allowedActionDuration))
+        print(s"\n rest result: ${rr}, ${rr.toString}")
+        rr
       }
       val durationMillis = allowedActionDuration + 3.minutes
       val checkDurationMillis = allowedActionDuration + 1.minutes
