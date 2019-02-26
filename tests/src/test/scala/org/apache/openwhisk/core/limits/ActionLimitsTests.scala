@@ -23,7 +23,7 @@ import java.io.File
 import java.io.PrintWriter
 import java.time.Instant
 
-import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -495,7 +495,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
           val parseLogTime = (line: String) => Instant.parse(line.split(' ').head)
           val startTime = parseLogTime(logs.head)
           val endTime = parseLogTime(logs.last)
-          between(startTime, endTime).asInstanceOf[FiniteDuration] should be < checkDuration
+          between(startTime, endTime) should be < checkDuration.asInstanceOf[Duration]
         }
       }
   }
