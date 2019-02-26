@@ -42,15 +42,17 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
-  protected def imagename(name: String) = {
+  protected def imageName(name: String) =
     ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
-  }
+
+  protected def imageTag(name: String) =
+    ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image.tag
 
   protected def js10Old(code: String, main: Option[String] = None) = {
     CodeExecAsString(
       RuntimeManifest(
         NODEJS10,
-        imagename(NODEJS10),
+        imageName(NODEJS10),
         default = Some(true),
         deprecated = Some(false),
         stemCells = Some(List(StemCell(2, 256.MB)))),
@@ -73,7 +75,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     CodeExecMetaDataAsString(
       RuntimeManifest(
         NODEJS10,
-        imagename(NODEJS10),
+        imageName(NODEJS10),
         default = Some(true),
         deprecated = Some(false),
         stemCells = Some(List(StemCell(2, 256.MB)))),
