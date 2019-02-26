@@ -45,9 +45,6 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected def imageName(name: String) =
     ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
 
-  protected def imageTag(name: String) =
-    ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image.tag
-
   protected def js10Old(code: String, main: Option[String] = None) = {
     CodeExecAsString(
       RuntimeManifest(
