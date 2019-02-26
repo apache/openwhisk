@@ -22,7 +22,8 @@ import akka.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
 import java.time.Instant
-import scala.concurrent.duration.{Duration, DurationInt}
+
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -30,6 +31,7 @@ import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
+import common.TimingHelpers
 import common.WhiskProperties
 import common.rest.WskRestOperations
 import common.WskProps
@@ -51,7 +53,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem {
+class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem with TimingHelpers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations
@@ -469,28 +471,31 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   it should "interrupt the heavy logging action within its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = s"PythonTestLoggingActionCausingTimeout-${System.currentTimeMillis()}"
+      val name = s"NodeJsTestLoggingActionCausingTimeout-${System.currentTimeMillis()}"
       print(s"\n create action ${name} using api host: ${wskprops.apihost}..")
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-        val rr = action.create(
+        action.create(
           name,
-          Some(TestUtils.getTestActionFilename("loggingTimeout.py")),
+          Some(TestUtils.getTestActionFilename("loggingTimeout.js")),
           timeout = Some(allowedActionDuration))
-        print(s"\n rest result: ${rr}, ${rr.toString}")
-        rr
       }
-      val durationMillis = allowedActionDuration + 3.minutes
-      val checkDurationMillis = allowedActionDuration + 1.minutes
+      val duration = allowedActionDuration + 3.minutes
+      val checkDuration = allowedActionDuration + 1.minutes
       val run =
-        wsk.action.invoke(name, Map("durationMillis" -> durationMillis.toMillis.toJson, "delayMillis" -> 100.toJson))
+        wsk.action.invoke(name, Map("durationMillis" -> duration.toMillis.toJson, "delayMillis" -> 100.toJson))
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-          result.response.result.get.toString should include("exceeded its time limits")
-          result.logs.get.last should include(Messages.logFailure)
-          val startLogMillis = Instant.parse(result.logs.get.head.split(' ')(0)).toEpochMilli()
-          val endLogMillis = Instant.parse(result.logs.get.last.split(' ')(0)).toEpochMilli()
-          (endLogMillis - startLogMillis).toInt should be < (checkDurationMillis).toMillis.toInt
+          result.response.result.get.fields("error") shouldBe {
+            Messages.timedoutActivation(allowedActionDuration, init = false).toJson
+          }
+          val logs = result.logs.get
+          logs.last should include(Messages.logFailure)
+
+          val parseLogTime = (line: String) => Instant.parse(line.split(' ').head)
+          val startTime = parseLogTime(logs.head)
+          val endTime = parseLogTime(logs.last)
+          between(startTime, endTime).asInstanceOf[FiniteDuration] should be < checkDuration
         }
       }
   }
