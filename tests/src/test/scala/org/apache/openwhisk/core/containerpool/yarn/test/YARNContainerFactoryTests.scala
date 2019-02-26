@@ -37,10 +37,41 @@ import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecLike with ExecHelpers {
+
+  implicit val whiskConfig: WhiskConfig = new WhiskConfig(Map(wskApiHostname -> "apihost") ++ wskApiHost)
+
+  val customManifest = Some(s"""
+                               |{ "runtimes": {
+                               |    "runtime1": [
+                               |      {
+                               |        "kind": "somekind:1",
+                               |        "deprecated": false,
+                               |        "default": true,
+                               |        "image": {
+                               |          "prefix": "openwhisk",
+                               |          "name": "somekind",
+                               |          "tag": "latest"
+                               |        }
+                               |      }
+                               |    ],
+                               |    "runtime2": [
+                               |      {
+                               |        "kind": "anotherkind:1",
+                               |        "deprecated": false,
+                               |        "default": true,
+                               |        "image": {
+                               |          "prefix": "openwhisk",
+                               |          "name": "anotherkind",
+                               |          "tag": "latest"
+                               |        }
+                               |      }
+                               |    ]
+                               |  }
+                               |}
+                               |""".stripMargin)
   val images = Array(
-    ImageName("nodejs6action", Option("openwhisk"), imageTag("nodejs:6")),
-    ImageName("python3action", Option("openwhisk"), imageTag("python:3")))
-  val runtimes = ExecManifest.runtimesManifest.toJson.compactPrint
+    ImageName("somekind", Option("openwhisk"), Some("latest")),
+    ImageName("anotherkind", Option("openwhisk"), Some("latest")))
   val containerArgsConfig =
     new ContainerArgsConfig(
       "net1",
@@ -65,10 +96,7 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
   val serviceName1 = yarnConfig.serviceName + "-1"
   val properties: Map[String, Set[String]] = Map[String, Set[String]]()
 
-  implicit val whiskConfig: WhiskConfig = new WhiskConfig(
-    Map(wskApiHostname -> "apihost", runtimesManifest -> runtimes) ++ wskApiHost)
-
-  ExecManifest.initialize(whiskConfig)
+  ExecManifest.initialize(whiskConfig, customManifest)
 
   behavior of "YARNContainerFactory"
 
