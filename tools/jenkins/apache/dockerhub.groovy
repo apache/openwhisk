@@ -32,6 +32,7 @@ node('xenial&&!H21&&!H22&&!H11&&!ubuntu-eu3') {
       def PUSH_CMD = "./gradlew :core:controller:distDocker :core:invoker:distDocker :tools:ow-utils:distDocker -PdockerRegistry=docker.io -PdockerImagePrefix=openwhisk"
       def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
       def shortCommit = gitCommit.take(7)
+      sh "./gradlew clean"
       sh "${PUSH_CMD} -PdockerImageTag=latest"
       sh "${PUSH_CMD} -PdockerImageTag=${shortCommit}"
     }
