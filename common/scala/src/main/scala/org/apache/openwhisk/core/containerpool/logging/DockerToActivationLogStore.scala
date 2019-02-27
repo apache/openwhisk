@@ -75,8 +75,8 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   /**
    * Obtains the container's stdout and stderr output.
    *
-   * In case of a timedout activation do not wait for a sentinel to appear but instead
-   * add a message to the log that data might be missing
+   * In case of a timed out activation do not wait for a sentinel to appear but instead
+   * collect the log as is and add a message to the log that data might be missing
    *
    * @param transid transaction id
    * @param container container to obtain the log from

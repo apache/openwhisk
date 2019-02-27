@@ -131,7 +131,8 @@ trait Container {
       .flatMap { result =>
         if (result.ok) {
           Future.successful(result.interval)
-        } else if (result.interval.duration >= timeout) {
+        } else if (result.interval.duration > timeout) {
+          // action timeout is defined as "a container is not allowed to run longer than N milliseconds"
           Future.failed(
             InitializationError(
               result.interval,
@@ -171,7 +172,8 @@ trait Container {
           transid.failed(this, start, s"run failed with $t")
       }
       .map { result =>
-        val response = if (result.interval.duration >= timeout) {
+        // action timeout is defined as "a container is not allowed to run longer than N milliseconds"
+        val response = if (result.interval.duration > timeout) {
           ActivationResponse.developerError(Messages.timedoutActivation(timeout, false))
         } else {
           ActivationResponse.processRunResponseContent(result.response, logging)

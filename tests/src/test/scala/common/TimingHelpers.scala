@@ -21,10 +21,11 @@ import java.time.Instant
 import scala.concurrent.duration._
 
 trait TimingHelpers {
-  def between(start: Instant, end: Instant): Duration =
-    Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
+  def between(start: Instant, end: Instant): FiniteDuration =
+    //Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
+    FiniteDuration(java.time.Duration.between(start, end).toNanos, NANOSECONDS)
 
-  def durationOf[A](block: => A): (Duration, A) = {
+  def durationOf[A](block: => A): (FiniteDuration, A) = {
     val start = Instant.now
     val value = block
     val end = Instant.now
