@@ -419,7 +419,7 @@ class KubernetesContainerTests
 
     val (interval, processedLog) = durationOf(awaitLogs(container.logs(limit = 1.MB, waitForSentinel = true)))
 
-    interval should (be >= waitForLogs and be < waitForLogs * 2)
+    interval.toMillis should (be >= waitForLogs.toMillis and be < (waitForLogs * 2).toMillis)
 
     kubernetes.logCalls should have size 1
 

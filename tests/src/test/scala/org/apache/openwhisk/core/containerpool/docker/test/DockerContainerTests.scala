@@ -630,7 +630,7 @@ class DockerContainerTests
 
     val (interval, processedLog) = durationOf(awaitLogs(container.logs(limit = 1.MB, waitForSentinel = true)))
 
-    interval should (be >= waitForLogs and be < waitForLogs * 2)
+    interval.toMillis should (be >= waitForLogs.toMillis and be < (waitForLogs * 2).toMillis)
 
     docker.rawContainerLogsInvocations should have size 1
 

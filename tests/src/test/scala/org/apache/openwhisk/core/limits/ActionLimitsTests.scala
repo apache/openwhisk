@@ -493,7 +493,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
           val parseLogTime = (line: String) => Instant.parse(line.split(' ').head)
           val startTime = parseLogTime(logs.head)
           val endTime = parseLogTime(logs.last)
-          between(startTime, endTime) should be < checkDuration
+          between(startTime, endTime).toMillis should be < checkDuration.toMillis
         }
       }
   }
