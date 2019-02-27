@@ -118,6 +118,10 @@
       -Dcom.sun.management.jmxremote.rmi.port={{ jmx_remote_rmi_port }}
       -Dcom.sun.management.jmxremote.port={{ jmx_remote_port }}
 
+- name: Load config from template
+  set_fact:
+      openwhisk_config: "{{ lookup('template', 'config.j2') | b64encode }}"
+
 - name: populate environment variables for controller
   set_fact:
     env:
@@ -131,7 +135,7 @@
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
-
+      "OPENWHISK_ENCODED_CONFIG": "{{ openwhisk_config }}"
       "PORT": "8080"
       "TZ": "{{ docker.timezone }}"
 
