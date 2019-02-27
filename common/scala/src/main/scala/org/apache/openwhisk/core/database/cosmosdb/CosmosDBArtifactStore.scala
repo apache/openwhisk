@@ -75,12 +75,13 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val queryToken = createToken("query")
   private val countToken = createToken("count")
   private val putAttachmentToken = createToken("putAttachment", read = false)
+  private val clusterIdValue = config.clusterId.map(JsString(_))
 
   logging.info(
     this,
     s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}], " +
-      s"Time to live [${collection.getDefaultTimeToLive} secs")
+      s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}]")
 
   //Clone the returned instance as these are mutable
   def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
@@ -199,6 +200,22 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       f,
       start,
       failure => s"[GET_BY_ID] '$collName' internal error, doc: '$id', failure: '${failure.getMessage}'")
+  }
+
+  /**
+   * Method exposed for test cases to access the raw json returned by CosmosDB
+   */
+  private[cosmosdb] def getRaw(id: DocId): Future[Option[JsObject]] = {
+    client
+      .readDocument(selfLinkOf(id), newRequestOption(id))
+      .head()
+      .map { rr =>
+        val js = rr.getResource.toJson.parseJson.asJsObject
+        Some(js)
+      }
+      .recoverWith {
+        case e: DocumentClientException if isNotFound(e) => Future.successful(None)
+      }
   }
 
   override protected[core] def query(table: String,
@@ -464,7 +481,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       Seq(
         (cid, Some(JsString(escapeId(json.fields(_id).convertTo[String])))),
         (etag, json.fields.get(_rev)),
-        (computed, computedOpt))
+        (computed, computedOpt),
+        (clusterId, clusterIdValue))
     val fieldsToRemove = Seq(_id, _rev)
     val mapped = transform(json, fieldsToAdd, fieldsToRemove)
     val doc = new Document(mapped.compactPrint)

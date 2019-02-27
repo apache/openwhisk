@@ -34,6 +34,8 @@ private[cosmosdb] object CosmosDBConstants {
   val aggregate: String = AGGREGATE
 
   val selfLink: String = SELF_LINK
+
+  val clusterId: String = "_clusterId"
 }
 
 private[cosmosdb] trait CosmosDBUtil {

@@ -66,7 +66,9 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       | }
          """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
-    cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _, _) => }
+    cosmos.endpoint shouldBe "http://localhost"
+    cosmos.key shouldBe "foo"
+    cosmos.db shouldBe "openwhisk"
   }
 
   it should "work with extended config" in {
@@ -81,7 +83,9 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       | }
          """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
-    cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _, _) => }
+    cosmos.endpoint shouldBe "http://localhost"
+    cosmos.key shouldBe "foo"
+    cosmos.db shouldBe "openwhisk"
 
     cosmos.connectionPolicy.maxPoolSize shouldBe 42
     val policy = cosmos.connectionPolicy.asJava
@@ -115,7 +119,9 @@ class CosmosDBConfigTests extends FlatSpec with Matchers {
       | }
          """.stripMargin).withFallback(globalConfig)
     val cosmos = CosmosDBConfig(config, "WhiskAuth")
-    cosmos should matchPattern { case CosmosDBConfig("http://localhost", "foo", "openwhisk", _, _, _, _) => }
+    cosmos.endpoint shouldBe "http://localhost"
+    cosmos.key shouldBe "foo"
+    cosmos.db shouldBe "openwhisk"
 
     val policy = cosmos.connectionPolicy.asJava
     policy.isUsingMultipleWriteLocations shouldBe true
