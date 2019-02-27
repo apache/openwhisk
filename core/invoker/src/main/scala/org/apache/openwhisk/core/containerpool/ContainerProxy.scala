@@ -585,7 +585,7 @@ class ContainerProxy(
                 job,
                 initInterval,
                 initRunInterval,
-                runInterval.duration > actionTimeout,
+                runInterval.duration >= actionTimeout,
                 response)
           }
       }
@@ -595,7 +595,7 @@ class ContainerProxy(
             job,
             Some(interval),
             interval,
-            interval.duration > actionTimeout,
+            interval.duration >= actionTimeout,
             response)
         case t =>
           // Actually, this should never happen - but we want to make sure to not miss a problem
