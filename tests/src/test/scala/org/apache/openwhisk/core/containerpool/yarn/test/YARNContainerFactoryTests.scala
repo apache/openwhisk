@@ -25,20 +25,26 @@ import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId, SizeUnits}
-import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.yarn.{YARNConfig, YARNContainerFactory, YARNRESTUtil, YARNTask}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Suite}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, Suite}
+import org.apache.openwhisk.core.entity.test.ExecHelpers
 
 import scala.collection.immutable.Map
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecLike with ExecHelpers {
+class YARNContainerFactoryTests
+    extends Suite
+    with BeforeAndAfter
+    with FlatSpecLike
+    with ExecHelpers
+    with BeforeAndAfterAll {
 
-  implicit val whiskConfig: WhiskConfig = new WhiskConfig(Map(wskApiHostname -> "apihost") ++ wskApiHost)
+  implicit val whiskConfig: WhiskConfig = new WhiskConfig(
+    ExecManifest.requiredProperties ++ Map(wskApiHostname -> "apihost") ++ wskApiHost)
 
   val customManifest = Some(s"""
                                |{ "runtimes": {
@@ -96,9 +102,17 @@ class YARNContainerFactoryTests extends Suite with BeforeAndAfter with FlatSpecL
   val serviceName1 = yarnConfig.serviceName + "-1"
   val properties: Map[String, Set[String]] = Map[String, Set[String]]()
 
-  ExecManifest.initialize(whiskConfig, customManifest)
-
   behavior of "YARNContainerFactory"
+
+  override def beforeAll = {
+    ExecManifest.initialize(whiskConfig, customManifest)
+    super.beforeAll()
+  }
+
+  override def afterAll = {
+    super.afterAll()
+    ExecManifest.initialize(whiskConfig)
+  }
 
   it should "initialize correctly with zero containers" in {
 
