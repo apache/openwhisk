@@ -130,7 +130,11 @@ Following metrics record stats around activation handling within Controller
 Aggregate metrics for inflight activations.
 
 * `openwhisk.histogram.loadbalancer<controllerId>_activationsInflight_count` (histogram) - Records the number of activations being worked upon for a given controller. As a histogram it would give a distribution of inflight activation count within a flush interval.
-* `openwhisk.histogram.loadbalancer<controllerId>_memoryInflight_count` (histogram) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits.
+* `openwhisk.histogram.loadbalancer<controllerId>_memory<invokerType>Inflight_count` (histogram) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits. **invokerType** defines whether it is a managed or a blackbox invoker.
+
+Metrics below are for current memory capacity
+
+* `openwhisk.histogram.loadbalancer_totalCapacity<invokerType>_count` (histogram) - Current memory capacity for all usable managed and blackbox invokers, total user memory in shard managed by controller. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 Metrics below are captured within load balancer
 
@@ -144,8 +148,10 @@ Metrics below are captured within load balancer
 
 Metrics below are for invoker state as recorded within load balancer monitoring.
 
-* `openwhisk.counter.loadbalancer_invokerOffline_count` - Records the count of invokers considered offline based on health pings.
-* `openwhisk.counter.loadbalancer_invokerUnhealthy_count` - Records the count of invokers considered unhealthy based on health pings.
+* `openwhisk.histogram.loadbalancer_totalHealthyInvoker<invokerType>_count` - Records the count of managed invokers considered healthy based on health pings. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.histogram.loadbalancer_totalUnresponsiveInvoker<invokerType>_count` - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.histogram.loadbalancer_totalOfflineInvoker<invokerType>_count` - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.histogram.loadbalancer_totalUnhealthyInvoker<invokerType>_count` - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 #### Invoker metrics
 
