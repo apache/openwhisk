@@ -40,6 +40,7 @@ import org.apache.openwhisk.http.Messages
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Success
 
 class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected val collName: String,
                                                                        protected val config: CosmosDBConfig,
@@ -223,11 +224,22 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     val querySpec = viewMapper.prepareQuery(ddoc, viewName, startKey, endKey, realLimit, realIncludeDocs, descending)
 
+    val options = newFeedOptions()
+    val queryMetrics = scala.collection.mutable.Buffer[QueryMetrics]()
+    if (transid.meta.extraLogging) {
+      options.setPopulateQueryMetrics(true)
+    }
+
+    def collectQueryMetrics(r: FeedResponse[Document]): Unit = {
+      collectMetrics(queryToken, r.getRequestCharge)
+      queryMetrics.appendAll(r.getQueryMetrics.values().asScala)
+    }
+
     val publisher =
-      RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, newFeedOptions()))
+      RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, options))
     val f = Source
       .fromPublisher(publisher)
-      .wireTap(Sink.foreach(r => collectMetrics(queryToken, r.getRequestCharge)))
+      .wireTap(Sink.foreach(collectQueryMetrics))
       .mapConcat(asSeq)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)
@@ -240,10 +252,17 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .map(_.toList)
       .map(l => if (limit > 0) l.take(limit) else l)
 
-    f.foreach { out =>
-      transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
+    val g = f.andThen {
+      case Success(out) =>
+        if (queryMetrics.nonEmpty) {
+          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics: _*)
+          logging.debug(
+            this,
+            s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
+        }
+        transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
     }
-    reportFailure(f, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
+    reportFailure(g, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
   }
 
   override protected[core] def count(table: String,
