@@ -18,7 +18,6 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.slf4j.SLF4JLogging
-import akka.http.scaladsl.Http
 import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config

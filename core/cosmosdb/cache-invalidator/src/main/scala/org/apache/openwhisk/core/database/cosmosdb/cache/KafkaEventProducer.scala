@@ -24,7 +24,6 @@ import akka.kafka.scaladsl.Producer
 import akka.stream.scaladsl.{Keep, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import org.apache.kafka.clients.producer.ProducerRecord
-import spray.json.JsObject
 
 import scala.concurrent.Future
 
