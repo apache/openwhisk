@@ -1,0 +1,55 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'scala'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+apply plugin: 'maven'
+apply plugin: 'org.scoverage'
+
+ext.dockerImageName = 'cache-invalidator-cosmosdb'
+apply from: "${project.rootProject.projectDir.absolutePath}/gradle/docker.gradle"
+distDocker.dependsOn ':common:scala:distDocker', 'distTar'
+
+project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
+
+ext.coverageJars = [
+    "${buildDir}/libs/${project.archivesBaseName}-$version-scoverage.jar",
+    "${project(':common:scala').buildDir.absolutePath}/libs/openwhisk-common-$version-scoverage.jar"
+]
+distDockerCoverage.dependsOn ':common:scala:jarScoverage', 'jarScoverage'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile project(':common:scala')
+    compile ("com.microsoft.azure:azure-cosmos-changefeedprocessor:0.9.0") {
+        exclude group: 'junit'
+        exclude group: 'commons-logging'
+    }
+    compile 'com.typesafe.akka:akka-stream-kafka_2.12:1.0-RC2'
+    scoverage gradle.scoverage.deps
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
+
+mainClassName = "org.apache.openwhisk.core.database.cosmosdb.cache.Main"
