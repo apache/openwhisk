@@ -19,6 +19,12 @@
 
     <logger name="akka.event.slf4j.Slf4jLogger" level="WARN" />
 
+    <!-- Disable verbose info logging from processor library-->
+    <logger name="com.microsoft.azure.documentdb.changefeedprocessor.services" level="WARN" />
+    <logger name="com.microsoft.azure.documentdb.changefeedprocessor.internal" level="WARN" />
+
+    <logger name="org.apache.openwhisk.core.database.cosmosdb.cache" level="DEBUG" />
+
     <root level="${logback.log.level:-INFO}">
         <appender-ref ref="console" />
     </root>
