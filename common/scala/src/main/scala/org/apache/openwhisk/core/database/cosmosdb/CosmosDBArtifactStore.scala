@@ -225,14 +225,14 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val querySpec = viewMapper.prepareQuery(ddoc, viewName, startKey, endKey, realLimit, realIncludeDocs, descending)
 
     val options = newFeedOptions()
-    val queryMetrics = if (transid.meta.extraLogging) {
+    val queryMetrics = scala.collection.mutable.Buffer[QueryMetrics]()
+    if (transid.meta.extraLogging) {
       options.setPopulateQueryMetrics(true)
-      Some(scala.collection.mutable.Buffer[QueryMetrics]())
-    } else None
+    }
 
     def collectQueryMetrics(r: FeedResponse[Document]): Unit = {
       collectMetrics(queryToken, r.getRequestCharge)
-      queryMetrics.foreach(_.appendAll(r.getQueryMetrics.values().asScala))
+      queryMetrics.appendAll(r.getQueryMetrics.values().asScala)
     }
 
     val publisher =
@@ -254,8 +254,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     val g = f.andThen {
       case Success(out) =>
-        queryMetrics.foreach { m =>
-          val combinedMetrics = QueryMetrics.ZERO.add(m: _*)
+        if (queryMetrics.nonEmpty) {
+          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics: _*)
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
