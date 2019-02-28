@@ -1,0 +1,18 @@
+version: '3'
+
+networks:
+  default:
+    external:
+      # Match the network name used by devtool docker compose setup
+      name: openwhisk_default
+
+services:
+  cache-invalidator:
+    image: whisk/cache-invalidator-cosmosdb
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_HOSTS=172.17.0.1:9093
+      - COSMOSDB_ENDPOINT=${COSMOSDB_ENDPOINT}
+      - COSMOSDB_KEY=${COSMOSDB_KEY}
+      - COSMOSDB_NAME=${COSMOSDB_NAME}
