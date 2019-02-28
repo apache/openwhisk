@@ -283,7 +283,8 @@ task reportCoverage(type: ScoverageReport) {
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
         ':core:invoker:reportScoverage',
-        ':tools:admin:reportScoverage'
+        ':tools:admin:reportScoverage',
+        ':core:cosmosdb:cache-invalidator:reportScoverage',
     ])
 
 }
@@ -342,7 +343,8 @@ def getScoverageClasspath(Project project) {
         ':common:scala',
         ':core:controller',
         ':core:invoker',
-        ':tools:admin'
+        ':tools:admin',
+        ':core:cosmosdb:cache-invalidator'
     ]
     def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
