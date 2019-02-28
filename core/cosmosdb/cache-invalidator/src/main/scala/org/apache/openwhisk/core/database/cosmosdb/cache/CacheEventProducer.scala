@@ -21,6 +21,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.documentdb.Document
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
+import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
 
 class WhisksCacheEventProducer extends BaseObserver {
   import CacheEventProducer._
@@ -29,11 +30,6 @@ class WhisksCacheEventProducer extends BaseObserver {
     log.debug("Changed doc [{}]", id)
     val event = CacheInvalidationMessage(CacheKey(id), instanceId)
     kafka.send(event.serialize) //TODO Await on returned future
-  }
-
-  private def unescapeId(id: String): String = {
-    require(!id.contains("/"), s"Escaped Id [$id] should not contain '/'")
-    id.replace("|", "/")
   }
 }
 
