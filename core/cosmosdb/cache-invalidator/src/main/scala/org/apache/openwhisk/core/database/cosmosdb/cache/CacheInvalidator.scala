@@ -34,6 +34,7 @@ object CacheInvalidator extends SLF4JLogging {
   SLF4JBridgeHandler.removeHandlersForRootLogger()
   SLF4JBridgeHandler.install()
 
+  //TODO Replace with constant from RemoteCacheInvalidation
   val cacheInvalidationTopic = "cacheInvalidation"
 
   val instanceId = "cache-invalidator"
@@ -50,7 +51,7 @@ object CacheInvalidator extends SLF4JLogging {
 
   private def registerShutdownTasks(system: ActorSystem,
                                     feedManager: ChangeFeedManager[_],
-                                    producer: KafkaEventProducer) = {
+                                    producer: KafkaEventProducer): Unit = {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeFeedListeners") { () =>
       implicit val ec = system.dispatcher
       Future
