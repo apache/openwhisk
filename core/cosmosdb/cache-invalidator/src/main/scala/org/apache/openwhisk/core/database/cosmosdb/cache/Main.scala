@@ -18,28 +18,21 @@
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import kamon.system.SystemMetrics
-
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import kamon.Kamon
+import org.apache.openwhisk.common.ConfigMXBean
+import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 
 object Main {
   def main(args: Array[String]): Unit = {
     implicit val system: ActorSystem = ActorSystem("cache-invalidator-actor-system")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
-    SystemMetrics.startCollecting()
-    val binding = CacheInvalidator.start(system.settings.config)
-    addShutdownHook(binding)
-  }
-
-  private def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem,
-                                                                   materializer: ActorMaterializer): Unit = {
-    implicit val ec: ExecutionContextExecutor = actorSystem.dispatcher
-    sys.addShutdownHook {
-      Await.result(binding.map(_.unbind()), 30.seconds)
-      Await.result(actorSystem.whenTerminated, 30.seconds)
-    }
+    ConfigMXBean.register()
+    Kamon.loadReportersFromConfig()
+    val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()(system.settings.config)
+    val port = invalidatorConfig.port
+    //TODO HTTPS for ping/metric endpoint?
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
+    CacheInvalidator.start(system.settings.config)
   }
 }

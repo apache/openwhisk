@@ -39,22 +39,13 @@ object CacheInvalidator extends SLF4JLogging {
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
 
-  def start(config: Config)(implicit system: ActorSystem,
-                            materializer: ActorMaterializer): Future[Http.ServerBinding] = {
+  def start(config: Config)(implicit system: ActorSystem, materializer: ActorMaterializer): Unit = {
     implicit val globalConfig: Config = config
-    val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()
     val producer = KafkaEventProducer(kafkaProducerSettings(defaultProducerConfig(config)), cacheInvalidationTopic)
     CacheEventProducer.kafka = producer
     //TODO Listen for auth collection changes
     val feedManager = new ChangeFeedManager(whisksCollection, classOf[WhisksCacheEventProducer])
-
     registerShutdownTasks(system, feedManager, producer)
-
-    val port = invalidatorConfig.port
-    val api = new CacheInvalidatorApi
-    val httpBinding = Http().bindAndHandle(api.routes, "0.0.0.0", port)
-    httpBinding.foreach(_ => log.info(s"Started the http server on http://localhost:$port"))(system.dispatcher)
-    httpBinding
   }
 
   private def registerShutdownTasks(system: ActorSystem,
