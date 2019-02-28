@@ -123,7 +123,8 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val logs = container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
+    val isTimedoutActivation = activation.isTimedoutActivation
+    val logs = logStream(transid, container, action, isTimedoutActivation)
 
     // Adding the userId field to every written record, so any background process can properly correlate.
     val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)
@@ -150,7 +151,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     logs.runWith(combined)._1.flatMap { seq =>
       val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-      val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+      val errored = isTimedoutActivation || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
       val logs = ActivationLogs(seq.toVector)
       if (!errored) {
         Future.successful(logs)

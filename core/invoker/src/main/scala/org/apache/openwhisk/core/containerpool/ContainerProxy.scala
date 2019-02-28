@@ -285,7 +285,7 @@ class ContainerProxy(
             // also update the feed and active ack; the container cleanup is queued
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
-            val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, response)
+            val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, false, response)
             sendActiveAck(
               transid,
               activation,
@@ -581,12 +581,22 @@ class ContainerProxy(
               val initRunInterval = initInterval
                 .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))
                 .getOrElse(runInterval)
-              ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response)
+              ContainerProxy.constructWhiskActivation(
+                job,
+                initInterval,
+                initRunInterval,
+                runInterval.duration >= actionTimeout,
+                response)
           }
       }
       .recover {
         case InitializationError(interval, response) =>
-          ContainerProxy.constructWhiskActivation(job, Some(interval), interval, response)
+          ContainerProxy.constructWhiskActivation(
+            job,
+            Some(interval),
+            interval,
+            interval.duration >= actionTimeout,
+            response)
         case t =>
           // Actually, this should never happen - but we want to make sure to not miss a problem
           logging.error(this, s"caught unexpected error while running activation: ${t}")
@@ -594,6 +604,7 @@ class ContainerProxy(
             job,
             None,
             Interval.zero,
+            false,
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
@@ -708,6 +719,7 @@ object ContainerProxy {
   def constructWhiskActivation(job: Run,
                                initInterval: Option[Interval],
                                totalInterval: Interval,
+                               isTimeout: Boolean,
                                response: ActivationResponse) = {
     val causedBy = Some {
       if (job.msg.causedBySequence) {
@@ -745,6 +757,7 @@ object ContainerProxy {
         Parameters(WhiskActivation.limitsAnnotation, job.action.limits.toJson) ++
           Parameters(WhiskActivation.pathAnnotation, JsString(job.action.fullyQualifiedName(false).asString)) ++
           Parameters(WhiskActivation.kindAnnotation, JsString(job.action.exec.kind)) ++
+          Parameters(WhiskActivation.timeoutAnnotation, JsBoolean(isTimeout)) ++
           causedBy ++ initTime
       })
   }
