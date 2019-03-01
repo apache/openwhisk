@@ -67,9 +67,9 @@ class WskRestRuleTests extends WskRuleTests with WskActorSystem {
 
     statusPermutations.foreach {
       case (trigger, status) =>
-        if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
         // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
         retry({
+          if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
           val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
           val getStdout = wsk.rule.get(ruleName).stdout
           wsk.parseJsonString(createStdout).fields.get("status") shouldBe status
