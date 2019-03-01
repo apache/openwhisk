@@ -73,7 +73,9 @@ class CacheInvalidatorTests
         |  }
         |}
       """.stripMargin).withFallback(ConfigFactory.load())
-    CacheInvalidator.start(tsconfig)
+
+    //Start only if config is valid for test to run
+    storeConfigTry.foreach(_ => CacheInvalidator.start(tsconfig))
   }
 
   override def afterAll(): Unit = {
