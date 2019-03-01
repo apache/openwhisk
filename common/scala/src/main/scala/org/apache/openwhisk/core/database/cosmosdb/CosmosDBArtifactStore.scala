@@ -325,7 +325,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, options))
     val f = Source
       .fromPublisher(publisher)
-      .wireTap(Sink.foreach(collectQueryMetrics))
+      .wireTap(collectQueryMetrics(_))
       .mapConcat(asSeq)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)

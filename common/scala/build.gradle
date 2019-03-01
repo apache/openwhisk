@@ -39,12 +39,12 @@ dependencies {
     compile 'io.spray:spray-json_2.12:1.3.5'
     compile 'com.lihaoyi:fastparse_2.12:1.0.0'
 
-    compile 'com.typesafe.akka:akka-actor_2.12:2.5.12'
-    compile 'com.typesafe.akka:akka-stream_2.12:2.5.12'
-    compile 'com.typesafe.akka:akka-slf4j_2.12:2.5.12'
+    compile "com.typesafe.akka:akka-actor_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-stream_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-slf4j_2.12:${gradle.akka.version}"
 
-    compile 'com.typesafe.akka:akka-http-core_2.12:10.1.1'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.12:10.1.1'
+    compile "com.typesafe.akka:akka-http-core_2.12:${gradle.akka_http.version}"
+    compile "com.typesafe.akka:akka-http-spray-json_2.12:${gradle.akka_http.version}"
 
     compile 'com.lightbend.akka:akka-stream-alpakka-file_2.12:0.15'
 
