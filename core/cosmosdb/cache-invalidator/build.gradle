@@ -44,7 +44,7 @@ dependencies {
         exclude group: 'junit'
         exclude group: 'commons-logging'
     }
-    compile 'com.typesafe.akka:akka-stream-kafka_2.12:1.0-RC2'
+    compile 'com.typesafe.akka:akka-stream-kafka_2.12:1.0'
     scoverage gradle.scoverage.deps
 }
 
