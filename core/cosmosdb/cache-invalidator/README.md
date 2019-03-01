@@ -22,18 +22,18 @@ This service performs cache invalidation in OpenWhisk cluster to enable cache ev
 
 ## Design
 
-OpenWhisk cluster uses a Kafka topic `cacheInvalidation` to communicate changes to any cached entity. Messages on this 
+OpenWhisk cluster uses a Kafka topic `cacheInvalidation` to communicate changes to any cached entity. Messages on this
 topic are of the form
 
 ```json
 {"instanceId":"controller0","key":{"mainId":"guest/hello"}}
 ```
 
-When deploying multiple seprate cluster of OpenWhisk which do not share same Kafka instance we would need a way to 
+When deploying multiple seprate cluster of OpenWhisk which do not share same Kafka instance we would need a way to
 propagate the cache change event across cluster. For CosmosDB based setups this can be done by using [CosmosDB ChangeFeed][1]
 support. It enables reading changes that are made to any specific collection.
 
-This service makes use of [change feed processor java][2] library and listen to changes happening in `whisks` and `subject` 
+This service makes use of [change feed processor java][2] library and listen to changes happening in `whisks` and `subject`
 collection and then convert them into Kafka message events which can be sent to `cacheInvalidation` topic of local cluster
 
 ## Usage
@@ -45,12 +45,12 @@ The service needs following env variables to be set
 - `COSMOSDB_KEY` - DB Key
 - `COSMOSDB_NAME` - DB name
 
-Upon startup it would create a collection to manage the lease data with name `cache-invalidator-lease`. For events sent by 
+Upon startup it would create a collection to manage the lease data with name `cache-invalidator-lease`. For events sent by
 this service `instanceId` would be set to `cache-invalidator`
 
 ## Local Run
 
-Setup the OpenWhisk cluster using [devtools][3] but have it connect to CosmosDB. This would also start 
+Setup the OpenWhisk cluster using [devtools][3] but have it connect to CosmosDB. This would also start
 the [Kafka Topic UI][4] at port `8001`. Then if any change is made to db then you would see events set to Kafka topic like
 
 For e.g. if any package is created like `wsk package create test-package` using `guest` account then following event can
