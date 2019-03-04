@@ -170,12 +170,15 @@ trait ArtifactStoreAttachmentBehaviors extends ArtifactStoreBehaviorBase with Ex
 
   it should "throw NoDocumentException for non existing attachment" in {
     implicit val tid: TransactionId = transid()
+    val attachmentName = "foo"
+    val attachmentId =
+      getAttachmentStore(entityStore).map(s => s"${s.scheme}:$attachmentName").getOrElse(attachmentName)
 
     val sink = StreamConverters.fromOutputStream(() => new ByteArrayOutputStream())
     entityStore
       .readAttachment[IOResult](
         DocInfo ! ("non-existing-doc", "42"),
-        Attached("foo", ContentTypes.`application/octet-stream`),
+        Attached(attachmentId, ContentTypes.`application/octet-stream`),
         sink)
       .failed
       .futureValue shouldBe a[NoDocumentException]

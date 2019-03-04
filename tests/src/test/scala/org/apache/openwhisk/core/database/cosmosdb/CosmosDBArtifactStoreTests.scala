@@ -21,6 +21,8 @@ import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.database.DocumentSerializer
+import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
 import org.apache.openwhisk.core.entity.size._
@@ -34,19 +36,20 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Pending}
+import org.scalatest.FlatSpec
 import spray.json.JsString
+import org.apache.openwhisk.core.entity.size._
+import org.junit.runner.RunWith
+import org.scalatest.FlatSpec
+import org.scalatest.junit.JUnitRunner
+
+import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
   override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
 
   private var initialLevel: Level = _
-  // See https://github.com/apache/incubator-openwhisk/issues/4286
-  private val ignoredTests = Set(
-    "CosmosDBArtifactStore attachments should fail on reading with old non inlined attachment",
-    "CosmosDBArtifactStore attachments should work on reading with old inlined attachment",
-    "CosmosDBArtifactStore attachments should put and read large attachment")
 
   override protected def beforeAll(): Unit = {
     RecordingLeakDetectorFactory.register()
@@ -54,6 +57,9 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     ResourceLeakDetector.setLevel(Level.PARANOID)
     super.beforeAll()
   }
+
+  override protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]() =
+    Some(MemoryAttachmentStoreProvider.makeStore[D]())
 
   override def afterAll(): Unit = {
     super.afterAll()
@@ -65,15 +71,6 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     withClue("Recorded leak count should be zero") {
       RecordingLeakDetectorFactory.counter.cur shouldBe 0
     }
-  }
-
-  override protected def withFixture(test: NoArgTest) = {
-    val outcome = super.withFixture(test)
-    val result = if (outcome.isFailed && ignoredTests.contains(test.name)) {
-      println(s"Ignoring failed test ${test.name}")
-      Pending
-    } else outcome
-    result
   }
 
   behavior of "CosmosDB Setup"
