@@ -59,7 +59,6 @@ class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
     //set prefix to coll name
     hostOpts.setLeasePrefix(collInfo.collectionName)
 
-    //TODO Track the lag
     val host = new ChangeFeedEventHost(feedConfig.hostname, collInfo.asJava, leaseCollInfo.asJava, feedOpts, hostOpts)
     host.registerObserver(observerClazz)
     host
@@ -72,6 +71,6 @@ abstract class BaseObserver extends IChangeFeedObserver {
   override final def open(context: ChangeFeedObserverContext): Unit = Unit
   override final def close(context: ChangeFeedObserverContext, reason: ChangeFeedObserverCloseReason): Unit = Unit
   override final def processChanges(context: ChangeFeedObserverContext, docs: util.List[Document]): Unit =
-    process(docs.asScala.toList)
-  def process(doc: Seq[Document])
+    process(context, docs.asScala.toList)
+  def process(context: ChangeFeedObserverContext, doc: Seq[Document])
 }

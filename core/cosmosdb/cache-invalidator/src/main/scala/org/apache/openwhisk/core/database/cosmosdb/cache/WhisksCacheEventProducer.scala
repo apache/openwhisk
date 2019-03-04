@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.documentdb.Document
+import com.microsoft.azure.documentdb.changefeedprocessor.ChangeFeedObserverContext
 import com.typesafe.config.ConfigFactory
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
@@ -26,13 +27,14 @@ import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Seq
 import scala.concurrent.Await
 
 class WhisksCacheEventProducer extends BaseObserver {
   import WhisksCacheEventProducer._
 
-  override def process(docs: Seq[Document]): Unit = {
+  override def process(context: ChangeFeedObserverContext, docs: Seq[Document]): Unit = {
     val msgs = docs.map { doc =>
       val id = unescapeId(doc.getId)
       log.debug("Changed doc [{}]", id)
@@ -46,6 +48,7 @@ class WhisksCacheEventProducer extends BaseObserver {
     val f = kafka.send(msgs)
     Await.result(f, config.feedPublishTimeout)
     MetricEmitter.emitCounterMetric(feedCounter, docs.size)
+    recordLag(context, docs.last)
   }
 }
 
@@ -53,8 +56,9 @@ object WhisksCacheEventProducer extends SLF4JLogging {
   private val config = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
   val instanceId = "cache-invalidator"
   private val feedCounter =
-    LogMarkerToken("cosmosdb", "change", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
+    LogMarkerToken("cosmosdb", "change_feed", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
   private var _kafka: KafkaEventProducer = _
+  private val lags = new TrieMap[String, LogMarkerToken]
 
   def kafka: KafkaEventProducer = {
     require(_kafka != null, "KafkaEventProducer yet not initialized")
@@ -62,4 +66,35 @@ object WhisksCacheEventProducer extends SLF4JLogging {
   }
 
   def kafka_=(kafka: KafkaEventProducer): Unit = _kafka = kafka
+
+  /**
+   * Records the current lag on per partition basis. In ideal cases the lag should not continue to increase
+   */
+  def recordLag(context: ChangeFeedObserverContext, lastDoc: Document): Unit = {
+    val sessionToken = context.getFeedResponde.getSessionToken
+    val lsnRef = lastDoc.get("_lsn")
+    require(lsnRef != null, s"Non lsn defined in document $lastDoc")
+
+    val lsn = lsnRef.toString.toLong
+    val sessionLsn = getSessionLsn(sessionToken)
+    val lag = sessionLsn - lsn
+    val partitionKey = context.getPartitionKeyRangeId
+    val gaugeToken = lags.getOrElseUpdate(partitionKey, createLagToken(partitionKey))
+    MetricEmitter.emitGaugeMetric(gaugeToken, lag)
+  }
+
+  private def createLagToken(partitionKey: String) = {
+    LogMarkerToken("cosmosdb", "change_feed", "lag", tags = Map("collection" -> "whisks", "pk" -> partitionKey))(
+      MeasurementUnit.none)
+  }
+
+  def getSessionLsn(token: String): Long = {
+    // Session Token can be in two formats. Either {PartitionKeyRangeId}:{LSN}
+    // or {PartitionKeyRangeId}:{Version}#{GlobalLSN}
+    // See https://github.com/Azure/azure-documentdb-changefeedprocessor-dotnet/pull/113/files#diff-54cbd8ddcc33cab4120c8af04869f881
+    val parsedSessionToken = token.substring(token.indexOf(":") + 1)
+    val segments = parsedSessionToken.split("#")
+    val lsn = if (segments.size < 2) segments(0) else segments(1)
+    lsn.toLong
+  }
 }
