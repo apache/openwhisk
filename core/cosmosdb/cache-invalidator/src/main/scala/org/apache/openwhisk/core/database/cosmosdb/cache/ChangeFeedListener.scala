@@ -31,6 +31,7 @@ import com.typesafe.config.Config
 import org.apache.openwhisk.common.ExecutorCloser
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Seq
 
 class ChangeFeedManager[A <: BaseObserver](collName: String, observerClazz: Class[A])(implicit config: Config)
     extends Closeable {
@@ -68,9 +69,9 @@ class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
 }
 
 abstract class BaseObserver extends IChangeFeedObserver {
-  override def open(context: ChangeFeedObserverContext): Unit = Unit
-  override def close(context: ChangeFeedObserverContext, reason: ChangeFeedObserverCloseReason): Unit = Unit
-  override def processChanges(context: ChangeFeedObserverContext, docs: util.List[Document]): Unit =
-    docs.asScala.foreach(process)
-  def process(doc: Document)
+  override final def open(context: ChangeFeedObserverContext): Unit = Unit
+  override final def close(context: ChangeFeedObserverContext, reason: ChangeFeedObserverCloseReason): Unit = Unit
+  override final def processChanges(context: ChangeFeedObserverContext, docs: util.List[Document]): Unit =
+    process(docs.asScala.toList)
+  def process(doc: Seq[Document])
 }

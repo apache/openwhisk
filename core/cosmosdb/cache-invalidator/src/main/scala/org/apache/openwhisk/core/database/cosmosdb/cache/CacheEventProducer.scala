@@ -22,14 +22,19 @@ import com.microsoft.azure.documentdb.Document
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
+import scala.collection.immutable.Seq
 
 class WhisksCacheEventProducer extends BaseObserver {
   import CacheEventProducer._
-  override def process(doc: Document): Unit = {
-    val id = unescapeId(doc.getId)
-    log.debug("Changed doc [{}]", id)
-    val event = CacheInvalidationMessage(CacheKey(id), instanceId)
-    kafka.send(event.serialize) //TODO Await on returned future
+  override def process(docs: Seq[Document]): Unit = {
+    val msgs = docs.map { doc =>
+      val id = unescapeId(doc.getId)
+      log.debug("Changed doc [{}]", id)
+      val event = CacheInvalidationMessage(CacheKey(id), instanceId)
+      event.serialize
+    }
+
+    kafka.send(msgs) //TODO Await on returned future
   }
 }
 

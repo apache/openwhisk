@@ -19,29 +19,50 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.kafka.ProducerSettings
 import akka.kafka.scaladsl.Producer
-import akka.stream.scaladsl.{Keep, Source}
+import akka.kafka.{ProducerMessage, ProducerSettings}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import org.apache.kafka.clients.producer.ProducerRecord
 
-import scala.concurrent.Future
+import scala.collection.immutable.Seq
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 case class KafkaEventProducer(settings: ProducerSettings[String, String], topic: String)(
   implicit system: ActorSystem,
   materializer: ActorMaterializer) {
   private val bufferSize = 100
+  private implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val queue = Source
-    .queue(bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
-    .toMat(Producer.plainSink(settings))(Keep.left)
+    .queue[(Seq[String], Promise[Done])](bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
+    .map {
+      case (msgs, p) =>
+        ProducerMessage.multi(msgs.map(newRecord), p)
+    }
+    .via(Producer.flexiFlow(settings))
+    .map {
+      case ProducerMessage.MultiResult(_, passThrough) =>
+        passThrough.success(Done)
+      case _ => //As we use multi mode only other modes need not be handled
+    }
+    .toMat(Sink.ignore)(Keep.left)
     .run
 
-  def send(msg: String): Future[QueueOfferResult] =
-    queue.offer(new ProducerRecord[String, String](topic, "messages", msg))
+  def send(msg: Seq[String]): Future[Done] = {
+    val promise = Promise[Done]
+    queue.offer(msg -> promise).flatMap {
+      case QueueOfferResult.Enqueued    => promise.future
+      case QueueOfferResult.Dropped     => Future.failed(new Exception("Kafka request queue is full."))
+      case QueueOfferResult.QueueClosed => Future.failed(new Exception("Kafka request queue was closed."))
+      case QueueOfferResult.Failure(f)  => Future.failed(f)
+    }
+  }
 
   def close(): Future[Done] = {
     queue.complete()
     queue.watchCompletion()
   }
+
+  private def newRecord(msg: String) = new ProducerRecord[String, String](topic, "messages", msg)
 }
