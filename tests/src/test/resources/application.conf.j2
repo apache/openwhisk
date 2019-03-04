@@ -53,9 +53,10 @@ whisk {
     }
 
     cosmosdb {
-        endpoint = ${?COSMOSDB_ENDPOINT}
-        key      = ${?COSMOSDB_KEY}
-        db       = ${?COSMOSDB_NAME}
+        endpoint   = ${?COSMOSDB_ENDPOINT}
+        key        = ${?COSMOSDB_KEY}
+        db         = ${?COSMOSDB_NAME}
+        throughput = 400
     }
 
     controller {
