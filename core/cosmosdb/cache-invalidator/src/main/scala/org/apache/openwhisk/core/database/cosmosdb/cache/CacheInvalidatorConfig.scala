@@ -24,6 +24,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigUtil.joinPath
 import pureconfig.loadConfigOrThrow
 
+import scala.concurrent.duration.FiniteDuration
+
 case class DocumentCollectionInfo(connectionInfo: ConnectionInfo, collectionName: String) {
 
   def asJava: JDocumentCollectionInfo = {
@@ -40,7 +42,7 @@ case class ConnectionInfo(endpoint: String, key: String, db: String)
 
 case class FeedConfig(hostname: String, leaseCollection: String)
 
-case class InvalidatorConfig(port: Int)
+case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration)
 
 object CacheInvalidatorConfig {
   val configRoot = "whisk.cache-invalidator"

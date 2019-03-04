@@ -19,13 +19,18 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.documentdb.Document
+import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
+
 import scala.collection.immutable.Seq
+import scala.concurrent.Await
 
 class WhisksCacheEventProducer extends BaseObserver {
+  private val config = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
   import CacheEventProducer._
+
   override def process(docs: Seq[Document]): Unit = {
     val msgs = docs.map { doc =>
       val id = unescapeId(doc.getId)
@@ -34,7 +39,11 @@ class WhisksCacheEventProducer extends BaseObserver {
       event.serialize
     }
 
-    kafka.send(msgs) //TODO Await on returned future
+    //Each observer is called from a pool managed by CosmosDB ChangeFeedProcessor
+    //So its fine to have a blocking wait. If this fails then batch would be reread and
+    //retried thus ensuring at-least-once semantics
+    val f = kafka.send(msgs)
+    Await.ready(f, config.feedPublishTimeout)
   }
 }
 
