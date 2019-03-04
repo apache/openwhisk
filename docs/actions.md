@@ -117,7 +117,7 @@ accepts optional parameters and returns a standard greeting.
  * @return a JSON object containing the message in a field called "msg".
  */
 function main(params) {
-  // log the paramaters to stdout
+  // log the parameters to stdout
   console.log('params:', params);
 
   // if a value for name is provided, use it else use a default
