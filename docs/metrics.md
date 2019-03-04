@@ -278,7 +278,7 @@ If Kamon tags are enabled then metric name is `openwhisk.counter.cosmosdb_ru_use
 - `collection` - Name of collection. Example `activations`, `whisks` and `subjects`
 - `action` - Type of operation performed. Example `get`, `put`, `del`, `query` and `count`
 
-If Kamon tags are not enabled then metric name is of the form `openwhisk.counter.cosmosdb.ru.<collecton>.<action>`
+If Kamon tags are not enabled then metric name is of the form `openwhisk.counter.cosmosdb.ru.<collection>.<action>`
 
 ## User specific metrics
 ### Configuration
