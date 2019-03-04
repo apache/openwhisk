@@ -20,6 +20,8 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.documentdb.Document
 import com.typesafe.config.ConfigFactory
+import kamon.metric.MeasurementUnit
+import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
@@ -42,13 +44,16 @@ class WhisksCacheEventProducer extends BaseObserver {
     //So its fine to have a blocking wait. If this fails then batch would be reread and
     //retried thus ensuring at-least-once semantics
     val f = kafka.send(msgs)
-    Await.ready(f, config.feedPublishTimeout)
+    Await.result(f, config.feedPublishTimeout)
+    MetricEmitter.emitCounterMetric(feedCounter, docs.size)
   }
 }
 
 object WhisksCacheEventProducer extends SLF4JLogging {
   private val config = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
   val instanceId = "cache-invalidator"
+  private val feedCounter =
+    LogMarkerToken("cosmosdb", "change", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
   private var _kafka: KafkaEventProducer = _
 
   def kafka: KafkaEventProducer = {
