@@ -23,6 +23,10 @@ import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import scala.collection.immutable.Iterable
 
 private[cosmosdb] object CosmosDBConstants {
+
+  /**
+   * Stores the computed properties required for view related queries
+   */
   val computed: String = "_c"
 
   val alias: String = "view"
@@ -34,6 +38,12 @@ private[cosmosdb] object CosmosDBConstants {
   val aggregate: String = AGGREGATE
 
   val selfLink: String = SELF_LINK
+
+  /**
+   * Records the clusterId which performed changed in any document. This can vary over
+   * lifetime of a document as different clusters may change the same document at different times
+   */
+  val clusterId: String = "_clusterId"
 }
 
 private[cosmosdb] trait CosmosDBUtil {

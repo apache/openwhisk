@@ -17,16 +17,25 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
 import org.apache.openwhisk.common.TransactionId
-import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Pending}
-import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
-import org.apache.openwhisk.core.entity.WhiskActivation
 import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.entity.{
+  DocumentReader,
+  WhiskActivation,
+  WhiskDocumentReader,
+  WhiskEntity,
+  WhiskEntityJsonFormat,
+  WhiskPackage
+}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, Pending}
+import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
@@ -82,6 +91,33 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
         offer.getThroughput shouldBe storeConfig.throughput
       }
     }
+  }
+
+  it should "have clusterId set" in {
+    implicit val tid: TransactionId = TransactionId.testing
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    implicit val format = WhiskEntityJsonFormat
+    val conf = ConfigFactory.parseString(s"""
+      | whisk.cosmosdb {
+      |  collections {
+      |     WhiskEntity = {
+      |        cluster-id = "foo"
+      |     }
+      |  }
+      | }
+         """.stripMargin).withFallback(ConfigFactory.load())
+
+    val cosmosDBConfig = CosmosDBConfig(conf, "WhiskEntity")
+    cosmosDBConfig.clusterId shouldBe Some("foo")
+
+    val testConfig = cosmosDBConfig.copy(db = config.db)
+    val store = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](testConfig, None)
+
+    val pkg = WhiskPackage(newNS(), aname())
+    val info = put(store, pkg)
+
+    val js = store.getRaw(info.id).futureValue
+    js.get.fields(CosmosDBConstants.clusterId) shouldBe JsString("foo")
   }
 
   behavior of "CosmosDB query debug"
