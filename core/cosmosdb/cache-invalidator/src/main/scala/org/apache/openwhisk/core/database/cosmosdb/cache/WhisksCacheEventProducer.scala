@@ -28,8 +28,7 @@ import scala.collection.immutable.Seq
 import scala.concurrent.Await
 
 class WhisksCacheEventProducer extends BaseObserver {
-  private val config = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
-  import CacheEventProducer._
+  import WhisksCacheEventProducer._
 
   override def process(docs: Seq[Document]): Unit = {
     val msgs = docs.map { doc =>
@@ -47,7 +46,8 @@ class WhisksCacheEventProducer extends BaseObserver {
   }
 }
 
-object CacheEventProducer extends SLF4JLogging {
+object WhisksCacheEventProducer extends SLF4JLogging {
+  private val config = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
   val instanceId = "cache-invalidator"
   private var _kafka: KafkaEventProducer = _
 
