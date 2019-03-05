@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.invoker
 
+import akka.Done
+import akka.actor.CoordinatedShutdown
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
@@ -106,11 +108,10 @@ class InvokerReactive(
           "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
 
-  CoordinatedShutdown(actorSystem)
-    .addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "cleanup runtime containers") { () =>
-      containerFactory.cleanup()
-      Future.successful(Done)
-    }
+  CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "invokerCleanup") { () =>
+    containerFactory.cleanup()
+    Future.successful(Done)
+  }
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()

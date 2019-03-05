@@ -176,6 +176,7 @@ case object RescheduleJob // job is sent back to parent and could not be process
 case class PreWarmCompleted(data: PreWarmedData)
 case class InitCompleted(data: WarmedData)
 case object RunCompleted
+case object ContainerStarted
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -334,7 +335,9 @@ class ContainerProxy(
   when(Running) {
     // Intermediate state, we were able to start a container
     // and we keep it in case we need to destroy it.
-    case Event(completed: PreWarmCompleted, _) => stay using completed.data
+    case Event(completed: PreWarmCompleted, _) =>
+      context.parent ! ContainerStarted
+      stay using completed.data
 
     // Init was successful
     case Event(completed: InitCompleted, _: PreWarmedData) =>
