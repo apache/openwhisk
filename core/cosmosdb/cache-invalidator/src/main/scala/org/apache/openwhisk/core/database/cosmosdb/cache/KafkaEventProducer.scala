@@ -30,7 +30,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 case class KafkaEventProducer(settings: ProducerSettings[String, String], topic: String)(
   implicit system: ActorSystem,
-  materializer: ActorMaterializer) {
+  materializer: ActorMaterializer)
+    extends EventProducer {
   private val bufferSize = 100
   private implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -49,7 +50,7 @@ case class KafkaEventProducer(settings: ProducerSettings[String, String], topic:
     .toMat(Sink.ignore)(Keep.left)
     .run
 
-  def send(msg: Seq[String]): Future[Done] = {
+  override def send(msg: Seq[String]): Future[Done] = {
     val promise = Promise[Done]
     queue.offer(msg -> promise).flatMap {
       case QueueOfferResult.Enqueued    => promise.future
