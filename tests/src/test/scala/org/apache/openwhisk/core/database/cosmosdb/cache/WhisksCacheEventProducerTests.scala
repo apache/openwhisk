@@ -57,7 +57,7 @@ class WhisksCacheEventProducerTests extends FlatSpec with Matchers {
       CacheInvalidationMessage(CacheKey("bar"), instanceId))
   }
 
-  it should "filter cacheId" in {
+  it should "filter clusterId" in {
     val config = InvalidatorConfig(8080, 60.seconds, Some("cid1"))
     val docs = Seq(createDoc("foo", Some("cid2")), createDoc("bar", Some("cid1")), createDoc("baz"))
     val processedDocs = WhisksCacheEventProducer.processDocs(docs, config)
