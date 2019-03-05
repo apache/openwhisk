@@ -72,6 +72,7 @@ dependencies {
         exclude group: 'io.kamon', module: 'sigar-loader'
     }
     compile ('io.kamon:kamon-prometheus_2.12:1.1.1')
+    compile ('io.kamon:kamon-datadog_2.12:1.0.0')
     //for mesos
     compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.17'
 
