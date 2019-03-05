@@ -47,7 +47,7 @@ case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clus
 object CacheInvalidatorConfig {
   val configRoot = "whisk.cache-invalidator"
   val cosmosConfigRoot = s"$configRoot.cosmosdb"
-  val connections = "connections"
+  val connections = "collections"
 
   def getCollectionInfo(name: String)(implicit globalConfig: Config): DocumentCollectionInfo = {
     val config = globalConfig.getConfig(cosmosConfigRoot)
