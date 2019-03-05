@@ -37,9 +37,10 @@ class ChangeFeedManager[A <: BaseObserver](collName: String, observerClazz: Clas
     extends Closeable {
   private val listener = {
     val feedConfig = CacheInvalidatorConfig.getFeedConfig()
+    val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()
     val collInfo = CacheInvalidatorConfig.getCollectionInfo(collName)
     val leaseCollInfo = CacheInvalidatorConfig.getCollectionInfo(feedConfig.leaseCollection)
-    new ChangeFeedListener(collInfo, leaseCollInfo, feedConfig, observerClazz)
+    new ChangeFeedListener(collInfo, leaseCollInfo, feedConfig, observerClazz, invalidatorConfig.clusterId)
   }
 
   override def close(): Unit = listener.close()
@@ -48,7 +49,8 @@ class ChangeFeedManager[A <: BaseObserver](collName: String, observerClazz: Clas
 class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
                                             leaseCollInfo: DocumentCollectionInfo,
                                             feedConfig: FeedConfig,
-                                            observerClazz: Class[A])
+                                            observerClazz: Class[A],
+                                            clusterId: Option[String])
     extends Closeable {
   private val host = {
     val feedOpts = new ChangeFeedOptions
@@ -56,8 +58,10 @@ class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
 
     val hostOpts = new ChangeFeedHostOptions
     //Using same lease collection across collection. To avoid collision
-    //set prefix to coll name
-    hostOpts.setLeasePrefix(collInfo.collectionName)
+    //set prefix to coll name. Also include the clusterId such that multiple cluster
+    //can share the same collection
+    val prefix = clusterId.map(id => s"$id-${collInfo.collectionName}").getOrElse(collInfo.collectionName)
+    hostOpts.setLeasePrefix(prefix)
 
     val host = new ChangeFeedEventHost(feedConfig.hostname, collInfo.asJava, leaseCollInfo.asJava, feedOpts, hostOpts)
     host.registerObserver(observerClazz)
