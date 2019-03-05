@@ -42,7 +42,7 @@ case class ConnectionInfo(endpoint: String, key: String, db: String)
 
 case class FeedConfig(hostname: String, leaseCollection: String)
 
-case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration)
+case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clusterId: Option[String])
 
 object CacheInvalidatorConfig {
   val configRoot = "whisk.cache-invalidator"

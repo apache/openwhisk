@@ -25,6 +25,7 @@ import com.typesafe.config.ConfigFactory
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
+import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants
 import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
 
@@ -36,17 +37,10 @@ class WhisksCacheEventProducer extends BaseObserver {
   import WhisksCacheEventProducer._
 
   override def process(context: ChangeFeedObserverContext, docs: Seq[Document]): Unit = {
-    val msgs = docs.map { doc =>
-      val id = unescapeId(doc.getId)
-      log.debug("Changed doc [{}]", id)
-      val event = CacheInvalidationMessage(CacheKey(id), instanceId)
-      event.serialize
-    }
-
     //Each observer is called from a pool managed by CosmosDB ChangeFeedProcessor
     //So its fine to have a blocking wait. If this fails then batch would be reread and
     //retried thus ensuring at-least-once semantics
-    val f = eventProducer.send(msgs)
+    val f = eventProducer.send(processDocs(docs, config))
     Await.result(f, config.feedPublishTimeout)
     MetricEmitter.emitCounterMetric(feedCounter, docs.size)
     recordLag(context, docs.last)
@@ -105,4 +99,25 @@ object WhisksCacheEventProducer extends SLF4JLogging {
     val lsn = if (segments.size < 2) segments(0) else segments(1)
     lsn.toLong
   }
+
+  def processDocs(docs: Seq[Document], config: InvalidatorConfig): Seq[String] = {
+    docs
+      .filter { doc =>
+        val cid = Option(doc.getString(CosmosDBConstants.clusterId))
+        val currentCid = config.clusterId
+
+        //only if current clusterId is configured do a check
+        currentCid match {
+          case Some(_) => cid != currentCid
+          case None    => true
+        }
+      }
+      .map { doc =>
+        val id = unescapeId(doc.getId)
+        log.debug("Changed doc [{}]", id)
+        val event = CacheInvalidationMessage(CacheKey(id), instanceId)
+        event.serialize
+      }
+  }
+
 }
