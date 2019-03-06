@@ -305,7 +305,8 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
     Map(
       "fqn" -> action.fullyQualifiedName(true).asString,
       "namespace" -> action.namespace.asString,
-      "name" -> action.name.asString)
+      "name" -> action.name.asString,
+      "category" -> "openwhisk")
 
   def getFunctionEnv(action: WhiskAction): Map[String, String] = Map(whiskRevision -> action.rev.asString)
 
