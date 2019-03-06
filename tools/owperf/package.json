@@ -1,13 +1,16 @@
 {
   "name": "owperf",
   "version": "1.0.0",
-  "description": "",
+  "description": "owperf - a performance evaluation tool for Apache OpenWhisk",
   "main": "owperf.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Erez Hadad",
+    "email": "erezh@il.ibm.com"
+  },
+  "license": "Apache-2.0",
   "dependencies": {
     "btoa": "^1.2.1",
     "child-process-promise": "^2.2.1",
