@@ -972,7 +972,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(openwhisk_action_duration_seconds_bucket{namespace=~\"$namespace\",action=~\"$action\"}[1m])) by (le,action)) * 1e3",
+          "expr": "rate(openwhisk_action_duration_seconds_sum{namespace=~\"$namespace\",action=~\"$action\"}[30s]) * 1000 / rate(openwhisk_action_duration_seconds_count{namespace=~\"$namespace\",action=~\"$action\"}[30s]) ",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{action}}",
@@ -1071,7 +1071,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(openwhisk_action_initTime_seconds_bucket{namespace=~\"$namespace\",action=~\"$action\"}[1m])) by (le,action)) * 1e3",
+          "expr": "rate(openwhisk_action_initTime_seconds_sum{namespace=~\"$namespace\",action=~\"$action\"}[30s]) * 1000 / rate(openwhisk_action_initTime_seconds_count{namespace=~\"$namespace\",action=~\"$action\"}[30s]) ",
           "format": "time_series",
           "instant": false,
           "interval": "",
