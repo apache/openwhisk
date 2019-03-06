@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <jmxConfigurator></jmxConfigurator>
+  <include optional="true" resource="whisk-logback.xml"/>
   <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>[%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}] [%p] %msg%n</pattern>
