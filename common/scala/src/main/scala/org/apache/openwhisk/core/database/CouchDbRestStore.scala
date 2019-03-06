@@ -34,6 +34,7 @@ import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.Future
 import scala.util.Try
+import org.apache.openwhisk.core.database.AttachmentSupport.memorySource
 
 /**
  * Basic client to put and delete artifacts in a data store.

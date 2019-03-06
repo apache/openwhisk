@@ -26,7 +26,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import spray.json.DefaultJsonProtocol
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.AttachmentSupport.MemScheme
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity.{ByteSize, DocId, DocInfo, UUID}
 
@@ -38,6 +37,31 @@ object AttachmentSupport {
    * Scheme name for attachments which are inlined
    */
   val MemScheme: String = "mem"
+
+  def encode(bytes: Seq[Byte]): String = {
+    Base64.getUrlEncoder.encodeToString(bytes.toArray)
+  }
+
+  def decode(uri: Uri): Array[Byte] = {
+    Base64.getUrlDecoder.decode(uri.path.toString())
+  }
+
+  def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
+
+  /**
+   * Constructs a source from inlined attachment contents
+   */
+  def memorySource(uri: Uri): Source[ByteString, NotUsed] = {
+    Source.single(toByteString(uri))
+  }
+
+  /**
+   * Constructs a source from inlined attachment contents
+   */
+  def toByteString(uri: Uri): ByteString = {
+    require(uri.scheme == MemScheme, s"URI $uri scheme is not $MemScheme")
+    ByteString(decode(uri))
+  }
 }
 
 case class InliningConfig(maxInlineSize: ByteSize)
@@ -47,6 +71,7 @@ case class InliningConfig(maxInlineSize: ByteSize)
  * name itself.
  */
 trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends DefaultJsonProtocol {
+  import AttachmentSupport._
 
   /** Materializer required for stream processing */
   protected[core] implicit val materializer: Materializer
@@ -110,16 +135,6 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
   protected[database] def uriFrom(scheme: String, path: String): Uri = Uri(s"$scheme:$path")
 
   /**
-   * Constructs a source from inlined attachment contents
-   */
-  protected[database] def memorySource(uri: Uri): Source[ByteString, NotUsed] = {
-    require(uri.scheme == MemScheme, s"URI $uri scheme is not $MemScheme")
-    Source.single(ByteString(decode(uri)))
-  }
-
-  protected[database] def isInlined(uri: Uri): Boolean = uri.scheme == MemScheme
-
-  /**
    * Computes digest for passed bytes as hex encoded string
    */
   protected[database] def digest(bytes: TraversableOnce[Byte]): String = {
@@ -181,13 +196,5 @@ trait AttachmentSupport[DocumentAbstraction <: DocumentSerializer] extends Defau
         }
         .getOrElse(Future.successful(true))
     } yield (i1, attached)
-  }
-
-  private def encode(bytes: Seq[Byte]): String = {
-    Base64.getUrlEncoder.encodeToString(bytes.toArray)
-  }
-
-  private def decode(uri: Uri): Array[Byte] = {
-    Base64.getUrlDecoder.decode(uri.path.toString())
   }
 }

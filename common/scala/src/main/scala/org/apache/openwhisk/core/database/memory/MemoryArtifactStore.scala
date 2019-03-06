@@ -28,6 +28,7 @@ import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
+import org.apache.openwhisk.core.database.AttachmentSupport.{isInlined, memorySource}
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
