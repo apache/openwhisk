@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.aws
 import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.Base64
@@ -24,12 +25,13 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import akka.Done
 import akka.http.scaladsl.model.StatusCodes.{InternalServerError, OK}
+import akka.http.scaladsl.model.Uri
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.openwhisk.common.{CausedBy, Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{Interval, RunResult}
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, ContainerResponse}
-import org.apache.openwhisk.core.entity.Attachments.Inline
+import org.apache.openwhisk.core.entity.Attachments.{Attached, Inline}
 import org.apache.openwhisk.core.entity.{CodeExecAsAttachment, DocRevision, FullyQualifiedEntityName, WhiskAction}
 import pureconfig._
 import software.amazon.awssdk.core.SdkBytes
@@ -49,6 +51,7 @@ import scala.collection.JavaConverters._
 import scala.compat.java8.FutureConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
+import org.apache.openwhisk.core.database.AttachmentSupport._
 
 case class ARN private (arn: String) extends AnyVal {
   def name = arn
@@ -129,6 +132,7 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
       }
   }
 
+  //TODO Provide an indication that update was actually done
   def createOrUpdateLambda(action: WhiskAction)(implicit transid: TransactionId): Future[Option[LambdaAction]] = {
     require(!action.rev.empty, s"WhiskAction [$action] needs to have revision specified")
 
@@ -144,8 +148,11 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
           val arn = functionARN(funcName)
           val actionRev = action.rev
           getFunctionWhiskRevision(arn).flatMap {
-            case Some(l @ LambdaAction(_, _, `actionRev`)) =>
+            case Some(l @ LambdaAction(arn, _, `actionRev`)) =>
               //Function exists and uptodate. No change needed
+              logging.info(
+                this,
+                s"Lambda function $arn already exists for action ${action.fullyQualifiedName(false)} and is upto date")
               Future.successful(Some(l))
             case Some(x) =>
               logging.info(
@@ -153,7 +160,15 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
                 s"Lambda function revision [$x] does not match action revision [${action.rev}]. Would update the action")
               updateFunction(arn, action, layer, handlerName, code)
             case _ =>
-              createFunction(action, layer, handlerName, code, funcName)
+              val f = createFunction(action, layer, handlerName, code, funcName)
+              f.foreach { r =>
+                r.foreach { la =>
+                  logging.info(
+                    this,
+                    s"Successfully created Lambda function ${la.arn} for action ${action.fullyQualifiedName(false)}")
+                }
+              }
+              f
           }
       }
       .getOrElse(Future.successful(None))
@@ -297,6 +312,12 @@ class LambdaStore(client: LambdaAsyncClient, config: LambdaConfig, region: Regio
   def getFunctionCode(action: WhiskAction): Option[FunctionCode] = {
     action.exec match {
       case exec @ CodeExecAsAttachment(_, Inline(code), entryPoint, binary) =>
+        Some(createFunctionCode(code, binary, entryPoint, exec.kind))
+      case exec @ CodeExecAsAttachment(_, attached: Attached, entryPoint, binary)
+          if isInlined(Uri(attached.attachmentName)) =>
+        val bytes = toByteString(Uri(attached.attachmentName)).toArray
+        val wrappedBytes = if (binary) Base64.getEncoder.encode(bytes) else bytes
+        val code = new String(wrappedBytes, StandardCharsets.UTF_8)
         Some(createFunctionCode(code, binary, entryPoint, exec.kind))
       //TODO handle attachments
       case _ => None
