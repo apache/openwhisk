@@ -26,7 +26,7 @@ import org.apache.openwhisk.core.aws.LambdaStore
 import org.apache.openwhisk.core.entity.WhiskAction
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class WhiskActionToLambdaBuilder(store: LambdaStore)(implicit system: ActorSystem, materializer: ActorMaterializer)
     extends WhiskActionConsumer {
@@ -37,7 +37,12 @@ case class WhiskActionToLambdaBuilder(store: LambdaStore)(implicit system: Actor
     .queue[LambdaTask](bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
     .mapAsync(5) { task =>
       //TODO Perform this with retry
-      store.createOrUpdateLambda(task.action)(task.tid).transform {
+      val lr = Try(store.createOrUpdateLambda(task.action)(task.tid))
+      val f = lr match {
+        case Success(fr) => fr
+        case Failure(t)  => Future.failed(t)
+      }
+      f.transform {
         //Map both success and failure to Success such that stream continues
         //Client would be notified of failure and can decide what to do
         case Success(_) => Success(Success(Done), task)
