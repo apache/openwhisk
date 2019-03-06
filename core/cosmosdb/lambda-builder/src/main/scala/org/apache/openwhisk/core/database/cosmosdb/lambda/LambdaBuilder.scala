@@ -18,13 +18,16 @@ package org.apache.openwhisk.core.database.cosmosdb.lambda
 
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.slf4j.SLF4JLogging
-import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
-import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.openwhisk.common.{AkkaLogging, Logging, TransactionId}
+import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.aws.LambdaStoreProvider
+import org.apache.openwhisk.core.entity.ExecManifest
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.util.Success
 
 object LambdaBuilder extends SLF4JLogging {
@@ -34,27 +37,39 @@ object LambdaBuilder extends SLF4JLogging {
   SLF4JBridgeHandler.install()
 
   //TODO Replace with constant from RemoteCacheInvalidation
-  val cacheInvalidationTopic = "cacheInvalidation"
-
-  val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
 
   def start(config: Config)(implicit system: ActorSystem, materializer: ActorMaterializer): Unit = {
     implicit val globalConfig: Config = config
-    val producer = KafkaEventProducer(kafkaProducerSettings(defaultProducerConfig(config)), cacheInvalidationTopic)
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(system, this))
+    implicit val ec = system.dispatcher
+    initializeManifest()
     val invalidatorConfig = LambdaBuilderConfig.getLambdaBuilderConfig()(globalConfig)
-    WhisksChangeProcessor.eventProducer = producer
+
+    val builder = WhiskActionToLambdaBuilder(LambdaStoreProvider.makeStore(globalConfig))
+    //Init change processor
+    WhisksChangeProcessor.actionConsumer = builder
     WhisksChangeProcessor.config = invalidatorConfig
-    //TODO Listen for auth collection changes
+    WhisksChangeProcessor.executionContext = system.dispatcher
+
     val feedManager = new ChangeFeedManager(whisksCollection, classOf[WhisksChangeProcessor])
-    registerShutdownTasks(system, feedManager, producer)
-    log.info(s"Started the Cache invalidator service. ClusterId [${invalidatorConfig.clusterId}]")
+    registerShutdownTasks(system, feedManager, builder)
+    log.info(s"Started the Lambda builder service")
+  }
+
+  private def initializeManifest()(implicit logger: Logging, actorSystem: ActorSystem): Unit = {
+    val config = new WhiskConfig(ExecManifest.requiredProperties)
+    val execManifest = ExecManifest.initialize(config)
+    if (execManifest.isFailure) {
+      logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
+      abort("Bad configuration, cannot start.")
+    }
   }
 
   private def registerShutdownTasks(system: ActorSystem,
                                     feedManager: ChangeFeedManager[_],
-                                    producer: KafkaEventProducer): Unit = {
-    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeFeedListeners") { () =>
+                                    producer: WhiskActionToLambdaBuilder): Unit = {
+    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeBuilder") { () =>
       implicit val ec = system.dispatcher
       Future
         .successful {
@@ -63,15 +78,17 @@ object LambdaBuilder extends SLF4JLogging {
         .flatMap { _ =>
           producer.close().andThen {
             case Success(_) =>
-              log.info("Kafka producer successfully shutdown")
+              log.info("Lambda builder queue successfully shutdown")
           }
         }
     }
   }
 
-  def kafkaProducerSettings(config: Config): ProducerSettings[String, String] =
-    ProducerSettings(config, new StringSerializer, new StringSerializer)
-
-  def defaultProducerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.producer")
+  private def abort(message: String)(implicit logger: Logging, actorSystem: ActorSystem) = {
+    logger.error(this, message)(TransactionId.invoker)
+    actorSystem.terminate()
+    Await.result(actorSystem.whenTerminated, 30.seconds)
+    sys.exit(1)
+  }
 
 }

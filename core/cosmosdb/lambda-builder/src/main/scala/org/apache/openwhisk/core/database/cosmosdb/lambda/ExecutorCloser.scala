@@ -17,22 +17,29 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.lambda
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import kamon.Kamon
-import org.apache.openwhisk.common.ConfigMXBean
-import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
+import java.io.Closeable
+import java.util.concurrent.{ExecutorService, TimeUnit}
 
-object Main {
-  def main(args: Array[String]): Unit = {
-    implicit val system: ActorSystem = ActorSystem("lambda-actor-system")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
-    ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
-    val invalidatorConfig = LambdaBuilderConfig.getLambdaBuilderConfig()(system.settings.config)
-    val port = invalidatorConfig.port
-    //TODO HTTPS for ping/metric endpoint?
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
-    LambdaBuilder.start(system.settings.config)
+import akka.event.slf4j.SLF4JLogging
+
+import scala.concurrent.duration._
+
+case class ExecutorCloser(service: ExecutorService, timeout: FiniteDuration = 5.seconds)
+    extends Closeable
+    with SLF4JLogging {
+  override def close(): Unit = {
+    try {
+      service.shutdown()
+      service.awaitTermination(timeout.toSeconds, TimeUnit.SECONDS)
+    } catch {
+      case e: InterruptedException =>
+        log.error("Error while shutting down the ExecutorService", e)
+        Thread.currentThread.interrupt()
+    } finally {
+      if (!service.isShutdown) {
+        log.warn("ExecutorService `{}` didn't shutdown property. Will be forced now.", service)
+      }
+      service.shutdownNow()
+    }
   }
 }

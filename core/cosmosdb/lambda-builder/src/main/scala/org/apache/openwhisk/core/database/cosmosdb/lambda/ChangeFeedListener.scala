@@ -28,7 +28,6 @@ import com.microsoft.azure.documentdb.changefeedprocessor.{
 }
 import com.microsoft.azure.documentdb.{ChangeFeedOptions, Document}
 import com.typesafe.config.Config
-import org.apache.openwhisk.common.ExecutorCloser
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Seq

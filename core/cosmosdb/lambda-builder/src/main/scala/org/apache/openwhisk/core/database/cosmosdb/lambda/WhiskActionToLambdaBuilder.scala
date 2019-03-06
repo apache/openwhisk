@@ -19,43 +19,45 @@ package org.apache.openwhisk.core.database.cosmosdb.lambda
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.kafka.scaladsl.Producer
-import akka.kafka.{ProducerMessage, ProducerSettings}
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.aws.LambdaStore
+import org.apache.openwhisk.core.entity.WhiskAction
 
-import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success}
 
-case class KafkaEventProducer(settings: ProducerSettings[String, String], topic: String)(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer)
-    extends EventProducer {
+case class WhiskActionToLambdaBuilder(store: LambdaStore)(implicit system: ActorSystem, materializer: ActorMaterializer)
+    extends WhiskActionConsumer {
   private val bufferSize = 100
   private implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val queue = Source
-    .queue[(Seq[String], Promise[Done])](bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
-    .map {
-      case (msgs, p) =>
-        ProducerMessage.multi(msgs.map(newRecord), p)
+    .queue[LambdaTask](bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
+    .mapAsync(5) { task =>
+      //TODO Perform this with retry
+      store.createOrUpdateLambda(task.action)(task.tid).transform {
+        //Map both success and failure to Success such that stream continues
+        //Client would be notified of failure and can decide what to do
+        case Success(_) => Success(Success(Done), task)
+        case Failure(t) => Success(Failure(t), task)
+      }
     }
-    .via(Producer.flexiFlow(settings))
-    .map {
-      case ProducerMessage.MultiResult(_, passThrough) =>
-        passThrough.success(Done)
-      case _ => //As we use multi mode only other modes need not be handled
-    }
-    .toMat(Sink.ignore)(Keep.left)
+    .toMat(Sink.foreach({
+      case (Success(_), t) =>
+        t.promise.success(Done)
+      case (Failure(error), t) =>
+        t.promise.failure(error)
+    }))(Keep.left)
     .run
 
-  override def send(msg: Seq[String]): Future[Done] = {
+  override def send(action: WhiskAction)(implicit tid: TransactionId): Future[Done] = {
     val promise = Promise[Done]
-    queue.offer(msg -> promise).flatMap {
+    queue.offer(LambdaTask(action, tid, promise)).flatMap {
       case QueueOfferResult.Enqueued    => promise.future
-      case QueueOfferResult.Dropped     => Future.failed(new Exception("Kafka request queue is full."))
-      case QueueOfferResult.QueueClosed => Future.failed(new Exception("Kafka request queue was closed."))
+      case QueueOfferResult.Dropped     => Future.failed(new Exception("Lambda builder request queue is full."))
+      case QueueOfferResult.QueueClosed => Future.failed(new Exception("Lambda builder request queue was closed."))
       case QueueOfferResult.Failure(f)  => Future.failed(f)
     }
   }
@@ -65,5 +67,6 @@ case class KafkaEventProducer(settings: ProducerSettings[String, String], topic:
     queue.watchCompletion()
   }
 
-  private def newRecord(msg: String) = new ProducerRecord[String, String](topic, "messages", msg)
+  private case class LambdaTask(action: WhiskAction, tid: TransactionId, promise: Promise[Done])
+
 }
