@@ -24,7 +24,7 @@ import akka.util.Timeout
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
-import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
+import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, ExecutableWhiskAction, InvokerInstanceId}
 import org.apache.openwhisk.core.yarn.YARNComponentActor.CreateContainerAsync
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import pureconfig.loadConfigOrThrow
@@ -124,7 +124,8 @@ class YARNContainerFactory(actorSystem: ActorSystem,
     actionImage: ExecManifest.ImageName,
     unuseduserProvidedImage: Boolean,
     unusedmemory: ByteSize,
-    unusedcpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    unusedcpuShares: Int,
+    action: Option[ExecutableWhiskAction] = None)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val timeout: Timeout = Timeout(containerStartTimeoutMS.milliseconds)
 
     //First send the create command to YARN, then with a different actor, wait for the container to be ready
