@@ -68,7 +68,7 @@ object LambdaStoreProvider {
 
   def makeStore(config: Config = ConfigFactory.defaultApplication())(implicit ec: ExecutionContext,
                                                                      logging: Logging): LambdaStore = {
-    val awsConfig = config.atPath(ConfigKeys.aws)
+    val awsConfig = config.getConfig("whisk")
     val region = RegionProvider(awsConfig).getRegion
     val client = LambdaAsyncClient
       .builder()
