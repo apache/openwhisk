@@ -35,7 +35,8 @@ case class ContainerArgsConfig(network: String,
 case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
                                akkaClient: Boolean,
-                               clusterManagedResources: Boolean) {
+                               clusterManagedResources: Boolean,
+                               clusterManagedResourceMaxStarts: Int) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
     s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")

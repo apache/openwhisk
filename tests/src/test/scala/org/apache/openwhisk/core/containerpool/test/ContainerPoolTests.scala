@@ -125,7 +125,7 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false, false)
+  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false, false, 10)
 
   behavior of "ContainerPool"
 
