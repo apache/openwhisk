@@ -26,8 +26,8 @@ import org.apache.openwhisk.core.aws.LambdaStoreProvider
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Success
 
 object LambdaBuilder extends SLF4JLogging {

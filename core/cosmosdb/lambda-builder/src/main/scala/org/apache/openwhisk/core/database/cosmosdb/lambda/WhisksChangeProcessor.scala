@@ -26,8 +26,9 @@ import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.{DocRevision, WhiskAction}
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Seq
@@ -57,7 +58,7 @@ class WhisksChangeProcessor extends BaseObserver with SLF4JLogging {
     //TODO How to handle stuff which cannot be processed at all
     val failures = results.collect { case (Failure(t), a) => (Failure(t), a) }
     failures.foreach {
-      case (Failure(t), a) => log.warn(s"No able to process action ${a.fullyQualifiedName(false)}", t)
+      case (Failure(t), a) => log.warn(s"Not able to process action ${a.fullyQualifiedName(false)}", t)
     }
     MetricEmitter.emitCounterMetric(feedCounter, docs.size)
     recordLag(context, docs.last)
@@ -132,8 +133,36 @@ object WhisksChangeProcessor extends SLF4JLogging {
       .map { doc =>
         val id = unescapeId(doc.getId)
         log.debug("Changed doc [{}]", id)
-        WhiskAction.serdes.read(doc.toJson.parseJson)
+        val js = toWhiskJsonDoc(doc)
+        val wa = WhiskAction.serdes.read(js)
+        val rev = js.fields("_rev").convertTo[String]
+        wa.revision[WhiskAction](DocRevision(rev))
       }
+      .filter { wa =>
+        //Ignore the health actions
+        !wa.name.name.startsWith("invokerHealthTestAction")
+      }
+  }
+
+  //TODO Move these util method to CosmosDBArtifactStore companion
+  private def toWhiskJsonDoc(doc: Document): JsObject = {
+    val js = doc.toJson.parseJson.asJsObject
+    toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
+  }
+
+  private def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
+    val fieldsToAdd = Seq(("_id", Some(JsString(unescapeId(id)))), ("_rev", etag))
+    transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
+  }
+
+  private def transform(json: JsObject, fieldsToAdd: Seq[(String, Option[JsValue])], fieldsToRemove: Seq[String]) = {
+    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
+    JsObject(fields)
+  }
+
+  private def stripInternalFields(js: JsObject) = {
+    //Strip out all field name starting with '_' which are considered as db specific internal fields
+    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != "id" })
   }
 
 }
