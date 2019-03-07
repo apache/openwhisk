@@ -190,7 +190,7 @@ class KafkaConsumerConnector(
             endOffset =>
               // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
               val queueSize = (endOffset - offset).max(0)
-              MetricEmitter.emitHistogramMetric(queueMetric, queueSize)
+              MetricEmitter.emitGaugeMetric(queueMetric, queueSize)
           }
         }
       }

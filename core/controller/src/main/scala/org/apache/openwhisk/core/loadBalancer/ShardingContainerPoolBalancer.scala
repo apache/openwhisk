@@ -163,9 +163,9 @@ class ShardingContainerPoolBalancer(
     None
   }
 
-  override protected def emitHistogramMetric() = {
-    super.emitHistogramMetric()
-    MetricEmitter.emitHistogramMetric(
+  override protected def emitMetrics() = {
+    super.emitMetrics()
+    MetricEmitter.emitGaugeMetric(
       INVOKER_TOTALMEM_BLACKBOX,
       schedulingState.blackboxInvokers.foldLeft(0L) { (total, curr) =>
         if (curr.status.isUsable) {
@@ -174,7 +174,7 @@ class ShardingContainerPoolBalancer(
           total
         }
       })
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(
       INVOKER_TOTALMEM_MANAGED,
       schedulingState.managedInvokers.foldLeft(0L) { (total, curr) =>
         if (curr.status.isUsable) {
@@ -183,30 +183,22 @@ class ShardingContainerPoolBalancer(
           total
         }
       })
-    MetricEmitter.emitHistogramMetric(
-      HEALTHY_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status == Healthy))
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(HEALTHY_INVOKER_MANAGED, schedulingState.managedInvokers.count(_.status == Healthy))
+    MetricEmitter.emitGaugeMetric(
       UNHEALTHY_INVOKER_MANAGED,
       schedulingState.managedInvokers.count(_.status == Unhealthy))
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(
       UNRESPONSIVE_INVOKER_MANAGED,
       schedulingState.managedInvokers.count(_.status == Unresponsive))
-    MetricEmitter.emitHistogramMetric(
-      OFFLINE_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status == Offline))
-    MetricEmitter.emitHistogramMetric(
-      HEALTHY_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status == Healthy))
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(OFFLINE_INVOKER_MANAGED, schedulingState.managedInvokers.count(_.status == Offline))
+    MetricEmitter.emitGaugeMetric(HEALTHY_INVOKER_BLACKBOX, schedulingState.blackboxInvokers.count(_.status == Healthy))
+    MetricEmitter.emitGaugeMetric(
       UNHEALTHY_INVOKER_BLACKBOX,
       schedulingState.blackboxInvokers.count(_.status == Unhealthy))
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(
       UNRESPONSIVE_INVOKER_BLACKBOX,
       schedulingState.blackboxInvokers.count(_.status == Unresponsive))
-    MetricEmitter.emitHistogramMetric(
-      OFFLINE_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status == Offline))
+    MetricEmitter.emitGaugeMetric(OFFLINE_INVOKER_BLACKBOX, schedulingState.blackboxInvokers.count(_.status == Offline))
   }
 
   /** State needed for scheduling. */
