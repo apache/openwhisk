@@ -240,7 +240,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           throw NoDocumentException("not found on 'get'")
 
         case Left(code) =>
-          transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
+          transid.failed(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
           throw new Exception("Unexpected http response code: " + code)
       }
     } recoverWith {
