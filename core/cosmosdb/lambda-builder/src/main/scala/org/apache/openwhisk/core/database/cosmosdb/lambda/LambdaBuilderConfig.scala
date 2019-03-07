@@ -45,7 +45,7 @@ case class FeedConfig(hostname: String, leaseCollection: String)
 case class LambdaBuilderServiceConfig(port: Int, lambdaProcessTimeout: FiniteDuration, clusterId: Option[String])
 
 object LambdaBuilderConfig {
-  val configRoot = "whisk.cache-invalidator"
+  val configRoot = "whisk.lambda-builder"
   val cosmosConfigRoot = s"$configRoot.cosmosdb"
   val connections = "collections"
 
