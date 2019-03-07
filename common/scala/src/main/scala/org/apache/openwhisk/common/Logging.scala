@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import kamon.metric.{MeasurementUnit, Counter => KCounter, Histogram => KHistogram}
+import kamon.metric.{MeasurementUnit, Counter => KCounter, Histogram => KHistogram, Gauge => KGauge}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
 import kamon.system.SystemMetrics
 import org.apache.openwhisk.core.entity.ControllerInstanceId
@@ -194,6 +194,7 @@ case class LogMarkerToken(
   // (given the same key) are always the same, so a missed update is not harmful
   private var _counter: KCounter = _
   private var _histogram: KHistogram = _
+  private var _gauge: KGauge = _
 
   override val toString = component + "_" + action + "_" + state
   val toStringWithSubAction: String =
@@ -227,6 +228,13 @@ case class LogMarkerToken(
     _histogram
   }
 
+  def gauge: KGauge = {
+    if (_gauge == null) {
+      _gauge = createGauge()
+    }
+    _gauge
+  }
+
   private def createCounter() = {
     if (TransactionId.metricsKamonTags) {
       Kamon
@@ -244,6 +252,16 @@ case class LogMarkerToken(
         .refine(tags)
     } else {
       Kamon.histogram(createName(toStringWithSubAction, "histogram"), measurementUnit)
+    }
+  }
+
+  private def createGauge() = {
+    if (TransactionId.metricsKamonTags) {
+      Kamon
+        .gauge(createName(toString, "gauge"), measurementUnit)
+        .refine(tags)
+    } else {
+      Kamon.gauge(createName(toStringWithSubAction, "gauge"), measurementUnit)
     }
   }
 
@@ -289,6 +307,12 @@ object MetricEmitter {
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
       token.histogram.record(value)
+    }
+  }
+
+  def emitGaugeMetric(token: LogMarkerToken, value: Long): Unit = {
+    if (TransactionId.metricsKamon) {
+      token.gauge.set(value)
     }
   }
 }
