@@ -372,7 +372,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       if (stopsInProgress > 0) {
         logging.info(
           this,
-          s"cluster free capacity reached ${newCount} of ${clusterActionHostsCount}; ${stopsInProgress} stops already in progress")
+          s"cluster idle capacity reached ${newCount} of ${clusterActionHostsCount}; ${stopsInProgress} stops already in progress (will not prune)")
       } else {
         //free in chunks
         val lastUsedMax = Instant.now().minusSeconds(poolConfig.clusterManagedCapacityMonitor.idleTimeout.toSeconds)
@@ -380,12 +380,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         val freeSize = poolConfig.clusterManagedCapacityMonitor.idleRemoveSize
         logging.info(
           this,
-          s"cluster free capacity reached ${newCount} of ${clusterActionHostsCount}; attempting prune of ${freeSize}MB in idle containers")
+          s"cluster idle capacity reached ${newCount} of ${clusterActionHostsCount}; attempting prune of ${freeSize.toMB} MB in idle containers")
         ContainerPool
         //free as much as possible, up to freeSize
           .remove(freePool, Math.min(freeSize.toMB, memoryConsumptionOf(freePool)).MB, lastUsedMax, true)
           .map { a =>
-            logging.info(this, "freeing idle ")
+            logging.info(this, s"pruning idle with ${a._2.toMB} MB ")
             //decrease the reserved (not yet stopped container) memory tracker
             addReservation(a._1, -a._2.toMB)
             removeContainer(a._1)
