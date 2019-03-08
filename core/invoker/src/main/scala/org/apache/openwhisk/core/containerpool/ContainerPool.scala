@@ -228,17 +228,20 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
             // (and a new container would over commit the pool)
             val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
+            val msg = s"Rescheduling Run message, too many message in the pool, " +
+              s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
+              s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
+              s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+              s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+              s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+              s"waiting messages: ${runBuffer.size}, " +
+              s"reservations: ${clusterReservations.size}"
             val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
-                this,
-                s"Rescheduling Run message, too many message in the pool, " +
-                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
-                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
-                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
-                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                  s"waiting messages: ${runBuffer.size}, " +
-                  s"reservations: ${clusterReservations.size}")(r.msg.transid)
+              if (poolConfig.clusterManagedResources) {
+                logging.warn(this, msg)(r.msg.transid) //retry loop may be common in cluster manager resource case, so use warn level
+              } else {
+                logging.error(this, msg)(r.msg.transid) //otherwise use error level
+              }
               Some(logMessageInterval.fromNow)
             } else {
               r.retryLogDeadline
@@ -247,8 +250,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               // Add this request to the buffer, as it is not there yet.
               runBuffer = runBuffer.enqueue(r)
             }
-            // As this request is the first one in the buffer, try again to execute it.
-            self ! Run(r.action, r.msg, retryLogDeadline)
+            if (!poolConfig.clusterManagedResources) {
+              // As this request is the first one in the buffer, try again to execute it.
+              self ! Run(r.action, r.msg, retryLogDeadline)
+            } //cannot do this in cluster managed resources, since it will introduce a tight loop
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
@@ -258,7 +263,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
-      feed ! MessageFeed.Processed
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
       val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
       if (newData.activeActivationCount < 0) {
@@ -279,6 +283,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool + (sender() -> newData)
         freePool = freePool - sender()
       }
+      processBuffer()
 
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
@@ -296,13 +301,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool.get(sender()).foreach { f =>
         freePool = freePool - sender()
         if (f.activeActivationCount > 0) {
-          feed ! MessageFeed.Processed
+          processBuffer()
         }
       }
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
-        feed ! MessageFeed.Processed
+        processBuffer()
       }
 
     // This message is received for one of these reasons:
@@ -328,6 +333,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         logging.info(this, "initializing prewarmpool after stats recevied")
         initPrewarms()
       }
+      processBuffer()
 
     case ContainerStarted => //only used for receiving post-start from cold container
       //stop tracking via reserved
@@ -352,6 +358,22 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def allowMoreStarts(config: ContainerPoolConfig) =
     !config.clusterManagedResources || clusterReservations
       .count({ case (_, state) => state.size > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
+
+  /** Buffer processing in cluster managed resources means to send the first item in runBuffer;
+   *  In non-clustered case, it means signalling MessageFeed (since runBuffer is processed in tight loop).
+   * */
+  def processBuffer() = {
+    if (poolConfig.clusterManagedResources) {
+      runBuffer.dequeueOption match {
+        case Some((run, _)) => //run the first from buffer
+          self ! run
+        case None => //feed me!
+          feed ! MessageFeed.Processed
+      }
+    } else {
+      feed ! MessageFeed.Processed
+    }
+  }
 
   /** Creates a new container and updates state accordingly. */
   def createContainer(memoryLimit: ByteSize): (ActorRef, ContainerData) = {
