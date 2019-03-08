@@ -57,6 +57,15 @@ The annotations we have used for describing parameters include:
 
 The annotations are _not_ checked. So while it is conceivable to use the annotations to infer if a composition of two actions into a sequence is legal, for example, the system does not yet do that.
 
+# Annotations for all actions
+
+The following annotations on an action are available.
+
+* `provide-api-key`: This annotation may be attached to actions which require an API key, for example to make REST API calls to the OpenWhisk host.
+The absence of this annotation, or its presence with a value that is not _falsy_ (i.e., a value that is different from zero, null, false, and the empty string)
+will cause an API key to be present in the [action execution context](./actions.md#accessing-action-metadata-within-the-action-body). This annotation is added
+to newly created actions, if not already specified, with a default false value.
+
 # Annotations specific to web actions
 
 Web actions are enabled with explicit annotations which decorate individual actions. The annotations only apply to the [web actions](webactions.md) API,

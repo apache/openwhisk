@@ -65,7 +65,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   }
 
   /** Remove parameter by name. */
-  protected[core] def -(p: String) = {
+  protected[core] def -(p: String): Parameters = {
     // wrap with try since parameter name may throw an exception for illegal p
     Try(new Parameters(params - new ParameterName(p))) getOrElse this
   }
@@ -103,15 +103,20 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
       .fold[Try[JsValue]](Failure(new IllegalStateException(s"key '$p' does not exist")))(Success.apply)
       .flatMap(js => Try(js.convertTo[T]))
 
-  /** Retrieves parameter by name if it exist. Returns true if parameter exists and has truthy value. */
-  protected[core] def isTruthy(p: String): Boolean = {
+  /**
+   *  Retrieves parameter by name if it exist.
+   *  @param p the parameter to check for a truthy value
+   *  @param valueForNonExistent the value to return for a missing parameter (default false)
+   *  @return true if parameter exists and has truthy value, otherwise returns the specified value for non-existent keys
+   */
+  protected[core] def isTruthy(p: String, valueForNonExistent: Boolean = false): Boolean = {
     get(p) map {
       case JsBoolean(b) => b
       case JsNumber(n)  => n != 0
       case JsString(s)  => s.nonEmpty
       case JsNull       => false
       case _            => true
-    } getOrElse false
+    } getOrElse valueForNonExistent
   }
 }
 

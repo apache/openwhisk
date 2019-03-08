@@ -300,7 +300,10 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   it should "invoke an action using npm openwhisk" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "hello npm openwhisk"
     assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")))
+      action.create(
+        name,
+        Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")),
+        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
     }
 
     val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
@@ -313,25 +316,51 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
     wsk.action.delete(name, expectedExitCode = NotFound.intValue)
   }
 
-  it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val namespace = wsk.namespace.whois()
-    val name = "context"
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
-    }
+  it should "invoke an action receiving context properties excluding api key" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val namespace = wsk.namespace.whois()
+      val name = "context"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
+      }
 
-    val start = Instant.now(Clock.systemUTC()).toEpochMilli
-    val run = wsk.action.invoke(name)
-    withActivation(wsk.activation, run) { activation =>
-      activation.response.status shouldBe "success"
-      val fields = activation.response.result.get.convertTo[Map[String, String]]
-      fields("api_host") shouldBe WhiskProperties.getApiHostForAction
-      fields("api_key") shouldBe wskprops.authKey
-      fields("namespace") shouldBe namespace
-      fields("action_name") shouldBe s"/$namespace/$name"
-      fields("activation_id") shouldBe activation.activationId
-      fields("deadline").toLong should be >= start
-    }
+      val start = Instant.now(Clock.systemUTC()).toEpochMilli
+      val run = wsk.action.invoke(name)
+      withActivation(wsk.activation, run) { activation =>
+        activation.response.status shouldBe "success"
+        val fields = activation.response.result.get.convertTo[Map[String, String]]
+        fields("api_host") shouldBe WhiskProperties.getApiHostForAction
+        fields.get("api_key") shouldBe empty
+        fields("namespace") shouldBe namespace
+        fields("action_name") shouldBe s"/$namespace/$name"
+        fields("activation_id") shouldBe activation.activationId
+        fields("deadline").toLong should be >= start
+      }
+  }
+
+  it should "invoke an action receiving context properties including api key" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val namespace = wsk.namespace.whois()
+      val name = "context"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(
+          name,
+          Some(TestUtils.getTestActionFilename("helloContext.js")),
+          annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+      }
+
+      val start = Instant.now(Clock.systemUTC()).toEpochMilli
+      val run = wsk.action.invoke(name)
+      withActivation(wsk.activation, run) { activation =>
+        activation.response.status shouldBe "success"
+        val fields = activation.response.result.get.convertTo[Map[String, String]]
+        fields("api_host") shouldBe WhiskProperties.getApiHostForAction
+        fields("api_key") shouldBe wskprops.authKey
+        fields("namespace") shouldBe namespace
+        fields("action_name") shouldBe s"/$namespace/$name"
+        fields("activation_id") shouldBe activation.activationId
+        fields("deadline").toLong should be >= start
+      }
   }
 
   it should "invoke an action successfully with options --blocking and --result" in withAssetCleaner(wskprops) {
@@ -404,6 +433,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val action = wsk.action.get(name)
       action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe Set(
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
         JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
@@ -424,6 +454,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("final"), "value" -> JsBoolean(true)),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
   }
 

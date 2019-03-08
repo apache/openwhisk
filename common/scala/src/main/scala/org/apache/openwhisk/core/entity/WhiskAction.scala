@@ -143,7 +143,7 @@ case class WhiskAction(namespace: EntityPath,
    * Merges parameters (usually from package) with existing action parameters.
    * Existing parameters supersede those in p.
    */
-  def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
+  def inherit(p: Parameters): WhiskAction = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
 
   /**
    * Resolves sequence components if they contain default namespace.
@@ -166,7 +166,7 @@ case class WhiskAction(namespace: EntityPath,
     }
   }
 
-  def toExecutableWhiskAction = exec match {
+  def toExecutableWhiskAction: Option[ExecutableWhiskAction] = exec match {
     case codeExec: CodeExec[_] =>
       Some(
         ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
@@ -178,7 +178,7 @@ case class WhiskAction(namespace: EntityPath,
    * This the action summary as computed by the database view.
    * Strictly used in view testing to enforce alignment.
    */
-  override def summaryAsJson = {
+  override def summaryAsJson: JsObject = {
     val binary = exec match {
       case c: CodeExec[_] => c.binary
       case _              => false
@@ -309,6 +309,12 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   val execFieldName = "exec"
   val finalParamsAnnotationName = "final"
+  val webActionAnnotationName = "web-export"
+  val webCustomOptionsAnnotationName = "web-custom-options"
+  val rawHttpAnnotationName = "raw-http"
+  val requireWhiskAuthAnnotation = "require-whisk-auth"
+  val requireWhiskAuthHeader = "x-require-whisk-auth"
+  val provideApiKeyAnnotationName = "provide-api-key"
 
   override val collectionName = "actions"
 
@@ -324,9 +330,6 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     "annotations")
 
   override val cacheEnabled = true
-
-  val requireWhiskAuthAnnotation = "require-whisk-auth"
-  val requireWhiskAuthHeader = "x-require-whisk-auth"
 
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
@@ -511,9 +514,6 @@ object WhiskActionMetaData
     extends DocumentFactory[WhiskActionMetaData]
     with WhiskEntityQueries[WhiskActionMetaData]
     with DefaultJsonProtocol {
-
-  val execFieldName = "exec"
-  val finalParamsAnnotationName = "final"
 
   override val collectionName = "actions"
 

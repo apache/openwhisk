@@ -39,6 +39,8 @@ import org.apache.openwhisk.core.database.UserContext
 import akka.http.scaladsl.model.headers.RawHeader
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.core.entity.Attachments.Inline
+import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
  * Tests Actions API.
@@ -62,7 +64,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val context = UserContext(creds)
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
+
   def aname() = MakeName.next("action_tests")
+
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
 
@@ -80,7 +84,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(collectionPath) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -140,7 +146,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -155,7 +163,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
-    actions foreach { put(entityStore, _) }
+    actions foreach {
+      put(entityStore, _)
+    }
     waitOnView(entityStore, WhiskAction, namespace, 2)
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -298,7 +308,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind))
+          action.annotations ++ systemAnnotations(action.exec.kind))
 
         val expectedWhiskActionMetaData = WhiskActionMetaData(
           action.namespace,
@@ -308,7 +318,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskActionMetaData.execFieldName, action.exec.kind))
+          action.annotations ++ systemAnnotations(action.exec.kind))
 
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
@@ -428,9 +438,10 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should reject request with malformed property exec" in {
     implicit val tid = transid()
-    val content = """|{"name":"name",
-                         |"publish":true,
-                         |"exec":""}""".stripMargin.parseJson.asJsObject
+    val content =
+      """|{"name":"name",
+         |"publish":true,
+         |"exec":""}""".stripMargin.parseJson.asJsObject
     Put(s"$collectionPath/xxx", content) ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[String]
       status should be(BadRequest)
@@ -542,7 +553,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS10)))
     }
   }
 
@@ -563,7 +574,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
+          action.annotations ++ systemAnnotations(BLACKBOX)))
       response.exec shouldBe an[BlackBoxExec]
       response.exec.asInstanceOf[BlackBoxExec].code shouldBe empty
     }
@@ -586,7 +597,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
+          action.annotations ++ systemAnnotations(BLACKBOX)))
       response.exec shouldBe an[BlackBoxExec]
       val bb = response.exec.asInstanceOf[BlackBoxExec]
       bb.code shouldBe Some(Inline("cc"))
@@ -594,7 +605,50 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  // this test is to ensure pre-existing actions can continue to to opt-out of new system annotations
+  it should "preserve annotations on pre-existing actions" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault(""))
+    put(entityStore, action, false) // install the action into the database directly
+
+    var content = JsObject("exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson))
+
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version.upPatch,
+          action.publish,
+          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind)))
+    }
+
+    content = """{"annotations":[{"key":"a","value":"B"}]}""".parseJson.asJsObject
+
+    Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      deleteAction(action.docid)
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version.upPatch.upPatch,
+          action.publish,
+          action.annotations ++ Parameters("a", "B") ++ Parameters(WhiskAction.execFieldName, action.exec.kind)))
+    }
+  }
+
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+
   private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
     Parameters("_actions", seq.map("/" + _.asString).toJson)
 
@@ -660,7 +714,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS10)))
     }
   }
 
@@ -700,7 +754,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS10)))
     }
   }
 
@@ -735,7 +789,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"caching ${CacheKey(action)}")
         stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -754,7 +808,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.reset()
@@ -772,7 +826,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version.upPatch,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind))
+              action.annotations ++ systemAnnotations(kind))
           }
         }
         stream.toString should include(s"entity exists, will try to update '$action'")
@@ -793,7 +847,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version.upPatch,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"invalidating ${CacheKey(action)}")
         stream.reset()
@@ -847,7 +901,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
 
         stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -867,7 +921,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.toString should not include regex(notExpectedGetLog)
@@ -886,7 +940,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
 
         stream.toString should include(s"invalidating ${CacheKey(action)}")
@@ -930,7 +984,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
+          action.annotations ++ systemAnnotations(JAVA_DEFAULT)))
     }
 
     stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -950,7 +1004,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
+          action.annotations ++ systemAnnotations(JAVA_DEFAULT)))
     }
 
     stream.toString should include(s"serving from cache: ${CacheKey(action)}")
@@ -970,7 +1024,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT)))
+          action.annotations ++ systemAnnotations(JAVA_DEFAULT)))
     }
     stream.toString should include(s"invalidating ${CacheKey(action)}")
     stream.reset()
@@ -1019,7 +1073,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
 
         stream.toString should include regex (expectedGetLog)
@@ -1063,7 +1117,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       action.limits,
       action.version,
       action.publish,
-      action.annotations ++ Parameters(WhiskAction.execFieldName, kind))
+      action.annotations ++ systemAnnotations(kind))
 
     (0 until 5).par.map { i =>
       Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
@@ -1126,7 +1180,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version.upPatch,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include regex (expectedPutLog)
         stream.reset()
@@ -1144,7 +1198,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.limits,
               action.version.upPatch,
               action.publish,
-              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+              action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"invalidating ${CacheKey(action)}")
         stream.reset()
@@ -1191,7 +1245,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1215,7 +1269,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
     }
   }
 
@@ -1258,7 +1312,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.logs.get,
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
-          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10))
+          annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false))
       }
     }
   }
@@ -1279,7 +1333,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.exec,
           content.parameters.get,
           version = action.version.upPatch,
-          annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS10))
+          annotations = action.annotations ++ systemAnnotations(NODEJS10, false))
       }
     }
   }
@@ -1327,7 +1381,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "not invoke an action when final parameters are redefined" in {
     implicit val tid = transid()
-    val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
+    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
     val parameters = Parameters("a", "A") ++ Parameters("empty", JsNull)
     val action = WhiskAction(namespace, aname(), jsDefault("??"), parameters = parameters, annotations = annotations)
     put(entityStore, action)
@@ -1568,26 +1622,26 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val deprecatedKind = "test:2"
 
       val customManifest = Some(s"""
-                   |{ "runtimes": {
-                   |    "test": [
-                   |      {
-                   |        "kind": "$okKind",
-                   |        "deprecated": false,
-                   |        "default": true,
-                   |        "image": {
-                   |          "name": "xyz"
-                   |        }
-                   |      }, {
-                   |        "kind": "$deprecatedKind",
-                   |        "deprecated": true,
-                   |        "image": {
-                   |          "name": "xyz"
-                   |        }
-                   |      }
-                   |    ]
-                   |  }
-                   |}
-                   |""".stripMargin)
+           |{ "runtimes": {
+           |    "test": [
+           |      {
+           |        "kind": "$okKind",
+           |        "deprecated": false,
+           |        "default": true,
+           |        "image": {
+           |          "name": "xyz"
+           |        }
+           |      }, {
+           |        "kind": "$deprecatedKind",
+           |        "deprecated": true,
+           |        "image": {
+           |          "name": "xyz"
+           |        }
+           |      }
+           |    ]
+           |  }
+           |}
+           |""".stripMargin)
       ExecManifest.initialize(whiskConfig, customManifest)
 
       val deprecatedManifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(deprecatedKind).get
@@ -1646,6 +1700,44 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     } finally {
       // restore manifest
       ExecManifest.initialize(whiskConfig)
+    }
+  }
+}
+
+@RunWith(classOf[JUnitRunner])
+class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
+  import WhiskActionsApi.amendAnnotations
+  import WhiskAction.provideApiKeyAnnotationName
+  import WhiskAction.execFieldName
+
+  val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
+  val keyTruthyAnnotation = Parameters(provideApiKeyAnnotationName, JsBoolean(true))
+  val keyFalsyAnnotation = Parameters(provideApiKeyAnnotationName, JsString("")) // falsy other than JsBoolean(false)
+  val execAnnotation = Parameters(execFieldName, JsString("foo"))
+  val exec: Exec = jsDefault("??")
+
+  it should "add key annotation if it is not present already" in {
+    Seq(Parameters(), baseParams).foreach { p =>
+      amendAnnotations(p, exec) shouldBe {
+        p ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++
+          Parameters(WhiskAction.execFieldName, exec.kind)
+      }
+    }
+  }
+
+  it should "not add key annotation if already present regardless of value" in {
+    Seq(keyTruthyAnnotation, keyFalsyAnnotation).foreach { p =>
+      amendAnnotations(p, exec) shouldBe {
+        p ++ Parameters(WhiskAction.execFieldName, exec.kind)
+      }
+    }
+  }
+
+  it should "override system annotation as necessary" in {
+    amendAnnotations(baseParams ++ execAnnotation, exec) shouldBe {
+      baseParams ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++ Parameters(
+        WhiskAction.execFieldName,
+        exec.kind)
     }
   }
 }

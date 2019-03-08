@@ -59,6 +59,38 @@ object WhiskActionsApi {
    * This is the default timeout on a POST request.
    */
   protected[core] val maxWaitForBlockingActivation = 60 seconds
+
+  /**
+   * Amends annotations on an action create/update with system defined values.
+   * This method currently adds the following annotations:
+   * 1. [[WhiskAction.provideApiKeyAnnotationName]] with the value false iff the annotation is not already defined in the action annotations
+   * 2. An [[execAnnotation]] consistent with the action kind; this annotation is always added and overrides a pre-existing value
+   */
+  protected[core] def amendAnnotations(annotations: Parameters, exec: Exec, create: Boolean = true): Parameters = {
+    val newAnnotations = if (create) {
+      // these annotations are only added on newly created actions
+      // since they can break existing actions created before the
+      // annotation was created
+      annotations
+        .get(WhiskAction.provideApiKeyAnnotationName)
+        .map(_ => annotations)
+        .getOrElse {
+          annotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+        }
+    } else annotations
+    newAnnotations ++ execAnnotation(exec)
+  }
+
+  /**
+   * Constructs an "exec" annotation. This is redundant with the exec kind
+   * information available in WhiskAction but necessary for some clients which
+   * fetch action lists but cannot determine action kinds without fetching them.
+   * An alternative is to include the exec in the action list "view" but this
+   * will require an API change. So using an annotation instead.
+   */
+  private def execAnnotation(exec: Exec): Parameters = {
+    Parameters(WhiskAction.execFieldName, exec.kind)
+  }
 }
 
 /** A trait implementing the actions API. */
@@ -416,7 +448,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse SemVer(),
       content.publish getOrElse false,
-      (content.annotations getOrElse Parameters()) ++ execAnnotation(exec))
+      WhiskActionsApi.amendAnnotations(content.annotations getOrElse Parameters(), exec))
   }
 
   /** For a sequence action, gather referenced entities and authorize access. */
@@ -531,7 +563,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
-      (content.annotations getOrElse action.annotations) ++ execAnnotation(exec))
+      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec, create = false))
       .revision[WhiskAction](action.docinfo.rev)
   }
 
@@ -683,17 +715,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       }
       totalActionCount
     }
-  }
-
-  /**
-   * Constructs an "exec" annotation. This is redundant with the exec kind
-   * information available in WhiskAction but necessary for some clients which
-   * fetch action lists but cannot determine action kinds without fetching them.
-   * An alternative is to include the exec in the action list "view" but this
-   * will require an API change. So using an annotation instead.
-   */
-  private def execAnnotation(exec: Exec): Parameters = {
-    Parameters(WhiskAction.execFieldName, exec.kind)
   }
 
   /** Max atomic action count allowed for sequences. */

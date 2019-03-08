@@ -620,6 +620,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   behavior of "Parameter"
+
   it should "properly deserialize and reserialize JSON" in {
     val json = Seq[JsValue](
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
@@ -668,7 +669,19 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     an[IllegalArgumentException] should be thrownBy Parameters(null, "")
     an[IllegalArgumentException] should be thrownBy Parameters(null, " ")
     an[IllegalArgumentException] should be thrownBy Parameters(null)
+  }
 
+  it should "recognize truthy values" in {
+    Seq(JsBoolean(true), JsNumber(1), JsString("x")).foreach { v =>
+      Parameters("x", v).isTruthy("x") shouldBe true
+    }
+
+    Seq(JsBoolean(false), JsNumber(0), JsString(""), JsNull).foreach { v =>
+      Parameters("x", v).isTruthy("x") shouldBe false
+    }
+
+    Parameters("x", JsBoolean(true)).isTruthy("y") shouldBe false
+    Parameters("x", JsBoolean(true)).isTruthy("y", valueForNonExistent = true) shouldBe true
   }
 
   it should "serialize to json" in {

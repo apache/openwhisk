@@ -85,6 +85,15 @@ protected trait ControllerTestCommon
     }
   }
 
+  def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
+    val base = if (create) {
+      Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+    } else {
+      Parameters()
+    }
+    base ++ Parameters(WhiskAction.execFieldName, kind)
+  }
+
   val entityStore = WhiskEntityStore.datastore()
   val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)

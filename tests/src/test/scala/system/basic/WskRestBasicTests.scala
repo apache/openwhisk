@@ -33,6 +33,7 @@ import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.containerpool.Container
+import org.apache.openwhisk.core.entity.WhiskAction
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
@@ -144,6 +145,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         "value" -> JsArray(
           JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
           JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+      JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
       JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
   }
 
@@ -343,6 +345,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
       result.getFieldJsValue("annotations") shouldBe JsArray(
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
       result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
@@ -449,8 +452,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         "value" -> JsArray(
           JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
           JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+      JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
       JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-
   }
 
   it should "create an action with a name that contains spaces" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

@@ -490,7 +490,9 @@ trait WhiskWebActionsApi
                         this,
                         "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
                       terminate(Unauthorized)
-                    } else if (!action.annotations.getAs[Boolean]("web-custom-options").getOrElse(false)) {
+                    } else if (!action.annotations
+                                 .getAs[Boolean](WhiskAction.webCustomOptionsAnnotationName)
+                                 .getOrElse(false)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -554,7 +556,7 @@ trait WhiskWebActionsApi
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.getAs[Boolean]("raw-http").getOrElse(false)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean](WhiskAction.rawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -705,7 +707,7 @@ trait WhiskWebActionsApi
     actionLookup flatMap { action =>
       val requiresAuthenticatedUser =
         action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).getOrElse(false)
-      val isExported = action.annotations.getAs[Boolean]("web-export").getOrElse(false)
+      val isExported = action.annotations.getAs[Boolean](WhiskAction.webActionAnnotationName).getOrElse(false)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {
