@@ -42,6 +42,7 @@ import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
+import org.apache.openwhisk.core.containerpool.ClusterManagedCapacityMonitor
 
 /**
  * Behavior tests for the ContainerPool
@@ -125,7 +126,8 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false, false, 10)
+  def poolConfig(userMemory: ByteSize) =
+    ContainerPoolConfig(userMemory, 0.5, false, false, 10, ClusterManagedCapacityMonitor(0.5, 10.seconds, 1024.B))
 
   behavior of "ContainerPool"
 
@@ -755,24 +757,24 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   behavior of "ContainerPool remove()"
 
   it should "not provide a container if pool is empty" in {
-    ContainerPool.remove(Map.empty, MemoryLimit.stdMemory) shouldBe List.empty
+    ContainerPool.remove(Map.empty[Any, ContainerData], MemoryLimit.stdMemory) shouldBe Map.empty
   }
 
   it should "not provide a container from busy pool with non-warm containers" in {
     val pool = Map('none -> noData(), 'pre -> preWarmedData())
-    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List.empty
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe Map.empty
   }
 
   it should "not provide a container from pool if there is not enough capacity" in {
     val pool = Map('first -> warmedData())
 
-    ContainerPool.remove(pool, MemoryLimit.stdMemory * 2) shouldBe List.empty
+    ContainerPool.remove(pool, MemoryLimit.stdMemory * 2) shouldBe Map.empty
   }
 
   it should "provide a container from pool with one single free container" in {
     val data = warmedData()
     val pool = Map('warm -> data)
-    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('warm)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe Map('warm -> data.action.limits.memory.megabytes.MB)
   }
 
   it should "provide oldest container from busy pool with multiple containers" in {
@@ -783,7 +785,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
 
-    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('oldest)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe Map('oldest -> oldest.action.limits.memory.megabytes.MB)
   }
 
   it should "provide a list of the oldest containers from pool, if several containers have to be removed" in {
@@ -795,7 +797,9 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val pool = Map('first -> first, 'second -> second, 'third -> third, 'oldest -> oldest)
 
-    ContainerPool.remove(pool, MemoryLimit.stdMemory * 2) shouldBe List('oldest, 'first)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory * 2) shouldBe Map(
+      'oldest -> oldest.action.limits.memory.megabytes.MB,
+      'first -> first.action.limits.memory.megabytes.MB)
   }
 
   it should "provide oldest container (excluding concurrently busy) from busy pool with multiple containers" in {
@@ -805,9 +809,9 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0), active = 3)
 
     var pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
-    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('first)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe Map('first -> first.action.limits.memory.megabytes.MB)
     pool = pool - 'first
-    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe List('second)
+    ContainerPool.remove(pool, MemoryLimit.stdMemory) shouldBe Map('second -> second.action.limits.memory.megabytes.MB)
   }
 
 }
