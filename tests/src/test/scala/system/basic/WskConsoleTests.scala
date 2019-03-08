@@ -35,6 +35,8 @@ import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import org.apache.openwhisk.core.entity.WhiskAction
+
 /**
  * Tests of the text console
  */
@@ -88,7 +90,10 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
   it should "show repeated activations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = withTimestamp("countdown")
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("countdown.js")))
+      action.create(
+        name,
+        Some(TestUtils.getTestActionFilename("countdown.js")),
+        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
     }
 
     val count = 3
