@@ -52,11 +52,11 @@ http {
     }
 
     upstream controllers {
-        # fail_timeout: period of time the server will be considered unavailable
-        # Mark the controller as unavailable for at least 60 seconds, to not get any requests during restart.
+        # Mark the controller as unavailable after fail_timeout seconds, to not get any requests during restart.
         # Otherwise, nginx would dispatch requests when the container is up, but the backend in the container not.
         # From the docs:
-        # "normally, requests with a non-idempotent method (POST, LOCK, PATCH) are not passed to the next server if a request has been sent to an upstream server"
+        #  "normally, requests with a non-idempotent method (POST, LOCK, PATCH) are not passed to
+        #   the next server if a request has been sent to an upstream server"
 {% for c in groups['controllers'] %}
         server {{ hostvars[c].ansible_host }}:{{ controller.basePort + groups['controllers'].index(c) }} fail_timeout=60s;
 {% endfor %}
@@ -89,12 +89,19 @@ http {
 {# Turn off sending information about the server to the client #}
     server_tokens off;
 
+    # Redirect all http to https.
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
     server {
         listen 443 default ssl;
 
-        # match namespace, note while OpenWhisk allows a richer character set for a
-        # namespace, not all those characters are permitted in the (sub)domain name;
-        # if namespace does not match, no vanity URL rewriting takes place.
+        # Match namespace, note while OpenWhisk allows a richer character set for a
+        # namespace, not all those characters are permitted in the (sub)domain name.
+        # If namespace does not match, no vanity URL rewriting takes place.
         server_name ~^(?<namespace>[0-9a-zA-Z-]+)\.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}$;
 
         # Recommended TLS settings from: https://wiki.mozilla.org/Security/Server_Side_TLS
@@ -102,7 +109,7 @@ http {
         ssl_session_timeout  10m;
         ssl_certificate      /etc/nginx/{{ nginx.ssl.cert }};
         ssl_certificate_key  /etc/nginx/{{ nginx.ssl.key }};
-        {% if nginx.ssl.password_enabled %}
+        {% if nginx.ssl.password_file %}
         ssl_password_file   "/etc/nginx/{{ nginx.ssl.password_file }}";
         {% endif %}
         ssl_client_certificate /etc/nginx/{{ nginx.ssl.client_ca_cert }};

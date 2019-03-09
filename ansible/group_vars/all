@@ -29,7 +29,7 @@ whisk_api_localhost_name_default: "localhost"
 environmentInformation:
   type: "{{ environment_type | default('local') }}"
 
-hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
+hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
 
 whisk:
   version:
@@ -209,15 +209,14 @@ nginx:
   version: "{{ nginx_version | default('1.13') }}"
   port:
     http: 80
-    api: 443
+    https: 443
   ssl:
-    path: "{{ openwhisk_home }}/ansible/roles/nginx/files"
-    cert: "openwhisk-server-cert.pem"
-    key: "openwhisk-server-key.pem"
-    password_enabled: false
-    password_file: "ssl.pass"
-    client_ca_cert: "{{ openwhisk_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
+    path: "{{ nginx_ssl_path | default(playbook_dir +'/roles/nginx/files') }}"
+    cert: "{{ nginx_ssl_server_cert | default('openwhisk-server-cert.pem') }}"
+    key: "{{ nginx_ssl_server_key | default('openwhisk-server-key.pem') }}"
+    client_ca_cert: "{{ nginx_ssl_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
     verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
+    password_file: "{{ nginx_ssl_password_file | default(false) }}"
   wpn:
     router: "{{ nginx_wpn_router | default('1') }}"
   special_users: "{{ nginx_special_users | default('[]') }}"
@@ -298,8 +297,8 @@ catalog_namespace: "/whisk.system"
 # The catalog_auth_key is used to determine the secret key to authenticate the openwhisk service.
 # The value for this variable can be set to either the secret key itself or the file, which
 # saves the secret key.
-# By default, we take the key from {{ openwhisk_home }}/ansible/files/auth.whisk.system.
-catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
+# By default, we take the key from ansible/files/auth.whisk.system.
+catalog_auth_key: "{{ playbook_dir }}/files/auth.whisk.system"
 
 # The catalog_repos is used to specify all the catalog names and repository URLs,
 # so that openwhisk knows where to download the catalog and install them. The key
