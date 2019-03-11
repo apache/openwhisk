@@ -64,20 +64,20 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected val totalBlackBoxActivationMemory = new LongAdder()
   protected val totalManagedActivationMemory = new LongAdder()
 
-  protected def emitHistogramMetric() = {
-    MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
-    MetricEmitter.emitHistogramMetric(
+  protected def emitMetrics() = {
+    MetricEmitter.emitGaugeMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
+    MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
       totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
       totalBlackBoxActivationMemory.longValue)
-    MetricEmitter.emitHistogramMetric(
+    MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
       totalManagedActivationMemory.longValue)
   }
 
-  actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitHistogramMetric())
+  actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue()).getOrElse(0))

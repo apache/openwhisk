@@ -82,8 +82,8 @@ class LeanBalancer(config: WhiskConfig,
     // Currently do nothing
   }
 
-  override protected def emitHistogramMetric() = {
-    super.emitHistogramMetric()
+  override protected def emitMetrics() = {
+    super.emitMetrics()
   }
 }
 
