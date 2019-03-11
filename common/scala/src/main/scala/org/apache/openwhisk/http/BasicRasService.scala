@@ -29,7 +29,7 @@ trait BasicRasService extends BasicHttpService {
   override def routes(implicit transid: TransactionId) = ping ~ MetricsRoute()
 
   override def loglevelForRoute(route: String): Logging.LogLevel = {
-    if (route == "/ping") {
+    if (route == "/ping" || route == "/metrics") {
       Logging.DebugLevel
     } else {
       super.loglevelForRoute(route)
