@@ -34,7 +34,7 @@ import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
-import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
+import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -63,9 +63,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   protected val client: AsyncDocumentClient = clientRef.get.client
   private[cosmosdb] val (database, collection) = initialize()
-
-  private val _id = "_id"
-  private val _rev = "_rev"
 
   private val putToken = createToken("put", read = false)
   private val delToken = createToken("del", read = false)
@@ -384,21 +381,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDoc(doc)
     val js = doc.toJson.parseJson.asJsObject
     toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
-  }
-
-  private def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
-    val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(id)))), (_rev, etag))
-    transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
-  }
-
-  private def transform(json: JsObject, fieldsToAdd: Seq[(String, Option[JsValue])], fieldsToRemove: Seq[String]) = {
-    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
-    JsObject(fields)
-  }
-
-  private def stripInternalFields(js: JsObject) = {
-    //Strip out all field name starting with '_' which are considered as db specific internal fields
-    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
   private def toDocInfo[T <: Resource](doc: T) = {
