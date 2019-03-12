@@ -33,7 +33,7 @@ import akka.http.scaladsl.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{FeatureFlags, WhiskConfig}
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import org.apache.openwhisk.core.controller.actions.PostActionActivation
 import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, NoDocumentException}
@@ -67,7 +67,7 @@ object WhiskActionsApi {
    * 2. An [[execAnnotation]] consistent with the action kind; this annotation is always added and overrides a pre-existing value
    */
   protected[core] def amendAnnotations(annotations: Parameters, exec: Exec, create: Boolean = true): Parameters = {
-    val newAnnotations = if (create) {
+    val newAnnotations = if (create && FeatureFlags.requireApiKeyAnnotation) {
       // these annotations are only added on newly created actions
       // since they can break existing actions created before the
       // annotation was created
