@@ -38,7 +38,8 @@ case class CosmosDBConfig(endpoint: String,
                           consistencyLevel: ConsistencyLevel,
                           connectionPolicy: ConnectionPolicy,
                           timeToLive: Option[Duration],
-                          clusterId: Option[String]) {
+                          clusterId: Option[String],
+                          softDeleteTTL: Option[FiniteDuration]) {
 
   def createClient(): AsyncDocumentClient = {
     new AsyncDocumentClient.Builder()

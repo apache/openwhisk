@@ -47,6 +47,11 @@ private[cosmosdb] object CosmosDBConstants {
    * lifetime of a document as different clusters may change the same document at different times
    */
   val clusterId: String = "_clusterId"
+
+  /**
+   * Property indicating that document has been marked as deleted with ttl
+   */
+  val deleted: String = "_deleted"
 }
 
 private[cosmosdb] trait CosmosDBUtil {
@@ -137,7 +142,9 @@ private[cosmosdb] trait CosmosDBUtil {
    * @param fieldsToRemove list of field names to remove
    * @return transformed json
    */
-  def transform(json: JsObject, fieldsToAdd: Seq[(String, Option[JsValue])], fieldsToRemove: Seq[String]): JsObject = {
+  def transform(json: JsObject,
+                fieldsToAdd: Seq[(String, Option[JsValue])],
+                fieldsToRemove: Seq[String] = Seq.empty): JsObject = {
     val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
     JsObject(fields)
   }
