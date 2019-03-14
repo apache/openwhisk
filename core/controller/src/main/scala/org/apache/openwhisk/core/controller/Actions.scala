@@ -660,7 +660,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       case _: TooManyActionsInSequence => Future failed RejectRequest(BadRequest, sequenceIsTooLong)
       case _: NoComponentInSequence    => Future failed RejectRequest(BadRequest, sequenceNoComponent)
       case _: SequenceWithCycle        => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
-      case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
+      case _: NoDocumentException      => Future failed RejectRequest(BadRequest, s"$sequenceComponentNotFound: $sequenceAction")
     }
   }
 
