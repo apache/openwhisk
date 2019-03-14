@@ -249,4 +249,5 @@ object ConfigKeys {
   val activationStoreWithFileStorage = s"$activationStore.with-file-storage"
 
   val metrics = "whisk.metrics"
+  val featureFlags = "whisk.feature-flags"
 }
