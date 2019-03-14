@@ -47,7 +47,9 @@ case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Doubl
   def cpuShare(reservedMemory: ByteSize) = (totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt
 }
 
-case class RuntimesRegistryConfig(url: String, user: Option[String], password: Option[String])
+case class RuntimesRegistryCredentials(user: String, password: String)
+
+case class RuntimesRegistryConfig(url: String, credentials: Option[RuntimesRegistryCredentials])
 
 /**
  * An abstraction for Container creation
