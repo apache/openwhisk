@@ -112,8 +112,8 @@ class MesosContainerFactoryTest
       logging,
       Map("--arg1" -> Set("v1", "v2")),
       containerArgsConfig,
-      mesosConfig,
-      (system, mesosConfig) => testActor)
+      mesosConfig = mesosConfig,
+      clientFactory = (system, mesosConfig) => testActor)
 
     expectMsg(Subscribe)
   }
@@ -140,9 +140,9 @@ class MesosContainerFactoryTest
         logging,
         Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
         containerArgsConfig,
-        mesosConfig,
-        (_, _) => testActor,
-        testTaskId _)
+        mesosConfig = mesosConfig,
+        clientFactory = (_, _) => testActor,
+        taskIdGenerator = testTaskId _)
 
     expectMsg(Subscribe)
     factory.createContainer(
@@ -184,9 +184,9 @@ class MesosContainerFactoryTest
         logging,
         Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
         containerArgsConfig,
-        mesosConfig,
-        (system, mesosConfig) => probe.testActor,
-        testTaskId _)
+        mesosConfig = mesosConfig,
+        clientFactory = (system, mesosConfig) => probe.testActor,
+        taskIdGenerator = testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
@@ -258,9 +258,9 @@ class MesosContainerFactoryTest
           Seq.empty,
           Seq.empty,
           Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
-        mesosConfig,
-        (system, mesosConfig) => probe.testActor,
-        testTaskId _)
+        mesosConfig = mesosConfig,
+        clientFactory = (system, mesosConfig) => probe.testActor,
+        taskIdGenerator = testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe

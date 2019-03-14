@@ -24,20 +24,24 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.containerpool.ContainerFactory
-import org.apache.openwhisk.core.containerpool.ContainerFactoryProvider
+import org.apache.openwhisk.core.containerpool.{
+  Container,
+  ContainerFactory,
+  ContainerFactoryProvider,
+  RuntimesRegistryConfig
+}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.InvokerInstanceId
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 
-class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit actorSystem: ActorSystem,
-                                                                     ec: ExecutionContext,
-                                                                     logging: Logging)
+class KubernetesContainerFactory(
+  label: String,
+  config: WhiskConfig,
+  runtimesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
+    ConfigKeys.runtimesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends ContainerFactory {
 
   implicit val kubernetes = initializeKubeClient()
@@ -69,7 +73,7 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {
-      actionImage.localImageName(config.runtimesRegistry)
+      actionImage.localImageName(runtimesRegistryConfig.url)
     }
 
     KubernetesContainer.create(

@@ -26,20 +26,25 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.containerpool.ContainerAddress
-import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
-import org.apache.openwhisk.core.containerpool.ContainerId
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
+import org.apache.openwhisk.core.containerpool.{
+  ContainerAddress,
+  ContainerArgsConfig,
+  ContainerId,
+  RuntimesRegistryConfig
+}
 import org.apache.openwhisk.core.containerpool.docker.DockerApiWithFileAccess
 import org.apache.openwhisk.core.containerpool.docker.DockerContainerFactory
 import org.apache.openwhisk.core.containerpool.docker.DockerContainerFactoryConfig
 import org.apache.openwhisk.core.containerpool.docker.RuncApi
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import org.apache.openwhisk.core.entity.size._
+import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
 class DockerContainerFactoryTests
@@ -53,6 +58,7 @@ class DockerContainerFactoryTests
 
   implicit val config = new WhiskConfig(ExecManifest.requiredProperties)
   ExecManifest.initialize(config) should be a 'success
+  val runtimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry)
 
   behavior of "DockerContainerFactory"
 
@@ -68,7 +74,7 @@ class DockerContainerFactoryTests
     (dockerApiStub
       .run(_: String, _: Seq[String])(_: TransactionId))
       .expects(
-        image.localImageName(config.runtimesRegistry),
+        image.localImageName(runtimesRegistryConfig.url),
         List(
           "--cpu-shares",
           "32", //should be calculated as 1024/(numcore * sharefactor) via ContainerFactory.cpuShare
@@ -112,6 +118,7 @@ class DockerContainerFactoryTests
         InvokerInstanceId(0, userMemory = defaultUserMemory),
         Map.empty,
         ContainerArgsConfig("net1", Seq("dns1", "dns2"), Seq.empty, Seq.empty, Map("env" -> Set("e1", "e2"))),
+        runtimesRegistryConfig,
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
 
     val cf = factory.createContainer(tid, "testContainer", image, false, 10.MB, 32)

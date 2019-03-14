@@ -50,7 +50,7 @@ object Invoker {
    * An object which records the environment variables required for this component to run.
    */
   def requiredProperties =
-    Map(servicePort -> 8080.toString, runtimesRegistry -> "") ++
+    Map(servicePort -> 8080.toString) ++
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
