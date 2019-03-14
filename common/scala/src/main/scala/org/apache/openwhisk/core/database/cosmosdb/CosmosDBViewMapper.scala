@@ -25,7 +25,7 @@ import com.microsoft.azure.cosmosdb.IndexingMode.Lazy
 import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import org.apache.openwhisk.core.database.ActivationHandler.NS_PATH
 import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
-import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants.{alias, computed}
+import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants.{alias, computed, deleted}
 import org.apache.openwhisk.core.database.{
   ActivationHandler,
   DocumentHandler,
@@ -39,6 +39,7 @@ import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
 private[cosmosdb] trait CosmosDBViewMapper {
   protected val NOTHING = ""
   protected val ALL_FIELDS = "*"
+  protected val notDeleted = s"(NOT(IS_DEFINED(r.$deleted)) OR r.$deleted = false)"
   protected def handler: DocumentHandler
 
   def prepareQuery(ddoc: String,
@@ -89,7 +90,7 @@ private[cosmosdb] abstract class SimpleMapper extends CosmosDBViewMapper {
     val orderField = orderByField(ddoc, viewName)
     val order = if (descending) "DESC" else NOTHING
 
-    val query = s"SELECT $selectClause FROM root r WHERE ${whereClause._1} ORDER BY $orderField $order"
+    val query = s"SELECT $selectClause FROM root r WHERE $notDeleted AND ${whereClause._1} ORDER BY $orderField $order"
 
     prepareSpec(query, whereClause._2)
   }
@@ -244,6 +245,7 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
   private val BLOCKED = "blocked"
   private val SUBJECT = "subject"
   private val NAME = "name"
+  private val notBlocked = s"(NOT(IS_DEFINED(r.$BLOCKED)) OR r.$BLOCKED = false)"
 
   val handler = SubjectHandler
 
@@ -293,13 +295,14 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
                                                  startKey: List[Any],
                                                  endKey: List[Any],
                                                  count: Boolean): SqlQuerySpec = {
-    val notBlocked = s"(NOT(IS_DEFINED(r.$BLOCKED)) OR r.$BLOCKED = false)"
     val (where, params) = startKey match {
       case (ns: String) :: Nil =>
-        (s"$notBlocked AND ((r.$SUBJECT = @name AND IS_DEFINED(r.$KEY)) OR n.$NAME = @name)", ("@name", ns) :: Nil)
+        (
+          s"$notDeleted AND $notBlocked AND ((r.$SUBJECT = @name AND IS_DEFINED(r.$KEY)) OR n.$NAME = @name)",
+          ("@name", ns) :: Nil)
       case (uuid: String) :: (key: String) :: Nil =>
         (
-          s"$notBlocked AND ((r.$UUID = @uuid AND r.$KEY = @key) OR (n.$UUID = @uuid AND n.$KEY = @key))",
+          s"$notDeleted AND $notBlocked AND ((r.$UUID = @uuid AND r.$KEY = @key) OR (n.$UUID = @uuid AND n.$KEY = @key))",
           ("@uuid", uuid) :: ("@key", key) :: Nil)
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
@@ -310,9 +313,9 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
     prepareSpec(
       s"""SELECT ${selectClause(count)} AS $alias
                   FROM   root r
-                  WHERE  r.$BLOCKED = true
+                  WHERE  (r.$BLOCKED = true
                           OR r.$CONCURRENT_INVOCATIONS = 0
-                          OR r.$INVOCATIONS_PER_MIN = 0 """,
+                          OR r.$INVOCATIONS_PER_MIN = 0) AND $notDeleted """,
       Nil)
 
   private def selectClause(count: Boolean) = if (count) "TOP 1 VALUE COUNT(r)" else "r"

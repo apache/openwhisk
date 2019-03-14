@@ -91,6 +91,24 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     result.map(_.fields("value")) should contain theSameElementsAs entities.map(_.summaryAsJson)
   }
 
+  it should "exclude deleted entities" in {
+    implicit val tid: TransactionId = transid()
+
+    val ns = newNS()
+    val entities = Seq(newAction(ns), newAction(ns), newAction(ns))
+    val validEntities = entities.tail
+    val infos = entities.map(put(entityStore, _))
+
+    delete(entityStore, infos.head)
+
+    waitOnView(entityStore, ns.root, 2, WhiskAction.view)
+    val result =
+      query[WhiskEntity](entityStore, WhiskAction.view.name, List(ns.asString, 0), List(ns.asString, TOP, TOP))
+
+    result should have length validEntities.length
+    result.map(_.fields("value")) should contain theSameElementsAs validEntities.map(_.summaryAsJson)
+  }
+
   it should "return result in sorted order" in {
     implicit val tid: TransactionId = transid()
 
