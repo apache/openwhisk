@@ -17,13 +17,11 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import com.microsoft.azure.cosmosdb.Document
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import spray.json.{JsObject, JsString, JsValue}
 
 import scala.collection.immutable.Iterable
-import spray.json._
 
 private[cosmosdb] object CosmosDBConstants {
 
@@ -119,14 +117,6 @@ private[cosmosdb] trait CosmosDBUtil {
   def unescapeId(id: String): String = {
     require(!id.contains("/"), s"Escaped Id [$id] should not contain '/'")
     id.replace("|", "/")
-  }
-
-  /**
-   * Converts a CosmosDB Document to json object as required for `WhiskDocument`
-   */
-  def toWhiskJsonDoc(doc: Document): JsObject = {
-    val js = doc.toJson.parseJson.asJsObject
-    toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
   }
 
   def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
