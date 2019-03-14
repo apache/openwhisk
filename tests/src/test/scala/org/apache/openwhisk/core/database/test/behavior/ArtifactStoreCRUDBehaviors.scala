@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.database.test.behavior
 import java.time.Instant
 
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.{DocumentConflictException, NoDocumentException}
+import org.apache.openwhisk.core.database.{DocumentConflictException, DocumentProvider, NoDocumentException}
 import org.apache.openwhisk.core.entity._
 
 trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
@@ -187,5 +187,12 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
 
     //3. Now getting a deleted document should fail
     authStore.get[WhiskAuth](docInfo).failed.futureValue shouldBe a[NoDocumentException]
+
+    //Check get by id flow also which return none for such "soft" deleted document
+    authStore match {
+      case provider: DocumentProvider =>
+        provider.get(docInfo.id).futureValue shouldBe None
+      case _ =>
+    }
   }
 }
