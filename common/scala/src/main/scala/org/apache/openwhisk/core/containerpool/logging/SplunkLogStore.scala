@@ -146,9 +146,7 @@ class SplunkLogStore(
                         s"The log message might have been too large " +
                           s"for '${splunkConfig.index}' Splunk index and can't be retrieved, ${t.getMessage}")
                       s"The log message can't be retrieved, ${t.getMessage}"
-                  }
-              )
-          )
+                  }))
       })
   }
 
