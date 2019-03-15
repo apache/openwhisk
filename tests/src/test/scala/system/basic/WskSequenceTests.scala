@@ -33,7 +33,7 @@ import common.rest.WskRestOperations
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
-import org.apache.openwhisk.http.Messages.sequenceIsTooLong
+import org.apache.openwhisk.http.Messages._
 
 /**
  * Tests sequence execution
@@ -365,9 +365,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
         // the status should be error
         //activation.response.status shouldBe("application error")
         val result = activation.response.result.get
-        // the result of the activation should be timeout
-        result shouldBe (JsObject(
-          "error" -> JsString("The action exceeded its time limits of 10000 milliseconds during initialization.")))
+        // the result of the activation should be timeout or an abnormal initialization
+        result should (be(JsObject("error" -> timedoutActivation(shortDuration, true).toJson)) or be(
+          JsObject("error" -> abnormalInitialization.toJson)))
       }
   }
 
