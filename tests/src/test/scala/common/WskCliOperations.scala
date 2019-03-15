@@ -517,14 +517,11 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
    * @return sequence of activations
    */
   def ids(rr: RunResult): Seq[String] = {
-    rr.stdout.split("\n") filter {
-      // remove empty lines the header
-      s =>
-        s.nonEmpty && s != "activations"
-    } map {
-      // split into (id, name)
-      _.split(" ")(0)
-    }
+    val lines = rr.stdout.split("\n")
+    val header = lines(0)
+    // old format has the activation id first, new format has activation id in third column
+    val column = if (header.startsWith("activations")) 0 else 2
+    lines.drop(1).map(_.split(" ")(column)) // drop the header and grab just the activationId column
   }
 
   /**
