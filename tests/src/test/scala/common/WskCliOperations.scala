@@ -518,7 +518,7 @@ class CliActivationOperations(val wsk: RunCliCmd) extends ActivationOperations w
    */
   def ids(rr: RunResult): Seq[String] = {
     val lines = rr.stdout.split("\n")
-    val header = lines(0) 
+    val header = lines(0)
     // old format has the activation id first, new format has activation id in third column
     val column = if (header.startsWith("activations")) 0 else 2
     lines.drop(1).map(_.split(" ")(column)) // drop the header and grab just the activationId column
