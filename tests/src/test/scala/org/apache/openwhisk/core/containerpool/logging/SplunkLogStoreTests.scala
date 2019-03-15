@@ -128,7 +128,7 @@ class SplunkLogStoreTests
                     StatusCodes.OK,
                     entity = HttpEntity(
                       ContentTypes.`application/json`,
-                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_timestamp": "2007-12-03T10:15:30Z", "log_stream":"stdout", "log_message":"some log message"},{"log_timestamp": "2007-12-03T10:15:31Z", "log_stream":"stderr", "log_message":"some other log message"}], "highlighted":{}}"""))),
+                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_timestamp": "2007-12-03T10:15:30Z", "log_stream":"stdout", "log_message":"some log message"},{"log_timestamp": "2007-12-03T10:15:31Z", "log_stream":"stderr", "log_message":"some other log message"},{},{"log_timestamp": "2007-12-03T10:15:32Z", "log_stream":"stderr"}], "highlighted":{}}"""))),
                 userContext)
             }
             .recover {
@@ -156,7 +156,9 @@ class SplunkLogStoreTests
     result shouldBe ActivationLogs(
       Vector(
         "2007-12-03T10:15:30Z           stdout: some log message",
-        "2007-12-03T10:15:31Z           stderr: some other log message"))
+        "2007-12-03T10:15:31Z           stderr: some other log message",
+        "The log message can't be retrieved, key not found: log_timestamp",
+        "The log message can't be retrieved, key not found: log_message"))
   }
 
   it should "fail to connect to bogus host" in {

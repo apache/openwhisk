@@ -133,17 +133,27 @@ class SplunkLogStore(
         logging.debug(this, s"splunk API response ${response}")
         Unmarshal(response.entity)
           .to[SplunkResponse]
-          .map(r => {
-            ActivationLogs(
-              r.results
-                .map(l =>
-                  //format same as org.apache.openwhisk.core.containerpool.logging.LogLine.toFormattedString
-                  f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
-                    .fields(splunkConfig.logStreamField)
-                    .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"))
-          })
+          .map(
+            r =>
+              ActivationLogs(
+                r.results
+                  .map(js => Try(toLogLine(js)))
+                  .map {
+                    case Success(s) => s
+                    case Failure(t) =>
+                      logging.debug(
+                        this,
+                        s"The log message might have been too large " +
+                          s"for '${splunkConfig.index}' Splunk index and can't be retrieved, ${t.getMessage}")
+                      s"The log message can't be retrieved, ${t.getMessage}"
+                  }))
       })
   }
+
+  private def toLogLine(l: JsObject) = //format same as org.apache.openwhisk.core.containerpool.logging.LogLine.toFormattedString
+    f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
+      .fields(splunkConfig.logStreamField)
+      .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"
 
   //based on http://doc.akka.io/docs/akka-http/10.0.6/scala/http/client-side/host-level.html
   val queue =
