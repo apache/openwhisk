@@ -137,7 +137,17 @@ class SplunkLogStore(
             ActivationLogs(
               r.results
                 .map(l =>
-                  try {
+ r.results
+                  .map(js => Try(toLogLine(js)))
+                  .map {
+                    case Success(s) => s
+                    case Failure(t) =>
+                      logging.debug(
+                        this,
+                        s"The log message might have been too large " +
+                          s"for '${splunkConfig.index}' Splunk index and can't be retrieved, ${t.getMessage}")
+                      s"The log message can't be retrieved, ${t.getMessage}"
+                  })
                     //format same as org.apache.openwhisk.core.containerpool.logging.LogLine.toFormattedString
                     f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
                       .fields(splunkConfig.logStreamField)
