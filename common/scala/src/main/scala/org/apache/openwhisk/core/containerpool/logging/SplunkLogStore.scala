@@ -137,10 +137,17 @@ class SplunkLogStore(
             ActivationLogs(
               r.results
                 .map(l =>
-                  //format same as org.apache.openwhisk.core.containerpool.logging.LogLine.toFormattedString
-                  f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
-                    .fields(splunkConfig.logStreamField)
-                    .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"))
+                  try {
+                    //format same as org.apache.openwhisk.core.containerpool.logging.LogLine.toFormattedString
+                    f"${l.fields(splunkConfig.logTimestampField).convertTo[String]}%-30s ${l
+                      .fields(splunkConfig.logStreamField)
+                      .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"
+                  } catch {
+                    case e: Exception =>
+                      logging.debug(this,s"Log message might have been be too large for '${splunkConfig.index}' Splunk index and can't be retrieved, ${e.getMessage}")
+                      s"Log message could not be retrieved, ${e.getMessage}"
+                  }
+                ))
           })
       })
   }
