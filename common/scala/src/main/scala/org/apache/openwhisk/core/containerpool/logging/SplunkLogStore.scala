@@ -144,8 +144,8 @@ class SplunkLogStore(
                       .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"
                   } catch {
                     case e: Exception =>
-                      logging.debug(this,s"Log message might have been be too large for '${splunkConfig.index}' Splunk index and can't be retrieved, ${e.getMessage}")
-                      s"Log message could not be retrieved, ${e.getMessage}"
+                      logging.debug(this,s"The log message might have been too large for '${splunkConfig.index}' Splunk index and can't be retrieved, ${e.getMessage}")
+                      s"The log message can't be retrieved, ${e.getMessage}"
                   }
                 ))
           })

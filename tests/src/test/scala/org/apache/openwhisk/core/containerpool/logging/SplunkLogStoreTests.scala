@@ -157,8 +157,8 @@ class SplunkLogStoreTests
       Vector(
         "2007-12-03T10:15:30Z           stdout: some log message",
         "2007-12-03T10:15:31Z           stderr: some other log message",
-        "Log message could not be retrieved, key not found: log_timestamp",
-        "Log message could not be retrieved, key not found: log_message"))
+        "The log message can't be retrieved, key not found: log_timestamp",
+        "The log message can't be retrieved, key not found: log_message"))
   }
 
   it should "fail to connect to bogus host" in {
