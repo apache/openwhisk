@@ -16,7 +16,7 @@
 
 - name: copy cert files from local to remote in nginx config directory
   copy:
-    src: "files/{{ item }}"
+    src: "{{ nginx.ssl.path }}/{{ item }}"
     dest: "{{ nginx.confdir }}"
   with_items:
         - "{{ nginx.ssl.cert }}"
@@ -25,9 +25,9 @@
 
 - name: copy password files for cert from local to remote in nginx config directory
   copy:
-    src: "files/{{ nginx.ssl.password_file }}"
+    src: "{{ nginx.ssl.path }}/{{ nginx.ssl.password_file }}"
     dest: "{{ nginx.confdir }}"
-  when: nginx.ssl.password_enabled == true
+  when: nginx.ssl.password_file
 
 - name: copy controller cert for authentication
   copy:
@@ -83,10 +83,8 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "nginx"
     volumes: "{{ volumes }}"
-    expose:
-      - 8443
     ports:
       - "{{ nginx.port.http }}:80"
-      - "{{ nginx.port.api }}:443"
+      - "{{ nginx.port.https }}:443"
     env:
       TZ: "{{ docker.timezone }}"
