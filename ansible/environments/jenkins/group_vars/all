@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
+openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
+config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
+whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
+coverage_enabled: "{{ lookup('env', 'GRADLE_COVERAGE') | default('false', true) | bool}}"
+coverage_logs_dir: "{{ openwhisk_tmp_dir }}/wskcov"
+docker_registry: ""
+docker_dns: ""
+runtimes_bypass_pull_for_local_images: true
+invoker_use_runc: "{{ ansible_distribution != 'MacOSX' }}"
+
+db_prefix: whisk_local_
+
+# API GW connection configuration
+apigw_auth_user: ""
+apigw_auth_pwd: ""
+apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"
+
+invoker_allow_multiple_instances: true
+
+# Set kafka configuration
+kafka_heap: '512m'
+kafka_topics_completed_retentionBytes: 104857600
+kafka_topics_completed_retentionMS: 300000
+kafka_topics_health_retentionBytes: 104857600
+kafka_topics_health_retentionMS: 300000
+kafka_topics_invoker_retentionBytes: 104857600
+kafka_topics_invoker_retentionMS: 300000
+
+env_hosts_dir: "{{ playbook_dir }}/environments/jenkins"
+
+container_pool_akka_client: true
+runtimes_enable_concurrency: true
+limit_action_concurrency_max: 500
