@@ -177,6 +177,8 @@ case class PreWarmCompleted(data: PreWarmedData)
 case class InitCompleted(data: WarmedData)
 case object RunCompleted
 case object ContainerStarted
+case class ResourceError(r: Run)
+case class NeedResources(size: ByteSize)
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -232,6 +234,7 @@ class ContainerProxy(
 
   //keep a separate count to avoid confusion with ContainerState.activeActivationCount that is tracked/modified only in ContainerPool
   var activeCount = 0;
+  var firstRun: Option[Run] = None
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -252,6 +255,7 @@ class ContainerProxy(
     // cold start (no container to reuse or available stem cell container)
     case Event(job: Run, _) =>
       implicit val transid = job.msg.transid
+      firstRun = Some(job)
       activeCount += 1
       // create a new container
       val container = factory(
@@ -272,6 +276,8 @@ class ContainerProxy(
             // normalizes the life cycle for containers and their cleanup when activations fail
             self ! PreWarmCompleted(
               PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB, 1))
+          case Failure(_: ClusterResourceError) =>
+          // the container did not come up due to resource errors; we will notify parent (which should retry)
 
           case Failure(t) =>
             // the container did not come up cleanly, so disambiguate the failure mode and then cleanup
@@ -312,6 +318,12 @@ class ContainerProxy(
       context.parent ! NeedWork(completed.data)
       goto(Started) using completed.data
 
+    case Event(FailureMessage(_: ClusterResourceError), data) =>
+      logging.info(this, s"resources (${data.memoryLimit}) unavailable, will retry prewarm later")
+      context.parent ! NeedResources(data.memoryLimit)
+      context.parent ! ContainerRemoved
+      stop()
+
     // container creation failed
     case Event(_: FailureMessage, _) =>
       context.parent ! ContainerRemoved
@@ -323,6 +335,7 @@ class ContainerProxy(
   when(Started) {
     case Event(job: Run, data: PreWarmedData) =>
       implicit val transid = job.msg.transid
+      firstRun = Some(job)
       activeCount += 1
       initializeAndRun(data.container, job)
         .map(_ => RunCompleted)
@@ -383,6 +396,16 @@ class ContainerProxy(
     case Event(_: FailureMessage, data: WarmedData) =>
       activeCount -= 1
       destroyContainer(data.container)
+
+    // Failed at getting a container due to resource shortage during cold-start run
+    case Event(FailureMessage(_: ClusterResourceError), data) =>
+      logging.info(this, s"resources (${data.memoryLimit.toMB}MB) unavailable, will retry run later")
+      activeCount -= 1
+      context.parent ! NeedResources(data.memoryLimit)
+      context.parent ! ContainerRemoved
+      firstRun.foreach(r => context.parent ! r)
+      rejectBuffered()
+      stop()
 
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
