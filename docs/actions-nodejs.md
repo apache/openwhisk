@@ -91,19 +91,17 @@ JavaScript functions that run asynchronously may need to return the activation r
   ```
   wsk activation list --limit 1 asyncAction
   ```
+<pre>
+Datetime            Activation ID                    Kind      Start Duration   Status  Entity
+2019-03-16 19:46:43 64581426b44e4b3d981426b44e3b3d19 nodejs:6  cold  2.033s     success guest/asyncAction:0.0.1
+</pre>
   ```
-  activations
-  b066ca51e68c4d3382df2d8033265db0             asyncAction
-  ```
-
-
-  ```
-  wsk activation get b066ca51e68c4d3382df2d8033265db0
+  wsk activation get 64581426b44e4b3d981426b44e3b3d19
   ```
  ```json
   {
-      "start": 1455881628103,
-      "end":   1455881648126,
+      "start": 1552762003015,
+      "end":   1552762005048,
       ...
   }
   ```
