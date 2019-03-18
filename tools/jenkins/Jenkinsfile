@@ -18,37 +18,40 @@
 
 timeout(time: 4, unit: 'HOURS') {
 
-    node("openwhisk2") {
-        deleteDir()
-        stage ('Checkout and build on OpenWhisk2') {
-            checkout([$class: 'GitSCM', branches: [[name: '${Branch}']], doGenerateSubmoduleConfigurations: false,
-                      extensions: [], submoduleCfg: [],
-                      userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/${Fork}/${RepoName}']]])
-            sh './gradlew :core:invoker:distDocker'
-        }
-    }
-
-    node("openwhisk3") {
-        deleteDir()
-        stage ('Checkout and build on OpenWhisk3') {
-            checkout([$class: 'GitSCM', branches: [[name: '${Branch}']], doGenerateSubmoduleConfigurations: false,
-                     extensions: [], submoduleCfg: [],
-                     userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/${Fork}/${RepoName}']]])
-            sh './gradlew :core:invoker:distDocker'
-       }
-    }
+    def domainName = "openwhisk-vm1-he-de.apache.org"
+    def port = "444"
+    def tag = "latest"
+    def prefix = "whisk"
+    def cert = "domain.crt"
+    def key = "domain.key"
 
     node("openwhisk1") {
         deleteDir()
-        stage ('Checkout and build on OpenWhisk1') {
+        stage ('Checkout') {
             checkout([$class: 'GitSCM', branches: [[name: '${Branch}']], doGenerateSubmoduleConfigurations: false,
                       extensions: [], submoduleCfg: [],
                       userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/${Fork}/${RepoName}']]])
-            sh './gradlew distDocker'
+        }
+
+        stage ('Build') {
+            // Set up a private docker registry service, accessed by all the OpenWhisk VMs.
+            try {
+                sh "docker container stop registry && docker container rm -v registry"
+            } catch (exp) {
+                println("Unable to stop and remove the container registry.")
+            }
+
+            sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
+                -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
+                -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
+            // Build the controller and invoker images.
+            sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
         }
 
         stage('Deploy') {
             dir("ansible") {
+                // Copy the jenkins ansible configuration under the directory ansible. This can make sure the SSH is used to
+                // access the VMs of invokers by the VM of the controller.
                 sh '[ -f "environments/jenkins/ansible_jenkins.cfg" ] && cp environments/jenkins/ansible_jenkins.cfg ansible.cfg'
                 sh 'ansible-playbook -i environments/jenkins setup.yml'
                 sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
