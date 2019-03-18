@@ -32,6 +32,8 @@ import akka.cluster.ddata.Replicator.Changed
 import akka.cluster.ddata.Replicator.Subscribe
 import akka.cluster.ddata.Replicator.Unsubscribe
 import akka.cluster.ddata.Replicator.Update
+import akka.cluster.ddata.Replicator.UpdateFailure
+import akka.cluster.ddata.Replicator.UpdateSuccess
 import akka.cluster.ddata.Replicator.WriteLocal
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Put
@@ -68,11 +70,6 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
     system.actorOf(
       Props(new ContainerPoolClusterData(instanceId, poolActor)),
       ContainerPoolClusterData.clusterPoolActorName(instanceId.toInt))
-  implicit val cluster = Cluster(system)
-  val mediator = DistributedPubSub(system).mediator
-  val replicator = DistributedData(system).replicator
-
-  mediator ! Put(clusterPoolData) //allow point to point messaging based on the actor name: use Send(/user/<myname>) to send messages to me in the cluster
 
   //invoker keys
   val InvokerIdsKey = ORSetKey[Int]("invokerIds")
@@ -86,13 +83,6 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
   //cachedValues
   var idMap: immutable.Set[Int] = Set.empty
-  //subscribe to invoker ids changes (need to setup additional keys based on each invoker arriving)
-  replicator ! Subscribe(InvokerIdsKey, clusterPoolData)
-  //add this invoker to ids list
-  replicator ! Update(InvokerIdsKey, ORSet.empty[Int], WriteLocal)(_ + (myId))
-
-  logging.info(this, "subscribing to NodeStats updates")
-  system.eventStream.subscribe(clusterPoolData, classOf[NodeStatsUpdate])
 
   def activationStartLogMessage(): String =
     s"node stats ${clusterActionHostStats} reserved ${localReservations.size} (of max ${poolConfig.clusterManagedResourceMaxStarts}) containers ${reservedSize}MB " +
@@ -112,10 +102,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
       val removing = removed.groupBy(_._1).map(k => k._1 -> k._2.map(_._2)) //group the removables by invoker, will send single message per invoker
       logging.info(this, s"requesting removal of ${removed.size} eligible idle containers ${removing}")
       removing.foreach { r =>
-        val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(r._1)}"
-        logging.info(this, s"notifying invoker ${remotePath}")
-        mediator ! Send(path = remotePath, msg = ReleaseFree(r._2), localAffinity = false)
-
+        clusterPoolData ! RequestReleaseFree(r._1, r._2)
         //update unusedPool (we won't ask them to be removed twice)
         remoteUnused = remoteUnused + (r._1 -> remoteUnused(r._1).filterNot(r._2.toSet))
 
@@ -196,6 +183,18 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
       .count({ case (_, state) => state.size.toMB > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
 
   class ContainerPoolClusterData(instanceId: InvokerInstanceId, pool: ActorRef) extends Actor {
+    implicit val cluster = Cluster(system)
+    val mediator = DistributedPubSub(system).mediator
+    val replicator = DistributedData(system).replicator
+
+    mediator ! Put(clusterPoolData) //allow point to point messaging based on the actor name: use Send(/user/<myname>) to send messages to me in the cluster
+    //subscribe to invoker ids changes (need to setup additional keys based on each invoker arriving)
+    replicator ! Subscribe(InvokerIdsKey, clusterPoolData)
+    //add this invoker to ids list
+    replicator ! Update(InvokerIdsKey, ORSet.empty[Int], WriteLocal)(_ + (myId))
+
+    logging.info(this, "subscribing to NodeStats updates")
+    system.eventStream.subscribe(clusterPoolData, classOf[NodeStatsUpdate])
 
     var lastUnused: List[RemoteContainerRef] = List.empty
     var lastReservations: List[Reservation] = List.empty
@@ -213,6 +212,13 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
     }
     override def receive: Receive = {
+      case UpdateSuccess => //nothing (normal behavior)
+      case f: UpdateFailure[_] => //log the failure
+        logging.error(this, s"failed to update replicated data: $f")
+      case RequestReleaseFree(id, refs) =>
+        val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(id)}"
+        logging.info(this, s"notifying invoker ${remotePath}")
+        mediator ! Send(path = remotePath, msg = ReleaseFree(refs), localAffinity = false)
       case NodeStatsUpdate(stats) =>
         logging.info(
           this,
@@ -352,6 +358,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
  * */
 case class Reservation(size: ByteSize)
 case class RemoteContainerRef(size: ByteSize, lastUsed: Instant)
+case class RequestReleaseFree(id: Int, remoteContainerRefs: List[RemoteContainerRef])
 case class ReleaseFree(remoteContainerRefs: List[RemoteContainerRef])
 
 object ContainerPoolClusterData {

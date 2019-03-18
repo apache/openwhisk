@@ -418,7 +418,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
 
   def updateUnused() = {
     val unused = freePool.filter(_._2.activeActivationCount == 0)
-    logging.info(this, s"we have ${unused.size} unused")
+    logging.info(this, s"pool has ${unused.size} unused")
     resourceManager.updateUnused(unused)
   }
 }
