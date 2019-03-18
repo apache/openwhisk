@@ -168,11 +168,9 @@ protected[actions] trait PrimitiveActions {
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
-    val originAction = action.binding
-
     val message = ActivationMessage(
       transid,
-      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), originAction),
+      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
       action.rev,
       user,
       activationId, // activation id created here
