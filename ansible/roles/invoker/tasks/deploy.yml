@@ -227,7 +227,7 @@
       "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
       "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
       "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
-      "RUNTIMES_REGISTRY": "{{ runtimes_registry | default('') }}"
+      "CONFIG_whisk_containerFactory_runtimesRegistry_url": "{{ runtimes_registry | default('') }}"
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() | string }}"
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"

@@ -98,7 +98,6 @@ object LeanBalancer extends LoadBalancerProvider {
   }
 
   def requiredProperties =
-    Map(runtimesRegistry -> "") ++
-      ExecManifest.requiredProperties ++
+    ExecManifest.requiredProperties ++
       wskApiHost
 }

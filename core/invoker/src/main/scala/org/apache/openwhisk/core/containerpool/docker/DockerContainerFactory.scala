@@ -25,10 +25,7 @@ import scala.concurrent.Future
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.containerpool.ContainerFactory
-import org.apache.openwhisk.core.containerpool.ContainerFactoryProvider
-import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
+import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.apache.openwhisk.core.entity.InvokerInstanceId
@@ -45,6 +42,8 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                              parameters: Map[String, Set[String]],
                              containerArgsConfig: ContainerArgsConfig =
                                loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
+                             runtimesRegistryConfig: RuntimesRegistryConfig =
+                               loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry),
                              dockerContainerFactoryConfig: DockerContainerFactoryConfig =
                                loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.dockerContainerFactory))(
   implicit actorSystem: ActorSystem,
@@ -63,7 +62,8 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     DockerContainer.create(
       tid,
-      image = if (userProvidedImage) Left(actionImage) else Right(actionImage.localImageName(config.runtimesRegistry)),
+      image =
+        if (userProvidedImage) Left(actionImage) else Right(actionImage.localImageName(runtimesRegistryConfig.url)),
       memory = memory,
       cpuShares = cpuShares,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),

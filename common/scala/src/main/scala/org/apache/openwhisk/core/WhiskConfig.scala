@@ -70,7 +70,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbPrefix = this(WhiskConfig.dbPrefix)
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
-  val runtimesRegistry = this(WhiskConfig.runtimesRegistry)
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
@@ -175,7 +174,6 @@ object WhiskConfig {
   val kafkaHosts = Map(kafkaHostList -> null)
   val zookeeperHosts = Map(zookeeperHostList -> null)
 
-  val runtimesRegistry = "runtimes.registry"
   val runtimesManifest = "runtimes.manifest"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
@@ -220,6 +218,7 @@ object ConfigKeys {
 
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
+  val runtimesRegistry = s"$containerFactory.runtimes-registry"
   val containerPool = "whisk.container-pool"
   val blacklist = "whisk.blacklist"
 
