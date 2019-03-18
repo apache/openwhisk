@@ -153,7 +153,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
                     })
                   .map { a =>
                     //decrease the reserved (not yet stopped container) memory tracker
-                    resourceManager.addReservation(a._1, (-r.action.limits.memory.megabytes).MB)
+                    //resourceManager.addReservation(a._1, (-r.action.limits.memory.megabytes).MB)
                     removeContainer(a._1)
                   }
                   // If the list had at least one entry, enough containers were removed to start the new container. After
@@ -418,7 +418,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
 
   def updateUnused() = {
     val unused = freePool.filter(_._2.activeActivationCount == 0)
-    logging.info(this, s"pool has ${unused.size} unused")
     resourceManager.updateUnused(unused)
   }
 }

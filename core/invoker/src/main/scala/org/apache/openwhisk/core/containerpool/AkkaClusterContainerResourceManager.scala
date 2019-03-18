@@ -48,6 +48,7 @@ import org.apache.openwhisk.utils.NodeStatsUpdate
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Try
 
 class AkkaClusterContainerResourceManager(system: ActorSystem,
@@ -112,6 +113,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   }
 
   def reservedSize = localReservations.values.map(_.size.toMB).sum
+  def remoteReservedSize = remoteReservations.values.map(_.map(_.size.toMB).sum).sum
   def reservedStartCount = localReservations.values.count {
     case p: Reservation => p.size.toMB >= 0
     case _              => false
@@ -184,6 +186,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
   class ContainerPoolClusterData(instanceId: InvokerInstanceId, pool: ActorRef) extends Actor {
     implicit val cluster = Cluster(system)
+    implicit val ec = context.dispatcher
     val mediator = DistributedPubSub(system).mediator
     val replicator = DistributedData(system).replicator
 
@@ -196,9 +199,13 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
     logging.info(this, "subscribing to NodeStats updates")
     system.eventStream.subscribe(clusterPoolData, classOf[NodeStatsUpdate])
 
+    //track the recent updates, so that we only send updates after changes (since this is done periodically, not on each data change)
     var lastUnused: List[RemoteContainerRef] = List.empty
     var lastReservations: List[Reservation] = List.empty
     var lastStats: Map[String, NodeStats] = Map.empty
+
+    //schedule updates
+    context.system.scheduler.schedule(0.seconds, 1.seconds, self, UpdateData)
 
     CoordinatedShutdown(context.system)
       .addTask(CoordinatedShutdown.PhaseBeforeClusterShutdown, "akkaClusterContainerResourceManagerCleanup") { () =>
@@ -212,31 +219,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
     }
     override def receive: Receive = {
-      case UpdateSuccess => //nothing (normal behavior)
-      case f: UpdateFailure[_] => //log the failure
-        logging.error(this, s"failed to update replicated data: $f")
-      case RequestReleaseFree(id, refs) =>
-        val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(id)}"
-        logging.info(this, s"notifying invoker ${remotePath}")
-        mediator ! Send(path = remotePath, msg = ReleaseFree(refs), localAffinity = false)
-      case NodeStatsUpdate(stats) =>
-        logging.info(
-          this,
-          s"received node stats ${stats} reserved/scheduled ${localReservations.size} containers ${reservedSize}MB")
-        clusterActionHostStats = stats
-        if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
-          prewarmsInitialized = true
-          logging.info(this, "initializing prewarmpool after stats recevied")
-          //        initPrewarms()
-          pool ! InitPrewarms
-        }
-
-        //only signal updates (to pool or replicator) in case things have changed
-        if (lastStats != stats) {
-          lastStats = stats
-          pool ! ResourceUpdate
-        }
-
+      case UpdateData =>
         //update this invokers reservations seen by other invokers
         val reservations = localReservations.values.toList
         if (lastReservations != reservations) {
@@ -256,6 +239,32 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
             s"invoker ${myId} (self) has ${lastUnused.size} unused (${lastUnused.map(_.size.toMB).sum}MB)")
           replicator ! Update(myUnusedKey, LWWRegister[List[RemoteContainerRef]](List.empty), WriteLocal)(reg =>
             reg.withValue(idles))
+        }
+      case UpdateSuccess => //nothing (normal behavior)
+      case f: UpdateFailure[_] => //log the failure
+        logging.error(this, s"failed to update replicated data: $f")
+      case RequestReleaseFree(id, refs) =>
+        val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(id)}"
+        logging.info(this, s"notifying invoker ${remotePath}")
+        mediator ! Send(path = remotePath, msg = ReleaseFree(refs), localAffinity = false)
+      case NodeStatsUpdate(stats) =>
+        logging.info(
+          this,
+          s"received node stats ${stats} local reservations:${localReservations.size} (${reservedSize}MB) remote reservations: ${remoteReservations
+            .map(_._2.size)
+            .sum} (${remoteReservedSize}MB)")
+        clusterActionHostStats = stats
+        if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
+          prewarmsInitialized = true
+          logging.info(this, "initializing prewarmpool after stats recevied")
+          //        initPrewarms()
+          pool ! InitPrewarms
+        }
+
+        //only signal updates (to pool or replicator) in case things have changed
+        if (lastStats != stats) {
+          lastStats = stats
+          pool ! ResourceUpdate
         }
 
       case r: ReleaseFree =>
@@ -360,6 +369,7 @@ case class Reservation(size: ByteSize)
 case class RemoteContainerRef(size: ByteSize, lastUsed: Instant)
 case class RequestReleaseFree(id: Int, remoteContainerRefs: List[RemoteContainerRef])
 case class ReleaseFree(remoteContainerRefs: List[RemoteContainerRef])
+case object UpdateData
 
 object ContainerPoolClusterData {
   def clusterPoolActorName(instanceId: Int): String = "containerPoolCluster" + instanceId.toInt
