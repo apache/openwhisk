@@ -199,7 +199,8 @@ case class WhiskActionMetaData(namespace: EntityPath,
                                limits: ActionLimits = ActionLimits(),
                                version: SemVer = SemVer(),
                                publish: Boolean = false,
-                               annotations: Parameters = Parameters())
+                               annotations: Parameters = Parameters(),
+                               binding: Option[EntityPath] = None)
     extends WhiskActionLikeMetaData(name) {
 
   require(exec != null, "exec undefined")
@@ -210,6 +211,9 @@ case class WhiskActionMetaData(namespace: EntityPath,
    * Existing parameters supersede those in p.
    */
   def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskActionMetaData](rev)
+
+  def inherit(p: Parameters, binding: EntityPath) =
+    copy(parameters = p ++ parameters, binding = Some(binding)).revision[WhiskActionMetaData](rev)
 
   /**
    * Resolves sequence components if they contain default namespace.
@@ -228,31 +232,19 @@ case class WhiskActionMetaData(namespace: EntityPath,
   def toExecutableWhiskAction = exec match {
     case execMetaData: ExecMetaData =>
       Some(
-        ExecutableWhiskActionMetaData(namespace, name, execMetaData, parameters, limits, version, publish, annotations)
+        ExecutableWhiskActionMetaData(
+          namespace,
+          name,
+          execMetaData,
+          parameters,
+          limits,
+          version,
+          publish,
+          annotations,
+          binding)
           .revision[ExecutableWhiskActionMetaData](rev))
     case _ =>
       None
-  }
-
-  def toExecutableWhiskAction(binding: Option[EntityPath]) = {
-
-    exec match {
-      case execMetaData: ExecMetaData =>
-        Some(
-          ExecutableWhiskActionMetaData(
-            namespace,
-            name,
-            execMetaData,
-            parameters,
-            limits,
-            version,
-            publish,
-            annotations,
-            binding)
-            .revision[ExecutableWhiskActionMetaData](rev))
-
-      case _ => None
-    }
   }
 }
 
@@ -559,7 +551,8 @@ object WhiskActionMetaData
     "limits",
     "version",
     "publish",
-    "annotations")
+    "annotations",
+    "binding")
 
   override val cacheEnabled = true
 
@@ -612,7 +605,9 @@ object WhiskActionMetaData
         val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
         // get the whisk action associate with it and inherit the parameters from the package/binding
         WhiskActionMetaData.get(entityStore, fqnAction.toDocId) map {
-          _.inherit(resolvedPkg.parameters)
+          if (fullyQualifiedName.path.equals(resolvedPkg.fullPath))
+            _.inherit(resolvedPkg.parameters)
+          else _.inherit(resolvedPkg.parameters, fullyQualifiedName.path)
         }
       }
     }

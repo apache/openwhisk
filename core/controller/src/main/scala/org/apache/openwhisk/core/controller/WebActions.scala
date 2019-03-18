@@ -486,9 +486,6 @@ trait WhiskWebActionsApi
                     var requiredAuthOk =
                       requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
 
-                    // if an invoked action is in a package binding, preserve a name that is not rewritten
-                    val binding = if (action.namespace == fullActionName.path) None else Some(fullActionName.path)
-
                     if (!requiredAuthOk) {
                       logging.debug(
                         this,
@@ -501,25 +498,11 @@ trait WhiskWebActionsApi
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
                         } else {
-                          extractEntityAndProcessRequest(
-                            actionOwnerIdentity,
-                            action,
-                            extension,
-                            onBehalfOf,
-                            context,
-                            e,
-                            binding)
+                          extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                         }
                       }
                     } else {
-                      extractEntityAndProcessRequest(
-                        actionOwnerIdentity,
-                        action,
-                        extension,
-                        onBehalfOf,
-                        context,
-                        e,
-                        binding)
+                      extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                     }
 
                   case Failure(t: RejectRequest) =>
@@ -568,18 +551,10 @@ trait WhiskWebActionsApi
                                              extension: MediaExtension,
                                              onBehalfOf: Option[Identity],
                                              context: Context,
-                                             httpEntity: HttpEntity,
-                                             binding: Option[EntityPath])(implicit transid: TransactionId) = {
+                                             httpEntity: HttpEntity)(implicit transid: TransactionId) = {
 
     def process(body: Option[JsValue], isRawHttpAction: Boolean) = {
-      processRequest(
-        actionOwnerIdentity,
-        action,
-        extension,
-        onBehalfOf,
-        context.withBody(body),
-        isRawHttpAction,
-        binding)
+      processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
     provide(action.annotations.getAs[Boolean](WhiskAction.rawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
@@ -624,8 +599,7 @@ trait WhiskWebActionsApi
                              responseType: MediaExtension,
                              onBehalfOf: Option[Identity],
                              context: Context,
-                             isRawHttpAction: Boolean,
-                             binding: Option[EntityPath] = None)(implicit transid: TransactionId) = {
+                             isRawHttpAction: Boolean)(implicit transid: TransactionId) = {
 
     def queuedActivation = {
       // checks (1) if any of the query or body parameters override final action parameters
@@ -638,13 +612,7 @@ trait WhiskWebActionsApi
       if (isRawHttpAction || context
             .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-        invokeAction(
-          actionOwnerIdentity,
-          action,
-          Some(JsObject(content)),
-          maxWaitForWebActionResult,
-          cause = None,
-          binding)
+        invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
       } else {
         Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
       }

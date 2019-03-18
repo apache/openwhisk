@@ -75,16 +75,15 @@ protected[actions] trait PrimitiveActions {
   private val producer = messagingProvider.getProducer(services.whiskConfig)
 
   /** A method that knows how to invoke a sequence of actions. */
-  protected[actions] def invokeSequence(user: Identity,
-                                        action: WhiskActionMetaData,
-                                        components: Vector[FullyQualifiedEntityName],
-                                        payload: Option[JsObject],
-                                        waitForOutermostResponse: Option[FiniteDuration],
-                                        cause: Option[ActivationId],
-                                        topmost: Boolean,
-                                        atomicActionsCount: Int,
-                                        binding: Option[EntityPath] = None)(
-    implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)]
+  protected[actions] def invokeSequence(
+    user: Identity,
+    action: WhiskActionMetaData,
+    components: Vector[FullyQualifiedEntityName],
+    payload: Option[JsObject],
+    waitForOutermostResponse: Option[FiniteDuration],
+    cause: Option[ActivationId],
+    topmost: Boolean,
+    atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)]
 
   /**
    * A method that knows how to invoke a single primitive action or a composition.
@@ -406,10 +405,8 @@ protected[actions] trait PrimitiveActions {
           .resolveActionAndMergeParameters(entityStore, fqn)
           .flatMap {
             case next =>
-              val binding = if (next.namespace == fqn.path) None else Some(fqn.path)
-
               // successful resolution
-              invokeComponent(user, action = next, payload = params, binding, session)
+              invokeComponent(user, action = next, payload = params, session)
           }
           .recoverWith {
             case _ =>
@@ -439,17 +436,13 @@ protected[actions] trait PrimitiveActions {
    * @param user the identity invoking the action
    * @param action the component action to invoke
    * @param payload the dynamic arguments for the activation
-   * @param binding the entity path of the package binding
    * @param session the session object for this composition
    * @param transid a transaction id for logging
    */
-  private def invokeComponent(user: Identity,
-                              action: WhiskActionMetaData,
-                              payload: Option[JsObject],
-                              binding: Option[EntityPath],
-                              session: Session)(implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def invokeComponent(user: Identity, action: WhiskActionMetaData, payload: Option[JsObject], session: Session)(
+    implicit transid: TransactionId): Future[ActivationResponse] = {
 
-    val exec = action.toExecutableWhiskAction(binding)
+    val exec = action.toExecutableWhiskAction
     val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
       case Some(action) if action.annotations.isTruthy(WhiskActivation.conductorAnnotation) => // composition
         // invokeComposition will increase the invocation counts
@@ -479,8 +472,7 @@ protected[actions] trait PrimitiveActions {
           waitForOutermostResponse = None,
           cause = Some(session.activationId),
           topmost = false,
-          atomicActionsCount = 0,
-          binding).map(r => r._1)
+          atomicActionsCount = 0).map(r => r._1)
     }
 
     waitForActivation(user, session, activationResponse).flatMap {

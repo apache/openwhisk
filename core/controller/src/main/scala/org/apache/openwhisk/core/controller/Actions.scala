@@ -261,11 +261,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
                   .getOrElse(true)
 
-                // if an invoked action is in a package binding, preserve a name that is not rewritten
-                val binding = if (action.namespace == entityName.path) None else Some(entityName.path)
-
                 if (allowInvoke) {
-                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result, binding)
+                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
                 } else {
                   terminate(BadRequest, Messages.parametersNotAllowed)
                 }
@@ -278,16 +275,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     }
   }
 
-  private def doInvoke(
-    user: Identity,
-    actionWithMergedParams: WhiskActionMetaData,
-    payload: Option[JsObject],
-    blocking: Boolean,
-    waitOverride: FiniteDuration,
-    result: Boolean,
-    binding: Option[EntityPath])(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+  private def doInvoke(user: Identity,
+                       actionWithMergedParams: WhiskActionMetaData,
+                       payload: Option[JsObject],
+                       blocking: Boolean,
+                       waitOverride: FiniteDuration,
+                       result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
-    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None, binding)) {
+    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead
         respondWithActivationIdHeader(activationId) {

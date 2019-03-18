@@ -70,8 +70,7 @@ protected[actions] trait SequenceActions {
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId],
-    binding: Option[EntityPath] = None)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
   /**
    * Executes a sequence by invoking in a blocking fashion each of its components.
@@ -87,16 +86,15 @@ protected[actions] trait SequenceActions {
    * @param transid a transaction id for logging
    * @return a future of type (ActivationId, Some(WhiskActivation), atomicActionsCount) if blocking; else (ActivationId, None, 0)
    */
-  protected[actions] def invokeSequence(user: Identity,
-                                        action: WhiskActionMetaData,
-                                        components: Vector[FullyQualifiedEntityName],
-                                        payload: Option[JsObject],
-                                        waitForOutermostResponse: Option[FiniteDuration],
-                                        cause: Option[ActivationId],
-                                        topmost: Boolean,
-                                        atomicActionsCount: Int,
-                                        binding: Option[EntityPath] = None)(
-    implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)] = {
+  protected[actions] def invokeSequence(
+    user: Identity,
+    action: WhiskActionMetaData,
+    components: Vector[FullyQualifiedEntityName],
+    payload: Option[JsObject],
+    waitForOutermostResponse: Option[FiniteDuration],
+    cause: Option[ActivationId],
+    topmost: Boolean,
+    atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)] = {
     require(action.exec.kind == Exec.SEQUENCE, "this method requires an action sequence")
 
     // create new activation id that corresponds to the sequence
@@ -123,8 +121,7 @@ protected[actions] trait SequenceActions {
         action,
         topmost,
         start,
-        cause,
-        binding)
+        cause)
     }
 
     if (topmost) { // need to deal with blocking and closing connection
@@ -156,8 +153,7 @@ protected[actions] trait SequenceActions {
                                          action: WhiskActionMetaData,
                                          topmost: Boolean,
                                          start: Instant,
-                                         cause: Option[ActivationId],
-                                         binding: Option[EntityPath] = None)(
+                                         cause: Option[ActivationId])(
     implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
     val context = UserContext(user)
 
@@ -168,7 +164,7 @@ protected[actions] trait SequenceActions {
         // sequence terminated, the result of the sequence is the result of the last completed activation
         val end = Instant.now(Clock.systemUTC())
         val seqActivation =
-          makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end, binding)
+          makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end)
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
@@ -197,8 +193,7 @@ protected[actions] trait SequenceActions {
                                      topmost: Boolean,
                                      cause: Option[ActivationId],
                                      start: Instant,
-                                     end: Instant,
-                                     bindingPath: Option[EntityPath] = None): WhiskActivation = {
+                                     end: Instant): WhiskActivation = {
 
     // compute max memory
     val sequenceLimits = accounting.maxMemory map { maxMemoryAcrossActionsInSequence =>
@@ -213,7 +208,7 @@ protected[actions] trait SequenceActions {
     } else None
 
     // set binding if an invoked action is in a package binding
-    val binding = bindingPath map { path =>
+    val binding = action.binding map { path =>
       Parameters(WhiskActivation.bindingAnnotation, JsString(path.asString))
     }
 
@@ -340,11 +335,8 @@ protected[actions] trait SequenceActions {
       // which prevents dragging the previous response for the lifetime of the next activation
       val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
 
-      // if an invoked action is in a package binding, preserve a name that is not rewritten
-      val binding = if (action.namespace == originAction.path) None else Some(originAction.path)
-
       // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
-      val futureWhiskActivationTuple = action.toExecutableWhiskAction(binding) match {
+      val futureWhiskActivationTuple = action.toExecutableWhiskAction match {
         case None =>
           val SequenceExecMetaData(components) = action.exec
           logging.debug(this, s"sequence invoking an enclosed sequence $action")
@@ -357,13 +349,12 @@ protected[actions] trait SequenceActions {
             None,
             cause,
             topmost = false,
-            accounting.atomicActionCnt,
-            binding)
+            accounting.atomicActionCnt)
         case Some(executable) =>
           // this is an invoke for an atomic action
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
-          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause, binding) map {
+          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
             case res => (res, accounting.atomicActionCnt + 1)
           }
       }
