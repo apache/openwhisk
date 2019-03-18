@@ -16,9 +16,11 @@
  */
 
 package org.apache.openwhisk.core.containerpool
+import akka.Done
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown
 import akka.actor.Props
 import akka.cluster.Cluster
 import akka.cluster.ddata.DistributedData
@@ -43,6 +45,7 @@ import org.apache.openwhisk.utils.NodeStats
 import org.apache.openwhisk.utils.NodeStatsUpdate
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Future
 import scala.util.Try
 
 class AkkaClusterContainerResourceManager(system: ActorSystem,
@@ -52,9 +55,12 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
     extends ContainerResourceManager {
 
   /** cluster state tracking */
-  private var clusterReservations: Map[ActorRef, Reservation] = Map.empty //this pool's own reservations
+  private var localReservations: Map[ActorRef, Reservation] = Map.empty //this pool's own reservations
   private var remoteReservations: Map[Int, List[Reservation]] = Map.empty //other pool's reservations
-  private var unused: Map[ActorRef, ContainerData] = Map.empty // this pool's unused containers
+  private var localUnused: Map[ActorRef, ContainerData] = Map.empty // this pool's unused containers
+  private var remoteUnused
+    : Map[Int, List[RemoteContainerRef]] = Map.empty //invoker akka address -> List[RemoteContainerRef]
+
   var clusterActionHostStats = Map.empty[String, NodeStats] //track the most recent node stats per action host (host that is able to run action containers)
   var clusterActionHostsCount = 0
   var prewarmsInitialized = false
@@ -72,14 +78,13 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   val InvokerIdsKey = ORSetKey[Int]("invokerIds")
   //my keys
   val myId = instanceId.toInt
-  val myKey = LWWRegisterKey[List[Reservation]]("reservation" + myId)
+  val myReservationsKey = LWWRegisterKey[List[Reservation]]("reservation" + myId)
   val myUnusedKey = LWWRegisterKey[List[RemoteContainerRef]]("unused" + myId)
   //remote keys
   var reservationKeys: immutable.Map[Int, LWWRegisterKey[List[Reservation]]] = Map.empty
   var unusedKeys: immutable.Map[Int, LWWRegisterKey[List[RemoteContainerRef]]] = Map.empty
 
   //cachedValues
-  var unusedPool: Map[Int, List[RemoteContainerRef]] = Map.empty //invoker akka address -> List[RemoteContainerRef]
   var idMap: immutable.Set[Int] = Set.empty
   //subscribe to invoker ids changes (need to setup additional keys based on each invoker arriving)
   replicator ! Subscribe(InvokerIdsKey, clusterPoolData)
@@ -90,49 +95,49 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   system.eventStream.subscribe(clusterPoolData, classOf[NodeStatsUpdate])
 
   def activationStartLogMessage(): String =
-    s"node stats ${clusterActionHostStats} reserved ${clusterReservations.size} (of max ${poolConfig.clusterManagedResourceMaxStarts}) containers ${reservedSize}MB " +
+    s"node stats ${clusterActionHostStats} reserved ${localReservations.size} (of max ${poolConfig.clusterManagedResourceMaxStarts}) containers ${reservedSize}MB " +
       s"${reservedStartCount} pending starts ${reservedStopCount} pending stops " +
       s"${scheduledStartCount} scheduled starts ${scheduledStopCount} scheduled stops"
 
   def rescheduleLogMessage() = {
-    s"reservations: ${clusterReservations.size}"
+    s"reservations: ${localReservations.size}"
   }
 
   def requestSpace(size: ByteSize) = {
-    val bufferedSize = size + 4096.MB
-    logging.info(this, s"signalling cluster release of idle resources up to ${bufferedSize.toMB}MB")
+    val bufferedSize = size * 10 //request 10x the required space to allow for failures and additional traffic
     //find idles up to this size
-    val removable = unusedPool.map(u => u._2.map(u._1 -> _)).flatten.to[ListBuffer]
+    val removable = remoteUnused.map(u => u._2.map(u._1 -> _)).flatten.to[ListBuffer]
     val removed = remove(removable, bufferedSize) //add some buffer so that any accumulating activations will have better chance
-    val removing = removed.groupBy(_._1).map(k => k._1 -> k._2.map(_._2)) //group the removables by invoker, will send single message per invoker
-    logging.info(this, s"requesting removal of ${removed.size} eligible idle containers ${removing}")
-    removing.foreach { r =>
-      //        val addrOpt = idMap.find(_.id == r._1).map(_.address)
+    if (removed.nonEmpty) {
+      val removing = removed.groupBy(_._1).map(k => k._1 -> k._2.map(_._2)) //group the removables by invoker, will send single message per invoker
+      logging.info(this, s"requesting removal of ${removed.size} eligible idle containers ${removing}")
+      removing.foreach { r =>
+        val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(r._1)}"
+        logging.info(this, s"notifying invoker ${remotePath}")
+        mediator ! Send(path = remotePath, msg = ReleaseFree(r._2), localAffinity = false)
 
-      val remotePath = s"/user/${ContainerPoolClusterData.clusterPoolActorName(r._1)}"
-      logging.info(this, s"notifying invoker ${remotePath}")
-      mediator ! Send(path = remotePath, msg = ReleaseFree(r._2), localAffinity = false)
+        //update unusedPool (we won't ask them to be removed twice)
+        remoteUnused = remoteUnused + (r._1 -> remoteUnused(r._1).filterNot(r._2.toSet))
 
-      //update unusedPool (we won't ask them to be removed twice)
-      unusedPool = unusedPool + (r._1 -> unusedPool(r._1).filterNot(r._2.toSet))
-
+      }
     }
+
   }
 
-  def reservedSize = clusterReservations.values.map(_.size.toMB).sum
-  def reservedStartCount = clusterReservations.values.count {
+  def reservedSize = localReservations.values.map(_.size.toMB).sum
+  def reservedStartCount = localReservations.values.count {
     case p: Reservation => p.size.toMB >= 0
     case _              => false
   }
-  def reservedStopCount = clusterReservations.values.count {
+  def reservedStopCount = localReservations.values.count {
     case p: Reservation => p.size.toMB < 0
     case _              => false
   }
-  def scheduledStartCount = clusterReservations.values.count {
+  def scheduledStartCount = localReservations.values.count {
     case p: Reservation => p.size.toMB >= 0
     case _              => false
   }
-  def scheduledStopCount = clusterReservations.values.count {
+  def scheduledStopCount = localReservations.values.count {
     case p: Reservation => p.size.toMB < 0
     case _              => false
   }
@@ -141,10 +146,10 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
   def canLaunch(memory: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean = {
 
-    val localReservations = clusterReservations.values.map(_.size) //active local reservations
+    val localRes = localReservations.values.map(_.size) //active local reservations
     val remoteRes = remoteReservations.values.toList.flatten.map(_.size) //remote/stale reservations
 
-    val allRes = localReservations ++ remoteRes
+    val allRes = localRes ++ remoteRes
     //make sure there is at least one node with unreserved mem > memory
     val canLaunch = clusterHasPotentialMemoryCapacity(memory.toMB, allRes) //consider all reservations blocking till they are removed during NodeStatsUpdate
     //log only when changing value
@@ -181,13 +186,13 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
   /** reservation adjustments */
   def addReservation(ref: ActorRef, size: ByteSize): Unit = {
-    clusterReservations = clusterReservations + (ref -> Reservation(size))
+    localReservations = localReservations + (ref -> Reservation(size))
   }
   def releaseReservation(ref: ActorRef): Unit = {
-    clusterReservations = clusterReservations - ref
+    localReservations = localReservations - ref
   }
   def allowMoreStarts(config: ContainerPoolConfig): Boolean =
-    clusterReservations
+    localReservations
       .count({ case (_, state) => state.size.toMB > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
 
   class ContainerPoolClusterData(instanceId: InvokerInstanceId, pool: ActorRef) extends Actor {
@@ -195,19 +200,23 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
     var lastUnused: List[RemoteContainerRef] = List.empty
     var lastReservations: List[Reservation] = List.empty
     var lastStats: Map[String, NodeStats] = Map.empty
-    def updateRemoteReservations(id: Int, reservations: List[Reservation]) = {
-      remoteReservations = remoteReservations + (id -> reservations)
-    }
 
-    override def postStop(): Unit = {
+    CoordinatedShutdown(context.system)
+      .addTask(CoordinatedShutdown.PhaseBeforeClusterShutdown, "akkaClusterContainerResourceManagerCleanup") { () =>
+        cleanup()
+        Future.successful(Done)
+      }
+    private def cleanup() = {
       //remove this invoker from ids list
+      logging.info(this, s"stopping invoker ${myId}")
       replicator ! Update(InvokerIdsKey, ORSet.empty[Int], WriteLocal)(_ - myId)
+
     }
     override def receive: Receive = {
       case NodeStatsUpdate(stats) =>
         logging.info(
           this,
-          s"received node stats ${stats} reserved/scheduled ${clusterReservations.size} containers ${reservedSize}MB")
+          s"received node stats ${stats} reserved/scheduled ${localReservations.size} containers ${reservedSize}MB")
         clusterActionHostStats = stats
         if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
           prewarmsInitialized = true
@@ -223,20 +232,22 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         }
 
         //update this invokers reservations seen by other invokers
-        val reservations = clusterReservations.values.toList
+        val reservations = localReservations.values.toList
         if (lastReservations != reservations) {
           lastReservations = reservations
           logging.info(
             this,
-            s"invoker ${myId} now has ${reservations.size} reservations (${reservations.map(_.size.toMB).sum}MB)")
-          replicator ! Update(myKey, LWWRegister[List[Reservation]](List.empty), WriteLocal)(reg =>
+            s"invoker ${myId} (self) has ${reservations.size} reservations (${reservations.map(_.size.toMB).sum}MB)")
+          replicator ! Update(myReservationsKey, LWWRegister[List[Reservation]](List.empty), WriteLocal)(reg =>
             reg.withValue(reservations))
         }
         //update this invokers idles seen by other invokers
-        val idles = unused.map(f => RemoteContainerRef(f._2.memoryLimit, f._2.lastUsed)).toList
+        val idles = localUnused.map(f => RemoteContainerRef(f._2.memoryLimit, f._2.lastUsed)).toList
         if (lastUnused != idles) {
           lastUnused = idles
-          logging.info(this, s"invoker ${myId} now has ${idles.size} idles (${idles.map(_.size.toMB).sum}MB)")
+          logging.info(
+            this,
+            s"invoker ${myId} (self) has ${lastUnused.size} unused (${lastUnused.map(_.size.toMB).sum}MB)")
           replicator ! Update(myUnusedKey, LWWRegister[List[RemoteContainerRef]](List.empty), WriteLocal)(reg =>
             reg.withValue(idles))
         }
@@ -257,47 +268,55 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
           if (res) {
             val idKey = LWWRegisterKey[List[Reservation]]("reservation" + id)
             val newValue = c.get(idKey).value
-            updateRemoteReservations(id, newValue)
+            logging.info(this, s"invoker ${id} has ${newValue.size} reservations (${newValue.map(_.size.toMB).sum}MB)")
+            remoteReservations = remoteReservations + (id -> newValue)
           } else {
             val unusedKey = LWWRegisterKey[List[RemoteContainerRef]]("unused" + id)
             val newValue = c.get(unusedKey).value
-            println(s"updating unused pool ${newValue}")
-            unusedPool = unusedPool + (id -> newValue)
+            logging.info(this, s"invoker ${id} has ${newValue.size} idles (${newValue.map(_.size.toMB).sum}MB)")
+            remoteUnused = remoteUnused + (id -> newValue)
           }
         }
       case c @ Changed(InvokerIdsKey) =>
         val newValue = c.get(InvokerIdsKey).elements
-        if (reservationKeys.keySet != newValue) {
-          val deleted = reservationKeys.keySet.diff(newValue)
-          val added = newValue.diff(reservationKeys.keySet)
-          added.foreach { id =>
-            println(s"adding id ${id}")
-            val idKey = LWWRegisterKey[List[Reservation]]("reservation" + id)
-            if (id != myId) { //skip my own id
+        val deleted = reservationKeys.keySet.diff(newValue)
+        val added = newValue.diff(reservationKeys.keySet)
+        added.foreach { id =>
+          if (id != myId) { //skip my own id
+            if (!reservationKeys.keySet.contains(id)) {
+              val idKey = LWWRegisterKey[List[Reservation]]("reservation" + id)
               val unusedKey = LWWRegisterKey[List[RemoteContainerRef]]("unused" + id)
+              logging.info(this, s"adding invoker ${id} to resource tracking")
               reservationKeys = reservationKeys + (id -> idKey)
               unusedKeys = unusedKeys + (id -> unusedKey)
               replicator ! Subscribe(idKey, self)
               replicator ! Subscribe(unusedKey, self)
+            } else {
+              logging.warn(this, s"invoker ${id} already tracked, will not add")
             }
-
           }
-          deleted.foreach { id =>
-            println(s"removing id ${id}")
+        }
+        deleted.foreach { id =>
+          if (reservationKeys.keySet.contains(id)) {
+            logging.info(
+              this,
+              s"removing invoker ${id} (${remoteReservations.get(id).map(_.size)} reservations, ${remoteUnused.get(id).map(_.size)} idles) from resource tracking")
             val idKey = LWWRegisterKey[List[Reservation]]("reservation" + id)
             val unusedKey = LWWRegisterKey[List[RemoteContainerRef]]("unused" + id)
             reservationKeys = reservationKeys - id
             unusedKeys = unusedKeys - id
             replicator ! Unsubscribe(idKey, self)
             replicator ! Unsubscribe(unusedKey, self)
-            updateRemoteReservations(id, List.empty)
+            remoteReservations = remoteReservations + (id -> List.empty)
+            remoteUnused = remoteUnused + (id -> List.empty)
+          } else {
+            logging.warn(this, s"invoker ${id} not tracked, will not remove")
           }
         }
     }
   }
   def updateUnused(newUnused: Map[ActorRef, ContainerData]): Unit = {
-
-    unused = newUnused
+    localUnused = newUnused
   }
   def remove[A](pool: ListBuffer[(A, RemoteContainerRef)], memory: ByteSize): List[(A, RemoteContainerRef)] = {
 

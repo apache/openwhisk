@@ -113,7 +113,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
       implicit val tid: TransactionId = r.msg.transid
       // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
       val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
-//      println(s"is resent ${isResentFromBuffer}")
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
@@ -230,7 +229,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
             }
             if (!isResentFromBuffer) {
               // Add this request to the buffer, as it is not there yet.
-//              println(s"enqueue1 ${r.msg.activationId}")
               runBuffer = runBuffer.enqueue(r)
             }
             if (!poolConfig.clusterManagedResources) {
@@ -241,7 +239,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
         // These waiting actions were not able to free up enough memory.
-//        println(s"enqueue2 ${r.msg.activationId}")
         runBuffer = runBuffer.enqueue(r)
       }
 
@@ -318,7 +315,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
       //so preemptively request more
       resourceManager.requestSpace(size)
     case ReleaseFree(refs) =>
-      logging.info(this, s"pool is trying to release ${refs.size} containers by request of ${sender()}")
+      logging.info(this, s"pool is trying to release ${refs.size} containers by request of invoker")
       //remove each ref, IFF it is still not in use, and has not been used since the removal was requested
       refs.foreach(r =>
         freePool
@@ -421,7 +418,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
 
   def updateUnused() = {
     val unused = freePool.filter(_._2.activeActivationCount == 0)
-    println(s"now we have ${unused.size} unused")
+    logging.info(this, s"we have ${unused.size} unused")
     resourceManager.updateUnused(unused)
   }
 }
