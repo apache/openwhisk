@@ -274,8 +274,8 @@ case class WhiskActionMetaData(namespace: EntityPath,
  * @param limits the limits to impose on the action
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotations the set of annotations to attribute to the action
- * @param binding the path of the package binding
+ * @param annotation the set of annotations to attribute to the action
+ * @param binding the path of the package binding if any
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -328,7 +328,10 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
     WhiskActionMetaData(namespace, name, exec, parameters, limits, version, publish, annotations)
       .revision[WhiskActionMetaData](rev)
 
-  def bindingFullyQualifiedName =
+  /**
+   * Some fully qualified name only if there's a binding, else None.
+   */
+  def bindingFullyQualifiedName: Option[FullyQualifiedEntityName] =
     binding.map(ns => FullyQualifiedEntityName(ns, name, None))
 
 }
