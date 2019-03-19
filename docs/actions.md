@@ -236,7 +236,7 @@ Some common CLI commands for working with activations are:
 - `wsk activation logs <activationId>`: retrieves only the logs of the activation.
 - `wsk activation logs <activationId> --strip`: strips metadata from each log line so the logs are easier to read.
 
-#### The `wsk activation list` command 
+#### The `wsk activation list` command
 
 The `activation list` command lists all activations, or activations filtered by namespace or name. The result set can be limited by using several flags:
 
