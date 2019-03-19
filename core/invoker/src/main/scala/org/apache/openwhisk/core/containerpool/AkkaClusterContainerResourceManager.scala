@@ -40,6 +40,8 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Put
 import akka.cluster.pubsub.DistributedPubSubMediator.Send
 import java.time.Instant
 import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.LoggingMarkers
+import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.InvokerInstanceId
 import org.apache.openwhisk.core.entity.size._
@@ -254,6 +256,14 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
             .map(_._2.size)
             .sum} (${remoteReservedSize}MB)")
         clusterActionHostStats = stats
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.CLUSTER_RESOURCES_TOTAL_MEM,
+          stats.values.map(_.mem).sum.toLong)
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM,
+          stats.values.maxBy(_.mem).mem.toLong)
+        MetricEmitter.emitCounterMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
+
         if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
           prewarmsInitialized = true
           logging.info(this, "initializing prewarmpool after stats recevied")
