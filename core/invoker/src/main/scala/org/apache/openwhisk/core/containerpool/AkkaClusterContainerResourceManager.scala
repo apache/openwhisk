@@ -262,7 +262,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         MetricEmitter.emitHistogramMetric(
           LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM,
           stats.values.maxBy(_.mem).mem.toLong)
-        MetricEmitter.emitCounterMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
+        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
 
         if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
           prewarmsInitialized = true
