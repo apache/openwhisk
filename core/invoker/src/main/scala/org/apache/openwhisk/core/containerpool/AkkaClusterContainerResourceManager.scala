@@ -190,14 +190,14 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
     val mediator = DistributedPubSub(system).mediator
     val replicator = DistributedData(system).replicator
 
-    mediator ! Put(clusterPoolData) //allow point to point messaging based on the actor name: use Send(/user/<myname>) to send messages to me in the cluster
+    mediator ! Put(self) //allow point to point messaging based on the actor name: use Send(/user/<myname>) to send messages to me in the cluster
     //subscribe to invoker ids changes (need to setup additional keys based on each invoker arriving)
-    replicator ! Subscribe(InvokerIdsKey, clusterPoolData)
+    replicator ! Subscribe(InvokerIdsKey, self)
     //add this invoker to ids list
     replicator ! Update(InvokerIdsKey, ORSet.empty[Int], WriteLocal)(_ + (myId))
 
     logging.info(this, "subscribing to NodeStats updates")
-    system.eventStream.subscribe(clusterPoolData, classOf[NodeStatsUpdate])
+    system.eventStream.subscribe(self, classOf[NodeStatsUpdate])
 
     //track the recent updates, so that we only send updates after changes (since this is done periodically, not on each data change)
     var lastUnused: List[RemoteContainerRef] = List.empty

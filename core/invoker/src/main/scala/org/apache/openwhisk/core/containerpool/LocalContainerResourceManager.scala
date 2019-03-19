@@ -18,10 +18,9 @@
 package org.apache.openwhisk.core.containerpool
 import akka.actor.ActorRef
 import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.ByteSize
 
-class LocalContainerResourceManager(implicit logging: Logging, tid: TransactionId) extends ContainerResourceManager {
+class LocalContainerResourceManager(implicit logging: Logging) extends ContainerResourceManager {
 
   override def activationStartLogMessage(): String = ""
   override def rescheduleLogMessage(): String = ""

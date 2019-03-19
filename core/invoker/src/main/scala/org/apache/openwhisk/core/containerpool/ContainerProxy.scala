@@ -233,7 +233,8 @@ class ContainerProxy(
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
 
   //keep a separate count to avoid confusion with ContainerState.activeActivationCount that is tracked/modified only in ContainerPool
-  var activeCount = 0;
+  var activeCount = 0
+  //track the first run for easily referring to the action being initialized (it may fail)
   var firstRun: Option[Run] = None
   startWith(Uninitialized, NoData())
 
@@ -399,7 +400,9 @@ class ContainerProxy(
 
     // Failed at getting a container due to resource shortage during cold-start run
     case Event(FailureMessage(_: ClusterResourceError), data) =>
-      logging.info(this, s"resources (${data.memoryLimit.toMB}MB) unavailable, will retry run later")
+      logging.info(
+        this,
+        s"resources (${firstRun.map(_.action.limits.memory.megabytes)}MB) unavailable, will retry run later")
       activeCount -= 1
       context.parent ! NeedResources(data.memoryLimit)
       context.parent ! ContainerRemoved
