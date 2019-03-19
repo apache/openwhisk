@@ -227,8 +227,55 @@ so that one may check for the result later, as with non-blocking requests
 When an action exceeds its configured time limit, the activation record will indicate this error.
 See [understanding the activation record](#understanding-the-activation-record) for more details.
 
+### Working with activations
 
-### Understanding the activation record
+Some common CLI commands for working with activations are:
+- `wsk activation list`: lists all activations
+- `wsk activation get --last`: retrieves the most recent activation record
+- `wsk activation result <activationId>`: retrieves only the result of the activation (or use `--last` to get the most recent result).
+- `wsk activation logs <activationId>`: retrieves only the logs of the activation.
+- `wsk activation logs <activationId> --strip`: strips metadata from each log line so the logs are easier to read.
+
+#### The `wsk activation list` command
+
+The `activation list` command lists all activations, or activations filtered by namespace or name. The result set can be limited by using several flags:
+
+```
+Flags:
+  -f, --full          include full activation description
+  -l, --limit LIMIT   only return LIMIT number of activations from the collection with a maximum LIMIT of 200 activations (default 30)
+      --since SINCE   return activations with timestamps later than SINCE; measured in milliseconds since Th, 01, Jan 1970
+  -s, --skip SKIP     exclude the first SKIP number of activations from the result
+      --upto UPTO     return activations with timestamps earlier than UPTO; measured in milliseconds since Th, 01, Jan 1970
+```
+
+For example, to list the last 6 activations:
+```
+wsk activation list --limit 6
+```
+<pre>
+Datetime            Activation ID                    Kind      Start Duration   Status  Entity
+2019-03-16 20:03:00 8690bc9904794c9390bc9904794c930e nodejs:6  warm  2ms        success guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:59 7e76452bec32401db6452bec32001d68 nodejs:6  cold  32ms       success guest/increment:0.0.1
+2019-03-16 20:02:59 097250ad10a24e1eb250ad10a23e1e96 nodejs:6  warm  2ms        success guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:58 4991a50ed9ed4dc091a50ed9edddc0bb nodejs:6  cold  33ms       success guest/triple:0.0.1
+2019-03-16 20:02:57 aee63124f3504aefa63124f3506aef8b nodejs:6  cold  34ms       success guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:57 22da217c8e3a4b799a217c8e3a0b79c4 sequence  warm  3.46s      success guest/tripleAndIncrement:0.0.1
+</pre>
+
+The meaning of the different columns in the list are:
+
+| Column | Description |
+| :--- | :--- |
+| `Datetime` | The date and time when the invocation occurred. |
+| `Activation ID` | An activation ID that can be used to retrive the result using the `wsk activation get`, `wsk activation result` and `wsk activation logs` commands. |
+| `Kind` | The runtime or action type |
+| `Start` | An indication of the latency, i.e. if the runtime container was cold or warm started. |
+| `Duration` | Time taken to execute the invocation. |
+| `Status` | The outcome of the invocation. For an explanation of the various statuses, see the description of the `statusCode` below. |
+| `Entity` | The fully qualified name of entity that was invoked. |
+
+#### Understanding the activation record
 
 Each action invocation results in an activation record which contains the following fields:
 
@@ -257,13 +304,6 @@ Each action invocation results in an activation record which contains the follow
     | 3          | whisk internal error   |
   - `success`: Is *true* if and only if the status is *"success"*.
   - `result`: A dictionary as a JSON object which contains the activation result. If the activation was successful, this contains the value that is returned by the action. If the activation was unsuccessful, `result` contains the `error` key, generally with an explanation of the failure.
-
-Some common CLI commands for working with activations are:
-- `wsk activation list`: lists all activations
-- `wsk activation get --last`: retrieves the most recent activation record
-- `wsk activation result <activationId>`: retrieves only the result of the activation (or use `--last` to get the most recent result).
-- `wsk activation logs <activationId>`: retrieves only the logs of the activation.
-- `wsk activation logs <activationId> --strip`: strips metadata from each log line so the logs are easier to read.
 
 ### Creating and updating your own action
 

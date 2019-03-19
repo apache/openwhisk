@@ -138,7 +138,7 @@ As an example, create a rule that calls the hello action whenever a location upd
   ```
 
   ```
-  ok: triggered locationUpdate with id d5583d8e2d754b518a9fe6914e6ffb1e
+  ok: triggered locationUpdate with id 878998285cad448b8998285cad948b30
   ```
 
 5. Verify that the action was invoked by checking the most recent activation.
@@ -146,13 +146,13 @@ As an example, create a rule that calls the hello action whenever a location upd
   $ wsk activation list --limit 1 hello
   ```
 
-  ```
-  activations
-  9c98a083b924426d8b26b5f41c5ebc0d             hello
-  ```
+<pre>
+Datetime            Activation ID                    Kind     Start Duration   Status  Entity
+2019-02-18 11:51:41 0efe54d8fb96486bbe54d8fb96d86bbe nodejs:6 cold  54ms       success guest/hello:0.0.1
+</pre>
 
   ```
-  $ wsk activation result 9c98a083b924426d8b26b5f41c5ebc0d
+  $ wsk activation result 0efe54d8fb96486bbe54d8fb96d86bbe
   ```
   ```
   {

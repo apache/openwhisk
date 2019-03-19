@@ -102,25 +102,25 @@ Blocking and non-blocking invocations are supported. As usual, a blocking invoca
 One invocation of the conductor action results in multiple activations, for instance:
 
 ```
-wsk action invoke quadruple -p value 3
+wsk action invoke tripleAndIncrement -p value 3
 ```
 ```
-ok: invoked /_/quadruple with id 4f91f9ed0d874aaa91f9ed0d87baaa07
+ok: invoked /_/tripleAndIncrement with id 4f91f9ed0d874aaa91f9ed0d87baaa07
 ```
 ```
 wsk activation list
 ```
-```
-activations
-fd89b99a90a1462a89b99a90a1d62a8e tripleAndIncrement
-eaec119273d94087ac119273d90087d0 increment
-3624ad829d4044afa4ad829d40e4af60 tripleAndIncrement
-a1f58ade9b1e4c26b58ade9b1e4c2614 triple
-3624ad829d4044afa4ad829d40e4af60 tripleAndIncrement
-4f91f9ed0d874aaa91f9ed0d87baaa07 tripleAndIncrement
-```
+<pre>
+Datetime            Activation ID                    Kind      Start Duration   Status   Entity
+2019-03-16 20:03:00 8690bc9904794c9390bc9904794c930e nodejs:6  warm  2ms        success  guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:59 7e76452bec32401db6452bec32001d68 nodejs:6  cold  32ms       success  guest/increment:0.0.1
+2019-03-16 20:02:59 097250ad10a24e1eb250ad10a23e1e96 nodejs:6  warm  2ms        success  guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:58 4991a50ed9ed4dc091a50ed9edddc0bb nodejs:6  cold  33ms       success  guest/triple:0.0.1
+2019-03-16 20:02:57 aee63124f3504aefa63124f3506aef8b nodejs:6  cold  34ms       success  guest/tripleAndIncrement:0.0.1
+2019-03-16 20:02:57 22da217c8e3a4b799a217c8e3a0b79c4 sequence  warm  3.46s      success  guest/tripleAndIncrement:0.0.1
+</pre>
 
-There are six activation records in this example, one matching the activation id returned on invocation (`4f91f9ed0d874aaa91f9ed0d87baaa07`) plus five additional records for activations _caused_ by this invocation. The _primary_ activation record is the last one in the list because it has the earliest start time.
+There are six activation records in this example, one matching the activation id returned on invocation (`22da217c8e3a4b799a217c8e3a0b79c4`) plus five additional records for activations _caused_ by this invocation. The _primary_ activation record is the last one in the list because it has the earliest start time.
 
 The five additional activations are:
 
