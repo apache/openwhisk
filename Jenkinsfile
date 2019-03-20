@@ -1,5 +1,4 @@
-#!/usr/bin/env groovy
-
+#!groovy
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -19,50 +18,55 @@
 
 timeout(time: 4, unit: 'HOURS') {
 
-    // This node name will be changed to openwhisk1, when it is applied to the Apache environment.
+    def domainName = "openwhisk-vm1-he-de.apache.org"
+    def port = "444"
+    def cert = "domain.crt"
+    def key = "domain.key"
+
     node("openwhisk1") {
+        properties([disableConcurrentBuilds()])
         deleteDir()
-
-        stage('Checkout') {
-            echo 'Checking out the source code.'
-            checkout([$class: 'GitSCM',
-                      branches: [[name: "*/${Branch}"]],
-                      doGenerateSubmoduleConfigurations: false,
-                      extensions: [
-                              [$class: 'CloneOption', noTags: true, reference: '', shallow: true],
-                              [$class: 'CleanBeforeCheckout']
-                      ],
-                      submoduleCfg: [],
-                      userRemoteConfigs: [[url: "https://github.com/${Fork}/${RepoName}.git"]]
-            ])
+        stage ('Checkout') {
+            checkout scm
         }
-        sh 'pwd'
 
-        stage('Build') {
-            echo 'Building....'
+        stage ('Build') {
+            // Set up a private docker registry service, accessed by all the OpenWhisk VMs.
+            try {
+                sh "docker container stop registry && docker container rm -v registry"
+            } catch (exp) {
+                println("Unable to stop and remove the container registry.")
+            }
+
+            sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
+                -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
+                -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
+            // Build the controller and invoker images.
+            sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
         }
 
         stage('Deploy') {
-            echo 'Deploying....'
+            dir("ansible") {
+                // Copy the jenkins ansible configuration under the directory ansible. This can make sure the SSH is used to
+                // access the VMs of invokers by the VM of the controller.
+                sh '[ -f "environments/jenkins/ansible_jenkins.cfg" ] && cp environments/jenkins/ansible_jenkins.cfg ansible.cfg'
+                sh 'ansible-playbook -i environments/jenkins setup.yml'
+                sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
+                sh 'ansible-playbook -i environments/jenkins apigateway.yml -e mode=clean'
+                sh 'ansible-playbook -i environments/jenkins couchdb.yml -e mode=clean'
+                sh 'ansible-playbook -i environments/jenkins couchdb.yml'
+                sh 'ansible-playbook -i environments/jenkins initdb.yml'
+                sh 'ansible-playbook -i environments/jenkins wipe.yml'
+                sh 'ansible-playbook -i environments/jenkins apigateway.yml'
+                sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
+                sh 'ansible-playbook -i environments/jenkins properties.yml'
+                sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
+                sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
+            }
         }
 
         stage('Test') {
-            echo 'Testing....'
+            sh './gradlew :tests:test'
         }
-        sh 'pwd'
     }
-
-    // There are totally 3 VMs available for OpenWhisk in apache. The other two will be used later.
-    /*node("openwhisk2") {
-        checkout scm
-        sh 'pwd'
-        sh 'cat Jenkinsfile'
-    }
-
-    node("openwhisk3") {
-        checkout scm
-        sh 'pwd'
-        sh 'cat Jenkinsfile'
-    }*/
-
 }
