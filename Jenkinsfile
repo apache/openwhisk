@@ -20,17 +20,14 @@ timeout(time: 4, unit: 'HOURS') {
 
     def domainName = "openwhisk-vm1-he-de.apache.org"
     def port = "444"
-    def tag = "latest"
-    def prefix = "whisk"
     def cert = "domain.crt"
     def key = "domain.key"
 
     node("openwhisk1") {
+        properties([disableConcurrentBuilds()])
         deleteDir()
         stage ('Checkout') {
-            checkout([$class: 'GitSCM', branches: [[name: '${Branch}']], doGenerateSubmoduleConfigurations: false,
-                      extensions: [], submoduleCfg: [],
-                      userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/${Fork}/${RepoName}']]])
+            checkout scm
         }
 
         stage ('Build') {
