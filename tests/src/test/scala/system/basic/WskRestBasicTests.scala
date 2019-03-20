@@ -49,6 +49,9 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   def cacheRetry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 5, Some(1.second))
 
+  val requireAPIKeyInjection =
+    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).exists(_.toBoolean)
+
   behavior of "Wsk REST"
 
   it should "reject creating duplicate entity" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -138,15 +141,29 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     val action = result.getFieldListJsObject("actions")(0)
     RestResult.getField(action, "name") shouldBe actionName
     val annoAction = RestResult.getFieldJsValue(action, "annotations")
-    annoAction shouldBe JsArray(
-      JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-      JsObject(
-        "key" -> JsString("parameters"),
-        "value" -> JsArray(
-          JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
-          JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
-      JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
-      JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+
+    val expectedResult = if (requireAPIKeyInjection) {
+      JsArray(
+        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
+        JsObject(
+          "key" -> JsString("parameters"),
+          "value" -> JsArray(
+            JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
+            JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
+        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+    } else {
+      JsArray(
+        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
+        JsObject(
+          "key" -> JsString("parameters"),
+          "value" -> JsArray(
+            JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
+            JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+    }
+
+    annoAction shouldBe expectedResult
   }
 
   it should "create a package with a name that contains spaces" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -344,9 +361,16 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       RestResult.getField(exec, "code") should not be ""
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
-      result.getFieldJsValue("annotations") shouldBe JsArray(
-        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
-        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+
+      val expectedResult = if (requireAPIKeyInjection) {
+        JsArray(
+          JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
+          JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+      } else {
+        JsArray(JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+      }
+
+      result.getFieldJsValue("annotations") shouldBe expectedResult
       result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
         "memory" -> JsNumber(256),
@@ -444,16 +468,30 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
     result.getField("name") shouldBe name
     result.getField("namespace") shouldBe ns
+
+    val expectedResult = if (requireAPIKeyInjection) {
+      JsArray(
+        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
+        JsObject(
+          "key" -> JsString("parameters"),
+          "value" -> JsArray(
+            JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
+            JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
+        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+    } else {
+      JsArray(
+        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
+        JsObject(
+          "key" -> JsString("parameters"),
+          "value" -> JsArray(
+            JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
+            JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
+        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+    }
+
     val annos = result.getFieldJsValue("annotations")
-    annos shouldBe JsArray(
-      JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-      JsObject(
-        "key" -> JsString("parameters"),
-        "value" -> JsArray(
-          JsObject("name" -> JsString("paramName1"), "description" -> JsString("Parameter description 1")),
-          JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))),
-      JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
-      JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+    annos shouldBe expectedResult
   }
 
   it should "create an action with a name that contains spaces" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

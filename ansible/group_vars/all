@@ -34,6 +34,8 @@ hosts_dir: "{{ inventory_dir | default(env_hosts_dir) }}"
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
+  feature_flags:
+    require_api_key_annotation: "{{ require_api_key_annotation | default(true) }}"
 
 ##
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).

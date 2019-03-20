@@ -32,6 +32,7 @@ whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_na
 whisk.api.vanity.subdomain.parts=1
 
 whisk.action.concurrency={{runtimes_enable_concurrency | default(false)}}
+whisk.feature.requireApiKeyAnnotation={{whisk.feature_flags.require_api_key_annotation | default(true)}}
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 
