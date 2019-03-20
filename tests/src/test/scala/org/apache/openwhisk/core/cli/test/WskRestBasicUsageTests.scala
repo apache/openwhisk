@@ -56,6 +56,9 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
+  val requireAPIKeyInjection =
+    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).exists(_.toBoolean)
+
   behavior of "Wsk API basic usage"
 
   it should "allow a 3 part Fully Qualified Name (FQN) without a leading '/'" in withAssetCleaner(wskprops) {
@@ -317,6 +320,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   }
 
   it should "invoke an action receiving context properties excluding api key" in withAssetCleaner(wskprops) {
+    assume(requireAPIKeyInjection)
     (wp, assetHelper) =>
       val namespace = wsk.namespace.whois()
       val name = "context"
