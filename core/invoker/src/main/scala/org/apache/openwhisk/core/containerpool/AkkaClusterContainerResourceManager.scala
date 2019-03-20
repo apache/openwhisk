@@ -256,12 +256,14 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
             .map(_._2.size)
             .sum} (${remoteReservedSize}MB)")
         clusterActionHostStats = stats
-        MetricEmitter.emitHistogramMetric(
-          LoggingMarkers.CLUSTER_RESOURCES_TOTAL_MEM,
-          stats.values.map(_.mem).sum.toLong)
-        MetricEmitter.emitHistogramMetric(
-          LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM,
-          stats.values.maxBy(_.mem).mem.toLong)
+        if (stats.nonEmpty) {
+          MetricEmitter.emitHistogramMetric(
+            LoggingMarkers.CLUSTER_RESOURCES_TOTAL_MEM,
+            stats.values.map(_.mem).sum.toLong)
+          MetricEmitter.emitHistogramMetric(
+            LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM,
+            stats.values.maxBy(_.mem).mem.toLong)
+        }
         MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
 
         if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
