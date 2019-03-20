@@ -25,7 +25,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import common.StreamLogging
+import common.{StreamLogging, WhiskProperties}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import spray.json._
@@ -65,6 +65,9 @@ protected trait ControllerTestCommon
   override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties ++ WhiskConfig.kafkaHosts)
   assert(whiskConfig.isValid)
 
+  val requireAPIKeyInjection =
+    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).exists(_.toBoolean)
+
   // initialize runtimes manifest
   ExecManifest.initialize(whiskConfig)
 
@@ -86,7 +89,7 @@ protected trait ControllerTestCommon
   }
 
   def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
-    val base = if (create) {
+    val base = if (create && requireAPIKeyInjection) {
       Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
     } else {
       Parameters()
