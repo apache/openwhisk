@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+
 timeout(time: 4, unit: 'HOURS') {
 
     def domainName = "openwhisk-vm1-he-de.apache.org"
+
     def port = "444"
     def cert = "domain.crt"
     def key = "domain.key"
