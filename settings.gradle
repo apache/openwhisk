@@ -19,7 +19,6 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:invoker'
-//我的测试
 //include 'tests'
 //include 'tests:performance:gatling_tests'
 
