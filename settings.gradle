@@ -21,7 +21,6 @@ include 'core:controller'
 include 'core:invoker'
 //我的测试
 //我的测试2
-//我的测试3
 //include 'tests'
 //include 'tests:performance:gatling_tests'
 
