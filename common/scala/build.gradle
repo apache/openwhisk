@@ -91,6 +91,9 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
     compile ('com.amazonaws:aws-java-sdk-cloudfront:1.11.517')
+    compile 'com.lightbend.akka.management:akka-management-cluster-bootstrap_2.12:0.11.0'
+    compile 'com.lightbend.akka.discovery:akka-discovery-kubernetes-api_2.12:0.11.0'
+    compile 'com.lightbend.akka.discovery:akka-discovery-marathon-api_2.12:0.11.0'
     scoverage gradle.scoverage.deps
 
     //Following constraints ensure that akka related transitive dependencies match the
