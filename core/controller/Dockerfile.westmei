@@ -1,2 +1,2 @@
-FROM openwhisk/controller:latest
+FROM openwhisk/controller:38e4b05
 ADD build/distributions/controller.tar ./
