@@ -1,0 +1,2 @@
+FROM openwhisk/controller:latest
+ADD build/distributions/controller.tar ./
