@@ -266,7 +266,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         }
         MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
 
-        if (!prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
+        if (stats.nonEmpty && !prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
           prewarmsInitialized = true
           logging.info(this, "initializing prewarmpool after stats recevied")
           //        initPrewarms()
