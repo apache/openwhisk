@@ -1,0 +1,2 @@
+FROM openwhisk/invoker:latest
+ADD build/distributions/invoker.tar ./
