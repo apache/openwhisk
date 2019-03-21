@@ -16,7 +16,7 @@
  */
 
 include 'common:scala'
-//ggggfnnnvmmmm
+//gggg
 include 'core:controller'
 include 'core:invoker'
 //include 'tests'
