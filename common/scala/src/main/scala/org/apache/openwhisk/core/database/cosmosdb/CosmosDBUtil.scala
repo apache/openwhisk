@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
+import spray.json.{JsObject, JsString, JsValue}
 
 import scala.collection.immutable.Iterable
 
@@ -44,9 +45,24 @@ private[cosmosdb] object CosmosDBConstants {
    * lifetime of a document as different clusters may change the same document at different times
    */
   val clusterId: String = "_clusterId"
+
+  /**
+   * Property indicating that document has been marked as deleted with ttl
+   */
+  val deleted: String = "_deleted"
 }
 
 private[cosmosdb] trait CosmosDBUtil {
+
+  /**
+   * Name of `id` field as used in WhiskDocument
+   */
+  val _id: String = "_id"
+
+  /**
+   * Name of revision field as used in WhiskDocument
+   */
+  val _rev: String = "_rev"
 
   /**
    * Prepares the json like select clause
@@ -101,6 +117,31 @@ private[cosmosdb] trait CosmosDBUtil {
   def unescapeId(id: String): String = {
     require(!id.contains("/"), s"Escaped Id [$id] should not contain '/'")
     id.replace("|", "/")
+  }
+
+  def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
+    val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(id)))), (_rev, etag))
+    transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
+  }
+
+  /**
+   * Transforms a json object by adding and removing fields
+   *
+   * @param json base json object to transform
+   * @param fieldsToAdd list of fields to add. If the value provided is `None` then it would be ignored
+   * @param fieldsToRemove list of field names to remove
+   * @return transformed json
+   */
+  def transform(json: JsObject,
+                fieldsToAdd: Seq[(String, Option[JsValue])],
+                fieldsToRemove: Seq[String] = Seq.empty): JsObject = {
+    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
+    JsObject(fields)
+  }
+
+  private def stripInternalFields(js: JsObject) = {
+    //Strip out all field name starting with '_' which are considered as db specific internal fields
+    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
 }

@@ -24,6 +24,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.microsoft.azure.cosmosdb._
+import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, TransactionId}
@@ -34,7 +35,7 @@ import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
-import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
+import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -64,14 +65,12 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   protected val client: AsyncDocumentClient = clientRef.get.client
   private[cosmosdb] val (database, collection) = initialize()
 
-  private val _id = "_id"
-  private val _rev = "_rev"
-
   private val putToken = createToken("put", read = false)
   private val delToken = createToken("del", read = false)
   private val getToken = createToken("get")
   private val queryToken = createToken("query")
   private val countToken = createToken("count")
+  private val softDeleteTTL = config.softDeleteTTL.map(_.toSeconds.toInt)
 
   private val clusterIdValue = config.clusterId.map(JsString(_))
 
@@ -79,7 +78,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     this,
     s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}], " +
-      s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}]")
+      s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}], soft delete TTL [${config.softDeleteTTL}]")
 
   //Clone the returned instance as these are mutable
   def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
@@ -94,7 +93,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val docinfoStr = s"id: $id, rev: ${doc.getETag}"
     val start = transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$collName' saving document: '$docinfoStr'")
 
-    val o = if (doc.getETag == null) {
+    val o = if (isNewDocument(doc)) {
       client.createDocument(collection.getSelfLink, doc, newRequestOption(id), true)
     } else {
       client.replaceDocument(doc, matchRevOption(id, doc.getETag))
@@ -102,6 +101,28 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     val f = o
       .head()
+      .recoverWith {
+        case e: DocumentClientException if isConflict(e) && isNewDocument(doc) =>
+          val docId = DocId(asJson.fields(_id).convertTo[String])
+          //Fetch existing document and check if its deleted
+          getRaw(docId).flatMap {
+            case Some(js) =>
+              if (isSoftDeleted(js)) {
+                //Existing document is soft deleted. So can be replaced. Use the etag of document
+                //and replace it with document we are trying to add
+                val etag = js.fields(Properties.E_TAG).convertTo[String]
+                client.replaceDocument(doc, matchRevOption(id, etag)).head()
+              } else {
+                //Trying to create a new document and found an existing
+                //Document which is valid (not soft delete) then conflict is a valid outcome
+                throw e
+              }
+            case None =>
+              //Document not found. Should not happen unless someone else removed
+              //Propagate existing exception
+              throw e
+          }
+      }
       .transform(
         { r =>
           transid.finished(this, start, s"[PUT] '$collName' completed document: '$docinfoStr'")
@@ -120,13 +141,14 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
     checkDocHasRevision(doc)
     val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collName' deleting document: '$doc'")
-    val f = client
-      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc))
-      .head()
+    val f = softDeleteTTL match {
+      case Some(_) => softDelete(doc)
+      case None    => hardDelete(doc)
+    }
+    val g = f
       .transform(
-        { r =>
+        { _ =>
           transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'")
-          collectMetrics(delToken, r.getRequestCharge)
           true
         }, {
           case e: DocumentClientException if isNotFound(e) =>
@@ -139,9 +161,33 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
         })
 
     reportFailure(
-      f,
+      g,
       start,
       failure => s"[DEL] '$collName' internal error, doc: '$doc', failure: '${failure.getMessage}'")
+  }
+
+  private def hardDelete(doc: DocInfo) = {
+    val f = client
+      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc))
+      .head()
+    f.foreach(r => collectMetrics(delToken, r.getRequestCharge))
+    f
+  }
+
+  private def softDelete(doc: DocInfo)(implicit transid: TransactionId) = {
+    for {
+      js <- getAsWhiskJson(doc.id)
+      r <- softDeletePut(doc, js)
+    } yield r
+  }
+
+  private def softDeletePut(docInfo: DocInfo, js: JsObject)(implicit transid: TransactionId) = {
+    val deletedJs = transform(js, Seq((deleted, Some(JsTrue))))
+    val doc = toCosmosDoc(deletedJs)
+    softDeleteTTL.foreach(doc.setTimeToLive(_))
+    val f = client.replaceDocument(doc, matchRevOption(docInfo)).head()
+    f.foreach(r => collectMetrics(putToken, r.getRequestCharge))
+    f
   }
 
   override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo,
@@ -151,25 +197,32 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$collName' finding document: '$doc'")
 
     require(doc != null, "doc undefined")
-    val f = client
-      .readDocument(selfLinkOf(doc.id), newRequestOption(doc.id))
-      .head()
-      .transform(
-        { rr =>
-          val js = getResultToWhiskJsonDoc(rr.getResource)
-          transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
-          collectMetrics(getToken, rr.getRequestCharge)
-          deserialize[A, DocumentAbstraction](doc, js)
-        }, {
-          case e: DocumentClientException if isNotFound(e) =>
-            transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
-            // for compatibility
-            throw NoDocumentException("not found on 'get'")
-          case e => e
-        })
-      .recoverWith {
-        case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
-      }
+    val f =
+      client
+        .readDocument(selfLinkOf(doc.id), newRequestOption(doc.id))
+        .head()
+        .transform(
+          { rr =>
+            collectMetrics(getToken, rr.getRequestCharge)
+            if (isSoftDeleted(rr.getResource)) {
+              transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
+              // for compatibility
+              throw NoDocumentException("not found on 'get'")
+            } else {
+              val js = getResultToWhiskJsonDoc(rr.getResource)
+              transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
+              deserialize[A, DocumentAbstraction](doc, js)
+            }
+          }, {
+            case e: DocumentClientException if isNotFound(e) =>
+              transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
+              // for compatibility
+              throw NoDocumentException("not found on 'get'")
+            case e => e
+          })
+        .recoverWith {
+          case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
+        }
 
     reportFailure(
       f,
@@ -185,13 +238,20 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .readDocument(selfLinkOf(id), newRequestOption(id))
       .head()
       .map { rr =>
-        val js = getResultToWhiskJsonDoc(rr.getResource)
-        transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: found document '$id'")
         collectMetrics(getToken, rr.getRequestCharge)
-        Some(js)
+        if (isSoftDeleted(rr.getResource)) {
+          transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: '$id' not found")
+          None
+        } else {
+          val js = getResultToWhiskJsonDoc(rr.getResource)
+          transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: found document '$id'")
+          Some(js)
+        }
       }
       .recoverWith {
-        case e: DocumentClientException if isNotFound(e) => Future.successful(None)
+        case e: DocumentClientException if isNotFound(e) =>
+          transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: '$id' not found")
+          Future.successful(None)
       }
 
     reportFailure(
@@ -213,6 +273,17 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       }
       .recoverWith {
         case e: DocumentClientException if isNotFound(e) => Future.successful(None)
+      }
+  }
+
+  private def getAsWhiskJson(id: DocId): Future[JsObject] = {
+    client
+      .readDocument(selfLinkOf(id), newRequestOption(id))
+      .head()
+      .map { rr =>
+        val js = getResultToWhiskJsonDoc(rr.getResource)
+        collectMetrics(getToken, rr.getRequestCharge)
+        js
       }
   }
 
@@ -369,6 +440,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val mapped = transform(json, fieldsToAdd, fieldsToRemove)
     val doc = new Document(mapped.compactPrint)
     doc.set(selfLink, createSelfLink(doc.getId))
+    doc.setTimeToLive(null) //Disable any TTL if in effect for earlier revision
     doc
   }
 
@@ -384,21 +456,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDoc(doc)
     val js = doc.toJson.parseJson.asJsObject
     toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
-  }
-
-  private def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
-    val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(id)))), (_rev, etag))
-    transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
-  }
-
-  private def transform(json: JsObject, fieldsToAdd: Seq[(String, Option[JsValue])], fieldsToRemove: Seq[String]) = {
-    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
-    JsObject(fields)
-  }
-
-  private def stripInternalFields(js: JsObject) = {
-    //Strip out all field name starting with '_' which are considered as db specific internal fields
-    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
   private def toDocInfo[T <: Resource](doc: T) = {
@@ -450,4 +507,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)(MeasurementUnit.none)
     else LogMarkerToken("cosmosdb", "ru", collName, Some(action))(MeasurementUnit.none)
   }
+
+  private def isSoftDeleted(doc: Document) = doc.getBoolean(deleted) == true
+
+  private def isSoftDeleted(js: JsObject) = js.fields.get(deleted).contains(JsTrue)
+
+  private def isNewDocument(doc: Document) = doc.getETag == null
 }
