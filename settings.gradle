@@ -16,15 +16,14 @@
  */
 
 include 'common:scala'
-//ggggccccjjjjMeeeLLLLEEEzzzzzPPPPP
 include 'core:controller'
 include 'core:invoker'
-//include 'tests'
-//include 'tests:performance:gatling_tests'
+include 'tests'
+include 'tests:performance:gatling_tests'
 
-//include 'tools:actionProxy'
-//include 'tools:ow-utils'
-//include 'tools:dev'
+include 'tools:actionProxy'
+include 'tools:ow-utils'
+include 'tools:dev'
 
 include 'tools:admin'
 
