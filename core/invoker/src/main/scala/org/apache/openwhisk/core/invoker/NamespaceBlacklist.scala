@@ -47,6 +47,7 @@ class NamespaceBlacklist(authStore: AuthStore) {
   def isBlacklisted(identity: Identity): Boolean = blacklist.contains(identity.namespace.name.asString)
 
   /** Refreshes the current blacklist from the database. */
+  /** Limit query parameter set to 0 for limitless record query. */
   def refreshBlacklist()(implicit ec: ExecutionContext, tid: TransactionId): Future[Set[String]] = {
     authStore
       .query(
@@ -54,7 +55,7 @@ class NamespaceBlacklist(authStore: AuthStore) {
         startKey = List.empty,
         endKey = List.empty,
         skip = 0,
-        limit = Int.MaxValue,
+        limit = 0,
         includeDocs = false,
         descending = true,
         reduce = false,
