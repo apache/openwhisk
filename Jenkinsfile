@@ -26,6 +26,9 @@ timeout(time: 4, unit: 'HOURS') {
     node("openwhisk1") {
         properties([disableConcurrentBuilds()])
         deleteDir()
+        environment {
+            CI = 'true'
+        }
         stage ('Checkout') {
             checkout scm
         }
@@ -67,6 +70,12 @@ timeout(time: 4, unit: 'HOURS') {
 
         stage('Test') {
             sh './gradlew :tests:test'
+        }
+
+        post {
+            always {
+                junit 'tests/build/test-results/**/*.xml'
+            }
         }
     }
 }
