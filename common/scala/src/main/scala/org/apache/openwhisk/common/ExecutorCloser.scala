@@ -36,7 +36,7 @@ case class ExecutorCloser(service: ExecutorService, timeout: FiniteDuration = 5.
         Thread.currentThread.interrupt()
     } finally {
       if (!service.isShutdown) {
-        log.warn("ExecutorService `{}` didn't shutdown property. Will be forced now.", service)
+        log.warn(s"ExecutorService `$service` didn't shutdown property. Will be forced now.")
       }
       service.shutdownNow()
     }
