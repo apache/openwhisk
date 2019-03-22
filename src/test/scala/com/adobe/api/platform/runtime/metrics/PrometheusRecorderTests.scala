@@ -49,6 +49,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       histogramCount(waitTimeMetric) shouldBe 1
       histogramCount(initTimeMetric) shouldBe 1
       histogramCount(durationMetric) shouldBe 1
+
+      gauge(memoryMetric) shouldBe 1
     }
   }
 
@@ -60,6 +62,12 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       "testNS",
       "test",
       Activation.typeName)
+
+  private def gauge(name: String) =
+    CollectorRegistry.defaultRegistry.getSampleValue(
+      s"${name}_count",
+      Array("namespace", "action"),
+      Array(namespace, action))
 
   private def counter(name: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(name, Array("namespace", "action"), Array(namespace, action))
