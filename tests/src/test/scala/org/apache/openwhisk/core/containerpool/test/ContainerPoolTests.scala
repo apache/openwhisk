@@ -42,7 +42,6 @@ import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
-import org.apache.openwhisk.core.containerpool.ClusterManagedCapacityMonitor
 
 /**
  * Behavior tests for the ContainerPool
@@ -127,7 +126,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, false, 10, ClusterManagedCapacityMonitor(0.5, 10.seconds, 1024.B))
+    ContainerPoolConfig(userMemory, 0.5, false, false, false, 10)
 
   val instanceId = InvokerInstanceId(0, userMemory = 1024.MB)
   behavior of "ContainerPool"

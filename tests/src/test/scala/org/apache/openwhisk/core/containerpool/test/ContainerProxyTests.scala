@@ -32,7 +32,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
-import org.apache.openwhisk.core.containerpool.ClusterManagedCapacityMonitor
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
@@ -201,7 +200,7 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig =
-    ContainerPoolConfig(2.MB, 0.5, false, false, 10, ClusterManagedCapacityMonitor(0.5, 10.seconds, 1024.B))
+    ContainerPoolConfig(2.MB, 0.5, false, false, false, 10)
 
   behavior of "ContainerProxy"
 

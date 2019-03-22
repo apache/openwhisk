@@ -38,6 +38,8 @@ import akka.cluster.ddata.Replicator.WriteLocal
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Put
 import akka.cluster.pubsub.DistributedPubSubMediator.Send
+import akka.management.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import java.time.Instant
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.LoggingMarkers
@@ -187,6 +189,12 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
       .count({ case (_, state) => state.size.toMB > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
 
   class ContainerPoolClusterData(instanceId: InvokerInstanceId, containerPool: ActorRef) extends Actor {
+    //it is possible to use cluster managed resources, but not run the invoker in the cluster
+    //when not using cluster boostrapping, you need to set akka seed node configs
+    if (poolConfig.useClusterBootstrap) {
+      AkkaManagement(context.system).start()
+      ClusterBootstrap(context.system).start()
+    }
     implicit val cluster = Cluster(system)
     implicit val ec = context.dispatcher
     val mediator = DistributedPubSub(system).mediator

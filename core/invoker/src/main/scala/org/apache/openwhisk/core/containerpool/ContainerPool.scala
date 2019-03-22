@@ -159,11 +159,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
                     } else {
                       r.action.limits.memory.megabytes.MB
                     })
-                  .map { a =>
-                    //decrease the reserved (not yet stopped container) memory tracker
-                    //resourceManager.addReservation(a._1, (-r.action.limits.memory.megabytes).MB)
-                    removeContainer(a._1)
-                  }
+                  .map(a => removeContainer(a._1))
                   // If the list had at least one entry, enough containers were removed to start the new container. After
                   // removing the containers, we are not interested anymore in the containers that have been removed.
                   .headOption
@@ -288,7 +284,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
 
     // Container got removed
     case ContainerRemoved =>
-      //stop tracking via reserved
+      //stop tracking via reserved (should already be removed, except in case of failure)
       resourceManager.releaseReservation(sender())
 
       // if container was in free pool, it may have been processing (but under capacity),

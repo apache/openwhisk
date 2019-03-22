@@ -49,7 +49,6 @@ import scala.concurrent.duration._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.WhiskConfig._
-import org.apache.openwhisk.core.containerpool.ClusterManagedCapacityMonitor
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
 import org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStore
@@ -83,7 +82,7 @@ class MesosContainerFactoryTest
 
   // 80 slots, each 265MB
   val poolConfig =
-    ContainerPoolConfig(21200.MB, 0.5, false, false, 10, ClusterManagedCapacityMonitor(0.5, 10.seconds, 1024.B))
+    ContainerPoolConfig(21200.MB, 0.5, false, false, false, 10)
   val actionMemory = 265.MB
   val mesosCpus = poolConfig.cpuShare(actionMemory) / 1024.0
 
