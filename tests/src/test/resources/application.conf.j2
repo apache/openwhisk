@@ -16,6 +16,9 @@ akka.http.host-connection-pool.client.idle-timeout = 90 s
 akka.jvm-exit-on-fatal-error = off
 
 whisk {
+    feature-flags {
+      require-api-key-annotation = {{ whisk.feature_flags.require_api_key_annotation | default(true) }}
+    }
     # kafka related configuration
     kafka {
         replication-factor = 1

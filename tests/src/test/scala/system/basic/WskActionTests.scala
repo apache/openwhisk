@@ -26,6 +26,7 @@ import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.entity.WhiskAction
 import org.apache.commons.io.FileUtils
+import org.apache.openwhisk.core.FeatureFlags
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -183,13 +184,17 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
         JsObject("key" -> JsString("copiedParam2"), "value" -> JsNumber(123)),
         JsObject("key" -> JsString("origParam1"), "value" -> JsString("origParamValue1")),
         JsObject("key" -> JsString("origParam2"), "value" -> JsNumber(999)))
-      val resAnnots = Seq(
+      val baseAnnots = Seq(
         JsObject("key" -> JsString("origAnnot1"), "value" -> JsString("origAnnotValue1")),
         JsObject("key" -> JsString("copiedAnnot2"), "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("copiedAnnot1"), "value" -> JsString("copiedAnnotValue1")),
         JsObject("key" -> JsString("origAnnot2"), "value" -> JsBoolean(true)),
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
         JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)))
+      val resAnnots: Seq[JsObject] = if (FeatureFlags.requireApiKeyAnnotation) {
+        baseAnnots ++ Seq(
+          JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)))
+      } else baseAnnots
 
       assetHelper.withCleaner(wsk.action, origName) {
         val file = Some(TestUtils.getTestActionFilename("echo.js"))
@@ -250,10 +255,14 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     val child = "wc"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(
-        name,
-        Some(TestUtils.getTestActionFilename("wcbin.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+      if (FeatureFlags.requireApiKeyAnnotation) {
+        action.create(
+          name,
+          Some(TestUtils.getTestActionFilename("wcbin.js")),
+          annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+      } else {
+        action.create(name, Some(TestUtils.getTestActionFilename("wcbin.js")))
+      }
     }
     assetHelper.withCleaner(wsk.action, child) { (action, _) =>
       action.create(child, Some(TestUtils.getTestActionFilename("wc.js")))

@@ -21,7 +21,6 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.model.StatusCodes.Conflict
-
 import java.time.Instant
 import java.time.Clock
 
@@ -55,6 +54,9 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   val wsk = new WskRestOperations
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
+
+  val requireAPIKeyAnnotation =
+    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).map(_.toBoolean).getOrElse(true)
 
   behavior of "Wsk API basic usage"
 
@@ -317,6 +319,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   }
 
   it should "invoke an action receiving context properties excluding api key" in withAssetCleaner(wskprops) {
+    assume(requireAPIKeyAnnotation)
     (wp, assetHelper) =>
       val namespace = wsk.namespace.whois()
       val name = "context"
@@ -430,13 +433,49 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), web = Some(flag.toLowerCase))
       }
 
-      val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe Set(
+      val expectedSet = Set(
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
-        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
         JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
+
+      val action = wsk.action.get(name)
+      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe (if (requireAPIKeyAnnotation) {
+                                                                                 Set(
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("exec"),
+                                                                                     "value" -> JsString("nodejs:6")),
+                                                                                   JsObject(
+                                                                                     "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                                                                     "value" -> JsBoolean(false)),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("web-export"),
+                                                                                     "value" -> JsBoolean(
+                                                                                       webEnabled || rawEnabled)),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("raw-http"),
+                                                                                     "value" -> JsBoolean(rawEnabled)),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("final"),
+                                                                                     "value" -> JsBoolean(
+                                                                                       webEnabled || rawEnabled)))
+                                                                               } else {
+                                                                                 Set(
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("exec"),
+                                                                                     "value" -> JsString("nodejs:6")),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("web-export"),
+                                                                                     "value" -> JsBoolean(
+                                                                                       webEnabled || rawEnabled)),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("raw-http"),
+                                                                                     "value" -> JsBoolean(rawEnabled)),
+                                                                                   JsObject(
+                                                                                     "key" -> JsString("final"),
+                                                                                     "value" -> JsBoolean(
+                                                                                       webEnabled || rawEnabled)))
+                                                                               })
     }
   }
 
@@ -450,12 +489,38 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
 
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations") shouldBe JsArray(
-        JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
-        JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(false)),
-        JsObject("key" -> JsString("final"), "value" -> JsBoolean(true)),
-        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
-        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
+      action.getFieldJsValue("annotations") shouldBe (if (requireAPIKeyAnnotation) {
+                                                        JsArray(
+                                                          JsObject(
+                                                            "key" -> JsString("web-export"),
+                                                            "value" -> JsBoolean(true)),
+                                                          JsObject(
+                                                            "key" -> JsString("raw-http"),
+                                                            "value" -> JsBoolean(false)),
+                                                          JsObject(
+                                                            "key" -> JsString("final"),
+                                                            "value" -> JsBoolean(true)),
+                                                          JsObject(
+                                                            "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                                            "value" -> JsBoolean(false)),
+                                                          JsObject(
+                                                            "key" -> JsString("exec"),
+                                                            "value" -> JsString("nodejs:6")))
+                                                      } else {
+                                                        JsArray(
+                                                          JsObject(
+                                                            "key" -> JsString("web-export"),
+                                                            "value" -> JsBoolean(true)),
+                                                          JsObject(
+                                                            "key" -> JsString("raw-http"),
+                                                            "value" -> JsBoolean(false)),
+                                                          JsObject(
+                                                            "key" -> JsString("final"),
+                                                            "value" -> JsBoolean(true)),
+                                                          JsObject(
+                                                            "key" -> JsString("exec"),
+                                                            "value" -> JsString("nodejs:6")))
+                                                      })
   }
 
   it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
