@@ -96,6 +96,10 @@ Histogram record the [distribution](http://kamon.io/documentation/0.6.x/kamon-co
 * `my_metric.max` - Max of aggregated values during the flush interval.
 * `my_metric.min` - Min of aggregated values during the flush interval.
 
+#### Gauges
+
+Gauges record the [distribution](https://kamon.io/docs/latest/core/metrics/#gauges) of given metric and there names are prefixed with `openwhisk.gauge`. For example `openwhisk.gauge.loadbalancer_totalHealthyInvoker_count`. A gauge metrics provides the value at the given point and reports the same data unless the value has been changed be incremental or decremental than before. Gauges are useful for reporting metrics like kafka queue size or disk size.
+
 ### Metric Details
 
 Below are some of the important metrics emitted by OpenWhisk setup
@@ -129,8 +133,8 @@ Following metrics record stats around activation handling within Controller
 
 Aggregate metrics for inflight activations.
 
-* `openwhisk.histogram.loadbalancer<controllerId>_activationsInflight_count` (histogram) - Records the number of activations being worked upon for a given controller. As a histogram it would give a distribution of inflight activation count within a flush interval.
-* `openwhisk.histogram.loadbalancer<controllerId>_memory<invokerType>Inflight_count` (histogram) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer<controllerId>_activationsInflight_count` (gauge) - Records the number of activations being worked upon for a given controller. As a gauge this will give inflight activation count at the given point in time unless the change in value occurs.
+* `openwhisk.gauge.loadbalancer<controllerId>_memory<invokerType>Inflight_count` (gauge) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 Metrics below are for current memory capacity
 
@@ -148,10 +152,10 @@ Metrics below are captured within load balancer
 
 Metrics below are for invoker state as recorded within load balancer monitoring.
 
-* `openwhisk.histogram.loadbalancer_totalHealthyInvoker<invokerType>_count` - Records the count of managed invokers considered healthy based on health pings. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.histogram.loadbalancer_totalUnresponsiveInvoker<invokerType>_count` - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.histogram.loadbalancer_totalOfflineInvoker<invokerType>_count` - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.histogram.loadbalancer_totalUnhealthyInvoker<invokerType>_count` - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalHealthyInvoker<invokerType>_count`(gauge) - Records the count of managed invokers considered healthy based on health pings. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalUnresponsiveInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalOfflineInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalUnhealthyInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 #### Invoker metrics
 
@@ -230,7 +234,7 @@ Following metrics capture stats around various docker command executions.
 Metrics below are emitted per kafka topic.
 
 * `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to Kafka and when it is read within a consumer. This metric is recorded for every message read.
-* `openwhisk.histogram.kafka_<topic name>_count` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
+* `openwhisk.gauge.kafka_<topic name>_count` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
 
 Metrics per topic
 * `cacheInvalidation` - Emitted per controller while reading the cache invalidation messages.
