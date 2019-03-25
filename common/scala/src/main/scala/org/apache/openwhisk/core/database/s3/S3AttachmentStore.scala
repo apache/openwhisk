@@ -20,9 +20,13 @@ package org.apache.openwhisk.core.database.s3
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.headers.CacheDirectives._
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, ResponseEntity, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import akka.stream.alpakka.s3.acl.CannedAcl
+import akka.stream.alpakka.s3.impl.S3Headers
 import akka.stream.alpakka.s3.scaladsl.S3Client
 import akka.stream.alpakka.s3.{S3Exception, S3Settings}
 import akka.stream.scaladsl.{Sink, Source}
@@ -41,6 +45,7 @@ import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.DocId
 import pureconfig.loadConfigOrThrow
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
@@ -52,7 +57,7 @@ object S3AttachmentStoreProvider extends AttachmentStoreProvider {
       prefix.map(p => s"$p/$className").getOrElse(className)
     }
 
-    def signer: Option[UrlSigner] = cloudFrontConfig.map(CloudFrontSigner(_))
+    def signer: Option[UrlSigner] = cloudFrontConfig.map(CloudFrontSigner)
   }
 
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
@@ -82,6 +87,11 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
   logging: Logging,
   materializer: ActorMaterializer)
     extends AttachmentStore {
+  private val commonS3Headers = S3Headers(
+    Seq(
+      CannedAcl.Private.header, //All objects are private
+      `Cache-Control`(`max-age`(365.days.toSeconds))) //As objects are immutable cache them for long time
+  )
   override val scheme = "s3"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
@@ -100,7 +110,9 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
     //A possible optimization for small attachments < 5MB can be to use putObject instead of multipartUpload
     //and thus use 1 remote call instead of 3
     val f = docStream
-      .runWith(combinedSink(client.multipartUpload(bucket, objectKey(docId, name), contentType)))
+      .runWith(
+        combinedSink(client
+          .multipartUploadWithHeaders(bucket, objectKey(docId, name), contentType, s3Headers = Some(commonS3Headers))))
       .map(r => AttachResult(r.digest, r.length))
 
     f.foreach(_ =>
