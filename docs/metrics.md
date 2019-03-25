@@ -110,7 +110,7 @@ Metrics below are emitted from within a Controller instance.
 
 ##### Controller Startup
 
-* `openwhisk.counter.controller_startup<controller_id>_count` (counter)
+* `openwhisk.counter.controller_startup<controller_id>_counter` (counter)
   * Example _openwhisk.counter.controller_startup0_count_
   * Records count of controller instance startup
 
@@ -138,7 +138,7 @@ Aggregate metrics for inflight activations.
 
 Metrics below are for current memory capacity
 
-* `openwhisk.histogram.loadbalancer_totalCapacity<invokerType>_count` (histogram) - Current memory capacity for all usable managed and blackbox invokers, total user memory in shard managed by controller. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.histogram.loadbalancer_totalCapacity<invokerType>_counter` (histogram) - Current memory capacity for all usable managed and blackbox invokers, total user memory in shard managed by controller. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 Metrics below are captured within load balancer
 
@@ -152,10 +152,10 @@ Metrics below are captured within load balancer
 
 Metrics below are for invoker state as recorded within load balancer monitoring.
 
-* `openwhisk.gauge.loadbalancer_totalHealthyInvoker<invokerType>_count`(gauge) - Records the count of managed invokers considered healthy based on health pings. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.gauge.loadbalancer_totalUnresponsiveInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.gauge.loadbalancer_totalOfflineInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
-* `openwhisk.gauge.loadbalancer_totalUnhealthyInvoker<invokerType>_count` (gauge) - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalHealthyInvoker<invokerType>_counter`(gauge) - Records the count of managed invokers considered healthy based on health pings. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalUnresponsiveInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalOfflineInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer_totalUnhealthyInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 #### Invoker metrics
 
@@ -234,7 +234,7 @@ Following metrics capture stats around various docker command executions.
 Metrics below are emitted per kafka topic.
 
 * `openwhisk.histogram.kafka_<topic name>.delay_start` - Time delay between when a message was pushed to Kafka and when it is read within a consumer. This metric is recorded for every message read.
-* `openwhisk.gauge.kafka_<topic name>_count` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
+* `openwhisk.gauge.kafka_<topic name>_counter` - Records the Queue size of the topic. By default this metric is emitted every 60 secs.
 
 Metrics per topic
 * `cacheInvalidation` - Emitted per controller while reading the cache invalidation messages.

@@ -144,7 +144,7 @@ trait BasicHttpService extends Directives {
         LogMarkerToken(
           "http",
           m.toLowerCase,
-          LoggingMarkers.count,
+          LoggingMarkers.counter,
           Some(res.status.intValue.toString),
           Map("statusCode" -> res.status.intValue.toString))(MeasurementUnit.time.milliseconds)
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
