@@ -16,57 +16,75 @@
  * limitations under the License.
  */
 
-timeout(time: 4, unit: 'HOURS') {
+timeout(time: 12, unit: 'HOURS') {
 
-    def domainName = "openwhisk-vm1-he-de.apache.org"
     def port = "444"
     def cert = "domain.crt"
     def key = "domain.key"
 
-    node("openwhisk1") {
-        properties([disableConcurrentBuilds()])
-        deleteDir()
-        stage ('Checkout') {
-            checkout scm
-        }
-
-        stage ('Build') {
-            // Set up a private docker registry service, accessed by all the OpenWhisk VMs.
+    node("openwhisk") {
+        def hostName = sh(returnStdout: true, script: 'hostname').trim()
+        def domainName = hostName+".apache.org"
+        lock("${hostName}") {
             try {
-                sh "docker container stop registry && docker container rm -v registry"
-            } catch (exp) {
-                println("Unable to stop and remove the container registry.")
-            }
+                deleteDir()
+                stage('Checkout') {
+                    checkout scm
+                }
 
-            sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
+                stage('Build') {
+                    // Set up a private docker registry service, accessed by all the OpenWhisk VMs.
+                    try {
+                        sh "docker container stop registry && docker container rm -v registry"
+                    } catch (exp) {
+                        println("Unable to stop and remove the container registry.")
+                    }
+
+                    sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
                 -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
                 -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
-            // Build the controller and invoker images.
-            sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
-        }
+                    // Build the controller and invoker images.
+                    sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
+                }
 
-        stage('Deploy') {
-            dir("ansible") {
-                // Copy the jenkins ansible configuration under the directory ansible. This can make sure the SSH is used to
-                // access the VMs of invokers by the VM of the controller.
-                sh '[ -f "environments/jenkins/ansible_jenkins.cfg" ] && cp environments/jenkins/ansible_jenkins.cfg ansible.cfg'
-                sh 'ansible-playbook -i environments/jenkins setup.yml'
-                sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
-                sh 'ansible-playbook -i environments/jenkins apigateway.yml -e mode=clean'
-                sh 'ansible-playbook -i environments/jenkins couchdb.yml -e mode=clean'
-                sh 'ansible-playbook -i environments/jenkins couchdb.yml'
-                sh 'ansible-playbook -i environments/jenkins initdb.yml'
-                sh 'ansible-playbook -i environments/jenkins wipe.yml'
-                sh 'ansible-playbook -i environments/jenkins apigateway.yml'
-                sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
-                sh 'ansible-playbook -i environments/jenkins properties.yml'
-                sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
-                sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
+                stage('Deploy') {
+                    dir("ansible") {
+                        // Copy the jenkins ansible configuration under the directory ansible. This can make sure the SSH is used to
+                        // access the VMs of invokers by the VM of the controller.
+                        sh '[ -f "environments/jenkins/ansible_jenkins.cfg" ] && cp environments/jenkins/ansible_jenkins.cfg ansible.cfg'
+                    }
+
+                    dir("ansible/environments/jenkins") {
+                        sh "cp ${hostName}.j2.ini hosts.j2.ini"
+                    }
+
+                    dir("ansible/environments/jenkins/group_vars") {
+                        sh "cp ${hostName} all"
+                    }
+
+                    dir("ansible") {
+                        sh 'ansible-playbook -i environments/jenkins setup.yml'
+                        sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
+                        sh 'ansible-playbook -i environments/jenkins apigateway.yml -e mode=clean'
+                        sh 'ansible-playbook -i environments/jenkins couchdb.yml -e mode=clean'
+                        sh 'ansible-playbook -i environments/jenkins couchdb.yml'
+                        sh 'ansible-playbook -i environments/jenkins initdb.yml'
+                        sh 'ansible-playbook -i environments/jenkins wipe.yml'
+                        sh 'ansible-playbook -i environments/jenkins apigateway.yml'
+                        sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
+                        sh 'ansible-playbook -i environments/jenkins properties.yml'
+                        sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
+                        sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
+                    }
+                }
+                stage('Test') {
+                    sh './gradlew :tests:test'
+                }
+            } catch (exp) {
+                println("Exception:" + exp)
+            } finally {
+                step([$class: 'JUnitResultArchiver', testResults: '**/test-results/**/TEST-*.xml'])
             }
-        }
-
-        stage('Test') {
-            sh './gradlew :tests:test'
         }
     }
 }
