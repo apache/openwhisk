@@ -89,3 +89,4 @@ function main(msg) {
 
     return {msg: 'OK, buffer of size ' + msg.payload + ' MB has been filled.'};
 }
+

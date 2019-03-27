@@ -103,7 +103,7 @@ ext.testSets = [
     ],
     "REQUIRE_LEAN_SYSTEM" : [
         "includes" : systemIncludes,
-        
+
         // Tests suits below require Kafka so they are excluded for Lean System tests
         "excludes" : [
             "**/*KafkaConnectorTests*",
