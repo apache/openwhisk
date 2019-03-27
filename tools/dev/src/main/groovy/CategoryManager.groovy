@@ -19,7 +19,7 @@ import java.util.function.Predicate
 
 class CategoryManager {
     def categories = process([
-        [name: "Main", travis: true, suffixes: ['openwhisk', 'apigateway', 'catalog', 'cli', 'wskdeploy']],
+        [name: "Main", travis: true, suffixes: ['openwhisk', 'apigateway', 'catalog', 'cli', 'wskdeploy', 'composer']],
         [name: "Clients", travis: true, contains: ['-client-']],
         [name: "Runtimes", travis: true, contains: ['-runtime-']],
         [name: "Deployments", travis: true, contains: ['-deploy-']],
