@@ -43,8 +43,8 @@ dependencies {
     compile 'com.typesafe.akka:akka-stream_2.12:2.5.12'
     compile 'com.typesafe.akka:akka-slf4j_2.12:2.5.12'
 
-    compile 'com.typesafe.akka:akka-http-core_2.12:10.1.1'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.12:10.1.1'
+    compile 'com.typesafe.akka:akka-http-core_2.12:10.1.8'
+    compile 'com.typesafe.akka:akka-http-spray-json_2.12:10.1.8'
 
     compile 'com.lightbend.akka:akka-stream-alpakka-file_2.12:0.15'
 
