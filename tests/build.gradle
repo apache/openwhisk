@@ -49,6 +49,7 @@ tasks.withType(Test) {
 
 def leanExcludes = [
     '**/MaxActionDurationTests*',
+    'invokerShoot/**'
 ]
 
 def systemIncludes = [
@@ -78,12 +79,14 @@ ext.testSets = [
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
+            'invokerShoot/**'
         ]
     ],
     "REQUIRE_SYSTEM" : [
         "includes" : systemIncludes,
         "excludes": [
-            "system/basic/WskMultiRuntimeTests*"
+            "system/basic/WskMultiRuntimeTests*",
+            'invokerShoot/**'
         ]
     ],
     "REQUIRE_MULTI_RUNTIME" : [
@@ -107,7 +110,8 @@ ext.testSets = [
         // Tests suits below require Kafka so they are excluded for Lean System tests
         "excludes" : [
             "**/*KafkaConnectorTests*",
-            "system/basic/WskMultiRuntimeTests*"
+            "system/basic/WskMultiRuntimeTests*",
+            "invokerShoot/**"
         ]
     ]
 ]
@@ -133,6 +137,14 @@ def getPattern(String name, String type) {
 
 def logTestSetInfo(){
     println "Using testSet $testSetName - ${prettyPrint(toJson(testSets[testSetName]))}"
+}
+
+test {
+    exclude 'invokerShoot/**'
+}
+
+task testShootInvoker(type: Test) {
+    include 'invokerShoot/**'
 }
 
 task testLean(type: Test) {
@@ -161,6 +173,7 @@ task testUnit(type: Test) {
         "**/*RemoveLogsTests*",
         "**/*ReplicatorTest*",
         "**/*CouchDBArtifactStoreTests*",
+        "invokerShoot/**"
     ]
 
     exclude couchDbExcludes
