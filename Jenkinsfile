@@ -41,8 +41,8 @@ timeout(time: 12, unit: 'HOURS') {
                     }
 
                     sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
-                -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
-                -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
+                            -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
+                            -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
                     // Build the controller and invoker images.
                     sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
                 }
@@ -77,8 +77,35 @@ timeout(time: 12, unit: 'HOURS') {
                         sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
                     }
                 }
-                stage('Test') {
-                    sh './gradlew :tests:test'
+
+                try {
+                    stage('Test') {
+                        sh './gradlew :tests:test'
+                    }
+                } catch (exp) {
+                    println("Exception:" + exp)
+                }
+
+                try {
+                    stage('Shoot one invoker test') {
+                        def folder = "ansible/environments/jenkins/group_vars"
+                        def invoker1_node = sh(returnStdout: true,
+                                script: "grep invoker1_machine ${folder}/${hostName} | cut -d: -f2").trim()
+                        sh "ssh -i ${home}/secret/openwhisk_key openwhisk@${invoker1_node} 'docker stop invoker1'"
+                        sleep time: 1, unit: 'MINUTES'
+                        sh './gradlew :tests:test -Dtest.single=*WskActionTests*'
+                        sh "ssh -i ${home}/secret/openwhisk_key openwhisk@${invoker1_node} 'docker start invoker1'"
+                    }
+                } catch (exp) {
+                    println("Exception:" + exp)
+                }
+
+                stage('Clean up') {
+                    dir("ansible") {
+                        sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
+                        sh 'ansible-playbook -i environments/jenkins apigateway.yml -e mode=clean'
+                        sh 'ansible-playbook -i environments/jenkins couchdb.yml -e mode=clean'
+                    }
                 }
             } catch (exp) {
                 println("Exception:" + exp)
