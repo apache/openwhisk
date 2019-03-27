@@ -49,6 +49,6 @@ gradle.ext.scoverage = [
 ]
 
 gradle.ext.akka = [version : '2.5.21']
-gradle.ext.akka_http = [version : '10.1.7']
+gradle.ext.akka_http = [version : '10.1.8']
 
 gradle.ext.curator = [version:'4.0.0']
