@@ -44,8 +44,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
 
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
-  val requireApiKeyAnnotation =
-    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).map(_.toBoolean).getOrElse(true)
+  val requireAPIKeyAnnotation = WhiskProperties.getBooleanProperty("whisk.feature.requireApiKeyAnnotation", true);
 
   /**
    * Retry operations that need to settle the controller cache
@@ -142,7 +141,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     RestResult.getField(action, "name") shouldBe actionName
     val annoAction = RestResult.getFieldJsValue(action, "annotations")
 
-    annoAction shouldBe (if (requireApiKeyAnnotation) {
+    annoAction shouldBe (if (requireAPIKeyAnnotation) {
                            JsArray(
                              JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
                              JsObject(
@@ -370,7 +369,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
 
-      result.getFieldJsValue("annotations") shouldBe (if (requireApiKeyAnnotation) {
+      result.getFieldJsValue("annotations") shouldBe (if (requireAPIKeyAnnotation) {
                                                         JsArray(
                                                           JsObject(
                                                             "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
@@ -483,7 +482,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     result.getField("namespace") shouldBe ns
 
     val annos = result.getFieldJsValue("annotations")
-    annos shouldBe (if (requireApiKeyAnnotation) {
+    annos shouldBe (if (requireAPIKeyAnnotation) {
                       JsArray(
                         JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
                         JsObject(

@@ -87,7 +87,7 @@ protected trait ControllerTestCommon
 
   def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
     val base = if (create && FeatureFlags.requireApiKeyAnnotation) {
-      Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+      Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
     } else {
       Parameters()
     }

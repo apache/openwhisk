@@ -55,8 +55,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
-  val requireAPIKeyAnnotation =
-    Option(WhiskProperties.getProperty("whisk.feature.requireApiKeyAnnotation")).map(_.toBoolean).getOrElse(true)
+  val requireAPIKeyAnnotation = WhiskProperties.getBooleanProperty("whisk.feature.requireApiKeyAnnotation", true);
 
   behavior of "Wsk API basic usage"
 
@@ -305,7 +304,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsTrue))
     }
 
     val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
@@ -349,7 +348,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         action.create(
           name,
           Some(TestUtils.getTestActionFilename("helloContext.js")),
-          annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+          annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsTrue))
       }
 
       val start = Instant.now(Clock.systemUTC()).toEpochMilli
@@ -433,49 +432,17 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), web = Some(flag.toLowerCase))
       }
 
-      val expectedSet = Set(
-        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
-        JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
-        JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
-        JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
-
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe (if (requireAPIKeyAnnotation) {
-                                                                                 Set(
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("exec"),
-                                                                                     "value" -> JsString("nodejs:6")),
-                                                                                   JsObject(
-                                                                                     "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                                                                     "value" -> JsBoolean(false)),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("web-export"),
-                                                                                     "value" -> JsBoolean(
-                                                                                       webEnabled || rawEnabled)),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("raw-http"),
-                                                                                     "value" -> JsBoolean(rawEnabled)),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("final"),
-                                                                                     "value" -> JsBoolean(
-                                                                                       webEnabled || rawEnabled)))
-                                                                               } else {
-                                                                                 Set(
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("exec"),
-                                                                                     "value" -> JsString("nodejs:6")),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("web-export"),
-                                                                                     "value" -> JsBoolean(
-                                                                                       webEnabled || rawEnabled)),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("raw-http"),
-                                                                                     "value" -> JsBoolean(rawEnabled)),
-                                                                                   JsObject(
-                                                                                     "key" -> JsString("final"),
-                                                                                     "value" -> JsBoolean(
-                                                                                       webEnabled || rawEnabled)))
-                                                                               })
+
+      val baseAnnotations = Parameters("exec", "nodejs:6") ++
+        Parameters("web-export", JsBoolean(webEnabled || rawEnabled)) ++
+        Parameters("raw-http", JsBoolean(rawEnabled)) ++
+        Parameters("final", JsBoolean(webEnabled || rawEnabled))
+      val testAnnotations = if (requireAPIKeyAnnotation) {
+        baseAnnotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
+      } else baseAnnotations
+
+      action.getFieldJsValue("annotations") shouldBe testAnnotations.toJsArray
     }
   }
 
@@ -491,32 +458,20 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val action = wsk.action.get(name)
       action.getFieldJsValue("annotations") shouldBe (if (requireAPIKeyAnnotation) {
                                                         JsArray(
-                                                          JsObject(
-                                                            "key" -> JsString("web-export"),
-                                                            "value" -> JsBoolean(true)),
-                                                          JsObject(
-                                                            "key" -> JsString("raw-http"),
-                                                            "value" -> JsBoolean(false)),
-                                                          JsObject(
-                                                            "key" -> JsString("final"),
-                                                            "value" -> JsBoolean(true)),
+                                                          JsObject("key" -> JsString("web-export"), "value" -> JsTrue),
+                                                          JsObject("key" -> JsString("raw-http"), "value" -> JsFalse),
+                                                          JsObject("key" -> JsString("final"), "value" -> JsTrue),
                                                           JsObject(
                                                             "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                                            "value" -> JsBoolean(false)),
+                                                            "value" -> JsFalse),
                                                           JsObject(
                                                             "key" -> JsString("exec"),
                                                             "value" -> JsString("nodejs:6")))
                                                       } else {
                                                         JsArray(
-                                                          JsObject(
-                                                            "key" -> JsString("web-export"),
-                                                            "value" -> JsBoolean(true)),
-                                                          JsObject(
-                                                            "key" -> JsString("raw-http"),
-                                                            "value" -> JsBoolean(false)),
-                                                          JsObject(
-                                                            "key" -> JsString("final"),
-                                                            "value" -> JsBoolean(true)),
+                                                          JsObject("key" -> JsString("web-export"), "value" -> JsTrue),
+                                                          JsObject("key" -> JsString("raw-http"), "value" -> JsFalse),
+                                                          JsObject("key" -> JsString("final"), "value" -> JsTrue),
                                                           JsObject(
                                                             "key" -> JsString("exec"),
                                                             "value" -> JsString("nodejs:6")))
