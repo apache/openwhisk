@@ -125,8 +125,8 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, false, false, 10)
+  def poolConfig(userMemory: ByteSize, clusterMangedResources: Boolean = false) =
+    ContainerPoolConfig(userMemory, 0.5, false, clusterMangedResources, false, 10)
 
   val instanceId = InvokerInstanceId(0, userMemory = 1024.MB)
   behavior of "ContainerPool"
@@ -571,6 +571,83 @@ class ContainerPoolTests
     pool ! runMessageConcurrent
     containers(0).expectMsg(runMessageConcurrent)
   }
+
+  it should "init prewarms only when InitPrewarms message is sent, when ContainerResourceManager.autoStartPrewarming is false" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val resMgr = new ContainerResourceManager {
+      override val autoStartPrewarming: Boolean = false
+      override def canLaunch(size: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean = true
+    }
+
+    val pool = system.actorOf(
+      ContainerPool
+        .props(
+          instanceId,
+          factory,
+          poolConfig(MemoryLimit.stdMemory),
+          feed.ref,
+          List(PrewarmingConfig(1, exec, memoryLimit)),
+          Some(resMgr)))
+    //prewarms are not started immediately
+    containers(0).expectNoMessage
+    //prewarms must be started explicitly (e.g. by the ContainerResourceManager)
+    pool ! InitPrewarms
+
+    containers(0).expectMsg(Start(exec, memoryLimit)) // container0 was prewarmed
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+    pool ! runMessage
+    containers(0).expectMsg(runMessage)
+
+  }
+
+  it should "limit the number of container cold/prewarm starts" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val resMgr = new ContainerResourceManager {
+      override val autoStartPrewarming: Boolean = false
+      override def canLaunch(size: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean = true
+    }
+
+    val pool = system.actorOf(
+      ContainerPool
+        .props(
+          instanceId,
+          factory,
+          poolConfig(MemoryLimit.stdMemory),
+          feed.ref,
+          List(PrewarmingConfig(1, exec, memoryLimit)),
+          Some(resMgr)))
+    //prewarms are not started immediately
+    containers(0).expectNoMessage
+    //prewarms must be started explicitly (e.g. by the ContainerResourceManager)
+    pool ! InitPrewarms
+
+    containers(0).expectMsg(Start(exec, memoryLimit)) // container0 was prewarmed
+
+  }
+
+  it should "request space from cluster if no resources available" in {}
+
+  it should "update unused when container reaches capacity" in {}
+
+  it should "track resent messages to avoid duplicated resends" in {}
+
+  it should "update unused on NeedWork" in {}
+
+  it should "process runbuffer when container is removed" in {}
+  it should "process runbuffer on ResourceUpdate" in {}
+  it should "release reservation on ContainerStarted" in {}
+  it should "request space from cluster on NeedResources" in {}
+  it should "remove unused on ReleaseFree" in {}
+  it should "process runbuffer instead of requesting new messages" in {}
+  it should "add reservation in createContainer" in {}
+  it should "add reservation in prewarmContainer" in {}
+
+  it should "delegate to resourceManager to determine whether there is space to launch" in {}
+
+  it should "remove any amount of space when freeing unused resources in cluster managed case" in {}
+
 }
 
 /**

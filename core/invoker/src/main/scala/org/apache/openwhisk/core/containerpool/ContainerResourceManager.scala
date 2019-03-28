@@ -20,13 +20,14 @@ import akka.actor.ActorRef
 import org.apache.openwhisk.core.entity.ByteSize
 
 trait ContainerResourceManager {
-  def activationStartLogMessage(): String
-  def rescheduleLogMessage(): String
+  def activationStartLogMessage(): String = ""
+  def rescheduleLogMessage(): String = ""
 
-  def updateUnused(unused: Map[ActorRef, ContainerData])
-  def allowMoreStarts(config: ContainerPoolConfig): Boolean
-  def addReservation(ref: ActorRef, byteSize: ByteSize): Unit
-  def releaseReservation(ref: ActorRef): Unit
-  def requestSpace(size: ByteSize): Unit
+  val autoStartPrewarming: Boolean = true
+  def updateUnused(unused: Map[ActorRef, ContainerData]) = {}
+  def allowMoreStarts(config: ContainerPoolConfig): Boolean = true
+  def addReservation(ref: ActorRef, byteSize: ByteSize): Unit = {}
+  def releaseReservation(ref: ActorRef): Unit = {}
+  def requestSpace(size: ByteSize): Unit = {}
   def canLaunch(size: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean
 }

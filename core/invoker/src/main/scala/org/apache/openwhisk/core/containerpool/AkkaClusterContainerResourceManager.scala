@@ -60,6 +60,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
                                           poolActor: ActorRef,
                                           poolConfig: ContainerPoolConfig)(implicit logging: Logging)
     extends ContainerResourceManager {
+  override val autoStartPrewarming: Boolean = false
 
   /** cluster state tracking */
   private var localReservations: Map[ActorRef, Reservation] = Map.empty //this pool's own reservations
@@ -89,16 +90,14 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   //cachedValues
   var idMap: immutable.Set[Int] = Set.empty
 
-  def activationStartLogMessage(): String =
-    s"node stats ${clusterActionHostStats} reserved ${localReservations.size} (of max ${poolConfig.clusterManagedResourceMaxStarts}) containers ${reservedSize}MB " +
-      s"${reservedStartCount} pending starts ${reservedStopCount} pending stops " +
-      s"${scheduledStartCount} scheduled starts ${scheduledStopCount} scheduled stops"
+  override def activationStartLogMessage(): String =
+    s"node stats ${clusterActionHostStats} reserved ${localReservations.size} (of max ${poolConfig.clusterManagedResourceMaxStarts}) containers ${reservedSize}MB"
 
-  def rescheduleLogMessage() = {
+  override def rescheduleLogMessage() = {
     s"reservations: ${localReservations.size}"
   }
 
-  def requestSpace(size: ByteSize) = {
+  override def requestSpace(size: ByteSize) = {
     val bufferedSize = size * 10 //request 10x the required space to allow for failures and additional traffic
     //find idles up to this size
     val removable = remoteUnused.map(u => u._2.map(u._1 -> _)).flatten.to[ListBuffer]
@@ -118,22 +117,6 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
 
   def reservedSize = localReservations.values.map(_.size.toMB).sum
   def remoteReservedSize = remoteReservations.values.map(_.map(_.size.toMB).sum).sum
-  def reservedStartCount = localReservations.values.count {
-    case p: Reservation => p.size.toMB >= 0
-    case _              => false
-  }
-  def reservedStopCount = localReservations.values.count {
-    case p: Reservation => p.size.toMB < 0
-    case _              => false
-  }
-  def scheduledStartCount = localReservations.values.count {
-    case p: Reservation => p.size.toMB >= 0
-    case _              => false
-  }
-  def scheduledStopCount = localReservations.values.count {
-    case p: Reservation => p.size.toMB < 0
-    case _              => false
-  }
   private var clusterResourcesAvailable
     : Boolean = false //track to log whenever there is a switch from cluster resources being available to not being available
 
@@ -178,13 +161,13 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   }
 
   /** reservation adjustments */
-  def addReservation(ref: ActorRef, size: ByteSize): Unit = {
+  override def addReservation(ref: ActorRef, size: ByteSize): Unit = {
     localReservations = localReservations + (ref -> Reservation(size))
   }
-  def releaseReservation(ref: ActorRef): Unit = {
+  override def releaseReservation(ref: ActorRef): Unit = {
     localReservations = localReservations - ref
   }
-  def allowMoreStarts(config: ContainerPoolConfig): Boolean =
+  override def allowMoreStarts(config: ContainerPoolConfig): Boolean =
     localReservations
       .count({ case (_, state) => state.size.toMB > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
 
@@ -273,6 +256,14 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
             stats.values.maxBy(_.mem).mem.toLong)
         }
         MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
+        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, localUnused.size)
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE,
+          localUnused.map(_._2.memoryLimit.toMB).sum)
+        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_RESERVED_COUNT, localReservations.size)
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.CLUSTER_RESOURCES_RESERVED_SIZE,
+          localReservations.map(_._2.size.toMB).sum)
 
         if (stats.nonEmpty && !prewarmsInitialized) { //we assume that when stats are received, we should startup prewarm containers
           prewarmsInitialized = true
@@ -350,7 +341,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         }
     }
   }
-  def updateUnused(newUnused: Map[ActorRef, ContainerData]): Unit = {
+  override def updateUnused(newUnused: Map[ActorRef, ContainerData]): Unit = {
     localUnused = newUnused
   }
   def remove[A](pool: ListBuffer[(A, RemoteContainerRef)], memory: ByteSize): List[(A, RemoteContainerRef)] = {

@@ -16,19 +16,10 @@
  */
 
 package org.apache.openwhisk.core.containerpool
-import akka.actor.ActorRef
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.ByteSize
 
 class LocalContainerResourceManager(implicit logging: Logging) extends ContainerResourceManager {
-
-  override def activationStartLogMessage(): String = ""
-  override def rescheduleLogMessage(): String = ""
-  override def updateUnused(unused: Map[ActorRef, ContainerData]): Unit = {}
-  override def allowMoreStarts(config: ContainerPoolConfig): Boolean = true
-  override def addReservation(ref: ActorRef, byteSize: ByteSize): Unit = {}
-  override def releaseReservation(ref: ActorRef): Unit = {}
-  override def requestSpace(size: ByteSize): Unit = {}
   override def canLaunch(size: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean =
     poolMemory + size.toMB <= poolConfig.userMemory.toMB
 }

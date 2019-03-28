@@ -37,6 +37,7 @@ case class WorkerData(data: ContainerData, state: WorkerState)
 
 case object InitPrewarms
 case object ResourceUpdate
+case object EmitMetrics
 
 /**
  * A pool managing containers to run actions on.
@@ -57,22 +58,27 @@ case object ResourceUpdate
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  * @param poolConfig config for the ContainerPool
+ * @param resMgr ContainerResourceManager impl
  */
 class ContainerPool(instanceId: InvokerInstanceId,
                     childFactory: ActorRefFactory => ActorRef,
                     feed: ActorRef,
                     prewarmConfig: List[PrewarmingConfig] = List.empty,
-                    poolConfig: ContainerPoolConfig)
+                    poolConfig: ContainerPoolConfig,
+                    resMgr: Option[ContainerResourceManager])
     extends Actor {
   import ContainerPool.memoryConsumptionOf
 
   implicit val logging = new AkkaLogging(context.system.log)
+  implicit val ec = context.dispatcher
 
-  val resourceManager = if (poolConfig.clusterManagedResources) {
+  val resourceManager = resMgr.getOrElse(if (poolConfig.clusterManagedResources) {
     new AkkaClusterContainerResourceManager(context.system, instanceId, self, poolConfig)
   } else {
-    self ! InitPrewarms
     new LocalContainerResourceManager()
+  })
+  if (resourceManager.autoStartPrewarming) {
+    self ! InitPrewarms
   }
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
@@ -81,6 +87,8 @@ class ContainerPool(instanceId: InvokerInstanceId,
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
   var runBuffer = immutable.Queue.empty[Run]
+  //periodically emit metrics (don't need to do this for each message!)
+  context.system.scheduler.schedule(30.seconds, 2.seconds, self, EmitMetrics)
   var resent = immutable.Set.empty[ActivationId]
   val logMessageInterval = 10.seconds
 
@@ -96,6 +104,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
     }
   }
 
+  def inUse = freePool.filter(_._2.activeActivationCount > 0) ++ busyPool
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
     val actionName = r.action.name.name
@@ -335,6 +344,12 @@ class ContainerPool(instanceId: InvokerInstanceId,
           case None =>
             logging.info(this, s"Requested container removal ${r} failed because it is in use.")
       })
+    case EmitMetrics =>
+      MetricEmitter.emitHistogramMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE, runBuffer.size)
+      MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, inUse.size)
+      MetricEmitter.emitHistogramMetric(
+        LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE,
+        inUse.map(_._2.memoryLimit.toMB).sum)
   }
 
   /** Buffer processing in cluster managed resources means to send the first item in runBuffer;
@@ -540,8 +555,9 @@ object ContainerPool {
             factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: List[PrewarmingConfig] = List.empty) =
-    Props(new ContainerPool(instanceId, factory, feed, prewarmConfig, poolConfig))
+            prewarmConfig: List[PrewarmingConfig] = List.empty,
+            resMgr: Option[ContainerResourceManager] = None) =
+    Props(new ContainerPool(instanceId, factory, feed, prewarmConfig, poolConfig, resMgr))
 }
 
 /** Contains settings needed to perform container prewarming. */

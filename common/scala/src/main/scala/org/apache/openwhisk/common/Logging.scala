@@ -451,6 +451,21 @@ object LoggingMarkers {
     LogMarkerToken(containerPool, "resourceError", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_RESCHEDULED_ACTIVATION =
     LogMarkerToken(containerPool, "rescheduledActivation", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_RUNBUFFER_SIZE =
+    LogMarkerToken(containerPool, "runBufferSize", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_ACTIVE_COUNT =
+    LogMarkerToken(containerPool, "activeCount", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_ACTIVE_SIZE =
+    LogMarkerToken(containerPool, "activeSize", counter)(MeasurementUnit.none)
+  val CLUSTER_RESOURCES_IDLES_COUNT =
+    LogMarkerToken(clusterResourceManager, "idlesCount", counter)(MeasurementUnit.none)
+  val CLUSTER_RESOURCES_IDLES_SIZE =
+    LogMarkerToken(clusterResourceManager, "idlesSize", counter)(MeasurementUnit.none)
+  val CLUSTER_RESOURCES_RESERVED_COUNT =
+    LogMarkerToken(clusterResourceManager, "reservedCount", counter)(MeasurementUnit.none)
+  val CLUSTER_RESOURCES_RESERVED_SIZE =
+    LogMarkerToken(clusterResourceManager, "reservedSize", counter)(MeasurementUnit.none)
+
   val CLUSTER_RESOURCES_TOTAL_MEM =
     LogMarkerToken(clusterResourceManager, "totalMemory", counter)(MeasurementUnit.none)
   val CLUSTER_RESOURCES_MAX_MEM =
