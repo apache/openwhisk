@@ -28,21 +28,21 @@ import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class WhisksCacheEventProducerTests extends FlatSpec with Matchers {
-  import WhisksCacheEventProducer.instanceId
+class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
+  import WhiskChangeEventObserver.instanceId
 
   behavior of "CosmosDB extract LSN from Session token"
 
   it should "parse old session token" in {
-    WhisksCacheEventProducer.getSessionLsn("0:12345") shouldBe 12345
+    WhiskChangeEventObserver.getSessionLsn("0:12345") shouldBe 12345
   }
 
   it should "parse new session token" in {
-    WhisksCacheEventProducer.getSessionLsn("0:-1#12345") shouldBe 12345
+    WhiskChangeEventObserver.getSessionLsn("0:-1#12345") shouldBe 12345
   }
 
   it should "parse new session token with multiple regional lsn" in {
-    WhisksCacheEventProducer.getSessionLsn("0:-1#12345#Region1=1#Region2=2") shouldBe 12345
+    WhiskChangeEventObserver.getSessionLsn("0:-1#12345#Region1=1#Region2=2") shouldBe 12345
   }
 
   behavior of "CosmosDB feed events"
@@ -50,7 +50,7 @@ class WhisksCacheEventProducerTests extends FlatSpec with Matchers {
   it should "generate cache events" in {
     val config = InvalidatorConfig(8080, 60.seconds, None)
     val docs = Seq(createDoc("foo"), createDoc("bar"))
-    val processedDocs = WhisksCacheEventProducer.processDocs(docs, config)
+    val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
     processedDocs.map(CacheInvalidationMessage.parse(_).get) shouldBe Seq(
       CacheInvalidationMessage(CacheKey("foo"), instanceId),
@@ -60,7 +60,7 @@ class WhisksCacheEventProducerTests extends FlatSpec with Matchers {
   it should "filter clusterId" in {
     val config = InvalidatorConfig(8080, 60.seconds, Some("cid1"))
     val docs = Seq(createDoc("foo", Some("cid2")), createDoc("bar", Some("cid1")), createDoc("baz"))
-    val processedDocs = WhisksCacheEventProducer.processDocs(docs, config)
+    val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
     //Should not include bar as the clusterId matches
     processedDocs.map(CacheInvalidationMessage.parse(_).get) shouldBe Seq(

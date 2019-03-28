@@ -43,16 +43,15 @@ object CacheInvalidator extends SLF4JLogging {
     implicit val globalConfig: Config = config
     val producer = KafkaEventProducer(kafkaProducerSettings(defaultProducerConfig(config)), cacheInvalidationTopic)
     val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()(globalConfig)
-    WhisksCacheEventProducer.eventProducer = producer
-    WhisksCacheEventProducer.config = invalidatorConfig
     //TODO Listen for auth collection changes
-    val feedManager = new ChangeFeedManager(whisksCollection, classOf[WhisksCacheEventProducer])
+    val observer = new WhiskChangeEventObserver(invalidatorConfig, producer)
+    val feedManager = new ChangeFeedManager(whisksCollection, observer)
     registerShutdownTasks(system, feedManager, producer)
     log.info(s"Started the Cache invalidator service. ClusterId [${invalidatorConfig.clusterId}]")
   }
 
   private def registerShutdownTasks(system: ActorSystem,
-                                    feedManager: ChangeFeedManager[_],
+                                    feedManager: ChangeFeedManager,
                                     producer: KafkaEventProducer): Unit = {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeFeedListeners") { () =>
       implicit val ec = system.dispatcher

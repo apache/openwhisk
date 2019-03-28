@@ -33,24 +33,23 @@ import org.apache.openwhisk.common.ExecutorCloser
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Seq
 
-class ChangeFeedManager[A <: BaseObserver](collName: String, observerClazz: Class[A])(implicit config: Config)
-    extends Closeable {
+class ChangeFeedManager(collName: String, observer: ChangeFeedObserver)(implicit config: Config) extends Closeable {
   private val listener = {
     val feedConfig = CacheInvalidatorConfig.getFeedConfig()
     val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()
     val collInfo = CacheInvalidatorConfig.getCollectionInfo(collName)
     val leaseCollInfo = CacheInvalidatorConfig.getCollectionInfo(feedConfig.leaseCollection)
-    new ChangeFeedListener(collInfo, leaseCollInfo, feedConfig, observerClazz, invalidatorConfig.clusterId)
+    new ChangeFeedListener(collInfo, leaseCollInfo, feedConfig, observer, invalidatorConfig.clusterId)
   }
 
   override def close(): Unit = listener.close()
 }
 
-class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
-                                            leaseCollInfo: DocumentCollectionInfo,
-                                            feedConfig: FeedConfig,
-                                            observerClazz: Class[A],
-                                            clusterId: Option[String])
+class ChangeFeedListener(collInfo: DocumentCollectionInfo,
+                         leaseCollInfo: DocumentCollectionInfo,
+                         feedConfig: FeedConfig,
+                         observer: ChangeFeedObserver,
+                         clusterId: Option[String])
     extends Closeable {
   private val host = {
     val feedOpts = new ChangeFeedOptions
@@ -64,14 +63,14 @@ class ChangeFeedListener[A <: BaseObserver](collInfo: DocumentCollectionInfo,
     hostOpts.setLeasePrefix(prefix)
 
     val host = new ChangeFeedEventHost(feedConfig.hostname, collInfo.asJava, leaseCollInfo.asJava, feedOpts, hostOpts)
-    host.registerObserver(observerClazz)
+    host.registerObserverFactory(() => observer)
     host
   }
 
   override def close(): Unit = ExecutorCloser(host.getExecutorService).close()
 }
 
-abstract class BaseObserver extends IChangeFeedObserver {
+abstract class ChangeFeedObserver extends IChangeFeedObserver {
   override final def open(context: ChangeFeedObserverContext): Unit = Unit
   override final def close(context: ChangeFeedObserverContext, reason: ChangeFeedObserverCloseReason): Unit = Unit
   override final def processChanges(context: ChangeFeedObserverContext, docs: util.List[Document]): Unit =

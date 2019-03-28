@@ -21,7 +21,6 @@ import akka.Done
 import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.documentdb.Document
 import com.microsoft.azure.documentdb.changefeedprocessor.ChangeFeedObserverContext
-import com.typesafe.config.ConfigFactory
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
@@ -33,8 +32,8 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Seq
 import scala.concurrent.{Await, Future}
 
-class WhisksCacheEventProducer extends BaseObserver {
-  import WhisksCacheEventProducer._
+class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer) extends ChangeFeedObserver {
+  import WhiskChangeEventObserver._
 
   override def process(context: ChangeFeedObserverContext, docs: Seq[Document]): Unit = {
     //Each observer is called from a pool managed by CosmosDB ChangeFeedProcessor
@@ -51,23 +50,11 @@ trait EventProducer {
   def send(msg: Seq[String]): Future[Done]
 }
 
-object WhisksCacheEventProducer extends SLF4JLogging {
+object WhiskChangeEventObserver extends SLF4JLogging {
   val instanceId = "cache-invalidator"
   private val feedCounter =
     LogMarkerToken("cosmosdb", "change_feed", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
-  private var _eventsProducer: EventProducer = _
-  private var _config: InvalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()(ConfigFactory.load())
   private val lags = new TrieMap[String, LogMarkerToken]
-
-  def eventProducer: EventProducer = {
-    require(_eventsProducer != null, "KafkaEventProducer yet not initialized")
-    _eventsProducer
-  }
-
-  def eventProducer_=(eventProducer: EventProducer): Unit = _eventsProducer = eventProducer
-
-  def config = _config
-  def config_=(config: InvalidatorConfig): Unit = _config = config
 
   /**
    * Records the current lag on per partition basis. In ideal cases the lag should not continue to increase

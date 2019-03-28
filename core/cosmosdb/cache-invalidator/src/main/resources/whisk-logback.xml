@@ -23,5 +23,5 @@
     <logger name="com.microsoft.azure.documentdb.changefeedprocessor.services" level="WARN" />
     <logger name="com.microsoft.azure.documentdb.changefeedprocessor.internal" level="WARN" />
 
-    <logger name="org.apache.openwhisk.core.database.cosmosdb.cache.WhisksCacheEventProducer" level="DEBUG" />
+    <logger name="org.apache.openwhisk.core.database.cosmosdb.cache.WhiskChangeEventObserver" level="DEBUG" />
 </included>
