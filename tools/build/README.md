@@ -20,38 +20,38 @@
 # Build helper scripts
 
 This directory contains the following utilities.
-- `redo`: a wrapper around Ansible and Gradle commands, for which examples are given below,
+- `wskdev`: a wrapper around Ansible and Gradle commands, for which examples are given below,
 - `citool`: allows for command line monitoring of Jenkins and Travis CI builds.
 
-## How to use `redo`
+## How to use `wskdev`
 
-The script is called `redo` because for most development, one will want to "redo" the compilation and deployment.
+The script is called `wskdev` because for most development.
 
-- usage information: `redo -h`
-- initialize environment and `docker-machine` (for mac): `redo setup prereq`
-- start CouchDB container and initialize DB with system and guest keys: `redo couchdb initdb`
-- build and deploy system: `redo deploy`
-- run tests: `redo props tests`
+- usage information: `wskdev -h`
+- initialize environment and `docker-machine` (for mac): `wskdev setup prereq`
+- start CouchDB container and initialize DB with system and guest keys: `wskdev couchdb initdb`
+- build and deploy system: `wskdev deploy`
+- run tests: `wskdev props tests`
 
-To do a fresh build and deploy all with one line for a first time run `redo setup prereq couchdb initdb deploy tests` as each of these is executed sequentially.
+To do a fresh build and deploy all with one line for a first time run `wskdev setup prereq couchdb initdb deploy tests` as each of these is executed sequentially.
 
 Individual components such as the `controller` may be rebuilt and redeployed as well.
 
-  * To only build: `redo controller -b`.
-  * To only teardown: `redo controller -x`.
-  * To redeploy only: `redo controller -d`.
-  * To do all at once: `redo controller -bxd` which is the default.
+  * To only build: `wskdev controller -b`.
+  * To only teardown: `wskdev controller -x`.
+  * To redeploy only: `wskdev controller -d`.
+  * To do all at once: `wskdev controller -bxd` which is the default.
 
 Additional arguments may be passed to underlying shell commands for Gradle and Ansible using `-a`.
 For example, the following is handy to run a subset of all tests from the command line.
 
-  * `redo tests -a '--tests package.name.TestClass.evenMethodName'`
+  * `wskdev tests -a '--tests package.name.TestClass.evenMethodName'`
 
 Some components are dynamically generated. This is supported by a generic component name
 which specifies a regex. The `runtime:([\w]+)` is one such component, useful for rebuilding
 action runtime images.
 
-  * `redo --dir /path/to/incubator-openwhisk-runtime-nodejs runtime:nodejs6action`
+  * `wskdev --dir /path/to/incubator-openwhisk-runtime-nodejs runtime:nodejs6action`
 
 ## How to use `citool`
 
