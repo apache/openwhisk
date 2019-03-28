@@ -55,7 +55,7 @@ class PoolingRestClient(
   private val timeoutSettings = {
     val s = ConnectionPoolSettings(system.settings.config)
     timeout match {
-      case Some(t) => s.withMaxConnectionBackoff(t).withUpdatedConnectionSettings(cs => cs.withIdleTimeout(t))
+      case Some(t) => s.withMaxConnectionBackoff(t).withUpdatedConnectionSettings(_.withIdleTimeout(t))
       case None    => s
     }
   }
