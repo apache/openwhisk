@@ -27,19 +27,17 @@ import com.microsoft.azure.documentdb.changefeedprocessor.{
   IChangeFeedObserver
 }
 import com.microsoft.azure.documentdb.{ChangeFeedOptions, Document}
-import com.typesafe.config.Config
 import org.apache.openwhisk.common.ExecutorCloser
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Seq
 
-class ChangeFeedManager(collName: String, observer: ChangeFeedObserver)(implicit config: Config) extends Closeable {
+class ChangeFeedManager(collName: String, observer: ChangeFeedObserver, config: CacheInvalidatorConfig)
+    extends Closeable {
   private val listener = {
-    val feedConfig = CacheInvalidatorConfig.getFeedConfig()
-    val invalidatorConfig = CacheInvalidatorConfig.getInvalidatorConfig()
-    val collInfo = CacheInvalidatorConfig.getCollectionInfo(collName)
-    val leaseCollInfo = CacheInvalidatorConfig.getCollectionInfo(feedConfig.leaseCollection)
-    new ChangeFeedListener(collInfo, leaseCollInfo, feedConfig, observer, invalidatorConfig.clusterId)
+    val collInfo = config.getCollectionInfo(collName)
+    val leaseCollInfo = config.getCollectionInfo(config.feedConfig.leaseCollection)
+    new ChangeFeedListener(collInfo, leaseCollInfo, config.feedConfig, observer, config.invalidatorConfig.clusterId)
   }
 
   override def close(): Unit = listener.close()

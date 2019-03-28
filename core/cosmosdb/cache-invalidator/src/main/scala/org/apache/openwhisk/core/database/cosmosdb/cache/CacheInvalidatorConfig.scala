@@ -44,12 +44,14 @@ case class FeedConfig(hostname: String, leaseCollection: String)
 
 case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clusterId: Option[String])
 
-object CacheInvalidatorConfig {
+case class CacheInvalidatorConfig(globalConfig: Config) {
   val configRoot = "whisk.cache-invalidator"
   val cosmosConfigRoot = s"$configRoot.cosmosdb"
   val connections = "collections"
+  val feedConfig: FeedConfig = loadConfigOrThrow[FeedConfig](globalConfig.getConfig(cosmosConfigRoot))
+  val invalidatorConfig: InvalidatorConfig = loadConfigOrThrow[InvalidatorConfig](globalConfig.getConfig(configRoot))
 
-  def getCollectionInfo(name: String)(implicit globalConfig: Config): DocumentCollectionInfo = {
+  def getCollectionInfo(name: String): DocumentCollectionInfo = {
     val config = globalConfig.getConfig(cosmosConfigRoot)
     val specificConfigPath = joinPath(connections, name)
 
@@ -63,10 +65,4 @@ object CacheInvalidatorConfig {
     val info = loadConfigOrThrow[ConnectionInfo](entityConfig)
     DocumentCollectionInfo(info, name)
   }
-
-  def getFeedConfig()(implicit globalConfig: Config): FeedConfig =
-    loadConfigOrThrow[FeedConfig](globalConfig.getConfig(cosmosConfigRoot))
-
-  def getInvalidatorConfig()(implicit globalConfig: Config): InvalidatorConfig =
-    loadConfigOrThrow[InvalidatorConfig](globalConfig.getConfig(configRoot))
 }
