@@ -320,7 +320,7 @@ object KubernetesRestLogSourceStage {
   def isRelevantLogLine(lastTimestamp: Option[Instant], newTimestamp: Instant): Boolean =
     lastTimestamp match {
       case Some(last) =>
-        newTimestamp.isAfter(last)
+        !newTimestamp.isBefore(last)
       case None =>
         true
     }
