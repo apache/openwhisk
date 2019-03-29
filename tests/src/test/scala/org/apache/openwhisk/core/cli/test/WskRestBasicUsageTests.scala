@@ -455,27 +455,22 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         action.create(name, file, web = Some("true"), update = true)
       }
 
+      val baseAnnotations =
+        Parameters("web-export", JsBoolean(true)) ++
+          Parameters("raw-http", JsBoolean(false)) ++
+          Parameters("final", JsBoolean(true))
+
+      val testAnnotations = if (requireAPIKeyAnnotation) {
+        baseAnnotations ++
+          Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false)) ++
+          Parameters("exec", "nodejs:6")
+      } else {
+        baseAnnotations ++
+          Parameters("exec", "nodejs:6")
+      }
+
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations") shouldBe (if (requireAPIKeyAnnotation) {
-                                                        JsArray(
-                                                          JsObject("key" -> JsString("web-export"), "value" -> JsTrue),
-                                                          JsObject("key" -> JsString("raw-http"), "value" -> JsFalse),
-                                                          JsObject("key" -> JsString("final"), "value" -> JsTrue),
-                                                          JsObject(
-                                                            "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                                            "value" -> JsFalse),
-                                                          JsObject(
-                                                            "key" -> JsString("exec"),
-                                                            "value" -> JsString("nodejs:6")))
-                                                      } else {
-                                                        JsArray(
-                                                          JsObject("key" -> JsString("web-export"), "value" -> JsTrue),
-                                                          JsObject("key" -> JsString("raw-http"), "value" -> JsFalse),
-                                                          JsObject("key" -> JsString("final"), "value" -> JsTrue),
-                                                          JsObject(
-                                                            "key" -> JsString("exec"),
-                                                            "value" -> JsString("nodejs:6")))
-                                                      })
+      action.getFieldJsValue("annotations") shouldBe testAnnotations.toJsArray
   }
 
   it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
