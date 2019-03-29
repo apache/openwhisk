@@ -53,10 +53,13 @@ class PoolingRestClient(
 
   //if specified, override the ClientConnection idle-timeout and keepalive socket option value
   private val timeoutSettings = {
-    val s = ConnectionPoolSettings(system.settings.config)
+    val cps = ConnectionPoolSettings(system.settings.config)
     timeout match {
-      case Some(t) => s.withMaxConnectionBackoff(t).withUpdatedConnectionSettings(_.withIdleTimeout(t))
-      case None    => s
+      case Some(t) =>
+        cps
+          .withMaxConnectionBackoff(cps.maxConnectionBackoff.min(t))
+          .withUpdatedConnectionSettings(_.withIdleTimeout(t))
+      case None => cps
     }
   }
 
