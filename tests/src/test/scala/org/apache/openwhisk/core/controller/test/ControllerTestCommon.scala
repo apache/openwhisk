@@ -30,7 +30,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{FeatureFlags, WhiskConfig}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.controller.{CustomHeaders, RestApiCommons, WhiskServices}
@@ -86,8 +86,8 @@ protected trait ControllerTestCommon
   }
 
   def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
-    val base = if (create) {
-      Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+    val base = if (create && FeatureFlags.requireApiKeyAnnotation) {
+      Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
     } else {
       Parameters()
     }

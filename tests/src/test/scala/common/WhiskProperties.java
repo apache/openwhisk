@@ -125,8 +125,17 @@ public class WhiskProperties {
         return new File(whiskHome, name);
     }
 
-    public static String getProperty(String string) {
-        return whiskProperties.getProperty(string);
+    public static String getProperty(String name) {
+        return whiskProperties.getProperty(name);
+    }
+
+    public static Boolean getBooleanProperty(String name, Boolean defaultValue) {
+        String value = whiskProperties.getProperty(name);
+        if (value == null) {
+            return defaultValue;
+        }
+
+        return Boolean.parseBoolean(value);
     }
 
     public static String getKafkaHosts() {
