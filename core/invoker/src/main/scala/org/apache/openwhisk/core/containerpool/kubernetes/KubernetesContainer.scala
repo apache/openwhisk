@@ -37,6 +37,8 @@ import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 
+import scala.util.Failure
+
 object KubernetesContainer {
 
   /**
@@ -67,7 +69,16 @@ object KubernetesContainer {
 
     for {
       container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
-        case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+        case _ =>
+          kubernetes
+            .rm(podName)
+            .andThen {
+              case Failure(e) =>
+                log.error(this, s"Failed delete pod for '$name': ${e.getClass} - ${e.getMessage}")
+            }
+            .transformWith { _ =>
+              Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+            }
       }
     } yield container
   }

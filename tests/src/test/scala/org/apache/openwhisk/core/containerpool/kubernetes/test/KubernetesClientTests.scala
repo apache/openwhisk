@@ -212,6 +212,10 @@ object KubernetesClientTests {
       Future.successful(())
     }
 
+    override def rm(podName: String): Future[Unit] = {
+      rms += ContainerId(podName)
+      Future.successful(())
+    }
     def rm(key: String, value: String, ensureUnpause: Boolean = false)(
       implicit transid: TransactionId): Future[Unit] = {
       rmByLabels += ((key, value))
