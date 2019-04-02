@@ -378,7 +378,9 @@ object ContainerPool {
    * @return a list of containers to be removed iff found
    */
   @tailrec
-  protected[containerpool] def remove[A](pool: Map[A, ContainerData], memory: ByteSize,toRemove :List[A] = List.empty): List[A] = {
+  protected[containerpool] def remove[A](pool: Map[A, ContainerData],
+                                         memory: ByteSize,
+                                         toRemove: List[A] = List.empty): List[A] = {
     // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
     val freeContainers = pool.collect {
       // Only warm containers will be removed. Prewarmed containers will stay always.
