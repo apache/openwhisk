@@ -93,7 +93,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       p.getField("version") shouldBe "0.0.2"
       p
     })
-    pack.getFieldJsValue("publish") shouldBe JsBoolean(true)
+    pack.getFieldJsValue("publish") shouldBe JsTrue
     pack.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     val packageList = wsk.pkg.list()
     val packages = packageList.getBodyListJsObject
@@ -200,7 +200,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getField("namespace") shouldBe ns
       result.getField("name") shouldBe name
       result.getField("version") shouldBe "0.0.1"
-      result.getFieldJsValue("publish") shouldBe JsBoolean(false)
+      result.getFieldJsValue("publish") shouldBe JsFalse
       result.getFieldJsValue("binding") shouldBe JsObject.empty
       result.getField("invalid") shouldBe ""
   }
@@ -257,7 +257,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       a
     })
     action.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("b"), "value" -> JsString("B")))
-    action.getFieldJsValue("publish") shouldBe JsBoolean(false)
+    action.getFieldJsValue("publish") shouldBe JsFalse
     val actionList = wsk.action.list()
     val actions = actionList.getBodyListJsObject
     actions.exists(action => RestResult.getField(action, "name") == name) shouldBe true
@@ -361,7 +361,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       val result = wsk.action.get(name)
       result.getField("name") shouldBe name
       result.getField("namespace") shouldBe ns
-      result.getFieldJsValue("publish") shouldBe JsBoolean(false)
+      result.getFieldJsValue("publish") shouldBe JsFalse
       result.getField("version") shouldBe "0.0.1"
       val exec = result.getFieldJsObject("exec")
       RestResult.getField(exec, "kind") shouldBe "nodejs:6"
@@ -588,7 +588,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       t
     })
     trigger.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
-    trigger.getFieldJsValue("publish") shouldBe JsBoolean(false)
+    trigger.getFieldJsValue("publish") shouldBe JsFalse
 
     val expectedRules = JsObject(
       ns + "/" + ruleName -> JsObject(
@@ -612,7 +612,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         JsObject(
           "statusCode" -> JsNumber(0),
           "activationId" -> JsString(ruleActivationId),
-          "success" -> JsBoolean(true),
+          "success" -> JsTrue,
           "rule" -> JsString(ns + "/" + ruleName),
           "action" -> JsString(ns + "/" + actionName)))
       logs shouldBe expectedLogs
@@ -711,7 +711,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getField("namespace") shouldBe ns
       result.getField("name") shouldBe name
       result.getField("version") shouldBe "0.0.1"
-      result.getFieldJsValue("publish") shouldBe JsBoolean(false)
+      result.getFieldJsValue("publish") shouldBe JsFalse
       result.getFieldJsValue("annotations").toString shouldBe "[]"
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
@@ -818,12 +818,12 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
           JsObject(
             "statusCode" -> JsNumber(0),
             "activationId" -> JsString(ruleActivationId),
-            "success" -> JsBoolean(true),
+            "success" -> JsTrue,
             "rule" -> JsString(ns + "/" + ruleName1),
             "action" -> JsString(ns + "/" + actionName1)),
           JsObject(
             "statusCode" -> JsNumber(1),
-            "success" -> JsBoolean(false),
+            "success" -> JsFalse,
             "error" -> JsString("The requested resource does not exist."),
             "rule" -> JsString(ns + "/" + ruleName2),
             "action" -> JsString(ns + "/" + actionName2)))
@@ -879,12 +879,12 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
           JsObject(
             "statusCode" -> JsNumber(0),
             "activationId" -> JsString(ruleActivationId),
-            "success" -> JsBoolean(true),
+            "success" -> JsTrue,
             "rule" -> JsString(ns + "/" + ruleName1),
             "action" -> JsString(ns + "/" + actionName1)),
           JsObject(
             "statusCode" -> JsNumber(1),
-            "success" -> JsBoolean(false),
+            "success" -> JsFalse,
             "error" -> JsString(Messages.triggerWithInactiveRule(s"$ns/$ruleName2", s"$ns/$actionName2")),
             "rule" -> JsString(ns + "/" + ruleName2),
             "action" -> JsString(ns + "/" + actionName2)))
@@ -1090,7 +1090,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getField("namespace") shouldBe ns
       result.getField("name") shouldBe triggerName
       result.getField("version") shouldBe "0.0.1"
-      result.getFieldJsValue("publish") shouldBe JsBoolean(false)
+      result.getFieldJsValue("publish") shouldBe JsFalse
       result.getField("subject") shouldBe ns
       result.getField("activationId") shouldBe activation.activationId
       result.getFieldJsValue("start").toString should not be JsObject.empty.toString
