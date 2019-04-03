@@ -416,7 +416,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       "binding" -> JsObject.empty,
       "parameters" -> Parameters().toJson,
       "version" -> SemVer().toJson,
-      "publish" -> JsBoolean(false),
+      "publish" -> JsFalse,
       "annotations" -> Parameters().toJson)
   }
 
@@ -428,7 +428,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       "binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson),
       "parameters" -> Parameters().toJson,
       "version" -> SemVer().toJson,
-      "publish" -> JsBoolean(false),
+      "publish" -> JsFalse,
       "annotations" -> Parameters().toJson)
     //val legacyPkgAsJson = JsObject(pkgAsJson.fields + ("binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson)))
     WhiskPackage.serdes.write(pkg) shouldBe pkgAsJson

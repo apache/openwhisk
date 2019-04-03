@@ -210,7 +210,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                            requireAuthentication: Boolean = false,
                            requireAuthenticationAsBoolean: Boolean = true) = {
 
-    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
+    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsTrue)
     WhiskAction(
       namespace,
       name,
@@ -219,29 +219,29 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       annotations = {
         if (name.asString.startsWith("export_")) {
           annotations ++
-            Parameters("web-export", JsBoolean(true)) ++ {
+            Parameters("web-export", JsTrue) ++ {
             if (requireAuthentication) {
               Parameters(
                 "require-whisk-auth",
-                (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
+                (if (requireAuthenticationAsBoolean) JsTrue else JsString(requireAuthenticationKey)))
             } else Parameters()
           } ++ {
             if (customOptions) {
-              Parameters("web-custom-options", JsBoolean(true))
+              Parameters("web-custom-options", JsTrue)
             } else Parameters()
           }
         } else if (name.asString.startsWith("raw_export_")) {
           annotations ++
-            Parameters("web-export", JsBoolean(true)) ++
-            Parameters("raw-http", JsBoolean(true)) ++ {
+            Parameters("web-export", JsTrue) ++
+            Parameters("raw-http", JsTrue) ++ {
             if (requireAuthentication) {
               Parameters(
                 "require-whisk-auth",
-                (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
+                (if (requireAuthenticationAsBoolean) JsTrue else JsString(requireAuthenticationKey)))
             } else Parameters()
           } ++ {
             if (customOptions) {
-              Parameters("web-custom-options", JsBoolean(true))
+              Parameters("web-custom-options", JsTrue)
             } else Parameters()
           }
         } else annotations
@@ -710,7 +710,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         EntityPath(systemId.asString),
         aname(),
         provider.bind,
-        annotations = Parameters("web-export", JsBoolean(false)))
+        annotations = Parameters("web-export", JsFalse))
       val action = stubAction(provider.fullPath, EntityName("export_c"))
 
       put(entityStore, provider)
@@ -1035,7 +1035,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"handle all JSON values with .text extension (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      Seq(JsObject("a" -> "A".toJson), JsArray("a".toJson), JsString("a"), JsBoolean(true), JsNumber(1), JsNull)
+      Seq(JsObject("a" -> "A".toJson), JsArray("a".toJson), JsString("a"), JsTrue, JsNumber(1), JsNull)
         .foreach { jsval =>
           val path = s"$systemId/proxy/export_c.text/res"
           allowedMethods.foreach { m =>

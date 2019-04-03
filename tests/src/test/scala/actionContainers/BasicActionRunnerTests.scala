@@ -221,7 +221,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       JsObject("string" -> JsString("hello")),
       JsObject("string" -> JsString("❄ ☃ ❄")),
       JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
-      // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
+      // JsObject("boolean" -> JsTrue), // fails with swift3 returning boolean: 1
       JsObject("object" -> JsObject("a" -> JsString("A"))))
 
     val (out, err) = withActionContainer() { c =>

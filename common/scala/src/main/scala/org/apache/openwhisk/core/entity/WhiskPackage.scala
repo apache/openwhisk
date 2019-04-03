@@ -138,7 +138,7 @@ case class WhiskPackage(namespace: EntityPath,
   override def summaryAsJson = {
     JsObject(
       super.summaryAsJson.fields +
-        (WhiskPackage.bindingFieldName -> binding.map(Binding.serdes.write(_)).getOrElse(JsBoolean(false))))
+        (WhiskPackage.bindingFieldName -> binding.map(Binding.serdes.write(_)).getOrElse(JsFalse)))
   }
 }
 
