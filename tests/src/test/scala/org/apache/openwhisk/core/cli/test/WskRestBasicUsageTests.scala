@@ -434,15 +434,16 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       val action = wsk.action.get(name)
 
-      val baseAnnotations = Parameters("exec", "nodejs:6") ++
-        Parameters("web-export", JsBoolean(webEnabled || rawEnabled)) ++
+      val baseAnnotations = Parameters("web-export", JsBoolean(webEnabled || rawEnabled)) ++
         Parameters("raw-http", JsBoolean(rawEnabled)) ++
-        Parameters("final", JsBoolean(webEnabled || rawEnabled))
+        Parameters("final", JsBoolean(webEnabled || rawEnabled)) ++
+        Parameters("exec", "nodejs:6")
       val testAnnotations = if (requireAPIKeyAnnotation) {
         baseAnnotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
       } else baseAnnotations
 
-      action.getFieldJsValue("annotations") shouldBe testAnnotations.toJsArray
+      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe testAnnotations.toJsArray
+        .convertTo[Set[JsObject]]
     }
   }
 
@@ -470,7 +471,8 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
 
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations") shouldBe testAnnotations.toJsArray
+      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe testAnnotations.toJsArray
+        .convertTo[Set[JsObject]]
   }
 
   it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
