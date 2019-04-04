@@ -208,7 +208,7 @@ nginx:
   htmldir: "{{ ui_path | default(false) }}"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.13') }}"
+  version: "{{ nginx_version | default('1.15') }}"
   port:
     http: 80
     https: 443
