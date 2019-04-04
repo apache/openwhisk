@@ -138,12 +138,15 @@ class PoolingRestClientTests
   }
 
   it should "return a status code on request failure" in {
-    val httpResponse = HttpResponse(NotFound)
+    val body = "Limit is too large, must not exceed 268435456"
+    val httpResponse = HttpResponse(NotFound, entity = body)
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject.empty.compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
     val request = mkJsonRequest(GET, Uri./, JsObject.empty, List.empty)
 
-    await(poolingRestClient.requestJson[JsObject](request)) shouldBe Left(NotFound)
+    val reqResult = await(poolingRestClient.requestJson[JsObject](request))
+    reqResult shouldBe Left(NotFound)
+    reqResult.left.get.reason shouldBe s"${NotFound.reason} (details: ${body})"
   }
 
   it should "throw an unsupported content-type exception when unexpected content-type is returned" in {
