@@ -60,7 +60,6 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
                                           poolActor: ActorRef,
                                           poolConfig: ContainerPoolConfig)(implicit logging: Logging)
     extends ContainerResourceManager {
-  override val autoStartPrewarming: Boolean = false
 
   /** cluster state tracking */
   private var localReservations: Map[ActorRef, Reservation] = Map.empty //this pool's own reservations
@@ -120,24 +119,29 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   private var clusterResourcesAvailable
     : Boolean = false //track to log whenever there is a switch from cluster resources being available to not being available
 
-  def canLaunch(memory: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig): Boolean = {
+  def canLaunch(memory: ByteSize, poolMemory: Long, poolConfig: ContainerPoolConfig, prewarm: Boolean): Boolean = {
 
-    val localRes = localReservations.values.map(_.size) //active local reservations
-    val remoteRes = remoteReservations.values.toList.flatten.map(_.size) //remote/stale reservations
+    if (allowMoreStarts(poolConfig)) {
+      val localRes = localReservations.values.map(_.size) //active local reservations
+      val remoteRes = remoteReservations.values.toList.flatten.map(_.size) //remote/stale reservations
 
-    val allRes = localRes ++ remoteRes
-    //make sure there is at least one node with unreserved mem > memory
-    val canLaunch = clusterHasPotentialMemoryCapacity(memory.toMB, allRes) //consider all reservations blocking till they are removed during NodeStatsUpdate
-    //log only when changing value
-    if (canLaunch != clusterResourcesAvailable) {
-      if (canLaunch) {
-        logging.info(this, s"cluster can launch action with ${memory.toMB}MB reserved:${reservedSize}")
-      } else {
-        logging.warn(this, s"cluster cannot launch action with ${memory.toMB}MB reserved:${reservedSize}")
+      val allRes = localRes ++ remoteRes
+      //make sure there is at least one node with unreserved mem > memory
+      val canLaunch = clusterHasPotentialMemoryCapacity(memory.toMB, allRes) //consider all reservations blocking till they are removed during NodeStatsUpdate
+      //log only when changing value
+      if (canLaunch != clusterResourcesAvailable) {
+        if (canLaunch) {
+          logging.info(this, s"cluster can launch action with ${memory.toMB}MB reserved:${reservedSize}")
+        } else {
+          logging.warn(this, s"cluster cannot launch action with ${memory.toMB}MB reserved:${reservedSize}")
+        }
       }
+      clusterResourcesAvailable = canLaunch
+      canLaunch
+    } else {
+      logging.info(this, "throttling container starts")
+      false
     }
-    clusterResourcesAvailable = canLaunch
-    canLaunch
   }
 
   /** Return true to indicate there is expectation that there is "room" to launch a task with these memory/cpu/ports specs */
@@ -167,9 +171,8 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
   override def releaseReservation(ref: ActorRef): Unit = {
     localReservations = localReservations - ref
   }
-  override def allowMoreStarts(config: ContainerPoolConfig): Boolean =
-    localReservations
-      .count({ case (_, state) => state.size.toMB > 0 }) < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
+  def allowMoreStarts(config: ContainerPoolConfig): Boolean =
+    localReservations.size < config.clusterManagedResourceMaxStarts //only positive reservations affect ability to start
 
   class ContainerPoolClusterData(instanceId: InvokerInstanceId, containerPool: ActorRef) extends Actor {
     //it is possible to use cluster managed resources, but not run the invoker in the cluster
