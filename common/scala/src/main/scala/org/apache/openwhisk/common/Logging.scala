@@ -352,7 +352,10 @@ object LoggingMarkers {
   /*
    * Controller related markers
    */
-  def CONTROLLER_STARTUP(id: String) = LogMarkerToken(controller, s"startup$id", counter)(MeasurementUnit.none)
+  def CONTROLLER_STARTUP(id: String) =
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(controller, s"startup", counter, None, Map("controller_id" -> id))(MeasurementUnit.none)
+    else LogMarkerToken(controller, s"startup$id", counter)(MeasurementUnit.none)
 
   // Time of the activation in controller until it is delivered to Kafka
   val CONTROLLER_ACTIVATION =
@@ -376,18 +379,38 @@ object LoggingMarkers {
   /*
    * Invoker related markers
    */
-  def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", counter)(MeasurementUnit.none)
+  def INVOKER_STARTUP(i: Int) =
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(invoker, s"startup", counter, None, Map("invoker_id" -> i.toString))(MeasurementUnit.none)
+    else LogMarkerToken(invoker, s"startup$i", counter)(MeasurementUnit.none)
 
   // Check invoker healthy state from loadbalancer
   def LOADBALANCER_INVOKER_STATUS_CHANGE(state: String) =
-    LogMarkerToken(loadbalancer, "invokerState", counter, Some(state))(MeasurementUnit.none)
+    LogMarkerToken(loadbalancer, "invokerState", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", counter)(MeasurementUnit.none)
 
-  def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) =
-    LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", counter)(MeasurementUnit.none)
+  def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) = {
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(
+        loadbalancer,
+        "activationsInflight",
+        counter,
+        None,
+        Map("controller_id" -> controllerInstance.asString))(MeasurementUnit.none)
+    else
+      LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", counter)(MeasurementUnit.none)
+  }
   def LOADBALANCER_MEMORY_INFLIGHT(controllerInstance: ControllerInstanceId, actionType: String) =
-    LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", counter)(
-      MeasurementUnit.none)
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(
+        loadbalancer,
+        s"memory${actionType}Inflight",
+        counter,
+        None,
+        Map("controller_id" -> controllerInstance.asString))(MeasurementUnit.none)
+    else
+      LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", counter)(
+        MeasurementUnit.none)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN =
@@ -443,9 +466,14 @@ object LoggingMarkers {
     LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", counter)(MeasurementUnit.none)
 
   // Kafka related markers
-  def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, counter)(MeasurementUnit.none)
+  def KAFKA_QUEUE(topic: String) =
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(kafka, "topic", counter, None, Map("topic" -> topic))(MeasurementUnit.none)
+    else LogMarkerToken(kafka, topic, counter)(MeasurementUnit.none)
   def KAFKA_MESSAGE_DELAY(topic: String) =
-    LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(kafka, "topic", start, Some("delay"), Map("topic" -> topic))(MeasurementUnit.time.milliseconds)
+    else LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
 
   /*
    * General markers
