@@ -210,10 +210,8 @@ case class WhiskActionMetaData(namespace: EntityPath,
    * Merges parameters (usually from package) with existing action parameters.
    * Existing parameters supersede those in p.
    */
-  def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskActionMetaData](rev)
-
-  def inherit(p: Parameters, binding: EntityPath) =
-    copy(parameters = p ++ parameters, binding = Some(binding)).revision[WhiskActionMetaData](rev)
+  def inherit(p: Parameters, binding: Option[EntityPath] = None) =
+    copy(parameters = p ++ parameters, binding = binding).revision[WhiskActionMetaData](rev)
 
   /**
    * Resolves sequence components if they contain default namespace.
@@ -605,9 +603,10 @@ object WhiskActionMetaData
         val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
         // get the whisk action associate with it and inherit the parameters from the package/binding
         WhiskActionMetaData.get(entityStore, fqnAction.toDocId) map {
-          if (fullyQualifiedName.path.equals(resolvedPkg.fullPath))
-            _.inherit(resolvedPkg.parameters)
-          else _.inherit(resolvedPkg.parameters, fullyQualifiedName.path)
+          _.inherit(
+            resolvedPkg.parameters,
+            if (fullyQualifiedName.path.equals(resolvedPkg.fullPath)) None
+            else Some(fullyQualifiedName.path))
         }
       }
     }

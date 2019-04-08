@@ -485,7 +485,6 @@ trait WhiskWebActionsApi
                   case Success((actionOwnerIdentity, action)) =>
                     var requiredAuthOk =
                       requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
-
                     if (!requiredAuthOk) {
                       logging.debug(
                         this,
