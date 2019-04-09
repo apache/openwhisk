@@ -23,7 +23,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import org.apache.kafka.common.errors.RecordTooLargeException
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpMethod, MediaTypes}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
@@ -299,7 +299,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
         respondWithActivationIdHeader(activation.activationId) {
           if (activation.response.isSuccess) {
-            complete(OK, response)
+            complete(
+              OK,
+              HttpEntity(ContentType(MediaTypes.`application/json`.withParams(Map("charset" -> "utf-8"))), response))
           } else if (activation.response.isApplicationError) {
             // actions that result is ApplicationError status are considered a 'success'
             // and will have an 'error' property in the result - the HTTP status is OK
