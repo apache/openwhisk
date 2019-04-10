@@ -66,7 +66,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
 
   val openFileAction = TestUtils.getTestActionFilename("openFiles.js")
   val openFileLimit = 1024
-  val minExpectedOpenFiles = openFileLimit - 15 // allow for already opened files in container
+  val minExpectedOpenFiles = openFileLimit - 20 // allow for already opened files in container
 
   behavior of "Action limits"
 

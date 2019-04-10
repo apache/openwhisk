@@ -427,33 +427,52 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val webEnabled = flag.toLowerCase == "true" || flag.toLowerCase == "yes"
       val rawEnabled = flag.toLowerCase == "raw"
 
+      val runtime = "nodejs:default"
       val name = "webaction-" + flag
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), web = Some(flag.toLowerCase))
+        action.create(
+          name,
+          Some(TestUtils.getTestActionFilename("echo.js")),
+          web = Some(flag.toLowerCase),
+          kind = Some(runtime))
       }
 
       val action = wsk.action.get(name)
 
+      // first check if we got 'nodejs:*' in the exec value
+      action
+        .getFieldJsValue("annotations")
+        .convertTo[Seq[JsObject]]
+        .find(_.fields("key").convertTo[String] == "exec")
+        .map(_.fields("value"))
+        .map(exec => { exec.convertTo[String] should startWith("nodejs:") })
+        .getOrElse(fail())
+
+      // then we check the remaining annotations
       val baseAnnotations = Parameters("web-export", JsBoolean(webEnabled || rawEnabled)) ++
         Parameters("raw-http", JsBoolean(rawEnabled)) ++
-        Parameters("final", JsBoolean(webEnabled || rawEnabled)) ++
-        Parameters("exec", "nodejs:6")
+        Parameters("final", JsBoolean(webEnabled || rawEnabled))
       val testAnnotations = if (requireAPIKeyAnnotation) {
         baseAnnotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
       } else baseAnnotations
 
-      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe testAnnotations.toJsArray
+      // we ignore the exec field here, since we already compared it above
+      action
+        .getFieldJsValue("annotations")
+        .convertTo[Set[JsObject]]
+        .filter(annotation => annotation.fields("key").convertTo[String] != "exec") shouldBe testAnnotations.toJsArray
         .convertTo[Set[JsObject]]
     }
   }
 
   it should "ensure action update creates an action with --web flag" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
+      val runtime = "nodejs:default"
       val name = "webaction"
       val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, web = Some("true"), update = true)
+        action.create(name, file, web = Some("true"), update = true, kind = Some(runtime))
       }
 
       val baseAnnotations =
@@ -463,16 +482,30 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       val testAnnotations = if (requireAPIKeyAnnotation) {
         baseAnnotations ++
-          Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false)) ++
-          Parameters("exec", "nodejs:6")
+          Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
       } else {
-        baseAnnotations ++
-          Parameters("exec", "nodejs:6")
+        baseAnnotations
       }
 
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe testAnnotations.toJsArray
+
+      // first check if we got 'nodejs:*' in the exec value
+      action
+        .getFieldJsValue("annotations")
+        .convertTo[Seq[JsObject]]
+        .find(_.fields("key").convertTo[String] == "exec")
+        .map(_.fields("value"))
+        .map(exec => { exec.convertTo[String] should startWith("nodejs:") })
+        .getOrElse(fail())
+
+      // then we check the remaining annotations
+      // we ignore the exec field here, since we already compared it above
+      action
+        .getFieldJsValue("annotations")
         .convertTo[Set[JsObject]]
+        .filter(annotation => annotation.fields("key").convertTo[String] != "exec") shouldBe testAnnotations.toJsArray
+        .convertTo[Set[JsObject]]
+
   }
 
   it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
