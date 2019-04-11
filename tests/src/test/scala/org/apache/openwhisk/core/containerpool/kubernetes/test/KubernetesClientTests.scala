@@ -96,21 +96,11 @@ class KubernetesClientTests
                    |2018-02-06T00:00:18.419929471Z $ACTIVATION_LOG_SENTINEL
                    |2018-02-06T00:00:18.419988733Z $ACTIVATION_LOG_SENTINEL
                    |""".stripMargin
-  val secondLog = s"""2018-02-06T00:09:35.38267193Z second activation
-                    |2018-02-06T00:09:35.382990278Z $ACTIVATION_LOG_SENTINEL
-                    |2018-02-06T00:09:35.383116503Z $ACTIVATION_LOG_SENTINEL
-                    |""".stripMargin
 
-  def firstSource(lastTimestamp: Option[Instant] = None): Source[TypedLogLine, Any] =
+  def firstSource(): Source[TypedLogLine, Any] =
     Source(
       KubernetesRestLogSourceStage
-        .readLines(new Buffer().writeUtf8(firstLog), lastTimestamp, List.empty)
-        .to[immutable.Seq])
-
-  def secondSource(lastTimestamp: Option[Instant] = None): Source[TypedLogLine, Any] =
-    Source(
-      KubernetesRestLogSourceStage
-        .readLines(new Buffer().writeUtf8(secondLog), lastTimestamp, List.empty)
+        .readLines(new Buffer().writeUtf8(firstLog), List.empty)
         .to[immutable.Seq])
 
   it should "forward suspend commands to the client" in {
@@ -131,7 +121,7 @@ class KubernetesClientTests
     kubernetes.resumes(0) shouldBe id
   }
 
-  it should "return all logs when no sinceTime passed" in {
+  it should "return all logs" in {
     val client = new TestKubernetesClient {
       override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
@@ -143,36 +133,6 @@ class KubernetesClientTests
     logs(0) shouldBe TypedLogLine("2018-02-06T00:00:18.419889342Z", "stdout", "first activation")
     logs(2) shouldBe TypedLogLine("2018-02-06T00:00:18.419988733Z", "stdout", ACTIVATION_LOG_SENTINEL)
   }
-
-  it should "return all logs after the one matching sinceTime" in {
-
-    val testDate: Option[Instant] = "2018-02-06T00:00:18.419988733Z"
-    val client = new TestKubernetesClient {
-      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
-        implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        Source.combine(firstSource(testDate), secondSource(testDate))(Concat(_))
-      }
-    }
-    val logs = awaitLogs(client.logs(container, testDate))
-    logs should have size 3
-    logs(0) shouldBe TypedLogLine("2018-02-06T00:09:35.38267193Z", "stdout", "second activation")
-    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_SENTINEL)
-  }
-
-  it should "return all logs if none match sinceTime" in {
-    val testDate: Option[Instant] = "2018-02-06T00:00:18.419988733Z"
-    val client = new TestKubernetesClient {
-      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
-        implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        secondSource(testDate)
-      }
-    }
-    val logs = awaitLogs(client.logs(container, testDate))
-    logs should have size 3
-    logs(0) shouldBe TypedLogLine("2018-02-06T00:09:35.38267193Z", "stdout", "second activation")
-    logs(2) shouldBe TypedLogLine("2018-02-06T00:09:35.383116503Z", "stdout", ACTIVATION_LOG_SENTINEL)
-  }
-
 }
 
 object KubernetesClientTests {

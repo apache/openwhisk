@@ -289,9 +289,7 @@ object KubernetesRestLogSourceStage {
   }
 
   @tailrec
-  def readLines(src: BufferedSource,
-                lastTimestamp: Option[Instant],
-                lines: Seq[TypedLogLine] = Seq.empty[TypedLogLine]): Seq[TypedLogLine] = {
+  def readLines(src: BufferedSource, lines: Seq[TypedLogLine] = Seq.empty[TypedLogLine]): Seq[TypedLogLine] = {
 
     if (!src.exhausted()) {
       (for {
@@ -299,32 +297,23 @@ object KubernetesRestLogSourceStage {
         timestampDelimiter = line.indexOf(" ")
         // Kubernetes is ignoring nanoseconds in sinceTime, so we have to filter additionally here
         rawTimestamp = line.substring(0, timestampDelimiter)
-        timestamp <- parseK8STimestamp(rawTimestamp).toOption if isRelevantLogLine(lastTimestamp, timestamp)
+        timestamp <- parseK8STimestamp(rawTimestamp).toOption
         msg = line.substring(timestampDelimiter + 1)
         stream = "stdout" // TODO - when we can distinguish stderr: https://github.com/kubernetes/kubernetes/issues/28167
       } yield {
         TypedLogLine(timestamp, stream, msg)
       }) match {
         case Some(logLine) =>
-          readLines(src, Option(logLine.time), lines :+ logLine)
+          readLines(src, lines :+ logLine)
         case None =>
           // we may have skipped a line for filtering conditions only; keep going
-          readLines(src, lastTimestamp, lines)
+          readLines(src, lines)
       }
     } else {
       lines
     }
 
   }
-
-  def isRelevantLogLine(lastTimestamp: Option[Instant], newTimestamp: Instant): Boolean =
-    lastTimestamp match {
-      case Some(last) =>
-        newTimestamp.isAfter(last)
-      case None =>
-        true
-    }
-
 }
 
 final class KubernetesRestLogSourceStage(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
@@ -393,7 +382,7 @@ final class KubernetesRestLogSourceStage(id: ContainerId, sinceTime: Option[Inst
 
         override def onResponse(call: Call, response: Response): Unit =
           try {
-            val lines = readLines(response.body.source, lastTimestamp)
+            val lines = readLines(response.body.source)
 
             log.debug("* Read & decoded lines for K8S HTTP: {}", lines)
 
