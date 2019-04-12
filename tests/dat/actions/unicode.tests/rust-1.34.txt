@@ -1,0 +1,23 @@
+extern crate serde_json;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::{Error, Value};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct Input {
+       delimiter: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct Output {
+       winter: String,
+}
+
+pub fn main(args: Value) -> Result<Value, Error> {
+    let input: Input = serde_json::from_value(args)?;
+    let msg = format!("{} {} {}", input.delimiter,'☃',input.delimiter);
+    println!("{}", msg);
+    let output = Output {
+        winter: msg,
+    };
+    serde_json::to_value(output)
+}

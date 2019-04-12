@@ -1910,7 +1910,9 @@
             "dotnet:2.2",
             "dotnet:default",
             "ballerina:0.990",
-            "ballerina:default"
+            "ballerina:default",
+            "rust:1.34",
+            "rust:default"
           ],
           "description": "the type of action"
         },

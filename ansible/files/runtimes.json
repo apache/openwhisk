@@ -193,7 +193,24 @@
                     "attachmentType": "text/plain"
                 }
             }
+        ],
+        "rust": [
+            {
+                "kind": "rust:1.34",
+                "default": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "actionloop-rust-v1.34",
+                    "tag": "latest"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            }
         ]
+
     },
     "blackboxes": [
         {
