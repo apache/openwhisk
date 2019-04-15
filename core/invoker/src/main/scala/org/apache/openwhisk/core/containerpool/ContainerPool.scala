@@ -124,7 +124,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      println(s"running ${r.msg.activationId}")
       implicit val tid: TransactionId = r.msg.transid
       resent = resent - r.msg.activationId
       // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
@@ -350,14 +349,12 @@ class ContainerPool(instanceId: InvokerInstanceId,
    *  In non-clustered case, it means signalling MessageFeed (since runBuffer is processed in tight loop).
    * */
   def processBuffer() = {
-    println("process buffer")
     if (poolConfig.clusterManagedResources) {
       //if next runbuffer item has not already been resent, send it
       runBuffer.dequeueOption match {
         case Some((run, _)) => //run the first from buffer
           //avoid sending dupes
           if (!resent.contains(run.msg.activationId)) {
-            println(s"resending ${run.msg.activationId}")
             resent = resent + run.msg.activationId
             self ! run
           }
@@ -381,10 +378,8 @@ class ContainerPool(instanceId: InvokerInstanceId,
 
   /** Creates a new prewarmed container */
   def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit = {
-    //println(s"has  more room${hasPoolSpaceFor(poolConfig, freePool, memoryLimit, true)(TransactionId.invokerWarmup)}")
     //when using cluster managed resources, we can only create prewarms when allowed by the cluster
     if (hasPoolSpaceFor(poolConfig, freePool, memoryLimit, true)(TransactionId.invokerWarmup)) {
-      println("prewarming...")
       val ref = childFactory(context)
       ref ! Start(exec, memoryLimit)
       //increase the reserved (not yet started container) memory tracker
