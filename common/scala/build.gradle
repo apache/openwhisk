@@ -97,6 +97,7 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
+    compile ('com.amazonaws:aws-java-sdk-cloudfront:1.11.517')
     scoverage gradle.scoverage.deps
 }
 

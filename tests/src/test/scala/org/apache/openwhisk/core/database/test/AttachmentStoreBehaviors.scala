@@ -59,6 +59,12 @@ trait AttachmentStoreBehaviors
 
   def garbageCollectAttachments: Boolean = true
 
+  /**
+   * In some cases like when CloudFront CDN is used then deletes are not immediately reflected in reads
+   * as the objects are still present in cache. For such cases we would relax some of the test assertions
+   */
+  protected def lazyDeletes: Boolean = false
+
   behavior of s"$storeType AttachmentStore"
 
   it should "add and read attachment" in {
@@ -108,19 +114,19 @@ trait AttachmentStoreBehaviors
     store.deleteAttachment(docId, "c1").futureValue shouldBe true
 
     //Non deleted attachments related to same docId must still be accessible
-    attachmentBytes(docId, "c1").failed.futureValue shouldBe a[NoDocumentException]
+    if (!lazyDeletes) attachmentBytes(docId, "c1").failed.futureValue shouldBe a[NoDocumentException]
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
     attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)
 
     //Delete all attachments
     store.deleteAttachments(docId).futureValue shouldBe true
 
-    attachmentBytes(docId, "c2").failed.futureValue shouldBe a[NoDocumentException]
-    attachmentBytes(docId, "c3").failed.futureValue shouldBe a[NoDocumentException]
+    if (!lazyDeletes) attachmentBytes(docId, "c2").failed.futureValue shouldBe a[NoDocumentException]
+    if (!lazyDeletes) attachmentBytes(docId, "c3").failed.futureValue shouldBe a[NoDocumentException]
 
     //Make sure doc2 attachments are left untouched
-    attachmentBytes(docId2, "c21").futureValue.result() shouldBe ByteString(b1)
-    attachmentBytes(docId2, "c22").futureValue.result() shouldBe ByteString(b2)
+    if (!lazyDeletes) attachmentBytes(docId2, "c21").futureValue.result() shouldBe ByteString(b1)
+    if (!lazyDeletes) attachmentBytes(docId2, "c22").futureValue.result() shouldBe ByteString(b2)
   }
 
   it should "throw NoDocumentException on reading non existing attachment" in {
