@@ -83,17 +83,26 @@ trait AttachmentStoreBehaviors
     val b3 = randomBytes(3000)
 
     val docId = newDocId()
+    //create another doc with similar name to verify it is unaffected by deletes of the first docs attachments
+    val docId2 = DocId(docId.id + "2")
     val r1 = store.attach(docId, "c1", ContentTypes.`application/octet-stream`, chunkedSource(b1)).futureValue
     val r2 = store.attach(docId, "c2", ContentTypes.`application/json`, chunkedSource(b2)).futureValue
     val r3 = store.attach(docId, "c3", ContentTypes.`application/json`, chunkedSource(b3)).futureValue
+    //create attachments for the other doc
+    val r21 = store.attach(docId2, "c21", ContentTypes.`application/octet-stream`, chunkedSource(b1)).futureValue
+    val r22 = store.attach(docId2, "c22", ContentTypes.`application/json`, chunkedSource(b2)).futureValue
 
     r1.length shouldBe 1000
     r2.length shouldBe 2000
     r3.length shouldBe 3000
+    r21.length shouldBe 1000
+    r22.length shouldBe 2000
 
     attachmentBytes(docId, "c1").futureValue.result() shouldBe ByteString(b1)
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
     attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)
+    attachmentBytes(docId2, "c21").futureValue.result() shouldBe ByteString(b1)
+    attachmentBytes(docId2, "c22").futureValue.result() shouldBe ByteString(b2)
 
     //Delete single attachment
     store.deleteAttachment(docId, "c1").futureValue shouldBe true
@@ -108,6 +117,10 @@ trait AttachmentStoreBehaviors
 
     attachmentBytes(docId, "c2").failed.futureValue shouldBe a[NoDocumentException]
     attachmentBytes(docId, "c3").failed.futureValue shouldBe a[NoDocumentException]
+
+    //Make sure doc2 attachments are left untouched
+    attachmentBytes(docId2, "c21").futureValue.result() shouldBe ByteString(b1)
+    attachmentBytes(docId2, "c22").futureValue.result() shouldBe ByteString(b2)
   }
 
   it should "throw NoDocumentException on reading non existing attachment" in {
