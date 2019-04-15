@@ -257,7 +257,7 @@
 
 - name: set invoker volumes
   set_fact:
-    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
+    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,{{ '/run/runc:/run/runc,' if invoker_use_runc else '' }}\
       {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
       {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
