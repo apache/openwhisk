@@ -110,6 +110,7 @@ interested in:
 - [Using the OpenWhisk mobile SDK](docs/mobile_sdk.md)
 - [OpenWhisk system details](docs/reference.md)
 - [Implementing feeds](docs/feeds.md)
+- [Developing a runtime for a new language](docs/actions-actionloop.md)
 
 ### Repository Structure
 

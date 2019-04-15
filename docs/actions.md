@@ -71,6 +71,13 @@ powerful in that it affords you the ability to use the right language for the pr
 and separates the orchestration of the dataflow between functions from the choice of language.
 A more advanced form of composition is described [here](conductors.md).
 
+If your runtime is not listed there, you can create a new one for your specific language.
+
+You can create a new runtime in two ways:
+
+- Implementing the [runtime specification](actions-new.md)
+- Using the [ActionLoop engine](actions-actionloop.md) that provides a simplified path for building a new runtime.
+
 ## The basics
 
 To use a function as an action, it must conform to the following:
