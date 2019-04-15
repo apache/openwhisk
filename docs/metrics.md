@@ -98,7 +98,7 @@ Histogram record the [distribution](http://kamon.io/documentation/0.6.x/kamon-co
 
 #### Gauges
 
-Gauges record the [distribution](https://kamon.io/docs/latest/core/metrics/#gauges) of given metric and there names are prefixed with `openwhisk.gauge`. For example `openwhisk.gauge.loadbalancer_totalHealthyInvoker_count`. A gauge metrics provides the value at the given point and reports the same data unless the value has been changed be incremental or decremental than before. Gauges are useful for reporting metrics like kafka queue size or disk size.
+Gauges record the [distribution](https://kamon.io/docs/latest/core/metrics/#gauges) of given metric and there names are prefixed with `openwhisk.gauge`. For example `openwhisk.gauge.loadbalancer_totalHealthyInvoker_counter`. A gauge metrics provides the value at the given point and reports the same data unless the value has been changed be incremental or decremental than before. Gauges are useful for reporting metrics like kafka queue size or disk size.
 
 ### Metric Details
 
@@ -111,12 +111,12 @@ Metrics below are emitted from within a Controller instance.
 ##### Controller Startup
 
 * `openwhisk.counter.controller_startup<controller_id>_counter` (counter)
-  * Example _openwhisk.counter.controller_startup0_count_
+  * Example _openwhisk.counter.controller_startup0_counter_
   * Records count of controller instance startup
 
 ##### Controller Activation Retrieval During Blocking Invocations
 
-* `openwhisk.counter.controller_blockingActivationDatabaseRetrieval_count` (counter) - Records the count of activations the controller has retrieved from the activation store during blocking invocations
+* `openwhisk.counter.controller_blockingActivationDatabaseRetrieval_counter` (counter) - Records the count of activations the controller has retrieved from the activation store during blocking invocations
 
 ##### Activation Submission
 
@@ -133,8 +133,8 @@ Following metrics record stats around activation handling within Controller
 
 Aggregate metrics for inflight activations.
 
-* `openwhisk.gauge.loadbalancer<controllerId>_activationsInflight_count` (gauge) - Records the number of activations being worked upon for a given controller. As a gauge this will give inflight activation count at the given point in time unless the change in value occurs.
-* `openwhisk.gauge.loadbalancer<controllerId>_memory<invokerType>Inflight_count` (gauge) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits. **invokerType** defines whether it is a managed or a blackbox invoker.
+* `openwhisk.gauge.loadbalancer<controllerId>_activationsInflight_counter` (gauge) - Records the number of activations being worked upon for a given controller. As a gauge this will give inflight activation count at the given point in time unless the change in value occurs.
+* `openwhisk.gauge.loadbalancer<controllerId>_memory<invokerType>Inflight_counter` (gauge) - Records the amount of RAM memory in use for in flight activations. This is not actual runtime memory but the memory specified per action limits. **invokerType** defines whether it is a managed or a blackbox invoker.
 
 Metrics below are for current memory capacity
 
@@ -142,7 +142,7 @@ Metrics below are for current memory capacity
 
 Metrics below are captured within load balancer
 
-* `openwhisk.counter.loadbalancer_activations_count` (counter) -  Records the count of activations sent to Kafka.
+* `openwhisk.counter.loadbalancer_activations_counter` (counter) -  Records the count of activations sent to Kafka.
 * `openwhisk.counter.controller_kafka_start` (counter) - Records the count of activations sent to Kafka.
 * `openwhisk.counter.controller_kafka_error` (counter) - Records the count of activations which encountered some failure while submitting to Kafka.
 * `openwhisk.histogram.controller_kafka_finish` (histogram) - Records the time taken when activation was successfully submitted to Kafka.
@@ -173,9 +173,9 @@ Metrics below are for invoker state as recorded within load balancer monitoring.
 
 ##### Container Start
 
-* `openwhisk.counter.invoker_containerStart.cold_count` (counter) - Count of number of cold starts.
-* `openwhisk.counter.invoker_containerStart.recreated_count` (counter) - Count of number of times container is recreated.
-* `openwhisk.counter.invoker_containerStart.warm_count` (counter) - Count of number of times a warm container is used.
+* `openwhisk.counter.invoker_containerStart.cold_counter` (counter) - Count of number of cold starts.
+* `openwhisk.counter.invoker_containerStart.recreated_counter` (counter) - Count of number of times container is recreated.
+* `openwhisk.counter.invoker_containerStart.warm_counter` (counter) - Count of number of times a warm container is used.
 
 ##### Log Collection
 
@@ -239,23 +239,23 @@ Metrics below are emitted per kafka topic.
 Metrics per topic
 * `cacheInvalidation` - Emitted per controller while reading the cache invalidation messages.
   * `openwhisk.histogram.kafka_cacheInvalidation.delay_start`
-  * `openwhisk.histogram.kafka_cacheInvalidation_count.count`
+  * `openwhisk.histogram.kafka_cacheInvalidation_counter.count`
 * `health` - Emitted per controller while reading the invoker health pings.
   * `openwhisk.histogram.kafka_health.delay_start`
-  * `openwhisk.histogram.kafka_health_count`
+  * `openwhisk.histogram.kafka_health_counter`
 * `completed<controllerId>` - Topic to receive completed activations. This is emitted per controller for its own topic. For example for controller id 0 metric names would be
   * `openwhisk.histogram.kafka_completed0.delay_start`
-  * `openwhisk.histogram.kafka_completed0_count`
+  * `openwhisk.histogram.kafka_completed0_counter`
 * `invoker<invokerId>` - Topic to receive activations to complete. This is emitted per invoker for its own topic. For example for invoker id 0 metric names would be
-  * `openwhisk.histogram.kafka_invoker0_count`
+  * `openwhisk.histogram.kafka_invoker0_counter`
   * `openwhisk.histogram.kafka_invoker0.delay_start`
 
 #### Database Metrics
 
 ##### Cache Metrics
 
-* `openwhisk.counter.database_cacheHit_count` - Count of cache hits.
-* `openwhisk.counter.database_cacheMiss_count` - Count of cache misses.
+* `openwhisk.counter.database_cacheHit_counter` - Count of cache hits.
+* `openwhisk.counter.database_cacheMiss_counter` - Count of cache misses.
 
 Metrics below are emitted for database related operations and follow a pattern
 
