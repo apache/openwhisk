@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.database.s3
 import akka.http.scaladsl.model.Uri.Path
 import com.typesafe.config.ConfigFactory
+import java.time.Instant
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.s3.S3AttachmentStoreProvider.S3Config
 import org.junit.runner.RunWith
@@ -62,6 +63,7 @@ class CloudFrontSignerTests extends FlatSpec with Matchers with OptionValues {
     val config = ConfigFactory.parseString(configString).withFallback(ConfigFactory.load())
     val s3Config = loadConfigOrThrow[S3Config](config, ConfigKeys.s3)
     val signer = CloudFrontSigner(s3Config.cloudFrontConfig.get)
+    val expiration = Instant.now().plusSeconds(s3Config.cloudFrontConfig.get.timeout.toSeconds)
     val uri = signer.getSignedURL("bar")
     val query = uri.query()
 
@@ -69,9 +71,8 @@ class CloudFrontSignerTests extends FlatSpec with Matchers with OptionValues {
     //https://<domain-name>/<object key>?Expires=xxx&Signature=xxx&Key-Pair-Id=xxx
     uri.scheme shouldBe "https"
     uri.path.tail shouldBe Path("bar")
-    query.get("Expires") shouldBe defined
+    query.get("Expires") shouldBe Some(expiration.getEpochSecond.toString)
     query.get("Signature") shouldBe defined
     query.get("Key-Pair-Id").value shouldBe keyPairId
-
   }
 }
