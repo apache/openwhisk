@@ -17,11 +17,7 @@
 
 package org.apache.openwhisk.core.cli.test
 
-import spray.json.JsObject
-import spray.json.JsArray
-import spray.json.JsString
-import spray.json.JsNumber
-import spray.json.JsBoolean
+import spray.json._
 
 object TestJsonArgs {
 
@@ -36,7 +32,7 @@ object TestJsonArgs {
   def getJSONFileOutput() =
     JsArray(
       JsObject("key" -> JsString("a key"), "value" -> JsString("a value")),
-      JsObject("key" -> JsString("a bool"), "value" -> JsBoolean(true)),
+      JsObject("key" -> JsString("a bool"), "value" -> JsTrue),
       JsObject("key" -> JsString("objKey"), "value" -> JsObject("b" -> JsString("c"))),
       JsObject(
         "key" -> JsString("objKey2"),
@@ -46,7 +42,7 @@ object TestJsonArgs {
         "value" -> JsObject("json object" -> JsObject("some int" -> JsNumber(1111)))),
       JsObject("key" -> JsString("a number arr"), "value" -> JsArray(JsNumber(1), JsNumber(2), JsNumber(3))),
       JsObject("key" -> JsString("a string arr"), "value" -> JsArray(JsString("1"), JsString("2"), JsString("3"))),
-      JsObject("key" -> JsString("a bool arr"), "value" -> JsArray(JsBoolean(true), JsBoolean(false), JsBoolean(true))),
+      JsObject("key" -> JsString("a bool arr"), "value" -> JsArray(JsTrue, JsFalse, JsTrue)),
       JsObject("key" -> JsString("strThatLooksLikeJSON"), "value" -> JsString("{\"someKey\": \"someValue\"}")))
 
   def getEscapedJSONTestArgInput() =
@@ -70,7 +66,7 @@ object TestJsonArgs {
       JsObject(
         "key" -> JsString("objArr"),
         "value" -> JsArray(
-          JsObject("name" -> JsString("someName"), "required" -> JsBoolean(true)),
+          JsObject("name" -> JsString("someName"), "required" -> JsTrue),
           JsObject("name" -> JsString("events"), "count" -> JsNumber(10)))),
       JsObject("key" -> JsString("strArr"), "value" -> JsArray(JsString("44"), JsString("55"))),
       JsObject("key" -> JsString("string"), "value" -> JsString("This is a string")),
@@ -81,7 +77,7 @@ object TestJsonArgs {
           "objString" -> JsString("aString"),
           "objStrNum" -> JsString("123"),
           "objNum" -> JsNumber(300),
-          "objBool" -> JsBoolean(false),
+          "objBool" -> JsFalse,
           "objNumArr" -> JsArray(JsNumber(1), JsNumber(2)),
           "objStrArr" -> JsArray(JsString("1"), JsString("2")))),
       JsObject("key" -> JsString("strNum"), "value" -> JsString("9")))
@@ -95,13 +91,13 @@ object TestJsonArgs {
       "numArr" -> JsArray(JsNumber(44), JsNumber(55)),
       "strArr" -> JsArray(JsString("44"), JsString("55")),
       "objArr" -> JsArray(
-        JsObject("name" -> JsString("someName"), "required" -> JsBoolean(true)),
+        JsObject("name" -> JsString("someName"), "required" -> JsTrue),
         JsObject("name" -> JsString("events"), "count" -> JsNumber(10))),
       "object" -> JsObject(
         "objString" -> JsString("aString"),
         "objStrNum" -> JsString("123"),
         "objNum" -> JsNumber(300),
-        "objBool" -> JsBoolean(false),
+        "objBool" -> JsFalse,
         "objNumArr" -> JsArray(JsNumber(1), JsNumber(2)),
         "objStrArr" -> JsArray(JsString("1"), JsString("2"))))
 }

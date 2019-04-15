@@ -22,6 +22,8 @@ import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+
+import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.util.Try
@@ -375,7 +377,10 @@ object ContainerPool {
    * @param memory the amount of memory that has to be freed up
    * @return a list of containers to be removed iff found
    */
-  protected[containerpool] def remove[A](pool: Map[A, ContainerData], memory: ByteSize): List[A] = {
+  @tailrec
+  protected[containerpool] def remove[A](pool: Map[A, ContainerData],
+                                         memory: ByteSize,
+                                         toRemove: List[A] = List.empty): List[A] = {
     // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
     val freeContainers = pool.collect {
       // Only warm containers will be removed. Prewarmed containers will stay always.
@@ -391,13 +396,13 @@ object ContainerPool {
       val (ref, data) = freeContainers.minBy(_._2.lastUsed)
       // Catch exception if remaining memory will be negative
       val remainingMemory = Try(memory - data.memoryLimit).getOrElse(0.B)
-      List(ref) ++ remove(freeContainers - ref, remainingMemory)
+      remove(freeContainers - ref, remainingMemory, toRemove ++ List(ref))
     } else {
       // If this is the first call: All containers are in use currently, or there is more memory needed than
       // containers can be removed.
       // Or, if this is one of the recursions: Enough containers are found to get the memory, that is
       // necessary. -> Abort recursion
-      List.empty
+      toRemove
     }
   }
 

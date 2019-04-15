@@ -110,9 +110,16 @@ class PoolingRestClient(
       if (response.status.isSuccess) {
         Unmarshal(response.entity.withoutSizeLimit).to[T].map(Right.apply)
       } else {
-        // This is important, as it drains the entity stream.
-        // Otherwise the connection stays open and the pool dries up.
-        response.discardEntityBytes().future.map(_ => Left(response.status))
+        Unmarshal(response.entity).to[String].flatMap { body =>
+          val statusCode = response.status
+          val reason =
+            if (body.nonEmpty) s"${statusCode.reason} (details: $body)" else statusCode.reason
+          val customStatusCode = StatusCodes
+            .custom(intValue = statusCode.intValue, reason = reason, defaultMessage = statusCode.defaultMessage)
+          // This is important, as it drains the entity stream.
+          // Otherwise the connection stays open and the pool dries up.
+          response.discardEntityBytes().future.map(_ => Left(customStatusCode))
+        }
       }
     }
 

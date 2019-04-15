@@ -43,9 +43,8 @@ import pureconfig._
  * lacks explicit rights on a resource in the collection.
  *
  * @param path the name of the collection (the resource path in URI and the view name in the datastore)
- * @param activate the privilege for an activate (may be ACTIVATE or REJECT for example)
- * @param listLimit the default limit on number of entities returned from a collection on a list operation
- * @param skipLimit the default skip on number of entities returned from a collection on a list operation
+ * @param defaultListLimit the default limit on number of entities returned from a collection on a list operation
+ * @param defaultListSkip the default skip on number of entities returned from a collection on a list operation
  */
 protected[core] case class Collection protected (val path: String,
                                                  val defaultListLimit: Int = Collection.DEFAULT_LIST_LIMIT,

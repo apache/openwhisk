@@ -15,20 +15,27 @@
  * limitations under the License.
  */
 
-ext.dockerImageName = 'ow-utils'
-apply from: '../../gradle/docker.gradle'
 
-distDocker.dependsOn 'copyWskadmin'
-distDocker.finalizedBy('cleanup')
+/**
+ * Default test action for owperf. Sleeps specified time.
+ * All test actions should return the invocation parameters (to stress the return path), but augmented with the execution duration and the activation id.
+ * Use this code as reference if you want to create a custom test action.
+ */
 
-task copyWskadmin(type: Copy) {
-    from '../admin/wskadmin', '../admin/wskutil.py', '../admin/wskprop.py'
-    into '.'
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-task cleanup(type: Delete) {
-    delete 'wskadmin'
-    delete 'wskprop.py'
-    delete 'wskutil.py'
+async function main(params) {
+    var start = new Date().getTime();
+    params.activationId = process.env.__OW_ACTIVATION_ID;
+    await sleep(parseInt(params.sleep));
+    var end = new Date().getTime();
+    params.duration = end - start;
+    return params;
 }
+
+// Invoke main when runnig - only when setting TEST in the env
+if (process.env.TEST)
+    main({sleep:50}).then(params => console.log(params.duration));
 

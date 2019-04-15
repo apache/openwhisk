@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.s3
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.headers._
@@ -148,7 +149,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
             .finished(
               this,
               start,
-              s"[ATT_GET] '$prefix', retrieving attachment '$name' of document 'id: $docId'; not found.")
+              s"[ATT_GET] '$prefix', retrieving attachment '$name' of document 'id: $docId'; not found.",
+              logLevel = Logging.ErrorLevel)
           NoDocumentException("Not found on 'readAttachment'.")
         case e => e
       })
@@ -186,14 +188,20 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
 
   override protected[core] def deleteAttachments(docId: DocId)(implicit transid: TransactionId): Future[Boolean] = {
     val start =
-      transid.started(this, DATABASE_ATTS_DELETE, s"[ATT_DELETE] deleting attachments of document 'id: $docId'")
+      transid.started(
+        this,
+        DATABASE_ATTS_DELETE,
+        s"[ATT_DELETE] deleting attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
 
     //S3 provides API to delete multiple objects in single call however alpakka client
     //currently does not support that and also in current usage 1 docs has at most 1 attachment
     //so current approach would also involve 2 remote calls
     val f = client
       .listBucket(bucket, Some(objectKeyPrefix(docId)))
-      .mapAsync(1)(bc => client.deleteObject(bc.bucketName, bc.key))
+      .mapAsync(1) { bc =>
+        logging.info(this, s"[ATT_DELETE] deleting attachment '${bc.key}' of document 'id: $docId'")
+        client.deleteObject(bc.bucketName, bc.key)
+      }
       .runWith(Sink.seq)
       .map(_ => true)
 
@@ -228,7 +236,8 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
 
   private def objectKey(id: DocId, name: String): String = s"$prefix/${id.id}/$name"
 
-  private def objectKeyPrefix(id: DocId): String = s"$prefix/${id.id}"
+  private def objectKeyPrefix(id: DocId): String =
+    s"$prefix/${id.id}/" //must end with a slash so that ".../<package>/<action>other" does not match for "<package>/<action>"
 
   private def isMissingKeyException(e: Throwable): Boolean = {
     //In some case S3Exception is a sub cause. So need to recurse

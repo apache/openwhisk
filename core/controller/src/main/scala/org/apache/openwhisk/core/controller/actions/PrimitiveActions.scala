@@ -557,7 +557,7 @@ protected[actions] trait PrimitiveActions {
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(session.cause.isEmpty)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(session.action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
-        Parameters(WhiskActivation.conductorAnnotation, JsBoolean(true)) ++
+        Parameters(WhiskActivation.conductorAnnotation, JsTrue) ++
         causedBy ++
         sequenceLimits,
       duration = Some(session.duration))

@@ -9,7 +9,7 @@ ENV LC_ALL en_US.UTF-8
 
 # Switch to the HTTPS endpoint for the apk repositories as per https://github.com/gliderlabs/docker-alpine/issues/184
 RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk add --update sed curl bash
+RUN apk add --update sed curl bash && apk update && apk upgrade
 
 RUN mkdir /logs
 

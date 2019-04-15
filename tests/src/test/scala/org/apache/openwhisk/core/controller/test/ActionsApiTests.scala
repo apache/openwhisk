@@ -1381,7 +1381,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "not invoke an action when final parameters are redefined" in {
     implicit val tid = transid()
-    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
+    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsTrue)
     val parameters = Parameters("a", "A") ++ Parameters("empty", JsNull)
     val action = WhiskAction(namespace, aname(), jsDefault("??"), parameters = parameters, annotations = annotations)
     put(entityStore, action)
