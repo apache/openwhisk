@@ -33,7 +33,7 @@ import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import pureconfig.error.ConfigReaderException
 import spray.json._
 import org.apache.openwhisk.core.entity._
@@ -49,10 +49,16 @@ class SplunkLogStoreTests
     extends TestKit(ActorSystem("SplunkLogStore"))
     with FlatSpecLike
     with Matchers
+    with BeforeAndAfterAll
     with ScalaFutures
     with StreamLogging {
 
   def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
+  }
 
   val testConfig = SplunkLogStoreConfig(
     "splunk-host",

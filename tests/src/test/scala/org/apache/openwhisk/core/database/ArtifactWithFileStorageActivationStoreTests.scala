@@ -28,12 +28,13 @@ import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
+
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.io.Source
@@ -43,6 +44,7 @@ class ArtifactWithFileStorageActivationStoreTests()
     extends TestKit(ActorSystem("ArtifactWithFileStorageActivationStoreTests"))
     with FlatSpecLike
     with Matchers
+    with BeforeAndAfterAll
     with ScalaFutures
     with StreamLogging {
 
@@ -55,6 +57,11 @@ class ArtifactWithFileStorageActivationStoreTests()
   private val user =
     Identity(subject, Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set())
   private val context = UserContext(user, HttpRequest())
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
+  }
 
   private def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
 

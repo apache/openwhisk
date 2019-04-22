@@ -20,19 +20,27 @@ package org.apache.openwhisk.core.containerpool.logging
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 
 @RunWith(classOf[JUnitRunner])
-class LogDriverLogStoreTests extends TestKit(ActorSystem("LogDriverLogStore")) with FlatSpecLike with Matchers {
+class LogDriverLogStoreTests
+    extends TestKit(ActorSystem("LogDriverLogStore"))
+    with FlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
 
   val testConfig = ContainerArgsConfig(
     network = "network",
     extraArgs =
       Map("log-driver" -> Set("fluentd"), "log-opt" -> Set("fluentd-address=localhost:24225", "tag=OW_CONTAINER")))
   behavior of "LogDriver LogStore"
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
+  }
 
   it should "set the container parameters from the config" in {
     val logDriverLogStore = new LogDriverLogStore(system)

@@ -31,7 +31,7 @@ import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import pureconfig.error.ConfigReaderException
 import spray.json._
 import org.apache.openwhisk.core.entity._
@@ -47,6 +47,7 @@ class ElasticSearchLogStoreTests
     extends TestKit(ActorSystem("ElasticSearchLogStore"))
     with FlatSpecLike
     with Matchers
+    with BeforeAndAfterAll
     with ScalaFutures
     with StreamLogging {
 
@@ -104,6 +105,11 @@ class ElasticSearchLogStoreTests
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
     logs = expectedLogs,
     annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson))
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
+  }
 
   private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
     : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =

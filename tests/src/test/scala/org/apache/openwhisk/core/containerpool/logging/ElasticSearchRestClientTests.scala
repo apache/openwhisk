@@ -18,12 +18,10 @@
 package org.apache.openwhisk.core.containerpool.logging
 
 import spray.json._
-
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
@@ -32,9 +30,7 @@ import akka.stream.scaladsl.Flow
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import akka.http.scaladsl.model.HttpMethods.POST
-
 import common.StreamLogging
-
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 
 import scala.concurrent.duration._
@@ -46,6 +42,7 @@ class ElasticSearchRestClientTests
     extends TestKit(ActorSystem("ElasticSearchRestClient"))
     with FlatSpecLike
     with Matchers
+    with BeforeAndAfterAll
     with ScalaFutures
     with StreamLogging {
 
@@ -61,6 +58,11 @@ class ElasticSearchRestClientTests
     POST,
     headers = List(Accept(MediaTypes.`application/json`)),
     entity = HttpEntity(ContentTypes.`application/json`, EsQuery(EsQueryAll()).toJson.toString))
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
+  }
 
   private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
     : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
