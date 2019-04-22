@@ -24,26 +24,24 @@ import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
-import pureconfig._
-import spray.json._
-import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common._
+import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
-import org.apache.openwhisk.core.database._
+import org.apache.openwhisk.core.database.{UserContext, _}
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
-import org.apache.openwhisk.core.database.UserContext
+import pureconfig._
+import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-object InvokerReactive {
+object InvokerReactive extends InvokerProvider {
 
   /**
    * An method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
@@ -58,6 +56,15 @@ object InvokerReactive {
    * @param Boolean is true this is resource free message and false if this is a result forwarding message
    */
   type ActiveAck = (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any]
+
+  override def instance(
+    config: WhiskConfig,
+    instance: InvokerInstanceId,
+    producer: MessageProducer,
+    poolConfig: ContainerPoolConfig,
+    limitsConfig: ConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore =
+    new InvokerReactive(config, instance, producer, poolConfig, limitsConfig)
+
 }
 
 class InvokerReactive(
@@ -67,7 +74,8 @@ class InvokerReactive(
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
   limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
   implicit actorSystem: ActorSystem,
-  logging: Logging) {
+  logging: Logging)
+    extends InvokerCore {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -299,4 +307,10 @@ class InvokerReactive(
       })
   }
 
+  private val healthProducer = msgProvider.getProducer(config)
+  Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+    healthProducer.send("health", PingMessage(instance)).andThen {
+      case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+    }
+  })
 }
