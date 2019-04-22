@@ -39,10 +39,9 @@ import org.apache.mesos.v1.Protos.TaskID
 import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
 import org.scalatest.junit.JUnitRunner
+
 import scala.collection.immutable.Map
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -65,7 +64,8 @@ class MesosContainerFactoryTest
     with FlatSpecLike
     with Matchers
     with StreamLogging
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with BeforeAndAfterAll {
 
   /** Awaits the given future, throws the exception enclosed in Failure. */
   def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
@@ -95,6 +95,11 @@ class MesosContainerFactoryTest
 
   override def beforeEach() = {
     stream.reset()
+  }
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+    super.afterAll()
   }
 
   val timeouts = MesosTimeoutConfig(1.seconds, 1.seconds, 1.seconds, 1.seconds, 1.seconds)
