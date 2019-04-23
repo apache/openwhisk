@@ -268,7 +268,7 @@ zip -r action.zip *
 - Create new action with action archive.
 
 ```
-ibmcloud wsk action create my-action --kind nodejs:10 action.zip
+wsk action create my-action --kind nodejs:10 action.zip
 ```
 
 #### Building custom runtime image
@@ -291,7 +291,7 @@ $ docker push <USERNAME>/custom-runtime
 - Create new action using custom runtime image.
 
 ```
-ibmcloud wsk action create my-action --docker <USERNAME>/custom-runtime action.zip
+wsk action create my-action --docker <USERNAME>/custom-runtime action.zip
 ```
 
 **Make sure the `node_modules` included in the `action.zip` does not include the same libraries folders.**
