@@ -168,7 +168,7 @@ This example also passed a parameter to the action by using the `--param` flag a
 
 ## Packaging actions as Node.js modules with NPM libraries
 
-Instead of writing all your action code in a single JavaScript source file, actions can be deployed from a zip file containing a [Node.js module](https://nodejs.org/docs/latest-v10.x/api/modules.html#modules_modules). 
+Instead of writing all your action code in a single JavaScript source file, actions can be deployed from a zip file containing a [Node.js module](https://nodejs.org/docs/latest-v10.x/api/modules.html#modules_modules).
 
 Archive zip files are extracted into the runtime environment and dynamically imported using `require()` during initialisation. **Actions packaged as a zip file MUST contain a valid `package.json` with a `main` field used to denote the [module index file](https://nodejs.org/docs/latest-v10.x/api/modules.html#modules_folders_as_modules) to return.**
 
@@ -239,11 +239,11 @@ wsk action invoke --result packageAction --param lines "[\"and now\", \"for some
 }
 ```
 
-### Handling NPM Libraries with Native Dependencies 
+### Handling NPM Libraries with Native Dependencies
 
 Node.js libraries can import native dependencies needed by the modules. These native dependencies are compiled upon installation to ensure they work in the local runtime. Native dependencies for NPM libraries must be compiled for the correct platform architecture to work in Apache OpenWhisk.
 
-There are two approaches to using libraries with native dependencies... 
+There are two approaches to using libraries with native dependencies...
 
 1. Run `npm install` inside a Docker container from the platform images.
 2. Building custom runtime image with libraries pre-installed.
@@ -257,7 +257,7 @@ There are two approaches to using libraries with native dependencies...
 ```
 docker run -it -v $PWD:/nodejsAction openwhisk/action-nodejs-v10 "npm install"
 ```
- This will leave a `node_modules` folder with native dependencies compiled for correct runtime. 
+ This will leave a `node_modules` folder with native dependencies compiled for correct runtime.
 
  - Zip up the action source files including `node_modules` directory.
 
@@ -317,7 +317,7 @@ function myAction(args) {
 export const main = myAction
 ```
 
-*Make sure you export the function using the `const main = ...` pattern. Using `export {myAction as main}` does not work due to tree-shaking. See this [blog post](https://boneskull.com/rollup-for-javascript-actions-on-openwhisk/) for full details on why this is necessary.* 
+*Make sure you export the function using the `const main = ...` pattern. Using `export {myAction as main}` does not work due to tree-shaking. See this [blog post](https://boneskull.com/rollup-for-javascript-actions-on-openwhisk/) for full details on why this is necessary.*
 
 - Create the Rollup.js configuration file in `rollup.config.js` with the following contents.
 
@@ -338,7 +338,7 @@ export default {
 };
 ```
 
-- Install the Rollup.js library and plugins using NPM. 
+- Install the Rollup.js library and plugins using NPM.
 
 ```
 npm install rollup rollup-plugin-commonjs rollup-plugin-node-resolve --save-dev
@@ -350,7 +350,7 @@ npm install rollup rollup-plugin-commonjs rollup-plugin-node-resolve --save-dev
 npx rollup --config
 ```
 
-- Create an action using the bundle source file. 
+- Create an action using the bundle source file.
 
 ```
 wsk action create my-action bundle.js --kind nodejs:10
@@ -391,7 +391,7 @@ module.exports = {
 };
 ```
 
-- Install the Webpack library and CLI using NPM. 
+- Install the Webpack library and CLI using NPM.
 
 ```
 npm install webpack-cli --save-dev
@@ -403,7 +403,7 @@ npm install webpack-cli --save-dev
 npx webpack --config webpack.config.js
 ```
 
-- Create an action using the bundle source file. 
+- Create an action using the bundle source file.
 
 ```
 wsk action create my-action dist/bundle.js --kind nodejs:10
@@ -432,7 +432,7 @@ global.main = myAction
 
 This allows the bundle source to "break out" of the closures Parcel uses when defining the modules.
 
-- Install the Parcel library using NPM. 
+- Install the Parcel library using NPM.
 
 ```
 npm install parcel-bundler --save-dev
@@ -444,7 +444,7 @@ npm install parcel-bundler --save-dev
  npx parcel index.js
 ```
 
-- Create an action using the bundle source file. 
+- Create an action using the bundle source file.
 
 ```
 wsk action create my-action dist/index.js --kind nodejs:10

@@ -74,13 +74,13 @@ If you want to use extra libraries in an action that can't be deployed (due to t
 
 By using an existing language runtime image as the base image, the container will already be set up to handle platform invocation requests for that language. This means the image build file only needs to contain commands to install those extra libraries or dependencies
 
-Here are examples for Node.js and Python using this approach to provide large libraries in the runtime. 
+Here are examples for Node.js and Python using this approach to provide large libraries in the runtime.
 
 ### Node.js
 
 [Tensorflow.js](https://www.tensorflow.org/js/) is a JavaScript implementation of [TensorFlow](https://www.tensorflow.org/), the open-source Machine Learning library from Google. This project also comes with a [Node.js backend driver](https://github.com/tensorflow/tfjs-node) to run the project on CPU or GPU devices in the Node.js runtime.
 
-Both the core library and CPU backend driver for Node.js (`tfjs` and `tfjs-node`) can be installed as normal NPM packages. Unfortunately, it is not possible to deploy these libraries in a zip file to the Node.js runtime in Apache OpenWhisk due to the size of the library and its dependencies. The `tfjs-node` library has a native dependency which is over 170MB. 
+Both the core library and CPU backend driver for Node.js (`tfjs` and `tfjs-node`) can be installed as normal NPM packages. Unfortunately, it is not possible to deploy these libraries in a zip file to the Node.js runtime in Apache OpenWhisk due to the size of the library and its dependencies. The `tfjs-node` library has a native dependency which is over 170MB.
 
 Instead, we can build a custom runtime which extends the project's Node.js runtime image and runs `npm install` during the container build process. These libraries will then be pre-installed into the runtime and can be excluded from the deployment archive.
 
@@ -216,11 +216,11 @@ wsk action create my-action --native source.sh
 wsk action create my-action --native archive.zip
 ```
 
-Executables can either be text or binary files. Text-based executable files (e.g. shell scripts) are passed directly as the action source files. Binary files (e.g. C programs) must be named `exec` and packaged into a zip archive. 
+Executables can either be text or binary files. Text-based executable files (e.g. shell scripts) are passed directly as the action source files. Binary files (e.g. C programs) must be named `exec` and packaged into a zip archive.
 
 Native action source files must be executable within the  `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/incubator-openwhisk-runtime-docker). This means being compiled for the correct platform architecture, linking to the correct dynamic libraries  and using pre-installed external dependencies.
 
-When an invocation request is received by the runtime container, the native action file will be executed until the process exits. Action invocation parameters will be passed as a JSON string to `stdin`. 
+When an invocation request is received by the runtime container, the native action file will be executed until the process exits. Action invocation parameters will be passed as a JSON string to `stdin`.
 
 When the process ends, the last line of text output to `stdout` will be parsed as the action result. This must contain a text string with a JSON object. All other text lines written to `stdout` will be treated as logging output and returned into the response logs for the activation.
 
