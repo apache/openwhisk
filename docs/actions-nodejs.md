@@ -104,7 +104,7 @@ Datetime            Activation ID                    Kind      Start Duration   
       "end":   1552762005048,
       ...
   }
-  ```
+ ```
 
   Comparing the `start` and `end` time stamps in the activation record, you can see that this activation took slightly over two seconds to complete.
 
@@ -166,11 +166,17 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
 This example also passed a parameter to the action by using the `--param` flag and a value that can be changed each time the action is invoked. Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
-## Packaging an action as a Node.js module
+## Packaging actions as Node.js modules with NPM libraries
 
-As an alternative to writing all your action code in a single JavaScript source file, you can write an action as a `npm` package. Consider as an example a directory with the following files:
+Instead of writing all your action code in a single JavaScript source file, actions can be deployed from a zip file containing a [Node.js module](https://nodejs.org/docs/latest-v10.x/api/modules.html#modules_modules).
 
-First, `package.json`:
+Archive zip files are extracted into the runtime environment and dynamically imported using `require()` during initialisation. **Actions packaged as a zip file MUST contain a valid `package.json` with a `main` field used to denote the [module index file](https://nodejs.org/docs/latest-v10.x/api/modules.html#modules_folders_as_modules) to return.**
+
+Including a `node_modules` folder in the zip file means external NPM libraries can be used on the platform.
+
+### Simple Example
+
+- Create the following `package.json` file:
 
 ```json
 {
@@ -182,7 +188,7 @@ First, `package.json`:
 }
 ```
 
-Then, `index.js`:
+- Create the following `index.js` file:
 
 ```javascript
 function myAction(args) {
@@ -194,132 +200,261 @@ function myAction(args) {
 exports.main = myAction;
 ```
 
-Note that the action is exposed through `exports.main`; the action handler itself can have any name, as long as it conforms to the usual signature of accepting an object and returning an object (or a `Promise` of an object). Per Node.js convention, you must either name this file `index.js` or specify the file name you prefer as the `main` property in package.json.
+Functions are exported from a module by setting properties on the `exports` object. The `--main` property on the action can be used to configure the module function invoked by the platform (this defaults to `main`).
 
-To create an OpenWhisk action from this package:
+- Install module dependencies using NPM.
 
-1. Install first all dependencies locally
+```
+npm install
+```
 
-  ```
-  $ npm install
-  ```
+- Create a `.zip` archive containing all files (including all dependencies).
 
-2. Create a `.zip` archive containing all files (including all dependencies):
+```
+zip -r action.zip *
+```
 
-  ```
-  $ zip -r action.zip *
-  ```
+> Please note: Using the Windows Explorer action for creating the zip file will result in an incorrect structure. OpenWhisk zip actions must have `package.json` at the root of the zip, while Windows Explorer will put it inside a nested folder. The safest option is to use the command line `zip` command as shown above.
 
-  > Please note: Using the Windows Explorer action for creating the zip file will result in an incorrect structure. OpenWhisk zip actions must have `package.json` at the root of the zip, while Windows Explorer will put it inside a nested folder. The safest option is to use the command line `zip` command as shown above.
+- Create the action from the zip file.
 
-3. Create the action:
+```
+wsk action create packageAction --kind nodejs:10 action.zip
+```
 
-  ```
-  wsk action create packageAction --kind nodejs:10 action.zip
-  ```
+When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
 
-  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
+- Invoke the action as normal.
 
-4. You can invoke the action like any other:
-
-  ```
-  wsk action invoke --result packageAction --param lines "[\"and now\", \"for something completely\", \"different\" ]"
-  ```
-  ```json
-  {
-      "padded": [
-          ".......................and now",
-          "......for something completely",
-          ".....................different"
-      ]
-  }
-  ```
-
-Finally, note that while most `npm` packages install JavaScript sources on `npm install`, some also install and compile binary artifacts. The archive file upload currently does not support binary dependencies but rather only JavaScript dependencies. Action invocations may fail if the archive includes binary dependencies.
-
-### Package an action as a single bundle
-
-It is convenient to only include the minimal code into a single `.js` file that includes dependencies. This approach allows for faster deployments, and in some circumstances where packaging the action as a zip might be too large because it includes unnecessary files.
-
-You can use a JavaScript module bundler such as [webpack](https://webpack.js.org/concepts/). When webpack processes your code, it recursively builds a dependency graph that includes every module that your action needs.
-
-Here is a quick example using webpack:
-
-Taking the previous example `package.json` add `webpack` as a development dependency and add some npm script commands.
+```
+wsk action invoke --result packageAction --param lines "[\"and now\", \"for something completely\", \"different\" ]"
+```
 ```json
 {
-  "name": "my-action",
-  "main": "dist/bundle.js",
-  "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "deploy": "wsk action update my-action dist/bundle.js --kind nodejs:8"
-  },
-  "dependencies": {
-    "left-pad": "1.1.3"
-  },
-  "devDependencies": {
-    "webpack": "^3.8.1"
-  }
+    "padded": [
+        ".......................and now",
+        "......for something completely",
+        ".....................different"
+    ]
 }
 ```
 
-Create the webpack configuration file `webpack.config.js`.
+### Handling NPM Libraries with Native Dependencies
+
+Node.js libraries can import native dependencies needed by the modules. These native dependencies are compiled upon installation to ensure they work in the local runtime. Native dependencies for NPM libraries must be compiled for the correct platform architecture to work in Apache OpenWhisk.
+
+There are two approaches to using libraries with native dependencies...
+
+1. Run `npm install` inside a Docker container from the platform images.
+2. Building custom runtime image with libraries pre-installed.
+
+**The first approach is easiest but can only be used when a zip file containing all source files and libraries is less than the action size limit (48MB).**
+
+#### Running `npm install` inside runtime container
+
+ - Run the following command to bind the local directory into the runtime container and run `npm install`.
+
+```
+docker run -it -v $PWD:/nodejsAction openwhisk/action-nodejs-v10 "npm install"
+```
+ This will leave a `node_modules` folder with native dependencies compiled for correct runtime.
+
+ - Zip up the action source files including `node_modules` directory.
+
+```
+zip -r action.zip *
+```
+
+- Create new action with action archive.
+
+```
+ibmcloud wsk action create my-action --kind nodejs:10 action.zip
+```
+
+#### Building custom runtime image
+
+- Create a `Dockerfile` with the `npm install` command run during build.
+
+```
+FROM openwhisk/action-nodejs-v10
+
+RUN npm install <LIB_WITH_NATIVE_DEPS>
+```
+
+- Build and push the image to Docker Hub.
+
+```
+$ docker build -t <USERNAME>/custom-runtime .
+$ docker push <USERNAME>/custom-runtime
+```
+
+- Create new action using custom runtime image.
+
+```
+ibmcloud wsk action create my-action --docker <USERNAME>/custom-runtime action.zip
+```
+
+**Make sure the `node_modules` included in the `action.zip` does not include the same libraries folders.**
+
+## Using JavaScript Bundlers to package action source files
+
+Using a JavaScript module bundler can transform application source files (with external dependencies) into a single compressed JavaScript file. This can lead to faster deployments, lower cold-starts and allow you to deploy large applications where individual sources files in a zip archive are larger than the action size limit.
+
+Here are the instructions for how to use three popular module bundlers with the Node.js runtime. The "left pad" action example will be used as the source file for bundling along with the external library.
+
+### Using rollup.js ([https://rollupjs.org](https://rollupjs.org))
+
+- Re-write the `index.js` to use ES6 Modules, rather than CommonJS module format.
+
 ```javascript
-var path = require('path');
-module.exports = {
-  entry: './index.js',
+import leftPad from 'left-pad';
+
+function myAction(args) {
+  const lines = args.lines || [];
+  return { padded: lines.map(l => leftPad(l, 30, ".")) }
+}
+
+export const main = myAction
+```
+
+*Make sure you export the function using the `const main = ...` pattern. Using `export {myAction as main}` does not work due to tree-shaking. See this [blog post](https://boneskull.com/rollup-for-javascript-actions-on-openwhisk/) for full details on why this is necessary.*
+
+- Create the Rollup.js configuration file in `rollup.config.js` with the following contents.
+
+```javascript
+import commonjs from 'rollup-plugin-commonjs';
+import resolve from 'rollup-plugin-node-resolve';
+
+export default {
+  input: 'index.js',
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js'
+    file: 'bundle.js',
+    format: 'cjs'
   },
-  target: 'node'
+  plugins: [
+    resolve(),
+    commonjs()
+  ]
 };
 ```
 
-Set the variable `global.main` to the main function of the action.
-From the previous example:
+- Install the Rollup.js library and plugins using NPM.
+
+```
+npm install rollup rollup-plugin-commonjs rollup-plugin-node-resolve --save-dev
+```
+
+- Run the Rollup.js tool using the configuration file.
+
+```
+npx rollup --config
+```
+
+- Create an action using the bundle source file.
+
+```
+wsk action create my-action bundle.js --kind nodejs:10
+```
+
+- Invoke the action as normal. Results should be the same as the example above.
+
+```
+wsk action invoke my-action --result --param lines "[\"and now\", \"for something completely\", \"different\" ]"
+```
+
+### Using webpack ([https://webpack.js.org/](https://webpack.js.org/))
+
+- Change `index.js` to export the `main` function using as a global reference.
+
 ```javascript
+const leftPad = require('left-pad');
+
 function myAction(args) {
-    const leftPad = require("left-pad")
-    const lines = args.lines || [];
-    return { padded: lines.map(l => leftPad(l, 30, ".")) }
+  const lines = args.lines || [];
+  return { padded: lines.map(l => leftPad(l, 30, ".")) }
 }
-global.main = myAction;
+
+global.main = myAction
 ```
 
-If your function name is `main`, use this syntax instead:
+This allows the bundle source to "break out" of the closures Webpack uses when defining the modules.
+
+- Create the Webpack configuration file in `webpack.config.js` with the following contents.
+
 ```javascript
-global.main = main;
+module.exports = {
+  entry: './index.js',
+  target: 'node',
+  output: {
+    filename: 'bundle.js'
+  }
+};
 ```
 
-To build and deploy an OpenWhisk Action using `npm` and `webpack`:
+- Install the Webpack library and CLI using NPM.
 
-1. First, install dependencies locally:
+```
+npm install webpack-cli --save-dev
+```
 
-  ```
-  npm install
-  ```
+- Run the Webpack tool using the configuration file.
 
-2. Build the webpack bundle:
+```
+npx webpack --config webpack.config.js
+```
 
-  ```
-  npm run build
-  ```
+- Create an action using the bundle source file.
 
-  The file `dist/bundle.js` is created, and is used to deploy as the Action source code.
+```
+wsk action create my-action dist/bundle.js --kind nodejs:10
+```
 
-3. Create the Action using the `npm` script or the CLI.
-  Using `npm` script:
-  ```
-  npm run deploy
-  ```
+- Invoke the action as normal. Results should be the same as the example above.
 
-  Using the CLI:
-  ```
-  wsk action update my-action dist/bundle.js
-  ```
+```
+wsk action invoke my-action --result --param lines "[\"and now\", \"for something completely\", \"different\" ]"
+```
 
-Finally, the bundle file that is built by `webpack` doesn't support binary dependencies but rather JavaScript dependencies. So Action invocations will fail if the bundle depends on binary dependencies, because this is not included with the file `bundle.js`.
+### Using parcel ([https://parceljs.org/](https://parceljs.org/))
+
+- Change `index.js` to export the `main` function using as a global reference.
+
+```javascript
+const leftPad = require('left-pad');
+
+function myAction(args) {
+  const lines = args.lines || [];
+  return { padded: lines.map(l => leftPad(l, 30, ".")) }
+}
+
+global.main = myAction
+```
+
+This allows the bundle source to "break out" of the closures Parcel uses when defining the modules.
+
+- Install the Parcel library using NPM.
+
+```
+npm install parcel-bundler --save-dev
+```
+
+- Run the Parcel tool using the configuration file.
+
+```
+ npx parcel index.js
+```
+
+- Create an action using the bundle source file.
+
+```
+wsk action create my-action dist/index.js --kind nodejs:10
+```
+
+- Invoke the action as normal. Results should be the same as the example above.
+
+```
+wsk action invoke my-action --result --param lines "[\"and now\", \"for something completely\", \"different\" ]"
+```
 
 
 ## Reference
@@ -397,9 +532,3 @@ The Node.js version 10.13.0 environment is used if the `--kind` flag is explicit
 The following packages are pre-installed in the Node.js version 10 environment:
 
 - [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
-
-### Packaging npm packages with your actions
-For any `npm` packages that are not pre-installed in the Node.js environment, you can bundle them as dependencies when you create or update your action.
-
-For more information, see [Packaging an action as a Node.js module](./actions.md#packaging-an-action-as-a-nodejs-module) or [Packaging an action as a single bundle](./actions.md#packaging-an-action-as-a-single-bundle).
-

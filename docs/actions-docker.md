@@ -19,149 +19,298 @@
 
 ## Creating and invoking Docker actions
 
-With OpenWhisk Docker actions, you can write your actions in any language, bundle larger
-or complex dependencies, and tailor the runtime environment to suite your needs.
+Apache OpenWhisk supports using custom Docker images as the action runtime. Custom runtimes images can either have the action source files built-in or injected dynamically by the platform during initialisation.
 
-- As a prerequisite, you must have a Docker Hub account.
-  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
-- The easiest way to get started with a Docker action is to use the OpenWhisk Docker skeleton.
-  - You can install the skeleton with the `wsk sdk install docker` CLI command.
-  - This is a a Docker image based on [python:3.6.1-alpine](https://hub.docker.com/r/library/python).
-  - The skeleton requires an entry point located at `/action/exec` inside the container.
-    This may be an executable script or binary compatible with this distribution.
-  - The executable receives the input arguments via a single command-line argument string
-    which can be deserialized as a `JSON` object.
-    It must return a result via `stdout` as a single-line string of serialized `JSON`.
-  - You may include any compilation steps or dependencies by modifying the `Dockerfile`
-    included in the `dockerSkeleton`.
+Building custom runtime images is a common solution to the issue of having external application dependencies too large to deploy, due to the action size limit (48MB), e.g. machine learning libraries.
 
-The instructions that follow show you how to use the OpenWhisk Docker skeleton.
+### Usage
 
-1. Install the Docker skeleton.
+The [Apache OpenWhisk CLI](https://github.com/apache/incubator-openwhisk-cli) has a `--docker` configuration parameter to set a custom runtime for an action.
 
-  ```
-  wsk sdk install docker
-  ```
-  ```
-  The Docker skeleton is now installed at the current directory.
-  ```
+```
+wsk action create <ACTION_NAME> --docker <IMAGE> source.js
+```
 
-  ```
-  $ ls dockerSkeleton/
-  ```
-  ```
-  Dockerfile      README.md       buildAndPush.sh example.c
-  ```
+*`<IMAGE>` must be an image name for a public Docker image on [Docker Hub](https://hub.docker.com/search?q=&type=image).*
 
-  The skeleton is a Docker container template where you can inject your code in the form of custom binaries.
+The `--docker` flag can also be used without providing additional source or archive files for an action.
 
-2. Create the executable. The Docker skeleton includes a C program that you can use as an example.
+```
+wsk action create <ACTION_NAME> --docker <IMAGE>
+```
 
-  ```
-  cat dockerSkeleton/example.c
-  ```
-  ```c
-  #include <stdio.h>
-  int main(int argc, char *argv[]) {
-      printf("This is an example log message from an arbitrary C program!\n");
-      printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s }",
-             (argc == 1) ? "undefined" : argv[1]);
-  }
-  ```
+In this scenario, action source code will not be injected into the runtime during cold-start initialisation. The runtime container must handle the platform invocation requests directly.
 
-  You can modify this file as needed, or, add additional code and dependencies to the Docker image.
-  In case of the latter, you may need to tweak the `Dockerfile` as necessary to build your executable.
-  The binary must be located inside the container at `/action/exec`.
+### Restrictions
 
-  The executable receives a single argument from the command line. It is a string serialization of the JSON
-  object representing the arguments to the action. The program may log to `stdout` or `stderr`.
-  By convention, the last line of output _must_ be a stringified JSON object which represents the result of
-  the action.
+- Custom runtime images must implement the [Action interface](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-new.md#runtime-general-requirements). This is the [protocol used by the platform](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-new.md#action-interface) to pass invocation requests to the runtime containers. Containers are expected to expose a HTTP server (running on port 8080) with `/init` and `/run` endpoints.
+- Custom runtime images must be available on [Docker Hub](https://hub.docker.com/search?q=&type=image). Docker Hub is the only container registry currently supported. This means all custom runtime images will need to be publicly available.
+- Custom runtime images will be pulled from Docker Hub into the local platform registry upon the first invocation. This can lead to longer cold-start times on the first invocation with a new or updated image. Once images have been pulled down, they are cached locally.
 
-3. Build the Docker image and upload it using a supplied script.
-  You must first run `docker login` to authenticate, and then run the script with a chosen image name.
+### Image Refresh Behaviour
 
-  ```
-  docker login -u janesmith -p janes_password
-  ```
-  ```
-  cd dockerSkeleton
-  ```
-  ```
-  ./buildAndPush.sh janesmith/blackboxdemo
-  ```
+Custom runtimes images should be versioned using explicit [image tags](https://docs.docker.com/engine/reference/commandline/tag/) where possible.
 
-  Notice that part of the example.c file is compiled as part of the Docker image build process,
-  so you do not need C compiled on your machine.
-  In fact, unless you are compiling the binary on a compatible host machine, it may not run inside
-  the container since formats will not match.
+When an image identifier has the `latest` tag (or has no explicit tag), creating new runtime containers from a custom image will always result in an image refresh check against the registry. Pulling an image may fail due to a network interruption or Docker Hub outage. Explicitly tagged images allow the system to gracefully recover by using locally cached images, making it much more resilient against external issues.
 
-  Your Docker container may now be used as an OpenWhisk action.
+The "latest" tag should only be used for rapid prototyping, where guaranteeing the latest code state is more important than runtime stability at scale.
 
-  ```
-  wsk action create example --docker janesmith/blackboxdemo
-  ```
+### Existing Runtime Images
 
-  Notice the use of `--docker` when creating an action. Currently all Docker images are assumed
-  to be hosted on Docker Hub.
+Apache OpenWhisk publishes all the [existing runtime images](https://hub.docker.com/u/openwhisk) on Docker Hub. This makes it simple to extend an existing runtimes with additional libraries or native dependencies. Public runtimes images can be used as base images in new runtime images.
 
-  *Note:* It is considered best-practice for production images to be versioned via docker image tags. The absence of a tag will be treated the same as using a "latest" tag, which will result in a pull from the registry when creating new containers. Pulling an image may fail due to a network interruption or Docker Hub outage. For tagged images however, the system will gracefully recover from a failed pull by using the image that is already locally available, making it much more resilient against Docker Hub outages, etc.
+Here are some of the more common runtime images...
 
-  The "latest" tag should therefore only be used for rapid prototyping where guaranteeing the latest code state is more important than runtime stability at scale.
+- `openwhisk/action-nodejs-v10` - [Node.js 10](https://hub.docker.com/r/openwhisk/action-nodejs-v10) ([Source](https://github.com/apache/incubator-openwhisk-runtime-nodejs/blob/master/core/nodejs10Action/Dockerfile))
+- `openwhisk/python3action` - [Python 3](https://hub.docker.com/r/openwhisk/python3action) ([Source](https://github.com/apache/incubator-openwhisk-runtime-python/blob/master/core/pythonAction/Dockerfile))
+- `openwhisk/java8action` - [Java 8](https://hub.docker.com/r/openwhisk/java8action) ([Source](https://github.com/apache/incubator-openwhisk-runtime-java/blob/master/core/java8/Dockerfile))
+- `openwhisk/action-swift-v4.2` - [Swift 4.2](https://hub.docker.com/r/openwhisk/action-swift-v4.2) ([Source](https://github.com/apache/incubator-openwhisk-runtime-swift/blob/master/core/swift42Action/Dockerfile))
+- `openwhisk/action-php-v7.3` - [PHP 7.3](https://hub.docker.com/r/openwhisk/action-php-v7.3) ([Source](https://github.com/apache/incubator-openwhisk-runtime-php/blob/master/core/php7.3Action/Dockerfile))
+- `openwhisk/action-ruby-v2.5` - [Ruby 2.5](https://hub.docker.com/r/openwhisk/action-ruby-v2.5) ([Source](https://github.com/apache/incubator-openwhisk-runtime-ruby/blob/master/core/ruby2.5Action/Dockerfile))
 
-  Please also note that "latest" doesn't mean newest tag, but rather "latest" is an alias for any image built without an explicit tag.
+## Extending Existing Runtimes
 
-## Invoking a Docker action
+If you want to use extra libraries in an action that can't be deployed (due to the action size limit), building a custom runtime with a project image runtime base image is an easy way to handle this.
 
-Docker actions are invoked as [any other OpenWhisk action](actions.md#the-basics).
+By using an existing language runtime image as the base image, the container will already be set up to handle platform invocation requests for that language. This means the image build file only needs to contain commands to install those extra libraries or dependencies
 
-  ```
-  wsk action invoke --result example --param payload Rey
-  ```
-  ```json
-  {
-      "args": {
-          "payload": "Rey"
-      },
-      "msg": "Hello from arbitrary C program!"
-  }
-  ```
+Here are examples for Node.js and Python using this approach to provide large libraries in the runtime.
 
-## Updating a Docker action
+### Node.js
 
-To update the Docker action, run buildAndPush.sh again _and_ update your action.
-This will upload the latest image to Docker Hub and force the system to create a new container based on the image.
-If you do not update the action, then the image is pulled when there are no warm containers available for your action.
-A warm container will continue using a previous version of your Docker image,
-and any new invocations of the action will continue to use that image unless you run `wsk action update`.
-This will indicate to the system that for new invocations it should execute a docker pull to get your new Docker image.
+[Tensorflow.js](https://www.tensorflow.org/js/) is a JavaScript implementation of [TensorFlow](https://www.tensorflow.org/), the open-source Machine Learning library from Google. This project also comes with a [Node.js backend driver](https://github.com/tensorflow/tfjs-node) to run the project on CPU or GPU devices in the Node.js runtime.
 
-  ```
-  ./buildAndPush.sh janesmith/blackboxdemo
-  ```
-  ```
-  wsk action update example --docker janesmith/blackboxdemo
-  ```
+Both the core library and CPU backend driver for Node.js (`tfjs` and `tfjs-node`) can be installed as normal NPM packages. Unfortunately, it is not possible to deploy these libraries in a zip file to the Node.js runtime in Apache OpenWhisk due to the size of the library and its dependencies. The `tfjs-node` library has a native dependency which is over 170MB.
 
-**Note:** As noted above, only images with the tag "latest" or no tag will guarantee to be pulled again, even after updating the action. Any other tag might fall back to use the old image for stability reasons.
+Instead, we can build a custom runtime which extends the project's Node.js runtime image and runs `npm install` during the container build process. These libraries will then be pre-installed into the runtime and can be excluded from the deployment archive.
 
-To force an updated image after an action update, consider using versioned tags on the image.
+- Create a `Dockerfile` with the following contents:
+
+```
+FROM openwhisk/action-nodejs-v10:latest
+
+RUN npm install @tensorflow/tfjs-node
+```
+
+- Build the Docker image.
+
+```
+docker build -t action-nodejs-v10:tf-js .
+```
+
+- Tag the Docker image with your Docker Hub username.
+
+```
+docker tag action-nodejs-v10:tf-js <USER_NAME>/action-nodejs-v10:tf-js
+```
+
+- Push the Docker image to Docker Hub.
+
+```
+docker push <USER_NAME>/action-nodejs-v10:tf-js
+```
+
+- Create a new Apache OpenWhisk action with the following source code:
+
+```javascript
+const tf = require('@tensorflow/tfjs-node')
+
+const main = () => {
+  return { tf: tf.version }
+}
+```
+
+```
+wsk action create tfjs --docker <USER_NAME>/action-nodejs-v10:tf-js action.js
+```
+
+- Invoking the action should return the TensorFlow.js libraries versions available in the runtime.
+
+```
+wsk action invoke tfjs --result
+```
+
+```
+{
+    "tf": {
+        "tfjs": "1.0.4",
+        "tfjs-converter": "1.0.4",
+        "tfjs-core": "1.0.4",
+        "tfjs-data": "1.0.4",
+        "tfjs-layers": "1.0.4",
+        "tfjs-node": "1.0.3"
+    }
+}
+```
+
+### Python
+
+Python is a popular language for machine learning and data science due to availability of libraries like [numpy](http://www.numpy.org/).
+
+Python libraries can be [imported into the Python runtime](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-python.md#packaging-python-actions-with-a-virtual-environment-in-zip-files) in Apache OpenWhisk by including a `virtualenv` folder in the deployment archive. This approach does not work when the deployment archive would be larger than the action size limit (48MB).
+
+Instead, we can build a custom runtime which extends the project's Python runtime image and runs `pip install` during the container build process. These libraries will then be pre-installed into the runtime and can be excluded from the deployment archive.
+
+- Create a `Dockerfile` with the following contents:
+
+```
+FROM openwhisk/python3action:latest
+
+RUN apk add --update py-pip
+RUN pip install numpy
+```
+
+- Build the Docker image.
+
+```
+docker build -t python3action:ml-libs .
+```
+
+- Tag the Docker image with your Docker Hub username.
+
+```
+docker tag python3action:ml-libs <USER_NAME>/python3action:ml-libs
+```
+
+- Push the Docker image to Docker Hub.
+
+```
+docker push <USER_NAME>/python3action:ml-libs
+```
+
+- Create a new Apache OpenWhisk action with the following source code:
+
+```python
+import numpy
+
+def main(params):
+    return {
+        "numpy": numpy.__version__
+    }
+```
+
+```
+wsk action create ml-libs --docker <USER_NAME>/python3action:ml-libs action.py
+```
+
+- Invoking the action should return the TensorFlow.js library versions available in the runtime.
+
+```
+wsk action invoke ml-libs --result
+```
+
+```
+{
+    "numpy": "1.16.2"
+}
+```
 
 ## Creating native actions
 
-Docker actions accept initialization data via a (zip) file, similar to other actions kinds.
-For example, the tutorial above created a binary executable inside the container located at `/action/exec`.
-If you copy this file to your local file system and zip it into `exec.zip` then you can use the following
-commands to create a docker action which receives the executable as initialization data.
+Docker support can also be used to run any executable file (from static binaries to shell scripts) on the platform. Executable files need to use the `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/incubator-openwhisk-runtime-docker). Native actions can be created using the `--native` CLI flag, rather than explicitly specifying `dockerskeleton` as the runtime image name.
 
-  ```bash
-  wsk action create example exec.zip --native
-  ```
-  which is equivalent to the following command.
-  ```bash
-  wsk action create example exec.zip --docker openwhisk/dockerskeleton
-  ```
+### Usage
 
-Using `--native`, you can see that any executable may be run as an OpenWhisk action.
-This includes `bash` scripts, or cross compiled binaries. For the latter, the constraint
-is that the binary must be compatible with the `openwhisk/dockerskeleton` image.
+```
+wsk action create my-action --native source.sh
+wsk action create my-action --native archive.zip
+```
+
+Executables can either be text or binary files. Text-based executable files (e.g. shell scripts) are passed directly as the action source files. Binary files (e.g. C programs) must be named `exec` and packaged into a zip archive.
+
+Native action source files must be executable within the  `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/incubator-openwhisk-runtime-docker). This means being compiled for the correct platform architecture, linking to the correct dynamic libraries  and using pre-installed external dependencies.
+
+When an invocation request is received by the runtime container, the native action file will be executed until the process exits. Action invocation parameters will be passed as a JSON string to `stdin`.
+
+When the process ends, the last line of text output to `stdout` will be parsed as the action result. This must contain a text string with a JSON object. All other text lines written to `stdout` will be treated as logging output and returned into the response logs for the activation.
+
+### Example (Shell Script)
+
+- Create a shell script called `script.sh` with the following contents.
+
+```
+#!/bin/bash
+read ARGS
+NAME=`echo "$ARGS" | jq -r '."name"'`
+DATE=`date`
+echo "{ \"message\": \"Hello $NAME! It is $DATE.\" }"
+```
+
+- Create an action from this shell script.
+
+```
+ wsk action create bash script.sh --native
+```
+
+- Invoke the action with the `name` parameter.
+
+```
+wsk action invoke bash --result --param name James
+```
+
+```
+{
+    "message": "Hello James! It is Thu Apr 18 15:24:23 UTC 2019."
+}
+```
+
+### Example (Static C Binary)
+
+- Create a C source file called `main.c` with the following contents:
+
+```c
+#include <stdio.h>
+int main(int argc, char *argv[]) {
+    printf("This is an example log message from an arbitrary C program!\n");
+    printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s }",
+           (argc == 1) ? "undefined" : argv[1]);
+}
+```
+
+- Create a shell script (`build.sh`) with the following contents:
+
+```
+#!/bin/bash
+apk add gcc libc-dev
+
+gcc main.c -o exec
+```
+
+- Make the build script executable.
+
+```
+chmod 755 build.sh
+```
+
+- Compile the C binary using the `dockerskeleton` image and the build script.
+
+```
+docker run -it -v $PWD:/action/ -w /action/ openwhisk/dockerskeleton ./build.sh
+```
+
+- Add the binary to a zip file.
+
+```
+zip -r action.zip exec
+```
+
+- Create an action from the zip file containing the binary.
+
+```
+ wsk action create c-binary action.zip --native
+```
+
+- Invoke the action with the `name` parameter.
+
+```
+wsk action invoke c-binary --result --param name James
+```
+
+```
+{
+    "args": {
+        "name": "James"
+    },
+    "msg": "Hello from arbitrary C program!"
+}
+```
