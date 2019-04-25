@@ -289,11 +289,12 @@ class DockerContainer(protected val id: ContainerId,
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation
           // notice downstream, which will be processed as usual. This will be the last element of the stream.
           ByteString(LogLine(Instant.now.toString, "stderr", Messages.truncateLogs(limit)).toJson.compactPrint)
-        case _: OccurrencesNotFoundException | _: FramingException | _: TimeoutException =>
+        case e @ (_: OccurrencesNotFoundException | _: FramingException | _: TimeoutException) =>
           // Stream has already ended and we insert a notice that data might be missing from the logs. While a
           // FramingException can also mean exceeding the limits, we cannot decide which case happened so we resort
           // to the general error message. This will be the last element of the stream.
-          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
+          ByteString(
+            LogLine(Instant.now.toString, "stderr", Messages.logFailure + " " + e.getMessage).toJson.compactPrint)
       }
   }
 

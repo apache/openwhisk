@@ -7,6 +7,7 @@
  * @param num Number of lines to return.
  */
 function main(msg) {
+    console.log('msg' + msg)
     var lines = msg.lines || [];
     var num = msg.num || 1;
     var head = lines.slice(0, num);
