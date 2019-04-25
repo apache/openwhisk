@@ -25,7 +25,7 @@ However, the fastest way to develop a new runtime is reusing the *ActionLoop* pr
 
 ## What is the ActionLoop proxy
 
-ActionLoop proxy is a runtime "engine", written in Go, originally developed precisely to support the Go language. However it was written in a pretty generic way, and it has been then adopted also to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. It was developed with compiled languages in minds but works well also with scripting languages.
+The ActionLoop proxy is a runtime "engine", written in Go, originally developed specifically to support the Go language. However it was written in a pretty generic way, and it has been then adopted also to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
 Using it, you can develop a new runtime in a fraction of the time needed for a full-fledged runtime, since you have only to write a command line protocol and not a fully featured web server, with an amount of corner case to take care.
 
@@ -67,9 +67,9 @@ Finally, you do not need to know Scala, even if the tests are embedded in a Scal
 
 In this tutorial we have either terminal transcripts to show what you need to do at the terminal, or "diffs" to show changes to existing files.
 
-In terminal transcripts, the prefix  `$`  means commands you have to type at the terminal;  the rest are comments (prefixed with `#`) or sample output you should check to verify everything is ok. Generally in a transcript I do not put verbatim output of the terminal as it is generally irrelevant.
+In terminal transcripts, the prefix  `$`  means commands you have to type at the terminal; the rest are comments (prefixed with `#`) or sample output you should check to verify everything is ok. Generally in a transcript I do not put verbatim output of the terminal as it is generally irrelevant.
 
-When I show changes to existing files, lines without a prefix should be left as is,  lines  with `-` should be removed and lines with  `+` should be added.
+When I show changes to existing files, lines without a prefix should be left as is, lines  with `-` should be removed and lines with  `+` should be added.
 
 ## Setup the development directory
 
@@ -303,7 +303,7 @@ For interpreted languages, the compilation script will only "prepare" the source
 
 For compiled languages, like Go it will actually invoke a compiler in order to produce the final executable. There are also cases like Java where you still need to execute the compilation step that produces intermediate code, but the executable is just a shell script that will launch the Java runtime.
 
-So let's go first examine how ActionLoop handles file upload, then what the provided compilation script does for Python, and finally  we will see how to modify the existing `compile` for Python to work for Ruby.
+So let's go first examine how ActionLoop handles file upload, then what the provided compilation script does for Python, and finally we will see how to modify the existing `compile` for Python to work for Ruby.
 
 ### How the ActionLoop proxy handles action uploads
 
