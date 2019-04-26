@@ -228,7 +228,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         }
         //update this invokers idles seen by other invokers
         val idles = localUnused.map(f => RemoteContainerRef(f._2.memoryLimit, f._2.lastUsed)).toList
-        if (lastUnused != idles) {
+        if (lastUnused != idles) { //may change either because the container was added/removed, OR because lastUsed is updated
           lastUnused = idles
           logging.info(
             this,
@@ -251,20 +251,19 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
             .sum} (${remoteReservedSize}MB)")
         clusterActionHostStats = stats
         if (stats.nonEmpty) {
-          MetricEmitter.emitHistogramMetric(
-            LoggingMarkers.CLUSTER_RESOURCES_TOTAL_MEM,
-            stats.values.map(_.mem).sum.toLong)
-          MetricEmitter.emitHistogramMetric(
-            LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM,
-            stats.values.maxBy(_.mem).mem.toLong)
+          MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_TOTAL_MEM, stats.values.map(_.mem).sum.toLong)
+          MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_MAX_MEM, stats.values.maxBy(_.mem).mem.toLong)
         }
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, localUnused.size)
-        MetricEmitter.emitHistogramMetric(
-          LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE,
-          localUnused.map(_._2.memoryLimit.toMB).sum)
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_RESERVED_COUNT, localReservations.size)
-        MetricEmitter.emitHistogramMetric(
+        MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
+        MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, localUnused.size)
+        val unusedSize = localUnused.map(_._2.memoryLimit.toMB).sum
+        logging.debug(this, s"metrics invoker ${myId} (self) has ${lastUnused.size} unused (${unusedSize}MB)")
+        logging.debug(
+          this,
+          s"metrics invoker ${myId} (self) has ${localReservations.size} reserved (${reservedSize}MB)")
+        MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE, unusedSize)
+        MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_RESERVED_COUNT, localReservations.size)
+        MetricEmitter.emitGaugeMetric(
           LoggingMarkers.CLUSTER_RESOURCES_RESERVED_SIZE,
           localReservations.map(_._2.size.toMB).sum)
 

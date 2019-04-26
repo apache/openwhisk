@@ -297,6 +297,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
         if (f.activeActivationCount > 0) {
           processBuffer()
         }
+        updateUnused()
         sender()
       }
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
@@ -320,7 +321,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
       resourceManager.releaseReservation(sender())
       freePool = freePool - sender()
       busyPool = busyPool - sender()
-
+      updateUnused()
     case InitPrewarms =>
       initPrewarms()
     case ResourceUpdate => //we may have more resources - either process the buffer or request another feed message
