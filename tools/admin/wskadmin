@@ -98,9 +98,11 @@ def parseArgs():
     parser = argparse.ArgumentParser(description='OpenWhisk admin command line tool')
     parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
     subparsers = parser.add_subparsers(title='available commands', dest='cmd')
+    subparsers.required = True
 
     propmenu = subparsers.add_parser('user', help='manage users')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+    subparser.required = True
 
     subcmd = subparser.add_parser('create', help='create a user and show authorization key')
     subcmd.add_argument('subject', help='the subject to create')
@@ -136,6 +138,7 @@ def parseArgs():
 
     propmenu = subparsers.add_parser('limits', help='manage namespace-specific limits')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+    subparser.required = True
 
     subcmd = subparser.add_parser('set', help='set limits for a given namespace')
     subcmd.add_argument('namespace', help='the namespace to set limits for')
@@ -153,6 +156,7 @@ def parseArgs():
 
     propmenu = subparsers.add_parser('db', help='work with dbs')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+    subparser.required = True
 
     subcmd = subparser.add_parser('get', help='get contents of database')
     subcmd.add_argument('database', help='the database name')
@@ -161,6 +165,7 @@ def parseArgs():
 
     propmenu = subparsers.add_parser('syslog', help='work with system logs')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+    subparser.required = True
 
     subcmd = subparser.add_parser('get', help='get logs')
     subcmd.add_argument('components', help='components, one or more of [controllerN, invokerN] where N is the instance', nargs='*', default=['controller0', 'invoker0'])
@@ -690,7 +695,7 @@ def getLogsCmd(args, props):
         (output, error) = shell(cmd, verbose = args.verbose)
 
         if output:
-            return output
+            return output.decode('utf-8')
         if error:
             sys.stderr.write(error)
         return ''
@@ -705,7 +710,7 @@ def getLogsCmd(args, props):
         date = map(extractDate, filter)
         keyed = zip(date, parts)
         sort = sorted(keyed, key=lambda t: t[1])
-        msgs = unzip(sort)[1]
+        msgs = list(unzip(sort))[1]
         print('\n'.join(msgs))
     return 0
 
