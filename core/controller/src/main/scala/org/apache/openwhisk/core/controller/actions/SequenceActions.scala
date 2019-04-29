@@ -265,8 +265,8 @@ protected[actions] trait SequenceActions {
     //
     // This action/parameter resolution is done in futures; the execution starts as soon as the first component
     // is resolved.
-    val resolvedFutureActions = resolveDefaultNamespace(components, user) map { fqn =>
-      (WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, fqn), fqn)
+    val resolvedFutureActions = resolveDefaultNamespace(components, user) map { c =>
+      WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, c)
     }
 
     // this holds the initial value of the accounting structure, including the input boxed as an ActivationResponse
@@ -279,7 +279,7 @@ protected[actions] trait SequenceActions {
       .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
-            invokeNextAction(user, futureAction._1, futureAction._2, accounting, cause)
+            invokeNextAction(user, futureAction, accounting, cause)
               .flatMap { accounting =>
                 if (!accounting.shortcircuit) {
                   Future.successful(accounting)
@@ -317,7 +317,6 @@ protected[actions] trait SequenceActions {
    * The method distinguishes between invoking a sequence or an atomic action.
    * @param user the user executing the sequence
    * @param futureAction the future which fetches the action to be invoked from the db
-   * @param originAction the invoked fully qualified action name that not rewritten
    * @param accounting the state of the sequence activation, contains the dynamic activation count, logs and payload for the next action
    * @param cause the activation id of the first sequence containing this activations
    * @return a future which resolves with updated accounting for a sequence, including the last result, duration, and activation ids
@@ -325,7 +324,6 @@ protected[actions] trait SequenceActions {
   private def invokeNextAction(
     user: Identity,
     futureAction: Future[WhiskActionMetaData],
-    originAction: FullyQualifiedEntityName,
     accounting: SequenceAccounting,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[SequenceAccounting] = {
     futureAction.flatMap { action =>
