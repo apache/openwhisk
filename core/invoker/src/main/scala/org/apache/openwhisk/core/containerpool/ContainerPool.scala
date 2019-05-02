@@ -339,11 +339,12 @@ class ContainerPool(instanceId: InvokerInstanceId,
       //remove each ref, IFF it is still not in use, and has not been used since the removal was requested
       ContainerPool.findIdlesToRemove(freePool, refs).foreach(removeContainer)
     case EmitMetrics =>
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE, runBuffer.size)
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, inUse.size)
-      MetricEmitter.emitHistogramMetric(
-        LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE,
-        inUse.map(_._2.memoryLimit.toMB).sum)
+      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_COUNT, runBuffer.size)
+      MetricEmitter.emitGaugeMetric(
+        LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE,
+        runBuffer.map(_.action.limits.memory.megabytes).sum)
+      MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, inUse.size)
+      MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE, inUse.map(_._2.memoryLimit.toMB).sum)
   }
 
   /** Buffer processing in cluster managed resources means to send the first item in runBuffer;

@@ -451,6 +451,8 @@ object LoggingMarkers {
     LogMarkerToken(containerPool, "resourceError", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_RESCHEDULED_ACTIVATION =
     LogMarkerToken(containerPool, "rescheduledActivation", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_RUNBUFFER_COUNT =
+    LogMarkerToken(containerPool, "runBufferCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_RUNBUFFER_SIZE =
     LogMarkerToken(containerPool, "runBufferSize", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_ACTIVE_COUNT =
