@@ -290,7 +290,7 @@
 
 - name: set invoker runc volume
   set_fact:
-    volumes: "{{ volumes }},{{ invoker.runcdir }}:/run/runc"
+    volumes: "{{ volumes }},{{ invoker.docker.runcdir }}:/run/runc"
   when: invoker.useRunc == true
 
 - name: define options when deploying invoker on Ubuntu
