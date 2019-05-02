@@ -98,11 +98,11 @@ class InvokerReactive(
           "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
 
-  CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "cleanup runtime containers") {
-    () =>
+  CoordinatedShutdown(actorSystem)
+    .addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "cleanup runtime containers") { () =>
       containerFactory.cleanup()
       Future.successful(Done)
-  }
+    }
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
