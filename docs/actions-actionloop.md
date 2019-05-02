@@ -42,7 +42,7 @@ The development procedure for ActionLoop requires the following steps:
 * write (or just adapt the existing) a compilation script for your target language
 * write some mandatory tests for your language
 
-To facilitate the process, there is an `actionloop-starter-kit` in the devtools repository, that implements a fully working runtime for Python.  It is a stripped down version of the real Python runtime (removing some advanced details of the real one).
+To facilitate the process, there is an `actionloop-starter-kit` in the [devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) repository, that implements a fully working runtime for Python.  It is a stripped down version of the real Python runtime (removing some advanced details of the real one).
 
 So you can implement your runtime translating some Python code in your target language. This tutorial shows step by step how to do it writing the Ruby runtime. This code is also used in the real Ruby runtime.
 
