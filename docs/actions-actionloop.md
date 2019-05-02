@@ -37,14 +37,14 @@ In summary, it is likely that using the ActionLoop is simpler and a "better bet"
 
 The development procedure for ActionLoop requires the following steps:
 
-* building a docker image containing your target language compiler and the ActionLoop runtime
-*  writing a simple line-oriented protocol in your target language (converting a python example)
-* write (or just adapt the existing) a compilation script for your target language
-* write some mandatory tests for your language
+* building a docker image containing your target language compiler and the ActionLoop runtime.
+*  writing a simple line-oriented protocol in your target language.
+* writing a compilation script for your target language.
+* writing some mandatory tests for your language.
 
 To facilitate the process, there is an `actionloop-starter-kit` in the [openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) GitHub repository, that implements a fully working runtime for Python.  It contains a stripped-down version of the real Python runtime (with some advanced features removed) along with guided, step-by-step instructions on how to translate it to a different target runtime language using Ruby as an example.
 
-In short, the starter kit process involves:
+In short, the starter kit provides templates you can adapt in creating an ActionLoop runtime for each of the steps listed above, these include :
 
 - checking out  the `actionloop-starter-kit` from the `incubator-openwhisk-devtools` repository
 - editing the `Dockerfile` to create the target environment for your target language.
@@ -52,9 +52,9 @@ In short, the starter kit process involves:
 - editing the `compile` script to compile your action in your target language.
 - writing the mandatory tests for your target language, by adapting the `ActionLoopPythonBasicTests.scala` file.
 
-As a starting language, we chose Python since it is one of the more human-readable languages (can treated almost as `pseudo-code`). Do not worry, you  should only need just enough Python knowledge to be able to rewrite `launcher.py` in your target language and to edit the `compile` script. for your target language.
+As a starting language, we chose Python since it is one of the more human-readable languages (can be  treated as `pseudo-code`). Do not worry, you should only need just enough Python knowledge to be able to rewrite `launcher.py` and edit the `compile` script for your target language.
 
-Finally, you will need to update  `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala langauge, only serves as a wrapper that you will use to embed your target langauge tests into.
+Finally, you will need to update the `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala langauge, only serves as a wrapper that you will use to embed your target language tests into.
 
 ## Notation
 
