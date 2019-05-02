@@ -19,21 +19,19 @@
 -->
 # Developing a new Runtime with the ActionLoop proxy
 
-The [runtime specification](actions-new.md) defines the expected behavior of a runtime. You can implement a runtime from scratch just following the spec.
+The [runtime specification](actions-new.md) defines the expected behavior of a runtime. You can implement a runtime from scratch just following the specification.
 
-However, the fastest way to develop a new runtime is reusing the *ActionLoop* proxy, that already implements the specification and provides just a few hooks to get a fully functional (and *fast*) runtime in a few hours.
+However, the fastest way to develop a new runtime is reusing the *ActionLoop* proxy that already implements the specification and provides just a few hooks to get a fully functional (and *fast*) runtime in a few hours or less.
 
 ## What is the ActionLoop proxy
 
-The ActionLoop proxy is a runtime "engine", written in Go, originally developed specifically to support the Go language. However it was written in a pretty generic way, and it has been then adopted also to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
+The ActionLoop proxy is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support a Go language runtime. However, it was written in a  generic way such that it has since been adopted to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
-Using it, you can develop a new runtime in a fraction of the time needed for a full-fledged runtime, since you have only to write a command line protocol and not a fully featured web server, with an amount of corner case to take care.
+Using it, you can develop a new runtime in a fraction of the time needed for a authoring full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor of 2x to 20x. 
 
-Also, you will likely get a pretty fast runtime, since it is currently the most rapid. It was also adopted to improve performances of existing runtimes, that gained from factor 2x to a factor 20x for languages like Python, Ruby, PHP, and Java.
+ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an  action offiline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
-ActionLoop also supports "precompilation". You can take a raw image and use the docker image to perform the transformation in action. You will get a zip file that you can use as an action that is very fast to start because it contains only the binaries and not the sources.
-
-So it is likely are using ActionLoop a better bet than implementing the specification from scratch. If you are convinced and want to use it, read on: this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example.
+In summary, it is likely that using the ActionLoop is simpler and a "better bet" than implementing the specification from scratch. If you are convinced and want to use it, then read on. What follows on this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example target language.
 
 ## How to write a new runtime with ActionLoop
 
