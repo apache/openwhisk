@@ -27,7 +27,7 @@ However, the fastest way to develop a new runtime is reusing the *ActionLoop* pr
 
 The ActionLoop proxy is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support a Go language runtime. However, it was written in a  generic way such that it has since been adopted to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
-Using it, you can develop a new runtime in a fraction of the time needed for a authoring full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor of 2x to 20x. 
+Using it, you can develop a new runtime in a fraction of the time needed for a authoring full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x. 
 
 ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an  action offiline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
@@ -42,32 +42,27 @@ The development procedure for ActionLoop requires the following steps:
 * write (or just adapt the existing) a compilation script for your target language
 * write some mandatory tests for your language
 
-To facilitate the process, there is an `actionloop-starter-kit` in the [devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) repository, that implements a fully working runtime for Python.  It is a stripped down version of the real Python runtime (removing some advanced details of the real one).
+To facilitate the process, there is an `actionloop-starter-kit` in the [openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) GitHub repository, that implements a fully working runtime for Python.  It contains a stripped-down version of the real Python runtime (with some advanced features removed) along with guided, step-by-step instructions on how to translate it to a different target runtime language using Ruby as an example.
 
-So you can implement your runtime translating some Python code in your target language. This tutorial shows step by step how to do it writing the Ruby runtime. This code is also used in the real Ruby runtime.
-
-Using the starter kit, the process becomes:
+In short, the starter kit process involves:
 
 - checking out  the `actionloop-starter-kit` from the `incubator-openwhisk-devtools` repository
-- editing the `Dockerfile` to create the target environment for your language
-- rewrite the `launcher.py` in your language
-- edit the `compile` script to compile your action in your target language
-- write the mandatory tests for your language, adapting the `ActionLoopPythonBasicTests.scala`
+- editing the `Dockerfile` to create the target environment for your target language.
+- converting (rewrite) the `launcher.py` script to an equivalent for script for your target language.
+- editing the `compile` script to compile your action in your target language.
+- writing the mandatory tests for your target language, by adapting the `ActionLoopPythonBasicTests.scala` file.
 
-Since we need to show the code you have to translate in some language, we picked Python as it is one of the more readable languages, the closer to be real-world `pseudo-code`.
+As a starting language, we chose Python since it is one of the more human-readable languages (can treated almost as `pseudo-code`). Do not worry, you  should only need just enough Python knowledge to be able to rewrite `launcher.py` in your target language and to edit the `compile` script. for your target language.
 
-You need to know a bit of Python to understand the sample `launcher.py`, just enough to rewrite it in your target language.
+Finally, you will need to update  `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala langauge, only serves as a wrapper that you will use to embed your target langauge tests into.
 
-You may need to write some real Python coding to edit the `compile` script, but basic knowledge is enough.
-
-Finally, you do not need to know Scala, even if the tests are embedded in a Scala test, as all you need is to embed your tests in the code.
 ## Notation
 
-In this tutorial we have either terminal transcripts to show what you need to do at the terminal, or "diffs" to show changes to existing files.
+In each step of this tutorial, we typically show snippets of either terminal transcripts (i.e., commands and results) or "diffs" of changes to existing code files.
 
-In terminal transcripts, the prefix  `$`  means commands you have to type at the terminal; the rest are comments (prefixed with `#`) or sample output you should check to verify everything is ok. Generally in a transcript I do not put verbatim output of the terminal as it is generally irrelevant.
+Within terminal transcript snippets, comments are prefixed with `#` character and commands are prefixed by the `$` character. Lines that follow commands may include sample output (from their execution) which can be used to verify against results in your local environment. 
 
-When I show changes to existing files, lines without a prefix should be left as is, lines  with `-` should be removed and lines with  `+` should be added.
+When snippets show changes to existing source files, lines without a prefix should be left "as is", lines  with `-` should be removed and lines with  `+` should be added.
 
 ## Setup the development directory
 
