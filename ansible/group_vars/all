@@ -42,6 +42,7 @@ whisk:
 # briefly the parameters are:
 #
 #   runtimes_registry: optional registry (with trailing slack) where to pull docker images from for runtimes and backbox images
+#   runtimes_registry_user_images: optional, this will add runtimes_registry to all images for pulling, blackbox images included
 #
 #   skip_pull_runtimes: this will skip pulling the images to the invoker (images must exist there somehow)
 #

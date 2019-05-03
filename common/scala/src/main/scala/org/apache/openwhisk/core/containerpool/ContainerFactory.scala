@@ -49,7 +49,7 @@ case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Doubl
 
 case class RuntimesRegistryCredentials(user: String, password: String)
 
-case class RuntimesRegistryConfig(url: String, credentials: Option[RuntimesRegistryCredentials])
+case class RuntimesRegistryConfig(url: String, includeUserImages: Option[Boolean] = None, credentials: Option[RuntimesRegistryCredentials])
 
 /**
  * An abstraction for Container creation

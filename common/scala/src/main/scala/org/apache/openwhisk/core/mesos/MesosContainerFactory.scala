@@ -126,7 +126,7 @@ class MesosContainerFactory(config: WhiskConfig,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val transid = tid
-    val image = if (userProvidedImage) {
+    val image = if (userProvidedImage && !runtimesRegistryConfig.includeUserImages.getOrElse(false)) {
       actionImage.publicImageName
     } else {
       actionImage.localImageName(runtimesRegistryConfig.url)

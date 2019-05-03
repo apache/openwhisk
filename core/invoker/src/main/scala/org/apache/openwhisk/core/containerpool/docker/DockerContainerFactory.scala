@@ -60,10 +60,14 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                                userProvidedImage: Boolean,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    val image = if (userProvidedImage && !runtimesRegistryConfig.includeUserImages.getOrElse(false)) {
+      Left(actionImage)
+    } else {
+      Right(actionImage.localImageName(runtimesRegistryConfig.url))
+    }
     DockerContainer.create(
       tid,
-      image =
-        if (userProvidedImage) Left(actionImage) else Right(actionImage.localImageName(runtimesRegistryConfig.url)),
+      image = image,
       memory = memory,
       cpuShares = cpuShares,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),

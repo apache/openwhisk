@@ -86,6 +86,7 @@ whisk {
 
     container-factory.runtimes-registry {
         url = "{{ runtimes_registry | default('') }}"
+        include-user-images = "{{ runtimes_registry_user_images | default('false') }}"
     }
 }
 
