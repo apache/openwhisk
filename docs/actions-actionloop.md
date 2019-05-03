@@ -154,21 +154,21 @@ Note that:
 
 ## Implementing the ActionLoop protocol
 
-Now you have to convert the `launcher.py` in your programming language.  Let's recap the ActionLoop protocol.
+This section will take you through how to convert the contents of `launcher.rb` (formerly `launcher.py`) to the target Ruby programming language and implement the `ActionLoop protocol`.
 
 ### What the launcher should do
 
-The launcher must imports your function first. It is the job of the `compile` script to make the function available to the launcher, as we will see in the next paragraph.
+Let's recap the steps the launcher must accomplish to implement the `ActionLoop protocol` :
 
-Once the function is imported, it opens the file descriptor 3 for output then reads the standard input line by line.
-
-For each line, it parses the input in JSON and expects it to be a JSON object (not an array nor a scalar).
-
-In this object, the key `value` is the payload to be passed to your functions. All the other keys will be passed as environment variables, uppercases and with prefix `__OW_`.
-
-Finally, your function is invoked with the payload. Once the function returns the result, standard out and standard error is flushed. The result is encoded in JSON, ensuring it is only one line and it is terminated with one newline and it is written in file descriptor 3.
-
-Then the loop starts again. That's it.
+1. import the Action function's `main` method for execution.
+    * Note: the `compile` script will make the function available to the launcher.  
+1. open the system's `file descriptor 3` which will be used to output the functions response.
+1. read the system's standard input, `stdin`, line-by-line. Each line is parsed as a JSON string and produces a JSON object (not an array nor a scalar) to be passed as the input `arg` to the function.
+    * Note: within the JSON object, the `value` key contains the user parameter data to be passed to your functions. All the other keys are made available as process environment variables to the function; these need to be uppercased and prefixed with `"__OW_"`.
+1. invoke the `main` function with the JSON object payload.
+1. encode the result of the function in JSON (ensuring it is only one line and it is terminated with one newline) and write it to `file descriptor 3`.
+1. Once the function returns the result, flush the contents of `stdout`, `stderr` and `file descriptor 3` (FD 3).
+1. Finally, include the above steps in a loop so that it continually looks for Activations. That's it.
 
 ### Converting `launcher.py` in `launcher.rb`
 
