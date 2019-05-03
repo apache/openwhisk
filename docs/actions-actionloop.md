@@ -64,19 +64,34 @@ Within terminal transcript snippets, comments are prefixed with `#` character an
 
 When snippets show changes to existing source files, lines without a prefix should be left "as is", lines  with `-` should be removed and lines with  `+` should be added.
 
+## Prequisites
+
+- Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.  
+
+```
+# Verify docker version
+$ docker --version
+Docker version 18.09.3
+
+# Verify docker is running 
+$ docker ps
+
+# The result should be a valid response listing running processes
+```
+
 ## Setup the development directory
 
-So let's start to create our own `actionloop-demo-ruby-2.6`. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
+So let's start to create our own `actionloop-demo-ruby-2.6` runtime. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
 
 ```
 $ git clone https://github.com/apache/incubator-openwhisk-devtools
 $ mv incubator-openwhisk-devtools/actionloop-starter-kit ~/actionloop-demo-ruby-v2.6
 ```
 
-Now we take the directory `python3.7` and rename it to `ruby2.6`; we also fix a couple of references, in order to give a name to our new runtime.
+Now, take the directory `python3.7` and rename it to `ruby2.6` and use `sed` to fix the directory name references in the Gradle build files.
 
 ```
-$ cd actionloop-demo-ruby-v2.6
+$ cd ~/actionloop-demo-ruby-v2.6
 $ mv python3.7 ruby2.6
 $ sed -i.bak -e 's/python3.7/ruby2.6/' settings.gradle
 $ sed -i.bak -e 's/actionloop-demo-python-v3.7/actionloop-demo-ruby-v2.6/' ruby2.6/build.gradle
@@ -96,7 +111,7 @@ REPOSITORY                  TAG                 IMAGE ID            CREATED     
 actionloop-demo-ruby-v2.6   latest              df3e77c9cd8f        8 days ago          94MB
 ```
 
-So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from the renaming, internally is still the old Python. We will change it to support Ruby in the rest of the tutorial.
+So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from the renaming, internally it will still contain a Python runtime which we will change as we continue in this tutorial.
 
 ## Preparing the Docker environment
 
