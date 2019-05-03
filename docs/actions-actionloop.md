@@ -27,9 +27,9 @@ However, the fastest way to develop a new runtime is reusing the *ActionLoop* pr
 
 The ActionLoop proxy is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support a Go language runtime. However, it was written in a  generic way such that it has since been adopted to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
-Using it, you can develop a new runtime in a fraction of the time needed for a authoring full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x. 
+Using it, you can develop a new runtime in a fraction of the time needed for authoring a full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x. 
 
-ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an  action offiline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
+ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an  action offline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
 In summary, it is likely that using the ActionLoop is simpler and a "better bet" than implementing the specification from scratch. If you are convinced and want to use it, then read on. What follows on this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example target language.
 
@@ -54,7 +54,7 @@ In short, the starter kit provides templates you can adapt in creating an Action
 
 As a starting language, we chose Python since it is one of the more human-readable languages (can be  treated as `pseudo-code`). Do not worry, you should only need just enough Python knowledge to be able to rewrite `launcher.py` and edit the `compile` script for your target language.
 
-Finally, you will need to update the `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala langauge, only serves as a wrapper that you will use to embed your target language tests into.
+Finally, you will need to update the `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala language, only serves as a wrapper that you will use to embed your target language tests into.
 
 ## Notation
 
@@ -102,32 +102,28 @@ Let's check everything is fine building the image.
 ```
 # building the image
 $ ./gradlew distDocker
-... omissis ...
+# ... intermediate output omitted ...
 BUILD SUCCESSFUL in 1s
 2 actionable tasks: 2 executed
 # checking the image is available
 $ docker images actionloop-demo-ruby-v2.6
 REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
-actionloop-demo-ruby-v2.6   latest              df3e77c9cd8f        8 days ago          94MB
+actionloop-demo-ruby-v2.6   latest              df3e77c9cd8f        2 minutes ago          94.3MB
 ```
 
 So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from the renaming, internally it will still contain a Python runtime which we will change as we continue in this tutorial.
 
 ## Preparing the Docker environment
 
-The `Dockerfile` has the task of preparing an environment for executing our actions, so we have to find (or build and deploy on Docker Hub) an image suitable to run our target programming language. We use multistage Docker build to "extract" the *ActionLoop* proxy from the Docker image.
+Our language runtime's `Dockerfile` has the task of preparing an environment for executing OpenWhisk Actions. 
+Using the ActionLoop approach, we use a multistage Docker build to 
 
-For the purposes of this tutorial, you should use the `/bin/proxy` binary you can find in the `openwhisk/actionlooop-v2` image on Docker Hub.
+1. derive our OpenWhisk language runtime from an existing Docker image that has all the target language's tools and libraries for running functions authored in that language. In our case, we will reference the `ruby:2.6.2-alpine3.9` image from the [Official Docker Images for Ruby](https://hub.docker.com/_/ruby) on Docker Hub.
+1. leverage the existing `openwhisk/actionlooop-v2` image on Docker Hub from which we will "extract"  the *ActionLoop* proxy (i.e. copy `/bin/proxy` binary) our runtime will use to process Activation requests from the OpenWhisk platform and execute Actions by using the language's tools and libraries from step #1.
 
-In your runtime image, you have then copied the ActionLoop proxy, the `compile` and the file `launcher.rb` we are going to write.
+### Repurpose the renamed Python Dockerfile for Ruby builds
 
-Let's rename the launcher and fix the `Dockerfile` to create the environment for running Ruby.
-
-```
-$ mv ruby2.6/lib/launcher.py ruby2.6/lib/launcher.rb
-```
-
-Now let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the official ruby image on Docker Hub, and add out files:
+Let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the official ruby image on Docker Hub, and add our files:
 
 ```
  FROM openwhisk/actionloop-v2:latest as builder
@@ -144,13 +140,17 @@ Now let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the
  ENTRYPOINT ["/bin/proxy"]
 ```
 
+Next, let's rename the `launcher.py` (a Python script) to one that indicates it is a Ruby script named `launcher.rb`.
+
+```
+$ mv ruby2.6/lib/launcher.py ruby2.6/lib/launcher.rb
+```
+
 Note that:
 
-1. You changed the base action to use a Ruby image
-1. You included the ruby launcher instead of the python one
-1. Since the Docker image we picked is a Ruby one, and the `compile` script is still a python script, we had to add it too
-
-Of course, you can avoid having to add python inside, but you may need to rewrite the entire `compile` in Ruby.  You may decide to translate the entire `compile` in your target language, but this is not the focus of this tutorial.
+1. You changed the base language for our target OpenWhisk runtime to use a Ruby language image.
+1. You changed the launcher script to be a ruby script.
+1. We had to add `python3` to our Ruby image since our `compile` script is written in Python for this tutorial. Of course, you could rewrite the entire `compile` script in Ruby if you wish to.
 
 ## Implementing the ActionLoop protocol
 
@@ -188,7 +188,7 @@ from main__ import main as main
 In Ruby, this translates in:
 
 ```
-# requiring user's action code
+# requiring user's action code 
 require "./main__"
 ```
 
