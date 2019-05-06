@@ -257,10 +257,8 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
         MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_NODE_COUNT, stats.size)
         MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, localUnused.size)
         val unusedSize = localUnused.map(_._2.memoryLimit.toMB).sum
-        logging.debug(this, s"metrics invoker ${myId} (self) has ${lastUnused.size} unused (${unusedSize}MB)")
-        logging.debug(
-          this,
-          s"metrics invoker ${myId} (self) has ${localReservations.size} reserved (${reservedSize}MB)")
+        logging.info(this, s"metrics invoker ${myId} (self) has ${localUnused.size} unused (${unusedSize}MB)")
+        logging.info(this, s"metrics invoker ${myId} (self) has ${localReservations.size} reserved (${reservedSize}MB)")
         MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE, unusedSize)
         MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_RESERVED_COUNT, localReservations.size)
         MetricEmitter.emitGaugeMetric(

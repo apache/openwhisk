@@ -86,7 +86,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
   // Otherwise actions with small memory-limits could block actions with large memory limits.
   var runBuffer = immutable.Queue.empty[Run]
   //periodically emit metrics (don't need to do this for each message!)
-  context.system.scheduler.schedule(30.seconds, 2.seconds, self, EmitMetrics)
+  context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
   var resent = immutable.Set.empty[ActivationId]
   val logMessageInterval = 10.seconds
 
@@ -339,12 +339,23 @@ class ContainerPool(instanceId: InvokerInstanceId,
       //remove each ref, IFF it is still not in use, and has not been used since the removal was requested
       ContainerPool.findIdlesToRemove(freePool, refs).foreach(removeContainer)
     case EmitMetrics =>
+      logging.info(
+        this,
+        s"metrics invoker (self) has ${runBuffer.size} buffered (${runBuffer.map(_.action.limits.memory.megabytes).sum}MB)")
+
       MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_COUNT, runBuffer.size)
       MetricEmitter.emitGaugeMetric(
         LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE,
         runBuffer.map(_.action.limits.memory.megabytes).sum)
-      MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_COUNT, inUse.size)
-      MetricEmitter.emitGaugeMetric(LoggingMarkers.CLUSTER_RESOURCES_IDLES_SIZE, inUse.map(_._2.memoryLimit.toMB).sum)
+      val containersInUse = inUse
+      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_ACTIVE_COUNT, containersInUse.size)
+      MetricEmitter.emitGaugeMetric(
+        LoggingMarkers.CONTAINER_POOL_ACTIVE_SIZE,
+        containersInUse.map(_._2.memoryLimit.toMB).sum)
+      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_COUNT, prewarmedPool.size)
+      MetricEmitter.emitGaugeMetric(
+        LoggingMarkers.CONTAINER_POOL_PREWARM_SIZE,
+        prewarmedPool.map(_._2.memoryLimit.toMB).sum)
   }
 
   /** Buffer processing in cluster managed resources means to send the first item in runBuffer;

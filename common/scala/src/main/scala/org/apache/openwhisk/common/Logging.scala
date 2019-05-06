@@ -459,6 +459,10 @@ object LoggingMarkers {
     LogMarkerToken(containerPool, "activeCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_ACTIVE_SIZE =
     LogMarkerToken(containerPool, "activeSize", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_PREWARM_COUNT =
+    LogMarkerToken(containerPool, "prewarmCount", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_PREWARM_SIZE =
+    LogMarkerToken(containerPool, "prewarmSize", counter)(MeasurementUnit.none)
   val CLUSTER_RESOURCES_IDLES_COUNT =
     LogMarkerToken(clusterResourceManager, "idlesCount", counter)(MeasurementUnit.none)
   val CLUSTER_RESOURCES_IDLES_SIZE =
