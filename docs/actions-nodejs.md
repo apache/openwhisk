@@ -43,7 +43,7 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
 
   The CLI automatically infers the type of the action by using the source file extension.
   For `.js` source files, the action runs by using a Node.js runtime. You may specify
-  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:10`, `--kind nodejs:8`, or `--kind nodejs:6`
+  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:12`, `--kind nodejs:10`, `--kind nodejs:8`, or `--kind nodejs:6`
 
 
 ## Creating asynchronous actions
@@ -222,7 +222,7 @@ zip -r action.zip *
 wsk action create packageAction --kind nodejs:10 action.zip
 ```
 
-When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:10`, `nodejs:8` or `nodejs:6`.
+When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:12`, `nodejs:10`, `nodejs:8` or `nodejs:6`.
 
 - Invoke the action as normal.
 
@@ -530,5 +530,12 @@ The following packages are pre-installed in the Node.js version 8 environment:
 The Node.js version 10.15.2 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:10' when creating or updating an Action.
 
 The following packages are pre-installed in the Node.js version 10 environment:
+
+- [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+
+### Node.js version 12 environment
+The Node.js version 12.0.0 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:12' when creating or updating an Action.
+
+The following packages are pre-installed in the Node.js version 12 environment:
 
 - [openwhisk v3.18.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
