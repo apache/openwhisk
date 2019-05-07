@@ -43,6 +43,13 @@ dependencies {
     compile "com.typesafe.akka:akka-stream_2.12:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-slf4j_2.12:${gradle.akka.version}"
 
+    //akka-cluster
+    compile "com.typesafe.akka:akka-remote_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster-metrics_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster-tools_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-distributed-data_2.12:${gradle.akka.version}"
+
     compile "com.typesafe.akka:akka-http-core_2.12:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-spray-json_2.12:${gradle.akka_http.version}"
 
