@@ -101,6 +101,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
   }
 
   it should "create, and get a package summary" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val runtime = "nodejs:default"
     val packageName = "packageName"
     val actionName = "actionName"
     val packageAnnots = Map(
@@ -118,7 +119,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       pkg.create(packageName, annotations = packageAnnots)
     }
 
-    wsk.action.create(packageName + "/" + actionName, defaultAction, annotations = actionAnnots)
+    wsk.action.create(packageName + "/" + actionName, defaultAction, annotations = actionAnnots, kind = Some(runtime))
     val result = cacheRetry({
       val p = wsk.pkg.get(packageName)
       p.getFieldListJsObject("actions") should have size 1
@@ -139,38 +140,56 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
           JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2")))))
     val action = result.getFieldListJsObject("actions")(0)
     RestResult.getField(action, "name") shouldBe actionName
+
     val annoAction = RestResult.getFieldJsValue(action, "annotations")
 
-    annoAction shouldBe (if (requireAPIKeyAnnotation) {
-                           JsArray(
-                             JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-                             JsObject(
-                               "key" -> JsString("parameters"),
-                               "value" -> JsArray(
-                                 JsObject(
-                                   "name" -> JsString("paramName1"),
-                                   "description" -> JsString("Parameter description 1")),
-                                 JsObject(
-                                   "name" -> JsString("paramName2"),
-                                   "description" -> JsString("Parameter description 2")))),
-                             JsObject(
-                               "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                               "value" -> JsBoolean(false)),
-                             JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-                         } else {
-                           JsArray(
-                             JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-                             JsObject(
-                               "key" -> JsString("parameters"),
-                               "value" -> JsArray(
-                                 JsObject(
-                                   "name" -> JsString("paramName1"),
-                                   "description" -> JsString("Parameter description 1")),
-                                 JsObject(
-                                   "name" -> JsString("paramName2"),
-                                   "description" -> JsString("Parameter description 2")))),
-                             JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-                         })
+    // first we check the returned execution runtime for 'nodejs:*'
+    annoAction
+      .convertTo[Seq[JsObject]]
+      .find(_.fields("key").convertTo[String] == "exec")
+      .map(_.fields("value"))
+      .map(exec => { exec.convertTo[String] should startWith("nodejs:") })
+      .getOrElse(fail())
+
+    // since we checked it, we can remove the exec field from the annotations to make the following checks easier
+    val annoActionWithoutExec =
+      annoAction
+        .convertTo[Seq[JsObject]]
+        .filter(annotation => annotation.fields("key").convertTo[String] != "exec")
+        .toJson
+
+    annoActionWithoutExec shouldBe (if (requireAPIKeyAnnotation) {
+                                      JsArray(
+                                        JsObject(
+                                          "key" -> JsString("description"),
+                                          "value" -> JsString("Action description")),
+                                        JsObject(
+                                          "key" -> JsString("parameters"),
+                                          "value" -> JsArray(
+                                            JsObject(
+                                              "name" -> JsString("paramName1"),
+                                              "description" -> JsString("Parameter description 1")),
+                                            JsObject(
+                                              "name" -> JsString("paramName2"),
+                                              "description" -> JsString("Parameter description 2")))),
+                                        JsObject(
+                                          "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                          "value" -> JsBoolean(false)))
+                                    } else {
+                                      JsArray(
+                                        JsObject(
+                                          "key" -> JsString("description"),
+                                          "value" -> JsString("Action description")),
+                                        JsObject(
+                                          "key" -> JsString("parameters"),
+                                          "value" -> JsArray(
+                                            JsObject(
+                                              "name" -> JsString("paramName1"),
+                                              "description" -> JsString("Parameter description 1")),
+                                            JsObject(
+                                              "name" -> JsString("paramName2"),
+                                              "description" -> JsString("Parameter description 2")))))
+                                    })
   }
 
   it should "create a package with a name that contains spaces" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -348,12 +367,13 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
   }
 
   it should "create an action, and get its individual fields" in withAssetCleaner(wskprops) {
+    val runtime = "nodejs:default"
     val name = "actionFields"
     val paramInput = Map("payload" -> "test".toJson)
 
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, defaultAction, parameters = paramInput)
+        action.create(name, defaultAction, parameters = paramInput, kind = Some(runtime))
       }
 
       val expectedParam = JsObject("payload" -> JsString("test"))
@@ -364,25 +384,33 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
       result.getFieldJsValue("publish") shouldBe JsFalse
       result.getField("version") shouldBe "0.0.1"
       val exec = result.getFieldJsObject("exec")
-      RestResult.getField(exec, "kind") shouldBe "nodejs:6"
+      RestResult.getField(exec, "kind") should startWith("nodejs:")
       RestResult.getField(exec, "code") should not be ""
       result.getFieldJsValue("parameters") shouldBe JsArray(
         JsObject("key" -> JsString("payload"), "value" -> JsString("test")))
 
-      result.getFieldJsValue("annotations") shouldBe (if (requireAPIKeyAnnotation) {
-                                                        JsArray(
-                                                          JsObject(
-                                                            "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                                            "value" -> JsBoolean(false)),
-                                                          JsObject(
-                                                            "key" -> JsString("exec"),
-                                                            "value" -> JsString("nodejs:6")))
-                                                      } else {
-                                                        JsArray(
-                                                          JsObject(
-                                                            "key" -> JsString("exec"),
-                                                            "value" -> JsString("nodejs:6")))
-                                                      })
+      // first we check the returned execution runtime for 'nodejs:*'
+      result
+        .getFieldJsValue("annotations")
+        .convertTo[Seq[JsObject]]
+        .find(_.fields("key").convertTo[String] == "exec")
+        .map(_.fields("value"))
+        .map(exec => { exec.convertTo[String] should startWith("nodejs:") })
+        .getOrElse(fail())
+
+      // since we checked it, we can remove the exec field from the annotations to make the following checks easier
+      result
+        .getFieldJsValue("annotations")
+        .convertTo[Seq[JsObject]]
+        .filter(annotation => annotation.fields("key").convertTo[String] != "exec")
+        .toJson shouldBe (if (requireAPIKeyAnnotation) {
+                            JsArray(
+                              JsObject(
+                                "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                "value" -> JsBoolean(false)))
+                          } else {
+                            JsArray()
+                          })
       result.getFieldJsValue("limits") shouldBe JsObject(
         "timeout" -> JsNumber(60000),
         "memory" -> JsNumber(256),
@@ -464,6 +492,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
   }
 
   it should "create, and get an action summary" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val runtime = "nodejs:default"
     val name = "actionName"
     val annots = Map(
       "description" -> JsString("Action description"),
@@ -472,7 +501,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         JsObject("name" -> JsString("paramName2"), "description" -> JsString("Parameter description 2"))))
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, defaultAction, annotations = annots)
+      action.create(name, defaultAction, annotations = annots, kind = Some(runtime))
     }
 
     val result = wsk.action.get(name, summary = true)
@@ -482,34 +511,51 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     result.getField("namespace") shouldBe ns
 
     val annos = result.getFieldJsValue("annotations")
-    annos shouldBe (if (requireAPIKeyAnnotation) {
-                      JsArray(
-                        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-                        JsObject(
-                          "key" -> JsString("parameters"),
-                          "value" -> JsArray(
-                            JsObject(
-                              "name" -> JsString("paramName1"),
-                              "description" -> JsString("Parameter description 1")),
-                            JsObject(
-                              "name" -> JsString("paramName2"),
-                              "description" -> JsString("Parameter description 2")))),
-                        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)),
-                        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-                    } else {
-                      JsArray(
-                        JsObject("key" -> JsString("description"), "value" -> JsString("Action description")),
-                        JsObject(
-                          "key" -> JsString("parameters"),
-                          "value" -> JsArray(
-                            JsObject(
-                              "name" -> JsString("paramName1"),
-                              "description" -> JsString("Parameter description 1")),
-                            JsObject(
-                              "name" -> JsString("paramName2"),
-                              "description" -> JsString("Parameter description 2")))),
-                        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")))
-                    })
+
+    // first we check the returned execution runtime for 'nodejs:*'
+    annos
+      .convertTo[Seq[JsObject]]
+      .find(_.fields("key").convertTo[String] == "exec")
+      .map(_.fields("value"))
+      .map(exec => { exec.convertTo[String] should startWith("nodejs:") })
+      .getOrElse(fail())
+
+    // since we checked it, we can remove the exec field from the annotations to make the following checks easier
+    val annosWithoutExec =
+      annos.convertTo[Seq[JsObject]].filter(annotation => annotation.fields("key").convertTo[String] != "exec").toJson
+
+    annosWithoutExec shouldBe (if (requireAPIKeyAnnotation) {
+                                 JsArray(
+                                   JsObject(
+                                     "key" -> JsString("description"),
+                                     "value" -> JsString("Action description")),
+                                   JsObject(
+                                     "key" -> JsString("parameters"),
+                                     "value" -> JsArray(
+                                       JsObject(
+                                         "name" -> JsString("paramName1"),
+                                         "description" -> JsString("Parameter description 1")),
+                                       JsObject(
+                                         "name" -> JsString("paramName2"),
+                                         "description" -> JsString("Parameter description 2")))),
+                                   JsObject(
+                                     "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                     "value" -> JsBoolean(false)))
+                               } else {
+                                 JsArray(
+                                   JsObject(
+                                     "key" -> JsString("description"),
+                                     "value" -> JsString("Action description")),
+                                   JsObject(
+                                     "key" -> JsString("parameters"),
+                                     "value" -> JsArray(
+                                       JsObject(
+                                         "name" -> JsString("paramName1"),
+                                         "description" -> JsString("Parameter description 1")),
+                                       JsObject(
+                                         "name" -> JsString("paramName2"),
+                                         "description" -> JsString("Parameter description 2")))))
+                               })
   }
 
   it should "create an action with a name that contains spaces" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

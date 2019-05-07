@@ -22,7 +22,7 @@ function main(params) {
     console.log("opened files = ", openFiles.length);
 
     openFiles.forEach(function(fh) {
-        fs.close(fh);
+        fs.close(fh, (err) => {} );
     })
 
     if (error === undefined) {
