@@ -28,9 +28,9 @@ However, the fastest way to develop a new runtime is reusing the *ActionLoop* pr
 
 The ActionLoop proxy is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support a Go language runtime. However, it was written in a  generic way such that it has since been adopted to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
-Using it, you can develop a new runtime in a fraction of the time needed for authoring a full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x. 
+Using it, you can develop a new runtime in a fraction of the time needed for authoring a full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x.
 
-ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an  action offline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
+ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an action offline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
 In summary, it is likely that using the ActionLoop is simpler and a "better bet" than implementing the specification from scratch. If you are convinced and want to use it, then read on. What follows on this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example target language.
 
@@ -61,20 +61,20 @@ Finally, you will need to update the `ActionLoopPythonBasicTests.scala` test fil
 
 In each step of this tutorial, we typically show snippets of either terminal transcripts (i.e., commands and results) or "diffs" of changes to existing code files.
 
-Within terminal transcript snippets, comments are prefixed with `#` character and commands are prefixed by the `$` character. Lines that follow commands may include sample output (from their execution) which can be used to verify against results in your local environment. 
+Within terminal transcript snippets, comments are prefixed with `#` character and commands are prefixed by the `$` character. Lines that follow commands may include sample output (from their execution) which can be used to verify against results in your local environment.
 
-When snippets show changes to existing source files, lines without a prefix should be left "as is", lines  with `-` should be removed and lines with  `+` should be added.
+When snippets show changes to existing source files, lines without a prefix should be left "as is", lines with `-` should be removed and lines with  `+` should be added.
 
 ## Prequisites
 
-* Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.  
+* Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.
 
 ```bash
 # Verify docker version
 $ docker --version
 Docker version 18.09.3
 
-# Verify docker is running 
+# Verify docker is running
 $ docker ps
 
 # The result should be a valid response listing running processes
@@ -116,8 +116,8 @@ So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from th
 
 ## Preparing the Docker environment
 
-Our language runtime's `Dockerfile` has the task of preparing an environment for executing OpenWhisk Actions. 
-Using the ActionLoop approach, we use a multistage Docker build to 
+Our language runtime's `Dockerfile` has the task of preparing an environment for executing OpenWhisk Actions.
+Using the ActionLoop approach, we use a multistage Docker build to
 
 1. derive our OpenWhisk language runtime from an existing Docker image that has all the target language's tools and libraries for running functions authored in that language. In our case, we will reference the `ruby:2.6.2-alpine3.9` image from the [Official Docker Images for Ruby](https://hub.docker.com/_/ruby) on Docker Hub.
 1. leverage the existing `openwhisk/actionlooop-v2` image on Docker Hub from which we will "extract"  the *ActionLoop* proxy (i.e. copy `/bin/proxy` binary) our runtime will use to process Activation requests from the OpenWhisk platform and execute Actions by using the language's tools and libraries from step #1.
@@ -162,7 +162,7 @@ This section will take you through how to convert the contents of `launcher.rb` 
 Let's recap the steps the launcher must accomplish to implement the `ActionLoop protocol` :
 
 1. import the Action function's `main` method for execution.
-    * Note: the `compile` script will make the function available to the launcher.  
+    * Note: the `compile` script will make the function available to the launcher.
 1. open the system's `file descriptor 3` which will be used to output the functions response.
 1. read the system's standard input, `stdin`, line-by-line. Each line is parsed as a JSON string and produces a JSON object (not an array nor a scalar) to be passed as the input `arg` to the function.
     * Note: within the JSON object, the `value` key contains the user parameter data to be passed to your functions. All the other keys are made available as process environment variables to the function; these need to be uppercased and prefixed with `"__OW_"`.
@@ -187,11 +187,11 @@ from main__ import main as main
 In Ruby, this can be rewritten as:
 
 ```ruby
-# requiring user's action code 
+# requiring user's action code
 require "./main__"
 ```
 
-*Note that you are free to decide the path and filename for the function's source code. In our examples, we chose a base filename that includes the word `"main"` (since it is OpenWhisk's default function name) and append two underscores to better assure uniqueness. 
+*Note that you are free to decide the path and filename for the function's source code. In our examples, we chose a base filename that includes the word `"main"` (since it is OpenWhisk's default function name) and append two underscores to better assure uniqueness.
 
 #### Open File Descriptor (FD) 3 for function results output
 
@@ -299,7 +299,7 @@ would be translated to Ruby:
 
 #### Flush File Descriptor 3, STDOUT and STDERR
 
-Finally, you flush standard out and standard error and write the result back in file descriptor 3. 
+Finally, you flush standard out and standard error and write the result back in file descriptor 3.
 
 The existing Python code for this is:
 
