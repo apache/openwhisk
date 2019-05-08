@@ -17,73 +17,82 @@
 # limitations under the License.
 #
 -->
+
 # Developing a new Runtime with the ActionLoop proxy
 
-The [runtime specification](actions-new.md) defines the expected behavior of a runtime. You can implement a runtime from scratch just following the spec.
+The [runtime specification](actions-new.md) defines the expected behavior of a runtime. You can implement a runtime from scratch just following the specification.
 
-However, the fastest way to develop a new runtime is reusing the *ActionLoop* proxy, that already implements the specification and provides just a few hooks to get a fully functional (and *fast*) runtime in a few hours.
+However, the fastest way to develop a new runtime is reusing the *ActionLoop* proxy that already implements the specification and provides just a few hooks to get a fully functional (and *fast*) runtime in a few hours or less.
 
 ## What is the ActionLoop proxy
 
-The ActionLoop proxy is a runtime "engine", written in Go, originally developed specifically to support the Go language. However it was written in a pretty generic way, and it has been then adopted also to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
+The ActionLoop proxy is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support a Go language runtime. However, it was written in a  generic way such that it has since been adopted to implement runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
-Using it, you can develop a new runtime in a fraction of the time needed for a full-fledged runtime, since you have only to write a command line protocol and not a fully featured web server, with an amount of corner case to take care.
+Using it, you can develop a new runtime in a fraction of the time needed for authoring a full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully featured web server (with a small amount of corner case to take care of). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x.
 
-Also, you will likely get a pretty fast runtime, since it is currently the most rapid. It was also adopted to improve performances of existing runtimes, that gained from factor 2x to a factor 20x for languages like Python, Ruby, PHP, and Java.
+ActionLoop also supports "precompilation". You can use the docker image of the runtime to compile your source files in an action offline. You will get a ZIP file that you can use as an action that is very fast to start because it contains only the binaries and not the sources. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
-ActionLoop also supports "precompilation". You can take a raw image and use the docker image to perform the transformation in action. You will get a zip file that you can use as an action that is very fast to start because it contains only the binaries and not the sources.
-
-So it is likely are using ActionLoop a better bet than implementing the specification from scratch. If you are convinced and want to use it, read on: this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example.
+In summary, it is likely that using the ActionLoop is simpler and a "better bet" than implementing the specification from scratch. If you are convinced and want to use it, then read on. What follows on this page is a tutorial on how to write an ActionLoop runtime, using Ruby as an example target language.
 
 ## How to write a new runtime with ActionLoop
 
 The development procedure for ActionLoop requires the following steps:
 
-* building a docker image containing your target language compiler and the ActionLoop runtime
-*  writing a simple line-oriented protocol in your target language (converting a python example)
-* write (or just adapt the existing) a compilation script for your target language
-* write some mandatory tests for your language
+* building a docker image containing your target language compiler and the ActionLoop runtime.
+* writing a simple line-oriented protocol in your target language.
+* writing a compilation script for your target language.
+* writing some mandatory tests for your language.
 
-To facilitate the process, there is an `actionloop-starter-kit` in the devtools repository, that implements a fully working runtime for Python.  It is a stripped down version of the real Python runtime (removing some advanced details of the real one).
+To facilitate the process, there is an `actionloop-starter-kit` in the [openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) GitHub repository, that implements a fully working runtime for Python.  It contains a stripped-down version of the real Python runtime (with some advanced features removed) along with guided, step-by-step instructions on how to translate it to a different target runtime language using Ruby as an example.
 
-So you can implement your runtime translating some Python code in your target language. This tutorial shows step by step how to do it writing the Ruby runtime. This code is also used in the real Ruby runtime.
-
-Using the starter kit, the process becomes:
+In short, the starter kit provides templates you can adapt in creating an ActionLoop runtime for each of the steps listed above, these include :
 
 - checking out  the `actionloop-starter-kit` from the `incubator-openwhisk-devtools` repository
-- editing the `Dockerfile` to create the target environment for your language
-- rewrite the `launcher.py` in your language
-- edit the `compile` script to compile your action in your target language
-- write the mandatory tests for your language, adapting the `ActionLoopPythonBasicTests.scala`
+- editing the `Dockerfile` to create the target environment for your target language.
+- converting (rewrite) the `launcher.py` script to an equivalent for script for your target language.
+- editing the `compile` script to compile your action in your target language.
+- writing the mandatory tests for your target language, by adapting the `ActionLoopPythonBasicTests.scala` file.
 
-Since we need to show the code you have to translate in some language, we picked Python as it is one of the more readable languages, the closer to be real-world `pseudo-code`.
+As a starting language, we chose Python since it is one of the more human-readable languages (can be  treated as `pseudo-code`). Do not worry, you should only need just enough Python knowledge to be able to rewrite `launcher.py` and edit the `compile` script for your target language.
 
-You need to know a bit of Python to understand the sample `launcher.py`, just enough to rewrite it in your target language.
+Finally, you will need to update the `ActionLoopPythonBasicTests.scala` test file which, although written in the Scala language, only serves as a wrapper that you will use to embed your target language tests into.
 
-You may need to write some real Python coding to edit the `compile` script, but basic knowledge is enough.
-
-Finally, you do not need to know Scala, even if the tests are embedded in a Scala test, as all you need is to embed your tests in the code.
 ## Notation
 
-In this tutorial we have either terminal transcripts to show what you need to do at the terminal, or "diffs" to show changes to existing files.
+In each step of this tutorial, we typically show snippets of either terminal transcripts (i.e., commands and results) or "diffs" of changes to existing code files.
 
-In terminal transcripts, the prefix  `$`  means commands you have to type at the terminal; the rest are comments (prefixed with `#`) or sample output you should check to verify everything is ok. Generally in a transcript I do not put verbatim output of the terminal as it is generally irrelevant.
+Within terminal transcript snippets, comments are prefixed with `#` character and commands are prefixed by the `$` character. Lines that follow commands may include sample output (from their execution) which can be used to verify against results in your local environment.
 
-When I show changes to existing files, lines without a prefix should be left as is, lines  with `-` should be removed and lines with  `+` should be added.
+When snippets show changes to existing source files, lines without a prefix should be left "as is", lines with `-` should be removed and lines with  `+` should be added.
+
+## Prequisites
+
+* Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.
+
+```bash
+# Verify docker version
+$ docker --version
+Docker version 18.09.3
+
+# Verify docker is running
+$ docker ps
+
+# The result should be a valid response listing running processes
+```
 
 ## Setup the development directory
 
-So let's start to create our own `actionloop-demo-ruby-2.6`. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
+So let's start to create our own `actionloop-demo-ruby-2.6` runtime. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
 
-```
+```bash
 $ git clone https://github.com/apache/incubator-openwhisk-devtools
 $ mv incubator-openwhisk-devtools/actionloop-starter-kit ~/actionloop-demo-ruby-v2.6
 ```
 
-Now we take the directory `python3.7` and rename it to `ruby2.6`; we also fix a couple of references, in order to give a name to our new runtime.
+Now, take the directory `python3.7` and rename it to `ruby2.6` and use `sed` to fix the directory name references in the Gradle build files.
 
-```
-$ cd actionloop-demo-ruby-v2.6
+```bash
+$ cd ~/actionloop-demo-ruby-v2.6
 $ mv python3.7 ruby2.6
 $ sed -i.bak -e 's/python3.7/ruby2.6/' settings.gradle
 $ sed -i.bak -e 's/actionloop-demo-python-v3.7/actionloop-demo-ruby-v2.6/' ruby2.6/build.gradle
@@ -91,37 +100,33 @@ $ sed -i.bak -e 's/actionloop-demo-python-v3.7/actionloop-demo-ruby-v2.6/' ruby2
 
 Let's check everything is fine building the image.
 
-```
+```bash
 # building the image
 $ ./gradlew distDocker
-... omissis ...
+# ... intermediate output omitted ...
 BUILD SUCCESSFUL in 1s
 2 actionable tasks: 2 executed
 # checking the image is available
 $ docker images actionloop-demo-ruby-v2.6
 REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
-actionloop-demo-ruby-v2.6   latest              df3e77c9cd8f        8 days ago          94MB
+actionloop-demo-ruby-v2.6   latest              df3e77c9cd8f        2 minutes ago          94.3MB
 ```
 
-So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from the renaming, internally is still the old Python. We will change it to support Ruby in the rest of the tutorial.
+So we have built a new image `actionloop-demo-ruby-v2.6`. However, aside from the renaming, internally it will still contain a Python runtime which we will change as we continue in this tutorial.
 
 ## Preparing the Docker environment
 
-The `Dockerfile` has the task of preparing an environment for executing our actions, so we have to find (or build and deploy on Docker Hub) an image suitable to run our target programming language. We use multistage Docker build to "extract" the *ActionLoop* proxy from the Docker image.
+Our language runtime's `Dockerfile` has the task of preparing an environment for executing OpenWhisk Actions.
+Using the ActionLoop approach, we use a multistage Docker build to
 
-For the purposes of this tutorial, you should use the `/bin/proxy` binary you can find in the `openwhisk/actionlooop-v2` image on Docker Hub.
+1. derive our OpenWhisk language runtime from an existing Docker image that has all the target language's tools and libraries for running functions authored in that language. In our case, we will reference the `ruby:2.6.2-alpine3.9` image from the [Official Docker Images for Ruby](https://hub.docker.com/_/ruby) on Docker Hub.
+1. leverage the existing `openwhisk/actionlooop-v2` image on Docker Hub from which we will "extract"  the *ActionLoop* proxy (i.e. copy `/bin/proxy` binary) our runtime will use to process Activation requests from the OpenWhisk platform and execute Actions by using the language's tools and libraries from step #1.
 
-In your runtime image, you have then copied the ActionLoop proxy, the `compile` and the file `launcher.rb` we are going to write.
+### Repurpose the renamed Python Dockerfile for Ruby builds
 
-Let's rename the launcher and fix the `Dockerfile` to create the environment for running Ruby.
+Let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the official ruby image on Docker Hub, and add our files:
 
-```
-$ mv ruby2.6/lib/launcher.py ruby2.6/lib/launcher.rb
-```
-
-Now let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the official ruby image on Docker Hub, and add out files:
-
-```
+```dockerfile
  FROM openwhisk/actionloop-v2:latest as builder
 -FROM python:3.7-alpine
 +FROM ruby:2.6.2-alpine3.9
@@ -136,78 +141,90 @@ Now let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the
  ENTRYPOINT ["/bin/proxy"]
 ```
 
+Next, let's rename the `launcher.py` (a Python script) to one that indicates it is a Ruby script named `launcher.rb`.
+
+```bash
+$ mv ruby2.6/lib/launcher.py ruby2.6/lib/launcher.rb
+```
+
 Note that:
 
-1. You changed the base action to use a Ruby image
-1. You included the ruby launcher instead of the python one
-1. Since the Docker image we picked is a Ruby one, and the `compile` script is still a python script, we had to add it too
-
-Of course, you can avoid having to add python inside, but you may need to rewrite the entire `compile` in Ruby.  You may decide to translate the entire `compile` in your target language, but this is not the focus of this tutorial.
+1. You changed the base language for our target OpenWhisk runtime to use a Ruby language image.
+1. You changed the launcher script to be a ruby script.
+1. We had to add `python3` to our Ruby image since our `compile` script is written in Python for this tutorial. Of course, you could rewrite the entire `compile` script in Ruby if you wish to.
 
 ## Implementing the ActionLoop protocol
 
-Now you have to convert the `launcher.py` in your programming language.  Let's recap the ActionLoop protocol.
+This section will take you through how to convert the contents of `launcher.rb` (formerly `launcher.py`) to the target Ruby programming language and implement the `ActionLoop protocol`.
 
 ### What the launcher should do
 
-The launcher must imports your function first. It is the job of the `compile` script to make the function available to the launcher, as we will see in the next paragraph.
+Let's recap the steps the launcher must accomplish to implement the `ActionLoop protocol` :
 
-Once the function is imported, it opens the file descriptor 3 for output then reads the standard input line by line.
+1. import the Action function's `main` method for execution.
+    * Note: the `compile` script will make the function available to the launcher.
+1. open the system's `file descriptor 3` which will be used to output the functions response.
+1. read the system's standard input, `stdin`, line-by-line. Each line is parsed as a JSON string and produces a JSON object (not an array nor a scalar) to be passed as the input `arg` to the function.
+    * Note: within the JSON object, the `value` key contains the user parameter data to be passed to your functions. All the other keys are made available as process environment variables to the function; these need to be uppercased and prefixed with `"__OW_"`.
+1. invoke the `main` function with the JSON object payload.
+1. encode the result of the function in JSON (ensuring it is only one line and it is terminated with one newline) and write it to `file descriptor 3`.
+1. Once the function returns the result, flush the contents of `stdout`, `stderr` and `file descriptor 3` (FD 3).
+1. Finally, include the above steps in a loop so that it continually looks for Activations. That's it.
 
-For each line, it parses the input in JSON and expects it to be a JSON object (not an array nor a scalar).
+### Converting launcher script to Ruby
 
-In this object, the key `value` is the payload to be passed to your functions. All the other keys will be passed as environment variables, uppercases and with prefix `__OW_`.
+Now, let's look at the protocol described above codified within the launcher script `launcher.rb` and work to convert its contents from Python to Ruby.
 
-Finally, your function is invoked with the payload. Once the function returns the result, standard out and standard error is flushed. The result is encoded in JSON, ensuring it is only one line and it is terminated with one newline and it is written in file descriptor 3.
+#### Import the function code
 
-Then the loop starts again. That's it.
+Skipping the first few library import statements within  `launcer.rb`, which we will have to resolve later after we determine which ones Ruby may need, we see the first significant line of code importing the actual Action function.
 
-### Converting `launcher.py` in `launcher.rb`
-
-Now, let's see the protocol in code, converting the Python launcher in Ruby.
-
-The compilation script as we will see later will ensure the sources are ready for the launcher.
-
-You are free to decide where your source action is. I generally ensure that the starting point is a file named like `main__.rb`, with the two underscore final, as those names are pretty unusual to ensure uniqueness.
-
-Let's skip the imports as they are not interesting. So in Python, the first (significant) line is:
-
-```
+```python
 # now import the action as process input/output
 from main__ import main as main
 ```
 
-In Ruby, this translates in:
+In Ruby, this can be rewritten as:
 
-```
+```ruby
 # requiring user's action code
 require "./main__"
 ```
 
-Now, we open the file descriptor 3, as the proxy will invoke the action with this descriptor attached to a pipe where it can read the results. In Python:
+*Note that you are free to decide the path and filename for the function's source code. In our examples, we chose a base filename that includes the word `"main"` (since it is OpenWhisk's default function name) and append two underscores to better assure uniqueness.
 
-```
+#### Open File Descriptor (FD) 3 for function results output
+
+The `ActionLoop` proxy expects to read the results of invoking the Action function from File Descriptor (FD) 3.
+
+The existing Python:
+
+```python
 out = fdopen(3, "wb")
 ```
 
-becomes:
+would be rewritten in Ruby as:
 
-```
+```ruby
 out = IO.new(3)
 ```
 
-Let's read in Python line by line:
+#### Process Action's arguments from STDIN
 
-```
+Each time the function is invoked via an HTTP request, the `ActionLoop` proxy passes the message contents to the launcher via STDIN. The launcher must read STDIN line-by-line and parse it as JSON.
+
+The `launcher`'s existing Python code reads STDIN line-by-line as follows:
+
+```python
 while True:
   line = stdin.readline()
   if not line: break
   # ...continue...
 ```
 
-becomes:
+would be translated to Ruby as follows:
 
-```
+```ruby
 while true
   # JSON arguments get passed via STDIN
   line = STDIN.gets()
@@ -216,9 +233,11 @@ while true
 end
 ```
 
-Now, you have to read and parse in JSON one line, then extract the payload and set the other values as environment variables:
+Each line is parsed in JSON, where the `payload` is extracted from contents of the `"value"` key. Other keys and their values are as uppercased, `"__OW_"` prefixed environment variables:
 
-```
+The existing Python code for this is:
+
+```python
   # ... continuing ...
   args = json.loads(line)
   payload = {}
@@ -230,9 +249,9 @@ Now, you have to read and parse in JSON one line, then extract the payload and s
   # ... continue ...
 ```
 
-translated:
+would be translated to Ruby:
 
-```
+```ruby
   # ... continuing ...
   args = JSON.parse(line)
   payload = {}
@@ -247,9 +266,13 @@ translated:
   # ... continue ...
 ```
 
-We are at the point of invoking our functions. You should capture exceptions and produce an `{"error": <result> }` if something goes wrong. In Python:
+#### Invoking the Action function
 
-```
+You are now at the point of invoking the Action function and producing its result. *Note you **must** also capture exceptions and produce an `{"error": <result> }` if anything goes wrong during execution.*
+
+The existing Python code for this is:
+
+```python
   # ... continuing ...
   res = {}
   try:
@@ -260,9 +283,9 @@ We are at the point of invoking our functions. You should capture exceptions and
   # ... continue ...
 ```
 
-Translated in Ruby:
+would be translated to Ruby:
 
-```
+```ruby
   # ... continuing ...
   res = {}
   begin
@@ -274,9 +297,13 @@ Translated in Ruby:
   # ... continue ...
 ```
 
-Finally, you flush standard out and standard error and write the result back in file descriptor 3. In Python:
+#### Flush File Descriptor 3, STDOUT and STDERR
 
-```
+Finally, you flush standard out and standard error and write the result back in file descriptor 3.
+
+The existing Python code for this is:
+
+```python
   out.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
   out.write(b'\n')
   stdout.flush()
@@ -284,9 +311,9 @@ Finally, you flush standard out and standard error and write the result back in 
   out.flush()
 ```
 
-That becomes in Ruby:
+would be translated to Ruby:
 
-```
+```ruby
   STDOUT.flush()
   STDERR.flush()
   out.puts(res.to_json)
