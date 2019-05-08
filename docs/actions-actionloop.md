@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 -->
+
 # Developing a new Runtime with the ActionLoop proxy
 
 The [runtime specification](actions-new.md) defines the expected behavior of a runtime. You can implement a runtime from scratch just following the specification.
@@ -38,7 +39,7 @@ In summary, it is likely that using the ActionLoop is simpler and a "better bet"
 The development procedure for ActionLoop requires the following steps:
 
 * building a docker image containing your target language compiler and the ActionLoop runtime.
-*  writing a simple line-oriented protocol in your target language.
+* writing a simple line-oriented protocol in your target language.
 * writing a compilation script for your target language.
 * writing some mandatory tests for your language.
 
@@ -66,9 +67,9 @@ When snippets show changes to existing source files, lines without a prefix shou
 
 ## Prequisites
 
-- Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.  
+* Docker engine - please have a valid [docker engine installed](https://docs.docker.com/install/) that supports [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) (i.e., Docker 17.05 or higher) and assure the Docker daemon is running.  
 
-```
+```bash
 # Verify docker version
 $ docker --version
 Docker version 18.09.3
@@ -83,14 +84,14 @@ $ docker ps
 
 So let's start to create our own `actionloop-demo-ruby-2.6` runtime. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
 
-```
+```bash
 $ git clone https://github.com/apache/incubator-openwhisk-devtools
 $ mv incubator-openwhisk-devtools/actionloop-starter-kit ~/actionloop-demo-ruby-v2.6
 ```
 
 Now, take the directory `python3.7` and rename it to `ruby2.6` and use `sed` to fix the directory name references in the Gradle build files.
 
-```
+```bash
 $ cd ~/actionloop-demo-ruby-v2.6
 $ mv python3.7 ruby2.6
 $ sed -i.bak -e 's/python3.7/ruby2.6/' settings.gradle
@@ -99,7 +100,7 @@ $ sed -i.bak -e 's/actionloop-demo-python-v3.7/actionloop-demo-ruby-v2.6/' ruby2
 
 Let's check everything is fine building the image.
 
-```
+```bash
 # building the image
 $ ./gradlew distDocker
 # ... intermediate output omitted ...
@@ -125,7 +126,7 @@ Using the ActionLoop approach, we use a multistage Docker build to
 
 Let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the official ruby image on Docker Hub, and add our files:
 
-```
+```dockerfile
  FROM openwhisk/actionloop-v2:latest as builder
 -FROM python:3.7-alpine
 +FROM ruby:2.6.2-alpine3.9
@@ -142,7 +143,7 @@ Let's edit the `ruby2.6/Dockerfile` to use, instead of the python image, the off
 
 Next, let's rename the `launcher.py` (a Python script) to one that indicates it is a Ruby script named `launcher.rb`.
 
-```
+```bash
 $ mv ruby2.6/lib/launcher.py ruby2.6/lib/launcher.rb
 ```
 
@@ -170,52 +171,60 @@ Let's recap the steps the launcher must accomplish to implement the `ActionLoop 
 1. Once the function returns the result, flush the contents of `stdout`, `stderr` and `file descriptor 3` (FD 3).
 1. Finally, include the above steps in a loop so that it continually looks for Activations. That's it.
 
-### Converting `launcher.py` in `launcher.rb`
+### Converting launcher script to Ruby
 
-Now, let's see the protocol in code, converting the Python launcher in Ruby.
+Now, let's look at the protocol described above codified within the launcher script `launcher.rb` and work to convert its contents from Python to Ruby.
 
-The compilation script as we will see later will ensure the sources are ready for the launcher.
+#### Import the function code
 
-You are free to decide where your source action is. I generally ensure that the starting point is a file named like `main__.rb`, with the two underscore final, as those names are pretty unusual to ensure uniqueness.
+Skipping the first few library import statements within  `launcer.rb`, which we will have to resolve later after we determine which ones Ruby may need, we see the first significant line of code importing the actual Action function.
 
-Let's skip the imports as they are not interesting. So in Python, the first (significant) line is:
-
-```
+```python
 # now import the action as process input/output
 from main__ import main as main
 ```
 
-In Ruby, this translates in:
+In Ruby, this can be rewritten as:
 
-```
+```ruby
 # requiring user's action code 
 require "./main__"
 ```
 
-Now, we open the file descriptor 3, as the proxy will invoke the action with this descriptor attached to a pipe where it can read the results. In Python:
+*Note that you are free to decide the path and filename for the function's source code. In our examples, we chose a base filename that includes the word `"main"` (since it is OpenWhisk's default function name) and append two underscores to better assure uniqueness. 
 
-```
+#### Open File Descriptor (FD) 3 for function results output
+
+The `ActionLoop` proxy expects to read the results of invoking the Action function from File Descriptor (FD) 3.
+
+The existing Python:
+
+```python
 out = fdopen(3, "wb")
 ```
 
-becomes:
+would be rewritten in Ruby as:
 
-```
+```ruby
 out = IO.new(3)
 ```
 
-Let's read in Python line by line:
+#### Process Action's arguments from STDIN
 
-```
+Each time the function is invoked via an HTTP request, the `ActionLoop` proxy passes the message contents to the launcher via STDIN. The launcher must read STDIN line-by-line and parse it as JSON.
+
+The `launcher`'s existing Python code reads STDIN line-by-line as follows:
+
+```python
 while True:
   line = stdin.readline()
   if not line: break
   # ...continue...
 ```
 
-becomes:
+would be translated to Ruby as follows:
 
-```
+```ruby
 while true
   # JSON arguments get passed via STDIN
   line = STDIN.gets()
@@ -224,9 +233,11 @@ while true
 end
 ```
 
-Now, you have to read and parse in JSON one line, then extract the payload and set the other values as environment variables:
+Each line is parsed in JSON, where the `payload` is extracted from contents of the `"value"` key. Other keys and their values are as uppercased, `"__OW_"` prefixed environment variables:
 
-```
+The existing Python code for this is:
+
+```python
   # ... continuing ...
   args = json.loads(line)
   payload = {}
@@ -238,9 +249,9 @@ Now, you have to read and parse in JSON one line, then extract the payload and s
   # ... continue ...
 ```
 
-translated:
+would be translated to Ruby:
 
-```
+```ruby
   # ... continuing ...
   args = JSON.parse(line)
   payload = {}
@@ -255,9 +266,13 @@ translated:
   # ... continue ...
 ```
 
-We are at the point of invoking our functions. You should capture exceptions and produce an `{"error": <result> }` if something goes wrong. In Python:
+#### Invoking the Action function
 
-```
+You are now at the point of invoking the Action function and producing its result. *Note you **must** also capture exceptions and produce an `{"error": <result> }` if anything goes wrong during execution.*
+
+The existing Python code for this is:
+
+```python
   # ... continuing ...
   res = {}
   try:
@@ -268,9 +283,9 @@ We are at the point of invoking our functions. You should capture exceptions and
   # ... continue ...
 ```
 
-Translated in Ruby:
+would be translated to Ruby:
 
-```
+```ruby
   # ... continuing ...
   res = {}
   begin
@@ -282,9 +297,13 @@ Translated in Ruby:
   # ... continue ...
 ```
 
-Finally, you flush standard out and standard error and write the result back in file descriptor 3. In Python:
+#### Flush File Descriptor 3, STDOUT and STDERR
 
-```
+Finally, you flush standard out and standard error and write the result back in file descriptor 3. 
+
+The existing Python code for this is:
+
+```python
   out.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
   out.write(b'\n')
   stdout.flush()
@@ -292,9 +311,9 @@ Finally, you flush standard out and standard error and write the result back in 
   out.flush()
 ```
 
-That becomes in Ruby:
+would be translated to Ruby:
 
-```
+```ruby
   STDOUT.flush()
   STDERR.flush()
   out.puts(res.to_json)
