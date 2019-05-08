@@ -43,13 +43,6 @@ dependencies {
     compile "com.typesafe.akka:akka-stream_2.12:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-slf4j_2.12:${gradle.akka.version}"
 
-    //akka-cluster
-    compile "com.typesafe.akka:akka-remote_2.12:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster_2.12:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster-metrics_2.12:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster-tools_2.12:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-distributed-data_2.12:${gradle.akka.version}"
-
     compile "com.typesafe.akka:akka-http-core_2.12:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-spray-json_2.12:${gradle.akka_http.version}"
 
@@ -106,6 +99,19 @@ dependencies {
     }
     compile ('com.amazonaws:aws-java-sdk-cloudfront:1.11.517')
     scoverage gradle.scoverage.deps
+
+    //Following constraints ensure that akka related transitive dependencies match the
+    //current version used
+    constraints {
+        //akka cluster dependencies being pulled by mesos-actor
+        compile "com.typesafe.akka:akka-remote_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster-metrics_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster-tools_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-distributed-data_2.12:${gradle.akka.version}"
+
+        compile "com.typesafe.akka:akka-http-xml_2.12:${gradle.akka_http.version}"
+    }
 }
 
 tasks.withType(ScalaCompile) {
