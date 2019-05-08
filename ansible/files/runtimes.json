@@ -51,7 +51,7 @@
             },
             {
                 "kind": "nodejs:12",
-                "default": true,
+                "default": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v12",
