@@ -81,6 +81,8 @@ function main(message) {
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('accesstoken   : '+message.accesstoken);
   console.log('spaceguid     : '+message.spaceguid);
+  console.log('limit         : '+message.limit);
+  console.log('skip          : '+message.skip);
   console.log('basepath/name : '+message.basepath);
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
@@ -91,7 +93,7 @@ function main(message) {
     gwInfo.gwUrl = message.gwUrlV2;
     gwInfo.gwAuth = message.accesstoken;
     // Obtain the API from the API GW
-    return utils2.getApis(gwInfo, message.spaceguid, message.basepath)
+    return utils2.getApis(gwInfo, message.spaceguid, message.basepath, message.limit, message.skip)
     .then(function(endpointDocs) {
       console.log('Got '+endpointDocs.length+' APIs');
       if (endpointDocs.length === 0) {
