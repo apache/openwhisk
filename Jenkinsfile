@@ -76,7 +76,11 @@ timeout(time: 12, unit: 'HOURS') {
                             sh 'ansible-playbook -i environments/jenkins couchdb.yml'
                             sh 'ansible-playbook -i environments/jenkins initdb.yml'
                             sh 'ansible-playbook -i environments/jenkins wipe.yml'
+                            sh 'ansible-playbook -i environments/jenkins apigateway.yml'
                             sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e lean=true'
+                            sh 'ansible-playbook -i environments/jenkins properties.yml'
+                            sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
+                            sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
                         }
                     }
 
@@ -92,11 +96,7 @@ timeout(time: 12, unit: 'HOURS') {
                     stage('Deploy full Openwhisk') {
                         dir("ansible") {
                             sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
-                            sh 'ansible-playbook -i environments/jenkins apigateway.yml'
                             sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
-                            sh 'ansible-playbook -i environments/jenkins properties.yml'
-                            sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
-                            sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
                         }
                     }
 
