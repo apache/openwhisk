@@ -463,7 +463,7 @@ $ make debug
 
 Let's start with a couple of notes about this test environment.
 
-First, use `--entrypoint=/bin/sh` to have a shell available at our image entrypoint. Generally, this is true by default; however, in some stripped down base images a shell may not be available.
+First, use `--entrypoint=/bin/sh` when starting the image to have a shell available at our image entrypoint. Generally, this is true by default; however, in some stripped down base images a shell may not be available.
 
 Second, the `/proxy` folder is mounted in our local directory, so that we can edit the `bin/compile` and the `lib/launcher.rb` using our editor outside the Docker image
 
