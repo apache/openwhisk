@@ -36,3 +36,4 @@ runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
 
 invoker1_machine: openwhisk-vm2-he-de
+invoker_use_runc: false
