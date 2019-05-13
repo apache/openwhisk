@@ -32,7 +32,7 @@ include 'tools:admin'
 rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
-    version: '2.12.7',
+    version: '2.12.8',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
 
@@ -47,5 +47,8 @@ gradle.ext.scoverage = [
         'org.scoverage:scalac-scoverage-runtime_2.12:1.3.1'
     ]
 ]
+
+gradle.ext.akka = [version : '2.5.22']
+gradle.ext.akka_http = [version : '10.1.8']
 
 gradle.ext.curator = [version:'4.0.0']

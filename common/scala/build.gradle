@@ -39,12 +39,12 @@ dependencies {
     compile 'io.spray:spray-json_2.12:1.3.5'
     compile 'com.lihaoyi:fastparse_2.12:1.0.0'
 
-    compile 'com.typesafe.akka:akka-actor_2.12:2.5.12'
-    compile 'com.typesafe.akka:akka-stream_2.12:2.5.12'
-    compile 'com.typesafe.akka:akka-slf4j_2.12:2.5.12'
+    compile "com.typesafe.akka:akka-actor_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-stream_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-slf4j_2.12:${gradle.akka.version}"
 
-    compile 'com.typesafe.akka:akka-http-core_2.12:10.1.1'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.12:10.1.1'
+    compile "com.typesafe.akka:akka-http-core_2.12:${gradle.akka_http.version}"
+    compile "com.typesafe.akka:akka-http-spray-json_2.12:${gradle.akka_http.version}"
 
     compile 'com.lightbend.akka:akka-stream-alpakka-file_2.12:0.15'
 
@@ -55,12 +55,8 @@ dependencies {
     compile 'commons-io:commons-io:2.6'
     compile 'commons-collections:commons-collections:3.2.2'
     compile 'org.apache.kafka:kafka-clients:2.0.0'
-    compile ('org.apache.httpcomponents:httpclient:4.5.5') {
-        exclude group: 'commons-logging'
-    }
-    compile ('com.fasterxml.uuid:java-uuid-generator:3.1.3') {
-        exclude group: 'log4j'
-    }
+    compile ('org.apache.httpcomponents:httpclient:4.5.5')
+    compile ('com.fasterxml.uuid:java-uuid-generator:3.1.3')
     compile 'com.github.ben-manes.caffeine:caffeine:2.6.2'
     compile 'com.google.code.findbugs:jsr305:3.0.2'
     compile 'io.fabric8:kubernetes-client:4.0.3'
@@ -87,18 +83,35 @@ dependencies {
 
     compile 'io.reactivex:rxscala_2.12:0.26.5'
     compile 'io.reactivex:rxjava-reactive-streams:1.2.1'
-    compile ('com.microsoft.azure:azure-cosmosdb:2.4.2'){
-        exclude group: 'commons-logging'
-    }
+    compile ('com.microsoft.azure:azure-cosmosdb:2.4.2')
 
     compile ('com.lightbend.akka:akka-stream-alpakka-s3_2.12:0.19') {
-        exclude group: 'commons-logging'
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
     compile ('com.amazonaws:aws-java-sdk-cloudfront:1.11.517')
     scoverage gradle.scoverage.deps
+
+    //Following constraints ensure that akka related transitive dependencies match the
+    //current version used
+    constraints {
+        //akka cluster dependencies being pulled by mesos-actor
+        compile "com.typesafe.akka:akka-remote_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster-metrics_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-cluster-tools_2.12:${gradle.akka.version}"
+        compile "com.typesafe.akka:akka-distributed-data_2.12:${gradle.akka.version}"
+
+        compile "com.typesafe.akka:akka-http-xml_2.12:${gradle.akka_http.version}"
+    }
+}
+
+configurations {
+    compile {
+        exclude group: 'commons-logging'
+        exclude group: 'log4j'
+    }
 }
 
 tasks.withType(ScalaCompile) {

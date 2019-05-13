@@ -187,10 +187,10 @@ dependencies {
     compile 'junit:junit:4.11'
     compile 'com.jayway.restassured:rest-assured:2.6.0'
     compile 'org.scalatest:scalatest_2.12:3.0.5'
-    compile 'com.typesafe.akka:akka-testkit_2.12:2.5.12'
+    compile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.scalamock:scalamock-scalatest-support_2.12:3.6.0'
-    compile 'com.typesafe.akka:akka-http-testkit_2.12:10.1.1'
+    compile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
     compile "org.mockito:mockito-core:2.15.0"
     compile 'io.opentracing:opentracing-mock:0.31.0'
