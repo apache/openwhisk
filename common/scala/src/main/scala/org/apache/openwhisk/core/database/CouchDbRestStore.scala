@@ -129,7 +129,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
             start,
             s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'",
             ErrorLevel)
-          throw new Exception("Unexpected http response code: " + code)
+          throw new PutException("Unexpected http response code: " + code)
       }
     }
 
@@ -164,7 +164,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
         case Left(code) =>
           transid.failed(this, start, s"'$dbName' failed to put documents, http status: '${code}'", ErrorLevel)
-          throw new Exception("Unexpected http response code: " + code)
+          throw new PutException("Unexpected http response code: " + code)
       }
     }
 
@@ -200,7 +200,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
             start,
             s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'",
             ErrorLevel)
-          throw new Exception("Unexpected http response code: " + code)
+          throw new DeleteException("Unexpected http response code: " + code)
       }
     }
 
@@ -240,8 +240,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           throw NoDocumentException("not found on 'get'")
 
         case Left(code) =>
-          transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
-          throw new Exception("Unexpected http response code: " + code)
+          transid.failed(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
+          throw new GetException("Unexpected http response code: " + code)
       }
     } recoverWith {
       case e: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
@@ -310,7 +310,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
         case Left(code) =>
           transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
-          throw new Exception("Unexpected http response code: " + code)
+          throw new QueryException("Unexpected http response code: " + code)
       }
 
     reportFailure(
@@ -344,7 +344,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
         case Left(code) =>
           transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
-          throw new Exception("Unexpected http response code: " + code)
+          throw new QueryException("Unexpected http response code: " + code)
       }
 
     reportFailure(
@@ -431,7 +431,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
             this,
             start,
             s"[ATT_PUT] '$dbName' failed to upload attachment '$name' of document '$doc'; http status '$code'")
-          throw new Exception("Unexpected http response code: " + code)
+          throw new PutException("Unexpected http response code: " + code)
       }
     }
 
@@ -495,7 +495,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
               this,
               start,
               s"[ATT_GET] '$dbName' failed to get attachment '$name' of document '$doc'; http status: '$code'")
-            throw new Exception("Unexpected http response code: " + code)
+            throw new GetException("Unexpected http response code: " + code)
         }
 
     reportFailure(

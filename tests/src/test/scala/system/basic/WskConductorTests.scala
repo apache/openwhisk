@@ -272,6 +272,76 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
     }
   }
 
+  it should "invoke a conductor action in a package binding" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val ns = wsk.namespace.whois()
+    val actionName = "echo" // echo conductor action
+    val packageName = "package1"
+    val bindName = "package2"
+    val packageActionName = packageName + "/" + actionName
+    val bindActionName = bindName + "/" + actionName
+    val bindNameWithNamespace = ns + "/" + bindName
+
+    assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+      pkg.create(packageName)
+    }
+    assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+      pkg.bind(packageName, bindName)
+    }
+
+    assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+      action.create(
+        packageActionName,
+        Some(TestUtils.getTestActionFilename("echo.js")),
+        annotations = Map("conductor" -> true.toJson))
+    }
+
+    // the conductor annotation should not affect the behavior of an action
+    // that returns a dictionary without a params or action field
+    val run = wsk.action.invoke(bindActionName, Map("payload" -> testString.toJson, "state" -> testString.toJson))
+    withActivation(wsk.activation, run) { activation =>
+      activation.response.status shouldBe "success"
+      activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson, "state" -> testString.toJson))
+
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
+
+      checkConductorLogsAndAnnotations(activation, 1) // echo
+    }
+
+    // the conductor annotation should not affect the behavior of an action that returns an error
+    val secondrun = wsk.action.invoke(bindActionName, Map("error" -> testString.toJson))
+    withActivation(wsk.activation, secondrun) { activation =>
+      activation.response.status shouldBe "application error"
+      activation.response.result shouldBe Some(JsObject("error" -> testString.toJson))
+
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
+
+      checkConductorLogsAndAnnotations(activation, 1) // echo
+    }
+
+    // the controller should unwrap a wrapped result { params: result, ... } for an action with a conductor annotation
+    // discarding other fields if there is no action field
+    val thirdrun = wsk.action.invoke(
+      bindActionName,
+      Map(
+        "params" -> JsObject("payload" -> testString.toJson),
+        "result" -> testString.toJson,
+        "state" -> testString.toJson))
+    withActivation(wsk.activation, thirdrun) { activation =>
+      activation.response.status shouldBe "success"
+      activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson))
+
+      val binding = activation.getAnnotationValue("binding")
+      binding shouldBe defined
+      binding.get shouldBe JsString(bindNameWithNamespace)
+
+      checkConductorLogsAndAnnotations(activation, 1) // echo
+    }
+  }
+
   /**
    * checks logs for the activation of a conductor action (length/size and ids)
    * checks that the cause field for nested invocations is set properly

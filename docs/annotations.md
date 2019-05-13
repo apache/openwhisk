@@ -82,6 +82,7 @@ and must be present and explicitly set to `true` to have an affect. The annotati
 The system decorates activation records with annotations as well. They are:
 
 * `path`: the fully qualified path name of the action that generated the activation. Note that if this activation was the result of an action in a package binding, the path refers to the parent package.
+* `binding`: the entity path of the package binding. Note that this is only present for actions in a package binding.
 * `kind`: the kind of action executed, and one of the support OpenWhisk runtime kinds.
 * `limits`: the time, memory and log limits that this activation were subject to.
 
