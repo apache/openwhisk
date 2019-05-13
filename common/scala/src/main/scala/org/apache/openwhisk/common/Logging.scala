@@ -392,6 +392,7 @@ object LoggingMarkers {
   def LOADBALANCER_INVOKER_STATUS_CHANGE(state: String) =
     LogMarkerToken(loadbalancer, "invokerState", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", counter)(MeasurementUnit.none)
+  val LOADBALANCER_SYSTEM_ERRORS = LogMarkerToken(loadbalancer, "systemErrors", counter)(MeasurementUnit.none)
 
   def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) = {
     if (TransactionId.metricsKamonTags)
