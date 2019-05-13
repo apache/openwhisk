@@ -207,6 +207,11 @@ protected[actions] trait SequenceActions {
       Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
     } else None
 
+    // set binding if an invoked action is in a package binding
+    val binding = action.binding map { path =>
+      Parameters(WhiskActivation.bindingAnnotation, JsString(path.asString))
+    }
+
     // create the whisk activation
     WhiskActivation(
       namespace = user.namespace.name.toPath,
@@ -223,7 +228,7 @@ protected[actions] trait SequenceActions {
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(topmost)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
-        causedBy ++
+        causedBy ++ binding ++
         sequenceLimits,
       duration = Some(accounting.duration))
   }

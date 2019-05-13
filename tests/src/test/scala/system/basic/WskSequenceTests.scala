@@ -30,6 +30,7 @@ import org.scalatest.junit.JUnitRunner
 import common._
 import common.TestUtils._
 import common.rest.WskRestOperations
+import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
@@ -296,6 +297,54 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
         0,
         run,
         new Regex(String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now)))
+  }
+
+  it should "contain an binding annotation if invoked action is in a package binding" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val ns = wsk.namespace.whois()
+      val packageName = "package1"
+      val bindName = "package2"
+      val actionName = "print"
+      val packageActionName = packageName + "/" + actionName
+      val bindActionName = bindName + "/" + actionName
+
+      val file = TestUtils.getTestActionFilename("echo.js")
+      assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+        pkg.create(packageName)
+      }
+      assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+        action.create(packageActionName, Some(file))
+      }
+      assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+        pkg.bind(packageName, bindName)
+      }
+      // sequence
+      val sequenceActionName = "sequenceWithBinding"
+      val sName = packageName + "/" + sequenceActionName
+      val bName = bindName + "/" + sequenceActionName
+      assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
+        action.create(seqName, Some(bindActionName), kind = Some("sequence"))
+      }
+
+      val run = wsk.action.invoke(bName)
+      withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
+        val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+        binding shouldBe defined
+        binding.get shouldBe JsString(ns + "/" + bindName)
+
+        for (id <- activation.logs.get) {
+          withActivation(
+            wsk.activation,
+            id,
+            initialWait = 1 second,
+            pollPeriod = 60 seconds,
+            totalWait = allowedActionDuration) { componentActivation =>
+            val binding = componentActivation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+            binding shouldBe defined
+            binding.get shouldBe JsString(ns + "/" + bindName)
+          }
+        }
+      }
   }
 
   /**

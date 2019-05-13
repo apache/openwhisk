@@ -29,6 +29,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.WskProps
 import common.rest.WskRestOperations
+import org.apache.openwhisk.core.entity.WhiskActivation
 
 @RunWith(classOf[JUnitRunner])
 class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSystem {
@@ -112,6 +113,62 @@ class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSyste
     withActivation(wsk.activation, run, totalWait = LOG_DELAY) {
       _.logs.get.mkString(" ") should include regex (String
         .format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now))
+    }
+  }
+
+  it should "contain an binding annotation if invoked action is in the package binding" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val ns = wsk.namespace.whois()
+      val packageName = "package1"
+      val bindName = "package2"
+      val actionName = "print"
+      val packageActionName = packageName + "/" + actionName
+      val bindActionName = bindName + "/" + actionName
+      val file = TestUtils.getTestActionFilename("echo.js")
+
+      assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+        pkg.create(packageName)
+      }
+      assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+        action.create(packageActionName, Some(file))
+      }
+      assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+        pkg.bind(packageName, bindName)
+      }
+
+      val run = wsk.action.invoke(bindActionName)
+      withActivation(wsk.activation, run, totalWait = LOG_DELAY) { activation =>
+        val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+        binding shouldBe defined
+        binding.get shouldBe JsString(ns + "/" + bindName)
+      }
+  }
+
+  it should "not contain an binding annotation if invoked action is not in the package binding" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val packageName = "package1"
+    val actionName = "print"
+    val packageActionName = packageName + "/" + actionName
+
+    val file = TestUtils.getTestActionFilename("echo.js")
+
+    assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+      pkg.create(packageName)
+    }
+    assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+      action.create(packageActionName, Some(file))
+    }
+    assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+      action.create(actionName, Some(file))
+    }
+
+    withActivation(wsk.activation, wsk.action.invoke(packageActionName), totalWait = LOG_DELAY) { activation =>
+      val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+      binding shouldBe empty
+    }
+    withActivation(wsk.activation, wsk.action.invoke(actionName), totalWait = LOG_DELAY) { activation =>
+      val binding = activation.getAnnotationValue(WhiskActivation.bindingAnnotation)
+      binding shouldBe empty
     }
   }
 
