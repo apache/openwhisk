@@ -31,8 +31,9 @@ The following are required to build and deploy OpenWhisk from a Mac host:
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
-**Tip1** Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continuous integration and deployment.<br>
-**Tip2** It is required to install Docker >= 18.06.2 because of this [CVE](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-5736)
+**Tips:**
+ 1. Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continuous integration and deployment.<br>
+ 2. It is required to install Docker >= 18.06.2 because of this [CVE](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-5736)
 
 
 [Homebrew](http://brew.sh/) is an easy way to install all of these and prepare your Mac to build and deploy OpenWhisk. The following shell command is provided for your convenience to install `brew` with [Cask](https://github.com/caskroom/homebrew-cask) and bootstraps these to complete the setup. Copy the entire section below and paste it into your terminal to run it.
