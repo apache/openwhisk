@@ -26,17 +26,19 @@ If you prefer to use Docker-machine, you can follow instructions in [docker-mach
 
 The following are required to build and deploy OpenWhisk from a Mac host:
 
-- [Docker 1.12.0](https://docs.docker.com/docker-for-mac/)
+- [Docker 18.06.3](https://docs.docker.com/docker-for-mac/install/)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or [Open JDK 8](https://adoptopenjdk.net/releases.html#x64_mac)
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
-**Tip** Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continuous integration and deployment.
+**Tips:**
+ 1. Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continuous integration and deployment.<br>
+ 2. It is required to install Docker >= 18.06.2 because of this [CVE](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-5736)
 
 
 [Homebrew](http://brew.sh/) is an easy way to install all of these and prepare your Mac to build and deploy OpenWhisk. The following shell command is provided for your convenience to install `brew` with [Cask](https://github.com/caskroom/homebrew-cask) and bootstraps these to complete the setup. Copy the entire section below and paste it into your terminal to run it.
 
-```
+```bash
 echo '
 # install homebrew
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
@@ -58,7 +60,7 @@ sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 http
 
 The above section of command installs Oracle JDK 8 as the default Java environment. If you would like to install Open JDK 8 instead of Oracle JDK 8, please run the following section:
 
-```
+```bash
 # install for finding alternative versions (Open JDK 8)
 brew tap AdoptOpenJDK/openjdk
 # install Open JDK 8
@@ -67,7 +69,7 @@ brew install adoptopenjdk-openjdk8
 
 instead of
 
-```
+```bash
 # install for finding alternative versions (java8)
 brew tap caskroom/versions
 # install java 8
@@ -79,7 +81,7 @@ with the shell command described above.
 No matter which JDK is used, make sure you correctly configure the environment variable $JAVA_HOME.
 
 # Build
-```
+```bash
 cd /your/path/to/openwhisk
 ./gradlew distDocker
 ```
@@ -92,7 +94,7 @@ Follow instructions in [ansible/README.md](../../ansible/README.md)
 Follow instructions in [Configure CLI](../../docs/cli.md)
 
 ### Use the wsk CLI
-```
+```bash
 bin/wsk action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"

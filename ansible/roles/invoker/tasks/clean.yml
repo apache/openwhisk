@@ -21,9 +21,9 @@
 - name: pause/resume at runc-level to restore docker consistency
   shell: |
         DOCKER_PAUSED=$(docker ps --filter status=paused --filter name=wsk{{ invoker_index }} -q --no-trunc)
-        for C in $DOCKER_PAUSED; do docker-runc pause $C; done
+        for C in $DOCKER_PAUSED; do docker-runc --root {{ invoker.docker.runcdir }} pause $C; done
         DOCKER_RUNNING=$(docker ps --filter status=running --filter name=wsk{{ invoker_index }} -q --no-trunc)
-        for C2 in $DOCKER_RUNNING; do docker-runc resume $C2; done
+        for C2 in $DOCKER_RUNNING; do docker-runc --root {{ invoker.docker.runcdir }} resume $C2; done
         TOTAL=$(($(echo $DOCKER_PAUSED | wc -w)+$(echo $DOCKER_RUNNING | wc -w)))
         echo "Handled $TOTAL remaining actions."
   register: runc_output

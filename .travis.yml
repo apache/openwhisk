@@ -57,6 +57,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
+  - ./tools/travis/docker.sh
   - pip install --upgrade pip setuptools six
   - pip3 install --upgrade pip setuptools six
 

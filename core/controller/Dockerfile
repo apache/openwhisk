@@ -11,20 +11,21 @@ ENV SWAGGER_UI_DOWNLOAD_SHA256=3d7ef5ddc59e10f132fe99771498f0f1ba7a2cbfb9585f986
 ###################################################################################################
 # It's needed for lean mode where the controller is also an invoker
 ###################################################################################################
-ENV DOCKER_VERSION=1.12.0 \
-    DOCKER_DOWNLOAD_SHA256=3dd07f65ea4a7b4c8829f311ab0213bca9ac551b5b24706f3e79a97e22097f8b
+# If you change the docker version here, it has implications on invoker runc support. 
+# Docker server version and the invoker docker version must be the same to enable runc usage. 
+# If this cannot be guaranteed, set `invoker_use_runc: false` in the ansible env. 
+ENV DOCKER_VERSION=18.06.3-ce
 
 RUN apk add --update openssl
 
 # Uncomment to fetch latest version of docker instead: RUN wget -qO- https://get.docker.com | sh
 # Install docker client
-RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz && \
-echo "${DOCKER_DOWNLOAD_SHA256}  docker-${DOCKER_VERSION}.tgz" | sha256sum -c - && \
-tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker && \
-tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker-runc && \
-rm -f docker-${DOCKER_VERSION}.tgz && \
-chmod +x /usr/bin/docker && \
-chmod +x /usr/bin/docker-runc
+RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz && \
+    tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker && \
+    tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/docker-runc && \
+    rm -f docker-${DOCKER_VERSION}.tgz && \
+    chmod +x /usr/bin/docker && \
+    chmod +x /usr/bin/docker-runc
 ##################################################################################################
 
 # Install swagger-ui
@@ -44,6 +45,8 @@ RUN chmod +x init.sh
 RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
 
 # It is possible to run as non root if you dont need invoker capabilities out of the controller today
+# When running it as a non-root user this has implications on the standard directory where runc stores its data.
+# The non-root user should have access on the directory and corresponding permission to make changes on it. 
 #USER ${NOT_ROOT_USER}
 
 EXPOSE 8080

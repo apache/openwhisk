@@ -287,10 +287,19 @@
       {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
       {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
-
+###
+# The root runc directory varies based on the version of docker and runc.
+# When docker>=18.06 uses docker-runc the directory is /run/docker/runtime-runc/moby.
+# While docker-runc itself uses /run/runc for a root user or /run/user/<uid>/runc for a non-root user.
+# Currently, the invoker is running as a root user so the below configuration works as expected.
+# But when the invoker needs to run as a non-root user or the version docker needs to be changed,
+# the following configuration should be properly updated as well.
+#
+# Alternatively, we can disable the runc with invoker.userRunc = false.
+#
 - name: set invoker runc volume
   set_fact:
-    volumes: "{{ volumes }},/run/runc:/run/runc"
+    volumes: "{{ volumes }},{{ invoker.docker.runcdir }}:/run/runc"
   when: invoker.useRunc == true
 
 - name: define options when deploying invoker on Ubuntu
