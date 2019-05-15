@@ -142,6 +142,7 @@ class KafkaConsumerConnector(
   /** Creates a new kafka consumer and subscribes to topic list if given. */
   private def createConsumer(topic: String) = {
     val config = Map(
+      ConsumerConfig.CLIENT_ID_CONFIG -> s"consumer-$topic",
       ConsumerConfig.GROUP_ID_CONFIG -> groupid,
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahost,
       ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> maxPeek.toString) ++
