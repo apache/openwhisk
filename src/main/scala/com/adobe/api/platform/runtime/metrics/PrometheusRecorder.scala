@@ -77,7 +77,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
 
       activations.inc()
 
-      if (a.initTime > 0) {
+      if (a.isColdStart) {
         coldStarts.inc()
         initTime.observe(seconds(a.initTime))
       }

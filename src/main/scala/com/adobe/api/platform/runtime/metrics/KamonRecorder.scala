@@ -58,7 +58,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames {
     def record(a: Activation): Unit = {
       activations.increment()
 
-      if (a.initTime > 0) {
+      if (a.isColdStart) {
         coldStarts.increment()
         initTime.record(a.initTime)
       }

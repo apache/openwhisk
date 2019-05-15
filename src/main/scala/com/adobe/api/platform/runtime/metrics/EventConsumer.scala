@@ -20,6 +20,8 @@ import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink}
+import kamon.Kamon
+import kamon.metric.MeasurementUnit
 
 import scala.concurrent.Future
 
@@ -31,6 +33,23 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   implicit system: ActorSystem,
   materializer: ActorMaterializer) {
   import EventConsumer._
+
+  //Record the rate of events received
+  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations")
+  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric")
+
+  private val statusCounter = Kamon.counter("openwhisk.userevents.global.status")
+  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts")
+
+  private val statusSuccess = statusCounter.refine("status" -> Activation.statusSuccess)
+  private val statusFailure = statusCounter.refine("status" -> "failure")
+  private val statusApplicationError = statusCounter.refine("status" -> Activation.statusApplicationError)
+  private val statusDeveloperError = statusCounter.refine("status" -> Activation.statusDeveloperError)
+  private val statusInternalError = statusCounter.refine("status" -> Activation.statusInternalError)
+
+  private val waitTime = Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds)
+  private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
+  private val duration = Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds)
 
   def shutdown(): Future[Done] = {
     control.drainAndShutdown()(system.dispatcher)
@@ -54,11 +73,38 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   private def processEvent(value: String): Unit = {
     EventMessage
       .parse(value)
+      .map { e =>
+        e.eventType match {
+          case Activation.typeName => activationCounter.increment()
+          case Metric.typeName     => metricCounter.increment()
+        }
+        e
+      }
       .collect { case e if e.eventType == Activation.typeName => e } //Look for only Activations
       .foreach { e =>
         val a = e.body.asInstanceOf[Activation]
         recorders.foreach(_.processEvent(a))
+        updateGlobalMetrics(a)
       }
+  }
+
+  private def updateGlobalMetrics(a: Activation): Unit = {
+    a.status match {
+      case Activation.statusSuccess          => statusSuccess.increment()
+      case Activation.statusApplicationError => statusApplicationError.increment()
+      case Activation.statusDeveloperError   => statusDeveloperError.increment()
+      case Activation.statusInternalError    => statusInternalError.increment()
+      case _                                 => //Ignore for now
+    }
+
+    if (a.status != Activation.statusSuccess) statusFailure.increment()
+    if (a.isColdStart) {
+      coldStartCounter.increment()
+      initTime.record(a.initTime)
+    }
+
+    waitTime.record(a.waitTime)
+    duration.record(a.duration)
   }
 }
 

@@ -14,12 +14,14 @@ package com.adobe.api.platform.runtime.metrics
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import scala.concurrent.duration.DurationInt
+import kamon.Kamon
 
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object Main {
   def main(args: Array[String]): Unit = {
+    Kamon.loadReportersFromConfig()
     implicit val system: ActorSystem = ActorSystem("events-actor-system")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     val binding = OpenWhiskEvents.start(system.settings.config)
