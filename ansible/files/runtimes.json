@@ -48,6 +48,20 @@
                         "memory": "256 MB"
                     }
                 ]
+            },
+            {
+                "kind": "nodejs:12",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v12",
+                    "tag": "latest"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [

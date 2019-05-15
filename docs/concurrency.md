@@ -29,7 +29,7 @@ Concurrent activation processing within the same action container can be enabled
 
 * enable the akka http client at invoker config
   * e.g. CONFIG_whisk_containerPool_akkaClient=true
-* use a kind that supports concurrency (currently only `nodejs:10`, `nodejs:8` and `nodejs:6`)
+* use a kind that supports concurrency (currently only `nodejs:12`, `nodejs:10`, `nodejs:8` and `nodejs:6`)
 * enable concurrency at runtime container env (nodejs container only allows concurrency when started with an env var __OW_ALLOW_CONCURRENT=true)
   * e.g. CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0="__OW_ALLOW_CONCURRENT=true"
 * disable log collection at invoker
