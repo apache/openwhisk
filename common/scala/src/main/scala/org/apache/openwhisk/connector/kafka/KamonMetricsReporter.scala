@@ -111,7 +111,9 @@ object KamonMetricsReporter {
   }
 
   def kamonName(mn: MetricName): String = {
-    s"${mn.group()}_${mn.name()}"
+    //Drop the `-total` suffix as it results in prometheus metrics ending with total twice
+    val name = if (mn.name().endsWith("-total")) mn.name().dropRight(6) else mn.name()
+    s"${mn.group()}_$name}"
   }
 
   def isCounterMetric(metric: KafkaMetric): Boolean = Try(metric.measurable()) match {
