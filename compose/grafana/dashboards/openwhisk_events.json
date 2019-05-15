@@ -1218,7 +1218,6 @@
   "refresh": "5s",
   "schemaVersion": 16,
   "style": "dark",
-  "tags": [],
   "templating": {
     "list": [
       {
@@ -1366,6 +1365,9 @@
     "from": "now-15m",
     "to": "now"
   },
+  "tags": [
+    "openwhisk"
+  ],
   "timepicker": {
     "refresh_intervals": [
       "5s",

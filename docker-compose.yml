@@ -26,7 +26,7 @@ services:
       - 9096:9090
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:6.1.6
     depends_on:
       - prometheus
     ports:
