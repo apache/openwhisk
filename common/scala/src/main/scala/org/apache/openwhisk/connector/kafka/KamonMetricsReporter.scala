@@ -58,7 +58,7 @@ class KamonMetricsReporter extends MetricsReporter {
 
   private def add(metric: KafkaMetric): Unit = {
     val mn = metric.metricName()
-    if (metricConfig.names.contains(mn.name())) {
+    if (metricConfig.names.contains(mn.name()) && shouldIncludeMetric(mn)) {
       val tags = mn.tags()
       val metricName = kamonName(mn)
       val bridge = if (isCounterMetric(metric)) {
@@ -78,6 +78,7 @@ class KamonMetricsReporter extends MetricsReporter {
 }
 
 object KamonMetricsReporter {
+  private val excludedTopicAttributes = Set("records-lag-max", "records-consumed-total", "bytes-consumed-total")
 
   case class KafkaMetricConfig(names: Set[String], reportInterval: FiniteDuration)
 
@@ -113,11 +114,19 @@ object KamonMetricsReporter {
   def kamonName(mn: MetricName): String = {
     //Drop the `-total` suffix as it results in prometheus metrics ending with total twice
     val name = if (mn.name().endsWith("-total")) mn.name().dropRight(6) else mn.name()
-    s"${mn.group()}_$name}"
+    s"${mn.group()}_$name"
   }
 
   def isCounterMetric(metric: KafkaMetric): Boolean = Try(metric.measurable()) match {
     case Success(_: Total) => true
     case _                 => false
+  }
+
+  def shouldIncludeMetric(m: MetricName): Boolean = {
+    //Avoid duplicate metrics for specific cases which are recorded at multiple level
+    //For example `bytes-consumed-total` is recorded at consumer and topic level. As we use a 1-1 consumer per topic
+    //We can drop the lag recording at topic level
+    if (excludedTopicAttributes.contains(m.name())) !m.tags().containsKey("topic")
+    else true
   }
 }
