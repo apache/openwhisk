@@ -12,6 +12,8 @@ governing permissions and limitations under the License.
 
 package com.adobe.api.platform.runtime.metrics
 
+import java.lang.management.ManagementFactory
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableOffsetBatch
@@ -20,10 +22,13 @@ import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink}
+import javax.management.ObjectName
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 
 trait MetricRecorder {
   def processEvent(activation: Activation): Unit
@@ -33,6 +38,8 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   implicit system: ActorSystem,
   materializer: ActorMaterializer) {
   import EventConsumer._
+
+  private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
   private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations")
@@ -51,7 +58,10 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
   private val duration = Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds)
 
+  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag")
+
   def shutdown(): Future[Done] = {
+    lagRecorder.cancel()
     control.drainAndShutdown()(system.dispatcher)
   }
 
@@ -59,7 +69,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
 
   //TODO Use RestartSource
   private val control: DrainingControl[Done] = Consumer
-    .committableSource(settings, Subscriptions.topics(userEventTopic))
+    .committableSource(updatedSettings, Subscriptions.topics(userEventTopic))
     .map { msg =>
       processEvent(msg.record.value())
       msg.committableOffset
@@ -69,6 +79,9 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
     .toMat(Sink.ignore)(Keep.both)
     .mapMaterializedValue(DrainingControl.apply)
     .run()
+
+  private val lagRecorder =
+    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.set(consumerLag))
 
   private def processEvent(value: String): Unit = {
     EventMessage
@@ -106,8 +119,16 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
     waitTime.record(a.waitTime)
     duration.record(a.duration)
   }
+
+  private def updatedSettings = settings.withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
 }
 
 object EventConsumer {
   val userEventTopic = "events"
+  val id = "event-consumer"
+
+  private val server = ManagementFactory.getPlatformMBeanServer
+  private val name = new ObjectName(s"kafka.consumer:type=consumer-fetch-manager-metrics,client-id=$id")
+
+  def consumerLag: Long = server.getAttribute(name, "records-lag-max").asInstanceOf[Double].toLong.max(0)
 }
