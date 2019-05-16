@@ -85,7 +85,7 @@ dependencies {
     compile 'io.reactivex:rxjava-reactive-streams:1.2.1'
     compile ('com.microsoft.azure:azure-cosmosdb:2.4.2')
 
-    compile ('com.lightbend.akka:akka-stream-alpakka-s3_2.12:1.0.0') {
+    compile ('com.lightbend.akka:akka-stream-alpakka-s3_2.12:1.0.1') {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
