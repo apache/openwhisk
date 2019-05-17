@@ -17,13 +17,14 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil {
+private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil with SLF4JLogging {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient
@@ -48,21 +49,20 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
       .queryCollections(database.getSelfLink, querySpec(collName), null)
       .blockingOnlyResult()
       .map { coll =>
-        if (matchingIndexingPolicy(coll)) {
-          coll
-        } else {
-          //Modify the found collection with latest policy as its selfLink is set
-          coll.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
-          client.replaceCollection(coll, null).blockingResult()
+        val expectedIndexingPolicy = viewMapper.indexingPolicy
+        val existingIndexingPolicy = IndexingPolicy(coll.getIndexingPolicy)
+        if (!IndexingPolicy.isSame(expectedIndexingPolicy, existingIndexingPolicy)) {
+          log.warn(
+            s"Indexing policy for collection [$collName] found to be different." +
+              s"\nExpected - ${expectedIndexingPolicy.asJava().toJson}" +
+              s"\nExisting - ${existingIndexingPolicy.asJava().toJson}")
         }
+        coll
       }
       .getOrElse {
         client.createCollection(database.getSelfLink, newDatabaseCollection, dbOptions).blockingResult()
       }
   }
-
-  private def matchingIndexingPolicy(coll: DocumentCollection): Boolean =
-    IndexingPolicy.isSame(viewMapper.indexingPolicy, IndexingPolicy(coll.getIndexingPolicy))
 
   private def newDatabaseCollection = {
     val defn = new DocumentCollection

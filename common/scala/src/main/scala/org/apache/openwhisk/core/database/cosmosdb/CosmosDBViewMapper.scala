@@ -21,7 +21,6 @@ import java.util.Collections
 
 import com.microsoft.azure.cosmosdb.DataType.{Number, String}
 import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
-import com.microsoft.azure.cosmosdb.IndexingMode.Lazy
 import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import org.apache.openwhisk.core.database.ActivationHandler.NS_PATH
 import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
@@ -193,7 +192,6 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
 
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
-      mode = Lazy,
       includedPaths = Set(
         IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
         IncludedPath(s"/$computed/$NS_PATH/?", Index(Hash, String, -1)),
