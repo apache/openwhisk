@@ -18,8 +18,7 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.DataType.String
-import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
-import com.microsoft.azure.cosmosdb.IndexingMode
+import com.microsoft.azure.cosmosdb.IndexKind.Range
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
@@ -30,39 +29,21 @@ class IndexingPolicyTests extends FlatSpec with Matchers {
 
   it should "match same instance" in {
     val policy =
-      IndexingPolicy(mode = IndexingMode.Lazy, includedPaths = Set(IncludedPath("foo", Index(Hash, String, -1))))
+      IndexingPolicy(includedPaths = Set(IncludedPath("foo", Index(Range, String, -1))))
     IndexingPolicy.isSame(policy, policy) shouldBe true
-  }
-
-  it should "match when same path and subset of indexes" in {
-    val policy =
-      IndexingPolicy(
-        mode = IndexingMode.Lazy,
-        includedPaths = Set(IncludedPath("foo", Index(Hash, String, -1)), IncludedPath("bar", Index(Hash, String, -1))))
-
-    val policy2 =
-      IndexingPolicy(
-        mode = IndexingMode.Lazy,
-        includedPaths = Set(
-          IncludedPath("foo", Index(Hash, String, -1)),
-          IncludedPath("bar", Set(Index(Hash, String, -1), Index(Range, String, -1)))))
-
-    IndexingPolicy.isSame(policy, policy2) shouldBe true
-    IndexingPolicy.isSame(policy2, policy) shouldBe false
   }
 
   it should "not match when same path are different" in {
     val policy =
       IndexingPolicy(
-        mode = IndexingMode.Lazy,
-        includedPaths = Set(IncludedPath("foo", Index(Hash, String, -1)), IncludedPath("bar", Index(Hash, String, -1))))
+        includedPaths =
+          Set(IncludedPath("foo", Index(Range, String, -1)), IncludedPath("bar", Index(Range, String, -1))))
 
     val policy2 =
       IndexingPolicy(
-        mode = IndexingMode.Lazy,
         includedPaths = Set(
-          IncludedPath("foo2", Index(Hash, String, -1)),
-          IncludedPath("bar", Set(Index(Hash, String, -1), Index(Range, String, -1)))))
+          IncludedPath("foo2", Index(Range, String, -1)),
+          IncludedPath("bar", Set(Index(Range, String, -1), Index(Range, String, -1)))))
 
     IndexingPolicy.isSame(policy, policy2) shouldBe false
   }
@@ -70,10 +51,9 @@ class IndexingPolicyTests extends FlatSpec with Matchers {
   it should "convert and match java IndexingPolicy" in {
     val policy =
       IndexingPolicy(
-        mode = IndexingMode.Lazy,
         includedPaths = Set(
-          IncludedPath("foo", Index(Hash, String, -1)),
-          IncludedPath("bar", Set(Index(Hash, String, -1), Index(Range, String, -1)))))
+          IncludedPath("foo", Index(Range, String, -1)),
+          IncludedPath("bar", Set(Index(Range, String, -1), Index(Range, String, -1)))))
 
     val jpolicy = policy.asJava()
     val policy2 = IndexingPolicy(jpolicy)
