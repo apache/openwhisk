@@ -17,25 +17,25 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import akka.event.slf4j.SLF4JLogging
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import org.apache.openwhisk.common.Logging
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil with SLF4JLogging {
+private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient
   protected def viewMapper: CosmosDBViewMapper
 
-  def initialize(): (Database, DocumentCollection) = {
+  def initialize()(implicit logging: Logging): (Database, DocumentCollection) = {
     val db = getOrCreateDatabase()
     (db, getOrCreateCollection(db))
   }
 
-  private def getOrCreateDatabase(): Database = {
+  private def getOrCreateDatabase()(implicit logging: Logging): Database = {
     client
       .queryDatabases(querySpec(config.db), null)
       .blockingOnlyResult()
@@ -44,7 +44,7 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
       }
   }
 
-  private def getOrCreateCollection(database: Database) = {
+  private def getOrCreateCollection(database: Database)(implicit logging: Logging) = {
     client
       .queryCollections(database.getSelfLink, querySpec(collName), null)
       .blockingOnlyResult()
@@ -52,7 +52,8 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
         val expectedIndexingPolicy = viewMapper.indexingPolicy
         val existingIndexingPolicy = IndexingPolicy(coll.getIndexingPolicy)
         if (!IndexingPolicy.isSame(expectedIndexingPolicy, existingIndexingPolicy)) {
-          log.warn(
+          logging.warn(
+            this,
             s"Indexing policy for collection [$collName] found to be different." +
               s"\nExpected - ${expectedIndexingPolicy.asJava().toJson}" +
               s"\nExisting - ${existingIndexingPolicy.asJava().toJson}")
