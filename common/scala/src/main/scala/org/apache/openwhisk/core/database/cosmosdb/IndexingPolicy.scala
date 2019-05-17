@@ -59,18 +59,14 @@ object IndexingPolicy {
    * that at least what we expect is present
    */
   def isSame(expected: IndexingPolicy, current: IndexingPolicy): Boolean = {
-    expected.excludedPaths == current.excludedPaths &&
-    matchIncludes(expected.includedPaths, current.includedPaths)
+    epaths(expected.excludedPaths) == epaths(current.excludedPaths) &&
+    ipaths(expected.includedPaths) == ipaths(current.includedPaths)
   }
 
-  private def matchIncludes(expected: Set[IncludedPath], current: Set[IncludedPath]): Boolean = {
-    expected.size == current.size && expected.forall { i =>
-      current.find(_.path == i.path) match {
-        case Some(x) => i.indexes.subsetOf(x.indexes)
-        case None    => false
-      }
-    }
-  }
+  private def ipaths(included: Set[IncludedPath]) = included.map(_.path)
+
+  //CosmosDB seems to add _etag by default in excluded path. So explicitly ignore that in comparison
+  private def epaths(excluded: Set[ExcludedPath]) = excluded.map(_.path).filterNot(_.contains("_etag"))
 }
 
 case class IncludedPath(path: String, indexes: Set[Index]) {
