@@ -38,7 +38,8 @@ import scala.collection.JavaConverters._
  *    needs to be customized
  *
  */
-case class IndexingPolicy(includedPaths: Set[IncludedPath], excludedPaths: Set[ExcludedPath] = Set(ExcludedPath("/"))) {
+case class IndexingPolicy(includedPaths: Set[IncludedPath],
+                          excludedPaths: Set[ExcludedPath] = Set(ExcludedPath("/*"))) {
 
   def asJava(): JIndexingPolicy = {
     val policy = new JIndexingPolicy()
