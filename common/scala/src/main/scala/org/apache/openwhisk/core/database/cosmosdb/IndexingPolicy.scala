@@ -19,9 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.{
   DataType,
-  HashIndex,
   IndexKind,
-  IndexingMode,
   RangeIndex,
   ExcludedPath => JExcludedPath,
   IncludedPath => JIncludedPath,
@@ -40,13 +38,11 @@ import scala.collection.JavaConverters._
  *    needs to be customized
  *
  */
-case class IndexingPolicy(mode: IndexingMode = IndexingMode.Consistent,
-                          includedPaths: Set[IncludedPath],
-                          excludedPaths: Set[ExcludedPath] = Set(ExcludedPath("/"))) {
+case class IndexingPolicy(includedPaths: Set[IncludedPath],
+                          excludedPaths: Set[ExcludedPath] = Set(ExcludedPath("/*"))) {
 
   def asJava(): JIndexingPolicy = {
     val policy = new JIndexingPolicy()
-    policy.setIndexingMode(mode)
     policy.setIncludedPaths(includedPaths.map(_.asJava()).asJava)
     policy.setExcludedPaths(excludedPaths.map(_.asJava()).asJava)
     policy
@@ -56,7 +52,6 @@ case class IndexingPolicy(mode: IndexingMode = IndexingMode.Consistent,
 object IndexingPolicy {
   def apply(policy: JIndexingPolicy): IndexingPolicy =
     IndexingPolicy(
-      policy.getIndexingMode,
       policy.getIncludedPaths.asScala.map(IncludedPath(_)).toSet,
       policy.getExcludedPaths.asScala.map(ExcludedPath(_)).toSet)
 
@@ -65,18 +60,14 @@ object IndexingPolicy {
    * that at least what we expect is present
    */
   def isSame(expected: IndexingPolicy, current: IndexingPolicy): Boolean = {
-    expected.mode == current.mode && expected.excludedPaths == current.excludedPaths &&
-    matchIncludes(expected.includedPaths, current.includedPaths)
+    epaths(expected.excludedPaths) == epaths(current.excludedPaths) &&
+    ipaths(expected.includedPaths) == ipaths(current.includedPaths)
   }
 
-  private def matchIncludes(expected: Set[IncludedPath], current: Set[IncludedPath]): Boolean = {
-    expected.size == current.size && expected.forall { i =>
-      current.find(_.path == i.path) match {
-        case Some(x) => i.indexes.subsetOf(x.indexes)
-        case None    => false
-      }
-    }
-  }
+  private def ipaths(included: Set[IncludedPath]) = included.map(_.path)
+
+  //CosmosDB seems to add _etag by default in excluded path. So explicitly ignore that in comparison
+  private def epaths(excluded: Set[ExcludedPath]) = excluded.map(_.path).filterNot(_.contains("_etag"))
 }
 
 case class IncludedPath(path: String, indexes: Set[Index]) {
@@ -108,7 +99,6 @@ object ExcludedPath {
 
 case class Index(kind: IndexKind, dataType: DataType, precision: Int) {
   def asJava(): JIndex = kind match {
-    case IndexKind.Hash  => JIndex.Hash(dataType, precision)
     case IndexKind.Range => JIndex.Range(dataType, precision)
     case _               => throw new RuntimeException(s"Unsupported kind $kind")
   }
@@ -116,7 +106,6 @@ case class Index(kind: IndexKind, dataType: DataType, precision: Int) {
 
 object Index {
   def apply(index: JIndex): Index = index match {
-    case i: HashIndex  => Index(i.getKind, i.getDataType, i.getPrecision)
     case i: RangeIndex => Index(i.getKind, i.getDataType, i.getPrecision)
     case _             => throw new RuntimeException(s"Unsupported kind $index")
   }

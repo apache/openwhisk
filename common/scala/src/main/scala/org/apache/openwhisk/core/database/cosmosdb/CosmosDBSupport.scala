@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import org.apache.openwhisk.common.Logging
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
@@ -29,12 +30,12 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
   protected def client: AsyncDocumentClient
   protected def viewMapper: CosmosDBViewMapper
 
-  def initialize(): (Database, DocumentCollection) = {
+  def initialize()(implicit logging: Logging): (Database, DocumentCollection) = {
     val db = getOrCreateDatabase()
     (db, getOrCreateCollection(db))
   }
 
-  private def getOrCreateDatabase(): Database = {
+  private def getOrCreateDatabase()(implicit logging: Logging): Database = {
     client
       .queryDatabases(querySpec(config.db), null)
       .blockingOnlyResult()
@@ -43,26 +44,26 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
       }
   }
 
-  private def getOrCreateCollection(database: Database) = {
+  private def getOrCreateCollection(database: Database)(implicit logging: Logging) = {
     client
       .queryCollections(database.getSelfLink, querySpec(collName), null)
       .blockingOnlyResult()
       .map { coll =>
-        if (matchingIndexingPolicy(coll)) {
-          coll
-        } else {
-          //Modify the found collection with latest policy as its selfLink is set
-          coll.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
-          client.replaceCollection(coll, null).blockingResult()
+        val expectedIndexingPolicy = viewMapper.indexingPolicy
+        val existingIndexingPolicy = IndexingPolicy(coll.getIndexingPolicy)
+        if (!IndexingPolicy.isSame(expectedIndexingPolicy, existingIndexingPolicy)) {
+          logging.warn(
+            this,
+            s"Indexing policy for collection [$collName] found to be different." +
+              s"\nExpected - ${expectedIndexingPolicy.asJava().toJson}" +
+              s"\nExisting - ${existingIndexingPolicy.asJava().toJson}")
         }
+        coll
       }
       .getOrElse {
         client.createCollection(database.getSelfLink, newDatabaseCollection, dbOptions).blockingResult()
       }
   }
-
-  private def matchingIndexingPolicy(coll: DocumentCollection): Boolean =
-    IndexingPolicy.isSame(viewMapper.indexingPolicy, IndexingPolicy(coll.getIndexingPolicy))
 
   private def newDatabaseCollection = {
     val defn = new DocumentCollection
