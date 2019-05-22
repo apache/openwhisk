@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.{
   DataType,
+  HashIndex,
   IndexKind,
   RangeIndex,
   ExcludedPath => JExcludedPath,
@@ -99,6 +100,7 @@ object ExcludedPath {
 
 case class Index(kind: IndexKind, dataType: DataType, precision: Int) {
   def asJava(): JIndex = kind match {
+    case IndexKind.Hash  => JIndex.Hash(dataType, precision)
     case IndexKind.Range => JIndex.Range(dataType, precision)
     case _               => throw new RuntimeException(s"Unsupported kind $kind")
   }
@@ -106,6 +108,7 @@ case class Index(kind: IndexKind, dataType: DataType, precision: Int) {
 
 object Index {
   def apply(index: JIndex): Index = index match {
+    case i: HashIndex  => Index(i.getKind, i.getDataType, i.getPrecision)
     case i: RangeIndex => Index(i.getKind, i.getDataType, i.getPrecision)
     case _             => throw new RuntimeException(s"Unsupported kind $index")
   }
