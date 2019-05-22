@@ -325,6 +325,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val queryMetrics = scala.collection.mutable.Buffer[QueryMetrics]()
     if (transid.meta.extraLogging) {
       options.setPopulateQueryMetrics(true)
+      options.setEmitVerboseTracesInQuery(true)
     }
 
     def collectQueryMetrics(r: FeedResponse[Document]): Unit = {
