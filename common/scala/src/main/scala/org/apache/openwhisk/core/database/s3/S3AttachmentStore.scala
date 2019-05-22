@@ -200,9 +200,6 @@ class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, 
         DATABASE_ATTS_DELETE,
         s"[ATT_DELETE] deleting attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
 
-    //S3 provides API to delete multiple objects in single call however alpakka client
-    //currently does not support that and also in current usage 1 docs has at most 1 attachment
-    //so current approach would also involve 2 remote calls
     val f = S3
       .deleteObjectsByPrefix(bucket, Some(objectKeyPrefix(docId)))
       .withAttributes(s3attributes)
