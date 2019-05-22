@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import akka.stream.ActorMaterializer
-import com.microsoft.azure.cosmosdb.IndexKind.Hash
+import com.microsoft.azure.cosmosdb.IndexKind.Range
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.DocumentCollection
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
@@ -60,11 +60,6 @@ class CosmosDBSupportTests
     val (_, coll) = new CosmosTest(config, client, newMapper(indexedPaths1)).initialize()
     coll.getDefaultTimeToLive shouldBe -1
     indexedPaths(coll) should contain theSameElementsAs indexedPaths1
-
-    //Test if index definition is updated in code it gets updated in db also
-    val indexedPaths2 = Set("/foo/?", "/bar2/?")
-    val (_, coll2) = new CosmosTest(config, client, newMapper(indexedPaths2)).initialize()
-    indexedPaths(coll2) should contain theSameElementsAs indexedPaths2
   }
 
   it should "set ttl" in {
@@ -121,7 +116,7 @@ class CosmosDBSupportTests
     coll.getIndexingPolicy.getIncludedPaths.asScala.map(_.getPath).toList
 
   protected def newTestIndexingPolicy(paths: Set[String]): IndexingPolicy =
-    IndexingPolicy(includedPaths = paths.map(p => IncludedPath(p, Index(Hash, String, -1))))
+    IndexingPolicy(includedPaths = paths.map(p => IncludedPath(p, Index(Range, String, -1))))
 
   private class CosmosTest(override val config: CosmosDBConfig,
                            override val client: AsyncDocumentClient,

@@ -17,19 +17,17 @@
 
 package org.apache.openwhisk.core.database.s3
 
-import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, ResponseEntity, Uri}
+import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import akka.stream.alpakka.s3.acl.CannedAcl
-import akka.stream.alpakka.s3.impl.S3Headers
-import akka.stream.alpakka.s3.scaladsl.S3Client
-import akka.stream.alpakka.s3.{S3Exception, S3Settings}
+import akka.stream.alpakka.s3.headers.CannedAcl
+import akka.stream.alpakka.s3.scaladsl.S3
+import akka.stream.alpakka.s3.{S3Attributes, S3Exception, S3Headers, S3Settings}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.typesafe.config.Config
@@ -64,18 +62,18 @@ object S3AttachmentStoreProvider extends AttachmentStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                               logging: Logging,
                                                               materializer: ActorMaterializer): AttachmentStore = {
-    val client = new S3Client(S3Settings(alpakkaConfigKey))
     val config = loadConfigOrThrow[S3Config](ConfigKeys.s3)
-    new S3AttachmentStore(client, config.bucket, config.prefixFor[D], config.signer)
+    new S3AttachmentStore(s3Settings(actorSystem.settings.config), config.bucket, config.prefixFor[D], config.signer)
   }
 
   def makeStore[D <: DocumentSerializer: ClassTag](config: Config)(implicit actorSystem: ActorSystem,
                                                                    logging: Logging,
                                                                    materializer: ActorMaterializer): AttachmentStore = {
-    val client = new S3Client(S3Settings(config, alpakkaConfigKey))
     val s3config = loadConfigOrThrow[S3Config](config, ConfigKeys.s3)
-    new S3AttachmentStore(client, s3config.bucket, s3config.prefixFor[D], s3config.signer)
+    new S3AttachmentStore(s3Settings(config), s3config.bucket, s3config.prefixFor[D], s3config.signer)
   }
+
+  private def s3Settings(config: Config) = S3Settings(config.getConfig(alpakkaConfigKey))
 
 }
 
@@ -83,16 +81,19 @@ trait UrlSigner {
   def getSignedURL(s3ObjectKey: String): Uri
 }
 
-class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSigner: Option[UrlSigner])(
+class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, urlSigner: Option[UrlSigner])(
   implicit system: ActorSystem,
   logging: Logging,
   materializer: ActorMaterializer)
     extends AttachmentStore {
-  private val commonS3Headers = S3Headers(
-    Seq(
-      CannedAcl.Private.header, //All objects are private
-      `Cache-Control`(`max-age`(365.days.toSeconds))) //As objects are immutable cache them for long time
-  )
+
+  private val s3attributes = S3Attributes.settings(s3Settings)
+  private val commonS3Headers = {
+    val cache = `Cache-Control`(`max-age`(365.days.toSeconds))
+    S3Headers()
+      .withCannedAcl(CannedAcl.Private) //All contents are private
+      .withCustomHeaders(Map(cache.name -> cache.value)) //As objects are immutable cache them for long time
+  }
   override val scheme = "s3"
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
@@ -112,8 +113,9 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
     //and thus use 1 remote call instead of 3
     val f = docStream
       .runWith(
-        combinedSink(client
-          .multipartUploadWithHeaders(bucket, objectKey(docId, name), contentType, s3Headers = Some(commonS3Headers))))
+        combinedSink(
+          S3.multipartUploadWithHeaders(bucket, objectKey(docId, name), contentType, s3Headers = commonS3Headers)
+            .withAttributes(s3attributes)))
       .map(r => AttachResult(r.digest, r.length))
 
     f.foreach(_ =>
@@ -136,7 +138,10 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
         s"[ATT_GET] '$prefix' finding attachment '$name' of document 'id: $docId'")
     val source = getAttachmentSource(objectKey(docId, name))
 
-    val f = source.runWith(sink)
+    val f = source.flatMap {
+      case Some(x) => x.withAttributes(s3attributes).runWith(sink)
+      case None    => Future.failed(NoDocumentException("Not found on 'readAttachment'."))
+    }
 
     val g = f.transform(
       { s =>
@@ -144,14 +149,14 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
           .finished(this, start, s"[ATT_GET] '$prefix' completed: found attachment '$name' of document 'id: $docId'")
         s
       }, {
-        case s: Throwable if isMissingKeyException(s) =>
+        case e: NoDocumentException =>
           transid
             .finished(
               this,
               start,
               s"[ATT_GET] '$prefix', retrieving attachment '$name' of document 'id: $docId'; not found.",
               logLevel = Logging.ErrorLevel)
-          NoDocumentException("Not found on 'readAttachment'.")
+          e
         case e => e
       })
 
@@ -162,29 +167,31 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
         s"[ATT_GET] '$prefix' internal error, name: '$name', doc: 'id: $docId', failure: '${failure.getMessage}'")
   }
 
-  private def getAttachmentSource(objectKey: String): Source[ByteString, NotUsed] = urlSigner match {
+  private def getAttachmentSource(objectKey: String): Future[Option[Source[ByteString, Any]]] = urlSigner match {
     case Some(signer) => getUrlContent(signer.getSignedURL(objectKey))
-    case None         => client.download(bucket, objectKey)._1
+
+    // When reading from S3 we get an optional source of ByteString and Metadata if the object exist
+    // For such case drop the metadata
+    case None =>
+      S3.download(bucket, objectKey)
+        .withAttributes(s3attributes)
+        .runWith(Sink.head)
+        .map(x => x.map(_._1))
   }
 
-  private def getUrlContent(uri: Uri): Source[ByteString, NotUsed] = {
+  private def getUrlContent(uri: Uri): Future[Option[Source[ByteString, Any]]] = {
     val future = Http().singleRequest(HttpRequest(uri = uri))
-    Source
-      .fromFuture(future.flatMap(entityForSuccess))
-      .map(_.dataBytes)
-      .flatMapConcat(identity)
-  }
-
-  private def entityForSuccess(resp: HttpResponse): Future[ResponseEntity] =
-    resp match {
+    future.flatMap {
       case HttpResponse(status, _, entity, _) if status.isSuccess() && !status.isRedirection() =>
-        Future.successful(entity)
+        Future.successful(Some(entity.dataBytes))
       case HttpResponse(_, _, entity, _) =>
         Unmarshal(entity).to[String].map { err =>
           //With CloudFront also the error message confirms to same S3 exception format
-          throw new S3Exception(err)
+          val exp = new S3Exception(err)
+          if (isMissingKeyException(exp)) None else throw exp
         }
     }
+  }
 
   override protected[core] def deleteAttachments(docId: DocId)(implicit transid: TransactionId): Future[Boolean] = {
     val start =
@@ -193,15 +200,9 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
         DATABASE_ATTS_DELETE,
         s"[ATT_DELETE] deleting attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
 
-    //S3 provides API to delete multiple objects in single call however alpakka client
-    //currently does not support that and also in current usage 1 docs has at most 1 attachment
-    //so current approach would also involve 2 remote calls
-    val f = client
-      .listBucket(bucket, Some(objectKeyPrefix(docId)))
-      .mapAsync(1) { bc =>
-        logging.info(this, s"[ATT_DELETE] deleting attachment '${bc.key}' of document 'id: $docId'")
-        client.deleteObject(bc.bucketName, bc.key)
-      }
+    val f = S3
+      .deleteObjectsByPrefix(bucket, Some(objectKeyPrefix(docId)))
+      .withAttributes(s3attributes)
       .runWith(Sink.seq)
       .map(_ => true)
 
@@ -219,8 +220,10 @@ class S3AttachmentStore(client: S3Client, bucket: String, prefix: String, urlSig
     val start =
       transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] deleting attachment '$name' of document 'id: $docId'")
 
-    val f = client
+    val f = S3
       .deleteObject(bucket, objectKey(docId, name))
+      .withAttributes(s3attributes)
+      .runWith(Sink.head)
       .map(_ => true)
 
     f.foreach(_ =>
