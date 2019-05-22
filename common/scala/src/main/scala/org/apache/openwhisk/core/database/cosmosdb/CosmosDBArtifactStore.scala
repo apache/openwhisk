@@ -27,7 +27,7 @@ import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
-import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
@@ -39,6 +39,7 @@ import spray.json._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 import scala.util.Success
 
 class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected val collName: String,
@@ -70,6 +71,11 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val getToken = createToken("get")
   private val queryToken = createToken("query")
   private val countToken = createToken("count")
+
+  private val documentsSizeToken = createUsageToken("documentsSize", MeasurementUnit.information.kilobytes)
+  private val indexSizeToken = createUsageToken("indexSize", MeasurementUnit.information.kilobytes)
+  private val documentCountToken = createUsageToken("documentCount")
+
   private val softDeleteTTL = config.softDeleteTTL.map(_.toSeconds.toInt)
 
   private val clusterIdValue = config.clusterId.map(JsString(_))
@@ -78,7 +84,12 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     this,
     s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}], " +
-      s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}], soft delete TTL [${config.softDeleteTTL}], Consistency Level [${config.consistencyLevel}]")
+      s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}], soft delete TTL [${config.softDeleteTTL}], " +
+      s"Consistency Level [${config.consistencyLevel}], Usage Metric Frequency [${config.recordUsageFrequency}]")
+
+  private val usageMetricRecorder = config.recordUsageFrequency.map { f =>
+    Scheduler.scheduleWaitAtLeast(f, 10.seconds)(() => recordResourceUsage())
+  }
 
   //Clone the returned instance as these are mutable
   def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
@@ -416,8 +427,34 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .getOrElse(Future.successful(true)) // For CosmosDB it is expected that the entire document is deleted.
 
   override def shutdown(): Unit = {
+    //Its async so a chance exist for next scheduled job to still trigger
+    usageMetricRecorder.foreach(system.stop)
     attachmentStore.foreach(_.shutdown())
     clientRef.close()
+  }
+
+  def getResourceUsage(): Future[Option[CollectionResourceUsage]] = {
+    val opts = new RequestOptions
+    opts.setPopulateQuotaInfo(true)
+    client
+      .readCollection(collection.getSelfLink, opts)
+      .head()
+      .map(rr => CollectionResourceUsage(rr.getResponseHeaders.asScala.toMap))
+  }
+
+  private def recordResourceUsage() = {
+    getResourceUsage().map { o =>
+      o.foreach { u =>
+        u.documentsCount.foreach(documentCountToken.gauge.set(_))
+        u.documentsSize.foreach(ds => documentsSizeToken.gauge.set(ds.toKB))
+        u.indexSize.foreach(is => indexSizeToken.gauge.set(is.toKB))
+        logging.info(this, s"Collection usage stats for [$collName] are ${u.asString}")
+        u.indexingProgress.foreach { i =>
+          if (i < 100) logging.info(this, s"Indexing for collection [$collName] is at $i%")
+        }
+      }
+      o
+    }
   }
 
   private def isNotFound[A <: DocumentAbstraction](e: DocumentClientException) =
@@ -506,6 +543,12 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val tags = Map("action" -> action, "mode" -> mode, "collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)(MeasurementUnit.none)
     else LogMarkerToken("cosmosdb", "ru", collName, Some(action))(MeasurementUnit.none)
+  }
+
+  private def createUsageToken(name: String, unit: MeasurementUnit = MeasurementUnit.none): LogMarkerToken = {
+    val tags = Map("collection" -> collName)
+    if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "used", tags = tags)(unit)
+    else LogMarkerToken("cosmosdb", name, collName)(unit)
   }
 
   private def isSoftDeleted(doc: Document) = doc.getBoolean(deleted) == true

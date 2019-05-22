@@ -117,6 +117,15 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     js.get.fields(CosmosDBConstants.clusterId) shouldBe JsString("foo")
   }
 
+  it should "fetch collection usage info" in {
+    val uopt = activationStore.getResourceUsage().futureValue
+    uopt shouldBe defined
+    val u = uopt.get
+    println(u.asString)
+    u.documentsCount shouldBe defined
+    u.documentsSize shouldBe defined
+  }
+
   behavior of "CosmosDB query debug"
 
   it should "log query metrics in debug flow" in {
