@@ -14,10 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-# FROM adoptopenjdk/openjdk11:alpine-slim
-FROM adoptopenjdk/openjdk11@sha256:3fbc3bbd88dac2a4049668951f25cdfdd7271de7fd66bbe3e78d26606ed9ed18
+FROM adoptopenjdk/openjdk11:x86_64-alpine-jdk-11.0.3_7
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
