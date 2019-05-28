@@ -35,5 +35,5 @@ trait StreamLogging {
   lazy val printstream = new PrintStream(stream)
   implicit lazy val logging: Logging = new PrintStreamLogging(printstream)
 
-  def logLines = new String(stream.toByteArray, StandardCharsets.UTF_8).lines.toList
+  def logLines = new String(stream.toByteArray, StandardCharsets.UTF_8).linesIterator.toList
 }

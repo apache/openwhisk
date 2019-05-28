@@ -887,7 +887,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             status should be(NotFound)
             confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
             // ensure that error message is pretty printed as { error, code }
-            responseAs[String].lines should have size 4
+            responseAs[String].linesIterator should have size 4
           }
         }
       }
