@@ -709,7 +709,7 @@ class CliNamespaceOperations(override val wsk: RunCliCmd)
    */
   override def whois()(implicit wskprops: WskProps): String = {
     // the invariant that list() returns a conforming result is enforced in WskRestBasicTests
-    val ns = list().stdout.lines.toSeq.last.trim
+    val ns = list().stdout.linesIterator.toSeq.last.trim
     assert(ns != "_") // this is not permitted
     ns
   }

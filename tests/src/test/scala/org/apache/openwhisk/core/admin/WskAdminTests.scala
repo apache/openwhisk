@@ -133,7 +133,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
         // reverse lookup by namespace
         val out = wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim
         out should include(auth.compact)
-        out.lines should have size 2
+        out.linesIterator should have size 2
       }, 10, Some(1.second))
 
       // block the user
@@ -141,7 +141,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
 
       // wait until the user can no longer be found
       org.apache.openwhisk.utils.retry({
-        wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim.lines should have size 1
+        wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim.linesIterator should have size 1
       }, 10, Some(1.second))
 
       // unblock the user
@@ -151,7 +151,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
       org.apache.openwhisk.utils.retry({
         val out = wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim
         out should include(auth.compact)
-        out.lines should have size 2
+        out.linesIterator should have size 2
       }, 10, Some(1.second))
     } finally {
       wskadmin.cli(Seq("user", "delete", subject1)).stdout should include("Subject deleted")
@@ -220,7 +220,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
           "--concurrentInvocations",
           "3"))
       // check correctly set
-      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.linesIterator.toSeq
       lines should have size 3
       lines(0) shouldBe "invocationsPerMinute = 1"
       lines(1) shouldBe "firesPerMinute = 2"
@@ -236,7 +236,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
       // set limit
       wskadmin.cli(Seq("limits", "set", subject, "--storeActivations", "false"))
       // check correctly set
-      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.linesIterator.toSeq
       lines should have size 1
       lines(0) shouldBe "storeActivations = False"
     } finally {
@@ -250,7 +250,7 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
       // set some limits
       wskadmin.cli(Seq("limits", "set", subject, "--allowedKinds", "nodejs:6", "blackbox"))
       // check correctly set
-      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+      val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.linesIterator.toSeq
       lines should have size 1
       lines(0) shouldBe "allowedKinds = [u'nodejs:6', u'blackbox']"
     } finally {
