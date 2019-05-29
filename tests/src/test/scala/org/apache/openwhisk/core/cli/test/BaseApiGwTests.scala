@@ -22,7 +22,6 @@ import java.time.Instant
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-import scala.math.max
 
 import org.junit.runner.RunWith
 
@@ -56,29 +55,10 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
   // Custom CLI properties file
   val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
 
-  /**
-   * Expected to be called before each action invocation to
-   * settle the throttle when there isn't enough capacity to handle the test.
-   */
-  def checkThrottle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin, throttlePercent: Int = 50) = {
-    val t = Instant.now
-    val tminus60 = t.minusSeconds(60)
-    val invocationsLast60Seconds = invocationTimes.filter(_.isAfter(tminus60)).sorted
-    val invocationCount = invocationsLast60Seconds.length
-    println(s"Action invokes within last minute: ${invocationCount}")
-
-    if (invocationCount >= maxInvocationsBeforeThrottle && throttlePercent >= 1) {
-      val numInvocationsToClear = max(invocationCount / (100 / throttlePercent), 1)
-      val invocationToClear = invocationsLast60Seconds(numInvocationsToClear - 1)
-      println(
-        s"throttling ${throttlePercent}% of action invocations within last minute = ($numInvocationsToClear) invocations")
-      val throttleTime = 60.seconds.toMillis - (t.toEpochMilli - invocationToClear.toEpochMilli)
-
-      println(s"Waiting ${throttleTime} milliseconds to settle the throttle")
-      Thread.sleep(throttleTime)
-    }
-
-    invocationTimes += Instant.now
+  def throttle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin) = {
+    val throttleTime = (60.seconds.toMillis / maxInvocationsBeforeThrottle * 1.1).toInt
+    println(s"Waiting ${throttleTime} milliseconds to settle the throttle")
+    Thread.sleep(throttleTime)
   }
 
   override def beforeEach() = {
@@ -89,6 +69,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
    * Create a CLI properties file for use by the tests
    */
   override def beforeAll() = {
+    throttle(maxInvocationsBeforeThrottle = 1)
     cliWskPropsFile.deleteOnExit()
     val wskprops = WskProps(token = "SOME TOKEN")
     wskprops.writeFile(cliWskPropsFile)
@@ -101,7 +82,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
    */
   override def afterAll() = {
     // Check and settle the throttle so that this test won't cause issues with any follow on tests
-    checkThrottle(maxInvocationsBeforeThrottle = 1, throttlePercent = 100)
+    throttle(maxInvocationsBeforeThrottle = 1)
   }
 
   def apiCreate(basepath: Option[String] = None,
@@ -115,7 +96,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
                 cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()))(
     implicit wskpropsOverride: WskProps): RunResult = {
 
-    checkThrottle()
+    throttle()
     wsk.api.create(basepath, relpath, operation, action, apiname, swagger, responsetype, expectedExitCode, cliCfgFile)(
       wskpropsOverride)
   }
@@ -130,7 +111,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
               expectedExitCode: Int = SUCCESS_EXIT,
               cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
 
-    checkThrottle()
+    throttle()
     wsk.api.list(basepathOrApiName, relpath, operation, limit, since, full, nameSort, expectedExitCode, cliCfgFile)
   }
 
@@ -140,7 +121,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
              cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()),
              format: Option[String] = None): RunResult = {
 
-    checkThrottle()
+    throttle()
     wsk.api.get(basepathOrApiName, full, expectedExitCode, cliCfgFile, format)
   }
 
@@ -150,7 +131,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
                 expectedExitCode: Int = SUCCESS_EXIT,
                 cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
 
-    checkThrottle()
+    throttle()
     wsk.api.delete(basepathOrApiName, relpath, operation, expectedExitCode, cliCfgFile)
   }
 }
