@@ -68,6 +68,15 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
       TestReporter
         .counter(activationMetric)
         .get
+        .tags("kind") shouldBe "nodejs:6"
+      TestReporter
+        .counter(activationMetric)
+        .get
+        .tags("memory") shouldBe "256"
+
+      TestReporter
+        .counter(activationMetric)
+        .get
         .tags
         .find(_._2 == "whisk.system")
         .size shouldBe 1
