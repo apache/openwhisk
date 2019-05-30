@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import com.jayway.restassured.RestAssured
+import io.restassured.RestAssured
 import common.StreamLogging
 import spray.json._
 import spray.json.DefaultJsonProtocol._

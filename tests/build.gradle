@@ -185,7 +185,7 @@ dependencies {
     compile 'org.apache.httpcomponents:httpclient:4.5.2:tests'
     compile 'org.apache.httpcomponents:httpmime:4.3.6'
     compile 'junit:junit:4.11'
-    compile 'com.jayway.restassured:rest-assured:2.6.0'
+    compile 'io.rest-assured:rest-assured:4.0.0'
     compile 'org.scalatest:scalatest_2.12:3.0.5'
     compile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
     compile 'com.google.code.gson:gson:2.3.1'

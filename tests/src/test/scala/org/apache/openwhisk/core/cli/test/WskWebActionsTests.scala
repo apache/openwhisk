@@ -24,8 +24,8 @@ import scala.util.Failure
 import scala.util.Try
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import com.jayway.restassured.RestAssured
-import com.jayway.restassured.response.Header
+import io.restassured.RestAssured
+import io.restassured.http.Header
 import common._
 import common.rest.WskRestOperations
 import spray.json._
