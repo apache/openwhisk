@@ -24,8 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
-import net.bytebuddy.dynamic.DynamicType.Builder.MethodDefinition.ParameterDefinition.Simple.Annotatable
-import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
+import org.apache.openwhisk.core.entity.{Annotations}
 import org.apache.commons.io.FileUtils
 import spray.json._
 import spray.json.DefaultJsonProtocol._
