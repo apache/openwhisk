@@ -192,7 +192,7 @@ dependencies {
     compile 'org.scalamock:scalamock-scalatest-support_2.12:3.6.0'
     compile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
-    compile "org.mockito:mockito-core:2.15.0"
+    compile "org.mockito:mockito-core:2.27.0"
     compile 'io.opentracing:opentracing-mock:0.31.0'
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
     compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'

@@ -26,6 +26,7 @@ import spray.json._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
+import org.apache.openwhisk.common.WhiskInstants._
 
 import scala.util.Try
 
@@ -87,7 +88,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
 
     //tracing support
     WhiskTracerProvider.tracer.startSpan(marker, this)
-    StartMarker(Instant.now, marker)
+    StartMarker(Instant.now.inMills, marker)
   }
 
   /**
@@ -186,7 +187,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
  * @param start the time when the startMarker was set
  * @param startMarker the LogMarkerToken which defines the start event
  */
-case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
+case class StartMarker(start: Instant, startMarker: LogMarkerToken)
 
 /**
  * The transaction metadata encapsulates important properties about a transaction.
@@ -196,7 +197,7 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false)
+protected case class TransactionMetadata(id: String, start: Instant, extraLogging: Boolean = false)
 
 case class MetricConfig(prometheusEnabled: Boolean,
                         kamonEnabled: Boolean,
@@ -226,7 +227,7 @@ object TransactionId {
   val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
 
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
-    val now = Instant.now(Clock.systemUTC())
+    val now = Instant.now(Clock.systemUTC()).inMills
     TransactionId(TransactionMetadata(tid, now, extraLogging))
   }
 

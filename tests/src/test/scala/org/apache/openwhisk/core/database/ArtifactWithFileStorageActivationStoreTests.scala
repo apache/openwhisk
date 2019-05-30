@@ -31,7 +31,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
 
@@ -46,7 +46,8 @@ class ArtifactWithFileStorageActivationStoreTests()
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures
-    with StreamLogging {
+    with StreamLogging
+    with WhiskInstants {
 
   implicit val transid: TransactionId = TransactionId.testing
   implicit val notifier: Option[CacheChangeNotification] = None
@@ -134,8 +135,8 @@ class ArtifactWithFileStorageActivationStoreTests()
             name = EntityName("name"),
             subject = subject,
             activationId = ActivationId.generate(),
-            start = Instant.now,
-            end = Instant.now,
+            start = Instant.now.inMills,
+            end = Instant.now.inMills,
             response = response,
             logs = logs,
             duration = Some(101L),
@@ -185,8 +186,8 @@ class ArtifactWithFileStorageActivationStoreTests()
             name = EntityName("name"),
             subject = subject,
             activationId = ActivationId.generate(),
-            start = Instant.now,
-            end = Instant.now,
+            start = Instant.now.inMills,
+            end = Instant.now.inMills,
             response = response,
             logs = logs,
             duration = Some(101L),
