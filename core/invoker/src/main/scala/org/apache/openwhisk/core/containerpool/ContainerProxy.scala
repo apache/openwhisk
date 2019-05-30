@@ -42,21 +42,13 @@ import scala.util.{Failure, Success}
 
 // States
 sealed trait ContainerState
-
 case object Uninitialized extends ContainerState
-
 case object Starting extends ContainerState
-
 case object Started extends ContainerState
-
 case object Running extends ContainerState
-
 case object Ready extends ContainerState
-
 case object Pausing extends ContainerState
-
 case object Paused extends ContainerState
-
 case object Removing extends ContainerState
 
 // Data
@@ -69,7 +61,8 @@ sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: Byte
   /**
    * Return Some(container) (for ContainerStarted instances) or None(for ContainerNotStarted instances)
    * Useful for cases where all ContainerData instances are handled, vs cases where only ContainerStarted
-   * instances are handled */
+   * instances are handled
+   */
   def getContainer: Option[Container]
 
   /** String to indicate the state of this container after scheduling */
