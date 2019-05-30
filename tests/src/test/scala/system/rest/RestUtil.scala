@@ -39,6 +39,7 @@ trait RestUtil {
     val inner = new SSLConfig().allowAllHostnames()
     val config = if (!skipKeyStore && trustStorePassword != null) {
       inner.keyStore("keystore", trustStorePassword)
+      inner.trustStore("keystore", trustStorePassword)
     } else {
       inner.relaxedHTTPSValidation()
     }
