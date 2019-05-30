@@ -33,7 +33,7 @@ import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
@@ -173,7 +173,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                               "name" -> JsString("paramName2"),
                                               "description" -> JsString("Parameter description 2")))),
                                         JsObject(
-                                          "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                          "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
                                           "value" -> JsBoolean(false)))
                                     } else {
                                       JsArray(
@@ -406,7 +406,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         .toJson shouldBe (if (requireAPIKeyAnnotation) {
                             JsArray(
                               JsObject(
-                                "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
                                 "value" -> JsBoolean(false)))
                           } else {
                             JsArray()
@@ -539,7 +539,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                          "name" -> JsString("paramName2"),
                                          "description" -> JsString("Parameter description 2")))),
                                    JsObject(
-                                     "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
+                                     "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
                                      "value" -> JsBoolean(false)))
                                } else {
                                  JsArray(

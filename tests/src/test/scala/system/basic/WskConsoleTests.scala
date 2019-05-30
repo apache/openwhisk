@@ -23,10 +23,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.MILLISECONDS
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
 import common.TestUtils
 import common.WskOperations
@@ -34,8 +32,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
 
 /**
  * Tests of the text console
@@ -93,7 +90,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("countdown.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsBoolean(true)))
     }
 
     val count = 3

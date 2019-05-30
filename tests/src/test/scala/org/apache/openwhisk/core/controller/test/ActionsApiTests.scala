@@ -1381,7 +1381,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "not invoke an action when final parameters are redefined" in {
     implicit val tid = transid()
-    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsTrue)
+    val annotations = Parameters(Annotations.FinalParamsAnnotationName, JsTrue)
     val parameters = Parameters("a", "A") ++ Parameters("empty", JsNull)
     val action = WhiskAction(namespace, aname(), jsDefault("??"), parameters = parameters, annotations = annotations)
     put(entityStore, action)
@@ -1707,19 +1707,19 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 @RunWith(classOf[JUnitRunner])
 class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
   import WhiskActionsApi.amendAnnotations
-  import WhiskAction.provideApiKeyAnnotationName
+  import Annotations.ProvideApiKeyAnnotationName
   import WhiskAction.execFieldName
 
   val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
-  val keyTruthyAnnotation = Parameters(provideApiKeyAnnotationName, JsBoolean(true))
-  val keyFalsyAnnotation = Parameters(provideApiKeyAnnotationName, JsString("")) // falsy other than JsBoolean(false)
+  val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsBoolean(true))
+  val keyFalsyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsString("")) // falsy other than JsBoolean(false)
   val execAnnotation = Parameters(execFieldName, JsString("foo"))
   val exec: Exec = jsDefault("??")
 
   it should "add key annotation if it is not present already" in {
     Seq(Parameters(), baseParams).foreach { p =>
       amendAnnotations(p, exec) shouldBe {
-        p ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++
+        p ++ Parameters(ProvideApiKeyAnnotationName, JsBoolean(false)) ++
           Parameters(WhiskAction.execFieldName, exec.kind)
       }
     }
@@ -1735,7 +1735,7 @@ class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
 
   it should "override system annotation as necessary" in {
     amendAnnotations(baseParams ++ execAnnotation, exec) shouldBe {
-      baseParams ++ Parameters(provideApiKeyAnnotationName, JsBoolean(false)) ++ Parameters(
+      baseParams ++ Parameters(ProvideApiKeyAnnotationName, JsBoolean(false)) ++ Parameters(
         WhiskAction.execFieldName,
         exec.kind)
     }
