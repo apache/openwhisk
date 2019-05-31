@@ -18,7 +18,7 @@
 package system.basic
 
 import java.io.File
-import com.jayway.restassured.RestAssured
+import io.restassured.RestAssured
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 

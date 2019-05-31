@@ -20,7 +20,7 @@ package system.basic
 import java.time.Instant
 import java.util.Date
 
-import com.jayway.restassured.RestAssured
+import io.restassured.RestAssured
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
