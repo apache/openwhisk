@@ -78,9 +78,7 @@ case class WhiskActionPut(exec: Option[Exec] = None,
 
 abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name, "action") {
   def exec: Exec
-
   def parameters: Parameters
-
   def limits: ActionLimits
 
   /** @return true iff action has appropriate annotation. */
@@ -117,13 +115,13 @@ abstract class WhiskActionLikeMetaData(override val name: EntityName) extends Wh
  * The WhiskAction object is used as a helper to adapt objects between
  * the schema used by the database and the WhiskAction abstraction.
  *
- * @param namespace  the namespace for the action
- * @param name       the name of the action
- * @param exec       the action executable details
+ * @param namespace the namespace for the action
+ * @param name the name of the action
+ * @param exec the action executable details
  * @param parameters the set of parameters to bind to the action environment
- * @param limits     the limits to impose on the action
- * @param version    the semantic version
- * @param publish    true to share the action or false otherwise
+ * @param limits the limits to impose on the action
+ * @param version the semantic version
+ * @param publish true to share the action or false otherwise
  * @param annotation the set of annotations to attribute to the action
  * @throws IllegalArgumentException if any argument is undefined
  */
@@ -259,15 +257,15 @@ case class WhiskActionMetaData(namespace: EntityPath,
  * That means creating an action, invoking it, then deleting/recreating/reinvoking
  * it will reuse the previous container. The delete/recreate restores the SemVer to 0.0.1.
  *
- * @param namespace  the namespace for the action
- * @param name       the name of the action
- * @param exec       the action executable details
+ * @param namespace the namespace for the action
+ * @param name the name of the action
+ * @param exec the action executable details
  * @param parameters the set of parameters to bind to the action environment
- * @param limits     the limits to impose on the action
- * @param version    the semantic version
- * @param publish    true to share the action or false otherwise
+ * @param limits the limits to impose on the action
+ * @param version the semantic version
+ * @param publish true to share the action or false otherwise
  * @param annotation the set of annotations to attribute to the action
- * @param binding    the path of the package binding if any
+ * @param binding the path of the package binding if any
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -427,7 +425,6 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         name == attached.attachmentName,
         s"Attachment name '${attached.attachmentName}' does not match the expected name '$name'")
     }
-
     val eu = action.exec match {
       case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _, _) =>
         checkName(attachmentName)
