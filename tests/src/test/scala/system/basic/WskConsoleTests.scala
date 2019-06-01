@@ -32,7 +32,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
+import org.apache.openwhisk.core.entity.Annotations
 
 /**
  * Tests of the text console

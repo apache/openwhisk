@@ -33,7 +33,7 @@ import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
+import org.apache.openwhisk.core.entity.Annotations
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])

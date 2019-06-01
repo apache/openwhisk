@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
-import org.apache.openwhisk.core.entity.{Annotations, WhiskAction}
+import org.apache.openwhisk.core.entity.Annotations
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.core.FeatureFlags
 import spray.json._

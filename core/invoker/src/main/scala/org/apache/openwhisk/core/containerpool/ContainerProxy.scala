@@ -55,14 +55,13 @@ case object Removing extends ContainerState
 /** Base data type */
 sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: ByteSize, val activeActivationCount: Int) {
 
-  /** When ContainerProxy in this state is scheduled, it may result in a new state (ContainerData) */
+  /** When ContainerProxy in this state is scheduled, it may result in a new state (ContainerData)*/
   def nextRun(r: Run): ContainerData
 
   /**
-   * Return Some(container) (for ContainerStarted instances) or None(for ContainerNotStarted instances)
-   * Useful for cases where all ContainerData instances are handled, vs cases where only ContainerStarted
-   * instances are handled
-   */
+   *  Return Some(container) (for ContainerStarted instances) or None(for ContainerNotStarted instances)
+   *  Useful for cases where all ContainerData instances are handled, vs cases where only ContainerStarted
+   *  instances are handled */
   def getContainer: Option[Container]
 
   /** String to indicate the state of this container after scheduling */
@@ -78,7 +77,6 @@ sealed abstract class ContainerNotStarted(override val lastUsed: Instant,
                                           override val activeActivationCount: Int)
     extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
   override def getContainer = None
-
   override val initingState = "cold"
 }
 
@@ -95,7 +93,6 @@ sealed abstract class ContainerStarted(val container: Container,
 sealed abstract trait ContainerInUse {
   val activeActivationCount: Int
   val action: ExecutableWhiskAction
-
   def hasCapacity() =
     activeActivationCount < action.limits.concurrency.maxConcurrent
 }
@@ -127,7 +124,6 @@ case class PreWarmedData(override val container: Container,
     extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount)
     with ContainerNotInUse {
   override val initingState = "prewarmed"
-
   override def nextRun(r: Run) =
     WarmingData(container, r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
@@ -141,7 +137,6 @@ case class WarmingData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warming"
-
   override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
@@ -153,7 +148,6 @@ case class WarmingColdData(invocationNamespace: EntityName,
     extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmingCold"
-
   override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
@@ -166,28 +160,21 @@ case class WarmedData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmed"
-
   override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
 }
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
-
 case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
-
 case object Remove
 
 // Events sent by the actor
 case class NeedWork(data: ContainerData)
-
 case object ContainerPaused
-
 case object ContainerRemoved // when container is destroyed
 case object RescheduleJob // job is sent back to parent and could not be processed because container is being destroyed
 case class PreWarmCompleted(data: PreWarmedData)
-
 case class InitCompleted(data: WarmedData)
-
 case object RunCompleted
 
 /**
@@ -197,34 +184,34 @@ case object RunCompleted
  *
  * The contract is as follows:
  * 1. If action.limits.concurrency.maxConcurrent == 1:
- * Only one job is to be sent to the ContainerProxy at one time. ContainerProxy
- * will delay all further jobs until a previous job has finished.
+ *    Only one job is to be sent to the ContainerProxy at one time. ContainerProxy
+ *    will delay all further jobs until a previous job has finished.
  *
- * 1a. The next job can be sent to the ContainerProxy after it indicates available
- * capacity by sending NeedWork to its parent.
+ *    1a. The next job can be sent to the ContainerProxy after it indicates available
+ *       capacity by sending NeedWork to its parent.
  *
  * 2. If action.limits.concurrency.maxConcurrent > 1:
- * Parent must coordinate with ContainerProxy to attempt to send only data.action.limits.concurrency.maxConcurrent
- * jobs for concurrent processing.
+ *    Parent must coordinate with ContainerProxy to attempt to send only data.action.limits.concurrency.maxConcurrent
+ *    jobs for concurrent processing.
  *
- * Since the current job count is only periodically sent to parent, the number of jobs
- * sent to ContainerProxy may exceed data.action.limits.concurrency.maxConcurrent,
- * in which case jobs are buffered, so that only a max of action.limits.concurrency.maxConcurrent
- * are ever sent into the container concurrently. Parent will NOT be signalled to send more jobs until
- * buffered jobs are completed, but their order is not guaranteed.
+ *    Since the current job count is only periodically sent to parent, the number of jobs
+ *    sent to ContainerProxy may exceed data.action.limits.concurrency.maxConcurrent,
+ *    in which case jobs are buffered, so that only a max of action.limits.concurrency.maxConcurrent
+ *    are ever sent into the container concurrently. Parent will NOT be signalled to send more jobs until
+ *    buffered jobs are completed, but their order is not guaranteed.
  *
- * 2a. The next job can be sent to the ContainerProxy after ContainerProxy has "concurrent capacity",
- * indicated by sending NeedWork to its parent.
+ *    2a. The next job can be sent to the ContainerProxy after ContainerProxy has "concurrent capacity",
+ *        indicated by sending NeedWork to its parent.
  *
  * 3. A Remove message can be sent at any point in time. Like multiple jobs though,
- * it will be delayed until the currently running job finishes.
+ *    it will be delayed until the currently running job finishes.
  *
  * @constructor
- * @param factory         a function generating a Container
- * @param sendActiveAck   a function sending the activation via active ack
+ * @param factory a function generating a Container
+ * @param sendActiveAck a function sending the activation via active ack
  * @param storeActivation a function storing the activation in a persistent store
- * @param unusedTimeout   time after which the container is automatically thrown away
- * @param pauseGrace      time to wait for new work before pausing the container
+ * @param unusedTimeout time after which the container is automatically thrown away
+ * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
@@ -548,7 +535,7 @@ class ContainerProxy(
    * 4. recording the result to the data store
    *
    * @param container the container to run the job on
-   * @param job       the job to run
+   * @param job the job to run
    * @return a future completing after logs have been collected and
    *         added to the WhiskActivation
    */
@@ -730,7 +717,7 @@ object ContainerProxy {
   /**
    * Creates a WhiskActivation ready to be sent via active ack.
    *
-   * @param job      the job that was executed
+   * @param job the job that was executed
    * @param interval the time it took to execute the job
    * @param response the response to return to the user
    * @return a WhiskActivation to be sent to the user
