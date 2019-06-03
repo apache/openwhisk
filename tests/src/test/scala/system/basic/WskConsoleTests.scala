@@ -23,8 +23,10 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.MILLISECONDS
 import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+
 import common.TestHelpers
 import common.TestUtils
 import common.WskOperations
