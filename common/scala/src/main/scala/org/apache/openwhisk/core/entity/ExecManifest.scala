@@ -143,7 +143,10 @@ protected[core] object ExecManifest {
    * An image name for an action refers to the container image canonically as
    * "prefix/name[:tag]" e.g., "openwhisk/python3action:latest".
    */
-  protected[core] case class ImageName(name: String, registry: Option[String] = None, prefix: Option[String] = None, tag: Option[String] = None) {
+  protected[core] case class ImageName(name: String,
+                                       registry: Option[String] = None,
+                                       prefix: Option[String] = None,
+                                       tag: Option[String] = None) {
 
     /**
      * The name of the public image for an action kind.
@@ -231,7 +234,9 @@ protected[core] object ExecManifest {
     private val portNumber = P(digits.rep(min = 1))
     // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
     private val domainComponent = P(alphaNumericWithUpper | "-").rep
-    private val domain = P((domainComponent.rep(min = 2, sep = ".") ~ (":" ~ portNumber).?)|(domainComponent.rep(min = 1, sep = ".") ~ ":" ~ portNumber))
+    private val domain = P(
+      (domainComponent
+        .rep(min = 2, sep = ".") ~ (":" ~ portNumber).?) | (domainComponent.rep(min = 1, sep = ".") ~ ":" ~ portNumber))
     private val name = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
 
     private val reference = P(Start ~ name ~ (":" ~ tag.!).? ~ ("@" ~ digest.!).? ~ End)
