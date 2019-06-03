@@ -59,6 +59,7 @@ Follow instructions [tools/db/README.md](../db/README.md) on how to configure a 
   cd <home_openwhisk>
   ./gradlew distDocker
   ```
+If your build fails with 'Exception in thread "main" javax.net.ssl.SSLException: java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty', you might need to run 'sudo update-ca-certificates -f'.
 
 ## Deploy
 

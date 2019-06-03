@@ -20,8 +20,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 import java.util.Collections
 
 import com.microsoft.azure.cosmosdb.DataType.{Number, String}
-import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
-import com.microsoft.azure.cosmosdb.IndexingMode.Lazy
+import com.microsoft.azure.cosmosdb.IndexKind.Range
 import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import org.apache.openwhisk.core.database.ActivationHandler.NS_PATH
 import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
@@ -137,9 +136,9 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
       includedPaths = Set(
-        IncludedPath(s"/$TYPE/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$computed/$ROOT_NS/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$TYPE/?", Index(Range, String, -1)),
+        IncludedPath(s"/$NS/?", Index(Range, String, -1)),
+        IncludedPath(s"/$computed/$ROOT_NS/?", Index(Range, String, -1)),
         IncludedPath(s"/$UPDATED/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
@@ -193,10 +192,9 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
 
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
-      mode = Lazy,
       includedPaths = Set(
-        IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$computed/$NS_PATH/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$NS/?", Index(Range, String, -1)),
+        IncludedPath(s"/$computed/$NS_PATH/?", Index(Range, String, -1)),
         IncludedPath(s"/$START/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
@@ -255,12 +253,12 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
     //and keys are bigger
     IndexingPolicy(
       includedPaths = Set(
-        IncludedPath(s"/$UUID/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$NSS/[]/$NAME/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$SUBJECT/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$NSS/[]/$UUID/?", Index(Hash, String, -1)),
-        IncludedPath(s"/$CONCURRENT_INVOCATIONS/?", Index(Hash, Number, -1)),
-        IncludedPath(s"/$INVOCATIONS_PER_MIN/?", Index(Hash, Number, -1))))
+        IncludedPath(s"/$UUID/?", Index(Range, String, -1)),
+        IncludedPath(s"/$NSS/[]/$NAME/?", Index(Range, String, -1)),
+        IncludedPath(s"/$SUBJECT/?", Index(Range, String, -1)),
+        IncludedPath(s"/$NSS/[]/$UUID/?", Index(Range, String, -1)),
+        IncludedPath(s"/$CONCURRENT_INVOCATIONS/?", Index(Range, Number, -1)),
+        IncludedPath(s"/$INVOCATIONS_PER_MIN/?", Index(Range, Number, -1))))
 
   override def prepareQuery(ddoc: String,
                             view: String,

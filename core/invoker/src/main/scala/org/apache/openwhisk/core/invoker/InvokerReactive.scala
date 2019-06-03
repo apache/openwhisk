@@ -20,7 +20,8 @@ package org.apache.openwhisk.core.invoker
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import akka.Done
+import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
@@ -104,7 +105,12 @@ class InvokerReactive(
           "--ulimit" -> Set("nofile=1024:1024"),
           "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
-  sys.addShutdownHook(containerFactory.cleanup())
+
+  CoordinatedShutdown(actorSystem)
+    .addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "cleanup runtime containers") { () =>
+      containerFactory.cleanup()
+      Future.successful(Done)
+    }
 
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()

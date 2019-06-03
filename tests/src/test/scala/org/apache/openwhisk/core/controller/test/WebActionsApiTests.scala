@@ -887,7 +887,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             status should be(NotFound)
             confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
             // ensure that error message is pretty printed as { error, code }
-            responseAs[String].lines should have size 4
+            responseAs[String].linesIterator should have size 4
           }
         }
       }
@@ -1481,7 +1481,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             responseAs[String] should (be("value1") or be("value2"))
           }
 
-          Post(s"$testRoutePath/$path", form.toEntity(HttpCharsets.`US-ASCII`)) ~> Route.seal(routes(creds)) ~> check {
+          Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             responseAs[String] should (be("value1") or be("value2"))
           }

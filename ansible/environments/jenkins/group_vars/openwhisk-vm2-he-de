@@ -37,3 +37,4 @@ limit_action_concurrency_max: 500
 limit_invocations_per_minute: 120
 
 invoker1_machine: openwhisk-vm1-he-de
+invoker_use_runc: false

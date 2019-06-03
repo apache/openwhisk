@@ -1894,6 +1894,7 @@
             "nodejs:6",
             "nodejs:8",
             "nodejs:10",
+            "nodejs:12",
             "nodejs:default",
             "php:7.3",
             "php:default",

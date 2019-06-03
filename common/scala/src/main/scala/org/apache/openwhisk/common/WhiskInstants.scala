@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package common
+package org.apache.openwhisk.common
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.PrintStreamLogging
-import java.nio.charset.StandardCharsets
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /**
- * Logging facility, that can be used by tests.
+ * JDK 11 Instant uses nano second precision by default. However OpenWhisk usage of Instant in
+ * many cases involves storing the timestamp in database which uses milli second precision.
  *
- * It contains the implicit Logging-instance, that is needed implicitly for some methods and classes.
- * the logger logs to the stream, that can be accessed from your test, to check if a specific message has been written.
+ * To ensure consistency below utilities can be used to truncate the Instant to millis
  */
-trait StreamLogging {
-  lazy val stream = new ByteArrayOutputStream
-  lazy val printstream = new PrintStream(stream)
-  implicit lazy val logging: Logging = new PrintStreamLogging(printstream)
+trait WhiskInstants {
 
-  def logLines = new String(stream.toByteArray, StandardCharsets.UTF_8).linesIterator.toList
+  implicit class InstantImplicits(i: Instant) {
+    def inMills = i.truncatedTo(ChronoUnit.MILLIS)
+  }
+
+  def nowInMillis(): Instant = Instant.now.truncatedTo(ChronoUnit.MILLIS)
+
 }
+
+object WhiskInstants extends WhiskInstants

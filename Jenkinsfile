@@ -53,7 +53,7 @@ timeout(time: 12, unit: 'HOURS') {
                         sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
                     }
 
-                    stage('Deploy') {
+                    stage('Deploy Lean') {
                         dir("ansible") {
                             // Copy the jenkins ansible configuration under the directory ansible. This can make sure the SSH is used to
                             // access the VMs of invokers by the VM of the controller.
@@ -77,10 +77,26 @@ timeout(time: 12, unit: 'HOURS') {
                             sh 'ansible-playbook -i environments/jenkins initdb.yml'
                             sh 'ansible-playbook -i environments/jenkins wipe.yml'
                             sh 'ansible-playbook -i environments/jenkins apigateway.yml'
-                            sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
+                            sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e lean=true'
                             sh 'ansible-playbook -i environments/jenkins properties.yml'
                             sh 'ansible-playbook -i environments/jenkins routemgmt.yml'
                             sh 'ansible-playbook -i environments/jenkins postdeploy.yml'
+                        }
+                    }
+
+                    try {
+                        stage('Test Lean Openwhisk') {
+                            sh './gradlew :tests:test --tests system.basic.WskRestBasicTests -DtestResultsDirName=test-lean-openwhisk'
+                        }
+                    } catch (exp) {
+                        println("Exception: " + exp)
+                        error(exp)
+                    }
+
+                    stage('Deploy full Openwhisk') {
+                        dir("ansible") {
+                            sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
+                            sh 'ansible-playbook -i environments/jenkins openwhisk.yml'
                         }
                     }
 
@@ -106,6 +122,11 @@ timeout(time: 12, unit: 'HOURS') {
                         println("Exception:" + exp)
                     }
 
+                } catch (exp) {
+                    println("Exception:" + exp)
+		    error(exp)
+                } finally {
+                    println("Executing finally block")
                     stage('Clean up') {
                         dir("ansible") {
                             sh 'ansible-playbook -i environments/jenkins openwhisk.yml -e mode=clean'
@@ -113,10 +134,6 @@ timeout(time: 12, unit: 'HOURS') {
                             sh 'ansible-playbook -i environments/jenkins couchdb.yml -e mode=clean'
                         }
                     }
-
-                } catch (exp) {
-                    println("Exception:" + exp)
-                } finally {
                     step([$class: 'JUnitResultArchiver', testResults: '**/test*/**/TEST-*.xml'])
                 }
             }

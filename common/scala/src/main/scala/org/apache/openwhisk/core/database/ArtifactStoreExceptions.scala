@@ -27,7 +27,13 @@ case class DocumentTypeMismatchException(message: String) extends ArtifactStoreE
 
 case class DocumentUnreadable(message: String) extends ArtifactStoreException(message)
 
+case class GetException(message: String) extends ArtifactStoreException(message)
+
 case class PutException(message: String) extends ArtifactStoreException(message)
+
+case class DeleteException(message: String) extends ArtifactStoreException(message)
+
+case class QueryException(message: String) extends ArtifactStoreException(message)
 
 sealed abstract class ArtifactStoreRuntimeException(message: String) extends RuntimeException(message)
 

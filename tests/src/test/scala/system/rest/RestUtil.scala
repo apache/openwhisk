@@ -20,9 +20,9 @@ package system.rest
 import akka.http.scaladsl.model.Uri
 
 import scala.util.Try
-import com.jayway.restassured.RestAssured
-import com.jayway.restassured.config.RestAssuredConfig
-import com.jayway.restassured.config.SSLConfig
+import io.restassured.RestAssured
+import io.restassured.config.RestAssuredConfig
+import io.restassured.config.SSLConfig
 import common.WhiskProperties
 import spray.json._
 
@@ -38,7 +38,8 @@ trait RestUtil {
   val sslconfig = {
     val inner = new SSLConfig().allowAllHostnames()
     val config = if (!skipKeyStore && trustStorePassword != null) {
-      inner.keystore("keystore", trustStorePassword)
+      inner.keyStore("keystore", trustStorePassword)
+      inner.trustStore("keystore", trustStorePassword)
     } else {
       inner.relaxedHTTPSValidation()
     }

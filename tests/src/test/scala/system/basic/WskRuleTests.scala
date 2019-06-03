@@ -385,7 +385,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
   def verifyRuleList(ruleListResult: RunResult, ruleNameEnable: String, ruleName: String) = {
     val ruleList = ruleListResult.stdout
-    val listOutput = ruleList.lines
+    val listOutput = ruleList.linesIterator
     listOutput.find(_.contains(ruleNameEnable)).get should (include(ruleNameEnable) and include("active"))
     listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
     ruleList should not include "Unknown"

@@ -31,10 +31,10 @@ whisk {
         }
         common {
           security-protocol: {{ kafka.protocol }}
-          ssl-truststore-location: {{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}
-          ssl-truststore-password: {{ kafka.ssl.keystore.password }}
-          ssl-keystore-location: {{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}
-          ssl-keystore-password: {{ kafka.ssl.keystore.password }}
+          ssl-truststore-location: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
+          ssl-truststore-password: "{{ kafka.ssl.keystore.password }}"
+          ssl-keystore-location: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
+          ssl-keystore-password: "{{ kafka.ssl.keystore.password }}"
         }
         consumer {
           max-poll-interval-ms: 10000

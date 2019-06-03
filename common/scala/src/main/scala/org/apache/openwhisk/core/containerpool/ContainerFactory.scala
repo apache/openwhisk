@@ -24,6 +24,7 @@ import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstance
 import org.apache.openwhisk.spi.Spi
 
 import scala.concurrent.Future
+import scala.math.max
 
 case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
@@ -44,7 +45,8 @@ case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Doubl
    */
   private val totalShare = 1024.0 // This is a pre-defined value coming from docker and not our hard-coded value.
   // Grant more CPU to a container if it allocates more memory.
-  def cpuShare(reservedMemory: ByteSize) = (totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt
+  def cpuShare(reservedMemory: ByteSize) =
+    max((totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt, 2) // The minimum allowed cpu-shares is 2
 }
 
 case class RuntimesRegistryCredentials(user: String, password: String)

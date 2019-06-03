@@ -22,7 +22,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import com.jayway.restassured.RestAssured
+import io.restassured.RestAssured
 
 import common.WhiskProperties
 

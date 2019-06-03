@@ -150,8 +150,8 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
       EntityName("activation1"),
       Subject(),
       ActivationId.generate(),
-      start = Instant.now,
-      end = Instant.now)
+      start = Instant.now.inMills,
+      end = Instant.now.inMills)
     val activationDoc = put(activationStore, activation)
     val activationFromDb = activationStore.get[WhiskActivation](activationDoc).futureValue
     activationFromDb shouldBe activation

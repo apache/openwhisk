@@ -137,6 +137,7 @@ object WhiskActivation
 
   /** Some field names for annotations */
   val pathAnnotation = "path"
+  val bindingAnnotation = "binding"
   val kindAnnotation = "kind"
   val limitsAnnotation = "limits"
   val topmostAnnotation = "topmost"

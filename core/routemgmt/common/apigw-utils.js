@@ -287,7 +287,7 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
 /**
  * Return an array of APIs
  */
-function getApis(gwInfo, spaceGuid, bpOrApiName) {
+function getApis(gwInfo, spaceGuid, bpOrApiName, limit, skip) {
   var qsBasepath = { 'basePath' : bpOrApiName };
   var qsApiName = { 'title' : bpOrApiName };
   var qs;
@@ -302,7 +302,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
   }
   var options = {
     followAllRedirects: true,
-    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis',
+    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis?limit='+limit+'&skip='+skip,
     headers: {
       'Accept': 'application/json',
       'User-Agent': UserAgent

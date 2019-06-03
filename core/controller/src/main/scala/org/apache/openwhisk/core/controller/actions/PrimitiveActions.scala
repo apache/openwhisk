@@ -170,7 +170,7 @@ protected[actions] trait PrimitiveActions {
 
     val message = ActivationMessage(
       transid,
-      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
+      FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
       action.rev,
       user,
       activationId, // activation id created here
@@ -539,6 +539,10 @@ protected[actions] trait PrimitiveActions {
       Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE))
     }
 
+    // set binding if invoked action is in a package binding
+    val binding =
+      session.action.binding.map(f => Parameters(WhiskActivation.bindingAnnotation, JsString(f.asString)))
+
     val end = Instant.now(Clock.systemUTC())
 
     // create the whisk activation
@@ -558,7 +562,7 @@ protected[actions] trait PrimitiveActions {
         Parameters(WhiskActivation.pathAnnotation, JsString(session.action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
         Parameters(WhiskActivation.conductorAnnotation, JsTrue) ++
-        causedBy ++
+        causedBy ++ binding ++
         sequenceLimits,
       duration = Some(session.duration))
 

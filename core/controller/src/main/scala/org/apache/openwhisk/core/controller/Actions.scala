@@ -23,12 +23,10 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import org.apache.kafka.common.errors.RecordTooLargeException
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -173,14 +171,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             onComplete(entitlementProvider.check(user, right, packageResource)) {
               case Success(_) =>
                 getEntity(WhiskPackage.get(entityStore, packageDocId), Some {
-                  if (right == Privilege.READ || right == Privilege.ACTIVATE) {
-                    // need to merge package with action, hence authorize subject for package
-                    // access (if binding, then subject must be authorized for both the binding
-                    // and the referenced package)
-                    //
-                    // NOTE: it is an error if either the package or the action does not exist,
-                    // the former manifests as unauthorized and the latter as not found
-                    mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
+                  if (right == Privilege.READ || right == Privilege.ACTIVATE) { wp: WhiskPackage =>
+                    val actionResource = Resource(wp.fullPath, collection, Some(innername))
+                    dispatchOp(user, right, actionResource)
+
                   } else {
                     // these packaged action operations do not need merging with the package,
                     // but may not be permitted if this is a binding, or if the subject does
@@ -253,7 +247,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'result ? false,
       'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
       entity(as[Option[JsObject]]) { payload =>
-        getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some {
+        getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
           act: WhiskActionMetaData =>
             // resolve the action --- special case for sequences that may contain components with '_' as default package
             val action = act.resolve(user.namespace)
@@ -355,18 +349,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('code ? true) { code =>
       code match {
         case true =>
-          getEntity(WhiskAction.get(entityStore, entityName.toDocId), Some { action: WhiskAction =>
+          getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some { action: WhiskAction =>
             val mergedAction = env map {
               action inherit _
             } getOrElse action
             complete(OK, mergedAction)
           })
         case false =>
-          getEntity(WhiskActionMetaData.get(entityStore, entityName.toDocId), Some { action: WhiskActionMetaData =>
-            val mergedAction = env map {
-              action inherit _
-            } getOrElse action
-            complete(OK, mergedAction)
+          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+            action: WhiskActionMetaData =>
+              val mergedAction = env map {
+                action inherit _
+              } getOrElse action
+              complete(OK, mergedAction)
           })
       }
     }
@@ -593,38 +588,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       // list actions in resolved namespace
       list(user, pkgns)
     })
-  }
-
-  /**
-   * Constructs a WhiskPackage that is a merger of a package with its packing binding (if any).
-   * This resolves a reference versus an actual package and merge parameters as needed.
-   * Once the package is resolved, the operation is dispatched to the action in the package
-   * namespace.
-   */
-  private def mergeActionWithPackageAndDispatch(method: HttpMethod,
-                                                user: Identity,
-                                                action: EntityName,
-                                                ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
-    implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-    wp.binding map {
-      case b: Binding =>
-        val docid = b.fullyQualifiedName.toDocId
-        logging.debug(this, s"fetching package '$docid' for reference")
-        // already checked that subject is authorized for package and binding;
-        // this fetch is redundant but should hit the cache to ameliorate cost
-        getEntity(WhiskPackage.get(entityStore, docid), Some {
-          mergeActionWithPackageAndDispatch(method, user, action, Some { wp }) _
-        })
-    } getOrElse {
-      // a subject has implied rights to all resources in a package, so dispatch
-      // operation without further entitlement checks
-      val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
-      val ns = wp.namespace.addPath(wp.name) // the package namespace
-      val resource = Resource(ns, collection, Some { action.asString }, Some { params })
-      val right = collection.determineRight(method, resource.entity)
-      logging.debug(this, s"merged package parameters and rebased action to '$ns")
-      dispatchOp(user, right, resource)
-    }
   }
 
   /**

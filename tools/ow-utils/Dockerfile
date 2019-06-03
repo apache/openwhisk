@@ -21,8 +21,9 @@ RUN apt-get update && apt-get install -y \
 # Python packages
 RUN pip install --upgrade pip
 RUN pip install --upgrade setuptools
-RUN pip install ansible==2.5.2
-RUN pip install jinja2==2.9.6
+RUN pip install ansible==2.5.2 && \
+    pip install jinja2==2.9.6 && \
+    pip install docker
 
 # Install docker client
 RUN wget --no-verbose https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER_VERSION}.tgz && \
