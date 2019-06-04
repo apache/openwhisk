@@ -764,7 +764,7 @@ class RestActivationOperations(implicit val actorSystem: ActorSystem)
       activation.respBody
     } map {
       Right(_)
-    } getOrElse Left(s"Cannot find activation id from '$activation'")
+    } getOrElse Left(s"No activation record for'$activationId'")
 
   }
 
