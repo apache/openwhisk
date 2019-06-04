@@ -253,7 +253,7 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
     case _         => ErrorResponse(status.defaultMessage, transid)
   }
 
-  implicit val serializer = new RootJsonFormat[ErrorResponse] {
+  implicit val serializer: RootJsonFormat[ErrorResponse] = new RootJsonFormat[ErrorResponse] {
     def write(er: ErrorResponse) = JsObject("error" -> er.error.toJson, "code" -> er.code.meta.id.toJson)
 
     def read(v: JsValue) =

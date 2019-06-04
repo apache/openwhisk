@@ -343,12 +343,13 @@ protected[core] object ExecManifest {
     private val defaultSplitter = "([a-z0-9]+):default".r
   }
 
-  protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
+  protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat3(ImageName.apply)
 
-  protected[entity] implicit val stemCellSerdes = {
+  protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
     import org.apache.openwhisk.core.entity.size.serdes
     jsonFormat2(StemCell.apply)
   }
 
-  protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
+  protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest]  = jsonFormat8(RuntimeManifest)
+
 }
