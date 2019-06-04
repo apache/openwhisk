@@ -350,6 +350,6 @@ protected[core] object ExecManifest {
     jsonFormat2(StemCell.apply)
   }
 
-  protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest]  = jsonFormat8(RuntimeManifest)
+  protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)
 
 }
