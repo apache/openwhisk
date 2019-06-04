@@ -153,7 +153,7 @@ object WhiskActivation
   val stateField = "state"
   val valueField = "value"
 
-  protected[entity] implicit val instantSerdes = new RootJsonFormat[Instant] {
+  protected[entity] implicit val instantSerdes: RootJsonFormat[Instant] = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
     def read(value: JsValue) =
