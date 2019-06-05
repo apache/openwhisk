@@ -476,13 +476,13 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
 
       val baseAnnotations =
-        Parameters("web-export", JsBoolean(true)) ++
-          Parameters("raw-http", JsBoolean(false)) ++
-          Parameters("final", JsBoolean(true))
+        Parameters("web-export", JsTrue) ++
+          Parameters("raw-http", JsFalse) ++
+          Parameters("final", JsTrue)
 
       val testAnnotations = if (requireAPIKeyAnnotation) {
         baseAnnotations ++
-          Parameters(Annotations.ProvideApiKeyAnnotationName, JsBoolean(false))
+          Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
       } else {
         baseAnnotations
       }

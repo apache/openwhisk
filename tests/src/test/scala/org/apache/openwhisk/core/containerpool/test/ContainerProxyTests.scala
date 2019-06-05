@@ -1091,7 +1091,7 @@ class ContainerProxyTests
 
     preWarm(machine)
 
-    val keyFalsyAnnotation = Parameters(Annotations.ProvideApiKeyAnnotationName, JsBoolean(false))
+    val keyFalsyAnnotation = Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
     val actionWithFalsyKeyAnnotation =
       ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec, annotations = keyFalsyAnnotation)
 

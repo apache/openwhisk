@@ -73,7 +73,7 @@ object WhiskActionsApi {
         .get(Annotations.ProvideApiKeyAnnotationName)
         .map(_ => annotations)
         .getOrElse {
-          annotations ++ Parameters(Annotations.ProvideApiKeyAnnotationName, JsBoolean(false))
+          annotations ++ Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
         }
     } else annotations
     newAnnotations ++ execAnnotation(exec)
