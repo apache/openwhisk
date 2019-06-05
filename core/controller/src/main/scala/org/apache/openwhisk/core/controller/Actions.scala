@@ -61,7 +61,7 @@ object WhiskActionsApi {
   /**
    * Amends annotations on an action create/update with system defined values.
    * This method currently adds the following annotations:
-   * 1. [[WhiskAction.provideApiKeyAnnotationName]] with the value false iff the annotation is not already defined in the action annotations
+   * 1. [[Annotations.ProvideApiKeyAnnotationName]] with the value false iff the annotation is not already defined in the action annotations
    * 2. An [[execAnnotation]] consistent with the action kind; this annotation is always added and overrides a pre-existing value
    */
   protected[core] def amendAnnotations(annotations: Parameters, exec: Exec, create: Boolean = true): Parameters = {
@@ -70,10 +70,10 @@ object WhiskActionsApi {
       // since they can break existing actions created before the
       // annotation was created
       annotations
-        .get(WhiskAction.provideApiKeyAnnotationName)
+        .get(Annotations.ProvideApiKeyAnnotationName)
         .map(_ => annotations)
         .getOrElse {
-          annotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+          annotations ++ Parameters(Annotations.ProvideApiKeyAnnotationName, JsBoolean(false))
         }
     } else annotations
     newAnnotations ++ execAnnotation(exec)

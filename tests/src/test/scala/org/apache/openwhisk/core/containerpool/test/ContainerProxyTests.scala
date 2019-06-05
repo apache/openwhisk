@@ -41,7 +41,6 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-import org.apache.openwhisk.core.entity.WhiskAction.provideApiKeyAnnotationName
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -1092,7 +1091,7 @@ class ContainerProxyTests
 
     preWarm(machine)
 
-    val keyFalsyAnnotation = Parameters(provideApiKeyAnnotationName, JsBoolean(false))
+    val keyFalsyAnnotation = Parameters(Annotations.ProvideApiKeyAnnotationName, JsBoolean(false))
     val actionWithFalsyKeyAnnotation =
       ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec, annotations = keyFalsyAnnotation)
 

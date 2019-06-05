@@ -491,7 +491,7 @@ trait WhiskWebActionsApi
                         "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
                       terminate(Unauthorized)
                     } else if (!action.annotations
-                                 .getAs[Boolean](WhiskAction.webCustomOptionsAnnotationName)
+                                 .getAs[Boolean](Annotations.WebCustomOptionsAnnotationName)
                                  .getOrElse(false)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
@@ -556,7 +556,7 @@ trait WhiskWebActionsApi
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.getAs[Boolean](WhiskAction.rawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean](Annotations.RawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -706,8 +706,8 @@ trait WhiskWebActionsApi
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
       val requiresAuthenticatedUser =
-        action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).getOrElse(false)
-      val isExported = action.annotations.getAs[Boolean](WhiskAction.webActionAnnotationName).getOrElse(false)
+        action.annotations.getAs[Boolean](Annotations.RequireWhiskAuthAnnotation).getOrElse(false)
+      val isExported = action.annotations.getAs[Boolean](Annotations.WebActionAnnotationName).getOrElse(false)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {
@@ -764,7 +764,7 @@ trait WhiskWebActionsApi
    */
   private def requiredWhiskAuthSuccessful(annotations: Parameters, reqHeaders: Seq[HttpHeader]): Option[Boolean] = {
     annotations
-      .get(WhiskAction.requireWhiskAuthAnnotation)
+      .get(Annotations.RequireWhiskAuthAnnotation)
       .flatMap {
         case JsString(authStr) => Some(authStr)
         case JsNumber(authNum) => Some(authNum.toString)

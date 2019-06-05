@@ -210,7 +210,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                            requireAuthentication: Boolean = false,
                            requireAuthenticationAsBoolean: Boolean = true) = {
 
-    val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsTrue)
+    val annotations = Parameters(Annotations.FinalParamsAnnotationName, JsTrue)
     WhiskAction(
       namespace,
       name,
