@@ -215,7 +215,12 @@ public class WhiskProperties {
     }
 
     public static String getApiHostForAction() {
-        return getApiProto() + "://" + getApiHost() + ":" + getApiPort();
+        String apihost = getApiProto() + "://" + getApiHost() + ":" + getApiPort();
+        if (apihost.startsWith("https://") && apihost.endsWith(":443")) {
+            return apihost.replaceAll(":443", "");
+        } else if (apihost.startsWith("http://") && apihost.endsWith(":80")) {
+            return apihost.replaceAll(":80", "");
+        } else return apihost;
     }
 
     public static String getApiHostForClient(String subdomain, boolean includeProtocol) {

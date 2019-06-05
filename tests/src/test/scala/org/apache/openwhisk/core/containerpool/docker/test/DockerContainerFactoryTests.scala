@@ -85,7 +85,7 @@ class DockerContainerFactoryTests
           "--network",
           "net1",
           "-e",
-          "__OW_API_HOST=://:",
+          "__OW_API_HOST=",
           "--dns",
           "dns1",
           "--dns",
