@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.containerpool
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import java.time.Instant
+import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
@@ -336,8 +337,8 @@ class ContainerPool(instanceId: InvokerInstanceId,
       resourceManager.requestSpace(size)
     case ReleaseFree(refs) =>
       logging.info(this, s"pool is trying to release ${refs.size} containers by request of invoker")
-      //remove each ref, IFF it is still not in use, and has not been used since the removal was requested
-      ContainerPool.findIdlesToRemove(freePool, refs).foreach(removeContainer)
+      //remove each ref, IFF it is still not in use, and has not been used for the idle grade period
+      ContainerPool.findIdlesToRemove(poolConfig.clusterManagedIdleGrace, freePool, refs).foreach(removeContainer)
     case EmitMetrics =>
       logging.info(
         this,
@@ -443,7 +444,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
    * @param poolConfig The ContainerPoolConfig, which indicates who governs the resource accounting
    * @param pool The pool, that has to be checked, if there is enough free memory.
    * @param memory The amount of memory to check.
-   * @param reserve If true, then during check of cluster managed resources, check will attempt to reserve resources
    * @param prewarm If true, we are checking on behalf of a stem cell container start
    * @return true, if there is enough space for the given amount of memory.
    */
@@ -559,14 +559,26 @@ object ContainerPool {
     }
   }
 
-  def findIdlesToRemove[A](freePool: Map[A, ContainerData], refs: Iterable[RemoteContainerRef]): Set[A] = {
-    //find containers to remove, IFF it is still not in use, and has not been used since the removal was requested
-    freePool.filter { f =>
-      f._2.activeActivationCount == 0 &&
-      refs.exists { r =>
-        r.size == f._2.memoryLimit && r.lastUsed == f._2.lastUsed
+  def findIdlesToRemove[A](idleGrace: FiniteDuration,
+                           freePool: Map[A, ContainerData],
+                           refs: Iterable[RemoteContainerRef])(implicit logging: Logging): Set[A] = {
+    //find containers to remove, IFF it is still not in use,
+    // and has not been used since the removal was requested
+    // and has not been used past the idle grace period
+    val idleGraceInstant = Instant.now().minusSeconds(idleGrace.toSeconds)
+    val toRemove = freePool
+    //FILTER MATCHING MEMORY USAGE WITH LAST USE BEFORE IDLE GRACE INSTANT
+      .filter { f =>
+        f._2.activeActivationCount == 0 &&
+        f._2.lastUsed.isBefore(idleGraceInstant) &&
+        f._2.getContainer.isDefined &&
+        refs.exists { r =>
+          //ONLY INCLUDE CONTAINERS THAT MATCH THE SPECIFIC CONTAINER REFERENCE
+          r.size == f._2.memoryLimit && r.lastUsed == f._2.lastUsed && r.containerAddress == f._2.getContainer.get.addr
+        }
       }
-    }.keySet
+    toRemove.foreach(i => logging.info(this, s"removing idle container ${i._2.getContainer.get}"))
+    toRemove.keySet
   }
 
   def props(instanceId: InvokerInstanceId,

@@ -162,7 +162,7 @@ object DockerContainer {
  * @param addr the ip of the container
  */
 class DockerContainer(protected val id: ContainerId,
-                      protected val addr: ContainerAddress,
+                      protected[core] val addr: ContainerAddress,
                       protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
                                                       runc: RuncApi,
                                                       override protected val as: ActorSystem,

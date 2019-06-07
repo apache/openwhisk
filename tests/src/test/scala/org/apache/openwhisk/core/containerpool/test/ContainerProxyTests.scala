@@ -200,7 +200,7 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig =
-    ContainerPoolConfig(2.MB, 0.5, false, false, false, 10)
+    ContainerPoolConfig(2.MB, 0.5, false, false, false, 10, 10.seconds)
 
   behavior of "ContainerProxy"
 
@@ -1126,7 +1126,7 @@ class ContainerProxyTests
                       apiKeyMustBePresent: Boolean = true)
       extends Container {
     protected[core] val id = ContainerId("testcontainer")
-    protected val addr = ContainerAddress("0.0.0.0")
+    override protected[core] val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher
     override implicit protected val as: ActorSystem = system

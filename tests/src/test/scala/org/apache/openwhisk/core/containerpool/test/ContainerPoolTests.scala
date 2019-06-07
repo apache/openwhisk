@@ -35,6 +35,8 @@ import akka.testkit.TestActorRef
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import common.WhiskProperties
+import java.util.concurrent.atomic.AtomicInteger
+import org.apache.openwhisk.common.PrintStreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
@@ -110,13 +112,13 @@ class ContainerPoolTests
 
   /** Helper to create PreWarmedData */
   def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
-    PreWarmedData(stub[Container], kind, memoryLimit)
+    PreWarmedData(stub[MockableContainer], kind, memoryLimit)
 
   /** Helper to create WarmedData */
   def warmedData(action: ExecutableWhiskAction = action,
                  namespace: String = "invocationSpace",
                  lastUsed: Instant = Instant.now) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
+    WarmedData(stub[MockableContainer], EntityName(namespace), action, lastUsed)
 
   /** Creates a sequence of containers and a factory returning this sequence. */
   def testContainers(n: Int) = {
@@ -126,8 +128,10 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize, clusterMangedResources: Boolean = false) =
-    ContainerPoolConfig(userMemory, 0.5, false, clusterMangedResources, false, 10)
+  def poolConfig(userMemory: ByteSize,
+                 clusterMangedResources: Boolean = false,
+                 idleGrace: FiniteDuration = 10.seconds) =
+    ContainerPoolConfig(userMemory, 0.5, false, clusterMangedResources, false, 10, idleGrace)
 
   val instanceId = InvokerInstanceId(0, userMemory = 1024.MB)
   behavior of "ContainerPool"
@@ -949,16 +953,17 @@ class ContainerPoolTests
         true
       }
     }
+    val idleGrace = 25.seconds
     val pool = TestActorRef(
       ContainerPool
         .props(
           instanceId,
           factory,
-          poolConfig(MemoryLimit.stdMemory),
+          poolConfig(MemoryLimit.stdMemory, idleGrace = idleGrace),
           feed.ref,
           List(PrewarmingConfig(1, exec, memoryLimit)),
           Some(resMgr)))
-    val warmed = warmedData()
+    val warmed = warmedData(lastUsed = Instant.now().minusSeconds(idleGrace.toSeconds)) //will only be released if lastUsed is after idleGrace
 
     pool ! runMessageConcurrent
     pool ! runMessageConcurrent
@@ -969,11 +974,50 @@ class ContainerPoolTests
     containers(0).send(pool, NeedWork(warmed))
     containers(0).send(pool, NeedWork(warmed)) //container will become unused, and removable now
 
-    pool ! ReleaseFree(List(RemoteContainerRef(memoryLimit, warmed.lastUsed)))
+    pool ! ReleaseFree(List(RemoteContainerRef(memoryLimit, warmed.lastUsed, warmed.container.addr)))
 
     containers(0).expectMsg(Remove)
 
   }
+
+  it should "not remove unused on ReleaseFree if idleGrace has not passed" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val resMgr = new ContainerResourceManager {
+      override def canLaunch(size: ByteSize,
+                             poolMemory: Long,
+                             poolConfig: ContainerPoolConfig,
+                             prewarm: Boolean): Boolean = {
+        true
+      }
+    }
+    val idleGrace = 25.seconds
+    val pool = TestActorRef(
+      ContainerPool
+        .props(
+          instanceId,
+          factory,
+          poolConfig(MemoryLimit.stdMemory, idleGrace = idleGrace),
+          feed.ref,
+          List(PrewarmingConfig(1, exec, memoryLimit)),
+          Some(resMgr)))
+    val warmed = warmedData(lastUsed = Instant.now().minusSeconds(idleGrace.toSeconds - 3)) //will only be released if lastUsed is after idleGrace
+
+    pool ! runMessageConcurrent
+    pool ! runMessageConcurrent
+
+    containers(0).expectMsg(runMessageConcurrent)
+    containers(0).expectMsg(runMessageConcurrent)
+
+    containers(0).send(pool, NeedWork(warmed))
+    containers(0).send(pool, NeedWork(warmed)) //container will become unused, and removable now
+
+    pool ! ReleaseFree(List(RemoteContainerRef(memoryLimit, warmed.lastUsed, warmed.container.addr)))
+
+    containers(0).expectNoMessage()
+
+  }
+
   it should "process runbuffer instead of requesting new messages" in {
 
     val (containers, factory) = testContainers(2)
@@ -1056,14 +1100,14 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
                  namespace: String = standardNamespace.asString,
                  lastUsed: Instant = Instant.now,
                  active: Int = 0) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed, active)
+    WarmedData(stub[MockableContainer], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create WarmingData with sensible defaults */
   def warmingData(action: ExecutableWhiskAction = createAction(),
                   namespace: String = standardNamespace.asString,
                   lastUsed: Instant = Instant.now,
                   active: Int = 0) =
-    WarmingData(stub[Container], EntityName(namespace), action, lastUsed, active)
+    WarmingData(stub[MockableContainer], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create WarmingData with sensible defaults */
   def warmingColdData(action: ExecutableWhiskAction = createAction(),
@@ -1073,7 +1117,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
-  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
+  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[MockableContainer], kind, 256.MB)
 
   /** Helper to create NoData */
   def noData() = NoData()
@@ -1288,6 +1332,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "find idles to remove, but only the matching and unused" in {
+    implicit val logger = new PrintStreamLogging(Console.out)
     val commonNamespace = differentNamespace.asString
     val first = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(1), active = 0)
     val second = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(2), active = 0)
@@ -1296,18 +1341,29 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     var pool = Map('first -> first, 'second -> second, 'third -> third)
 
     ContainerPool.findIdlesToRemove(
+      10.seconds,
       pool,
       List(
-        RemoteContainerRef(first.memoryLimit, first.lastUsed),
-        RemoteContainerRef(second.memoryLimit, second.lastUsed),
-        RemoteContainerRef(third.memoryLimit, third.lastUsed))) shouldBe Set('first, 'second) //cannot remove third since it has active > 0
+        RemoteContainerRef(first.memoryLimit, first.lastUsed, first.container.addr),
+        RemoteContainerRef(second.memoryLimit, second.lastUsed, second.container.addr),
+        RemoteContainerRef(third.memoryLimit, third.lastUsed, third.container.addr))) shouldBe Set('first, 'second) //cannot remove third since it has active > 0
 
     ContainerPool.findIdlesToRemove(
+      10.seconds,
       pool,
       List(
-        RemoteContainerRef(first.memoryLimit, first.lastUsed.minusMillis(1)), //cannot remove first since lastUsed doesn't match
-        RemoteContainerRef(second.memoryLimit, second.lastUsed))) shouldBe Set('second)
+        RemoteContainerRef(first.memoryLimit, first.lastUsed.minusMillis(1), first.container.addr), //cannot remove first since lastUsed doesn't match
+        RemoteContainerRef(second.memoryLimit, second.lastUsed, second.container.addr))) shouldBe Set('second)
 
   }
 
+}
+object MockableContainer {
+  val portCounter = new AtomicInteger(0)
+}
+abstract class MockableContainer extends Container {
+  override val addr: ContainerAddress = new ContainerAddress(
+    "mock.address",
+    MockableContainer.portCounter
+      .incrementAndGet()) //scalamock cannot stub this - see https://github.com/paulbutcher/ScalaMock/issues/114
 }

@@ -226,8 +226,12 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
           replicator ! Update(myReservationsKey, LWWRegister[List[Reservation]](List.empty), WriteLocal)(reg =>
             reg.withValue(reservations))
         }
-        //update this invokers idles seen by other invokers
-        val idles = localUnused.map(f => RemoteContainerRef(f._2.memoryLimit, f._2.lastUsed)).toList
+        //update this invokers idles seen by other invokers; including only idles past the idleGrace period
+        val idleGraceInstant = Instant.now().minusSeconds(poolConfig.clusterManagedIdleGrace.toSeconds)
+        val idles = localUnused
+          .filter(f => f._2.getContainer.isDefined && f._2.lastUsed.isBefore(idleGraceInstant)) //defensively exclude unused that don't have a Container defined
+          .map(f => RemoteContainerRef(f._2.memoryLimit, f._2.lastUsed, f._2.getContainer.map(_.addr).get))
+          .toList
         if (lastUnused != idles) { //may change either because the container was added/removed, OR because lastUsed is updated
           lastUnused = idles
           logging.info(
@@ -377,7 +381,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
  * Scheduled: Started/Stopped by cluster manager, but not yet reflected in NodeStats, so must still be considered when allocating resources.
  * */
 case class Reservation(size: ByteSize)
-case class RemoteContainerRef(size: ByteSize, lastUsed: Instant)
+case class RemoteContainerRef(size: ByteSize, lastUsed: Instant, containerAddress: ContainerAddress)
 case class RequestReleaseFree(id: Int, remoteContainerRefs: List[RemoteContainerRef])
 case class ReleaseFree(remoteContainerRefs: List[RemoteContainerRef])
 case object UpdateData

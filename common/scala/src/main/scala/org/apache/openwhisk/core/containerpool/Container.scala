@@ -71,7 +71,7 @@ trait Container {
 
   implicit protected val as: ActorSystem
   protected val id: ContainerId
-  protected val addr: ContainerAddress
+  protected[core] val addr: ContainerAddress
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
 

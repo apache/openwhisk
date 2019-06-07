@@ -23,6 +23,7 @@ import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import org.apache.openwhisk.spi.Spi
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.math.max
 
 case class ContainerArgsConfig(network: String,
@@ -36,7 +37,8 @@ case class ContainerPoolConfig(userMemory: ByteSize,
                                akkaClient: Boolean,
                                clusterManagedResources: Boolean,
                                useClusterBootstrap: Boolean,
-                               clusterManagedResourceMaxStarts: Int) {
+                               clusterManagedResourceMaxStarts: Int,
+                               clusterManagedIdleGrace: FiniteDuration) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
     s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
