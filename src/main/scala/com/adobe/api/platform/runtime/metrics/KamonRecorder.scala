@@ -30,24 +30,29 @@ trait KamonMetricNames extends MetricNames {
 object KamonRecorder extends MetricRecorder with KamonMetricNames {
   private val metrics = new TrieMap[String, KamonMetrics]
 
-  def processEvent(activation: Activation): Unit = {
-    lookup(activation).record(activation)
+  def processEvent(activation: Activation, initiatorNamespace: String): Unit = {
+    lookup(activation, initiatorNamespace).record(activation)
   }
 
-  def lookup(activation: Activation): KamonMetrics = {
+  def lookup(activation: Activation, initiatorNamespace: String): KamonMetrics = {
     val name = activation.name
     val kind = activation.kind
     val memory = activation.memory.toString
     metrics.getOrElseUpdate(name, {
       val (namespace, action) = getNamespaceAndActionName(name)
-      KamonMetrics(namespace, action, kind, memory)
+      KamonMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }
 
-  case class KamonMetrics(namespace: String, action: String, kind: String, memory: String) {
+  case class KamonMetrics(namespace: String, action: String, kind: String, memory: String, initiator: String) {
     private val activationTags =
-      Map(`actionNamespace` -> namespace, `actionName` -> action, `actionKind` -> kind, `actionMemory` -> memory)
-    private val tags = Map(`actionNamespace` -> namespace, `actionName` -> action)
+      Map(
+        `actionNamespace` -> namespace,
+        `initiatorNamespace` -> initiator,
+        `actionName` -> action,
+        `actionKind` -> kind,
+        `actionMemory` -> memory)
+    private val tags = Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action)
 
     private val activations = Kamon.counter(activationMetric).refine(activationTags)
     private val coldStarts = Kamon.counter(coldStartMetric).refine(tags)

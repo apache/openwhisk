@@ -26,6 +26,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
 
   behavior of "PrometheusConsumer"
   val namespace = "whisk.system"
+  val initiator = "testNS"
   val action = "apimgmt/createApi"
   val kind = "nodejs:10"
   val memory = "256"
@@ -38,7 +39,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
       publishStringMessageToKafka(
         EventConsumer.userEventTopic,
-        newActivationEvent(s"$namespace/$action", kind, memory).serialize)
+        newActivationEvent(s"$namespace/$action", kind, memory, initiator).serialize)
 
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
@@ -54,40 +55,43 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     }
   }
 
-  private def newActivationEvent(name: String, kind: String, memory: String) =
+  private def newActivationEvent(name: String, kind: String, memory: String, initiator: String) =
     EventMessage(
       "test",
       Activation(name, 2, 3, 5, 11, kind, false, memory.toInt, None),
-      "testuser",
-      "testNS",
+      "userId",
+      initiator,
       "test",
       Activation.typeName)
 
   private def gauge(name: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
-      Array("namespace", "action"),
-      Array(namespace, action))
+      Array("namespace", "initiator", "action"),
+      Array(namespace, initiator, action))
 
   private def counter(name: String) =
-    CollectorRegistry.defaultRegistry.getSampleValue(name, Array("namespace", "action"), Array(namespace, action))
+    CollectorRegistry.defaultRegistry.getSampleValue(
+      name,
+      Array("namespace", "initiator", "action"),
+      Array(namespace, initiator, action))
 
   private def counterTotal(name: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
-      Array("namespace", "action", "kind", "memory"),
-      Array(namespace, action, kind, memory))
+      Array("namespace", "initiator", "action", "kind", "memory"),
+      Array(namespace, initiator, action, kind, memory))
 
   private def counterStatus(name: String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
-      Array("namespace", "action", "status"),
-      Array(namespace, action, status))
+      Array("namespace", "initiator", "action", "status"),
+      Array(namespace, initiator, action, status))
 
   private def histogramCount(name: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
-      Array("namespace", "action"),
-      Array(namespace, action))
+      Array("namespace", "initiator", "action"),
+      Array(namespace, initiator, action))
 
 }

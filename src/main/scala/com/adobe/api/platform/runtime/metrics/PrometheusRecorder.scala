@@ -40,37 +40,44 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
   import PrometheusRecorder._
   private val metrics = new TrieMap[String, PrometheusMetrics]
 
-  def processEvent(activation: Activation): Unit = {
-    lookup(activation).record(activation)
+  def processEvent(activation: Activation, initiatorNamespace: String): Unit = {
+    lookup(activation, initiatorNamespace).record(activation)
   }
 
   override def getReport(): MessageEntity =
     HttpEntity(PrometheusExporter.textV4, createSource())
 
-  private def lookup(activation: Activation): PrometheusMetrics = {
+  private def lookup(activation: Activation, initiatorNamespace: String): PrometheusMetrics = {
     //TODO Unregister unused actions
     val name = activation.name
     val kind = activation.kind
     val memory = activation.memory.toString
     metrics.getOrElseUpdate(name, {
       val (namespace, action) = getNamespaceAndActionName(name)
-      PrometheusMetrics(namespace, action, kind, memory)
+      PrometheusMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }
 
-  case class PrometheusMetrics(namespace: String, action: String, kind: String, memory: String) {
-    private val activations = activationCounter.labels(namespace, action, kind, memory)
-    private val coldStarts = coldStartCounter.labels(namespace, action)
-    private val waitTime = waitTimeHisto.labels(namespace, action)
-    private val initTime = initTimeHisto.labels(namespace, action)
-    private val duration = durationHisto.labels(namespace, action)
+  case class PrometheusMetrics(namespace: String,
+                               action: String,
+                               kind: String,
+                               memory: String,
+                               initiatorNamespace: String) {
+    private val activations = activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
+    private val coldStarts = coldStartCounter.labels(namespace, initiatorNamespace, action)
+    private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
+    private val initTime = initTimeHisto.labels(namespace, initiatorNamespace, action)
+    private val duration = durationHisto.labels(namespace, initiatorNamespace, action)
 
-    private val gauge = memoryGauge.labels(namespace, action)
+    private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
 
-    private val statusSuccess = statusCounter.labels(namespace, action, Activation.statusSuccess)
-    private val statusApplicationError = statusCounter.labels(namespace, action, Activation.statusApplicationError)
-    private val statusDeveloperError = statusCounter.labels(namespace, action, Activation.statusDeveloperError)
-    private val statusInternalError = statusCounter.labels(namespace, action, Activation.statusInternalError)
+    private val statusSuccess = statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusSuccess)
+    private val statusApplicationError =
+      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusApplicationError)
+    private val statusDeveloperError =
+      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusDeveloperError)
+    private val statusInternalError =
+      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusInternalError)
 
     def record(a: Activation): Unit = {
       gauge.observe(a.memory)
@@ -91,7 +98,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
         case Activation.statusApplicationError => statusApplicationError.inc()
         case Activation.statusDeveloperError   => statusDeveloperError.inc()
         case Activation.statusInternalError    => statusInternalError.inc()
-        case x                                 => statusCounter.labels(namespace, action, x).inc()
+        case x                                 => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
       }
     }
   }
@@ -129,17 +136,47 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
 
 object PrometheusRecorder extends PrometheusMetricNames {
   private val activationCounter =
-    counter(activationMetric, "Activation Count", actionNamespace, actionName, actionKind, actionMemory)
-  private val coldStartCounter = counter(coldStartMetric, "Cold start counts", actionNamespace, actionName)
+    counter(
+      activationMetric,
+      "Activation Count",
+      actionNamespace,
+      initiatorNamespace,
+      actionName,
+      actionKind,
+      actionMemory)
+  private val coldStartCounter =
+    counter(coldStartMetric, "Cold start counts", actionNamespace, initiatorNamespace, actionName)
   private val statusCounter =
-    counter(statusMetric, "Activation failure status type", actionNamespace, actionName, actionStatus)
-  private val waitTimeHisto = histogram(waitTimeMetric, "Internal system hold time", actionNamespace, actionName)
+    counter(
+      statusMetric,
+      "Activation failure status type",
+      actionNamespace,
+      initiatorNamespace,
+      actionName,
+      actionStatus)
+  private val waitTimeHisto =
+    histogram(waitTimeMetric, "Internal system hold time", actionNamespace, initiatorNamespace, actionName)
   private val initTimeHisto =
-    histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", actionNamespace, actionName)
+    histogram(
+      initTimeMetric,
+      "Time it took to initialize an action, e.g. docker init",
+      actionNamespace,
+      initiatorNamespace,
+      actionName)
   private val durationHisto =
-    histogram(durationMetric, "Actual time the action code was running", actionNamespace, actionName)
+    histogram(
+      durationMetric,
+      "Actual time the action code was running",
+      actionNamespace,
+      initiatorNamespace,
+      actionName)
   private val memoryGauge =
-    histogram(memoryMetric, "Memory consumption of the action containers", actionNamespace, actionName)
+    histogram(
+      memoryMetric,
+      "Memory consumption of the action containers",
+      actionNamespace,
+      initiatorNamespace,
+      actionName)
 
   private def counter(name: String, help: String, tags: String*) =
     Counter
