@@ -18,6 +18,7 @@
 package org.apache.openwhisk.common
 
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{EventMessage, MessageProducer}
 

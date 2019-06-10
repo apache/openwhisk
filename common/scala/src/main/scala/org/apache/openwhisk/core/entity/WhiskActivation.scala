@@ -27,6 +27,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.{ArtifactStore, CacheChangeNotification, DocumentFactory, StaleParameter}
 import pureconfig._
+import pureconfig.generic.auto._
 
 /**
  * A WhiskActivation provides an abstraction of the meta-data

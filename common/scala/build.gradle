@@ -32,7 +32,7 @@ repositories {
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
 
-    compile ('com.github.pureconfig:pureconfig_2.12:0.9.0') {
+    compile ('com.github.pureconfig:pureconfig_2.12:0.11.0') {
         exclude group: 'org.scala-lang', module: 'scala-compiler'
         exclude group: 'org.scala-lang', module: 'scala-reflect'
     }

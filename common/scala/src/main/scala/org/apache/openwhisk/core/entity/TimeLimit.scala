@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.entity
 
 import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 import scala.util.Failure

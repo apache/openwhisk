@@ -24,6 +24,7 @@ import akka.event.Logging.InfoLevel
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}

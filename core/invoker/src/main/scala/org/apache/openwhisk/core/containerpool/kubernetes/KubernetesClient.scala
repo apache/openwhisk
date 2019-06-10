@@ -33,6 +33,7 @@ import akka.stream.stage._
 import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys

@@ -54,6 +54,7 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

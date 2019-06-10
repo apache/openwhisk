@@ -23,6 +23,7 @@ import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._

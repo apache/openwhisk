@@ -27,6 +27,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigUtil.joinPath
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

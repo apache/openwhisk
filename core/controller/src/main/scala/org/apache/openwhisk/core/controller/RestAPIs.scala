@@ -25,6 +25,7 @@ import akka.http.scaladsl.server.directives.AuthenticationDirective
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.ActorMaterializer
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}

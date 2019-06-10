@@ -26,6 +26,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.Future

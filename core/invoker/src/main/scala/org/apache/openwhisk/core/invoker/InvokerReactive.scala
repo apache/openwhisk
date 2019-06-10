@@ -36,6 +36,7 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json._
 
 import scala.concurrent.duration._

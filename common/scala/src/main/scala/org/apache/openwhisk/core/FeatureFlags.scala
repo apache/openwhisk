@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 
 object FeatureFlags {
   private case class FeatureFlagConfig(requireApiKeyAnnotation: Boolean)

@@ -203,6 +203,7 @@ protected[core] abstract class EntitlementProvider(
 
   private val kindRestrictor = {
     import pureconfig.loadConfigOrThrow
+    import pureconfig.generic.auto._
     import org.apache.openwhisk.core.ConfigKeys
     case class AllowedKinds(whitelist: Option[Set[String]] = None)
     val allowedKinds = loadConfigOrThrow[AllowedKinds](ConfigKeys.runtimes)

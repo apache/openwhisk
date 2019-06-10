@@ -27,6 +27,7 @@ import org.apache.kafka.common.metrics.stats.Total
 import org.apache.kafka.common.metrics.{KafkaMetric, MetricsReporter}
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.FiniteDuration
