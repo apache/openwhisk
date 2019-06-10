@@ -18,15 +18,18 @@
 buildscript {
     repositories {
         jcenter()
+        maven {
+            url "https://repo.triplequote.com/libs-release/"
+        }
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
         classpath 'org.scoverage:gradle-scoverage:2.3.0'
     }
 }
-
 plugins {
     id "com.gradle.build-scan" version "1.14"
+    id "com.triplequote.hydra" version "0.0.2" apply false
 }
 
 buildScan {
@@ -44,7 +47,7 @@ subprojects {
 
     afterEvaluate {
         if (project.plugins.hasPlugin('application')
-                && project.plugins.hasPlugin('scala')) {
+                && (project.plugins.hasPlugin('scala') || project.plugins.hasPlugin('com.triplequote.hydra'))) {
             startScripts {
                 doLast {
                     unixScript.text = configureUnixClasspath(unixScript)
@@ -73,6 +76,21 @@ subprojects {
                 archives sourcesJar
                 archives testSourcesJar
                 archives testClassesJar
+            }
+        }
+
+        if (project.plugins.hasPlugin('com.triplequote.hydra')) {
+            hydra {
+                metricsServiceVersion = "1.1.0"
+                version = "2.1.6"
+                // optional:
+                // workers = 4
+                dashboardServerUrl=new java.net.URL("http://localhost:3333/metrics")
+            }
+            repositories {
+                maven {
+                    url "https://repo.triplequote.com/libs-release/"
+                }
             }
         }
 

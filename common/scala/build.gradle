@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
+apply plugin: 'com.triplequote.hydra'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'

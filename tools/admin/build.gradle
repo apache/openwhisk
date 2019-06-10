@@ -17,11 +17,11 @@
 
 plugins {
     id 'org.springframework.boot' version '2.0.2.RELEASE'
-    id 'scala'
 }
 
 apply plugin: 'org.scoverage'
 apply plugin: 'maven'
+apply plugin: 'com.triplequote.hydra'
 
 project.archivesBaseName = "openwhisk-admin-tools"
 

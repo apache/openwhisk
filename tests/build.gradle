@@ -22,7 +22,7 @@ plugins {
     id 'org.hidetake.swagger.generator' version '2.12.0'
 }
 
-apply plugin: 'scala'
+apply plugin: 'com.triplequote.hydra'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
