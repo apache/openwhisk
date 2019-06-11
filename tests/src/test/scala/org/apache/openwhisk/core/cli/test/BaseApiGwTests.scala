@@ -89,6 +89,11 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
    * Create a CLI properties file for use by the tests
    */
   override def beforeAll() = {
+    //Wait a while to settle the throttle so that the status of throttle algorithm implemented in checkThrottle
+    //is consistent with the reality
+    //Without this waiting time API Tests do fail very consistently on faster build machines
+    //In the longer run the APIGW tests should be moved to a separate namespace
+    Thread.sleep(60.seconds.toMillis)
     cliWskPropsFile.deleteOnExit()
     val wskprops = WskProps(token = "SOME TOKEN")
     wskprops.writeFile(cliWskPropsFile)
