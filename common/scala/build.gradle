@@ -19,13 +19,29 @@ apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
+apply plugin: 'com.lightbend.akka.grpc.gradle'
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
 
+buildscript {
+    repositories {
+        mavenLocal()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
+        // for the currently latest version.
+        classpath 'gradle.plugin.com.lightbend.akka.grpc:akka-grpc-gradle-plugin:0.4.2'
+    }
+}
+
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -115,5 +131,5 @@ configurations {
 }
 
 tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags - ['-Ywarn-unused-import']
 }

@@ -27,6 +27,7 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 
 import org.apache.openwhisk.core.entity.ArgNormalizer.trim
+import spray.json._
 
 /**
  * A DocId is the document id === primary key in the datastore.
@@ -59,6 +60,7 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
   def asString = rev // to make explicit that this is a string conversion
   def empty = rev == null
   override def toString = rev
+  def serialize = DocRevision.serdes.write(this).compactPrint
 }
 
 /**
@@ -140,6 +142,8 @@ protected[core] object DocRevision {
       case _           => deserializationError("doc revision malformed")
     }
   }
+
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
 }
 
 protected[core] object DocInfo extends DefaultJsonProtocol {

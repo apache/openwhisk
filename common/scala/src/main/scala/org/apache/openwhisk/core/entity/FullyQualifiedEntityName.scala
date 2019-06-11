@@ -60,11 +60,15 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath,
   override def size = qualifiedName.sizeInBytes
   override def toString = asString
   override def hashCode = qualifiedName.hashCode
+
+  def serialize = FullyQualifiedEntityName.serdes.write(this).compactPrint
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
   // must use jsonFormat with explicit field names and order because class extends a trait
   private val caseClassSerdes = jsonFormat(FullyQualifiedEntityName.apply _, "path", "name", "version", "binding")
+
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
   protected[core] val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
     def write(n: FullyQualifiedEntityName) = caseClassSerdes.write(n)
