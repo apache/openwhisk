@@ -12,8 +12,11 @@ governing permissions and limitations under the License.
 
 package com.adobe.api.platform.runtime.metrics
 
+import java.util.concurrent.TimeUnit
+
 import spray.json._
 
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Try
 
 //Classes in this file are taken from OpenWhisk code base
@@ -92,9 +95,9 @@ object EventMessage extends DefaultJsonProtocol {
  */
 case class Activation(name: String,
                       statusCode: Int,
-                      duration: Long,
-                      waitTime: Long,
-                      initTime: Long,
+                      duration: Duration,
+                      waitTime: Duration,
+                      initTime: Duration,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
@@ -114,7 +117,7 @@ case class Activation(name: String,
     case x => x.toString
   }
 
-  def isColdStart: Boolean = initTime > 0
+  def isColdStart: Boolean = initTime != Duration.Zero
 }
 
 object Activation extends DefaultJsonProtocol {
@@ -125,6 +128,18 @@ object Activation extends DefaultJsonProtocol {
   val statusApplicationError = "application_error"
   val statusDeveloperError = "developer_error"
   val statusInternalError = "internal_error"
+
+  private implicit val durationFormat = new RootJsonFormat[Duration] {
+    override def write(obj: Duration): JsValue = obj match {
+      case o if o.isFinite() => JsNumber(o.toMillis)
+      case _                 => JsNumber.zero
+    }
+
+    override def read(json: JsValue): Duration = json match {
+      case JsNumber(n) if n <= 0 => Duration.Zero
+      case JsNumber(n)           => new FiniteDuration(n.longValue(), TimeUnit.MILLISECONDS)
+    }
+  }
 
   implicit val activationFormat =
     jsonFormat(

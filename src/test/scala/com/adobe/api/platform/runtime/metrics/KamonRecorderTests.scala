@@ -87,7 +87,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
   private def newActivationEvent(name: String, kind: String = "nodejs:6", initiator: String = "testNS") =
     EventMessage(
       "test",
-      Activation(name, 2, 3, 5, 11, kind, false, 256, None),
+      Activation(name, 2, 3.millis, 5.millis, 11.millis, kind, false, 256, None),
       "testuser",
       initiator,
       "test",

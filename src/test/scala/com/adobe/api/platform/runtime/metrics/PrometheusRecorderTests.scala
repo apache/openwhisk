@@ -48,8 +48,13 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       counterStatus(statusMetric, Activation.statusDeveloperError) shouldBe 1
 
       histogramCount(waitTimeMetric) shouldBe 1
+      histogramSum(waitTimeMetric) shouldBe (0.03 +- 0.001)
+
       histogramCount(initTimeMetric) shouldBe 1
+      histogramSum(initTimeMetric) shouldBe (433.433 +- 0.01)
+
       histogramCount(durationMetric) shouldBe 1
+      histogramSum(durationMetric) shouldBe (1.254 +- 0.01)
 
       gauge(memoryMetric) shouldBe 1
     }
@@ -58,8 +63,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   private def newActivationEvent(name: String, kind: String, memory: String, initiator: String) =
     EventMessage(
       "test",
-      Activation(name, 2, 3, 5, 11, kind, false, memory.toInt, None),
-      "userId",
+      Activation(name, 2, 1254.millis, 30.millis, 433433.millis, kind, false, memory.toInt, None),
+      "testuser",
       initiator,
       "test",
       Activation.typeName)
@@ -94,4 +99,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
+  private def histogramSum(name: String) =
+    CollectorRegistry.defaultRegistry
+      .getSampleValue(s"${name}_sum", Array("namespace", "initiator", "action"), Array(namespace, initiator, action))
+      .doubleValue()
 }

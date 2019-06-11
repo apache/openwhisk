@@ -25,6 +25,7 @@ import kamon.prometheus.PrometheusReporter
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.duration.Duration
 
 trait PrometheusMetricNames extends MetricNames {
   val activationMetric = "openwhisk_action_activations_total"
@@ -103,7 +104,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter) extends MetricRecorder 
     }
   }
 
-  private def seconds(timeInMillis: Long) = TimeUnit.MILLISECONDS.toSeconds(timeInMillis)
+  //Returns a floating point number
+  private def seconds(time: Duration): Double = time.toUnit(TimeUnit.SECONDS)
 
   private def createSource() =
     Source.combine(createJavaClientSource(), createKamonSource())(Concat(_)).map(ByteString(_))
