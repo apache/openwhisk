@@ -672,16 +672,16 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "recognize truthy values" in {
-    Seq(JsBoolean(true), JsNumber(1), JsString("x")).foreach { v =>
+    Seq(JsTrue, JsNumber(1), JsString("x")).foreach { v =>
       Parameters("x", v).isTruthy("x") shouldBe true
     }
 
-    Seq(JsBoolean(false), JsNumber(0), JsString(""), JsNull).foreach { v =>
+    Seq(JsFalse, JsNumber(0), JsString(""), JsNull).foreach { v =>
       Parameters("x", v).isTruthy("x") shouldBe false
     }
 
-    Parameters("x", JsBoolean(true)).isTruthy("y") shouldBe false
-    Parameters("x", JsBoolean(true)).isTruthy("y", valueForNonExistent = true) shouldBe true
+    Parameters("x", JsTrue).isTruthy("y") shouldBe false
+    Parameters("x", JsTrue).isTruthy("y", valueForNonExistent = true) shouldBe true
   }
 
   it should "serialize to json" in {

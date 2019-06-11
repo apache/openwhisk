@@ -92,7 +92,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("countdown.js")),
-        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsBoolean(true)))
+        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue))
     }
 
     val count = 3

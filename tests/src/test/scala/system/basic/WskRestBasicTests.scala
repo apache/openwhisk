@@ -174,7 +174,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                               "description" -> JsString("Parameter description 2")))),
                                         JsObject(
                                           "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
-                                          "value" -> JsBoolean(false)))
+                                          "value" -> JsFalse))
                                     } else {
                                       JsArray(
                                         JsObject(
@@ -405,9 +405,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         .filter(annotation => annotation.fields("key").convertTo[String] != "exec")
         .toJson shouldBe (if (requireAPIKeyAnnotation) {
                             JsArray(
-                              JsObject(
-                                "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
-                                "value" -> JsBoolean(false)))
+                              JsObject("key" -> Annotations.ProvideApiKeyAnnotationName.toJson, "value" -> JsFalse))
                           } else {
                             JsArray()
                           })
@@ -540,7 +538,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                          "description" -> JsString("Parameter description 2")))),
                                    JsObject(
                                      "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
-                                     "value" -> JsBoolean(false)))
+                                     "value" -> JsFalse))
                                } else {
                                  JsArray(
                                    JsObject(
