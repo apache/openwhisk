@@ -163,7 +163,8 @@ class ContainerPool(instanceId: InvokerInstanceId,
                       Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB
                     } else {
                       r.action.limits.memory.megabytes.MB
-                    })
+                    },
+                    Instant.now().minusSeconds(poolConfig.clusterManagedIdleGrace.toSeconds))
                   .map(a => removeContainer(a._1))
                   // If the list had at least one entry, enough containers were removed to start the new container. After
                   // removing the containers, we are not interested anymore in the containers that have been removed.
@@ -525,7 +526,7 @@ object ContainerPool {
   @tailrec
   protected[containerpool] def remove[A](pool: Map[A, ContainerData],
                                          memory: ByteSize,
-                                         lastUsedMax: Instant = Instant.now(),
+                                         lastUsedMax: Instant,
                                          anyAmount: Boolean = false,
                                          toRemove: Map[A, ByteSize] = Map.empty[A, ByteSize]): Map[A, ByteSize] = {
 
