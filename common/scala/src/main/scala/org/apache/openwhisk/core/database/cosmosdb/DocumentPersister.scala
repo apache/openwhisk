@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import akka.Done
 import akka.stream.ActorMaterializer
+import kamon.metric.Gauge
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.DocInfo
 import spray.json.JsObject
@@ -34,7 +35,7 @@ class SimplePersister(store: CosmosDBArtifactStore[_]) extends DocumentPersister
   override def put(js: JsObject)(implicit transid: TransactionId): Future[DocInfo] = store.putJsonDoc(js)
 }
 
-class QueuedPersister(store: CosmosDBArtifactStore[_], config: WriteQueueConfig)(
+class QueuedPersister(store: CosmosDBArtifactStore[_], config: WriteQueueConfig, gauge: Option[Gauge])(
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext)
     extends DocumentPersister {

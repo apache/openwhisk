@@ -81,14 +81,16 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private val clusterIdValue = config.clusterId.map(JsString(_))
   private val docPersister: DocumentPersister =
-    config.writeQueueConfig.map(new QueuedPersister(this, _)).getOrElse(new SimplePersister(this))
+    config.writeQueueConfig
+      .map(new QueuedPersister(this, _, Some(queueSizeToken.gauge)))
+      .getOrElse(new SimplePersister(this))
 
   logging.info(
     this,
     s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}], " +
       s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}], soft delete TTL [${config.softDeleteTTL}], " +
-      s"Consistency Level [${config.consistencyLevel}], Usage Metric Frequency [${config.recordUsageFrequency}]")
+      s"Consistency Level [${config.consistencyLevel}], Usage Metric Frequency [${config.recordUsageFrequency}], Write Queue: [${config.writeQueueConfig}]")
 
   private val usageMetricRecorder = config.recordUsageFrequency.map { f =>
     Scheduler.scheduleWaitAtLeast(f, 10.seconds)(() => recordResourceUsage())
@@ -554,6 +556,14 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def createUsageToken(name: String, unit: MeasurementUnit = MeasurementUnit.none): LogMarkerToken = {
     val tags = Map("collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "used", tags = tags)(unit)
+    else LogMarkerToken("cosmosdb", name, collName)(unit)
+  }
+
+  private def queueSizeToken: LogMarkerToken = {
+    val unit = MeasurementUnit.none
+    val name = "writeQueue"
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken("cosmosdb", name, "size", tags = Map("collection" -> collName))(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }
 
