@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 import akka.Done
 import akka.stream.ActorMaterializer
 import common.{LoggedFunction, WskActorSystem}
+import kamon.metric.{AtomicLongGauge, MeasurementUnit}
 import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
@@ -70,14 +71,15 @@ class QueuedExecutorTests extends FlatSpec with Matchers with WskActorSystem wit
       queuedPromises.dequeue().future.map(_ => i + 1)
     })
 
-    val executor = new QueuedExecutor[Int, Int](100, 1)(queuedOperation)
+    val gauge = new AtomicLongGauge("", Map.empty, MeasurementUnit.none)
+    val executor = new QueuedExecutor[Int, Int](100, 1, Some(gauge))(queuedOperation)
 
     val values = 1 to count
     val results = values.map(executor.put)
 
     // First entry
     retry(queuedOperation.calls should have size 1)
-    executor.size shouldBe count
+    gauge.snapshot().value shouldBe count
 
     ps.head.success(())
     retry(queuedOperation.calls should have size 2)
@@ -93,6 +95,6 @@ class QueuedExecutorTests extends FlatSpec with Matchers with WskActorSystem wit
 
     queuedOperation.calls should have size count
     Future.sequence(results).futureValue.sum shouldBe values.map(_ + 1).sum
-    executor.size shouldBe 0
+    gauge.snapshot().value shouldBe 0
   }
 }

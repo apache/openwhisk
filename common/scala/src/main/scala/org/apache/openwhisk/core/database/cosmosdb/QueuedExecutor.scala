@@ -21,7 +21,6 @@ import akka.Done
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
 import kamon.metric.Gauge
-import org.apache.openwhisk.common.Counter
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -29,7 +28,6 @@ import scala.util.{Failure, Success}
 class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge] = None)(operation: T => Future[R])(
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext) {
-  private val counter = new Counter
   private val (queue, queueFinish) = Source
     .queue[(T, Promise[R])](queueSize, OverflowStrategy.dropNew)
     .mapAsyncUnordered(concurrency) {
@@ -68,20 +66,16 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge
     promise.future
   }
 
-  def size: Long = counter.cur
-
   def close(): Future[Done] = {
     queue.complete()
     queue.watchCompletion().flatMap(_ => queueFinish)
   }
 
-  private def elementAdded() = {
+  private def elementAdded(): Unit = {
     gauge.foreach(_.increment())
-    counter.next()
   }
 
-  private def elementRemoved() = {
+  private def elementRemoved(): Unit = {
     gauge.foreach(_.decrement())
-    counter.prev()
   }
 }
