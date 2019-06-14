@@ -60,9 +60,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     with CosmosDBSupport
     with AttachmentSupport[DocumentAbstraction] {
 
+  override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
+
   private val cosmosScheme = "cosmos"
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
-
   protected val client: AsyncDocumentClient = clientRef.get.client
   private[cosmosdb] val (database, collection) = initialize()
 
@@ -79,11 +80,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val softDeleteTTL = config.softDeleteTTL.map(_.toSeconds.toInt)
 
   private val clusterIdValue = config.clusterId.map(JsString(_))
-  private val docWriter = config.writeQueueConfig
-    .map(qc =>
-      new QueuedExecutor[(JsObject, TransactionId), DocInfo](qc.queueSize, qc.concurrency)({
-        case (js, tid) => putJsonDoc(js)(tid)
-      }))
+  private val docPersister: DocumentPersister =
+    config.writeQueueConfig.map(new QueuedPersister(this, _)).getOrElse(new SimplePersister(this))
 
   logging.info(
     this,
@@ -99,14 +97,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   //Clone the returned instance as these are mutable
   def documentCollection(): DocumentCollection = new DocumentCollection(collection.toJson)
 
-  override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
-
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val json = d.toDocumentRecord
-    docWriter match {
-      case Some(w) => w.put((json, transid))
-      case None    => putJsonDoc(json)
-    }
+    docPersister.put(json)
   }
 
   protected[database] def putJsonDoc(json: JsObject)(implicit transid: TransactionId): Future[DocInfo] = {
@@ -368,8 +361,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
-          println(
-            s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
         }
         transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
     }
@@ -442,7 +433,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   override def shutdown(): Unit = {
     //Its async so a chance exist for next scheduled job to still trigger
-    docWriter.foreach(Await.ready(_, 10.seconds))
+    Await.ready(docPersister.close(), 10.seconds)
     usageMetricRecorder.foreach(system.stop)
     attachmentStore.foreach(_.shutdown())
     clientRef.close()

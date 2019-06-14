@@ -28,7 +28,7 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Fut
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext) {
   //TODO Track queue size
-  private val (docQueue, queueFinish) = Source
+  private val (queue, queueFinish) = Source
     .queue[(T, Promise[R])](queueSize, OverflowStrategy.dropNew)
     .mapAsyncUnordered(concurrency) {
       case (d, p) =>
@@ -51,7 +51,7 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Fut
    */
   def put(el: T): Future[R] = {
     val promise = Promise[R]()
-    docQueue.offer(el -> promise).flatMap {
+    queue.offer(el -> promise).flatMap {
       case QueueOfferResult.Enqueued    => promise.future
       case QueueOfferResult.Dropped     => Future.failed(new Exception("DB request queue is full."))
       case QueueOfferResult.QueueClosed => Future.failed(new Exception("DB request queue was closed."))
@@ -61,7 +61,7 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Fut
   }
 
   def close(): Future[Done] = {
-    docQueue.complete()
-    docQueue.watchCompletion().flatMap(_ => queueFinish)
+    queue.complete()
+    queue.watchCompletion().flatMap(_ => queueFinish)
   }
 }
