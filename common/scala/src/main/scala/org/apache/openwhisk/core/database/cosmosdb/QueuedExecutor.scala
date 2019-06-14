@@ -20,22 +20,28 @@ package org.apache.openwhisk.core.database.cosmosdb
 import akka.Done
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
+import kamon.metric.Gauge
+import org.apache.openwhisk.common.Counter
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Future[R])(
+class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge] = None)(operation: T => Future[R])(
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext) {
-  //TODO Track queue size
+  private val counter = new Counter
   private val (queue, queueFinish) = Source
     .queue[(T, Promise[R])](queueSize, OverflowStrategy.dropNew)
     .mapAsyncUnordered(concurrency) {
       case (d, p) =>
         val f = operation(d)
         f.onComplete {
-          case Success(result) => p.success(result)
-          case Failure(e)      => p.failure(e)
+          case Success(result) =>
+            elementRemoved()
+            p.success(result)
+          case Failure(e) =>
+            elementRemoved()
+            p.failure(e)
         }
         // Recover Future to not abort stream in case of a failure
         f.recover { case _ => () }
@@ -52,7 +58,9 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Fut
   def put(el: T): Future[R] = {
     val promise = Promise[R]()
     queue.offer(el -> promise).flatMap {
-      case QueueOfferResult.Enqueued    => promise.future
+      case QueueOfferResult.Enqueued =>
+        elementAdded()
+        promise.future
       case QueueOfferResult.Dropped     => Future.failed(new Exception("DB request queue is full."))
       case QueueOfferResult.QueueClosed => Future.failed(new Exception("DB request queue was closed."))
       case QueueOfferResult.Failure(f)  => Future.failed(f)
@@ -60,8 +68,20 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int)(operation: T => Fut
     promise.future
   }
 
+  def size: Long = counter.cur
+
   def close(): Future[Done] = {
     queue.complete()
     queue.watchCompletion().flatMap(_ => queueFinish)
+  }
+
+  private def elementAdded() = {
+    gauge.foreach(_.increment())
+    counter.next()
+  }
+
+  private def elementRemoved() = {
+    gauge.foreach(_.decrement())
+    counter.prev()
   }
 }
