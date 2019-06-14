@@ -305,6 +305,34 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       response.body.asByteArray shouldBe Base64.getDecoder().decode(png)
   }
 
+  /**
+   * Tests web action for HEAD requests.
+   */
+  it should "create a web action making a HEAD request" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "webaction"
+    val file = Some(TestUtils.getTestActionFilename("echo.js"))
+    val host = getServiceURL()
+    val url = s"$host$testRoutePath/$namespace/default/$name.text/__ow_user"
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> true.toJson))
+    }
+
+    val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
+    unauthorizedResponse.statusCode shouldBe 401
+
+    val authorizedResponse = RestAssured
+      .given()
+      .config(sslconfig)
+      .auth()
+      .preemptive()
+      .basic(wskprops.authKey.split(":")(0), wskprops.authKey.split(":")(1))
+      .head(url)
+
+    authorizedResponse.statusCode shouldBe 200
+    authorizedResponse.body shouldBe null
+  }
+
   private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
 
   private lazy val (vanitySubdomain, vanityNamespace, makeTestSubject) = {
