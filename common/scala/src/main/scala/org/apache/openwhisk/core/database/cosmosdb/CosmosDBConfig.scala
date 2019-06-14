@@ -31,6 +31,8 @@ import pureconfig._
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
+case class WriteQueueConfig(queueSize: Int, concurrency: Int)
+
 case class CosmosDBConfig(endpoint: String,
                           key: String,
                           db: String,
@@ -40,7 +42,8 @@ case class CosmosDBConfig(endpoint: String,
                           timeToLive: Option[Duration],
                           clusterId: Option[String],
                           softDeleteTTL: Option[FiniteDuration],
-                          recordUsageFrequency: Option[FiniteDuration]) {
+                          recordUsageFrequency: Option[FiniteDuration],
+                          writeQueueConfig: Option[WriteQueueConfig]) {
 
   def createClient(): AsyncDocumentClient = {
     new AsyncDocumentClient.Builder()

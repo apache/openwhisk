@@ -38,7 +38,7 @@ import org.apache.openwhisk.http.Messages
 import spray.json._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -79,6 +79,11 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val softDeleteTTL = config.softDeleteTTL.map(_.toSeconds.toInt)
 
   private val clusterIdValue = config.clusterId.map(JsString(_))
+  private val docWriter = config.writeQueueConfig
+    .map(qc =>
+      new QueuedExecutor[(JsObject, TransactionId), DocInfo](qc.queueSize, qc.concurrency)({
+        case (js, tid) => putJsonDoc(js)(tid)
+      }))
 
   logging.info(
     this,
@@ -97,9 +102,15 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
-    val asJson = d.toDocumentRecord
+    val json = d.toDocumentRecord
+    docWriter match {
+      case Some(w) => w.put((json, transid))
+      case None    => putJsonDoc(json)
+    }
+  }
 
-    val doc = toCosmosDoc(asJson)
+  protected[database] def putJsonDoc(json: JsObject)(implicit transid: TransactionId): Future[DocInfo] = {
+    val doc = toCosmosDoc(json)
     val id = doc.getId
     val docinfoStr = s"id: $id, rev: ${doc.getETag}"
     val start = transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$collName' saving document: '$docinfoStr'")
@@ -114,7 +125,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .head()
       .recoverWith {
         case e: DocumentClientException if isConflict(e) && isNewDocument(doc) =>
-          val docId = DocId(asJson.fields(_id).convertTo[String])
+          val docId = DocId(json.fields(_id).convertTo[String])
           //Fetch existing document and check if its deleted
           getRaw(docId).flatMap {
             case Some(js) =>
@@ -357,6 +368,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
+          println(
+            s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
         }
         transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
     }
@@ -429,6 +442,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   override def shutdown(): Unit = {
     //Its async so a chance exist for next scheduled job to still trigger
+    docWriter.foreach(Await.ready(_, 10.seconds))
     usageMetricRecorder.foreach(system.stop)
     attachmentStore.foreach(_.shutdown())
     clientRef.close()
