@@ -45,6 +45,7 @@ import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
+import org.apache.openwhisk.core.containerpool.ContainerData
 
 /**
  * Behavior tests for the ContainerPool
@@ -128,9 +129,7 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize,
-                 clusterMangedResources: Boolean = false,
-                 idleGrace: FiniteDuration = 10.seconds) =
+  def poolConfig(userMemory: ByteSize, clusterMangedResources: Boolean = false, idleGrace: FiniteDuration = 0.seconds) =
     ContainerPoolConfig(userMemory, 0.5, false, clusterMangedResources, false, 10, idleGrace)
 
   val instanceId = InvokerInstanceId(0, userMemory = 1024.MB)
@@ -700,12 +699,13 @@ class ContainerPoolTests
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
     val resMgr = mock[ContainerResourceManager] //mock to capture invocations
+    val idleGrace = 1.seconds
     val pool = TestActorRef(
       ContainerPool
         .props(
           instanceId,
           factory,
-          poolConfig(MemoryLimit.stdMemory),
+          poolConfig(MemoryLimit.stdMemory, idleGrace = idleGrace),
           feed.ref,
           List(PrewarmingConfig(1, exec, memoryLimit)),
           Some(resMgr)))
@@ -722,7 +722,11 @@ class ContainerPoolTests
     (() => resMgr.activationStartLogMessage()).expects().returning("").repeat(2)
 
     //expect the container to become unused after second NeedWork
-    (resMgr.updateUnused(_: Map[ActorRef, ContainerData])).expects(Map(containers(0).ref -> warmed)).atLeastOnce()
+    (resMgr
+      .updateUnused(_: Map[ActorRef, ContainerData]))
+      .expects(where { m: Map[ActorRef, ContainerData] =>
+        m.values.head.getContainer == warmed.getContainer
+      })
 
     pool ! runMessageConcurrent
     pool ! runMessageConcurrent
@@ -945,15 +949,8 @@ class ContainerPoolTests
   it should "remove unused on ReleaseFree" in {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
-    val resMgr = new ContainerResourceManager {
-      override def canLaunch(size: ByteSize,
-                             poolMemory: Long,
-                             poolConfig: ContainerPoolConfig,
-                             prewarm: Boolean): Boolean = {
-        true
-      }
-    }
-    val idleGrace = 25.seconds
+    val resMgr = mock[ContainerResourceManager] //mock to capture invocations
+    val idleGrace = 1.seconds
     val pool = TestActorRef(
       ContainerPool
         .props(
@@ -963,8 +960,34 @@ class ContainerPoolTests
           feed.ref,
           List(PrewarmingConfig(1, exec, memoryLimit)),
           Some(resMgr)))
-    val warmed = warmedData(lastUsed = Instant.now().minusSeconds(idleGrace.toSeconds)) //will only be released if lastUsed is after idleGrace
+    val warmed = warmedData() //will only be released if lastUsed is after idleGrace
 
+    (resMgr
+      .canLaunch(_: ByteSize, _: Long, _: ContainerPoolConfig, _: Boolean))
+      .expects(memoryLimit, 0, *, false)
+      .returning(true)
+      .repeat(3)
+
+    (resMgr.addReservation(_: ActorRef, _: ByteSize)).expects(*, memoryLimit)
+
+    (resMgr.updateUnused(_: Map[ActorRef, ContainerData])).expects(Map.empty[ActorRef, ContainerData]).atLeastOnce()
+    (() => resMgr.activationStartLogMessage()).expects().returning("").repeat(2)
+
+    //expect the container to become unused after second NeedWork
+    var warmLastUsed: Instant = null
+    (resMgr
+      .updateUnused(_: Map[ActorRef, ContainerData]))
+      .expects(where { m: Map[ActorRef, ContainerData] =>
+        if (m.values.head.getContainer == warmed.getContainer) {
+          warmLastUsed = m.values.head.lastUsed //this bit of hackery allows us to capture the lastUsed value from the arg
+          true
+        } else {
+          false
+        }
+
+      })
+
+    println(s"last used ${warmed.lastUsed}")
     pool ! runMessageConcurrent
     pool ! runMessageConcurrent
 
@@ -972,9 +995,13 @@ class ContainerPoolTests
     containers(0).expectMsg(runMessageConcurrent)
 
     containers(0).send(pool, NeedWork(warmed))
-    containers(0).send(pool, NeedWork(warmed)) //container will become unused, and removable now
+    containers(0)
+      .send(pool, NeedWork(warmed))
 
-    pool ! ReleaseFree(List(RemoteContainerRef(memoryLimit, warmed.lastUsed, warmed.container.addr)))
+    //container will become unused, and removable only after idle grace period
+    Thread.sleep(idleGrace.toMillis + 1)
+
+    pool ! ReleaseFree(List(RemoteContainerRef(memoryLimit, warmLastUsed, warmed.container.addr)))
 
     containers(0).expectMsg(Remove)
 

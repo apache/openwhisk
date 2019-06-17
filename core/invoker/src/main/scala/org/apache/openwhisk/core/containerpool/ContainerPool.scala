@@ -259,7 +259,8 @@ class ContainerPool(instanceId: InvokerInstanceId,
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
-      val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
+      val newData =
+        warmData.copy(lastUsed = oldData.lastUsed, activeActivationCount = oldData.activeActivationCount - 1)
       if (newData.activeActivationCount < 0) {
         logging.error(this, s"invalid activation count after warming < 1 ${newData}")
       }
@@ -456,6 +457,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
   }
 
   def updateUnused() = {
+    //TODO: exclude those not past idle grace
     val unused = freePool.filter(_._2.activeActivationCount == 0)
     resourceManager.updateUnused(unused)
   }
@@ -567,6 +569,12 @@ object ContainerPool {
     // and has not been used since the removal was requested
     // and has not been used past the idle grace period
     val idleGraceInstant = Instant.now().minusSeconds(idleGrace.toSeconds)
+
+    freePool.foreach { c =>
+      println(s"c  ${c._2.getContainer}  ${c._2.lastUsed}  ${idleGraceInstant} ${c._2.lastUsed
+        .isBefore(idleGraceInstant)} ${c._2.activeActivationCount}")
+    }
+
     val toRemove = freePool
     //FILTER MATCHING MEMORY USAGE WITH LAST USE BEFORE IDLE GRACE INSTANT
       .filter { f =>
@@ -578,7 +586,10 @@ object ContainerPool {
           r.size == f._2.memoryLimit && r.lastUsed == f._2.lastUsed && r.containerAddress == f._2.getContainer.get.addr
         }
       }
-    toRemove.foreach(i => logging.info(this, s"removing idle container ${i._2.getContainer.get}"))
+    toRemove.foreach(i =>
+      logging.info(
+        this,
+        s"removing idle container ${i._2.getContainer.get} with last use ${i._2.lastUsed} before idle grace at ${idleGraceInstant}"))
     toRemove.keySet
   }
 

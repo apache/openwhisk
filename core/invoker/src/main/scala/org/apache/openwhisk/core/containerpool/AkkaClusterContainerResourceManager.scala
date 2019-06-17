@@ -125,6 +125,7 @@ class AkkaClusterContainerResourceManager(system: ActorSystem,
       val localRes = localReservations.values.map(_.size) //active local reservations
       val remoteRes = remoteReservations.values.toList.flatten.map(_.size) //remote/stale reservations
 
+      //TODO: consider potential to fit each reservation, then required memory for this action.
       val allRes = localRes ++ remoteRes
       //make sure there is at least one node with unreserved mem > memory
       val canLaunch = clusterHasPotentialMemoryCapacity(memory.toMB, allRes) //consider all reservations blocking till they are removed during NodeStatsUpdate
