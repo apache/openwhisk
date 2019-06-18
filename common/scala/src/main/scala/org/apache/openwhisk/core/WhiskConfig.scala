@@ -257,4 +257,5 @@ object ConfigKeys {
   val featureFlags = "whisk.feature-flags"
 
   val whiskConfig = "whisk.config"
+  val memoryStore = "whisk.memory-store"
 }
