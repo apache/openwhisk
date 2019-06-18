@@ -24,6 +24,7 @@ import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
 import akka.stream.ActorMaterializer
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
@@ -94,6 +95,7 @@ object Main extends SLF4JLogging {
 
   def initialize(conf: Conf): Unit = {
     configureServerPort(conf)
+    configureOSSpecificOpts()
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
@@ -144,6 +146,15 @@ object Main extends SLF4JLogging {
         val admin = WhiskAdmin(conf)
         Await.ready(admin.executeCommand(), 60.seconds)
         logging.info(this, s"Created user [$subject]")
+    }
+  }
+
+  def configureOSSpecificOpts(): Unit = {
+    if (SystemUtils.IS_OS_MAC) {
+      System.setProperty("whisk.docker.container-factory.use-runc", "False")
+      System.setProperty(
+        "whisk.spi.ContainerFactoryProvider",
+        "org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider")
     }
   }
 }
