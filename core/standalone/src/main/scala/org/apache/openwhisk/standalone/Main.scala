@@ -20,15 +20,22 @@ package org.apache.openwhisk.standalone
 import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import org.apache.commons.io.FileUtils
-import org.apache.openwhisk.common.Config
-import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
+import org.apache.openwhisk.common.{AkkaLogging, Config, Logging}
+import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk standalone launcher")
+  //TODO Make server port configurable
 
   val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
@@ -67,10 +74,25 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
+    initialize(conf)
+
+    //Create actor system only after initializing the config
+    implicit val actorSystem = ActorSystem("standalone-actor-system")
+    implicit val materializer = ActorMaterializer.create(actorSystem)
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+
+    bootstrapUsers()
+    startController()
+  }
+
+  def initialize(conf: Conf): Unit = {
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
-    Controller.main(Array("standalone"))
+  }
+
+  def startController()(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
+    Controller.start(Array("standalone"))
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -98,5 +120,18 @@ object Main {
         defaultRuntime
     }
     System.setProperty(configKey(WhiskConfig.runtimesManifest), manifest)
+  }
+
+  def bootstrapUsers()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+    val users = loadConfigOrThrow[Map[String, String]]("whisk.users")
+
+    users.foreach {
+      case (name, key) =>
+        val subject = name.replace('-', '.')
+        val conf = new org.apache.openwhisk.core.cli.Conf(Seq("user", "create", "--auth", key, subject))
+        val admin = WhiskAdmin(conf)
+        Await.ready(admin.executeCommand(), 60.seconds)
+        logging.info(this, s"Created user [$subject]")
+    }
   }
 }

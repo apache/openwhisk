@@ -39,6 +39,7 @@ bootJar {
 
 dependencies {
     compile project(':core:controller')
+    compile project(':tools:admin')
     compile 'org.rogach:scallop_2.12:3.3.1'
     scoverage gradle.scoverage.deps
 }

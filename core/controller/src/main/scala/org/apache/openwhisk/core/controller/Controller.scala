@@ -207,10 +207,14 @@ object Controller {
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {
-    ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
     implicit val actorSystem = ActorSystem("controller-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    start(args)
+  }
+
+  def start(args: Array[String])(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
+    ConfigMXBean.register()
+    Kamon.loadReportersFromConfig()
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
