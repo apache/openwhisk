@@ -255,4 +255,6 @@ object ConfigKeys {
 
   val metrics = "whisk.metrics"
   val featureFlags = "whisk.feature-flags"
+
+  val whiskConfig = "whisk.config"
 }
