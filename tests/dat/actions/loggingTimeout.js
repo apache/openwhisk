@@ -13,20 +13,20 @@ function getArg(value, defaultValue) {
 // main( { delay: 100, duration: 10000 } );
 function main(args) {
 
-   durationMillis = getArg(args.duration, 120000);
-   delayMillis = getArg(args.delay, 100);
+   var durationMillis = getArg(args.duration, 120000);
+   var delayMillis = getArg(args.delay, 100);
 
-   logLines = 0;
-   startMillis = new Date();
+   var logLines = 0;
+   var startMillis = new Date();
 
-   timeout = setInterval(function() {
+   var timeout = setInterval(function() {
       console.log(`[${ ++logLines }] The quick brown fox jumps over the lazy dog.`);
    }, delayMillis);
 
    return new Promise(function(resolve, reject) {
       setTimeout(function() {
          clearInterval(timeout);
-         message = `hello, I'm back after ${new Date() - startMillis} ms and printed ${logLines} log lines`
+         var message = `hello, I'm back after ${new Date() - startMillis} ms and printed ${logLines} log lines`
          console.log(message)
          resolve({ message: message });
       }, durationMillis);
