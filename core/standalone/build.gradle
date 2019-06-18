@@ -29,10 +29,6 @@ repositories {
     mavenCentral()
 }
 
-jar {
-    enabled = true
-}
-
 bootJar {
     mainClassName = 'org.apache.openwhisk.standalone.Main'
 }
