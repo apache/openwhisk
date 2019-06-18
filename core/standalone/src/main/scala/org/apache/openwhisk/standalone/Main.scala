@@ -18,9 +18,11 @@
 package org.apache.openwhisk.standalone
 
 import java.io.File
+import java.nio.charset.StandardCharsets.UTF_8
 
+import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.common.Config
-import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.controller.Controller
 import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
@@ -29,15 +31,44 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk standalone launcher")
 
   val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")
+  val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
 
   verify()
 }
 
 object Main {
+  val defaultRuntime = """{
+     |  "runtimes": {
+     |    "nodejs": [
+     |      {
+     |        "kind": "nodejs:10",
+     |        "default": true,
+     |        "image": {
+     |          "prefix": "openwhisk",
+     |          "name": "action-nodejs-v10",
+     |          "tag": "latest"
+     |        },
+     |        "deprecated": false,
+     |        "attached": {
+     |          "attachmentName": "codefile",
+     |          "attachmentType": "text/plain"
+     |        },
+     |        "stemCells": [
+     |          {
+     |            "count": 1,
+     |            "memory": "256 MB"
+     |          }
+     |        ]
+     |      }
+     |    ]
+     |  }
+     |}
+     |""".stripMargin
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
     initConfigLocation(conf)
+    configureRuntimeManifest(conf)
     loadWhiskConfig()
     Controller.main(Array("standalone"))
   }
@@ -57,5 +88,15 @@ object Main {
   def loadWhiskConfig(): Unit = {
     val config = loadConfigOrThrow[Map[String, String]](ConfigKeys.whiskConfig)
     config.foreach { case (k, v) => System.setProperty(configKey(k), v) }
+  }
+
+  def configureRuntimeManifest(conf: Conf): Unit = {
+    val manifest = conf.manifest.toOption match {
+      case Some(file) =>
+        FileUtils.readFileToString(file, UTF_8)
+      case None =>
+        defaultRuntime
+    }
+    System.setProperty(configKey(WhiskConfig.runtimesManifest), manifest)
   }
 }
