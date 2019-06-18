@@ -21,6 +21,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
+import akka.event.slf4j.SLF4JLogging
 import akka.stream.ActorMaterializer
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging}
@@ -35,15 +36,15 @@ import scala.concurrent.duration._
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk standalone launcher")
-  //TODO Make server port configurable
 
   val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
+  val port = opt[Int](descr = "Server port", default = Some(8080))
 
   verify()
 }
 
-object Main {
+object Main extends SLF4JLogging {
   val defaultRuntime = """{
      |  "runtimes": {
      |    "nodejs": [
@@ -85,7 +86,14 @@ object Main {
     startController()
   }
 
+  def configureServerPort(conf: Conf) = {
+    val port = conf.port()
+    log.info(s"Starting OpenWhisk standalone on port $port")
+    setConfigProp(WhiskConfig.servicePort, port.toString)
+  }
+
   def initialize(conf: Conf): Unit = {
+    configureServerPort(conf)
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
@@ -109,7 +117,7 @@ object Main {
 
   def loadWhiskConfig(): Unit = {
     val config = loadConfigOrThrow[Map[String, String]](ConfigKeys.whiskConfig)
-    config.foreach { case (k, v) => System.setProperty(configKey(k), v) }
+    config.foreach { case (k, v) => setConfigProp(k, v) }
   }
 
   def configureRuntimeManifest(conf: Conf): Unit = {
@@ -119,7 +127,11 @@ object Main {
       case None =>
         defaultRuntime
     }
-    System.setProperty(configKey(WhiskConfig.runtimesManifest), manifest)
+    setConfigProp(WhiskConfig.runtimesManifest, manifest)
+  }
+
+  def setConfigProp(key: String, value: String): Unit = {
+    System.setProperty(configKey(key), value)
   }
 
   def bootstrapUsers()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
