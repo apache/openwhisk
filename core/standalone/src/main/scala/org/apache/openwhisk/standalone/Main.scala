@@ -38,7 +38,7 @@ import scala.concurrent.duration._
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner("OpenWhisk standalone launcher")
 
-  val configFile = opt[File](descr = "application.conf which overwrites the default whisk.conf")
+  val configFile = opt[File](descr = "application.conf which overrides the default standalone.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
   val port = opt[Int](descr = "Server port", default = Some(8080))
 
