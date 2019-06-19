@@ -25,7 +25,7 @@ import kamon.metric.Gauge
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge] = None)(operation: T => Future[R])(
+class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge])(operation: T => Future[R])(
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext) {
   private val (queue, queueFinish) = Source

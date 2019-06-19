@@ -40,7 +40,7 @@ class QueuedPersister(store: CosmosDBArtifactStore[_], config: WriteQueueConfig,
   ec: ExecutionContext)
     extends DocumentPersister {
   private val queuedExecutor =
-    new QueuedExecutor[(JsObject, TransactionId), DocInfo](config.queueSize, config.concurrency)({
+    new QueuedExecutor[(JsObject, TransactionId), DocInfo](config.queueSize, config.concurrency, gauge)({
       case (js, tid) => store.putJsonDoc(js)(tid)
     })
 

@@ -45,7 +45,7 @@ class QueuedExecutorTests extends FlatSpec with Matchers with WskActorSystem wit
   behavior of "QueuedExecutor"
 
   it should "complete queued values with the thrown exception" in {
-    val executor = new QueuedExecutor[Int, Int](2, 1)(_ => Future.failed(new Exception))
+    val executor = new QueuedExecutor[Int, Int](2, 1, None)(_ => Future.failed(new Exception))
 
     val r1 = executor.put(1)
     val r2 = executor.put(2)
