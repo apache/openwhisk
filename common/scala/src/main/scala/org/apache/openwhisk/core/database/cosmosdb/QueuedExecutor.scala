@@ -63,7 +63,6 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge
       case QueueOfferResult.QueueClosed => Future.failed(new Exception("DB request queue was closed."))
       case QueueOfferResult.Failure(f)  => Future.failed(f)
     }
-    promise.future
   }
 
   def close(): Future[Done] = {
