@@ -61,14 +61,17 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
     val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
-    val store = new MemoryArtifactStore(
-      dbName,
-      handler,
-      viewMapper,
-      inliningConfig,
-      attachmentStore,
-      memoryStoreConfig.ignoreShutdown)
-    if (memoryStoreConfig.singletonMode) stores.getOrElseUpdate(dbName, store).asInstanceOf[ArtifactStore[D]] else store
+    val storeFactory = () =>
+      new MemoryArtifactStore(
+        dbName,
+        handler,
+        viewMapper,
+        inliningConfig,
+        attachmentStore,
+        memoryStoreConfig.ignoreShutdown)
+    if (memoryStoreConfig.singletonMode)
+      stores.getOrElseUpdate(dbName, storeFactory.apply()).asInstanceOf[ArtifactStore[D]]
+    else storeFactory.apply()
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
@@ -106,6 +109,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     with DefaultJsonProtocol
     with DocumentProvider
     with AttachmentSupport[DocumentAbstraction] {
+
+  logging.info(this, s"Created MemoryStore for [$dbName]. ignoreShutdown=$ignoreShutdown")
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
