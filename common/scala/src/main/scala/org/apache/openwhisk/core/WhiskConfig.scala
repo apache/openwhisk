@@ -49,9 +49,13 @@ class WhiskConfig(requiredProperties: Map[String, String],
    */
   override protected def getProperties() = {
     val properties = super.getProperties()
-    WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
+    if (!disableReadFromFile()) {
+      WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
+    }
     properties
   }
+
+  private def disableReadFromFile() = java.lang.Boolean.getBoolean(WhiskConfig.disableWhiskPropsFileRead)
 
   val servicePort = this(WhiskConfig.servicePort)
   val dockerEndpoint = this(WhiskConfig.dockerEndpoint)
@@ -85,6 +89,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
 }
 
 object WhiskConfig {
+  val disableWhiskPropsFileRead = Config.prefix + "disable.whisks.props.file.read"
 
   /**
    * Reads a key from system environment as if it was part of WhiskConfig.
@@ -170,7 +175,7 @@ object WhiskConfig {
   val kafkaHostList = "kafka.hosts"
   val zookeeperHostList = "zookeeper.hosts"
 
-  private val edgeHostApiPort = "edge.host.apiport"
+  val edgeHostApiPort = "edge.host.apiport"
 
   val invokerHostsList = "invoker.hosts"
   val dbHostsList = "db.hostsList"
