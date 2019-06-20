@@ -40,7 +40,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val configFile = opt[File](descr = "application.conf which overrides the default standalone.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
-  val port = opt[Int](descr = "Server port", default = Some(8080))
+  val port = opt[Int](descr = "Server port", default = Some(3233))
 
   verify()
 }
