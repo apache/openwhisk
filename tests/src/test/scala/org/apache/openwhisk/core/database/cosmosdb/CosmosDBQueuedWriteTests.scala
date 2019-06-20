@@ -36,7 +36,7 @@ class CosmosDBQueuedWriteTests extends FlatSpec with CosmosDBStoreBehaviorBase {
     Some(MemoryAttachmentStoreProvider.makeStore[D]())
 
   override def adaptCosmosDBConfig(config: CosmosDBConfig): CosmosDBConfig =
-    config.copy(writeQueueConfig = Some(WriteQueueConfig(1000, 2)))
+    config.copy(writeQueueConfig = Some(WriteQueueConfig(20, 1)))
 
   it should "write multiple documents" in {
     implicit val tid: TransactionId = transid()
@@ -48,6 +48,18 @@ class CosmosDBQueuedWriteTests extends FlatSpec with CosmosDBStoreBehaviorBase {
 
     implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 2.minutes)
     f.futureValue.size shouldBe insertCount
+  }
 
+  it should "log error when queue size is exceeded" in {
+    implicit val tid: TransactionId = transid()
+
+    val insertCount = 50
+    val ns = newNS()
+    val activations = (1 to insertCount).map(newActivation(ns.asString, "testact", _))
+    val f = Future.sequence(activations.map(activationStore.put(_)))
+
+    implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 2.minutes)
+    f.failed.futureValue shouldBe an[QueuedExecutorFullException]
+    stream.toString should include("QueuedExecutorFullException")
   }
 }

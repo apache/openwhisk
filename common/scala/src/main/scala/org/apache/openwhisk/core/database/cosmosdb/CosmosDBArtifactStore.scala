@@ -82,7 +82,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val clusterIdValue = config.clusterId.map(JsString(_))
   private val docPersister: DocumentPersister =
     config.writeQueueConfig
-      .map(new QueuedPersister(this, _, Some(queueSizeToken.gauge)))
+      .map(new QueuedPersister(this, _, collName, Some(queueSizeToken.gauge)))
       .getOrElse(new SimplePersister(this))
 
   logging.info(

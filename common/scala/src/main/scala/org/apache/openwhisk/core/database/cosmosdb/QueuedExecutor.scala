@@ -25,9 +25,12 @@ import kamon.metric.Gauge
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
+case class QueuedExecutorFullException(message: String) extends Exception(message)
+
 class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge])(operation: T => Future[R])(
   implicit materializer: ActorMaterializer,
   ec: ExecutionContext) {
+  private val queueFullException = QueuedExecutorFullException(s"Queue of size [$queueSize] is full. Entry dropped")
   private val (queue, queueFinish) = Source
     .queue[(T, Promise[R])](queueSize, OverflowStrategy.dropNew)
     .mapAsyncUnordered(concurrency) {
@@ -59,7 +62,7 @@ class QueuedExecutor[T, R](queueSize: Int, concurrency: Int, gauge: Option[Gauge
       case QueueOfferResult.Enqueued =>
         elementAdded()
         promise.future
-      case QueueOfferResult.Dropped     => Future.failed(new Exception("DB request queue is full."))
+      case QueueOfferResult.Dropped     => Future.failed(queueFullException)
       case QueueOfferResult.QueueClosed => Future.failed(new Exception("DB request queue was closed."))
       case QueueOfferResult.Failure(f)  => Future.failed(f)
     }
