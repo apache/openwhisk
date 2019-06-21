@@ -45,7 +45,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   verify()
 }
 
-object Main extends SLF4JLogging {
+object StandaloneOpenWhisk extends SLF4JLogging {
   val defaultRuntime = """{
      |  "runtimes": {
      |    "nodejs": [
@@ -83,14 +83,7 @@ object Main extends SLF4JLogging {
     implicit val materializer = ActorMaterializer.create(actorSystem)
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
-    bootstrapUsers()
-    startController()
-  }
-
-  def configureServerPort(conf: Conf) = {
-    val port = conf.port()
-    log.info(s"Starting OpenWhisk standalone on port $port")
-    setConfigProp(WhiskConfig.servicePort, port.toString)
+    startServer()
   }
 
   def initialize(conf: Conf): Unit = {
@@ -101,8 +94,19 @@ object Main extends SLF4JLogging {
     loadWhiskConfig()
   }
 
-  def startController()(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
-    Controller.start(Array("standalone"))
+  def startServer()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+    bootstrapUsers()
+    startController()
+  }
+
+  private def configureServerPort(conf: Conf) = {
+    val port = conf.port()
+    log.info(s"Starting OpenWhisk standalone on port $port")
+    System.setProperty(WhiskConfig.disableWhiskPropsFileRead, "true")
+    setConfigProp(WhiskConfig.servicePort, port.toString)
+    setConfigProp(WhiskConfig.wskApiPort, port.toString)
+    setConfigProp(WhiskConfig.wskApiProtocol, "http")
+    setConfigProp(WhiskConfig.wskApiHostname, "localhost")
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -115,14 +119,14 @@ object Main extends SLF4JLogging {
     }
   }
 
-  def configKey(k: String): String = Config.prefix + k.replace('-', '.')
+  private def configKey(k: String): String = Config.prefix + k.replace('-', '.')
 
-  def loadWhiskConfig(): Unit = {
+  private def loadWhiskConfig(): Unit = {
     val config = loadConfigOrThrow[Map[String, String]](ConfigKeys.whiskConfig)
     config.foreach { case (k, v) => setConfigProp(k, v) }
   }
 
-  def configureRuntimeManifest(conf: Conf): Unit = {
+  private def configureRuntimeManifest(conf: Conf): Unit = {
     val manifest = conf.manifest.toOption match {
       case Some(file) =>
         FileUtils.readFileToString(file, UTF_8)
@@ -132,11 +136,17 @@ object Main extends SLF4JLogging {
     setConfigProp(WhiskConfig.runtimesManifest, manifest)
   }
 
-  def setConfigProp(key: String, value: String): Unit = {
-    System.setProperty(configKey(key), value)
+  private def setConfigProp(key: String, value: String): Unit = {
+    setSysPro(configKey(key), value)
   }
 
-  def bootstrapUsers()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+  private def startController()(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
+    Controller.start(Array("standalone"), "http")
+  }
+
+  private def bootstrapUsers()(implicit actorSystem: ActorSystem,
+                               materializer: ActorMaterializer,
+                               logging: Logging): Unit = {
     val users = loadConfigOrThrow[Map[String, String]]("whisk.users")
 
     users.foreach {
@@ -149,12 +159,24 @@ object Main extends SLF4JLogging {
     }
   }
 
-  def configureOSSpecificOpts(): Unit = {
+  private def configureOSSpecificOpts(): Unit = {
     if (SystemUtils.IS_OS_MAC) {
-      System.setProperty("whisk.docker.container-factory.use-runc", "False")
-      System.setProperty(
+      setSysPro("whisk.docker.container-factory.use-runc", "False")
+      setSysPro(
         "whisk.spi.ContainerFactoryProvider",
         "org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider")
+      setSysPro(
+        "whisk.spi.LogStoreProvider",
+        "org.apache.openwhisk.core.containerpool.docker.DockerForMacLogStoreProvider")
+    }
+  }
+
+  private def setSysPro(key: String, value: String): Unit = {
+    Option(System.getProperty(key)) match {
+      case Some(x) if x != value =>
+        log.info(s"Founding existing value for system property '$key'- Going to set '$value' , found '$x'")
+      case _ =>
+        System.setProperty(key, value)
     }
   }
 }

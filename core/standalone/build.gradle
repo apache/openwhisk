@@ -30,7 +30,7 @@ repositories {
 }
 
 bootJar {
-    mainClassName = 'org.apache.openwhisk.standalone.Main'
+    mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
 }
 
 dependencies {
