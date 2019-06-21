@@ -167,11 +167,11 @@ object BasicHttpService {
   /**
    * Starts an HTTP(S) route handler on given port and registers a shutdown hook.
    */
-  def startHttpService(route: Route, port: Int, config: Option[HttpsConfig] = None)(
+  def startHttpService(route: Route, port: Int, config: Option[HttpsConfig] = None, interface: String = "0.0.0.0")(
     implicit actorSystem: ActorSystem,
     materializer: ActorMaterializer): Unit = {
     val connectionContext = config.map(Https.connectionContext(_)).getOrElse(HttpConnectionContext)
-    val httpBinding = Http().bindAndHandle(route, "0.0.0.0", port, connectionContext = connectionContext)
+    val httpBinding = Http().bindAndHandle(route, interface, port, connectionContext = connectionContext)
     addShutdownHook(httpBinding)
   }
 

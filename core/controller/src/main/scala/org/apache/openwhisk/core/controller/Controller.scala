@@ -170,6 +170,7 @@ class Controller(val instance: ControllerInstanceId,
 object Controller {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+  protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
@@ -267,7 +268,9 @@ object Controller {
         val httpsConfig =
           if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(controller.route, port, httpsConfig)(actorSystem, controller.materializer)
+        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
+          actorSystem,
+          controller.materializer)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")
