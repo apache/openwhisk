@@ -36,6 +36,7 @@ processResources {
 }
 
 bootJar {
+    archiveName = "${project.archivesBaseName}.jar"
     mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
 }
 
