@@ -152,7 +152,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def startController()(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
-    Controller.start(Array("standalone"), "http")
+    Controller.start(Array("standalone"))
   }
 
   private def bootstrapUsers()(implicit actorSystem: ActorSystem,
