@@ -25,7 +25,7 @@ import akka.event.slf4j.SLF4JLogging
 import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.commons.lang3.SystemUtils
-import org.apache.openwhisk.common.{AkkaLogging, Config, Logging}
+import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -162,7 +162,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
                                materializer: ActorMaterializer,
                                logging: Logging): Unit = {
     val users = loadConfigOrThrow[Map[String, String]]("whisk.users")
-
+    implicit val userTid: TransactionId = TransactionId("userBootstrap")
     users.foreach {
       case (name, key) =>
         val subject = name.replace('-', '.')
