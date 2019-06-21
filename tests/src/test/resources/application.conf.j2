@@ -62,13 +62,6 @@ whisk {
         throughput = 400
     }
 
-    whisk {
-        memory-store {
-            singleton-mode = false
-            ignore-shutdown = false
-        }
-    }
-
     controller {
       protocol = {{ controller.protocol }}
       https {

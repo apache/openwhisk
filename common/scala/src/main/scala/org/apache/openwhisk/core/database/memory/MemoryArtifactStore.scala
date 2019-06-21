@@ -39,7 +39,6 @@ import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
-  case class MemoryStoreConfig(singletonMode: Boolean, ignoreShutdown: Boolean)
   private val stores = new TrieMap[String, MemoryArtifactStore[_]]()
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
@@ -57,22 +56,14 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
 
-    val memoryStoreConfig = loadConfigOrThrow[MemoryStoreConfig](actorSystem.settings.config, ConfigKeys.memoryStore)
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
     val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
-    val storeFactory = () =>
-      new MemoryArtifactStore(
-        dbName,
-        handler,
-        viewMapper,
-        inliningConfig,
-        attachmentStore,
-        memoryStoreConfig.ignoreShutdown)
-    if (memoryStoreConfig.singletonMode)
-      stores.getOrElseUpdate(dbName, storeFactory.apply()).asInstanceOf[ArtifactStore[D]]
-    else storeFactory.apply()
+    val storeFactory = () => new MemoryArtifactStore(dbName, handler, viewMapper, inliningConfig, attachmentStore)
+    stores.getOrElseUpdate(dbName, storeFactory.apply()).asInstanceOf[ArtifactStore[D]]
   }
+
+  def purgeAll(): Unit = stores.clear()
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
     implicit actorSystem: ActorSystem,
@@ -98,8 +89,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
                                                                      documentHandler: DocumentHandler,
                                                                      viewMapper: MemoryViewMapper,
                                                                      val inliningConfig: InliningConfig,
-                                                                     val attachmentStore: AttachmentStore,
-                                                                     ignoreShutdown: Boolean)(
+                                                                     val attachmentStore: AttachmentStore)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
@@ -110,7 +100,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     with DocumentProvider
     with AttachmentSupport[DocumentAbstraction] {
 
-  logging.info(this, s"Created MemoryStore for [$dbName]. ignoreShutdown=$ignoreShutdown")
+  logging.info(this, s"Created MemoryStore for [$dbName]")
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -301,10 +291,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   }
 
   override def shutdown(): Unit = {
-    if (!ignoreShutdown) {
-      artifacts.clear()
-      attachmentStore.shutdown()
-    }
+    attachmentStore.shutdown()
   }
 
   override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {
