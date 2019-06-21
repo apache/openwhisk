@@ -172,11 +172,18 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def configureOSSpecificOpts(): Unit = {
     if (SystemUtils.IS_OS_MAC) {
-      setSysPro("whisk.docker.container-factory.use-runc", "False")
       setSysPro(
         "whisk.spi.ContainerFactoryProvider",
         "org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider")
     }
+    if (SystemUtils.IS_OS_WINDOWS) {
+      setSysPro(
+        "whisk.spi.ContainerFactoryProvider",
+        "org.apache.openwhisk.core.containerpool.docker.DockerForWindowsContainerFactory")
+    }
+
+    //Disable runc by default to keep things stable
+    setSysPro("whisk.docker.container-factory.use-runc", "False")
 
     //Use cli based log store for all setups as its more stable to use
     // and does not require root user access

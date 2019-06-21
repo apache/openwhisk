@@ -57,7 +57,8 @@ class DockerCliLogStore(system: ActorSystem)(implicit log: Logging) extends Dock
 class ExtendedDockerClient(dockerHost: Option[String] = None)(executionContext: ExecutionContext)(implicit log: Logging,
                                                                                                   as: ActorSystem)
     extends DockerClientWithFileAccess(dockerHost)(executionContext)
-    with DockerApiWithFileAccess {
+    with DockerApiWithFileAccess
+    with WindowsDockerClient {
 
   implicit private val ec: ExecutionContext = executionContext
   private val waitForLogs: FiniteDuration = 2.seconds
