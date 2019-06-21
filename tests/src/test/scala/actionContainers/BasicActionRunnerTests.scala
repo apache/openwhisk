@@ -111,6 +111,23 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   def testEnv: TestConfig
 
   /**
+   * Tests the action argument partition into environment variables and action arguments.
+   * The test should ensure the environment variables are available before "main" and that
+   * a Null value is the empty string.
+   *
+   * @param code a function returning a dictionary consisting of the following properties
+   *             { "STRING": process.env.STRING,
+   *               "NUMBER": process.env.NUMBER,
+   *               "BOOL": process.env.BOOL,
+   *               "NULL": process.env.NULL
+   *             }
+   * @param main the main function
+   * @param enforceEmptyOutputStream true to check empty stdout stream
+   * @param enforceEmptyErrorStream true to check empty stderr stream
+   */
+  def testEnvPartition: TestConfig
+
+  /**
    * Tests the action to confirm it can handle a large parameter (larger than 128K) when using STDIN.
    *
    * @param code the identity/echo function.
@@ -258,6 +275,33 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       case (o, _) =>
         o.toLowerCase should include("❄ ☃ ❄")
     })
+  }
+
+  it should s"export environment variables before initialization" in {
+    val config = testEnvPartition
+    if (!config.skipTest) {
+      val env = JsObject("STRING" -> JsString("xyz"), "NUMBER" -> JsNumber(3), "BOOL" -> JsTrue, "NULL" -> JsNull)
+
+      val (out, err) = withActionContainer() { c =>
+        val (initCode, _) = c.init(initPayload(config.code, config.main, Some(env)))
+        initCode should be(200)
+
+        val (runCode, out) = c.run(runPayload(JsObject.empty))
+        runCode should be(200)
+        out shouldBe Some(
+          JsObject(
+            "STRING" -> JsString("xyz"),
+            "NUMBER" -> JsString("3"),
+            "BOOL" -> JsString("true"),
+            "NULL" -> JsString.empty))
+      }
+
+      checkStreams(out, err, {
+        case (o, e) =>
+          if (config.enforceEmptyOutputStream) o shouldBe empty
+          if (config.enforceEmptyErrorStream) e shouldBe empty
+      })
+    }
   }
 
   it should s"confirm expected environment variables" in {

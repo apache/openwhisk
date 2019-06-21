@@ -100,6 +100,8 @@ class ContainerProxyTests
 
   val uuid = UUID()
 
+  val activationArguments = JsObject("ENV_VAR" -> "env".toJson, "param" -> "param".toJson)
+
   val message = ActivationMessage(
     messageTransId,
     action.fullyQualifiedName(true),
@@ -108,7 +110,7 @@ class ContainerProxyTests
     ActivationId.generate(),
     ControllerInstanceId("0"),
     blocking = false,
-    content = None)
+    content = Some(activationArguments))
 
   /*
    * Helpers for assertions and actor lifecycles
@@ -199,8 +201,42 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
+  val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 
   behavior of "ContainerProxy"
+
+  it should "partition activation arguments into environment variables and main arguments" in {
+    Seq(true, false).foreach { partitionEnvVars =>
+      ContainerProxy.partitionArguments(None, partitionEnvVars) should be(Map.empty, JsObject.empty)
+      ContainerProxy.partitionArguments(Some(JsObject.empty), partitionEnvVars) should be(Map.empty, JsObject.empty)
+
+      val content = JsObject("a" -> "A".toJson, "b" -> "B".toJson, "C" -> "c".toJson, "D" -> "d".toJson)
+      val (env, args) = ContainerProxy.partitionArguments(Some(content), partitionEnvVars)
+      env should be {
+        if (partitionEnvVars) content.fields.filter(k => filterEnvVar(k._1))
+        else Map.empty
+      }
+
+      args should be {
+        if (partitionEnvVars) JsObject(content.fields.filterNot(k => filterEnvVar(k._1)))
+        else content
+      }
+    }
+  }
+
+  it should "partition arguments into environment variables only if matching predicates" in {
+    val content = JsObject(
+      "STRING" -> JsString("xyz"),
+      "NUM" -> JsNumber(3),
+      "BOOL" -> JsTrue,
+      "NULL" -> JsNull,
+      "ARR" -> JsArray(JsTrue, JsFalse),
+      "OBJ" -> JsObject("nested" -> JsTrue))
+
+    val (env, args) = ContainerProxy.partitionArguments(Some(content), true)
+    JsObject(env) shouldBe JsObject("STRING" -> JsString("xyz"), "NUM" -> JsNumber(3), "BOOL" -> JsTrue)
+    args shouldBe JsObject("NULL" -> JsNull, "ARR" -> JsArray(JsTrue, JsFalse), "OBJ" -> JsObject("nested" -> JsTrue))
+  }
 
   /*
    * SUCCESSFUL CASES
@@ -1153,7 +1189,13 @@ class ContainerProxyTests
     override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
-      initializer shouldBe action.containerInitializer
+      initializer shouldBe action.containerInitializer {
+        if (action.annotations.isTruthy(Annotations.PartitionArgumentsForEnvironment, valueForNonExistent = false)) {
+          activationArguments.fields.filter(k => filterEnvVar(k._1))
+        } else {
+          Map.empty
+        }
+      }
       timeout shouldBe action.limits.timeout.duration
 
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))

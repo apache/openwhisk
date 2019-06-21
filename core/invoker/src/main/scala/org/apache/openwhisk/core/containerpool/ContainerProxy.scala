@@ -541,6 +541,9 @@ class ContainerProxy(
    */
   def initializeAndRun(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
     val actionTimeout = job.action.limits.timeout.duration
+    val (env, parameters) = ContainerProxy.partitionArguments(
+      job.msg.content,
+      job.action.annotations.isTruthy(Annotations.PartitionArgumentsForEnvironment, valueForNonExistent = false))
 
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
@@ -548,7 +551,7 @@ class ContainerProxy(
         Future.successful(None)
       case _ =>
         container
-          .initialize(job.action.containerInitializer, actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .initialize(job.action.containerInitializer(env), actionTimeout, job.action.limits.concurrency.maxConcurrent)
           .map(Some(_))
     }
 
@@ -558,7 +561,6 @@ class ContainerProxy(
         if (initInterval.isDefined) {
           self ! InitCompleted(WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now, 1))
         }
-        val parameters = job.msg.content getOrElse JsObject.empty
 
         // if the action requests the api key to be injected into the action context, add it here;
         // treat a missing annotation as requesting the api key for backward compatibility
@@ -769,6 +771,32 @@ object ContainerProxy {
           Parameters(WhiskActivation.timeoutAnnotation, JsBoolean(isTimeout)) ++
           causedBy ++ initTime ++ binding
       })
+  }
+
+  /**
+   * Partitions the activation arguments into two JsObject instances. The first is exported as intended for export
+   * by the action runtime to the environment. The second is passed on as arguments to the action.
+   *
+   * Properties in the activation argument list that begin with a capital letter are treated as
+   * environment variables, provided their value is one of [ string, number, boolean ].
+   *
+   * @param content the activation arguments
+   * @param partitionEnvVars if true, partition the arguments otherwise treat as one argument to the action
+   * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
+   */
+  def partitionArguments(content: Option[JsObject], partitionEnvVars: Boolean): (Map[String, JsValue], JsObject) = {
+    if (content.isEmpty || !partitionEnvVars) {
+      (Map.empty, content.getOrElse(JsObject.empty))
+    } else {
+      val (env, args) = content.get.fields.partition {
+        case (k, _: JsString | _: JsNumber | _: JsBoolean) =>
+          val c = k.charAt(0)
+          Character.isUpperCase(c)
+        case _ => false
+      }
+
+      (env, JsObject(args))
+    }
   }
 }
 

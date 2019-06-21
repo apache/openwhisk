@@ -545,14 +545,37 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "exclude undefined code in whisk action initializer" in {
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson)
     }
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson)
     }
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim")))
+      .containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson)
+    }
+  }
+
+  it should "allow of main override in action initializer" in {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), jsDefault("")).containerInitializer() shouldBe {
+      JsObject("name" -> "b".toJson, "binary" -> false.toJson, "code" -> JsString.empty, "main" -> "main".toJson)
+    }
+
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), jsDefault("", Some("bar")))
+      .containerInitializer() shouldBe {
+      JsObject("name" -> "b".toJson, "binary" -> false.toJson, "code" -> JsString.empty, "main" -> "bar".toJson)
+    }
+  }
+
+  it should "include optional environment variables" in {
+    val env = Map("E" -> "e".toJson)
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer(env) shouldBe {
+      JsObject(
+        "name" -> "b".toJson,
+        "binary" -> false.toJson,
+        "main" -> "main".toJson,
+        "env" -> JsObject("E" -> "e".toJson))
     }
   }
 

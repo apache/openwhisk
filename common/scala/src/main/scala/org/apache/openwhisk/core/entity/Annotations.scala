@@ -24,4 +24,5 @@ object Annotations {
   val RawHttpAnnotationName = "raw-http"
   val RequireWhiskAuthAnnotation = "require-whisk-auth"
   val ProvideApiKeyAnnotationName = "provide-api-key"
+  val PartitionArgumentsForEnvironment = "partition-arguments"
 }

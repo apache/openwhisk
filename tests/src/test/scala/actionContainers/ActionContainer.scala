@@ -58,12 +58,13 @@ trait ActionContainer {
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
   import ActionContainer.{filterSentinel, sentinel}
 
-  def initPayload(code: String, main: String = "main"): JsObject =
+  def initPayload(code: String, main: String = "main", env: Option[JsValue] = None): JsObject =
     JsObject(
       "value" -> JsObject(
         "code" -> { if (code != null) JsString(code) else JsNull },
         "main" -> JsString(main),
-        "binary" -> JsBoolean(Exec.isBinaryCode(code))))
+        "binary" -> JsBoolean(Exec.isBinaryCode(code)),
+        "env" -> env.getOrElse(JsNull)))
 
   def runPayload(args: JsValue, other: Option[JsObject] = None): JsObject =
     JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map.empty))
