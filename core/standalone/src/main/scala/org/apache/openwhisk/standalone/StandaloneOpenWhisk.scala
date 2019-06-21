@@ -36,7 +36,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  banner("OpenWhisk standalone launcher")
+  banner(StandaloneOpenWhisk.banner)
+  footer("\nOpenWhisk standalone server")
 
   val configFile = opt[File](descr = "application.conf which overrides the default standalone.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
@@ -46,6 +47,16 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 }
 
 object StandaloneOpenWhisk extends SLF4JLogging {
+  val banner =
+    """
+      |        ____      ___                   _    _ _     _     _
+      |       /\   \    / _ \ _ __   ___ _ __ | |  | | |__ (_)___| | __
+      |  /\  /__\   \  | | | | '_ \ / _ \ '_ \| |  | | '_ \| / __| |/ /
+      | /  \____ \  /  | |_| | |_) |  __/ | | | |/\| | | | | \__ \   <
+      | \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
+      |  \___\/ tm           |_|
+    """.stripMargin
+
   val defaultRuntime = """{
      |  "runtimes": {
      |    "nodejs": [
@@ -76,8 +87,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
+    println(banner)
     initialize(conf)
-
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")
     implicit val materializer = ActorMaterializer.create(actorSystem)
