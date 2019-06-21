@@ -29,6 +29,12 @@ repositories {
     mavenCentral()
 }
 
+processResources {
+    from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
+        into(".")
+    }
+}
+
 bootJar {
     mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
 }

@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
 import akka.stream.ActorMaterializer
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging}
 import org.apache.openwhisk.core.cli.WhiskAdmin
@@ -34,6 +34,7 @@ import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Try
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner(StandaloneOpenWhisk.banner)
@@ -141,8 +142,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val manifest = conf.manifest.toOption match {
       case Some(file) =>
         FileUtils.readFileToString(file, UTF_8)
-      case None =>
-        defaultRuntime
+      case None => {
+        //Fallback to a default runtime in case resource not found. Say while running from IDE
+        Try(IOUtils.resourceToString("/runtimes.json", UTF_8)).getOrElse(defaultRuntime)
+      }
     }
     setConfigProp(WhiskConfig.runtimesManifest, manifest)
   }
