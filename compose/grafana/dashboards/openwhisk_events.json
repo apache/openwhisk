@@ -119,7 +119,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_activations_total{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$interval]))",
+          "expr": "sum(increase(openwhisk_action_activations_total{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -201,7 +201,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\"}[$interval]))",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\",initiator=~\"$initiator\"}[$interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -285,7 +285,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\"}[$interval]))",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[$interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -367,7 +367,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_coldStarts_total{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$interval]))",
+          "expr": "sum(increase(openwhisk_action_coldStarts_total{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -420,7 +420,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 3
       },
@@ -461,7 +461,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\"}[$interval])) * 100 / sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$interval]))",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\",initiator=~\"$initiator\"}[$interval])) * 100 / sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$interval]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A",
@@ -502,8 +502,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 3
       },
       "id": 8,
@@ -543,7 +543,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "max(rate(openwhisk_action_duration_seconds_sum{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) / rate(openwhisk_action_duration_seconds_count{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) > 0)",
+          "expr": "max(rate(openwhisk_action_duration_seconds_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) / rate(openwhisk_action_duration_seconds_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) > 0)",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -585,8 +585,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 12,
         "y": 3
       },
       "id": 26,
@@ -626,7 +626,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "max(rate(openwhisk_action_waitTime_seconds_sum{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) / rate(openwhisk_action_waitTime_seconds_count{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) > 0)",
+          "expr": "max(rate(openwhisk_action_waitTime_seconds_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) / rate(openwhisk_action_waitTime_seconds_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) > 0)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -645,6 +645,82 @@
         }
       ],
       "valueName": "current"
+    },
+    {
+      "columns": [
+        {
+          "text": "Current",
+          "value": "current"
+        }
+      ],
+      "datasource": "Prometheus",
+      "fontSize": "100%",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "id": 37,
+      "links": [],
+      "pageSize": null,
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 0,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Action name",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "Metric",
+          "type": "string"
+        },
+        {
+          "alias": "Max memory",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 0,
+          "mappingType": 1,
+          "pattern": "Current",
+          "thresholds": [],
+          "type": "number",
+          "unit": "decmbytes"
+        },
+        {
+          "alias": "",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 2,
+          "pattern": "/.*/",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(increase(openwhisk_action_memory_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$__range])) by (action) / sum(increase(openwhisk_action_memory_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$__range])) by (action) > 0",
+          "format": "time_series",
+          "instant": false,
+          "intervalFactor": 1,
+          "legendFormat": "{{action}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Action memory",
+      "transform": "timeseries_aggregations",
+      "type": "table"
     },
     {
       "gridPos": {
@@ -694,7 +770,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_activations_total{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[1m])) by (action)",
+          "expr": "sum(increase(openwhisk_action_activations_total{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[1m])) by (action)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -722,6 +798,7 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
           "label": "activations",
           "logBase": 1,
@@ -782,7 +859,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\"}[1m])) by (action)",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=\"success\",initiator=~\"$initiator\"}[1m])) by (action)",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -811,6 +888,7 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
           "label": "activations",
           "logBase": 1,
@@ -870,7 +948,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\"}[1m])) by (action,status)",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[1m])) by (action,status)",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -898,6 +976,7 @@
       },
       "yaxes": [
         {
+          "decimals": 0,
           "format": "short",
           "label": "activations",
           "logBase": 1,
@@ -976,7 +1055,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(openwhisk_action_duration_seconds_sum{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) * 1000 / rate(openwhisk_action_duration_seconds_count{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) ",
+          "expr": "rate(openwhisk_action_duration_seconds_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) * 1000 / rate(openwhisk_action_duration_seconds_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) ",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{action}}",
@@ -1003,7 +1082,7 @@
       },
       "yaxes": [
         {
-          "decimals": 2,
+          "decimals": 0,
           "format": "ms",
           "label": "",
           "logBase": 1,
@@ -1075,7 +1154,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(openwhisk_action_initTime_seconds_sum{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) * 1000 / rate(openwhisk_action_initTime_seconds_count{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) ",
+          "expr": "rate(openwhisk_action_initTime_seconds_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) * 1000 / rate(openwhisk_action_initTime_seconds_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) ",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -1104,7 +1183,7 @@
       },
       "yaxes": [
         {
-          "decimals": 2,
+          "decimals": 0,
           "format": "ms",
           "label": "",
           "logBase": 1,
@@ -1163,7 +1242,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(openwhisk_action_waitTime_seconds_sum{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) * 1000 / rate(openwhisk_action_waitTime_seconds_count{stack=\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[30s]) ",
+          "expr": "rate(openwhisk_action_waitTime_seconds_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) * 1000 / rate(openwhisk_action_waitTime_seconds_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[30s]) ",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -1192,7 +1271,7 @@
       },
       "yaxes": [
         {
-          "decimals": 2,
+          "decimals": 0,
           "format": "ms",
           "label": "",
           "logBase": 1,
@@ -1218,11 +1297,40 @@
   "refresh": "5s",
   "schemaVersion": 16,
   "style": "dark",
+  "tags": [],
   "templating": {
     "list": [
       {
         "allValue": "",
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (region) > 0)",
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": false,
+        "name": "region",
+        "options": [],
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (region) > 0)",
+        "refresh": 1,
+        "regex": "/.*region=\"(.*)\".*/",
+        "skipUrlSync": false,
+        "sort": 2,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": "",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": "Prometheus",
         "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (stack) > 0)",
         "hide": 0,
@@ -1244,16 +1352,44 @@
       },
       {
         "allValue": null,
-        "current": {},
+        "current": {
+          "text": "14257_51772",
+          "value": "14257_51772"
+        },
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace) > 0)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (initiator) > 0)",
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": false,
+        "name": "initiator",
+        "options": [],
+        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (initiator) > 0)",
+        "refresh": 1,
+        "regex": "/.*initiator=\"(.*)\".*/",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "text": "14257_51772",
+          "value": "14257_51772"
+        },
+        "datasource": "Prometheus",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace))",
         "hide": 0,
         "includeAll": false,
         "label": null,
         "multi": false,
         "name": "namespace",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace) > 0)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace))",
         "refresh": 1,
         "regex": "/.*namespace=\"(.*)\".*/",
         "skipUrlSync": false,
@@ -1266,7 +1402,10 @@
       },
       {
         "allValue": "",
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": "Prometheus",
         "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (action) > 0)",
         "hide": 0,
