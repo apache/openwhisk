@@ -176,10 +176,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       setSysPro(
         "whisk.spi.ContainerFactoryProvider",
         "org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider")
-      setSysPro(
-        "whisk.spi.LogStoreProvider",
-        "org.apache.openwhisk.core.containerpool.docker.DockerForMacLogStoreProvider")
     }
+
+    //Use cli based log store for all setups as its more stable to use
+    // and does not require root user access
+    setSysPro("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
   }
 
   private def setSysPro(key: String, value: String): Unit = {
