@@ -26,8 +26,11 @@ executed as a normal java application from command line.
 java -jar openwhisk-standalone.jar
 ```
 
-This should start the OpenWhisk server on port 3233 by default. This server by default uses a memory based store and does
-not depend on any other external service like Kafka and CouchDB. It only needs Docker and Java to for running.
+This should start the OpenWhisk server on port 3233 by default. Once the server is started then [configure the cli][1]
+and then try out the [samples][2].
+
+This server by default uses a memory based store and does not depend on any other external service like Kafka and CouchDB.
+It only needs Docker and Java to for running.
 
 Few key points related to it
 
@@ -145,3 +148,6 @@ java -jar openwhisk-standalone.jar -m custom-runtime.json
 ```
 
 You can then see the runtime config reflect in `http://localhost:3233`
+
+[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
+[2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
