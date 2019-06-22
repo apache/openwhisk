@@ -17,8 +17,9 @@
 
 package org.apache.openwhisk.standalone
 
-import java.io.File
+import java.io.{ByteArrayInputStream, File}
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util.Properties
 
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
@@ -32,6 +33,7 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
@@ -39,6 +41,7 @@ import scala.util.Try
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner(StandaloneOpenWhisk.banner)
   footer("\nOpenWhisk standalone server")
+  StandaloneOpenWhisk.gitInfo.foreach(g => version(s"Git Commit - ${g.commitId}"))
 
   val configFile = opt[File](descr = "application.conf which overrides the default standalone.conf")
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
@@ -46,6 +49,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   verify()
 }
+
+case class GitInfo(commitId: String, commitTime: String)
 
 object StandaloneOpenWhisk extends SLF4JLogging {
   val banner =
@@ -86,9 +91,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
      |}
      |""".stripMargin
 
+  val gitInfo: Option[GitInfo] = loadGitInfo()
+
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
-    println(banner)
+    printBanner
     initialize(conf)
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")
@@ -99,6 +106,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   def initialize(conf: Conf): Unit = {
+    configureBuildInfo()
     configureServerPort(conf)
     configureOSSpecificOpts()
     initConfigLocation(conf)
@@ -193,6 +201,26 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setSysPro("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
   }
 
+  private def loadGitInfo() = {
+    val info = loadPropResource("git.properties")
+    for {
+      commit <- info.get("git.commit.id.abbrev")
+      time <- info.get("git.commit.time")
+    } yield GitInfo(commit, time)
+  }
+
+  private def printBanner = {
+    println(banner)
+    gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
+  }
+
+  private def configureBuildInfo(): Unit = {
+    gitInfo.foreach { g =>
+      setSysPro("whisk.info.build-no", g.commitId)
+      setSysPro("whisk.info.date", g.commitTime)
+    }
+  }
+
   private def setSysPro(key: String, value: String): Unit = {
     Option(System.getProperty(key)) match {
       case Some(x) if x != value =>
@@ -200,5 +228,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       case _ =>
         System.setProperty(key, value)
     }
+  }
+
+  private def loadPropResource(name: String): Map[String, String] = {
+    Try {
+      val propString = IOUtils.resourceToString("/" + name, UTF_8)
+      val props = new Properties()
+      props.load(new ByteArrayInputStream(propString.getBytes(UTF_8)))
+      props.asScala.toMap
+    }.getOrElse(Map.empty)
   }
 }
