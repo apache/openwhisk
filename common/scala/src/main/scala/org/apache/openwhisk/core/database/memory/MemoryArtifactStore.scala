@@ -24,16 +24,15 @@ import akka.http.scaladsl.model.{ContentType, Uri}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import pureconfig.loadConfigOrThrow
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, JsValue, RootJsonFormat}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import pureconfig.loadConfigOrThrow
+import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -347,21 +346,5 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     def apply(info: DocInfo): Artifact = {
       Artifact(info.id.id, info.rev.rev)(JsObject.empty, JsObject.empty)
     }
-  }
-
-  /**
-   * Transforms a json object by adding and removing fields
-   *
-   * @param json base json object to transform
-   * @param fieldsToAdd list of fields to add. If the value provided is `None` then it would be ignored
-   * @param fieldsToRemove list of field names to remove
-   * @return transformed json
-   */
-  private def transform(json: JsObject,
-                        fieldsToAdd: Seq[(String, Option[JsValue])],
-                        fieldsToRemove: Seq[String] = Seq.empty): JsObject = {
-    //TODO Refactor this to util as its used in CosmosDBSTore also
-    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
-    JsObject(fields)
   }
 }

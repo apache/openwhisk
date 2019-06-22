@@ -28,7 +28,7 @@ import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
-import org.apache.openwhisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
+import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
