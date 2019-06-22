@@ -43,7 +43,7 @@ To build this standalone server run
 
 ```bash
 $ ./gradlew :core:standalone:build
-``` 
+```
 
 This would create the runnable jar in `core/standalone/build/libs/` directory
 
@@ -83,7 +83,7 @@ whisk {
 }
 ```
 
-Then pass this config file 
+Then pass this config file
 
 ```bash
 java -jar openwhisk-standalone.jar -c custom.conf
