@@ -30,6 +30,7 @@ import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import pureconfig.loadConfigOrThrow
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
