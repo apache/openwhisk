@@ -48,6 +48,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
   val verbose = tally()
+  val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
   verify()
 }
 
@@ -102,7 +103,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")
     implicit val materializer = ActorMaterializer.create(actorSystem)
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger: Logging = createLogging(actorSystem, conf)
 
     startServer()
   }
@@ -251,9 +252,17 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def configureLogging(conf: Conf): Unit = {
-    if (System.getProperty("logback.configurationFile") == null) {
+    if (System.getProperty("logback.configurationFile") == null && !conf.disableColorLogging()) {
       LogbackConfigurator.configureLogbackFromResource("logback-standalone.xml")
     }
     LogbackConfigurator.initLogging(conf)
+  }
+
+  private def createLogging(actorSystem: ActorSystem, conf: Conf): Logging = {
+    val adapter = akka.event.Logging.getLogger(actorSystem, this)
+    if (conf.disableColorLogging())
+      new AkkaLogging(adapter)
+    else
+      new ColoredAkkaLogging(adapter)
   }
 }

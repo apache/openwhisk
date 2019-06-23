@@ -20,11 +20,15 @@ package org.apache.openwhisk.standalone
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 
+import akka.event.Logging.LogLevel
+import akka.event.LoggingAdapter
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.core.joran.spi.JoranException
+import ch.qos.logback.core.pattern.color.ANSIConstants._
 import ch.qos.logback.core.util.StatusPrinter
 import org.apache.commons.io.IOUtils
+import org.apache.openwhisk.common.{AkkaLogging, Logging, TransactionId}
 import org.slf4j.LoggerFactory
 
 import scala.util.Try
@@ -41,9 +45,8 @@ object LogbackConfigurator {
 
   private def toLevel(v: Int) = {
     v match {
-      case 0 => Level.WARN
-      case 1 => Level.INFO
-      case 2 => Level.DEBUG
+      case 0 => Level.INFO
+      case 1 => Level.DEBUG
       case _ => Level.ALL
     }
   }
@@ -70,4 +73,22 @@ object LogbackConfigurator {
     }
     StatusPrinter.printInCaseOfErrorsOrWarnings(context)
   }
+}
+
+/**
+ * Similar to AkkaLogging but with color support
+ */
+class ColoredAkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
+  private val setDefaultColor = ESC_START + "0;" + DEFAULT_FG + ESC_END
+  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
+    if (loggingAdapter.isEnabled(loglevel)) {
+      val logmsg: String = message // generates the message
+      if (logmsg.nonEmpty) { // log it only if its not empty
+        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+        loggingAdapter.log(loglevel, s"[${clr(id.toString, BOLD)}] [${clr(name.toString, CYAN_FG)}] $logmsg")
+      }
+    }
+  }
+
+  def clr(s: String, code: String) = s"$ESC_START$code$ESC_END$s$setDefaultColor"
 }

@@ -156,7 +156,7 @@ object LogMarker {
   }
 }
 
-private object Logging {
+object Logging {
 
   /**
    * Given a class object, return its simple name less the trailing dollar sign.
