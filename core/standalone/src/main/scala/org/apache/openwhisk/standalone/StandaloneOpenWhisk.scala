@@ -95,6 +95,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
+    configureLogging()
     printBanner()
     initialize(conf)
     //Create actor system only after initializing the config
@@ -159,7 +160,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def setConfigProp(key: String, value: String): Unit = {
-    setSysPro(configKey(key), value)
+    setSysProp(configKey(key), value)
   }
 
   private def startController()(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
@@ -183,22 +184,22 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def configureOSSpecificOpts(): Unit = {
     if (SystemUtils.IS_OS_MAC) {
-      setSysPro(
+      setSysProp(
         "whisk.spi.ContainerFactoryProvider",
         "org.apache.openwhisk.core.containerpool.docker.DockerForMacContainerFactoryProvider")
     }
     if (SystemUtils.IS_OS_WINDOWS) {
-      setSysPro(
+      setSysProp(
         "whisk.spi.ContainerFactoryProvider",
         "org.apache.openwhisk.core.containerpool.docker.DockerForWindowsContainerFactory")
     }
 
     //Disable runc by default to keep things stable
-    setSysPro("whisk.docker.container-factory.use-runc", "False")
+    setSysProp("whisk.docker.container-factory.use-runc", "False")
 
     //Use cli based log store for all setups as its more stable to use
     // and does not require root user access
-    setSysPro("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
+    setSysProp("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
   }
 
   private def localHostName = {
@@ -225,12 +226,12 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def configureBuildInfo(): Unit = {
     gitInfo.foreach { g =>
-      setSysPro("whisk.info.build-no", g.commitId)
-      setSysPro("whisk.info.date", g.commitTime)
+      setSysProp("whisk.info.build-no", g.commitId)
+      setSysProp("whisk.info.date", g.commitTime)
     }
   }
 
-  private def setSysPro(key: String, value: String): Unit = {
+  private def setSysProp(key: String, value: String): Unit = {
     Option(System.getProperty(key)) match {
       case Some(x) if x != value =>
         log.info(s"Founding existing value for system property '$key'- Going to set '$value' , found '$x'")
@@ -246,5 +247,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       props.load(new ByteArrayInputStream(propString.getBytes(UTF_8)))
       props.asScala.toMap
     }.getOrElse(Map.empty)
+  }
+
+  private def configureLogging(): Unit = {
+    if (System.getProperty("logback.configurationFile") == null) {
+      LogbackConfigurator.configureLogbackFromResource("logback-standalone.xml")
+    }
   }
 }
