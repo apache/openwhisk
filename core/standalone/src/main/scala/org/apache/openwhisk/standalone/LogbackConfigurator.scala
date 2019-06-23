@@ -20,7 +20,7 @@ package org.apache.openwhisk.standalone
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 
-import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.core.joran.spi.JoranException
 import ch.qos.logback.core.util.StatusPrinter
@@ -33,6 +33,20 @@ import scala.util.Try
  * Resets the Logback config if logging is configure via non standard file
  */
 object LogbackConfigurator {
+
+  def initLogging(conf: Conf): Unit = {
+    val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+    ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
+  }
+
+  private def toLevel(v: Int) = {
+    v match {
+      case 0 => Level.WARN
+      case 1 => Level.INFO
+      case 2 => Level.DEBUG
+      case _ => Level.ALL
+    }
+  }
 
   def configureLogbackFromResource(resourceName: String): Unit = {
     Try(configureLogback(IOUtils.resourceToString("/" + resourceName, UTF_8))).failed.foreach(t =>

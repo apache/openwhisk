@@ -47,6 +47,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
+  val verbose = tally()
   verify()
 }
 
@@ -95,7 +96,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
-    configureLogging()
+    configureLogging(conf)
     printBanner()
     initialize(conf)
     //Create actor system only after initializing the config
@@ -249,9 +250,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     }.getOrElse(Map.empty)
   }
 
-  private def configureLogging(): Unit = {
+  private def configureLogging(conf: Conf): Unit = {
     if (System.getProperty("logback.configurationFile") == null) {
       LogbackConfigurator.configureLogbackFromResource("logback-standalone.xml")
     }
+    LogbackConfigurator.initLogging(conf)
   }
 }
