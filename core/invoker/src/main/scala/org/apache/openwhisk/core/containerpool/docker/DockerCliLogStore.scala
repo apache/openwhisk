@@ -21,6 +21,7 @@ import java.time.Instant
 
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{AkkaLogging, Logging, TransactionId}
+import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_SENTINEL
 import org.apache.openwhisk.core.containerpool.logging.{DockerToActivationLogStore, LogStore, LogStoreProvider}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerId}
 import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
@@ -47,10 +48,9 @@ class DockerCliLogStore(system: ActorSystem)(implicit log: Logging) extends Dock
                            activation: WhiskActivation,
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
-    //TODO Lookup for Log markers to be more precise in log collection
     client
       .collectLogs(container.containerId, activation.start, activation.end)(transid)
-      .map(logs => ActivationLogs(logs.linesIterator.toVector))
+      .map(logs => ActivationLogs(logs.linesIterator.takeWhile(!_.contains(ACTIVATION_LOG_SENTINEL)).toVector))
   }
 }
 
@@ -68,7 +68,14 @@ class ExtendedDockerClient(dockerHost: Option[String] = None)(executionContext: 
     //Add a slight buffer to account for delay writes of logs
     val end = untill.plusSeconds(logTimeSpanMargin.toSeconds)
     runCmd(
-      Seq("logs", id.asString, "--since", since.getEpochSecond.toString, "--until", end.getEpochSecond.toString),
+      Seq(
+        "logs",
+        id.asString,
+        "--since",
+        since.getEpochSecond.toString,
+        "--until",
+        end.getEpochSecond.toString,
+        "--timestamps"),
       waitForLogs)
   }
 }
