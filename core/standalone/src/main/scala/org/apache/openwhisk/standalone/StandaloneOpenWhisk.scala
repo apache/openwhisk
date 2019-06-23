@@ -95,7 +95,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
-    printBanner
+    printBanner()
     initialize(conf)
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")
@@ -126,7 +126,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.servicePort, port.toString)
     setConfigProp(WhiskConfig.wskApiPort, port.toString)
     setConfigProp(WhiskConfig.wskApiProtocol, "http")
-    setConfigProp(WhiskConfig.wskApiHostname, "localhost")
+    setConfigProp(WhiskConfig.wskApiHostname, localHostName)
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -201,6 +201,15 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setSysPro("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
   }
 
+  private def localHostName = {
+    //For connecting back to controller on container host following name needs to be used
+    // on Windows and Mac
+    // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
+    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+      "host.docker.internal"
+    else "localhost"
+  }
+
   private def loadGitInfo() = {
     val info = loadPropResource("git.properties")
     for {
@@ -209,7 +218,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     } yield GitInfo(commit, time)
   }
 
-  private def printBanner = {
+  private def printBanner() = {
     println(banner)
     gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
   }
