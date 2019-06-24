@@ -20,14 +20,13 @@ package org.apache.openwhisk.standalone
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.joran.spi.JoranException
 import ch.qos.logback.core.util.StatusPrinter
 import org.apache.commons.io.IOUtils
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.slf4j.LoggerFactory
 
 import scala.io.AnsiColor
@@ -78,18 +77,11 @@ object LogbackConfigurator {
 /**
  * Similar to AkkaLogging but with color support
  */
-class ColoredAkkaLogging(loggingAdapter: LoggingAdapter) extends Logging with AnsiColor {
+class ColoredAkkaLogging(loggingAdapter: LoggingAdapter) extends AkkaLogging(loggingAdapter) with AnsiColor {
   import ColorOutput.clr
 
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
-    if (loggingAdapter.isEnabled(loglevel)) {
-      val logmsg: String = message // generates the message
-      if (logmsg.nonEmpty) { // log it only if its not empty
-        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-        loggingAdapter.log(loglevel, s"[${clr(id.toString, BOLD)}] [${clr(name.toString, CYAN)}] $logmsg")
-      }
-    }
-  }
+  override protected def format(id: TransactionId, name: String, logmsg: String) =
+    s"[${clr(id.toString, BOLD)}] [${clr(name.toString, CYAN)}] $logmsg"
 }
 
 object ColorOutput extends AnsiColor {
