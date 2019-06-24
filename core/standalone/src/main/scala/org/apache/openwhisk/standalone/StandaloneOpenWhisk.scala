@@ -30,12 +30,14 @@ import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
+import org.apache.openwhisk.standalone.ColorOutput.clr
 import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.io.AnsiColor
 import scala.util.Try
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
@@ -98,7 +100,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
     configureLogging(conf)
-    printBanner()
+    printBanner(conf)
     initialize(conf)
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")
@@ -221,8 +223,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     } yield GitInfo(commit, time)
   }
 
-  private def printBanner() = {
-    println(banner)
+  private def printBanner(conf: Conf) = {
+    val bannerTxt =
+      if (conf.disableColorLogging()) banner else clr(banner, AnsiColor.CYAN)
+    println(bannerTxt)
     gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
   }
 
