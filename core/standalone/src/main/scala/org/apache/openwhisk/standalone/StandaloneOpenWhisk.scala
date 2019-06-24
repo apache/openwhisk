@@ -102,10 +102,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
 
+    printBanner(conf)
     PreFlightChecks(conf).run()
 
     configureLogging(conf)
-    printBanner(conf)
     initialize(conf)
     //Create actor system only after initializing the config
     implicit val actorSystem = ActorSystem("standalone-actor-system")

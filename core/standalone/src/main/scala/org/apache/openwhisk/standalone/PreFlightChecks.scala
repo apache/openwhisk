@@ -51,8 +51,19 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       println(s"\t Install docker from $dockerUrl")
     } else {
       println(s"$pass 'docker' cli found.")
+      checkDockerIsRunning()
       //TODO add check for minimal supported docker version
-      //TODO should we also run docker run hello-world to see if we can execute docker run command
+      //TODO should we also run `docker run hello-world` to see if we can execute docker run command
+      //This command takes 2-4 secs. So running it by default for every run should be avoided
+    }
+  }
+
+  private def checkDockerIsRunning(): Unit = {
+    val dockerInfoResult = Try("docker info".!(noopLogger)).getOrElse(-1)
+    if (dockerInfoResult != 0) {
+      println(s"$failed 'docker' not found to be running.")
+    } else {
+      println(s"$pass 'docker' is running.")
     }
   }
 
@@ -68,18 +79,17 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
   }
 
   def checkWskProps(): Unit = {
-    val config = loadConfig()
-    val users = loadConfigOrThrow[Map[String, String]](config, usersConfigKey)
+    val users = loadConfigOrThrow[Map[String, String]](loadConfig(), usersConfigKey)
+
     val configuredAuth = "wsk property get --auth".!!.trim
     val apihost = "wsk property get --apihost".!!.trim
 
     val requiredHostValue = s"http://localhost:${conf.port()}"
 
-    val hostMatched = apihost.endsWith(requiredHostValue)
-
     //We can use -o option to get raw value. However as its a recent addition
     //using a lazy approach where we check if output ends with one of the configured auth keys or
     val matchedAuth = users.find { case (_, auth) => configuredAuth.endsWith(auth) }
+    val hostMatched = apihost.endsWith(requiredHostValue)
 
     if (matchedAuth.isDefined && hostMatched) {
       println(s"$pass 'wsk' configured for namespace [${matchedAuth.get._1}].")
