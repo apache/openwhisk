@@ -57,6 +57,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 case class GitInfo(commitId: String, commitTime: String)
 
 object StandaloneOpenWhisk extends SLF4JLogging {
+  val usersConfigKey = "whisk.users"
+
   val banner =
     """
       |        ____      ___                   _    _ _     _     _
@@ -99,6 +101,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
+
+    PreFlightChecks(conf).run()
+
     configureLogging(conf)
     printBanner(conf)
     initialize(conf)
@@ -174,7 +179,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def bootstrapUsers()(implicit actorSystem: ActorSystem,
                                materializer: ActorMaterializer,
                                logging: Logging): Unit = {
-    val users = loadConfigOrThrow[Map[String, String]]("whisk.users")
+    val users = loadConfigOrThrow[Map[String, String]](usersConfigKey)
     implicit val userTid: TransactionId = TransactionId("userBootstrap")
     users.foreach {
       case (name, key) =>
