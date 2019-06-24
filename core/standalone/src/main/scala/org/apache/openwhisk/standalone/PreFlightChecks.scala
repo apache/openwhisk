@@ -52,8 +52,9 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     } else {
       println(s"$pass 'docker' cli found.")
       checkDockerIsRunning()
-      //TODO add check for minimal supported docker version
-      //TODO should we also run `docker run hello-world` to see if we can execute docker run command
+      //Other things we can possibly check for
+      //1. add check for minimal supported docker version
+      //2. should we also run `docker run hello-world` to see if we can execute docker run command
       //This command takes 2-4 secs. So running it by default for every run should be avoided
     }
   }
@@ -61,7 +62,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
   private def checkDockerIsRunning(): Unit = {
     val dockerInfoResult = Try("docker info".!(noopLogger)).getOrElse(-1)
     if (dockerInfoResult != 0) {
-      println(s"$failed 'docker' not found to be running.")
+      println(s"$failed 'docker' not found to be running. Failed to run 'docker info'")
     } else {
       println(s"$pass 'docker' is running.")
     }
