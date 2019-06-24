@@ -33,6 +33,7 @@ import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -509,21 +510,31 @@ case class ShardingContainerPoolBalancerState(
     _managedInvokers = _invokers.take(managed)
     _blackboxInvokers = _invokers.takeRight(blackboxes)
 
-    if (oldSize != newSize) {
+    val logDetail = if (oldSize != newSize) {
       _managedStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)
       _blackboxStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(blackboxes)
 
       if (oldSize < newSize) {
         // Keeps the existing state..
-        _invokerSlots = _invokerSlots ++ _invokers.drop(_invokerSlots.length).map { invoker =>
+        val onlyNewInvokers = _invokers.drop(_invokerSlots.length)
+        _invokerSlots = _invokerSlots ++ onlyNewInvokers.map { invoker =>
           new NestedSemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
         }
+        val newInvokerDetails = onlyNewInvokers
+          .map(i =>
+            s"${i.id.toString}: ${i.status} / ${getInvokerSlot(i.id.userMemory).toMB.MB} of ${i.id.userMemory.toMB.MB}")
+          .mkString(", ")
+        s"number of known invokers increased: new = $newSize, old = $oldSize. details: $newInvokerDetails."
+      } else {
+        s"number of known invokers decreased: new = $newSize, old = $oldSize."
       }
+    } else {
+      s"no update required - number of known invokers unchanged: $newSize."
     }
 
     logging.info(
       this,
-      s"loadbalancer invoker status updated. managedInvokers = $managed blackboxInvokers = $blackboxes")(
+      s"loadbalancer invoker status updated. managedInvokers = $managed blackboxInvokers = $blackboxes. $logDetail")(
       TransactionId.loadbalancer)
   }
 
@@ -542,7 +553,20 @@ case class ShardingContainerPoolBalancerState(
       _invokerSlots = _invokers.map { invoker =>
         new NestedSemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
       }
-      logging.info(this, s"loadbalancer cluster size changed to $actualSize active nodes.")(TransactionId.loadbalancer)
+      // Directly after startup, no invokers have registered yet. This needs to be handled gracefully.
+      val invokerCount = _invokers.size
+      val totalInvokerMemory =
+        _invokers.foldLeft(0L)((total, invoker) => total + getInvokerSlot(invoker.id.userMemory).toMB).MB
+      val averageInvokerMemory =
+        if (totalInvokerMemory.toMB > 0 && invokerCount > 0) {
+          (totalInvokerMemory / invokerCount).toMB.MB
+        } else {
+          0.MB
+        }
+      logging.info(
+        this,
+        s"loadbalancer cluster size changed to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}.")(
+        TransactionId.loadbalancer)
     }
   }
 }
