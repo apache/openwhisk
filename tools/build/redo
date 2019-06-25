@@ -311,7 +311,13 @@ Components = [
                   'run units tests',
                   yaml = False,
                   tasks = 'testUnit',
-                  gradle = 'tests')
+                  gradle = 'tests'),
+
+    makeComponent('standalone',
+                  'run standalone server',
+                  yaml = False,
+                  tasks = 'run',
+                  gradle = 'core:standalone')
 ]
 
 def getComponent(component):
