@@ -25,6 +25,7 @@ apply plugin: 'org.scoverage'
 apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-standalone"
+def jarName = "${project.archivesBaseName}.jar"
 
 repositories {
     mavenCentral()
@@ -37,7 +38,7 @@ processResources {
 }
 
 bootJar {
-    archiveName = "${project.archivesBaseName}.jar"
+    archiveName = jarName
     mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
 }
 
@@ -46,4 +47,11 @@ dependencies {
     compile project(':tools:admin')
     compile 'org.rogach:scallop_2.12:3.3.1'
     scoverage gradle.scoverage.deps
+}
+
+task run(dependsOn: jar) << {
+    javaexec {
+        main = "-jar"
+        args new File(jar.archivePath.getParentFile(), jarName)
+    }
 }
