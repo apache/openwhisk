@@ -68,13 +68,14 @@ class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: 
     //local setup does not have the image then it pulls it down
     //For standard usage its expected that standard images have already been pulled in.
     val imageName = actionImage.localImageName(runtimesRegistryConfig.url)
-    val pulled = if (!userProvidedImage && !pulledImages.contains(imageName)) {
-      docker.pull(imageName)(tid).map { _ =>
-        logging.info(this, s"Pulled OpenWhisk provided image $imageName")
-        pulledImages.put(imageName, true)
-        true
-      }
-    } else Future.successful(true)
+    val pulled =
+      if (!userProvidedImage && !pulledImages.contains(imageName) && actionImage.prefix.contains("openwhisk")) {
+        docker.pull(imageName)(tid).map { _ =>
+          logging.info(this, s"Pulled OpenWhisk provided image $imageName")
+          pulledImages.put(imageName, true)
+          true
+        }
+      } else Future.successful(true)
 
     pulled.flatMap(_ => super.createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares))
   }
