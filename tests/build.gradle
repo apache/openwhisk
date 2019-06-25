@@ -202,7 +202,6 @@ dependencies {
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
-    compile project(':core:standalone')
     compile project(':tools:admin')
 
 

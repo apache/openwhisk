@@ -51,12 +51,6 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
    */
   def cacheRetry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 5, Some(1.second))
 
-  override def withFixture(test: NoArgTest) = {
-    val outcome = super.withFixture(test)
-    Thread.sleep(200)
-    outcome
-  }
-
   behavior of "Wsk REST"
 
   it should "reject creating duplicate entity" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
