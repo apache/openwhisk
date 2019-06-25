@@ -45,8 +45,10 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   footer("\nOpenWhisk standalone server")
   StandaloneOpenWhisk.gitInfo.foreach(g => version(s"Git Commit - ${g.commitId}"))
 
-  val configFile = opt[File](descr = "application.conf which overrides the default standalone.conf")
-  val manifest = opt[File](descr = "Manifest json defining the supported runtimes")
+  this.printedName = "openwhisk"
+  val configFile =
+    opt[File](descr = "application.conf which overrides the default standalone.conf", validate = _.canRead)
+  val manifest = opt[File](descr = "Manifest json defining the supported runtimes", validate = _.canRead)
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
   val verbose = tally()
