@@ -36,7 +36,7 @@ Few key points related to it
 
 * Uses in memory store. Once the server is stopped all changes would be lost
 * Bootstraps the `guest` and `whisk.system` with default keys
-* Supports running on LacOS, Linux and Windows setup
+* Supports running on MacOS, Linux and Windows (experimental) setup
 * Can be customized to use any other storage like CouchDB
 
 
@@ -48,7 +48,12 @@ To build this standalone server run
 $ ./gradlew :core:standalone:build
 ```
 
-This would create the runnable jar in `core/standalone/build/libs/` directory
+This would create the runnable jar in `core/standalone/build/libs/` directory. If you directly want to build and run the
+server then you can use following command
+
+```bash
+$ ./gradlew :core:standalone:run
+```
 
 ###  Usage
 
