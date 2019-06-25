@@ -549,6 +549,7 @@ case class ShardingContainerPoolBalancerState(
   def updateCluster(newSize: Int): Unit = {
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
     if (_clusterSize != actualSize) {
+      val oldSize = _clusterSize
       _clusterSize = actualSize
       _invokerSlots = _invokers.map { invoker =>
         new NestedSemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
@@ -565,7 +566,7 @@ case class ShardingContainerPoolBalancerState(
         }
       logging.info(
         this,
-        s"loadbalancer cluster size changed to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}.")(
+        s"loadbalancer cluster size changed from $oldSize to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}.")(
         TransactionId.loadbalancer)
     }
   }
