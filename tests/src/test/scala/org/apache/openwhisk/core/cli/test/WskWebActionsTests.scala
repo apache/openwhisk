@@ -306,7 +306,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
   }
 
   /**
-   * Tests web action for HEAD requests.
+   * Tests web action for HEAD requests
    */
   it should "create a web action making a HEAD request" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "webaction"
@@ -330,7 +330,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       .head(url)
 
     authorizedResponse.statusCode shouldBe 200
-    authorizedResponse.body shouldBe null
+    authorizedResponse.body.asString() shouldBe ""
   }
 
   private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
