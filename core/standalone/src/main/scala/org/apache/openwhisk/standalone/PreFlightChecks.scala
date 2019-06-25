@@ -29,9 +29,11 @@ import scala.util.Try
 case class PreFlightChecks(conf: Conf) extends AnsiColor {
   import ColorOutput.clr
   private val noopLogger = ProcessLogger(_ => ())
+  private val clrEnabled = conf.colorEnabled
   private val separator = "=" * 80
-  private val pass = st(true)
-  private val failed = st(false)
+  private val pass = st("OK")
+  private val failed = st("FAILURE")
+  private val warn = st("WARN")
   private val cliDownloadUrl = "https://s.apache.org/openwhisk-cli-download"
   private val dockerUrl = "https://docs.docker.com/install/"
 
@@ -41,6 +43,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     println()
     checkForDocker()
     checkForWsk()
+    println()
     println(separator)
   }
 
@@ -101,9 +104,9 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       //which may not be used for wsk based access like for tests
       guestUser match {
         case Some((ns, guestAuth)) =>
-          println(s"$failed Configure wsk via below command to connect to this server as [$ns]")
+          println(s"$warn Configure wsk via below command to connect to this server as [$ns]")
           println()
-          println(s"wsk property set --apihost '$requiredHostValue' --auth '$guestAuth'")
+          println(clr(s"wsk property set --apihost '$requiredHostValue' --auth '$guestAuth'", MAGENTA, clrEnabled))
         case None =>
       }
     }
@@ -119,9 +122,13 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     }
   }
 
-  private def st(pass: Boolean) = {
-    val (msg, code) = if (pass) (StringUtils.center("OK", "FAILURE".length), GREEN) else ("FAILURE", RED)
-    val transformedMsg = if (conf.disableColorLogging()) msg else clr(msg, code)
-    s"[$transformedMsg]"
+  private def st(level: String) = {
+    val maxLength = "FAILURE".length
+    val (msg, code) = level match {
+      case "OK"   => (StringUtils.center("OK", maxLength), GREEN)
+      case "WARN" => (StringUtils.center("WARN", maxLength), MAGENTA)
+      case _      => ("FAILURE", RED)
+    }
+    s"[${clr(msg, code, clrEnabled)}]"
   }
 }

@@ -81,9 +81,9 @@ class ColoredAkkaLogging(loggingAdapter: LoggingAdapter) extends AkkaLogging(log
   import ColorOutput.clr
 
   override protected def format(id: TransactionId, name: String, logmsg: String) =
-    s"[${clr(id.toString, BOLD)}] [${clr(name.toString, CYAN)}] $logmsg"
+    s"[${clr(id.toString, BOLD, true)}] [${clr(name.toString, CYAN, true)}] $logmsg"
 }
 
 object ColorOutput extends AnsiColor {
-  def clr(s: String, code: String) = s"$code$s$RESET"
+  def clr(s: String, code: String, clrEnabled: Boolean) = if (clrEnabled) s"$code$s$RESET" else s
 }

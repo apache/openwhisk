@@ -51,7 +51,10 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val verbose = tally()
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
+
   verify()
+
+  val colorEnabled = !disableColorLogging()
 }
 
 case class GitInfo(commitId: String, commitTime: String)
@@ -222,8 +225,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def printBanner(conf: Conf) = {
-    val bannerTxt =
-      if (conf.disableColorLogging()) banner else clr(banner, AnsiColor.CYAN)
+    val bannerTxt = clr(banner, AnsiColor.CYAN, conf.colorEnabled)
     println(bannerTxt)
     gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
   }
