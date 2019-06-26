@@ -1,0 +1,56 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'org.springframework.boot' version '2.1.6.RELEASE'
+    id "com.gorylenko.gradle-git-properties" version "2.0.0"
+    id 'scala'
+}
+
+apply plugin: 'org.scoverage'
+apply plugin: 'maven'
+
+project.archivesBaseName = "openwhisk-standalone"
+
+repositories {
+    mavenCentral()
+}
+
+processResources {
+    from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
+        into(".")
+    }
+}
+
+task copyBootJarToBin(type:Copy){
+    from ("${buildDir}/libs")
+    into file("${project.rootProject.projectDir}/bin")
+    rename("${project.archivesBaseName}-${version}.jar", "${project.archivesBaseName}.jar")
+}
+
+bootJar {
+    mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
+    finalizedBy copyBootJarToBin
+}
+
+dependencies {
+    compile project(':core:controller')
+    compile project(':tools:admin')
+    compile 'org.rogach:scallop_2.12:3.3.1'
+    scoverage gradle.scoverage.deps
+}
+

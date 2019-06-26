@@ -39,6 +39,11 @@ trait MemoryArtifactStoreBehaviorBase extends FlatSpec with ArtifactStoreBehavio
     MemoryArtifactStoreProvider.makeArtifactStore[WhiskAuth](getAttachmentStore[WhiskAuth]())
   }
 
+  override protected def beforeAll(): Unit = {
+    MemoryArtifactStoreProvider.purgeAll()
+    super.beforeAll()
+  }
+
   override lazy val entityStore =
     MemoryArtifactStoreProvider.makeArtifactStore[WhiskEntity](getAttachmentStore[WhiskEntity]())(
       classTag[WhiskEntity],

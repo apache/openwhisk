@@ -34,7 +34,7 @@ public class WhiskProperties {
     /**
      * System property key which refers to OpenWhisk Edge Host url
      */
-    private static final String WHISK_SERVER = "whisk.server";
+    public static final String WHISK_SERVER = "whisk.server";
 
     /**
      * System property key which refers to authentication key to be used for testing

@@ -98,7 +98,7 @@ class MesosContainerFactoryTest
   }
 
   override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
+    TestKit.shutdownActorSystem(system, verifySystemShutdown = true)
     super.afterAll()
   }
 

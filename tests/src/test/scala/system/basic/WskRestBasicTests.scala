@@ -39,7 +39,7 @@ import org.apache.openwhisk.http.Messages
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
-  implicit val wskprops = WskProps()
+  implicit def wskprops: WskProps = WskProps()
   val wsk = new WskRestOperations
 
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))

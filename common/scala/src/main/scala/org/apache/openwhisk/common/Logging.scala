@@ -95,10 +95,12 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
       val logmsg: String = message // generates the message
       if (logmsg.nonEmpty) { // log it only if its not empty
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-        loggingAdapter.log(loglevel, s"[$id] [$name] $logmsg")
+        loggingAdapter.log(loglevel, format(id, name.toString, logmsg))
       }
     }
   }
+
+  protected def format(id: TransactionId, name: String, logmsg: String) = s"[$id] [$name] $logmsg"
 }
 
 /**

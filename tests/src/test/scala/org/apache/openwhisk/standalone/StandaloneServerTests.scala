@@ -15,31 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.database.memory
+package org.apache.openwhisk.standalone
 
-import common.WskActorSystem
+import common.WskProps
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.database.AttachmentStore
-import org.apache.openwhisk.core.database.test.AttachmentStoreBehaviors
-import org.apache.openwhisk.core.entity.WhiskEntity
+import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])
-class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors with WskActorSystem {
-
-  override val store: AttachmentStore = MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()
-
-  override def storeType: String = "Memory"
-
-  override protected def beforeAll(): Unit = {
-    MemoryArtifactStoreProvider.purgeAll()
-    super.beforeAll()
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-    val count = store.asInstanceOf[MemoryAttachmentStore].attachmentCount
-    require(count == 0, s"AttachmentStore not empty after all runs - $count")
-  }
+class StandaloneServerTests extends WskRestBasicTests with StandaloneServerFixture {
+  override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 }
