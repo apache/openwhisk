@@ -33,6 +33,7 @@ import org.scalatest.{BeforeAndAfterAll, Pending, Suite, TestSuite}
 
 import scala.concurrent.duration._
 import scala.sys.process._
+import scala.util.control.NonFatal
 
 trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with StreamLogging {
   self: Suite =>
@@ -107,11 +108,17 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   def waitForServerToStart(): Stopwatch = {
     val w = Stopwatch.createStarted()
-    retry({
-      println(s"Waiting for OpenWhisk server to start since $w")
-      val response = RestAssured.get(new URI(serverUrl))
-      require(response.statusCode() == 200)
-    }, 10, Some(1.second))
+    try {
+      retry({
+        println(s"Waiting for OpenWhisk server to start since $w")
+        val response = RestAssured.get(new URI(serverUrl))
+        require(response.statusCode() == 200)
+      }, 30, Some(1.second))
+    } catch {
+      case NonFatal(e) =>
+        println(logLines.mkString("\n"))
+        throw e
+    }
     w
   }
 
