@@ -75,11 +75,14 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-  -c, --config-file  <arg>   application.conf which overrides the default
-                             standalone.conf
-  -m, --manifest  <arg>      Manifest json defining the supported runtimes
-  -p, --port  <arg>          Server port
-  -h, --help                 Show help message
+  -c, --config-file  <arg>      application.conf which overrides the default
+                                standalone.conf
+      --disable-color-logging   Disables colored logging
+  -m, --manifest  <arg>         Manifest json defining the supported runtimes
+  -p, --port  <arg>             Server port
+  -v, --verbose
+  -h, --help                    Show help message
+      --version                 Show version of this program
 
 OpenWhisk standalone server
 ```
@@ -159,6 +162,32 @@ java -jar openwhisk-standalone.jar -m custom-runtime.json
 ```
 
 You can then see the runtime config reflect in `http://localhost:3233`
+
+#### Using CouchDB
+
+If you need to connect to CouchDB or any other supported artifact store then you can pass the required config
+
+```hocon
+include classpath("standalone.conf")
+
+whisk {
+  couchdb {
+    protocol = "http"
+    host = "172.17.0.1"
+    port = "5984"
+    username = "whisk_admin"
+    password = "some_passw0rd"
+    provider = "CouchDB"
+    databases {
+      WhiskAuth = "whisk_local_subjects"
+      WhiskEntity = "whisk_local_whisks"
+      WhiskActivation = "whisk_local_activations"
+    }
+  }
+}
+```
+
+Then pass this config file via `-c` option.
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
