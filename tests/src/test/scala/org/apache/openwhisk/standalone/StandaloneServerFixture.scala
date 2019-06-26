@@ -41,8 +41,9 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   private var manifestFile: Option[File] = None
   private var serverProcess: Process = _
   protected val serverPort: Int = FreePortFinder.freePort()
-  protected val serverUrl: String = s"http://localhost:$serverPort/"
+  protected var serverUrl: String = System.getProperty(WHISK_SERVER, s"http://localhost:$serverPort/")
   private val disablePullConfig = "whisk.docker.standalone.container-factory.pull-standard-images"
+  private var serverStartedForTest = false
 
   //Following tests always fail on Mac but pass when standalone server is running on Linux
   //It looks related to how networking works on Mac for Docker container
@@ -54,31 +55,41 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
     "Wsk Action REST should create an action, and invoke an action that returns an empty JSON object")
 
   override def beforeAll(): Unit = {
-    System.setProperty(WHISK_SERVER, serverUrl)
-    //TODO avoid starting the server if url whisk.server property is predefined
-    super.beforeAll()
-    println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
-    manifestFile = getRuntimeManifest()
-    val args = Seq(
-      Seq(
-        "java",
-        s"-D$disablePullConfig=false",
-        "-jar",
-        standaloneServerJar.getAbsolutePath,
-        "--disable-color-logging"),
-      Seq("-p", serverPort.toString),
-      manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
+    val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
+    serverUrlViaSysProp match {
+      case Some(u) =>
+        serverUrl = u
+        println(s"Connecting to existing server at $serverUrl")
+      case None =>
+        System.setProperty(WHISK_SERVER, serverUrl)
+        //TODO avoid starting the server if url whisk.server property is predefined
+        super.beforeAll()
+        println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
+        manifestFile = getRuntimeManifest()
+        val args = Seq(
+          Seq(
+            "java",
+            s"-D$disablePullConfig=false",
+            "-jar",
+            standaloneServerJar.getAbsolutePath,
+            "--disable-color-logging"),
+          Seq("-p", serverPort.toString),
+          manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
 
-    serverProcess = args.run(ProcessLogger(s => printstream.println(s)))
-    val w = waitForServerToStart()
-    println(s"Started test server at $serverUrl in [$w]")
+        serverProcess = args.run(ProcessLogger(s => printstream.println(s)))
+        val w = waitForServerToStart()
+        serverStartedForTest = true
+        println(s"Started test server at $serverUrl in [$w]")
+    }
   }
 
   override def afterAll(): Unit = {
-    System.clearProperty(WHISK_SERVER)
     super.afterAll()
-    manifestFile.foreach(FileUtils.deleteQuietly)
-    serverProcess.destroy()
+    if (serverStartedForTest) {
+      System.clearProperty(WHISK_SERVER)
+      manifestFile.foreach(FileUtils.deleteQuietly)
+      serverProcess.destroy()
+    }
   }
 
   override def withFixture(test: NoArgTest) = {
