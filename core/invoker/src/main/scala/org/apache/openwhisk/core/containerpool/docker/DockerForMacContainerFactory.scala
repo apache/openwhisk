@@ -72,4 +72,9 @@ class DockerForMacClient(dockerHost: Option[String] = None)(executionContext: Ex
   }
 
   def inspectCommand: String = """{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}"""
+
+  //Pause unpause is causing issue on non Linux setups. So disable by default
+  override def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = Future.successful(())
+
+  override def unpause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = Future.successful(())
 }
