@@ -20,10 +20,10 @@ package org.apache.openwhisk.core.containerpool.docker
 import akka.actor.ActorSystem
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerFactory, ContainerFactoryProvider}
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
-import pureconfig.loadConfig
+import pureconfig.{loadConfig, loadConfigOrThrow}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -48,6 +48,8 @@ object StandaloneDockerContainerFactoryProvider extends ContainerFactoryProvider
   }
 }
 
+case class StandaloneDockerConfig(pullStandardImages: Boolean)
+
 class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: Map[String, Set[String]])(
   implicit actorSystem: ActorSystem,
   ec: ExecutionContext,
@@ -56,6 +58,7 @@ class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: 
   runc: RuncApi)
     extends DockerContainerFactory(instance, parameters) {
   private val pulledImages = new TrieMap[String, Boolean]()
+  private val factoryConfig = loadConfigOrThrow[StandaloneDockerConfig](ConfigKeys.standaloneDockerContainerFactory)
 
   override def createContainer(tid: TransactionId,
                                name: String,
@@ -69,7 +72,10 @@ class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: 
     //For standard usage its expected that standard images have already been pulled in.
     val imageName = actionImage.localImageName(runtimesRegistryConfig.url)
     val pulled =
-      if (!userProvidedImage && !pulledImages.contains(imageName) && actionImage.prefix.contains("openwhisk")) {
+      if (!userProvidedImage
+          && factoryConfig.pullStandardImages
+          && !pulledImages.contains(imageName)
+          && actionImage.prefix.contains("openwhisk")) {
         docker.pull(imageName)(tid).map { _ =>
           logging.info(this, s"Pulled OpenWhisk provided image $imageName")
           pulledImages.put(imageName, true)
@@ -78,6 +84,13 @@ class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: 
       } else Future.successful(true)
 
     pulled.flatMap(_ => super.createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares))
+  }
+
+  override def init(): Unit = {
+    logging.info(
+      this,
+      s"Standalone docker container factory config pullStandardImages: ${factoryConfig.pullStandardImages}")
+    super.init()
   }
 }
 
