@@ -53,7 +53,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       println(s"$failed 'docker' cli not found.")
       println(s"\t Install docker from $dockerUrl")
     } else {
-      println(s"$pass 'docker' cli found.")
+      println(s"$pass 'docker' cli found. $dockerVersion")
       checkDockerIsRunning()
       //Other things we can possibly check for
       //1. add check for minimal supported docker version
@@ -61,6 +61,10 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       //This command takes 2-4 secs. So running it by default for every run should be avoided
     }
   }
+
+  private def dockerVersion = version("docker --version '{{.Client.Version}}'")
+
+  private def version(cmd: String) = Try(cmd !! (noopLogger)).map(v => s"(${v.trim})").getOrElse("")
 
   private def checkDockerIsRunning(): Unit = {
     val dockerInfoResult = Try("docker info".!(noopLogger)).getOrElse(-1)
@@ -77,7 +81,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       println(s"$failed 'wsk' cli not found.")
       println(s"\tDownload the cli from $cliDownloadUrl")
     } else {
-      println(s"$pass 'wsk' cli found.")
+      println(s"$pass 'wsk' cli found. $wskCliVersion")
       checkWskProps()
     }
   }
@@ -111,6 +115,8 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       }
     }
   }
+
+  private def wskCliVersion = version("wsk property get --cliversion -o raw")
 
   private def loadConfig(): Config = {
     conf.configFile.toOption match {
