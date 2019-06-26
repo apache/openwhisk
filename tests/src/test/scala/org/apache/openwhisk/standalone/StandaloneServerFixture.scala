@@ -42,6 +42,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   private var serverProcess: Process = _
   protected val serverPort: Int = FreePortFinder.freePort()
   protected val serverUrl: String = s"http://localhost:$serverPort/"
+  private val disablePullConfig = "whisk.docker.standalone.container-factory.pull-standard-images"
 
   //Following tests always fail on Mac but pass when standalone server is running on Linux
   //It looks related to how networking works on Mac for Docker container
@@ -56,9 +57,15 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
     System.setProperty(WHISK_SERVER, serverUrl)
     //TODO avoid starting the server if url whisk.server property is predefined
     super.beforeAll()
+    println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
     manifestFile = getRuntimeManifest()
     val args = Seq(
-      Seq("java", "-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging"),
+      Seq(
+        "java",
+        s"-D$disablePullConfig=false",
+        "-jar",
+        standaloneServerJar.getAbsolutePath,
+        "--disable-color-logging"),
       Seq("-p", serverPort.toString),
       manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
 
