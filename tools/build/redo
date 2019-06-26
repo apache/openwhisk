@@ -316,7 +316,7 @@ Components = [
     makeComponent('standalone',
                   'run standalone server',
                   yaml = False,
-                  tasks = 'run',
+                  tasks = 'bootRun',
                   gradle = 'core:standalone')
 ]
 

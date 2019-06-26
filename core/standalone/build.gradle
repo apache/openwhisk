@@ -25,7 +25,6 @@ apply plugin: 'org.scoverage'
 apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-standalone"
-def jarName = "${project.archivesBaseName}.jar"
 
 repositories {
     mavenCentral()
@@ -37,9 +36,15 @@ processResources {
     }
 }
 
+task copyBootJarToBin(type:Copy){
+    from ("${buildDir}/libs")
+    into file("${project.rootProject.projectDir}/bin")
+    rename("${project.archivesBaseName}-${version}.jar", "${project.archivesBaseName}.jar")
+}
+
 bootJar {
-    archiveName = jarName
     mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
+    finalizedBy copyBootJarToBin
 }
 
 dependencies {
@@ -49,9 +54,3 @@ dependencies {
     scoverage gradle.scoverage.deps
 }
 
-task run(dependsOn: jar) << {
-    javaexec {
-        main = "-jar"
-        args new File(jar.archivePath.getParentFile(), jarName)
-    }
-}

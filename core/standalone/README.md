@@ -48,11 +48,17 @@ To build this standalone server run
 $ ./gradlew :core:standalone:build
 ```
 
-This would create the runnable jar in `core/standalone/build/libs/` directory. If you directly want to build and run the
+This would create the runnable jar in `bin/` directory. If you directly want to run the
 server then you can use following command
 
 ```bash
-$ ./gradlew :core:standalone:run
+$ ./gradlew :core:standalone:bootRun
+```
+
+To pass argument to the run command use
+
+```bash
+$ ./gradlew :core:standalone:bootRun --args='-m runtimes.json'
 ```
 
 ###  Usage
