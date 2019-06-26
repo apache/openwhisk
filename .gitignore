@@ -86,3 +86,14 @@ intellij-run-config.groovy
 
 # VSCode
 .vscode/
+
+# route management
+core/routemgmt/createApi/apigw-utils.js
+core/routemgmt/createApi/package-lock.json
+core/routemgmt/createApi/utils.js
+core/routemgmt/deleteApi/apigw-utils.js
+core/routemgmt/deleteApi/package-lock.json
+core/routemgmt/deleteApi/utils.js
+core/routemgmt/getApi/apigw-utils.js
+core/routemgmt/getApi/package-lock.json
+core/routemgmt/getApi/utils.js
