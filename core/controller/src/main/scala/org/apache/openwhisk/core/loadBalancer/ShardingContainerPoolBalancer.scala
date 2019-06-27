@@ -289,9 +289,13 @@ class ShardingContainerPoolBalancer(
 
     chosen
       .map { invoker =>
+        val memoryLimit = action.limits.memory
+        val memoryLimitInfo = if (memoryLimit == MemoryLimit()) { "std" } else { "non-std" }
+        val timeLimit = action.limits.timeout
+        val timeLimitInfo = if (timeLimit == TimeLimit()) { "std" } else { "non-std" }
         logging.info(
           this,
-          s"activation ${msg.activationId} for '${msg.action.asString}' ($actionType) by namespace '${msg.user.namespace.name.asString}' with memory limit ${action.limits.memory.megabytes}MB assigned to $invoker")
+          s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}")
         val activationResult = setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map(_ => activationResult)
       }
@@ -302,7 +306,9 @@ class ShardingContainerPoolBalancer(
           agg + (curr.status -> count)
         }
 
-        logging.error(this, s"failed to schedule $actionType action, invokers to use: $invokerStates")
+        logging.error(
+          this,
+          s"failed to schedule activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}' - invokers to use: $invokerStates")
         Future.failed(LoadBalancerException("No invokers available"))
       }
   }
