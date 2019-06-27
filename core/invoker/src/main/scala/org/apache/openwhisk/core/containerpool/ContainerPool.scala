@@ -59,25 +59,21 @@ case object EmitMetrics
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  * @param poolConfig config for the ContainerPool
- * @param resMgr ContainerResourceManager impl
+ * @param resMgrFactory factory for ContainerResourceManager impl
  */
 class ContainerPool(instanceId: InvokerInstanceId,
                     childFactory: ActorRefFactory => ActorRef,
                     feed: ActorRef,
                     prewarmConfig: List[PrewarmingConfig] = List.empty,
                     poolConfig: ContainerPoolConfig,
-                    resMgr: Option[ContainerResourceManager])
+                    resMgrFactory: (ActorRef) => ContainerResourceManager)
     extends Actor {
   import ContainerPool.memoryConsumptionOf
 
   implicit val logging = new AkkaLogging(context.system.log)
   implicit val ec = context.dispatcher
 
-  val resourceManager = resMgr.getOrElse(if (poolConfig.clusterManagedResources) {
-    new AkkaClusterContainerResourceManager(context.system, instanceId, self, poolConfig)
-  } else {
-    new LocalContainerResourceManager(self)
-  })
+  val resourceManager = resMgrFactory(self)
 
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
@@ -113,9 +109,9 @@ class ContainerPool(instanceId: InvokerInstanceId,
     r.msg.transid.mark(
       this,
       LoggingMarkers.INVOKER_CONTAINER_START(containerState),
-      s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
+      s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId ${resourceManager
+        .activationStartLogMessage()}",
       akka.event.Logging.InfoLevel)
-    resourceManager.activationStartLogMessage()
   }
 
   def receive: Receive = {
@@ -133,15 +129,13 @@ class ContainerPool(instanceId: InvokerInstanceId,
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
       if (runBuffer.isEmpty || isResentFromBuffer) {
+        val warmContainer = ContainerPool
+          .schedule(r.action, r.msg.user.namespace.name, freePool)
         val createdContainer =
           // Is there enough space on the invoker (or the cluster manager) for this action to be executed.
-          if (poolConfig.clusterManagedResources || hasPoolSpaceFor(
-                poolConfig,
-                busyPool,
-                r.action.limits.memory.megabytes.MB)) {
+          if (warmContainer.isDefined || hasPoolSpaceFor(poolConfig, busyPool, r.action.limits.memory.megabytes.MB)) {
             // Schedule a job to a warm container
-            ContainerPool
-              .schedule(r.action, r.msg.user.namespace.name, freePool)
+            warmContainer
               .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
               .orElse(
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
@@ -245,10 +239,6 @@ class ContainerPool(instanceId: InvokerInstanceId,
               // Add this request to the buffer, as it is not there yet.
               runBuffer = runBuffer.enqueue(r)
             }
-            if (!poolConfig.clusterManagedResources) {
-              // As this request is the first one in the buffer, try again to execute it.
-              self ! Run(r.action, r.msg, retryLogDeadline)
-            } //cannot do this in cluster managed resources, since it will introduce a tight loop
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
@@ -309,7 +299,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
         processBuffer()
         sender()
       }
-      //if container was neither free or busy,
+      //if container was neither free or busy, (should never happen, just being defensive)
       if (foundFree.orElse(foundBusy).isEmpty) {
         processBuffer()
       }
@@ -342,43 +332,23 @@ class ContainerPool(instanceId: InvokerInstanceId,
       //remove each ref, IFF it is still not in use, and has not been used for the idle grade period
       ContainerPool.findIdlesToRemove(poolConfig.clusterManagedIdleGrace, freePool, refs).foreach(removeContainer)
     case EmitMetrics =>
-      logging.info(
-        this,
-        s"metrics invoker (self) has ${runBuffer.size} buffered (${runBuffer.map(_.action.limits.memory.megabytes).sum}MB)")
-
-      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_COUNT, runBuffer.size)
-      MetricEmitter.emitGaugeMetric(
-        LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE,
-        runBuffer.map(_.action.limits.memory.megabytes).sum)
-      val containersInUse = inUse
-      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_ACTIVE_COUNT, containersInUse.size)
-      MetricEmitter.emitGaugeMetric(
-        LoggingMarkers.CONTAINER_POOL_ACTIVE_SIZE,
-        containersInUse.map(_._2.memoryLimit.toMB).sum)
-      MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_COUNT, prewarmedPool.size)
-      MetricEmitter.emitGaugeMetric(
-        LoggingMarkers.CONTAINER_POOL_PREWARM_SIZE,
-        prewarmedPool.map(_._2.memoryLimit.toMB).sum)
+      emitMetrics()
   }
 
   /** Buffer processing in cluster managed resources means to send the first item in runBuffer;
    *  In non-clustered case, it means signalling MessageFeed (since runBuffer is processed in tight loop).
    * */
   def processBuffer() = {
-    if (poolConfig.clusterManagedResources) {
-      //if next runbuffer item has not already been resent, send it
-      runBuffer.dequeueOption match {
-        case Some((run, _)) => //run the first from buffer
-          //avoid sending dupes
-          if (!resent.contains(run.msg.activationId)) {
-            resent = resent + run.msg.activationId
-            self ! run
-          }
-        case None => //feed me!
-          feed ! MessageFeed.Processed
-      }
-    } else { //TODO: should this ever be used?
-      feed ! MessageFeed.Processed
+    //if next runbuffer item has not already been resent, send it
+    runBuffer.dequeueOption match {
+      case Some((run, _)) => //run the first from buffer
+        //avoid sending dupes
+        if (!resent.contains(run.msg.activationId)) {
+          resent = resent + run.msg.activationId
+          self ! run
+        }
+      case None => //feed me!
+        feed ! MessageFeed.Processed
     }
   }
 
@@ -460,6 +430,26 @@ class ContainerPool(instanceId: InvokerInstanceId,
     //TODO: exclude those not past idle grace
     val unused = freePool.filter(_._2.activeActivationCount == 0)
     resourceManager.updateUnused(unused)
+  }
+
+  def emitMetrics() = {
+    logging.info(
+      this,
+      s"metrics invoker (self) has ${runBuffer.size} buffered (${runBuffer.map(_.action.limits.memory.megabytes).sum}MB)")
+
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_COUNT, runBuffer.size)
+    MetricEmitter.emitGaugeMetric(
+      LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE,
+      runBuffer.map(_.action.limits.memory.megabytes).sum)
+    val containersInUse = inUse
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_ACTIVE_COUNT, containersInUse.size)
+    MetricEmitter.emitGaugeMetric(
+      LoggingMarkers.CONTAINER_POOL_ACTIVE_SIZE,
+      containersInUse.map(_._2.memoryLimit.toMB).sum)
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_COUNT, prewarmedPool.size)
+    MetricEmitter.emitGaugeMetric(
+      LoggingMarkers.CONTAINER_POOL_PREWARM_SIZE,
+      prewarmedPool.map(_._2.memoryLimit.toMB).sum)
   }
 }
 
@@ -597,9 +587,9 @@ object ContainerPool {
             factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: List[PrewarmingConfig] = List.empty,
-            resMgr: Option[ContainerResourceManager] = None) =
-    Props(new ContainerPool(instanceId, factory, feed, prewarmConfig, poolConfig, resMgr))
+            resMgrFactory: ActorRef => ContainerResourceManager,
+            prewarmConfig: List[PrewarmingConfig] = List.empty) =
+    Props(new ContainerPool(instanceId, factory, feed, prewarmConfig, poolConfig, resMgrFactory))
 }
 
 /** Contains settings needed to perform container prewarming. */

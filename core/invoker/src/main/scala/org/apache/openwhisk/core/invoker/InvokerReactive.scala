@@ -17,8 +17,7 @@
 
 package org.apache.openwhisk.core.invoker
 
-import akka.Done
-import akka.actor.CoordinatedShutdown
+import akka.actor.ActorRef
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
@@ -39,7 +38,6 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
 import spray.json._
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -207,8 +205,14 @@ class InvokerReactive(
     }.toList
   }
 
+  val resMgrFactory = if (poolConfig.clusterManagedResources) { pool: ActorRef =>
+    new AkkaClusterContainerResourceManager(actorSystem, instance, pool, poolConfig)
+  } else { pool: ActorRef =>
+    new LocalContainerResourceManager(pool)
+  }
   private val pool =
-    actorSystem.actorOf(ContainerPool.props(instance, childFactory, poolConfig, activationFeed, prewarmingConfigs))
+    actorSystem.actorOf(
+      ContainerPool.props(instance, childFactory, poolConfig, activationFeed, resMgrFactory, prewarmingConfigs))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
