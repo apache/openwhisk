@@ -483,7 +483,7 @@ trait WhiskWebActionsApi
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    var requiredAuthOk =
+                    val requiredAuthOk =
                       requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
                     if (!requiredAuthOk) {
                       logging.debug(
