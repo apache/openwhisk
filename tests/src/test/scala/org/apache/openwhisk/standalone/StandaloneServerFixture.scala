@@ -86,8 +86,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   override def afterAll(): Unit = {
     super.afterAll()
+    System.clearProperty(WHISK_SERVER)
     if (serverStartedForTest) {
-      System.clearProperty(WHISK_SERVER)
       manifestFile.foreach(FileUtils.deleteQuietly)
       serverProcess.destroy()
     }
