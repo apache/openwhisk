@@ -304,9 +304,7 @@ class ContainerPoolTests
 
     // First action is finished
     containers(0).send(pool, NeedWork(warmedData())) // pool is empty again.
-    feed.expectMsg(MessageFeed.Processed)
-
-    // Second action should run now
+    containers(0).expectMsg(Remove)
     containers(1).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
       case Run(runMessageLarge.action, runMessageLarge.msg, Some(_)) => true
@@ -454,7 +452,7 @@ class ContainerPoolTests
 
     // Action with 512 MB is finished
     containers(0).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
+//    feed.expectMsg(MessageFeed.Processed)
 
     // Action 1 should start immediately
     containers(0).expectMsgPF() {
@@ -485,7 +483,7 @@ class ContainerPoolTests
 
     // Action 0 ist finished -> Large action should be executed now
     containers(0).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
+//    feed.expectMsg(MessageFeed.Processed)
     containers(1).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
       case Run(runMessageLarge.action, runMessageLarge.msg, Some(_)) => true
@@ -497,25 +495,22 @@ class ContainerPoolTests
 
     // Action 1 is finished -> Action 2 and Action 3 should be executed now
     containers(1).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
     containers(2).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
-      case Run(runMessageDifferentNamespace.action, runMessageDifferentNamespace.msg, Some(_)) => true
+      case Run(runMessageDifferentNamespace.action, runMessageDifferentNamespace.msg, None) => true
     }
     // Assert retryLogline = false to check if this request has been stored in the queue instead of retrying in the system
     containers(3).expectMsg(runMessageDifferentAction)
 
     // Action 3 is finished -> Action 4 should start
     containers(3).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
     containers(4).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
-      case Run(runMessageDifferentEverything.action, runMessageDifferentEverything.msg, Some(_)) => true
+      case Run(runMessageDifferentEverything.action, runMessageDifferentEverything.msg, None) => true
     }
 
     // Action 2 and 4 are finished
     containers(2).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
     containers(4).send(pool, NeedWork(warmedData()))
     feed.expectMsg(MessageFeed.Processed)
   }
@@ -740,7 +735,7 @@ class ContainerPoolTests
       .canLaunch(_: ByteSize, _: Long, _: ContainerPoolConfig, _: Boolean))
       .expects(memoryLimit, 0, *, false)
       .returning(true)
-      .repeat(3)
+      .repeat(2)
 
     (resMgr.addReservation(_: ActorRef, _: ByteSize)).expects(*, memoryLimit)
 
@@ -857,7 +852,11 @@ class ContainerPoolTests
     //trigger buffer processing by ContainerRemoved message
     pool ! ContainerRemoved
 
-    containers(0).expectMsg(run1)
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run1.action, run1.msg, Some(_)) => true
+    }
+
     containers(0).expectMsg(run2)
 
   }
@@ -897,7 +896,10 @@ class ContainerPoolTests
     //trigger buffer processing by ContainerRemoved message
     pool ! ResourceUpdate
 
-    containers(0).expectMsg(run1)
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run1.action, run1.msg, Some(_)) => true
+    }
     containers(0).expectMsg(run2)
   }
   it should "release reservation on ContainerStarted" in {
@@ -913,12 +915,11 @@ class ContainerPoolTests
           feed.ref,
           _ => resMgr,
           List(PrewarmingConfig(1, exec, memoryLimit))))
-    val warmed = warmedData()
     (resMgr
       .canLaunch(_: ByteSize, _: Long, _: ContainerPoolConfig, _: Boolean))
       .expects(memoryLimit, 0, *, false)
       .returning(true)
-      .repeat(3)
+      .repeat(2)
 
     (resMgr.addReservation(_: ActorRef, _: ByteSize)).expects(*, memoryLimit)
 
@@ -992,7 +993,7 @@ class ContainerPoolTests
       .canLaunch(_: ByteSize, _: Long, _: ContainerPoolConfig, _: Boolean))
       .expects(memoryLimit, 0, *, false)
       .returning(true)
-      .repeat(3)
+      .repeat(2)
 
     (resMgr.addReservation(_: ActorRef, _: ByteSize)).expects(*, memoryLimit)
 
@@ -1112,7 +1113,10 @@ class ContainerPoolTests
     pool ! ResourceUpdate
     pool ! ResourceUpdate
 
-    containers(0).expectMsg(run1)
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run1.action, run1.msg, Some(_)) => true
+    }
     containers(1).expectMsg(run2)
 
     feed.expectNoMessage()

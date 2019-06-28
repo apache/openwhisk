@@ -237,7 +237,7 @@ class ContainerPool(instanceId: InvokerInstanceId,
             }
             if (!isResentFromBuffer) {
               // Add this request to the buffer, as it is not there yet.
-              runBuffer = runBuffer.enqueue(r)
+              runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
             }
         }
       } else {
