@@ -55,6 +55,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
     "Wsk Action REST should create and invoke a blocking action resulting in an application error response",
     "Wsk Action REST should create an action, and invoke an action that returns an empty JSON object")
 
+  private val whiskServerPreDefined = System.getProperty(WHISK_SERVER) != null
+
   override def beforeAll(): Unit = {
     val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
     serverUrlViaSysProp match {
@@ -86,8 +88,10 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   override def afterAll(): Unit = {
     super.afterAll()
-    if (serverStartedForTest) {
+    if (!whiskServerPreDefined) {
       System.clearProperty(WHISK_SERVER)
+    }
+    if (serverStartedForTest) {
       manifestFile.foreach(FileUtils.deleteQuietly)
       serverProcess.destroy()
     }
