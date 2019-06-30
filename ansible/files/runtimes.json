@@ -71,7 +71,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python2action",
-                    "tag": "nightly"
+                    "tag": "1.13.0-incubating"
                 },
                 "deprecated": false,
                 "attached": {
