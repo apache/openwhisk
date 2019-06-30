@@ -7,7 +7,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "nodejs6action",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -21,7 +21,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v8",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -35,7 +35,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v10",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -55,7 +55,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v12",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -71,7 +71,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python2action",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -85,7 +85,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "python3action",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -101,7 +101,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v4.2",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -117,7 +117,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "java8action",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -135,7 +135,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v7.3",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "attached": {
                     "attachmentName": "codefile",
@@ -155,7 +155,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-ruby-v2.5",
-                    "tag": "latest"
+                    "tag": "nightly"
                 }
             }
         ],
@@ -171,7 +171,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "actionloop-golang-v1.11",
-                    "tag": "latest"
+                    "tag": "nightly"
                 }
             }
         ],
@@ -184,7 +184,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-dotnet-v2.2",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "attached": {
                     "attachmentName": "codefile",
@@ -199,7 +199,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-ballerina-v0.990.2",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -213,7 +213,7 @@
         {
             "prefix": "openwhisk",
             "name": "dockerskeleton",
-            "tag": "latest"
+            "tag": "nightly"
         }
     ]
 }
