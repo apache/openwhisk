@@ -33,7 +33,7 @@ node('xenial&&!H21&&!H22&&!H11&&!ubuntu-eu3') {
       def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
       def shortCommit = gitCommit.take(7)
       sh "./gradlew clean"
-      sh "${PUSH_CMD} -PdockerImageTag=latest"
+      sh "${PUSH_CMD} -PdockerImageTag=nightly"
       sh "${PUSH_CMD} -PdockerImageTag=${shortCommit}"
     }
   }
