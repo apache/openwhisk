@@ -274,8 +274,8 @@ apigateway:
   port:
     api: 9000
     mgmt: 9001
-  # apigateway is an Apahce OpenWhisk project, so default to latest
-  version: latest
+  # Default to 'nightly', which tracks the head revision of the master branch of apigateway's gitrepo
+  version: nightly
 
 redis:
   version: 4.0
