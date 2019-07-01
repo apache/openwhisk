@@ -2,12 +2,12 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs:6",
+                "kind": "nodejs:10",
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "nodejs6action",
-                    "tag": "latest"
+                    "name": "action-nodejs-v10",
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
@@ -26,7 +26,7 @@
         {
             "prefix": "openwhisk",
             "name": "dockerskeleton",
-            "tag": "latest"
+            "tag": "nightly"
         }
     ]
 }
