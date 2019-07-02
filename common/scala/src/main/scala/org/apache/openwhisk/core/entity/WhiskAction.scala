@@ -293,10 +293,8 @@ case class ExecutableWhiskAction(namespace: EntityPath,
     val code = Option(exec.codeAsJson).filter(_ != JsNull).map("code" -> _)
     val envargs = if (env.nonEmpty) Some("env" -> JsObject(env)) else None
 
-    val base = Map(
-      "name" -> name.toJson,
-      "binary" -> exec.binary.toJson,
-      "main" -> exec.entryPoint.getOrElse("main").toJson)
+    val base =
+      Map("name" -> name.toJson, "binary" -> exec.binary.toJson, "main" -> exec.entryPoint.getOrElse("main").toJson)
 
     JsObject(base ++ envargs ++ code)
   }
