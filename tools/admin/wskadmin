@@ -576,7 +576,7 @@ def getLimitsCmd(args, props):
             print('No limits found, default system limits apply')
         else:
             print('Failed to get limits (%s)' % res.read().strip())
-        return 1
+            return 1
 
 def deleteLimitsCmd(args, props):
     docId = quote_plus(args.namespace + "/limits")
