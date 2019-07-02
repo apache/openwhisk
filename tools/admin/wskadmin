@@ -574,9 +574,10 @@ def getLimitsCmd(args, props):
         error = json.loads(res.read())
         if error['reason'] == 'missing' or error['reason'] == 'deleted':
             print('No limits found, default system limits apply')
+            return 0
         else:
             print('Failed to get limits (%s)' % res.read().strip())
-            return 1
+        return 1
 
 def deleteLimitsCmd(args, props):
     docId = quote_plus(args.namespace + "/limits")
