@@ -110,7 +110,8 @@ class ContainerProxyTests
     ActivationId.generate(),
     ControllerInstanceId("0"),
     blocking = false,
-    content = Some(activationArguments))
+    content = Some(activationArguments),
+    initArgs = Set.empty)
 
   /*
    * Helpers for assertions and actor lifecycles

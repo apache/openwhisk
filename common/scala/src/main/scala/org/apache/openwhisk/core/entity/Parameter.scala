@@ -76,8 +76,8 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   }
 
   /** Gets list all defined parameters. */
-  protected[core] def initParameters: Array[String] = {
-    params.keySet filter (params(_).init) map (_.name) toArray
+  protected[core] def initParameters: Set[String] = {
+    params.keySet filter (params(_).init) map (_.name)
   }
 
   protected[core] def toJsArray = {

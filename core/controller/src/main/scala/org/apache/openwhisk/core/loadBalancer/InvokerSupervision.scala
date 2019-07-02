@@ -420,7 +420,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         activationId = new ActivationIdGenerator {}.make(),
         rootControllerIndex = controllerInstance,
         blocking = false,
-        content = None)
+        content = None,
+        initArgs = Set.empty)
 
       context.parent ! ActivationRequest(activationMessage, invokerInstance)
     }
