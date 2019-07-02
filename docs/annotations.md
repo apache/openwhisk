@@ -66,10 +66,6 @@ The absence of this annotation, or its presence with a value that is not _falsy_
 will cause an API key to be present in the [action execution context](./actions.md#accessing-action-metadata-within-the-action-body). This annotation is added
 to newly created actions, if not already specified, with a default false value.
 
-* `partition-arguments`: This annotation may be attached to actions to partition the activation dictionary in two. The first partition consists of all keys that
-begin with a capital letter and which has a value of type String, Number or Boolean. These keys are exported to the action's runtime environment and are available at action
-initialization time. The second partition is provided to the action as the activation arguments. This annotation must be explicitly attached to actions.
-
 # Annotations specific to web actions
 
 Web actions are enabled with explicit annotations which decorate individual actions. The annotations only apply to the [web actions](webactions.md) API,

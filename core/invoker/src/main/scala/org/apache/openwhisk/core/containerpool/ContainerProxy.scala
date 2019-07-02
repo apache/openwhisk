@@ -541,9 +541,7 @@ class ContainerProxy(
    */
   def initializeAndRun(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
     val actionTimeout = job.action.limits.timeout.duration
-    val (env, parameters) = ContainerProxy.partitionArguments(
-      job.msg.content,
-      job.action.annotations.isTruthy(Annotations.PartitionArgumentsForEnvironment, valueForNonExistent = false))
+    val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
@@ -777,24 +775,15 @@ object ContainerProxy {
    * Partitions the activation arguments into two JsObject instances. The first is exported as intended for export
    * by the action runtime to the environment. The second is passed on as arguments to the action.
    *
-   * Properties in the activation argument list that begin with a capital letter are treated as
-   * environment variables, provided their value is one of [ string, number, boolean ].
-   *
    * @param content the activation arguments
-   * @param partitionEnvVars if true, partition the arguments otherwise treat as one argument to the action
+   * @param initArgs set of parameters to treat as initialization arguments
    * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
    */
-  def partitionArguments(content: Option[JsObject], partitionEnvVars: Boolean): (Map[String, JsValue], JsObject) = {
-    if (content.isEmpty || !partitionEnvVars) {
+  def partitionArguments(content: Option[JsObject], initArgs: Set[String]): (Map[String, JsValue], JsObject) = {
+    if (content.isEmpty || initArgs.isEmpty) {
       (Map.empty, content.getOrElse(JsObject.empty))
     } else {
-      val (env, args) = content.get.fields.partition {
-        case (k, _: JsString | _: JsNumber | _: JsBoolean) =>
-          val c = k.charAt(0)
-          Character.isUpperCase(c)
-        case _ => false
-      }
-
+      val (env, args) = content.get.fields.partition(k => initArgs.contains(k._1))
       (env, JsObject(args))
     }
   }
