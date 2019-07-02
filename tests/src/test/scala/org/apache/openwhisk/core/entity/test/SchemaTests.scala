@@ -644,7 +644,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "Parameter"
 
-  it should "properly deserialize and reserialize JSON" in {
+  it should "properly deserialize and reserialize JSON without optional field" in {
     val json = Seq[JsValue](
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "foo" -> "bar".toJson)),
@@ -660,6 +660,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     assert(params(1).toString != json(1).compactPrint) // drops unknown prop "foo"
     assert(params(2).toString == json(2).compactPrint) // drops unknown prop "foo"
     assert(params(3).toString == json(3).compactPrint) // drops unknown prop "foo"
+  }
+
+  it should "properly deserialize and reserialize parameters with optional field" in {
+    val json = Seq[JsValue](
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsFalse)),
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsTrue)))
+
+    val params = json.map { p =>
+      Parameters.serdes.read(p)
+    }
+    assert(params(0) == Parameters("k", "v"))
+    assert(params(1) == Parameters("k", "v", false))
+    assert(params(2) == Parameters("k", "v", true))
+    assert(params(0).toString == json(0).compactPrint)
+    assert(params(1).toString == json(0).compactPrint) // init == false drops the property from the JSON
+    assert(params(2).toString == json(2).compactPrint)
+  }
+
+  it should "reject parameters with invalid optional field" in {
+    val json = Seq[JsValue](JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsString("true"))))
+
+    json.foreach { p =>
+      an[DeserializationException] should be thrownBy Parameters.serdes.read(p)
+    }
   }
 
   it should "filter immutable parameters" in {
