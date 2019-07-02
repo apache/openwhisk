@@ -28,7 +28,7 @@ timeout(time: 12, unit: 'HOURS') {
         def home = sh(returnStdout: true, script: 'echo $HOME').trim()
         def jobName = sh(returnStdout: true, script: 'echo $JOB_NAME').trim()
         def jobSpace = "${home}/jenkins-slave/workspace/${jobName}"
-        
+
         lock("${hostName}") {
             sh "mkdir -p ${jobSpace}"
             dir("${jobSpace}") {
@@ -51,6 +51,8 @@ timeout(time: 12, unit: 'HOURS') {
                                 -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
                         // Build the controller and invoker images.
                         sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
+                        //Install the various modules like standalone
+                        sh "./gradlew install"
                     }
 
                     stage('Deploy Lean') {
