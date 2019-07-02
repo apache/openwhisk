@@ -125,7 +125,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
    * @param enforceEmptyOutputStream true to check empty stdout stream
    * @param enforceEmptyErrorStream true to check empty stderr stream
    */
-  def testEnvPartition: TestConfig
+  def testEnvPartition: TestConfig = TestConfig("", skipTest = true) // so as not to break downstream dependencies
 
   /**
    * Tests the action to confirm it can handle a large parameter (larger than 128K) when using STDIN.
