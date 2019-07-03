@@ -111,19 +111,25 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   def testEnv: TestConfig
 
   /**
-   * Tests the action argument partition into environment variables and action arguments.
-   * The test should ensure the environment variables are available before "main" and that
-   * a Null value is the empty string.
+   * Tests that action parameters at initialization time are available before an action
+   * is initialized. The value of a parameter is a legal JSON value and should be exported
+   * to the environment as follows.
+   * - array: string representation of the array (e.g., JSON.stringify)
+   * - object: string representation of the object (e.g., JSON.stringify)
+   * - string: the string
+   * - number: the number as a string
+   * - bool: the string "true" or "false"
+   * - null: the empty string ""
    *
    * @param code a function returning a dictionary consisting of the following properties
-   *             { "STRING": process.env.STRING,
+   *             { "ARRAY" : process.env.ARRAY,
+   *               "OBJECT": process.env.OBJECT,
+   *               "STRING": process.env.STRING,
    *               "NUMBER": process.env.NUMBER,
-   *               "BOOL": process.env.BOOL,
-   *               "NULL": process.env.NULL
+   *               "BOOL"  : process.env.BOOL,
+   *               "NULL"  : process.env.NULL
    *             }
    * @param main the main function
-   * @param enforceEmptyOutputStream true to check empty stdout stream
-   * @param enforceEmptyErrorStream true to check empty stderr stream
    */
   def testEnvPartition: TestConfig = TestConfig("", skipTest = true) // so as not to break downstream dependencies
 
@@ -280,7 +286,13 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   it should s"export environment variables before initialization" in {
     val config = testEnvPartition
     if (!config.skipTest) {
-      val env = JsObject("STRING" -> JsString("xyz"), "NUMBER" -> JsNumber(3), "BOOL" -> JsTrue, "NULL" -> JsNull)
+      val env = JsObject(
+        "ARRAY" -> JsArray(JsString("a"), JsString("b")),
+        "OBJECT" -> JsObject("a" -> JsString("A")),
+        "STRING" -> JsString("xyz"),
+        "NUMBER" -> JsNumber(3),
+        "BOOL" -> JsTrue,
+        "NULL" -> JsNull)
 
       val (out, err) = withActionContainer() { c =>
         val (initCode, _) = c.init(initPayload(config.code, config.main, Some(env)))
@@ -288,12 +300,16 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
         val (runCode, out) = c.run(runPayload(JsObject.empty))
         runCode should be(200)
-        out shouldBe Some(
-          JsObject(
-            "STRING" -> JsString("xyz"),
-            "NUMBER" -> JsString("3"),
-            "BOOL" -> JsString("true"),
-            "NULL" -> JsString.empty))
+        out shouldBe defined
+        val fields = out.get.fields
+        val JsString(a) = fields("ARRAY")
+        val JsString(b) = fields("OBJECT")
+        a.parseJson shouldBe JsArray(JsString("a"), JsString("b"))
+        b.parseJson shouldBe JsObject("a" -> JsString("A"))
+        fields("STRING") shouldBe JsString("xyz")
+        fields("NUMBER") shouldBe JsString("3")
+        fields("BOOL") shouldBe JsString("true")
+        fields("NULL") shouldBe JsString.empty
       }
 
       checkStreams(out, err, {
