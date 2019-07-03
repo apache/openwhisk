@@ -572,8 +572,9 @@ def getLimitsCmd(args, props):
                 print('%s = %s' % (limit, givenLimit))
     else:
         error = json.loads(res.read())
-        if error['reason'] == 'missing':
+        if error['reason'] == 'missing' or error['reason'] == 'deleted':
             print('No limits found, default system limits apply')
+            return 0
         else:
             print('Failed to get limits (%s)' % res.read().strip())
         return 1
