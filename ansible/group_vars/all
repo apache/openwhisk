@@ -294,7 +294,7 @@ docker:
   #user:
   image:
     prefix: "{{ docker_image_prefix | default('whisk') }}"
-    tag: "{{ docker_image_tag | default('latest') }}"
+    tag: "{{ docker_image_tag | default('nightly') }}"
   version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
