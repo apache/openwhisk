@@ -19,11 +19,16 @@ service ActivationService {
 //#messages
 // The request message
 message FetchRequest {
+    //the serialize content of FullyQualifiedEntityName
     string fqn = 1;
+
+    //the serialize content of DocRevision, because one action can be updated,
+    //so need to provide corresponding DocRevision for the action
     string rev = 2;
 }
 
 // The response message
 message FetchResponse {
+    //the serialize content of ActivationMessage
     string activationMessage = 1;
 }

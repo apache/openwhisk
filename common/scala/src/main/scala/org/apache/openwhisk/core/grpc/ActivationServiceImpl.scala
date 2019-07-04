@@ -30,6 +30,15 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.Try
 
+/**
+ * After ContainerProxy initializes the akka-grpc client, ContainerProxy sends ActivationRequest via fetchActivation,
+ * ActivationService delegates the ActivationRequest to QueueManager,
+ * QueueManager responds with ActivationResponse to ActivationService,
+ * ActivationService responds with ActivationResponse to ContainerProxy.
+ * @param queueManager
+ * @param actorSystem
+ * @param logging
+ */
 class ActivationServiceImpl(private val queueManager: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
     extends ActivationService {
   implicit val requestTimeout: Timeout = Timeout(50.seconds)
