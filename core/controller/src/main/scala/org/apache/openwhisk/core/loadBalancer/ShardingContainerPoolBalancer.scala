@@ -251,6 +251,18 @@ class ShardingContainerPoolBalancer(
   override def invokerHealth(): Future[IndexedSeq[InvokerHealth]] = Future.successful(schedulingState.invokers)
   override def clusterSize: Int = schedulingState.clusterSize
 
+  /**
+   * A log message created below needs the standard action memory limit. Obtain the value once because it's immutable
+   * to save processing and garbage collection time.
+   */
+  private val stdActionMemoryLimit = MemoryLimit()
+
+  /**
+   * A log message created below needs the standard action time limit. Obtain the value once because it's immutable
+   * to save processing and garbage collection time.
+   */
+  private val stdActionTimeLimit = TimeLimit()
+
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -290,9 +302,9 @@ class ShardingContainerPoolBalancer(
     chosen
       .map { invoker =>
         val memoryLimit = action.limits.memory
-        val memoryLimitInfo = if (memoryLimit == MemoryLimit()) { "std" } else { "non-std" }
+        val memoryLimitInfo = if (memoryLimit == stdActionMemoryLimit) { "std" } else { "non-std" }
         val timeLimit = action.limits.timeout
-        val timeLimitInfo = if (timeLimit == TimeLimit()) { "std" } else { "non-std" }
+        val timeLimitInfo = if (timeLimit == stdActionTimeLimit) { "std" } else { "non-std" }
         logging.info(
           this,
           s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}")
