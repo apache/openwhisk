@@ -48,10 +48,13 @@ import scala.util.{Failure, Success, Try}
  */
 protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit actorSystem: ActorSystem)
     extends Directives {
+  case class SwaggerConfig(fileSystem: Boolean, dirPath: String)
 
   /** Swagger end points. */
   protected val swaggeruipath = "docs"
   protected val swaggerdocpath = "api-docs"
+  private val swaggerUIDir = "swagger-ui"
+  private val swaggerConfig = loadConfigOrThrow[SwaggerConfig](ConfigKeys.swaggerUi)
 
   def basepath(url: Uri.Path = apipath): String = {
     (if (url.startsWithSlash) url else Uri.Path./(url)).toString
@@ -62,7 +65,8 @@ protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit
    */
   val swaggerRoutes: Route = {
     pathPrefix(swaggeruipath) {
-      getFromDirectory("/swagger-ui/")
+      if (swaggerConfig.fileSystem) getFromDirectory(swaggerConfig.dirPath)
+      else getFromResourceDirectory(swaggerConfig.dirPath)
     } ~ path(swaggeruipath) {
       redirect(s"$swaggeruipath/index.html?url=$apiDocsUrl", PermanentRedirect)
     } ~ pathPrefix(swaggerdocpath) {
