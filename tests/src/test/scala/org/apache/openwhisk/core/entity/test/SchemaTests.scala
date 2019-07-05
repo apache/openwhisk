@@ -700,12 +700,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.stdConcurrent.toInt.toJson),
+        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.stdConcurrent.toInt.toJson,
+        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
@@ -783,7 +783,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       TimeLimit(),
       MemoryLimit(),
       LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.minConcurrent - 1))
+      ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT - 1))
 
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
@@ -801,7 +801,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       TimeLimit(),
       MemoryLimit(),
       LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.maxConcurrent + 1))
+      ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT + 1))
   }
 
   it should "parse activation id as uuid" in {

@@ -29,7 +29,8 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
 
 /**
  * ConcurrencyLimit encapsulates allowed concurrency in a single container for an action. The limit must be within a
- * permissible range (by default [1, 500]).
+ * permissible range (by default [1, 1]). This default range was chosen intentionally to reflect that concurrency
+ * is disabled by default.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -45,12 +46,15 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
   private val concurrencyConfig =
     loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
 
-  protected[core] val minConcurrent: Int = concurrencyConfig.min
-  protected[core] val maxConcurrent: Int = concurrencyConfig.max
-  protected[core] val stdConcurrent: Int = concurrencyConfig.std
+  protected[core] val MIN_CONCURRENT: Int = concurrencyConfig.min
+  protected[core] val MAX_CONCURRENT: Int = concurrencyConfig.max
+  protected[core] val STD_CONCURRENT: Int = concurrencyConfig.std
+
+  /** A singleton ConcurrencyLimit with default value */
+  protected[core] val standardConcurrencyLimit = ConcurrencyLimit(STD_CONCURRENT)
 
   /** Gets ConcurrencyLimit with default value */
-  protected[core] def apply(): ConcurrencyLimit = ConcurrencyLimit(stdConcurrent)
+  protected[core] def apply(): ConcurrencyLimit = standardConcurrencyLimit
 
   /**
    * Creates ConcurrencyLimit for limit, iff limit is within permissible range.
@@ -61,8 +65,8 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(concurrency: Int): ConcurrencyLimit = {
-    require(concurrency >= minConcurrent, s"concurrency $concurrency below allowed threshold of $minConcurrent")
-    require(concurrency <= maxConcurrent, s"concurrency $concurrency exceeds allowed threshold of $maxConcurrent")
+    require(concurrency >= MIN_CONCURRENT, s"concurrency $concurrency below allowed threshold of $MIN_CONCURRENT")
+    require(concurrency <= MAX_CONCURRENT, s"concurrency $concurrency exceeds allowed threshold of $MAX_CONCURRENT")
     new ConcurrencyLimit(concurrency)
   }
 
