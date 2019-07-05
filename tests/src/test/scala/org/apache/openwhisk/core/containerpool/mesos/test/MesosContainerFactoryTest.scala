@@ -57,6 +57,9 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.mesos.MesosConfig
 import org.apache.openwhisk.core.mesos.MesosContainerFactory
 import org.apache.openwhisk.core.mesos.MesosTimeoutConfig
+import org.apache.openwhisk.utils.retry
+
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
 class MesosContainerFactoryTest
@@ -93,12 +96,24 @@ class MesosContainerFactoryTest
       Seq.empty,
       Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
 
+  private var factory: MesosContainerFactory = _
   override def beforeEach() = {
     stream.reset()
   }
 
+  override protected def afterEach(): Unit = {
+    super.afterEach()
+    Option(factory).foreach(_.close())
+  }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system, verifySystemShutdown = true)
+    retry({
+      val threadNames = Thread.getAllStackTraces.asScala.keySet.map(_.getName)
+      withClue(s"Threads related to  MesosActorSystem found to be active $threadNames") {
+        assert(!threadNames.exists(_.startsWith("MesosActorSystem")))
+      }
+    }, 10, Some(1.second))
     super.afterAll()
   }
 
@@ -111,7 +126,7 @@ class MesosContainerFactoryTest
 
   it should "send Subscribe on init" in {
     val wskConfig = new WhiskConfig(Map.empty)
-    new MesosContainerFactory(
+    factory = new MesosContainerFactory(
       wskConfig,
       system,
       logging,
@@ -138,16 +153,15 @@ class MesosContainerFactoryTest
       2,
       timeouts)
 
-    val factory =
-      new MesosContainerFactory(
-        wskConfig,
-        system,
-        logging,
-        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
-        containerArgsConfig,
-        mesosConfig = mesosConfig,
-        clientFactory = (_, _) => testActor,
-        taskIdGenerator = testTaskId _)
+    factory = new MesosContainerFactory(
+      wskConfig,
+      system,
+      logging,
+      Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
+      containerArgsConfig,
+      mesosConfig = mesosConfig,
+      clientFactory = (_, _) => testActor,
+      taskIdGenerator = testTaskId _)
 
     expectMsg(Subscribe)
     factory.createContainer(
@@ -182,16 +196,15 @@ class MesosContainerFactoryTest
 
   it should "send DeleteTask on destroy" in {
     val probe = TestProbe()
-    val factory =
-      new MesosContainerFactory(
-        wskConfig,
-        system,
-        logging,
-        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
-        containerArgsConfig,
-        mesosConfig = mesosConfig,
-        clientFactory = (system, mesosConfig) => probe.testActor,
-        taskIdGenerator = testTaskId _)
+    factory = new MesosContainerFactory(
+      wskConfig,
+      system,
+      logging,
+      Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
+      containerArgsConfig,
+      mesosConfig = mesosConfig,
+      clientFactory = (system, mesosConfig) => probe.testActor,
+      taskIdGenerator = testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
@@ -251,21 +264,20 @@ class MesosContainerFactoryTest
 
   it should "return static message for logs" in {
     val probe = TestProbe()
-    val factory =
-      new MesosContainerFactory(
-        wskConfig,
-        system,
-        logging,
-        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
-        new ContainerArgsConfig(
-          "bridge",
-          Seq.empty,
-          Seq.empty,
-          Seq.empty,
-          Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
-        mesosConfig = mesosConfig,
-        clientFactory = (system, mesosConfig) => probe.testActor,
-        taskIdGenerator = testTaskId _)
+    factory = new MesosContainerFactory(
+      wskConfig,
+      system,
+      logging,
+      Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
+      new ContainerArgsConfig(
+        "bridge",
+        Seq.empty,
+        Seq.empty,
+        Seq.empty,
+        Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
+      mesosConfig = mesosConfig,
+      clientFactory = (system, mesosConfig) => probe.testActor,
+      taskIdGenerator = testTaskId _)
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
