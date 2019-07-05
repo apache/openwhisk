@@ -1181,6 +1181,10 @@ class ContainerProxyTests
     }
     override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+      // the "init" arguments are not passed on run
+      parameters shouldBe JsObject(activationArguments.fields.filter(k => !filterEnvVar(k._1)))
+
       val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
