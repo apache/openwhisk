@@ -481,14 +481,17 @@ case class ShardingContainerPoolBalancerState(
    * @return calculated invoker slot
    */
   private def getInvokerSlot(memory: ByteSize): ByteSize = {
-    val newTreshold = if (memory / _clusterSize < MemoryLimit.MIN_MEMORY) {
-      logging.warn(
+    val invokerShardMemorySize = memory / _clusterSize
+    val newTreshold = if (invokerShardMemorySize < MemoryLimit.MIN_MEMORY) {
+      logging.error(
         this,
-        s"registered controllers: ${_clusterSize}: the slots per invoker fall below the min memory of one action.")(
+        s"registered controllers: calculated controller's invoker shard memory size falls below the min memory of one action. "
+          + s"Setting to min memory. Expect invoker overloads. Cluster size ${_clusterSize}, invoker user memory size ${memory.toMB.MB}, "
+          + s"min action memory size ${MemoryLimit.MIN_MEMORY.toMB.MB}, calculated shard size ${invokerShardMemorySize.toMB.MB}.")(
         TransactionId.loadbalancer)
       MemoryLimit.MIN_MEMORY
     } else {
-      memory / _clusterSize
+      invokerShardMemorySize
     }
     newTreshold
   }
