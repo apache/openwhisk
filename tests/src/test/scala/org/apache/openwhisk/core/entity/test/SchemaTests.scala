@@ -138,7 +138,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     }
 
     DocRevision.serdes.read(JsNull) shouldBe DocRevision.empty
-    DocRevision.serdes.read(JsString("")) shouldBe DocRevision("")
+    DocRevision.serdes.read(JsString.empty) shouldBe DocRevision("")
     DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
     DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
     DocRevision.serdes.read(JsString("a ")) shouldBe DocRevision("a")
@@ -367,7 +367,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
     FullyQualifiedEntityName.resolveName(JsString("/a/b/c/d"), EntityName("ns")) shouldBe None
 
-    FullyQualifiedEntityName.resolveName(JsString(""), EntityName("ns")) shouldBe None
+    FullyQualifiedEntityName.resolveName(JsString.empty, EntityName("ns")) shouldBe None
   }
 
   behavior of "Binding"
@@ -631,7 +631,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "reject null code/image arguments" in {
     an[IllegalArgumentException] should be thrownBy Exec.serdes.read(null)
     a[DeserializationException] should be thrownBy Exec.serdes.read("{}" parseJson)
-    a[DeserializationException] should be thrownBy Exec.serdes.read(JsString(""))
+    a[DeserializationException] should be thrownBy Exec.serdes.read(JsString.empty)
   }
 
   it should "serialize to json" in {
@@ -724,7 +724,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       Parameters("x", v).isTruthy("x") shouldBe true
     }
 
-    Seq(JsFalse, JsNumber(0), JsString(""), JsNull).foreach { v =>
+    Seq(JsFalse, JsNumber(0), JsString.empty, JsNull).foreach { v =>
       Parameters("x", v).isTruthy("x") shouldBe false
     }
 

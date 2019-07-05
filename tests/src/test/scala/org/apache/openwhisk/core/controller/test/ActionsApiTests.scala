@@ -1711,8 +1711,8 @@ class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
   import WhiskAction.execFieldName
 
   val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
-  val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsBoolean(true))
-  val keyFalsyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsString("")) // falsy other than JsFalse
+  val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsTrue)
+  val keyFalsyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsString.empty) // falsy other than JsFalse
   val execAnnotation = Parameters(execFieldName, JsString("foo"))
   val exec: Exec = jsDefault("??")
 
