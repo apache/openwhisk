@@ -237,13 +237,13 @@ gradle.projectsEvaluated {
         doFirst {
             logTestSetInfo()
         }
-        classpath = getScoverageClasspath(project)
+        classpath = getScoverageClasspath(project, projectsWithCoverage)
         exclude getPattern(testSetName, "excludes")
         include getPattern(testSetName, "includes")
     }
 
     task testCoverage(type: Test) {
-        classpath = getScoverageClasspath(project)
+        classpath = getScoverageClasspath(project, projectsWithCoverage)
     }
     tasks.withType(Test) {
         systemProperties(System.getProperties())
@@ -320,8 +320,8 @@ def loadWhiskProps(){
  * Prepares the classpath which refer to scoverage instrumented classes from
  * dependent projects "before" the non instrumented classes
  */
-def getScoverageClasspath(Project project) {
-    def combinedClasspath = projectsWithCoverage.inject(project.files([])) { result, name ->
+def getScoverageClasspath(Project project, List<String> projectNames) {
+    def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
         result + cp.filter {it.name.contains('scoverage')}
     }
