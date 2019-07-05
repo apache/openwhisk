@@ -125,6 +125,10 @@ public class WhiskProperties {
         return new File(whiskHome, name);
     }
 
+    public static int getControllerInstances() {
+        return Integer.parseInt(whiskProperties.getProperty("controller.instances"));
+    }
+
     public static String getProperty(String name) {
         return whiskProperties.getProperty(name);
     }

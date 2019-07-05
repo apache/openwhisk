@@ -139,7 +139,7 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
 
   behavior of "The cache"
 
-  if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
+  if (WhiskProperties.getControllerInstances >= 2) {
 
     it should "be invalidated on updating an entity" in {
       val actionName = "invalidateRemoteCacheOnUpdate"
