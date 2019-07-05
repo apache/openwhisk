@@ -176,8 +176,7 @@ object Controller {
   // a value, and whose values are default values.   A null value in the Map means there is
   // no default value specified, so it must appear in the properties file
   def requiredProperties =
-    Map(WhiskConfig.controllerInstances -> null) ++
-      ExecManifest.requiredProperties ++
+    ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       SpiLoader.get[LoadBalancerProvider].requiredProperties ++
       EntitlementProvider.requiredProperties
