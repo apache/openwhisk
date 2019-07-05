@@ -46,6 +46,7 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
   private val concurrencyConfig =
     loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
 
+  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
   protected[core] val MIN_CONCURRENT: Int = concurrencyConfig.min
   protected[core] val MAX_CONCURRENT: Int = concurrencyConfig.max
   protected[core] val STD_CONCURRENT: Int = concurrencyConfig.std

@@ -44,15 +44,16 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
 
+  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
   protected[core] val MIN_MEMORY: ByteSize = config.min
   protected[core] val MAX_MEMORY: ByteSize = config.max
   protected[core] val STD_MEMORY: ByteSize = config.std
 
   /** A singleton MemoryLimit with default value */
-  protected[core] val defaultMemoryLimit = MemoryLimit(STD_MEMORY)
+  protected[core] val standardMemoryLimit = MemoryLimit(STD_MEMORY)
 
   /** Gets MemoryLimit with default value */
-  protected[core] def apply(): MemoryLimit = defaultMemoryLimit
+  protected[core] def apply(): MemoryLimit = standardMemoryLimit
 
   /**
    * Creates MemoryLimit for limit, iff limit is within permissible range.

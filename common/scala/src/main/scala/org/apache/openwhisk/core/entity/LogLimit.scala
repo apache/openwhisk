@@ -48,15 +48,16 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.logLimit)
 
+  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
   protected[core] val MIN_LOGSIZE: ByteSize = config.min
   protected[core] val MAX_LOGSIZE: ByteSize = config.max
   protected[core] val STD_LOGSIZE: ByteSize = config.std
 
   /** A singleton LogLimit with default value */
-  protected[core] val defaultLogLimit = LogLimit(STD_LOGSIZE)
+  protected[core] val standardLogLimit = LogLimit(STD_LOGSIZE)
 
   /** Gets LogLimit with default log limit */
-  protected[core] def apply(): LogLimit = defaultLogLimit
+  protected[core] def apply(): LogLimit = standardLogLimit
 
   /**
    * Creates LogLimit for limit. Only the default limit is allowed currently.

@@ -49,15 +49,16 @@ case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: Finite
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
 
+  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
   protected[core] val MIN_DURATION: FiniteDuration = config.min
   protected[core] val MAX_DURATION: FiniteDuration = config.max
   protected[core] val STD_DURATION: FiniteDuration = config.std
 
   /** A singleton TimeLimit with default value */
-  protected[core] val defaultTimeLimit = TimeLimit(STD_DURATION)
+  protected[core] val standardTimeLimit = TimeLimit(STD_DURATION)
 
   /** Gets TimeLimit with default duration */
-  protected[core] def apply(): TimeLimit = defaultTimeLimit
+  protected[core] def apply(): TimeLimit = standardTimeLimit
 
   /**
    * Creates TimeLimit for duration, iff duration is within permissible range.

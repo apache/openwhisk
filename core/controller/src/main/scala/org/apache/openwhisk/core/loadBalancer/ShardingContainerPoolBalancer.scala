@@ -290,9 +290,9 @@ class ShardingContainerPoolBalancer(
     chosen
       .map { invoker =>
         val memoryLimit = action.limits.memory
-        val memoryLimitInfo = if (memoryLimit == MemoryLimit.defaultMemoryLimit) { "std" } else { "non-std" }
+        val memoryLimitInfo = if (memoryLimit == MemoryLimit.standardMemoryLimit) { "std" } else { "non-std" }
         val timeLimit = action.limits.timeout
-        val timeLimitInfo = if (timeLimit == TimeLimit.defaultTimeLimit) { "std" } else { "non-std" }
+        val timeLimitInfo = if (timeLimit == TimeLimit.standardTimeLimit) { "std" } else { "non-std" }
         logging.info(
           this,
           s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}")
