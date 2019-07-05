@@ -41,6 +41,14 @@ def leanExcludes = [
     'invokerShoot/**'
 ]
 
+def projectsWithCoverage = [
+    ':common:scala',
+    ':core:controller',
+    ':core:invoker',
+    ':tools:admin',
+    ':core:cosmosdb:cache-invalidator:reportScoverage'
+]
+
 def systemIncludes = [
             "org/apache/openwhisk/core/limits/**",
             "org/apache/openwhisk/core/admin/**",
@@ -195,10 +203,6 @@ dependencies {
     compile project(':core:cosmosdb:cache-invalidator')
     compile project(':tools:admin')
 
-
-
-    scoverage gradle.scoverage.deps
-
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'
 }
 
@@ -278,15 +282,12 @@ task copyMeasurementFiles() {
  * tests to be executed prior to its invocation
  */
 task reportCoverage(type: ScoverageReport) {
-    dependsOn([
-        copyMeasurementFiles,
-        ':common:scala:reportScoverage',
-        ':core:controller:reportScoverage',
-        ':core:invoker:reportScoverage',
-        ':tools:admin:reportScoverage',
-        ':core:cosmosdb:cache-invalidator:reportScoverage',
-    ])
-
+    def dependentTasks = []
+    dependentTasks << copyMeasurementFiles
+    projectsWithCoverage.forEach {
+        dependentTasks << it + ':reportScoverage'
+    }
+    dependsOn(dependentTasks)
 }
 
 /**
@@ -316,37 +317,11 @@ def loadWhiskProps(){
 }
 
 /**
- * Aggregates the scoverage xml reports from various modules into a
- * single report
- */
-task aggregateCoverage(type: JavaExec, dependsOn: reportCoverage) {
-    //Taken from ScoverageAggregate
-    main = 'org.scoverage.AggregateReportApp'
-    classpath = project.extensions.scoverage.pluginClasspath
-    args = [
-        project.rootProject.projectDir, //Use the root project path so as to "see" all source paths
-        new File(project.buildDir, 'scoverage-aggregate'),
-        false, //Clean scoverage report post process
-        true,  //coverageOutputCobertura
-        true,  //coverageOutputXML
-        true,  //coverageOutputHTML
-        false  //coverageDebug
-    ]
-}
-
-/**
  * Prepares the classpath which refer to scoverage instrumented classes from
  * dependent projects "before" the non instrumented classes
  */
 def getScoverageClasspath(Project project) {
-    def projectNames = [
-        ':common:scala',
-        ':core:controller',
-        ':core:invoker',
-        ':tools:admin',
-        ':core:cosmosdb:cache-invalidator'
-    ]
-    def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
+    def combinedClasspath = projectsWithCoverage.inject(project.files([])) { result, name ->
         def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
         result + cp.filter {it.name.contains('scoverage')}
     }
