@@ -49,5 +49,4 @@ bootJar {
 dependencies {
     compile project(':common:scala')
     compile 'org.rogach:scallop_2.12:3.1.2'
-    scoverage gradle.scoverage.deps
 }
