@@ -21,13 +21,15 @@ buildscript {
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-        classpath 'org.scoverage:gradle-scoverage:2.3.0'
     }
 }
 
 plugins {
     id "com.gradle.build-scan" version "1.14"
+    id "org.scoverage" version "`" apply false
 }
+
+apply plugin: 'org.scoverage'
 
 buildScan {
     termsOfServiceUrl = 'https://gradle.com/terms-of-service'

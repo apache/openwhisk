@@ -48,7 +48,6 @@ dependencies {
         exclude group: 'log4j'
         exclude group: 'jline'
     }
-    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {
