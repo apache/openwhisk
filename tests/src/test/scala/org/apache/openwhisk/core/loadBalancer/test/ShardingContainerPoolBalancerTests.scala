@@ -101,7 +101,7 @@ class ShardingContainerPoolBalancerTests
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty
     val slots = 10
-    val memoryPerSlot = MemoryLimit.minMemory
+    val memoryPerSlot = MemoryLimit.MIN_MEMORY
     val memory = memoryPerSlot * slots
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.invokers shouldBe 'empty
@@ -148,7 +148,7 @@ class ShardingContainerPoolBalancerTests
       val state = ShardingContainerPoolBalancerState()(lbConfig(bf))
 
       (1 to 100).toSeq.foreach { i =>
-        state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.stdMemory)))
+        state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.STD_MEMORY)))
 
         withClue(s"invoker count $bf $i:") {
           state.managedInvokers.length should be <= i
@@ -174,7 +174,7 @@ class ShardingContainerPoolBalancerTests
 
     val state = ShardingContainerPoolBalancerState()(lbConfig(1.0, Some(1.0)))
     (1 to 100).foreach { i =>
-      state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.stdMemory)))
+      state.updateInvokers((1 to i).map(_ => healthy(1, MemoryLimit.STD_MEMORY)))
     }
 
     state.managedInvokers should have size 100
@@ -185,7 +185,7 @@ class ShardingContainerPoolBalancerTests
 
   it should "update the cluster size, adjusting the invoker slots accordingly" in {
     val slots = 10
-    val memoryPerSlot = MemoryLimit.minMemory
+    val memoryPerSlot = MemoryLimit.MIN_MEMORY
     val memory = memoryPerSlot * slots
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory), healthy(1, memory * 2)))
@@ -203,7 +203,7 @@ class ShardingContainerPoolBalancerTests
 
   it should "fallback to a size of 1 (alone) if cluster size is < 1" in {
     val slots = 10
-    val memoryPerSlot = MemoryLimit.minMemory
+    val memoryPerSlot = MemoryLimit.MIN_MEMORY
     val memory = memoryPerSlot * slots
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory)))
@@ -222,7 +222,7 @@ class ShardingContainerPoolBalancerTests
 
   it should "set the threshold to 1 if the cluster is bigger than there are slots on 1 invoker" in {
     val slots = 10
-    val memoryPerSlot = MemoryLimit.minMemory
+    val memoryPerSlot = MemoryLimit.MIN_MEMORY
     val memory = memoryPerSlot * slots
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory)))
@@ -231,7 +231,7 @@ class ShardingContainerPoolBalancerTests
 
     state.updateCluster(20)
 
-    state.invokerSlots.head.availablePermits shouldBe MemoryLimit.minMemory.toMB
+    state.invokerSlots.head.availablePermits shouldBe MemoryLimit.MIN_MEMORY.toMB
   }
   val namespace = EntityPath("testspace")
   val name = EntityName("testname")
@@ -247,7 +247,7 @@ class ShardingContainerPoolBalancerTests
       fqn,
       IndexedSeq.empty,
       IndexedSeq.empty,
-      MemoryLimit.minMemory.toMB.toInt,
+      MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
       step = 2) shouldBe None
   }
@@ -262,7 +262,7 @@ class ShardingContainerPoolBalancerTests
       fqn,
       invokers,
       invokerSlots,
-      MemoryLimit.minMemory.toMB.toInt,
+      MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
       step = 2) shouldBe None
   }

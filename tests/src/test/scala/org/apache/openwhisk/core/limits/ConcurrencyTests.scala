@@ -75,7 +75,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
       //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
       val busyThreshold =
-        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.stdMemory).toInt
+        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
 
       //run maximum allowed concurrent actions via Futures
       val requestCount = busyThreshold
@@ -124,7 +124,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
       //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
       val busyThreshold =
-        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.stdMemory).toInt
+        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
 
       //run maximum allowed concurrent actions via Futures
       val requestCount = busyThreshold

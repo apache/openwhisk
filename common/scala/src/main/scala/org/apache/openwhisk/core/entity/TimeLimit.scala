@@ -53,8 +53,11 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   protected[core] val MAX_DURATION: FiniteDuration = config.max
   protected[core] val STD_DURATION: FiniteDuration = config.std
 
+  /** A singleton TimeLimit with default value */
+  protected[core] val defaultTimeLimit = TimeLimit(STD_DURATION)
+
   /** Gets TimeLimit with default duration */
-  protected[core] def apply(): TimeLimit = TimeLimit(STD_DURATION)
+  protected[core] def apply(): TimeLimit = defaultTimeLimit
 
   /**
    * Creates TimeLimit for duration, iff duration is within permissible range.

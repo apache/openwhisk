@@ -37,9 +37,9 @@ case class LogLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
  * before creating a new instance.
  *
  * Argument type is Int because of JSON deserializer vs. <code>ByteSize</code> and
- * compatibility with <code>MemoryLimit</code>
+ * compatibility with <code>MemoryLimit</code>.
  *
- * @param megabytes the memory limit in megabytes for the action
+ * @param megabytes the log limit in megabytes for the action
  */
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
@@ -48,12 +48,15 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.logLimit)
 
-  protected[core] val minLogSize: ByteSize = config.min
-  protected[core] val maxLogSize: ByteSize = config.max
-  protected[core] val stdLogSize: ByteSize = config.std
+  protected[core] val MIN_LOGSIZE: ByteSize = config.min
+  protected[core] val MAX_LOGSIZE: ByteSize = config.max
+  protected[core] val STD_LOGSIZE: ByteSize = config.std
+
+  /** A singleton LogLimit with default value */
+  protected[core] val defaultLogLimit = LogLimit(STD_LOGSIZE)
 
   /** Gets LogLimit with default log limit */
-  protected[core] def apply(): LogLimit = LogLimit(stdLogSize)
+  protected[core] def apply(): LogLimit = defaultLogLimit
 
   /**
    * Creates LogLimit for limit. Only the default limit is allowed currently.
@@ -64,8 +67,8 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): LogLimit = {
-    require(megabytes >= minLogSize, s"log size $megabytes below allowed threshold of $minLogSize")
-    require(megabytes <= maxLogSize, s"log size $megabytes exceeds allowed threshold of $maxLogSize")
+    require(megabytes >= MIN_LOGSIZE, s"log size $megabytes below allowed threshold of $MIN_LOGSIZE")
+    require(megabytes <= MAX_LOGSIZE, s"log size $megabytes exceeds allowed threshold of $MAX_LOGSIZE")
     new LogLimit(megabytes.toMB.toInt)
   }
 
