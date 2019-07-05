@@ -37,7 +37,6 @@ import common.WskTestHelpers
 import common.rest.HttpConnection
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import org.apache.openwhisk.core.WhiskConfig
 import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
