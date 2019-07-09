@@ -698,18 +698,18 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     val json = Seq[JsValue](
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
-        "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.stdConcurrent.toInt.toJson),
+        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
+        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
+        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
-        "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.stdConcurrent.toInt.toJson,
+        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
+        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
+        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
-        "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson))
+        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson))
     val limits = json.map(ActionLimits.serdes.read)
     assert(limits(0) == ActionLimits())
     assert(limits(1) == ActionLimits())
@@ -725,19 +725,19 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject.empty,
       JsNull,
       JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson),
-      JsObject("memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
-      JsObject("logs" -> (LogLimit.stdLogSize.toMB.toInt + 1).toJson),
+      JsObject("memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson),
+      JsObject("logs" -> (LogLimit.STD_LOGSIZE.toMB.toInt + 1).toJson),
       JsObject(
         "TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
-        "MEMORY" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
+        "MEMORY" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson),
       JsObject(
         "timeout" -> (TimeLimit.STD_DURATION.toMillis.toDouble + .01).toJson,
-        "memory" -> (MemoryLimit.stdMemory.toMB.toDouble + .01).toJson),
+        "memory" -> (MemoryLimit.STD_MEMORY.toMB.toDouble + .01).toJson),
       JsObject("timeout" -> null, "memory" -> null),
       JsObject("timeout" -> JsNull, "memory" -> JsNull),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toString.toJson,
-        "memory" -> MemoryLimit.stdMemory.toMB.toInt.toString.toJson))
+        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toString.toJson))
 
     limits.foreach { p =>
       a[DeserializationException] should be thrownBy ActionLimits.serdes.read(p)
@@ -773,17 +773,17 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       LogLimit())
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
-      MemoryLimit(MemoryLimit.minMemory - 1.B),
+      MemoryLimit(MemoryLimit.MIN_MEMORY - 1.B),
       LogLimit())
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.minLogSize - 1.B))
+      LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
       LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.minConcurrent - 1))
+      ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT - 1))
 
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
@@ -791,17 +791,17 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       LogLimit())
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
-      MemoryLimit(MemoryLimit.maxMemory + 1.B),
+      MemoryLimit(MemoryLimit.MAX_MEMORY + 1.B),
       LogLimit())
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.maxLogSize + 1.B))
+      LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
       LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.maxConcurrent + 1))
+      ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT + 1))
   }
 
   it should "parse activation id as uuid" in {

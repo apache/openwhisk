@@ -1292,9 +1292,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Some(
         ActionLimitsOption(
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
-          Some(MemoryLimit(MemoryLimit.maxMemory)),
-          Some(LogLimit(LogLimit.maxLogSize)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.maxConcurrent)))))
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)

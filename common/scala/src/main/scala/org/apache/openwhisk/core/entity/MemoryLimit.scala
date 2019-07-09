@@ -44,12 +44,16 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
 
-  protected[core] val minMemory: ByteSize = config.min
-  protected[core] val maxMemory: ByteSize = config.max
-  protected[core] val stdMemory: ByteSize = config.std
+  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  protected[core] val MIN_MEMORY: ByteSize = config.min
+  protected[core] val MAX_MEMORY: ByteSize = config.max
+  protected[core] val STD_MEMORY: ByteSize = config.std
+
+  /** A singleton MemoryLimit with default value */
+  protected[core] val standardMemoryLimit = MemoryLimit(STD_MEMORY)
 
   /** Gets MemoryLimit with default value */
-  protected[core] def apply(): MemoryLimit = MemoryLimit(stdMemory)
+  protected[core] def apply(): MemoryLimit = standardMemoryLimit
 
   /**
    * Creates MemoryLimit for limit, iff limit is within permissible range.
@@ -60,8 +64,8 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): MemoryLimit = {
-    require(megabytes >= minMemory, s"memory $megabytes below allowed threshold of $minMemory")
-    require(megabytes <= maxMemory, s"memory $megabytes exceeds allowed threshold of $maxMemory")
+    require(megabytes >= MIN_MEMORY, s"memory $megabytes below allowed threshold of $MIN_MEMORY")
+    require(megabytes <= MAX_MEMORY, s"memory $megabytes exceeds allowed threshold of $MAX_MEMORY")
     new MemoryLimit(megabytes.toMB.toInt)
   }
 
