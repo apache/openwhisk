@@ -53,7 +53,6 @@ protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit
   /** Swagger end points. */
   protected val swaggeruipath = "docs"
   protected val swaggerdocpath = "api-docs"
-  private val swaggerUIDir = "swagger-ui"
   private val swaggerConfig = loadConfigOrThrow[SwaggerConfig](ConfigKeys.swaggerUi)
 
   def basepath(url: Uri.Path = apipath): String = {
