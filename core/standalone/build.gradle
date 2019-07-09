@@ -30,9 +30,39 @@ repositories {
     mavenCentral()
 }
 
+task copySwagger(type: Copy) {
+    def version = "3.6.0"
+    mkdir("$buildDir/tmp/swagger")
+    def destFile = file("$buildDir/tmp/swagger/swagger-ui.tar")
+    def uiDir = file("$buildDir/tmp/swagger/swagger-ui")
+    if (!destFile.exists()) {
+        ant.get(src: "https://github.com/swagger-api/swagger-ui/archive/v${version}.tar.gz", dest: destFile)
+    }
+    from(tarTree(resources.gzip(destFile))){
+        include("swagger-ui-${version}/dist/**")
+    }
+    into(uiDir)
+    includeEmptyDirs = false
+    project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${version}/dist")
+}
+
+processResources.dependsOn copySwagger
+
 processResources {
     from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
         into(".")
+    }
+    //Implement the logic present in controller Docker file
+    from(project.swaggerUiDir) {
+        include "index.html"
+        filter {
+            it.replace("http://petstore.swagger.io/v2/swagger.json", "/api/v1/api-docs")
+        }
+        into("swagger-ui")
+    }
+    from(project.swaggerUiDir) {
+        exclude "index.html"
+        into("swagger-ui")
     }
 }
 
