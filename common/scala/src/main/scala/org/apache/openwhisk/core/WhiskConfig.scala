@@ -262,4 +262,6 @@ object ConfigKeys {
 
   val whiskConfig = "whisk.config"
   val swaggerUi = "whisk.swagger-ui"
+
+  val etcd = "whisk.etcd"
 }

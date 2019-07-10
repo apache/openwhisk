@@ -87,6 +87,9 @@ whisk {
     container-factory.runtimes-registry {
         url = "{{ runtimes_registry | default('') }}"
     }
+    etcd {
+        hosts = "{{ etcd_connect_string }}"
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
