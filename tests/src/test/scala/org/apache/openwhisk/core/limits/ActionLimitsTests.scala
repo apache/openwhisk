@@ -66,7 +66,16 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
 
   val openFileAction = TestUtils.getTestActionFilename("openFiles.js")
   val openFileLimit = 1024
-  val minExpectedOpenFiles = openFileLimit - 20 // allow for already opened files in container
+  // Allow for already opened files in container.
+  // Attention: do not change this value without a thorough check. It ensures that
+  // OpenWhisk users have a minimum number of file descriptors available in their actions.
+  // If changes in a managed runtime lead to a decrease of file descriptors available for
+  // action code, this may break existing actions.
+  // Examples:
+  // * With the introduction of Node.js 10, this was changed from "openFileLimit - 15" to
+  //   "openFileLimit - 20".
+  // * With Docker 18.09.3, we observed test failures and changed to "openFileLimit - 24".
+  val minExpectedOpenFiles = openFileLimit - 24
 
   behavior of "Action limits"
 
