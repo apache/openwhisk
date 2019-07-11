@@ -147,7 +147,6 @@
         -XX:+HeapDumpOnOutOfMemoryError
         -XX:HeapDumpPath=/logs
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
-      "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
       "OPENWHISK_ENCODED_CONFIG": "{{ openwhisk_config }}"
       "PORT": "8080"

@@ -67,7 +67,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
     .getOrElse("")
 
   val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
-  val controllerInstances = this(WhiskConfig.controllerInstances)
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
   val kafkaHosts = this(WhiskConfig.kafkaHostList)
@@ -169,7 +168,6 @@ object WhiskConfig {
   val mainDockerEndpoint = "main.docker.endpoint"
 
   val controllerBlackboxFraction = "controller.blackboxFraction"
-  val controllerInstances = "controller.instances"
   val dbInstances = "db.instances"
 
   val kafkaHostList = "kafka.hosts"

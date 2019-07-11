@@ -37,7 +37,6 @@ import common.WskTestHelpers
 import common.rest.HttpConnection
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import org.apache.openwhisk.core.WhiskConfig
 import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
@@ -139,7 +138,7 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
 
   behavior of "The cache"
 
-  if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
+  if (WhiskProperties.getControllerInstances >= 2) {
 
     it should "be invalidated on updating an entity" in {
       val actionName = "invalidateRemoteCacheOnUpdate"
