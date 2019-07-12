@@ -64,7 +64,7 @@ class IgniteClient(dockerClient: DockerClient,
     } getOrElse {
       throw new FileNotFoundException(s"Couldn't locate ignite binary (tried: ${alternatives.mkString(", ")}).")
     }
-    Seq(dockerBin)
+    Seq(dockerBin, "-q")
   }
 
   // Invoke ignite CLI to determine client version.
@@ -139,10 +139,10 @@ class IgniteClient(dockerClient: DockerClient,
   }
 
   override def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("vm", "stop", igniteId.asString), config.timeouts.rm).map(_ => ())
+    runCmd(Seq("vm", "rm", igniteId.asString), config.timeouts.rm).map(_ => ())
 
   override def stop(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("vm", "rm", igniteId.asString), config.timeouts.rm).map(_ => ())
+    runCmd(Seq("vm", "stop", igniteId.asString), config.timeouts.rm).map(_ => ())
 
   override def listRunningVMs()(implicit transid: TransactionId): Future[Seq[VMInfo]] = {
     //Each ignite vm has a backing container whose label is set to vm name and name to vm id
