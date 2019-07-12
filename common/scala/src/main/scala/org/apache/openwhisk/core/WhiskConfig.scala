@@ -264,4 +264,7 @@ object ConfigKeys {
 
   val whiskConfig = "whisk.config"
   val swaggerUi = "whisk.swagger-ui"
+
+  val ignite = "whisk.ignite.client"
+  val igniteClient = s"$ignite.client"
 }
