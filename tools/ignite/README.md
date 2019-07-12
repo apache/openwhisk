@@ -29,5 +29,7 @@ docker build -t whisk/ignite-nodejs-v12:latest  .
 
 ```
 $ ./gradlew :core:standalone:build
-$ java -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.ignite.IgniteContainerFactoryProvider  -jar openwhisk-standalone.jar -m ignite-runtimes.json
+$ sudo java -Dwhisk.spi.ContainerFactoryProvider=org.apache.openwhisk.core.containerpool.ignite.IgniteContainerFactoryProvider \
+      -jar bin/openwhisk-standalone.jar \
+      -m tools/ignite/ignite-runtimes.json
 ```
