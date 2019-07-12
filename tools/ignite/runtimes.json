@@ -1,0 +1,20 @@
+{
+  "runtimes": {
+    "nodejs": [
+      {
+        "kind": "nodejs:6",
+        "default": false,
+        "image": {
+          "prefix": "whisk",
+          "name": "ignite-nodejs-v12",
+          "tag": "latest"
+        },
+        "deprecated": false,
+        "attached": {
+          "attachmentName": "codefile",
+          "attachmentType": "text/plain"
+        }
+      }
+    ]
+  }
+}
