@@ -32,9 +32,9 @@ import scala.util.Try
 
 case class IgniteTimeoutConfig(create: Duration)
 
-case class IgniteConfig(timeouts: IgniteTimeoutConfig)
+case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
-class IgniteClient(config: IgniteConfig = loadConfigOrThrow[IgniteConfig](ConfigKeys.igniteClient),
+class IgniteClient(config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
                    dockerConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
   implicit ec: ExecutionContext,
   system: ActorSystem,
