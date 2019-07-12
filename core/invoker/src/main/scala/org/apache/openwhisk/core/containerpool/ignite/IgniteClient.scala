@@ -21,17 +21,18 @@ import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
 
 import akka.actor.ActorSystem
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import akka.event.Logging.{ErrorLevel, InfoLevel}
+import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
-import org.apache.openwhisk.core.containerpool.docker.{DockerClientConfig, ProcessRunner}
+import org.apache.openwhisk.core.containerpool.docker.{DockerClientConfig, ProcessRunner, ProcessTimeoutException}
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-case class IgniteTimeoutConfig(create: Duration)
+case class IgniteTimeoutConfig(create: Duration, version: Duration)
 
 case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
@@ -51,6 +52,37 @@ class IgniteClient(config: IgniteClientConfig = loadConfigOrThrow[IgniteClientCo
       throw new FileNotFoundException(s"Couldn't locate ignite binary (tried: ${alternatives.mkString(", ")}).")
     }
     Seq(dockerBin)
+  }
+
+  // Invoke ignite CLI to determine client version.
+  // If the ignite client version cannot be determined, an exception will be thrown and instance initialization will fail.
+  // Rationale: if we cannot invoke `ignite version` successfully, it is unlikely subsequent `ignite` invocations will succeed.
+  protected def getClientVersion(): String = {
+    //TODO Ignite currently does not support formatting. So just get and log the verbatim version details
+    val vf = executeProcess(igniteCmd ++ Seq("version"), config.timeouts.version)
+      .andThen {
+        case Success(version) => log.info(this, s"Detected ignite client version $version")
+        case Failure(e) =>
+          log.error(this, s"Failed to determine ignite client version: ${e.getClass} - ${e.getMessage}")
+      }
+    Await.result(vf, 2 * config.timeouts.version)
+  }
+  val clientVersion: String = getClientVersion()
+
+  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
+    val cmd = igniteCmd ++ args
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_IGNITE_CMD(args.head),
+      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
+      logLevel = InfoLevel)
+    executeProcess(cmd, timeout).andThen {
+      case Success(_) => transid.finished(this, start)
+      case Failure(pte: ProcessTimeoutException) =>
+        transid.failed(this, start, pte.getMessage, ErrorLevel)
+        MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_IGNITE_CMD_TIMEOUT(args.head))
+      case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
+    }
   }
 }
 
