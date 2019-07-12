@@ -195,7 +195,8 @@ class DockerClient(dockerHost: Option[String] = None,
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
     runCmd(Seq("inspect", id.asString, "--format", "{{.State.OOMKilled}}"), config.timeouts.inspect).map(_.toBoolean)
 
-  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
+  protected[containerpool] def runCmd(args: Seq[String], timeout: Duration)(
+    implicit transid: TransactionId): Future[String] = {
     val cmd = dockerCmd ++ args
     val start = transid.started(
       this,
