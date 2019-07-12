@@ -179,9 +179,7 @@ trait EtcdWatchApi {
     client.getWatchClient.watch(
       key,
       option,
-      Watch.listener((res: WatchResponse) => next(res), (t: Throwable) => error(t), new Runnable {
-        override def run(): Unit = completed()
-      }))
+      Watch.listener((res: WatchResponse) => next(res), (t: Throwable) => error(t), () => completed()))
   }
 }
 
