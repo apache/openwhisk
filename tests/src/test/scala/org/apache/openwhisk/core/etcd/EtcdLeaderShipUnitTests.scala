@@ -95,7 +95,6 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
 
   it should "elect leader successfully" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
-
     val either = mockLeaderShipClient.electLeader(leaderKey, endpoints, lease).futureValue(timeout)
     either.right.get shouldBe EtcdLeader(leaderKey, endpoints, lease)
   }
@@ -143,7 +142,7 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
   it should "keep alive leader key" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
 
-    mockLeaderShipClient.keepAliveLeader(lease).futureValue(timeout) shouldBe lease.id
+    mockLeaderShipClient.keepAliveLeader(lease).futureValue(timeout) shouldBe lease
   }
 
   it should "watch leader listening on event" in {

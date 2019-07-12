@@ -192,38 +192,33 @@ trait EtcdLeadershipApi {
   protected[etcd] val client: Client
   val initVersion = 0
 
-  def electLeader(key: String, value: String, timeout: Long = 60)(
-    implicit ec: ExecutionContext): Future[Either[EtcdFollower, EtcdLeader]] =
+  def electLeader(key: String, value: String, timeout: Long = 60): Future[Either[EtcdFollower, EtcdLeader]] =
     for {
       lease <- grant(timeout).map(res => Lease(res.getID, res.getTTL))
       txnResp <- putTxn(key, value, initVersion, lease)
-      result <- Future {
-        if (txnResp.isSucceeded) {
+    } yield {
+      if (txnResp.isSucceeded) {
+        Right(EtcdLeader(key, value, lease))
+      } else {
+        Left(EtcdFollower(key, value))
+      }
+    }
+
+  def electLeader(key: String, value: String, lease: Lease): Future[Either[EtcdFollower, EtcdLeader]] =
+    putTxn(key, value, initVersion, lease)
+      .map { res =>
+        if (res.isSucceeded) {
           Right(EtcdLeader(key, value, lease))
         } else {
           Left(EtcdFollower(key, value))
         }
       }
-    } yield result
 
-  def electLeader(key: String, value: String, lease: Lease)(
-    implicit ec: ExecutionContext): Future[Either[EtcdFollower, EtcdLeader]] =
-    for {
-      txnResp <- putTxn(key, value, initVersion, lease)
-      result <- Future {
-        if (txnResp.isSucceeded) {
-          Right(EtcdLeader(key, value, lease))
-        } else {
-          Left(EtcdFollower(key, value))
-        }
-      }
-    } yield result
+  def keepAliveLeader(lease: Lease): Future[Lease] =
+    keepAliveOnce(lease).map(res => Lease(res.getID, res.getTTL))
 
-  def keepAliveLeader(lease: Lease)(implicit ec: ExecutionContext): Future[Long] =
-    keepAliveOnce(lease).map(res => res.getID)
-
-  def resignLeader(lease: Lease)(implicit ec: ExecutionContext): Future[Unit] = {
-    revoke(lease).map(_ => Future.successful({}))
+  def resignLeader(lease: Lease): Future[Unit] = {
+    revoke(lease).map(_ => {})
   }
 
   def watchLeader(leaderKey: String)(leaderResigned: (String, String) => Unit,
