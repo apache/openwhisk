@@ -31,7 +31,8 @@ object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
                         config: WhiskConfig,
                         instanceId: InvokerInstanceId,
                         parameters: Map[String, Set[String]]): ContainerFactory = {
-    new IgniteContainerFactory(instanceId, parameters)(
+    //Ignore parameters as they are  specific for Docker based creation. They do not map to Ignite
+    new IgniteContainerFactory(instanceId)(
       actorSystem,
       actorSystem.dispatcher,
       logging,
@@ -39,11 +40,10 @@ object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
   }
 }
 
-class IgniteContainerFactory(instance: InvokerInstanceId, parameters: Map[String, Set[String]])(
-  implicit actorSystem: ActorSystem,
-  ec: ExecutionContext,
-  logging: Logging,
-  ignite: IgniteApi)
+class IgniteContainerFactory(instance: InvokerInstanceId)(implicit actorSystem: ActorSystem,
+                                                          ec: ExecutionContext,
+                                                          logging: Logging,
+                                                          ignite: IgniteApi)
     extends ContainerFactory {
   override def createContainer(tid: TransactionId,
                                name: String,
