@@ -26,7 +26,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
@@ -34,6 +34,7 @@ class IgniteContainerFactoryTests
     extends FlatSpec
     with Matchers
     with WskActorSystem
+    with BeforeAndAfterAll
     with StreamLogging
     with ScalaFutures {
 
@@ -50,5 +51,9 @@ class IgniteContainerFactoryTests
     println(container)
 
     container.destroy().futureValue
+  }
+
+  override def afterAll(): Unit = {
+    println(logLines.mkString("\n"))
   }
 }
