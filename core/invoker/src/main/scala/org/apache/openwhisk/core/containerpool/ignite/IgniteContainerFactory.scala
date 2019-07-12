@@ -19,9 +19,10 @@ package org.apache.openwhisk.core.containerpool.ignite
 
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerFactory, ContainerFactoryProvider}
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -40,11 +41,15 @@ object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
   }
 }
 
+case class IgniteConfig(extraArgs: Map[String, Set[String]])
+
 class IgniteContainerFactory(instance: InvokerInstanceId)(implicit actorSystem: ActorSystem,
                                                           ec: ExecutionContext,
                                                           logging: Logging,
                                                           ignite: IgniteApi)
     extends ContainerFactory {
+  private implicit val config: IgniteConfig = loadConfigOrThrow[IgniteConfig](ConfigKeys.ignite)
+
   override def createContainer(tid: TransactionId,
                                name: String,
                                actionImage: ExecManifest.ImageName,

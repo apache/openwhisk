@@ -23,6 +23,7 @@ import java.nio.file.{Files, Paths}
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.docker.{DockerClientConfig, ProcessRunner}
 import pureconfig.loadConfigOrThrow
 
@@ -54,5 +55,13 @@ class IgniteClient(config: IgniteClientConfig = loadConfigOrThrow[IgniteClientCo
 }
 
 trait IgniteApi {
+  def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress]
+
+  def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId]
+
+  def run(imageToUse: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId]
+
+  def importImage(publicImageName: String)(implicit transid: TransactionId): Future[Boolean]
+
   def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
 }
