@@ -39,7 +39,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-case class IgniteTimeoutConfig(create: Duration, version: Duration, inspect: Duration, rm: Duration)
+case class IgniteTimeoutConfig(create: Duration, version: Duration, inspect: Duration, rm: Duration, run: Duration)
 
 case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
@@ -108,7 +108,9 @@ class IgniteClient(dockerClient: DockerClient,
       }
   }
 
-  override def run(imageToUse: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId] = ???
+  override def run(image: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId] = {
+    runCmd(Seq("run", image) ++ args, config.timeouts.run).map(IgniteId.apply)
+  }
 
   private val importedImages = new TrieMap[String, Boolean]()
   private val importsInFlight = TrieMap[String, Future[Boolean]]()
@@ -144,9 +146,9 @@ trait IgniteApi {
 
   def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId]
 
-  def run(imageToUse: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId]
+  def run(image: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId]
 
-  def importImage(publicImageName: String)(implicit transid: TransactionId): Future[Boolean]
+  def importImage(image: String)(implicit transid: TransactionId): Future[Boolean]
 
   def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
 
