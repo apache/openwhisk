@@ -56,7 +56,11 @@ object EtcdClient {
   }
 }
 
-class EtcdClient(val client: Client)(implicit val ec: ExecutionContext) extends EtcdLeadershipApi {
+class EtcdClient(val client: Client)(implicit val ec: ExecutionContext)
+    extends EtcdLeadershipApi
+    with EtcdKeyValueApi
+    with EtcdLeaseApi
+    with EtcdWatchApi {
 
   def close() = {
     client.close()
@@ -183,7 +187,8 @@ trait EtcdWatchApi {
   }
 }
 
-trait EtcdLeadershipApi extends EtcdKeyValueApi with EtcdLeaseApi with EtcdWatchApi {
+trait EtcdLeadershipApi {
+  this: EtcdKeyValueApi with EtcdLeaseApi with EtcdWatchApi =>
   protected[etcd] val client: Client
   val initVersion = 0
 

@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.etcd
 
-import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
 
 import com.google.protobuf.ByteString
@@ -35,7 +34,6 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,23 +41,18 @@ import scala.concurrent.{ExecutionContext, Future}
 class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem with StreamLogging {
 
   implicit val timeout = Timeout(2.seconds)
+
   private val leaderKey = "openwhiskleader"
   private val endpoints = "endpoints"
   private val lease = Lease(60, 5)
 
-  class MockEtcdLeadershipApi(implicit val ec: ExecutionContext) extends EtcdLeadershipApi {
-    override val client: Client = {
-      val addresses: List[URI] = "172.17.0.1:2379"
-        .split(",")
-        .toList
-        .map(hp => {
-          val host :: port :: Nil = hp.split(":").toList
-          URI.create(s"http://$host:$port")
-        })
-      Client.builder().endpoints(addresses.asJava).build()
-    }
-
-    var onNext: WatchResponse => Unit = null
+  class MockEtcdLeadershipApi(implicit val ec: ExecutionContext)
+      extends EtcdLeadershipApi
+      with EtcdKeyValueApi
+      with EtcdLeaseApi
+      with EtcdWatchApi {
+    override val client: Client = Client.builder().endpoints("mock-host").build()
+    var onNext: WatchResponse => Unit = _
 
     override def grant(ttl: Long): Future[LeaseGrantResponse] =
       Future.successful(new LeaseGrantResponse(api.LeaseGrantResponse.newBuilder().setID(lease.id).setTTL(ttl).build()))
@@ -100,14 +93,14 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
 
   behavior of "Etcd Leadership Client"
 
-  "Etcd LeaderShip client" should "elect leader successfully" in {
+  it should "elect leader successfully" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
 
     val either = mockLeaderShipClient.electLeader(leaderKey, endpoints, lease).futureValue(timeout)
     either.right.get shouldBe EtcdLeader(leaderKey, endpoints, lease)
   }
 
-  "Etcd LeaderShip client" should "be failed to elect leader" in {
+  it should "be failed to elect leader" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi() {
       override def putTxn(key: String, value: String, cmpVersion: Int, lease: Lease): Future[TxnResponse] =
         Future.successful(new TxnResponse(api.TxnResponse.newBuilder().setSucceeded(false).build()))
@@ -118,14 +111,14 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
 
   }
 
-  "Etcd LeaderShip client" should "elect leader successfully with provided lease" in {
+  it should "elect leader successfully with provided lease" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
 
     val either = mockLeaderShipClient.electLeader(leaderKey, endpoints, lease).futureValue(timeout)
     either.right.get shouldBe EtcdLeader(leaderKey, endpoints, lease)
   }
 
-  "Etcd LeaderShip client" should "be failed to elect leader with provided lease" in {
+  it should "be failed to elect leader with provided lease" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi() {
       override def putTxn(key: String, value: String, cmpVersion: Int, lease: Lease): Future[TxnResponse] =
         Future.successful(new TxnResponse(api.TxnResponse.newBuilder().setSucceeded(false).build()))
@@ -135,7 +128,7 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
     either.left.get shouldBe EtcdFollower(leaderKey, endpoints)
   }
 
-  "Etcd LeaderShip client" should "throw StatusRuntimeException when provided lease doesn't exist" in {
+  it should "throw StatusRuntimeException when provided lease doesn't exist" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi() {
       override def putTxn(key: String, value: String, cmpVersion: Int, lease: Lease): Future[TxnResponse] =
         Future.failed(new StatusRuntimeException(GrpcStatus.NOT_FOUND))
@@ -147,13 +140,13 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
       .futureValue shouldBe a[StatusRuntimeException]
   }
 
-  "Etcd LeaderShip client" should "keep alive leader key" in {
+  it should "keep alive leader key" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
 
     mockLeaderShipClient.keepAliveLeader(lease).futureValue(timeout) shouldBe lease.id
   }
 
-  "Etcd LeaderShip client" should "watch leader listening on event" in {
+  it should "watch leader listening on event" in {
     val mockLeaderShipClient = new MockEtcdLeadershipApi
 
     val resignKeyRef = new AtomicReference[String]

@@ -89,9 +89,9 @@ class EtcdClientTests
 
   private def responseToLease(res: LeaseGrantResponse) = Lease(res.getID, res.getTTL)
 
-  behavior of "EtcdClient"
+  behavior of "Etcd KV client"
 
-  "Etcd KV client" should "be able to put, get and delete" in {
+  it should "be able to put, get and delete" in {
     val key = "openwhisk"
     val value = "openwhisk"
 
@@ -109,7 +109,7 @@ class EtcdClientTests
 
   }
 
-  "Etcd KV client" should "be able to get by range query" in withEntryCleaner(sanitizer) { entryHelper =>
+  it should "be able to get by range query" in withEntryCleaner(sanitizer) { entryHelper =>
     entryHelper.withCleaner(List(keyA1, keyB1, keyC1, keyA2, keyB2, keyC2), sanitizer) { (etcd, keys) =>
       keys.foreach { key =>
         noException should be thrownBy etcd.put(key, dummyValue).futureValue(timeout)
@@ -124,7 +124,7 @@ class EtcdClientTests
     zipWithKey(kvs) shouldBe Seq(keyA1, keyA2)
   }
 
-  "Etcd KV client" should "be able to get by prefix range query" in withEntryCleaner(sanitizer) { entryHelper =>
+  it should "be able to get by prefix range query" in withEntryCleaner(sanitizer) { entryHelper =>
     entryHelper.withCleaner(List(keyA1, keyB1, keyC1, keyA2, keyB2, keyC2), sanitizer) { (etcd, keys) =>
       keys.foreach { key =>
         noException should be thrownBy etcd.put(key, dummyValue).futureValue(timeout)
@@ -137,7 +137,9 @@ class EtcdClientTests
 
   }
 
-  "Etcd Lease client" should "be able to grant, and revoke" in {
+  behavior of "Etcd Lease client"
+
+  it should "be able to grant, and revoke" in {
     val ttl = 2
 
     // Create lease
@@ -156,7 +158,7 @@ class EtcdClientTests
     etcd.revoke(lease2).failed.futureValue.getCause shouldBe a[StatusRuntimeException]
   }
 
-  "Etcd Lease client" should "be able to keepAliveOnce" in {
+  it should "be able to keepAliveOnce" in {
     val ttl = 3
 
     // Create lease
@@ -176,7 +178,9 @@ class EtcdClientTests
 
   }
 
-  "Etcd KV client" should "be able to put with timeout" in {
+  behavior of "Etcd KV with Lease client"
+
+  it should "be able to put with timeout" in {
 
     val key = "openwhisk"
     val value = "openwhisk"
@@ -198,7 +202,7 @@ class EtcdClientTests
     etcd.get(key).futureValue.getCount shouldBe 0
   }
 
-  "Etcd KV client" should "throw StatusRuntimeException when lease doesn't exist" in {
+  it should "throw StatusRuntimeException when lease doesn't exist" in {
 
     val key = "openwhisk"
     val value = "openwhisk"
@@ -210,7 +214,9 @@ class EtcdClientTests
     etcd.put(key, value, option).failed.futureValue shouldBe a[StatusRuntimeException]
   }
 
-  "Etcd Watch client" should "watch on put" in {
+  behavior of "Etcd Watch client"
+
+  it should "watch on put" in {
 
     val ref = new AtomicReference[WatchResponse]()
 
@@ -234,7 +240,7 @@ class EtcdClientTests
 
   }
 
-  "Etcd Watch client" should "multi watch on put" in {
+  it should "multi watch on put" in {
 
     // In Scala all synchronization collections are going to be deprecated. So I used java collection.
     val refs = Collections.synchronizedList(new util.ArrayList[WatchResponse](2))
@@ -260,7 +266,7 @@ class EtcdClientTests
 
   }
 
-  "Etcd Watch client" should "watch on delete" in {
+  it should "watch on delete" in {
 
     val ref = new AtomicReference[WatchResponse]()
 
@@ -276,7 +282,7 @@ class EtcdClientTests
     etcd.watch(key)(onNext)
 
     etcd.del(key)
-    Thread.sleep(1000)
+    Thread.sleep(3000)
 
     ref.get()
     ref.get() should not be null
@@ -287,7 +293,7 @@ class EtcdClientTests
 
   }
 
-  "Etcd Watch client" should "listen on close" in {
+  it should "listen on close" in {
 
     val ref = new AtomicBoolean
 
