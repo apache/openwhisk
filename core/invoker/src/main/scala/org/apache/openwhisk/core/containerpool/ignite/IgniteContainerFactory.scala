@@ -25,7 +25,8 @@ import org.apache.openwhisk.core.containerpool.{Container, ContainerFactory, Con
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
 object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
   override def instance(actorSystem: ActorSystem,
@@ -61,7 +62,28 @@ class IgniteContainerFactory(instance: InvokerInstanceId)(implicit actorSystem: 
     IgniteContainer.create(tid, actionImage, memory, cpuShares, Some(name))
   }
 
-  override def init(): Unit = ???
+  override def init(): Unit = removeAllActionContainers()
 
-  override def cleanup(): Unit = ???
+  override def cleanup(): Unit = {
+    try {
+      removeAllActionContainers()
+    } catch {
+      case e: Exception => logging.error(this, s"Failed to remove action containers: ${e.getMessage}")
+    }
+  }
+
+  private def removeAllActionContainers(): Unit = {
+    implicit val transid = TransactionId.invoker
+    val cleaning =
+      ignite.listRunningVMs().flatMap { vms =>
+        val prefix = s"${ContainerFactory.containerNamePrefix(instance)}_"
+        val ourVms = vms.filter(_.name.startsWith(prefix))
+        logging.info(this, s"removing ${ourVms.size} action containers.")
+        val removals = ourVms.map { vm =>
+          ignite.stopAndRemove(vm.igniteId)
+        }
+        Future.sequence(removals)
+      }
+    Await.ready(cleaning, 1.minutes)
+  }
 }

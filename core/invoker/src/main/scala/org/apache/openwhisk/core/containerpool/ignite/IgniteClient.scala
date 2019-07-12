@@ -39,14 +39,19 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-case class IgniteTimeoutConfig(create: Duration, version: Duration, inspect: Duration, rm: Duration, run: Duration)
+case class IgniteTimeoutConfig(create: Duration,
+                               version: Duration,
+                               inspect: Duration,
+                               rm: Duration,
+                               run: Duration,
+                               ps: Duration)
 
 case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
 class IgniteClient(dockerClient: DockerClient,
                    config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
                    dockerConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
-  implicit ec: ExecutionContext,
+  override implicit val ec: ExecutionContext,
   system: ActorSystem,
   log: Logging)
     extends IgniteApi
@@ -139,9 +144,27 @@ class IgniteClient(dockerClient: DockerClient,
 
   override def stop(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] =
     runCmd(Seq("vm", "rm", igniteId.asString), config.timeouts.rm).map(_ => ())
+
+  override def listRunningVMs()(implicit transid: TransactionId): Future[Seq[VMInfo]] = {
+    //Each ignite vm has a backing container whose label is set to vm name and name to vm id
+    val filter = "--format='{{.ID }}|{{ .Label \"ignite.name\" }}|{{.Names}}'"
+    val cmd = Seq("ps", "--no-trunc", filter)
+    runCmd(cmd, config.timeouts.ps).map(_.linesIterator.toSeq.map(VMInfo.apply))
+  }
+}
+
+case class VMInfo(containerId: ContainerId, igniteId: IgniteId, name: String)
+
+object VMInfo {
+  def apply(value: String): VMInfo = {
+    val Array(conatinerId, name, vmId) = value.split("|")
+    val igniteId = vmId.split("-").last
+    new VMInfo(ContainerId(conatinerId), IgniteId(igniteId), name)
+  }
 }
 
 trait IgniteApi {
+  protected implicit val ec: ExecutionContext
   def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress]
 
   def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId]
@@ -153,4 +176,13 @@ trait IgniteApi {
   def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
 
   def stop(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
+
+  def listRunningVMs()(implicit transid: TransactionId): Future[Seq[VMInfo]]
+
+  def stopAndRemove(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] = {
+    for {
+      _ <- stop(igniteId)
+      _ <- rm(igniteId)
+    } yield Unit
+  }
 }
