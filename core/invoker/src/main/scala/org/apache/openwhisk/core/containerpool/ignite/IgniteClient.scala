@@ -24,19 +24,18 @@ import akka.actor.ActorSystem
 import akka.event.Logging.{ErrorLevel, InfoLevel}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.docker.{
-  DockerApi,
   DockerClient,
   DockerClientConfig,
   ProcessRunner,
   ProcessTimeoutException
 }
+import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 case class IgniteTimeoutConfig(create: Duration,
@@ -51,9 +50,9 @@ case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 class IgniteClient(dockerClient: DockerClient,
                    config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
                    dockerConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
-  override implicit val ec: ExecutionContext,
-  system: ActorSystem,
-  log: Logging)
+  override implicit val executionContext: ExecutionContext,
+  implicit val system: ActorSystem,
+  implicit val log: Logging)
     extends IgniteApi
     with ProcessRunner {
 
@@ -164,7 +163,8 @@ object VMInfo {
 }
 
 trait IgniteApi {
-  protected implicit val ec: ExecutionContext
+  protected implicit val executionContext: ExecutionContext
+
   def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress]
 
   def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId]

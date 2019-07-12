@@ -49,9 +49,10 @@ case class IgniteConfig(extraArgs: Map[String, Set[String]])
 class IgniteContainerFactory(instance: InvokerInstanceId)(implicit actorSystem: ActorSystem,
                                                           ec: ExecutionContext,
                                                           logging: Logging,
-                                                          ignite: IgniteApi)
+                                                          ignite: IgniteApi,
+                                                          igniteConfig: IgniteConfig =
+                                                            loadConfigOrThrow[IgniteConfig](ConfigKeys.ignite))
     extends ContainerFactory {
-  private implicit val config: IgniteConfig = loadConfigOrThrow[IgniteConfig](ConfigKeys.ignite)
 
   override def createContainer(tid: TransactionId,
                                name: String,
