@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenWhisk Nodejs action server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=/nodejsAction
+ExecStart=/usr/bin/node --expose-gc app.js
+
+[Install]
+WantedBy=multi-user.target
