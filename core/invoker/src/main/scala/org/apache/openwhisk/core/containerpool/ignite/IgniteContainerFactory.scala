@@ -34,12 +34,12 @@ object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
                         instanceId: InvokerInstanceId,
                         parameters: Map[String, Set[String]]): ContainerFactory = {
     //Ignore parameters as they are  specific for Docker based creation. They do not map to Ignite
-    val dockerApi = new DockerClientWithFileAccess()(actorSystem.dispatcher)(logging, actorSystem)
+    val dockerClient = new DockerClientWithFileAccess()(actorSystem.dispatcher)(logging, actorSystem)
     new IgniteContainerFactory(instanceId)(
       actorSystem,
       actorSystem.dispatcher,
       logging,
-      new IgniteClient(dockerApi)(actorSystem.dispatcher, actorSystem, logging))
+      new IgniteClient(dockerClient)(actorSystem.dispatcher, actorSystem, logging))
   }
 }
 

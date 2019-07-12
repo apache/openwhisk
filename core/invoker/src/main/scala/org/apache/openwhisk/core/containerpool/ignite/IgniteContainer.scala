@@ -104,7 +104,10 @@ class IgniteContainer(protected val id: ContainerId, protected val addr: Contain
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    ignite.rm(igniteId)
+    for {
+      _ <- ignite.stop(igniteId)
+      _ <- ignite.rm(igniteId)
+    } yield Unit
   }
 
   private val logMsg = "LogMessage are collected via Docker CLI"

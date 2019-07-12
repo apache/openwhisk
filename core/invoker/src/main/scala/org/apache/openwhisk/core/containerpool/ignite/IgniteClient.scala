@@ -27,21 +27,23 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.docker.{
   DockerApi,
+  DockerClient,
   DockerClientConfig,
   ProcessRunner,
   ProcessTimeoutException
 }
 import pureconfig.loadConfigOrThrow
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-case class IgniteTimeoutConfig(create: Duration, version: Duration)
+case class IgniteTimeoutConfig(create: Duration, version: Duration, inspect: Duration, rm: Duration)
 
 case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
-class IgniteClient(dockerApi: DockerApi,
+class IgniteClient(dockerClient: DockerClient,
                    config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
                    dockerConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
   implicit ec: ExecutionContext,
@@ -93,15 +95,48 @@ class IgniteClient(dockerApi: DockerApi,
   }
 
   override def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] =
-    dockerApi.inspectIPAddress(containerId, "bridge")
+    dockerClient.inspectIPAddress(containerId, "bridge")
 
-  override def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId] = ???
+  override def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId] = {
+    //Each ignite vm would be backed by a Docker container whose name would be `ignite-<vm id>`
+    //Use that to find the backing containerId
+    dockerClient
+      .runCmd(Seq("inspect", "--format", s"{{.Id}}", s"ignite-${igniteId.asString}"), config.timeouts.inspect)
+      .flatMap {
+        case "<no value>" => Future.failed(new NoSuchElementException)
+        case stdout       => Future.successful(ContainerId(stdout))
+      }
+  }
 
   override def run(imageToUse: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId] = ???
 
-  override def importImage(publicImageName: String)(implicit transid: TransactionId): Future[Boolean] = ???
+  private val importedImages = new TrieMap[String, Boolean]()
+  private val importsInFlight = TrieMap[String, Future[Boolean]]()
+  override def importImage(image: String)(implicit transid: TransactionId): Future[Boolean] = {
+    //TODO Add support for latest
+    if (importedImages.contains(image)) Future.successful(true)
+    else {
+      importsInFlight.getOrElseUpdate(
+        image, {
+          runCmd(Seq("image", "import", image), config.timeouts.create)
+            .map { stdout =>
+              log.info(this, s"Imported image $image - $stdout")
+              true
+            }
+            .andThen {
+              case _ =>
+                importsInFlight.remove(image)
+                importedImages.put(image, true)
+            }
+        })
+    }
+  }
 
-  override def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] = ???
+  override def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] =
+    runCmd(Seq("vm", "stop", igniteId.asString), config.timeouts.rm).map(_ => ())
+
+  override def stop(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] =
+    runCmd(Seq("vm", "rm", igniteId.asString), config.timeouts.rm).map(_ => ())
 }
 
 trait IgniteApi {
@@ -114,4 +149,6 @@ trait IgniteApi {
   def importImage(publicImageName: String)(implicit transid: TransactionId): Future[Boolean]
 
   def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
+
+  def stop(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit]
 }
