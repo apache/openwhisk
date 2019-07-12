@@ -25,7 +25,12 @@ import akka.event.Logging.{ErrorLevel, InfoLevel}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
-import org.apache.openwhisk.core.containerpool.docker.{DockerClientConfig, ProcessRunner, ProcessTimeoutException}
+import org.apache.openwhisk.core.containerpool.docker.{
+  DockerApi,
+  DockerClientConfig,
+  ProcessRunner,
+  ProcessTimeoutException
+}
 import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -36,12 +41,14 @@ case class IgniteTimeoutConfig(create: Duration, version: Duration)
 
 case class IgniteClientConfig(timeouts: IgniteTimeoutConfig)
 
-class IgniteClient(config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
+class IgniteClient(dockerApi: DockerApi,
+                   config: IgniteClientConfig = loadConfigOrThrow[IgniteClientConfig](ConfigKeys.igniteClient),
                    dockerConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient))(
   implicit ec: ExecutionContext,
   system: ActorSystem,
   log: Logging)
-    extends ProcessRunner {
+    extends IgniteApi
+    with ProcessRunner {
 
   protected val igniteCmd: Seq[String] = {
     val alternatives = List("/usr/bin/ignite", "/usr/local/bin/ignite")
@@ -84,6 +91,17 @@ class IgniteClient(config: IgniteClientConfig = loadConfigOrThrow[IgniteClientCo
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }
+
+  override def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] =
+    ???
+
+  override def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId] = ???
+
+  override def run(imageToUse: String, args: Seq[String])(implicit transid: TransactionId): Future[IgniteId] = ???
+
+  override def importImage(publicImageName: String)(implicit transid: TransactionId): Future[Boolean] = ???
+
+  override def rm(igniteId: IgniteId)(implicit transid: TransactionId): Future[Unit] = ???
 }
 
 trait IgniteApi {

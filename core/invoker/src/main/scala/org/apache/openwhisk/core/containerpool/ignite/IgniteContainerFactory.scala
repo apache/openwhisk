@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.containerpool.ignite
 
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.containerpool.docker.DockerClientWithFileAccess
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerFactory, ContainerFactoryProvider}
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
@@ -33,11 +34,12 @@ object IgniteContainerFactoryProvider extends ContainerFactoryProvider {
                         instanceId: InvokerInstanceId,
                         parameters: Map[String, Set[String]]): ContainerFactory = {
     //Ignore parameters as they are  specific for Docker based creation. They do not map to Ignite
+    val dockerApi = new DockerClientWithFileAccess()(actorSystem.dispatcher)(logging, actorSystem)
     new IgniteContainerFactory(instanceId)(
       actorSystem,
       actorSystem.dispatcher,
       logging,
-      new IgniteClient()(actorSystem.dispatcher, actorSystem, logging))
+      new IgniteClient(dockerApi)(actorSystem.dispatcher, actorSystem, logging))
   }
 }
 
