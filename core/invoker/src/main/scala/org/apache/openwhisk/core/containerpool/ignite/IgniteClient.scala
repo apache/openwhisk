@@ -93,7 +93,7 @@ class IgniteClient(dockerApi: DockerApi,
   }
 
   override def inspectIPAddress(containerId: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] =
-    ???
+    dockerApi.inspectIPAddress(containerId, "bridge")
 
   override def containerId(igniteId: IgniteId)(implicit transid: TransactionId): Future[ContainerId] = ???
 
