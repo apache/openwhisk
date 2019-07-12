@@ -111,4 +111,6 @@ class IgniteContainer(protected val id: ContainerId, protected val addr: Contain
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
     Source.single(ByteString(LogLine(logMsg, "stdout", Instant.now.toString).toJson.compactPrint))
+
+  override def toString() = s"igniteId: ${igniteId.asString}, docker: ${id.asString}, address: $addr"
 }
