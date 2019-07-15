@@ -38,7 +38,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 @RunWith(classOf[JUnitRunner])
-class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem with StreamLogging {
+class EtcdLeaderShipTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem with StreamLogging {
 
   implicit val timeout = Timeout(2.seconds)
 

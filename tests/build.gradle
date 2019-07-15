@@ -55,6 +55,10 @@ def systemIncludes = [
             "system/rest/**",
 ]
 
+def newArchitectureSystemIncludes = systemIncludes + [
+        "org/apache/openwhisk/core/etcd/EtcdClientTests*"
+]
+
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
         "includes" : [
@@ -68,7 +72,8 @@ ext.testSets = [
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
-            'invokerShoot/**'
+            "invokerShoot/**",
+            "org/apache/openwhisk/core/etcd/EtcdClientTests*"
         ]
     ],
     "REQUIRE_SYSTEM" : [
@@ -99,6 +104,14 @@ ext.testSets = [
         // Tests suits below require Kafka so they are excluded for Lean System tests
         "excludes" : [
             "**/*KafkaConnectorTests*",
+            "system/basic/WskMultiRuntimeTests*",
+            "invokerShoot/**"
+        ]
+    ],
+    "REQUIRE_NEW_ARCHITECTURE_SYSTEM" : [
+        "includes" : newArchitectureSystemIncludes,
+
+        "excludes" : [
             "system/basic/WskMultiRuntimeTests*",
             "invokerShoot/**"
         ]
