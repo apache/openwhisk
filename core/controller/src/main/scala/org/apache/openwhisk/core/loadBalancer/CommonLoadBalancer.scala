@@ -84,17 +84,39 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
 
   /**
+   * Calculate the duration within which a completion ack must be received for an activation.
+   *
+   * Calculation is based on the passed action time limit. If the passed action time limit is shorter than
+   * the configured standard action time limit, the latter is used to avoid too tight timeouts.
+   *
+   * The base timeout is multiplied with a configurable timeout factor. This dilution controls how much slack you
+   * want to allow in your system before you start reporting failed activations. The default value of 2 bases
+   * on invoker behavior that a cold invocation's init duration may be as long as its run duration. Higher factors
+   * may account for additional wait times.
+   *
+   * Finally, a constant duration is added to the diluted timeout to be lenient towards general delays / wait times.
+   *
+   * @param actionTimeLimit the action's time limit
+   * @return the calculated time duration within which a completion ack must be received
+   */
+  private def calculateCompletionAckTimeout(actionTimeLimit: FiniteDuration): FiniteDuration = {
+    (actionTimeLimit.max(TimeLimit.STD_DURATION) * lbConfig.timeoutFactor) + 1.minute
+  }
+
+  /**
    * 2. Update local state with the activation to be executed scheduled.
    *
    * All activations are tracked in the activationSlots map. Additionally, blocking invokes
-   * are tracked in the activation results map. When a result is received via activeack, it
+   * are tracked in the activationPromises map. When a result is received via result ack, it
    * will cause the result to be forwarded to the caller waiting on the result, and cancel
    * the DB poll which is also trying to do the same.
+   * Once the completion ack arrives, activationSlots entry will be removed.
    */
   protected def setupActivation(msg: ActivationMessage,
                                 action: ExecutableWhiskActionMetaData,
                                 instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
 
+    // Needed for emitting metrics.
     totalActivations.increment()
     val isBlackboxInvocation = action.exec.pull
     val totalActivationMemory =
@@ -103,23 +125,28 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
-    // Timeout is a multiple of the configured maximum action duration. The minimum timeout is the configured standard
-    // value for action durations to avoid too tight timeouts.
-    // Timeouts in general are diluted by a configurable factor. In essence this factor controls how much slack you want
-    // to allow in your topics before you start reporting failed activations.
-    val timeout = (action.limits.timeout.duration.max(TimeLimit.STD_DURATION) * lbConfig.timeoutFactor) + 1.minute
+    // Completion Ack must be received within the calculated time.
+    val completionAckTimeout = calculateCompletionAckTimeout(action.limits.timeout.duration)
 
+    // If activation is blocking, store a promise that we can mark successful later on once the result ack
+    // arrives. Return a Future representing the promise to caller.
+    // If activation is non-blocking, return a successfully completed Future to caller.
     val resultPromise = if (msg.blocking) {
       activationPromises.getOrElseUpdate(msg.activationId, Promise[Either[ActivationId, WhiskActivation]]()).future
     } else Future.successful(Left(msg.activationId))
 
-    // Install a timeout handler for the catastrophic case where an active ack is not received at all
+    // Install a timeout handler for the catastrophic case where a completion ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
-    // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
+    // the completion ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
+    //
+    // Attention: a significantly delayed completion ack means that the invoker is still busy or will be busy in future
+    // with running the action. So the current strategy of freeing up the activation's memory in invoker
+    // book-keeping will allow the load balancer to send more activations to the invoker. This can lead to
+    // invoker overloads so that activations need to wait until other activations complete.
     activationSlots.getOrElseUpdate(
       msg.activationId, {
-        val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
+        val timeoutHandler = actorSystem.scheduler.scheduleOnce(completionAckTimeout) {
           processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
         }
 
@@ -129,10 +156,12 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           msg.user.namespace.uuid,
           instance,
           action.limits.memory.megabytes.MB,
+          action.limits.timeout.duration,
           action.limits.concurrency.maxConcurrent,
           action.fullyQualifiedName(true),
           timeoutHandler,
-          isBlackboxInvocation)
+          isBlackboxInvocation,
+          msg.blocking)
       })
 
     resultPromise
@@ -167,14 +196,11 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     }
   }
 
-  /**
-   * Subscribes to active acks (completion messages from the invokers), and
-   * registers a handler for received active acks from invokers.
-   */
+  /** Subscribes to ack messages from the invokers (result / completion) and registers a handler for these messages. */
   private val activationFeed: ActorRef =
     feedFactory.createFeed(actorSystem, messagingProvider, processAcknowledgement)
 
-  /** 4. Get the active-ack message and parse it */
+  /** 4. Get the ack message and parse it */
   protected[loadBalancer] def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = Future {
     val raw = new String(bytes, StandardCharsets.UTF_8)
     AcknowledegmentMessage.parse(raw) match {
@@ -238,7 +264,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         totalActivations.decrement()
         val totalActivationMemory =
           if (entry.isBlackbox) totalBlackBoxActivationMemory else totalManagedActivationMemory
-        totalActivationMemory.add(entry.memory.toMB * (-1))
+        totalActivationMemory.add(entry.memoryLimit.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
 
         releaseInvoker(invoker, entry)
@@ -248,16 +274,30 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           // notice here that the activationPromises is not touched, because the expectation is that
           // the active ack is received as expected, and processing that message removed the promise
           // from the corresponding map
+          logging.info(this, s"received completion ack for '$aid', system error=${isSystemError}")(tid)
+
+          MetricEmitter.emitCounterMetric(
+            LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, regularCompletionAck))
+
         } else {
           // the entry has timed out; if the active ack is still around, remove its entry also
           // and complete the promise with a failure if necessary
           activationPromises
             .remove(aid)
             .foreach(_.tryFailure(new Throwable("no completion or active ack received yet")))
+          val actionType = if (entry.isBlackbox) "blackbox" else "managed"
+          val blockingType = if (entry.isBlocking) "blocking" else "non-blocking"
+          val completionAckTimeout = calculateCompletionAckTimeout(entry.timeLimit)
+          logging.warn(
+            this,
+            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' (${actionType}), ${blockingType}, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout ${completionAckTimeout} from ${invoker}")(
+            tid)
+
+          MetricEmitter.emitCounterMetric(
+            LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, forcedCompletionAck))
         }
 
-        logging.info(this, s"${if (!forced) "received" else "forced"} completion ack for '$aid'")(tid)
-        // Active acks that are received here are strictly from user actions - health actions are not part of
+        // Completion acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         // guard this
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
@@ -266,17 +306,31 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // is important to pass to the invokerPool because they are used to determine if the invoker can be considered
         // healthy again.
         logging.info(this, s"received completion ack for health action on $invoker")(tid)
+
+        MetricEmitter.emitCounterMetric(
+          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, healthcheckCompletionAck))
+
         // guard this
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
       case None if !forced =>
-        // Received an active-ack that has already been taken out of the state because of a timeout (forced active-ack).
+        // Received a completion ack that has already been taken out of the state because of a timeout (forced ack).
         // The result is ignored because a timeout has already been reported to the invokerPool per the force.
-        logging.debug(this, s"received completion ack for '$aid' which has no entry")(tid)
+        // Logging this condition as a warning because the invoker processed the activation and sent a completion
+        // message - but not in time.
+        logging.warn(
+          this,
+          s"received completion ack for '$aid' from ${invoker} which has no entry, system error=${isSystemError}")(tid)
+
+        MetricEmitter.emitCounterMetric(
+          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, regularAfterForcedCompletionAck))
       case None =>
-        // The entry has already been removed by an active ack. This part of the code is reached by the timeout and can
-        // happen if active-ack and timeout happen roughly at the same time (the timeout was triggered before the active
-        // ack canceled the timer). As the active ack is already processed we don't have to do anything here.
+        // The entry has already been removed by a completion ack. This part of the code is reached by the timeout and can
+        // happen if completion ack and timeout happen roughly at the same time (the timeout was triggered before the completion
+        // ack canceled the timer). As the completion ack is already processed we don't have to do anything here.
         logging.debug(this, s"forced completion ack for '$aid' which has no entry")(tid)
+
+        MetricEmitter.emitCounterMetric(
+          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, forcedAfterRegularCompletionAck))
     }
   }
 }

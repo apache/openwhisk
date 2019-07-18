@@ -414,6 +414,28 @@ object LoggingMarkers {
       LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", counter)(
         MeasurementUnit.none)
 
+  // Counter metrics for completion acks in load balancer
+  sealed trait completionAckType { def asString: String = ??? }
+  case object regularCompletionAck extends completionAckType { override def asString = "regular" }
+  case object forcedCompletionAck extends completionAckType { override def asString = "forced" }
+  case object healthcheckCompletionAck extends completionAckType { override def asString = "healthcheck" }
+  case object regularAfterForcedCompletionAck extends completionAckType { override def asString = "regularAfterForced" }
+  case object forcedAfterRegularCompletionAck extends completionAckType { override def asString = "forcedAfterRegular" }
+
+  def LOADBALANCER_COMPLETION_ACK(controllerInstance: ControllerInstanceId, completionAckType: completionAckType) =
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(
+        loadbalancer,
+        "completionAck",
+        counter,
+        None,
+        Map("controller_id" -> controllerInstance.asString, "type" -> completionAckType.asString))(MeasurementUnit.none)
+    else
+      LogMarkerToken(
+        loadbalancer + controllerInstance.asString,
+        "completionAck_" + completionAckType.asString,
+        counter)(MeasurementUnit.none)
+
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN =
     LogMarkerToken(invoker, "activationRun", start)(MeasurementUnit.time.milliseconds)
