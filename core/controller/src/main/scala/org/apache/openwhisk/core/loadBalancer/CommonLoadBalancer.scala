@@ -286,7 +286,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           // notice here that the activationPromises is not touched, because the expectation is that
           // the active ack is received as expected, and processing that message removed the promise
           // from the corresponding map
-          logging.info(this, s"received completion ack for '$aid', system error=${isSystemError}")(tid)
+          logging.info(this, s"received completion ack for '$aid', system error=$isSystemError")(tid)
 
           MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR)
 
@@ -301,7 +301,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           val completionAckTimeout = calculateCompletionAckTimeout(entry.timeLimit)
           logging.warn(
             this,
-            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' (${actionType}), ${blockingType}, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout ${completionAckTimeout} from ${invoker}")(
+            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker")(
             tid)
 
           MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED)
@@ -328,7 +328,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // message - but not in time.
         logging.warn(
           this,
-          s"received completion ack for '$aid' from ${invoker} which has no entry, system error=${isSystemError}")(tid)
+          s"received completion ack for '$aid' from $invoker which has no entry, system error=$isSystemError")(tid)
 
         MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED)
       case None =>
