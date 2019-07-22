@@ -415,14 +415,14 @@ object LoggingMarkers {
         MeasurementUnit.none)
 
   // Counter metrics for completion acks in load balancer
-  sealed trait completionAckType { def asString: String = ??? }
-  case object regularCompletionAck extends completionAckType { override def asString = "regular" }
-  case object forcedCompletionAck extends completionAckType { override def asString = "forced" }
-  case object healthcheckCompletionAck extends completionAckType { override def asString = "healthcheck" }
-  case object regularAfterForcedCompletionAck extends completionAckType { override def asString = "regularAfterForced" }
-  case object forcedAfterRegularCompletionAck extends completionAckType { override def asString = "forcedAfterRegular" }
+  sealed abstract class CompletionAckType(val name: String) { def asString: String = name }
+  case object RegularCompletionAck extends CompletionAckType("regular")
+  case object ForcedCompletionAck extends CompletionAckType("forced")
+  case object HealthcheckCompletionAck extends CompletionAckType("healthcheck")
+  case object RegularAfterForcedCompletionAck extends CompletionAckType("regularAfterForced")
+  case object ForcedAfterRegularCompletionAck extends CompletionAckType("forcedAfterRegular")
 
-  def LOADBALANCER_COMPLETION_ACK(controllerInstance: ControllerInstanceId, completionAckType: completionAckType) =
+  def LOADBALANCER_COMPLETION_ACK(controllerInstance: ControllerInstanceId, completionAckType: CompletionAckType) =
     if (TransactionId.metricsKamonTags)
       LogMarkerToken(
         loadbalancer,
