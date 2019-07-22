@@ -240,6 +240,18 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
   protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry)
 
+  // Singletons for counter metrics related to completion acks
+  val LOADBALANCER_COMPLETION_ACK_REGULAR =
+    LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, RegularCompletionAck)
+  val LOADBALANCER_COMPLETION_ACK_FORCED =
+    LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, ForcedCompletionAck)
+  val LOADBALANCER_COMPLETION_ACK_HEALTHCHECK =
+    LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, HealthcheckCompletionAck)
+  val LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED =
+    LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, RegularAfterForcedCompletionAck)
+  val LOADBALANCER_COMPLETION_ACK_FORCED_AFTER_REGULAR =
+    LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, ForcedAfterRegularCompletionAck)
+
   /** 6. Process the completion ack and update the state */
   protected[loadBalancer] def processCompletion(aid: ActivationId,
                                                 tid: TransactionId,
@@ -276,8 +288,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           // from the corresponding map
           logging.info(this, s"received completion ack for '$aid', system error=${isSystemError}")(tid)
 
-          MetricEmitter.emitCounterMetric(
-            LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, regularCompletionAck))
+          MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR)
 
         } else {
           // the entry has timed out; if the active ack is still around, remove its entry also
@@ -293,8 +304,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
             s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' (${actionType}), ${blockingType}, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout ${completionAckTimeout} from ${invoker}")(
             tid)
 
-          MetricEmitter.emitCounterMetric(
-            LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, forcedCompletionAck))
+          MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED)
         }
 
         // Completion acks that are received here are strictly from user actions - health actions are not part of
@@ -307,8 +317,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // healthy again.
         logging.info(this, s"received completion ack for health action on $invoker")(tid)
 
-        MetricEmitter.emitCounterMetric(
-          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, healthcheckCompletionAck))
+        MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_HEALTHCHECK)
 
         // guard this
         invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
@@ -321,16 +330,14 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           this,
           s"received completion ack for '$aid' from ${invoker} which has no entry, system error=${isSystemError}")(tid)
 
-        MetricEmitter.emitCounterMetric(
-          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, regularAfterForcedCompletionAck))
+        MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED)
       case None =>
         // The entry has already been removed by a completion ack. This part of the code is reached by the timeout and can
         // happen if completion ack and timeout happen roughly at the same time (the timeout was triggered before the completion
         // ack canceled the timer). As the completion ack is already processed we don't have to do anything here.
         logging.debug(this, s"forced completion ack for '$aid' which has no entry")(tid)
 
-        MetricEmitter.emitCounterMetric(
-          LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, forcedAfterRegularCompletionAck))
+        MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED_AFTER_REGULAR)
     }
   }
 }

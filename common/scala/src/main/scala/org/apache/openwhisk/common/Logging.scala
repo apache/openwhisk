@@ -352,6 +352,26 @@ object LoggingMarkers {
   private val containerClient = "containerClient"
 
   /*
+   * The following markers are used to emit log messages as well as metrics. Add all LogMarkerTokens below to
+   * have a reference list of all metrics. The list below contains LogMarkerToken singletons (val) as well as
+   * LogMarkerToken creation functions (def). The LogMarkerToken creation functions allow to include variable
+   * information in metrics, such as the controller / invoker id or commands executed by a container factory.
+   *
+   * When using LogMarkerTokens for emitting metrics, you should use the convenience functions only once to
+   * create LogMarkerToken singletons instead of creating LogMarkerToken instances over and over again for each
+   * metric emit.
+   *
+   * Example:
+   * val MY_COUNTER_GREEN = LoggingMarkers.MY_COUNTER(GreenCounter)
+   * ...
+   * MetricEmitter.emitCounterMetric(MY_COUNTER_GREEN)
+   *
+   * instead of
+   *
+   * MetricEmitter.emitCounterMetric(LoggingMarkers.MY_COUNTER(GreenCounter))
+   */
+
+  /*
    * Controller related markers
    */
   def CONTROLLER_STARTUP(id: String) =
@@ -422,6 +442,7 @@ object LoggingMarkers {
   case object RegularAfterForcedCompletionAck extends CompletionAckType("regularAfterForced")
   case object ForcedAfterRegularCompletionAck extends CompletionAckType("forcedAfterRegular")
 
+  // Convenience function to create log marker tokens used for emitting counter metrics related to completion acks.
   def LOADBALANCER_COMPLETION_ACK(controllerInstance: ControllerInstanceId, completionAckType: CompletionAckType) =
     if (TransactionId.metricsKamonTags)
       LogMarkerToken(
