@@ -147,6 +147,7 @@ def parseArgs():
     subcmd.add_argument('--concurrentInvocations', help='concurrent invocations allowed for this namespace', type=int)
     subcmd.add_argument('--allowedKinds', help='list of runtime kinds allowed in this namespace', nargs='+', type=str)
     subcmd.add_argument('--storeActivations', help='enable or disable storing of activations to datastore for this namespace', default=None, type=str_to_bool)
+    subcmd.add_argument('--reason', help='reason for set limits for a given namespace', type=str)
 
     subcmd = subparser.add_parser('get', help='get limits for a given namespace (if none exist, system defaults apply)')
     subcmd.add_argument('namespace', help='the namespace to get limits for')
@@ -552,6 +553,11 @@ def setLimitsCmd(args, props):
         toSet = givenLimit if givenLimit != None else doc.get(limit)
         if toSet != None:
             doc[limit] = toSet
+    # setting reason
+    givenReason = argsDict.get('reason')
+    toSet = givenReason if givenReason != None else doc.get('reason')
+    if toSet != None:
+        doc['reason'] = toSet
 
     res = insertIntoDatabase(props, doc, args.verbose)
     if res.status in [201, 202]:
@@ -570,6 +576,10 @@ def getLimitsCmd(args, props):
             givenLimit = dbDoc.get(limit)
             if givenLimit != None:
                 print('%s = %s' % (limit, givenLimit))
+        # get reason
+        givenReason = dbDoc.get('reason')
+        if givenReason != None:
+            print('%s = %s' % ('reason', givenReason))
     else:
         error = json.loads(res.read())
         if error['reason'] == 'missing' or error['reason'] == 'deleted':
