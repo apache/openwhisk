@@ -241,15 +241,15 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry)
 
   // Singletons for counter metrics related to completion acks
-  val LOADBALANCER_COMPLETION_ACK_REGULAR =
+  protected val LOADBALANCER_COMPLETION_ACK_REGULAR =
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, RegularCompletionAck)
-  val LOADBALANCER_COMPLETION_ACK_FORCED =
+  protected val LOADBALANCER_COMPLETION_ACK_FORCED =
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, ForcedCompletionAck)
-  val LOADBALANCER_COMPLETION_ACK_HEALTHCHECK =
+  protected val LOADBALANCER_COMPLETION_ACK_HEALTHCHECK =
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, HealthcheckCompletionAck)
-  val LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED =
+  protected val LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED =
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, RegularAfterForcedCompletionAck)
-  val LOADBALANCER_COMPLETION_ACK_FORCED_AFTER_REGULAR =
+  protected val LOADBALANCER_COMPLETION_ACK_FORCED_AFTER_REGULAR =
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, ForcedAfterRegularCompletionAck)
 
   /** 6. Process the completion ack and update the state */
