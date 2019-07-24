@@ -173,7 +173,6 @@ class KubernetesContainerTests
         memory: ByteSize = 256.MB,
         env: Map[String, String] = Map.empty,
         labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
-        runs += ((name, image, env, labels))
         Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
       }
     }
@@ -182,8 +181,8 @@ class KubernetesContainerTests
       KubernetesContainer.create(transid = transid, name = "name", image = "image", userProvidedImage = true)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
-    kubernetes.runs should have size 1
-    kubernetes.rms should have size 0
+    kubernetes.runs should have size 0
+    kubernetes.rms should have size 1
   }
 
   /*
