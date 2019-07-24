@@ -80,7 +80,7 @@ task distDockerCoverage() {
 
         def buildArgs = [
                 "OW_ROOT_DIR=${project.rootProject.projectDir.absolutePath}",
-                "OW_VERSION=${project.version}" 
+                "OW_VERSION=${project.version}"
         ]
         def dockerImageNameOrig = dockerImageName
         dockerImageName = "$dockerImageName-cov"
