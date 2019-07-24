@@ -109,7 +109,7 @@ def configureUnixClasspath(File script) {
 
                 // Get original line and append it
                 // with the configuration directory.
-                original += ':$APP_HOME/ext-lib/*:$APP_HOME/config'
+                original += ':$APP_HOME/ext-lib/*:$APP_HOME/config:$APP_HOME/classes'
             }
         }
         .join('\n')
