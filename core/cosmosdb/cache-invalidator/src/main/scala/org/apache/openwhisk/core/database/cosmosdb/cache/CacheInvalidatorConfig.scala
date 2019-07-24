@@ -42,13 +42,18 @@ case class ConnectionInfo(endpoint: String, key: String, db: String)
 
 case class FeedConfig(hostname: String, leaseCollection: String)
 
+case class EventProducerConfig(bufferSize: Int)
+
 case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clusterId: Option[String])
 
 case class CacheInvalidatorConfig(globalConfig: Config) {
   val configRoot = "whisk.cache-invalidator"
   val cosmosConfigRoot = s"$configRoot.cosmosdb"
+  val eventConfigRoot = s"$configRoot.event-producer"
   val connections = "collections"
   val feedConfig: FeedConfig = loadConfigOrThrow[FeedConfig](globalConfig.getConfig(cosmosConfigRoot))
+  val eventProducerConfig: EventProducerConfig =
+    loadConfigOrThrow[EventProducerConfig](globalConfig.getConfig(eventConfigRoot))
   val invalidatorConfig: InvalidatorConfig = loadConfigOrThrow[InvalidatorConfig](globalConfig.getConfig(configRoot))
 
   def getCollectionInfo(name: String): DocumentCollectionInfo = {

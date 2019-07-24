@@ -28,15 +28,15 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-case class KafkaEventProducer(settings: ProducerSettings[String, String], topic: String)(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer)
+case class KafkaEventProducer(
+  settings: ProducerSettings[String, String],
+  topic: String,
+  eventProducerConfig: EventProducerConfig)(implicit system: ActorSystem, materializer: ActorMaterializer)
     extends EventProducer {
-  private val bufferSize = 100
   private implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val queue = Source
-    .queue[(Seq[String], Promise[Done])](bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
+    .queue[(Seq[String], Promise[Done])](eventProducerConfig.bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
     .map {
       case (msgs, p) =>
         ProducerMessage.multi(msgs.map(newRecord), p)
