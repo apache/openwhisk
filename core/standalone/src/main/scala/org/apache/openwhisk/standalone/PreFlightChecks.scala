@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.standalone
 
+import java.net.Socket
+
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.standalone.StandaloneOpenWhisk.usersConfigKey
@@ -43,7 +45,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     println()
     checkForDocker()
     checkForWsk()
-    //TODO Check for ports to be free
+    checkForPorts()
     println()
     println(separator)
   }
@@ -117,6 +119,23 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     }
   }
 
+  def checkForPorts(): Unit = {
+    if (isPortFree(conf.port())) {
+      println(s"$pass Server port [${conf.port()}] is free")
+    } else {
+      println(s"$failed Server port [${conf.port()}] is not free. Standalone server cannot start")
+    }
+
+    if (conf.apiGw()) {
+      val port = conf.apiGwPort()
+      if (isPortFree(conf.apiGwPort())) {
+        println(s"$pass Api gateway port [$port] is free")
+      } else {
+        println(s"$warn Api gateway port [$port] is not free. Api gateway cannot start")
+      }
+    }
+  }
+
   private def wskCliVersion = version("wsk property get --cliversion -o raw")
 
   private def loadConfig(): Config = {
@@ -137,5 +156,9 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       case _      => ("FAILURE", RED)
     }
     s"[${clr(msg, code, clrEnabled)}]"
+  }
+
+  private def isPortFree(port: Int): Boolean = {
+    Try(new Socket("localhost", port).close()).isFailure
   }
 }
