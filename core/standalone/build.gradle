@@ -46,7 +46,35 @@ task copySwagger(type: Copy) {
     project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${version}/dist")
 }
 
+def apiGwActions = ['createApi', "deleteApi", "getApi"]
+
+task copyGWActions() {
+    doLast {
+        def routeMgmtDir = new File(project.projectDir.getParentFile(), "routemgmt")
+        def commonDir = new File(routeMgmtDir, "common")
+        def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
+        apiGwActions.each { actionName ->
+            def zipFileName = actionName + ".zip"
+            def actionDir = new File(routeMgmtDir, actionName)
+            def zipFile = new File(routeBuildDir, zipFileName)
+            if (!zipFile.exists()) {
+                ant.exec(dir:actionDir, executable:"npm", failonerror:true){
+                    arg(line:"install")
+                }
+                ant.zip(destfile:zipFile){
+                    fileset(dir:actionDir){
+                        exclude(name:zipFileName)
+                    }
+                    fileset(dir:commonDir)
+                }
+                logger.info("Create action zip $zipFileName")
+            }
+        }
+    }
+}
+
 processResources.dependsOn copySwagger
+processResources.dependsOn copyGWActions
 
 processResources {
     from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
@@ -63,6 +91,11 @@ processResources {
     from(project.swaggerUiDir) {
         exclude "index.html"
         into("swagger-ui")
+    }
+    apiGwActions.each { action ->
+        from(file("$buildDir/tmp/routemgmt/${action}.zip")){
+            into(".")
+        }
     }
 }
 
