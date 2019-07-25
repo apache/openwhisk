@@ -23,8 +23,9 @@ import java.util.Properties
 
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
+import akka.http.scaladsl.model.Uri
 import akka.stream.ActorMaterializer
-import org.apache.commons.io.{FileUtils, IOUtils}
+import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
@@ -53,10 +54,15 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val verbose = tally()
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
+  val apiGw = opt[Boolean](descr = "Enable API Gateway support")
+  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234))
+  val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   verify()
 
   val colorEnabled = !disableColorLogging()
+
+  def serverUrl: Uri = Uri(s"http://localhost:${port()}")
 }
 
 case class GitInfo(commitId: String, commitTime: String)
@@ -104,6 +110,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   val gitInfo: Option[GitInfo] = loadGitInfo()
 
+  val defaultWorkDir = new File(FilenameUtils.concat(FileUtils.getUserDirectoryPath, ".openwhisk/standalone"))
+
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
 
@@ -117,7 +125,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val materializer = ActorMaterializer.create(actorSystem)
     implicit val logger: Logging = createLogging(actorSystem, conf)
 
-    startServer()
+    startServer(conf)
   }
 
   def initialize(conf: Conf): Unit = {
@@ -128,9 +136,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     loadWhiskConfig()
   }
 
-  def startServer()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+  def startServer(
+    conf: Conf)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
     bootstrapUsers()
     startController()
+
+    if (conf.apiGw()) {
+      startApiGateway(conf)
+    }
   }
 
   private def configureServerPort(conf: Conf) = {
@@ -183,11 +196,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def bootstrapUsers()(implicit actorSystem: ActorSystem,
                                materializer: ActorMaterializer,
                                logging: Logging): Unit = {
-    val users = loadConfigOrThrow[Map[String, String]](usersConfigKey)
     implicit val userTid: TransactionId = TransactionId("userBootstrap")
-    users.foreach {
-      case (name, key) =>
-        val subject = name.replace('-', '.')
+    getUsers().foreach {
+      case (subject, key) =>
         val conf = new org.apache.openwhisk.core.cli.Conf(Seq("user", "create", "--auth", key, subject))
         val admin = WhiskAdmin(conf)
         Await.ready(admin.executeCommand(), 60.seconds)
@@ -256,5 +267,39 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new AkkaLogging(adapter)
     else
       new ColoredAkkaLogging(adapter)
+  }
+
+  private def startApiGateway(conf: Conf) = {
+    val (dataDir, workDir) = initializeDirs(conf)
+    new ServerStartupCheck(conf.serverUrl)
+    installRouteMgmt(conf, workDir)
+  }
+
+  private def installRouteMgmt(conf: Conf, workDir: File): Unit = {
+    val user = "whisk.system"
+    val apiGwHostv2 = s"http://$localHostName:${conf.apiGwPort()}"
+    val authKey = getUsers().getOrElse(
+      user,
+      throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))
+    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + user, Uri(apiGwHostv2))
+    installer.run()
+  }
+
+  private def initializeDirs(conf: Conf): (File, File) = {
+    val baseDir = conf.dataDir()
+    val thisServerDir = s"server-${conf.port()}"
+    val dataDir = new File(baseDir, thisServerDir)
+    FileUtils.forceMkdir(dataDir)
+    log.info(s"Using [${dataDir.getAbsolutePath}] as data directory")
+
+    val workDir = new File(dataDir, "tmp")
+    FileUtils.deleteDirectory(workDir)
+    FileUtils.forceMkdir(workDir)
+    (dataDir, workDir)
+  }
+
+  private def getUsers(): Map[String, String] = {
+    val m = loadConfigOrThrow[Map[String, String]](usersConfigKey)
+    m.map { case (name, key) => (name.replace('-', '.'), key) }
   }
 }

@@ -43,6 +43,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     println()
     checkForDocker()
     checkForWsk()
+    //TODO Check for ports to be free
     println()
     println(separator)
   }
