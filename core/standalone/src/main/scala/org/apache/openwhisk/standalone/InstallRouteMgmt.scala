@@ -21,14 +21,18 @@ import java.io.File
 
 import akka.http.scaladsl.model.Uri
 import org.apache.commons.io.{FileUtils, IOUtils}
+import org.apache.openwhisk.common.TransactionId.systemPrefix
+import org.apache.openwhisk.common.{Logging, TransactionId}
 
 import scala.sys.process.ProcessLogger
 import scala.util.Try
 import scala.sys.process._
 
-case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namespace: String, gatewayUrl: Uri) {
+case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namespace: String, gatewayUrl: Uri)(
+  implicit log: Logging) {
   case class Action(name: String, desc: String)
   private val noopLogger = ProcessLogger(_ => ())
+  private implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
   val actionNames = Array(
     Action("createApi", "Create an API"),
     Action("deleteApi", "Delete the API"),
@@ -36,15 +40,15 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
 
   def run(): Unit = {
     require(wskExists, "wsk command not found. Route management actions cannot be installed")
-    println(packageUpdateCmd.!!)
+    log.info(this, packageUpdateCmd.!!.trim)
     //TODO Optimize to ignore this if package already installed
     actionNames.foreach { action =>
       val name = action.name
       val actionZip = new File(workDir, s"$name.zip")
       FileUtils.copyURLToFile(IOUtils.resourceToURL(s"/$name.zip"), actionZip)
       val cmd = createActionUpdateCmd(action, name, actionZip)
-      val result = cmd.!!
-      println(s"Installed $name - $result")
+      val result = cmd.!!.trim
+      log.info(this, s"Installed $name - $result")
     }
   }
 

@@ -27,6 +27,7 @@ import akka.http.scaladsl.model.Uri
 import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
 import org.apache.commons.lang3.SystemUtils
+import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
@@ -196,7 +197,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def bootstrapUsers()(implicit actorSystem: ActorSystem,
                                materializer: ActorMaterializer,
                                logging: Logging): Unit = {
-    implicit val userTid: TransactionId = TransactionId("userBootstrap")
+    implicit val userTid: TransactionId = TransactionId(systemPrefix + "userBootstrap")
     getUsers().foreach {
       case (subject, key) =>
         val conf = new org.apache.openwhisk.core.cli.Conf(Seq("user", "create", "--auth", key, subject))
@@ -269,13 +270,13 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def startApiGateway(conf: Conf) = {
+  private def startApiGateway(conf: Conf)(implicit logging: Logging) = {
     val (dataDir, workDir) = initializeDirs(conf)
     new ServerStartupCheck(conf.serverUrl)
     installRouteMgmt(conf, workDir)
   }
 
-  private def installRouteMgmt(conf: Conf, workDir: File): Unit = {
+  private def installRouteMgmt(conf: Conf, workDir: File)(implicit logging: Logging): Unit = {
     val user = "whisk.system"
     val apiGwHostv2 = s"http://$localHostName:${conf.apiGwPort()}"
     val authKey = getUsers().getOrElse(
