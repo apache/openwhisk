@@ -18,7 +18,6 @@
 FROM controller
 
 ARG OW_ROOT_DIR
-ARG OW_VERSION
 
 USER root
 RUN mkdir -p /coverage/common && \
@@ -26,8 +25,6 @@ RUN mkdir -p /coverage/common && \
     mkdir -p "${OW_ROOT_DIR}/common/scala/build" && \
     mkdir -p "${OW_ROOT_DIR}/core/controller/build" && \
     ln -s /coverage/common "${OW_ROOT_DIR}/common/scala/build/scoverage" && \
-    ln -s /coverage/controller "${OW_ROOT_DIR}/core/controller/build/scoverage" && \
-    rm /controller/lib/openwhisk-controller-${OW_VERSION}.jar && \
-    rm /controller/lib/openwhisk-common-${OW_VERSION}.jar
+    ln -s /coverage/controller "${OW_ROOT_DIR}/core/controller/build/scoverage"
 
 COPY build/tmp/docker-coverage /controller/
