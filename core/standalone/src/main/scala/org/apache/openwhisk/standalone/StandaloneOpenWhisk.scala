@@ -37,7 +37,7 @@ import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 import scala.io.AnsiColor
 import scala.util.Try
@@ -68,8 +68,12 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
 case class GitInfo(commitId: String, commitTime: String)
 
-object StandaloneOpenWhisk extends SLF4JLogging {
+object StandaloneConfigKeys {
   val usersConfigKey = "whisk.users"
+  val redisConfigKey = "whisk.redis"
+}
+
+object StandaloneOpenWhisk extends SLF4JLogging {
 
   val banner =
     """
@@ -143,6 +147,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     startController()
 
     if (conf.apiGw()) {
+      implicit val ec: ExecutionContext = actorSystem.dispatcher
       startApiGateway(conf)
     }
   }
@@ -270,10 +275,22 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def startApiGateway(conf: Conf)(implicit logging: Logging) = {
+  private def startApiGateway(conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext) = {
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
     val (dataDir, workDir) = initializeDirs(conf)
     new ServerStartupCheck(conf.serverUrl)
     installRouteMgmt(conf, workDir)
+
+    val dockerClient = new StandaloneDockerClient()
+    val dockerSupport = new StandaloneDockerSupport(dockerClient)
+
+    //Remove any existing launched containers
+    dockerSupport.cleanup()
+    val gw = new ApiGwLauncher(dockerClient)
+    val f = gw.run()
+    f.foreach(_ => logging.info(this, "Api Gateway started successfully"))
+    f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))
+    Await.ready(f, 5.minutes)
   }
 
   private def installRouteMgmt(conf: Conf, workDir: File)(implicit logging: Logging): Unit = {
@@ -300,7 +317,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def getUsers(): Map[String, String] = {
-    val m = loadConfigOrThrow[Map[String, String]](usersConfigKey)
+    val m = loadConfigOrThrow[Map[String, String]](StandaloneConfigKeys.usersConfigKey)
     m.map { case (name, key) => (name.replace('-', '.'), key) }
   }
 }

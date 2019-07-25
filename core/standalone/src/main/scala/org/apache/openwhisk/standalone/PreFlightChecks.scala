@@ -17,11 +17,9 @@
 
 package org.apache.openwhisk.standalone
 
-import java.net.Socket
-
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.commons.lang3.StringUtils
-import org.apache.openwhisk.standalone.StandaloneOpenWhisk.usersConfigKey
+import org.apache.openwhisk.standalone.StandaloneDockerSupport.isPortFree
 import pureconfig.loadConfigOrThrow
 
 import scala.io.AnsiColor
@@ -90,7 +88,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
   }
 
   def checkWskProps(): Unit = {
-    val users = loadConfigOrThrow[Map[String, String]](loadConfig(), usersConfigKey)
+    val users = loadConfigOrThrow[Map[String, String]](loadConfig(), StandaloneConfigKeys.usersConfigKey)
 
     val configuredAuth = "wsk property get --auth".!!.trim
     val apihost = "wsk property get --apihost".!!.trim
@@ -156,9 +154,5 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       case _      => ("FAILURE", RED)
     }
     s"[${clr(msg, code, clrEnabled)}]"
-  }
-
-  private def isPortFree(port: Int): Boolean = {
-    Try(new Socket("localhost", port).close()).isFailure
   }
 }
