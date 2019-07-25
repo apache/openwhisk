@@ -49,6 +49,7 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
       val cmd = createActionUpdateCmd(action, name, actionZip)
       val result = cmd.!!.trim
       log.info(this, s"Installed $name - $result")
+      FileUtils.deleteQuietly(actionZip)
     }
   }
 
