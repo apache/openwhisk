@@ -28,6 +28,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.{
   Container,
+  ContainerArgsConfig,
   ContainerFactory,
   ContainerFactoryProvider,
   RuntimesRegistryConfig
@@ -40,11 +41,24 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 class KubernetesContainerFactory(
   label: String,
   config: WhiskConfig,
+  containerArgsConfig: ContainerArgsConfig = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
   runtimesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
     ConfigKeys.runtimesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends ContainerFactory {
 
   implicit val kubernetes = initializeKubeClient()
+
+  val augmentedEnv: Map[String, String] = {
+    val envArgs = containerArgsConfig.extraArgs.filter((t) => t._1.equals("env")).values
+    envArgs
+      .flatMap(
+        _.filter(_.contains("="))
+          .map(x => {
+            val tmp = x.split("=")
+            tmp(0) -> tmp(1)
+          }))
+      .toMap
+  }
 
   private def initializeKubeClient(): KubernetesClient = {
     val config = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes)
@@ -82,7 +96,7 @@ class KubernetesContainerFactory(
       image,
       userProvidedImage,
       memory,
-      environment = Map("__OW_API_HOST" -> config.wskApiHost),
+      environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ augmentedEnv,
       labels = Map("invoker" -> label))
   }
 }
