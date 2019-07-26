@@ -71,6 +71,7 @@ case class GitInfo(commitId: String, commitTime: String)
 object StandaloneConfigKeys {
   val usersConfigKey = "whisk.users"
   val redisConfigKey = "whisk.redis"
+  val apiGwConfigKey = "whisk.api-gateway"
 }
 
 object StandaloneOpenWhisk extends SLF4JLogging {
@@ -277,25 +278,30 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def startApiGateway(conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
+
+    // api port is the port used by rout management actions to configure the api gw upon wsk api commands
+    // mgmt port is the port used by end user while making actual use of api gw
+    val apiGwApiPort = StandaloneDockerSupport.checkOrAllocatePort(9000)
+    val apiGwMgmtPort = conf.apiGwPort()
     val (dataDir, workDir) = initializeDirs(conf)
     new ServerStartupCheck(conf.serverUrl)
-    installRouteMgmt(conf, workDir)
+    installRouteMgmt(conf, workDir, apiGwApiPort)
 
     val dockerClient = new StandaloneDockerClient()
     val dockerSupport = new StandaloneDockerSupport(dockerClient)
 
     //Remove any existing launched containers
     dockerSupport.cleanup()
-    val gw = new ApiGwLauncher(dockerClient)
+    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, localHostName)
     val f = gw.run()
-    f.foreach(_ => logging.info(this, "Api Gateway started successfully"))
+    f.foreach(_ => logging.info(this, s"Api Gateway started successfully at http://localhost:$apiGwMgmtPort"))
     f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))
     Await.ready(f, 5.minutes)
   }
 
-  private def installRouteMgmt(conf: Conf, workDir: File)(implicit logging: Logging): Unit = {
+  private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
     val user = "whisk.system"
-    val apiGwHostv2 = s"http://$localHostName:${conf.apiGwPort()}"
+    val apiGwHostv2 = s"http://$localHostName:$apiGwApiPort"
     val authKey = getUsers().getOrElse(
       user,
       throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))

@@ -19,6 +19,7 @@ package org.apache.openwhisk.standalone
 
 import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
+import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.docker.BrokenDockerContainer
@@ -28,19 +29,24 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class ApiGwLauncher(docker: StandaloneDockerClient)(implicit logging: Logging,
-                                                    ec: ExecutionContext,
-                                                    actorSystem: ActorSystem,
-                                                    tid: TransactionId)
+class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmtPort: Int, localHostName: String)(
+  implicit logging: Logging,
+  ec: ExecutionContext,
+  actorSystem: ActorSystem,
+  tid: TransactionId)
     extends RetrySupport {
   private implicit val scd: Scheduler = actorSystem.scheduler
   case class RedisConfig(image: String)
+  case class ApiGwConfig(image: String)
   private val redisConfig = loadConfigOrThrow[RedisConfig](StandaloneConfigKeys.redisConfigKey)
+  private val apiGwConfig = loadConfigOrThrow[ApiGwConfig](StandaloneConfigKeys.apiGwConfigKey)
 
   def run(): Future[Done] = {
     for {
       redis <- runRedis()
       _ <- waitForRedis(redis)
+      apiGw <- runApiGateway(redis)
+      _ <- waitForApiGw()
     } yield Done
   }
 
@@ -51,7 +57,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient)(implicit logging: Logging,
 
     val params = Map("-p" -> Set(s"$redisPort:6379"))
     val args = createRunCmd("redis", dockerRunParameters = params)
-    runDetached(redisConfig.image, args)
+    runDetached(redisConfig.image, args, pull = true)
   }
 
   def waitForRedis(c: StandaloneDockerContainer): Future[Unit] = {
@@ -74,8 +80,31 @@ class ApiGwLauncher(docker: StandaloneDockerClient)(implicit logging: Logging,
     docker.runCmd(args, docker.clientConfig.timeouts.run).map(out => require(out.toLowerCase == "pong"))
   }
 
-  private def runDetached(image: String, args: Seq[String]): Future[StandaloneDockerContainer] = {
+  def runApiGateway(redis: StandaloneDockerContainer): Future[StandaloneDockerContainer] = {
+    val env = Map(
+      "REDIS_HOST" -> redis.addr.host,
+      "REDIS_PORT" -> "6379",
+      "PUBLIC_MANAGEDURL_HOST" -> localHostName,
+      "PUBLIC_MANAGEDURL_PORT" -> apiGwMgmtPort.toString)
+
+    logging.info(this, s"Starting Api Gateway at api port: $apiGwApiPort, management port: $apiGwMgmtPort")
+    val params = Map("-p" -> Set(s"$apiGwApiPort:9000", s"$apiGwMgmtPort:8080"))
+    val args = createRunCmd("apigw", env, params)
+
+    //TODO ExecManifest is scoped to core. Ideally we would like to do
+    // ExecManifest.ImageName(apiGwConfig.image).prefix.contains("openwhisk")
+    val pull = apiGwConfig.image.startsWith("openwhisk")
+    runDetached(apiGwConfig.image, args, pull)
+  }
+
+  def waitForApiGw(): Future[Unit] = {
+    new ServerStartupCheck(Uri(s"http://localhost:$apiGwMgmtPort/v1/apis")).waitForServerToStart()
+    Future.successful(())
+  }
+
+  private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {
     for {
+      _ <- if (pull) docker.pull(image) else Future.successful(())
       id <- docker.run(image, args).recoverWith {
         case t @ BrokenDockerContainer(brokenId, _) =>
           // Remove the broken container - but don't wait or check for the result.
