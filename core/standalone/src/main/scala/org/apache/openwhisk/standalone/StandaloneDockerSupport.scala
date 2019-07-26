@@ -102,7 +102,7 @@ object StandaloneDockerSupport {
     // $ docker run --rm alpine ip route
     // default via 172.17.0.1 dev eth0
     // 172.17.0.0/16 dev eth0 scope link  src 172.17.0.2
-    val cmdResult = s"$dockerCmd --rm alpine ip route".!!
+    val cmdResult = s"$dockerCmd run --rm alpine ip route".!!
     cmdResult.linesIterator
       .find(_.contains("default"))
       .map(_.split(' ').apply(2).trim)
