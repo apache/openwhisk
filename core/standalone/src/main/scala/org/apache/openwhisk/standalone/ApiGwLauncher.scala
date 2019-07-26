@@ -110,7 +110,8 @@ class ApiGwLauncher(
 
   private def getHostIp(): Future[String] = {
     if (SystemUtils.IS_OS_LINUX) {
-      getHostIpLinux()
+      //For linux case localHostName is resolved to ip at start
+      Future.successful(localHostName)
     } else {
       getHostIpNonLinux()
     }
@@ -122,22 +123,6 @@ class ApiGwLauncher(
     val args =
       Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "getent", "hosts", localHostName)
     docker.runCmd(args, docker.clientConfig.timeouts.pull).map(out => out.split(" ").head.trim)
-  }
-
-  private def getHostIpLinux(): Future[String] = {
-    //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
-    // Typical output would be like and we need line with default
-    // $ docker run --rm alpine ip route
-    // default via 172.17.0.1 dev eth0
-    // 172.17.0.0/16 dev eth0 scope link  src 172.17.0.2
-    val args =
-      Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "ip", "route")
-    docker.runCmd(args, docker.clientConfig.timeouts.pull).map { out =>
-      out.linesIterator
-        .find(_.contains("default"))
-        .map(_.split(' ').apply(2).trim)
-        .getOrElse(throw new IllegalStateException("'ip route' result did not match expected output - \n$out"))
-    }
   }
 
   private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {

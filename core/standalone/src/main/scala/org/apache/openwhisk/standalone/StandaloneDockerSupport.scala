@@ -17,18 +17,21 @@
 
 package org.apache.openwhisk.standalone
 
+import java.io.FileNotFoundException
 import java.net.{ServerSocket, Socket}
+import java.nio.file.{Files, Paths}
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.docker.{DockerClient, DockerClientConfig, WindowsDockerClient}
-import pureconfig.loadConfigOrThrow
+import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
+import pureconfig.{loadConfig, loadConfigOrThrow}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.sys.process._
 import scala.util.Try
 
 class StandaloneDockerSupport(docker: DockerClient)(implicit logging: Logging,
@@ -91,6 +94,31 @@ object StandaloneDockerSupport {
 
   def containerName(name: String) = {
     prefix + name
+  }
+
+  def getHostIpLinux(): String = {
+    //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
+    // Typical output would be like and we need line with default
+    // $ docker run --rm alpine ip route
+    // default via 172.17.0.1 dev eth0
+    // 172.17.0.0/16 dev eth0 scope link  src 172.17.0.2
+    val cmdResult = s"$dockerCmd --rm alpine ip route".!!
+    cmdResult.linesIterator
+      .find(_.contains("default"))
+      .map(_.split(' ').apply(2).trim)
+      .getOrElse(throw new IllegalStateException(s"'ip route' result did not match expected output - \n$cmdResult"))
+  }
+
+  lazy val dockerCmd = {
+    //TODO Logic duplicated from DockerClient and WindowsDockerClient for now
+    val executable = loadConfig[String]("whisk.docker.executable").map(Some(_)).getOrElse(None)
+    val alternatives =
+      List("/usr/bin/docker", "/usr/local/bin/docker", "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe") ++ executable
+    Try {
+      alternatives.find(a => Files.isExecutable(Paths.get(a))).get
+    } getOrElse {
+      throw new FileNotFoundException(s"Couldn't locate docker binary (tried: ${alternatives.mkString(", ")}).")
+    }
   }
 }
 

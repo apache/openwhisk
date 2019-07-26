@@ -37,8 +37,8 @@ import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
 import scala.util.Try
 
@@ -219,7 +219,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
     if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
       "host.docker.internal"
-    else "localhost"
+    else StandaloneDockerSupport.getHostIpLinux()
   }
 
   private def loadGitInfo() = {
