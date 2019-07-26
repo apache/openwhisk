@@ -292,7 +292,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
     //Remove any existing launched containers
     dockerSupport.cleanup()
-    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, localHostName)
+    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, localHostName, conf.port())
     val f = gw.run()
     f.foreach(_ => logging.info(this, s"Api Gateway started successfully at http://localhost:$apiGwMgmtPort"))
     f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))

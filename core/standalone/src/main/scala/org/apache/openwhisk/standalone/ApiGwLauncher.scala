@@ -29,11 +29,12 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmtPort: Int, localHostName: String)(
-  implicit logging: Logging,
-  ec: ExecutionContext,
-  actorSystem: ActorSystem,
-  tid: TransactionId)
+class ApiGwLauncher(
+  docker: StandaloneDockerClient,
+  apiGwApiPort: Int,
+  apiGwMgmtPort: Int,
+  localHostName: String,
+  serverPort: Int)(implicit logging: Logging, ec: ExecutionContext, actorSystem: ActorSystem, tid: TransactionId)
     extends RetrySupport {
   private implicit val scd: Scheduler = actorSystem.scheduler
   case class RedisConfig(image: String)
@@ -45,7 +46,8 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     for {
       redis <- runRedis()
       _ <- waitForRedis(redis)
-      apiGw <- runApiGateway(redis)
+      hostIp <- getHostIp
+      _ <- runApiGateway(redis, hostIp)
       _ <- waitForApiGw()
     } yield Done
   }
@@ -80,11 +82,14 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     docker.runCmd(args, docker.clientConfig.timeouts.run).map(out => require(out.toLowerCase == "pong"))
   }
 
-  def runApiGateway(redis: StandaloneDockerContainer): Future[StandaloneDockerContainer] = {
+  def runApiGateway(redis: StandaloneDockerContainer, hostIp: String): Future[StandaloneDockerContainer] = {
     val env = Map(
+      "BACKEND_HOST" -> s"http://$hostIp:$serverPort",
       "REDIS_HOST" -> redis.addr.host,
       "REDIS_PORT" -> "6379",
-      "PUBLIC_MANAGEDURL_HOST" -> localHostName,
+      //This is the name used to render the final url. So should be localhost
+      //as that would be used by end user outside of docker
+      "PUBLIC_MANAGEDURL_HOST" -> "localhost",
       "PUBLIC_MANAGEDURL_PORT" -> apiGwMgmtPort.toString)
 
     logging.info(this, s"Starting Api Gateway at api port: $apiGwApiPort, management port: $apiGwMgmtPort")
@@ -100,6 +105,14 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
   def waitForApiGw(): Future[Unit] = {
     new ServerStartupCheck(Uri(s"http://localhost:$apiGwApiPort/v1/apis")).waitForServerToStart()
     Future.successful(())
+  }
+
+  private def getHostIp(): Future[String] = {
+    //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api ggateway
+    //Based on https://unix.stackexchange.com/a/20793
+    val args =
+      Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "getent", "hosts", localHostName)
+    docker.runCmd(args, docker.clientConfig.timeouts.pull).map(out => out.split(" ").head.trim)
   }
 
   private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {
