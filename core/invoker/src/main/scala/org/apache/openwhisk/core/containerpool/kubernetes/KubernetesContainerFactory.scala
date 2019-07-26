@@ -48,18 +48,6 @@ class KubernetesContainerFactory(
 
   implicit val kubernetes = initializeKubeClient()
 
-  val augmentedEnv: Map[String, String] = {
-    val envArgs = containerArgsConfig.extraArgs.filter((t) => t._1.equals("env")).values
-    envArgs
-      .flatMap(
-        _.filter(_.contains("="))
-          .map(x => {
-            val tmp = x.split("=")
-            tmp(0) -> tmp(1)
-          }))
-      .toMap
-  }
-
   private def initializeKubeClient(): KubernetesClient = {
     val config = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes)
     if (config.invokerAgent.enabled) {
@@ -96,7 +84,7 @@ class KubernetesContainerFactory(
       image,
       userProvidedImage,
       memory,
-      environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ augmentedEnv,
+      environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,
       labels = Map("invoker" -> label))
   }
 }
