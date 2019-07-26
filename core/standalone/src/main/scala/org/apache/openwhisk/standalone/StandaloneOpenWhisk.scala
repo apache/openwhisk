@@ -70,8 +70,8 @@ case class GitInfo(commitId: String, commitTime: String)
 
 object StandaloneConfigKeys {
   val usersConfigKey = "whisk.users"
-  val redisConfigKey = "whisk.redis"
-  val apiGwConfigKey = "whisk.api-gateway"
+  val redisConfigKey = "whisk.standalone.redis"
+  val apiGwConfigKey = "whisk.standalone.api-gateway"
 }
 
 object StandaloneOpenWhisk extends SLF4JLogging {
