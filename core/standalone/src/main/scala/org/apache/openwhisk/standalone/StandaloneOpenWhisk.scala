@@ -301,7 +301,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
     val user = "whisk.system"
-    val apiGwHostv2 = s"http://$localHostName:$apiGwApiPort"
+    val apiGwHostv2 = s"http://$localHostName:$apiGwApiPort/v2"
     val authKey = getUsers().getOrElse(
       user,
       throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))

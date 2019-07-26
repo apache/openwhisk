@@ -98,7 +98,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
   }
 
   def waitForApiGw(): Future[Unit] = {
-    new ServerStartupCheck(Uri(s"http://localhost:$apiGwMgmtPort/v1/apis")).waitForServerToStart()
+    new ServerStartupCheck(Uri(s"http://localhost:$apiGwApiPort/v1/apis")).waitForServerToStart()
     Future.successful(())
   }
 

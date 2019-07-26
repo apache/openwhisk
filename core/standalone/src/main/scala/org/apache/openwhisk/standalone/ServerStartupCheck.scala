@@ -38,7 +38,7 @@ class ServerStartupCheck(uri: Uri) {
   private def getResponseCode(): Int = {
     val u = new URL(uri.toString())
     val hc = u.openConnection().asInstanceOf[HttpURLConnection]
-    hc.setRequestMethod("HEAD")
+    hc.setRequestMethod("GET")
     hc.connect()
     hc.getResponseCode
   }
