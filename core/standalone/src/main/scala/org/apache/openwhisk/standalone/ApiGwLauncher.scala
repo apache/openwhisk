@@ -21,6 +21,7 @@ import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
+import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.docker.BrokenDockerContainer
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
@@ -108,11 +109,35 @@ class ApiGwLauncher(
   }
 
   private def getHostIp(): Future[String] = {
+    if (SystemUtils.IS_OS_LINUX) {
+      getHostIpLinux()
+    } else {
+      getHostIpNonLinux()
+    }
+  }
+
+  private def getHostIpNonLinux(): Future[String] = {
     //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api ggateway
     //Based on https://unix.stackexchange.com/a/20793
     val args =
       Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "getent", "hosts", localHostName)
     docker.runCmd(args, docker.clientConfig.timeouts.pull).map(out => out.split(" ").head.trim)
+  }
+
+  private def getHostIpLinux(): Future[String] = {
+    //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
+    // Typical output would be like and we need line with default
+    // $ docker run --rm alpine ip route
+    // default via 172.17.0.1 dev eth0
+    // 172.17.0.0/16 dev eth0 scope link  src 172.17.0.2
+    val args =
+      Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "ip", "route")
+    docker.runCmd(args, docker.clientConfig.timeouts.pull).map { out =>
+      out.linesIterator
+        .find(_.contains("default"))
+        .map(_.split(' ').apply(2).trim)
+        .getOrElse(throw new IllegalStateException("'ip route' result did not match expected output - \n$out"))
+    }
   }
 
   private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {
