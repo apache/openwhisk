@@ -75,8 +75,11 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
+      --api-gw                  Enable API Gateway support
+      --api-gw-port  <arg>      Api Gateway Port
   -c, --config-file  <arg>      application.conf which overrides the default
                                 standalone.conf
+  -d, --data-dir  <arg>         Directory used for storage
       --disable-color-logging   Disables colored logging
   -m, --manifest  <arg>         Manifest json defining the supported runtimes
   -p, --port  <arg>             Server port
@@ -85,6 +88,7 @@ $ java -jar openwhisk-standalone.jar -h
       --version                 Show version of this program
 
 OpenWhisk standalone server
+
 ```
 
 Sections below would illustrate some of the supported options
@@ -189,5 +193,13 @@ whisk {
 
 Then pass this config file via `-c` option.
 
-[1]: https://github.com/apache/openwhisk/blob/master/docs/cli.md
-[2]: https://github.com/apache/openwhisk/blob/master/docs/samples.md
+#### Using Api Gateway
+
+Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk Api gateway][3]
+would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the 
+[api gateway][4] support.
+
+[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
+[2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
+[3]: https://github.com/apache/incubator-openwhisk-apigateway
+[4]: https://github.com/apache/incubator-openwhisk/blob/master/docs/apigateway.md
