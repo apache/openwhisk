@@ -87,7 +87,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
       "REDIS_PORT" -> "6379",
       //This is the name used to render the final url. So should be localhost
       //as that would be used by end user outside of docker
-      "PUBLIC_MANAGEDURL_HOST" -> "localhost",
+      "PUBLIC_MANAGEDURL_HOST" -> StandaloneDockerSupport.getLocalHostName(),
       "PUBLIC_MANAGEDURL_PORT" -> apiGwMgmtPort.toString)
 
     logging.info(this, s"Starting Api Gateway at api port: $apiGwApiPort, management port: $apiGwMgmtPort")
