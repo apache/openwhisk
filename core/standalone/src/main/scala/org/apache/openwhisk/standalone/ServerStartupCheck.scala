@@ -25,12 +25,12 @@ import org.apache.openwhisk.utils.retry
 
 import scala.concurrent.duration._
 
-class ServerStartupCheck(uri: Uri) {
+class ServerStartupCheck(uri: Uri, serverName: String) {
 
   def waitForServerToStart(): Unit = {
     val w = Stopwatch.createStarted()
     retry({
-      println(s"Waiting for OpenWhisk server at $uri to start since $w")
+      println(s"Waiting for $serverName server at $uri to start since $w")
       require(getResponseCode() == 200)
     }, 30, Some(1.second))
   }

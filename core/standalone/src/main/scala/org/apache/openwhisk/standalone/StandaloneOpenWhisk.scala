@@ -280,7 +280,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val apiGwApiPort = StandaloneDockerSupport.checkOrAllocatePort(9000)
     val apiGwMgmtPort = conf.apiGwPort()
     val (dataDir, workDir) = initializeDirs(conf)
-    new ServerStartupCheck(conf.serverUrl)
+    new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
     installRouteMgmt(conf, workDir, apiGwApiPort)
 
     val dockerClient = new StandaloneDockerClient()
