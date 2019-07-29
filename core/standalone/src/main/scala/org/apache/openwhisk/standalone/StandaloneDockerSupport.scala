@@ -23,6 +23,7 @@ import java.nio.file.{Files, Paths}
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.docker.{DockerClient, DockerClientConfig, WindowsDockerClient}
@@ -96,7 +97,37 @@ object StandaloneDockerSupport {
     prefix + name
   }
 
-  def getHostIpLinux(): String = {
+  /**
+   * Returns the address to be used by code running outside of container to connect to
+   * server. On non linux setups its 'localhost'. However for Linux setups its the ip used
+   * by docker for docker0 network to refer to host system
+   */
+  def getHostAddress(): String = {
+    if (SystemUtils.IS_OS_LINUX) hostIpLinux
+    else "localhost"
+  }
+
+  /**
+   * Returns the name used for referring to host system by code running within the container.
+   * For non linux setups it is `host.docker.internal`. For linux setups its the ip of the host
+   * as per docker bridge network setup
+   */
+  def getLocalHostName(): String = {
+    //For connecting back to controller on container host following name needs to be used
+    // on Windows and Mac
+    // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
+    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+      "host.docker.internal"
+    else StandaloneDockerSupport.hostIpLinux
+  }
+
+  def getLocalHostIp(): String = {
+    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+      hostIpLinuxNonLinux
+    else hostIpLinux
+  }
+
+  lazy val hostIpLinux: String = {
     //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
     // Typical output would be like and we need line with default
     // $ docker run --rm alpine ip route
@@ -107,6 +138,17 @@ object StandaloneDockerSupport {
       .find(_.contains("default"))
       .map(_.split(' ').apply(2).trim)
       .getOrElse(throw new IllegalStateException(s"'ip route' result did not match expected output - \n$cmdResult"))
+  }
+
+  lazy val hostIpLinuxNonLinux: String = {
+    //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api ggateway
+    //Based on https://unix.stackexchange.com/a/20793
+    val cmdResult = s"$dockerCmd run --rm getent hosts host.docker.internal".!!
+    cmdResult.linesIterator
+      .find(_.contains("default"))
+      .map(_.split(" ").head.trim)
+      .getOrElse(throw new IllegalStateException(
+        s"'getent hosts host.docker.internal' result did not match expected output - \n$cmdResult"))
   }
 
   lazy val dockerCmd = {

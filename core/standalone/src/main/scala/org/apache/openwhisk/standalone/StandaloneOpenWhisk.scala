@@ -26,7 +26,6 @@ import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.Uri
 import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
-import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
@@ -137,6 +136,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   def initialize(conf: Conf): Unit = {
     configureBuildInfo()
     configureServerPort(conf)
+    configureOSSpecificOpts()
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
@@ -160,7 +160,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.servicePort, port.toString)
     setConfigProp(WhiskConfig.wskApiPort, port.toString)
     setConfigProp(WhiskConfig.wskApiProtocol, "http")
-    setConfigProp(WhiskConfig.wskApiHostname, localHostName)
+    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostName())
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -213,13 +213,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     }
   }
 
-  private def localHostName = {
-    //For connecting back to controller on container host following name needs to be used
-    // on Windows and Mac
-    // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
-    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-      "host.docker.internal"
-    else StandaloneDockerSupport.getHostIpLinux()
+  private def configureOSSpecificOpts(): Unit = {
+    //Set the interface based on OS
+    setSysProp("whisk.controller.interface", StandaloneDockerSupport.getHostAddress())
   }
 
   private def loadGitInfo() = {
@@ -292,7 +288,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
     //Remove any existing launched containers
     dockerSupport.cleanup()
-    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, localHostName, conf.port())
+    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, conf.port())
     val f = gw.run()
     f.foreach(_ => logging.info(this, s"Api Gateway started successfully at http://localhost:$apiGwMgmtPort"))
     f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))
@@ -301,7 +297,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
     val user = "whisk.system"
-    val apiGwHostv2 = s"http://$localHostName:$apiGwApiPort/v2"
+    val apiGwHostv2 = s"http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwApiPort/v2"
     val authKey = getUsers().getOrElse(
       user,
       throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))

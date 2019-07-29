@@ -21,7 +21,6 @@ import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
-import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.docker.BrokenDockerContainer
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
@@ -30,12 +29,11 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class ApiGwLauncher(
-  docker: StandaloneDockerClient,
-  apiGwApiPort: Int,
-  apiGwMgmtPort: Int,
-  localHostName: String,
-  serverPort: Int)(implicit logging: Logging, ec: ExecutionContext, actorSystem: ActorSystem, tid: TransactionId)
+class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmtPort: Int, serverPort: Int)(
+  implicit logging: Logging,
+  ec: ExecutionContext,
+  actorSystem: ActorSystem,
+  tid: TransactionId)
     extends RetrySupport {
   private implicit val scd: Scheduler = actorSystem.scheduler
   case class RedisConfig(image: String)
@@ -47,8 +45,7 @@ class ApiGwLauncher(
     for {
       redis <- runRedis()
       _ <- waitForRedis(redis)
-      hostIp <- getHostIp
-      _ <- runApiGateway(redis, hostIp)
+      _ <- runApiGateway(redis, StandaloneDockerSupport.getLocalHostIp())
       _ <- waitForApiGw()
     } yield Done
   }
@@ -106,23 +103,6 @@ class ApiGwLauncher(
   def waitForApiGw(): Future[Unit] = {
     new ServerStartupCheck(Uri(s"http://localhost:$apiGwApiPort/v1/apis")).waitForServerToStart()
     Future.successful(())
-  }
-
-  private def getHostIp(): Future[String] = {
-    if (SystemUtils.IS_OS_LINUX) {
-      //For linux case localHostName is resolved to ip at start
-      Future.successful(localHostName)
-    } else {
-      getHostIpNonLinux()
-    }
-  }
-
-  private def getHostIpNonLinux(): Future[String] = {
-    //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api ggateway
-    //Based on https://unix.stackexchange.com/a/20793
-    val args =
-      Seq("run", "--rm", "--name", containerName("alpine"), "alpine", "getent", "hosts", localHostName)
-    docker.runCmd(args, docker.clientConfig.timeouts.pull).map(out => out.split(" ").head.trim)
   }
 
   private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {

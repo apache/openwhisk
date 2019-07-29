@@ -93,7 +93,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     val configuredAuth = "wsk property get --auth".!!.trim
     val apihost = "wsk property get --apihost".!!.trim
 
-    val requiredHostValue = s"http://localhost:${conf.port()}"
+    val requiredHostValue = s"http://${StandaloneDockerSupport.getHostAddress()}:${conf.port()}"
 
     //We can use -o option to get raw value. However as its a recent addition
     //using a lazy approach where we check if output ends with one of the configured auth keys or
