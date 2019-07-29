@@ -185,12 +185,14 @@ dependencies {
     compile 'io.opentracing:opentracing-mock:0.31.0'
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
     compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
+    compile 'com.typesafe.akka:akka-stream-kafka-testkit_2.12:1.0'
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
 
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':core:cosmosdb:cache-invalidator')
     compile project(':tools:admin')
 
 
@@ -281,7 +283,8 @@ task reportCoverage(type: ScoverageReport) {
         ':common:scala:reportScoverage',
         ':core:controller:reportScoverage',
         ':core:invoker:reportScoverage',
-        ':tools:admin:reportScoverage'
+        ':tools:admin:reportScoverage',
+        ':core:cosmosdb:cache-invalidator:reportScoverage',
     ])
 
 }
@@ -340,7 +343,8 @@ def getScoverageClasspath(Project project) {
         ':common:scala',
         ':core:controller',
         ':core:invoker',
-        ':tools:admin'
+        ':tools:admin',
+        ':core:cosmosdb:cache-invalidator'
     ]
     def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
