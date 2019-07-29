@@ -196,7 +196,7 @@ Then pass this config file via `-c` option.
 #### Using Api Gateway
 
 Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk Api gateway][3]
-would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the 
+would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the
 [api gateway][4] support.
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
