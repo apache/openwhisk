@@ -34,7 +34,7 @@ public class WhiskProperties {
     /**
      * System property key which refers to OpenWhisk Edge Host url
      */
-    private static final String WHISK_SERVER = "whisk.server";
+    public static final String WHISK_SERVER = "whisk.server";
 
     /**
      * System property key which refers to authentication key to be used for testing
@@ -123,6 +123,10 @@ public class WhiskProperties {
 
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
+    }
+
+    public static int getControllerInstances() {
+        return Integer.parseInt(whiskProperties.getProperty("controller.instances"));
     }
 
     public static String getProperty(String name) {
@@ -215,7 +219,12 @@ public class WhiskProperties {
     }
 
     public static String getApiHostForAction() {
-        return getApiProto() + "://" + getApiHost() + ":" + getApiPort();
+        String apihost = getApiProto() + "://" + getApiHost() + ":" + getApiPort();
+        if (apihost.startsWith("https://") && apihost.endsWith(":443")) {
+            return apihost.replaceAll(":443", "");
+        } else if (apihost.startsWith("http://") && apihost.endsWith(":80")) {
+            return apihost.replaceAll(":80", "");
+        } else return apihost;
     }
 
     public static String getApiHostForClient(String subdomain, boolean includeProtocol) {

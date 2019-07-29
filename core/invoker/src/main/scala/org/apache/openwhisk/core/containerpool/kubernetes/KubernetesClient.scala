@@ -19,47 +19,37 @@ package org.apache.openwhisk.core.containerpool.kubernetes
 
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatterBuilder
+import java.time.{Instant, ZoneId}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.Path
-import akka.http.scaladsl.model.Uri.Query
-import akka.stream.{Attributes, Outlet, SourceShape}
-import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
+import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
 import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
-import pureconfig.loadConfigOrThrow
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.ContainerId
-import org.apache.openwhisk.core.containerpool.ContainerAddress
-import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
-import org.apache.openwhisk.core.entity.ByteSize
-import org.apache.openwhisk.core.entity.size._
-
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.blocking
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import collection.JavaConverters._
-import io.fabric8.kubernetes.client.ConfigBuilder
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
+import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
+import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
+import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.size._
+import pureconfig.loadConfigOrThrow
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 /**
  * Configuration for kubernetes client command timeouts.
@@ -186,6 +176,17 @@ class KubernetesClient(
       }
     }.map(_ => ())
   }
+  def rm(podName: String): Future[Unit] = {
+    Future {
+      blocking {
+        kubeRestClient
+          .inNamespace(kubeRestClient.getNamespace)
+          .pods()
+          .withName(podName)
+          .delete()
+      }
+    }.map(_ => ())
+  }
 
   def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
     Future {
@@ -249,6 +250,7 @@ object KubernetesClient {
 }
 
 trait KubernetesApi {
+
   def run(name: String,
           image: String,
           memory: ByteSize,
@@ -256,7 +258,7 @@ trait KubernetesApi {
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer]
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
-
+  def rm(podName: String): Future[Unit]
   def rm(key: String, value: String, ensureUnpaused: Boolean)(implicit transid: TransactionId): Future[Unit]
 
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]

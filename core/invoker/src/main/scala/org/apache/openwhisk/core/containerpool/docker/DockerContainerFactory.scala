@@ -42,7 +42,7 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                              parameters: Map[String, Set[String]],
                              containerArgsConfig: ContainerArgsConfig =
                                loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
-                             runtimesRegistryConfig: RuntimesRegistryConfig =
+                             protected val runtimesRegistryConfig: RuntimesRegistryConfig =
                                loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry),
                              dockerContainerFactoryConfig: DockerContainerFactoryConfig =
                                loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.dockerContainerFactory))(

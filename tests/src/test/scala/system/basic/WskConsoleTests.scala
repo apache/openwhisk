@@ -34,8 +34,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.Annotations
 
 /**
  * Tests of the text console
@@ -93,7 +92,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("countdown.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue))
     }
 
     val count = 3

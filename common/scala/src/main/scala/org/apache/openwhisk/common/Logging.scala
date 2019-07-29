@@ -95,10 +95,12 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
       val logmsg: String = message // generates the message
       if (logmsg.nonEmpty) { // log it only if its not empty
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-        loggingAdapter.log(loglevel, s"[$id] [$name] $logmsg")
+        loggingAdapter.log(loglevel, format(id, name.toString, logmsg))
       }
     }
   }
+
+  protected def format(id: TransactionId, name: String, logmsg: String) = s"[$id] [$name] $logmsg"
 }
 
 /**
@@ -350,6 +352,26 @@ object LoggingMarkers {
   private val containerClient = "containerClient"
 
   /*
+   * The following markers are used to emit log messages as well as metrics. Add all LogMarkerTokens below to
+   * have a reference list of all metrics. The list below contains LogMarkerToken singletons (val) as well as
+   * LogMarkerToken creation functions (def). The LogMarkerToken creation functions allow to include variable
+   * information in metrics, such as the controller / invoker id or commands executed by a container factory.
+   *
+   * When using LogMarkerTokens for emitting metrics, you should use the convenience functions only once to
+   * create LogMarkerToken singletons instead of creating LogMarkerToken instances over and over again for each
+   * metric emit.
+   *
+   * Example:
+   * val MY_COUNTER_GREEN = LoggingMarkers.MY_COUNTER(GreenCounter)
+   * ...
+   * MetricEmitter.emitCounterMetric(MY_COUNTER_GREEN)
+   *
+   * instead of
+   *
+   * MetricEmitter.emitCounterMetric(LoggingMarkers.MY_COUNTER(GreenCounter))
+   */
+
+  /*
    * Controller related markers
    */
   def CONTROLLER_STARTUP(id: String) =
@@ -411,6 +433,29 @@ object LoggingMarkers {
     else
       LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", counter)(
         MeasurementUnit.none)
+
+  // Counter metrics for completion acks in load balancer
+  sealed abstract class CompletionAckType(val name: String) { def asString: String = name }
+  case object RegularCompletionAck extends CompletionAckType("regular")
+  case object ForcedCompletionAck extends CompletionAckType("forced")
+  case object HealthcheckCompletionAck extends CompletionAckType("healthcheck")
+  case object RegularAfterForcedCompletionAck extends CompletionAckType("regularAfterForced")
+  case object ForcedAfterRegularCompletionAck extends CompletionAckType("forcedAfterRegular")
+
+  // Convenience function to create log marker tokens used for emitting counter metrics related to completion acks.
+  def LOADBALANCER_COMPLETION_ACK(controllerInstance: ControllerInstanceId, completionAckType: CompletionAckType) =
+    if (TransactionId.metricsKamonTags)
+      LogMarkerToken(
+        loadbalancer,
+        "completionAck",
+        counter,
+        None,
+        Map("controller_id" -> controllerInstance.asString, "type" -> completionAckType.asString))(MeasurementUnit.none)
+    else
+      LogMarkerToken(
+        loadbalancer + controllerInstance.asString,
+        "completionAck_" + completionAckType.asString,
+        counter)(MeasurementUnit.none)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN =

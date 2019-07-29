@@ -98,7 +98,7 @@ Histogram record the [distribution](http://kamon.io/documentation/0.6.x/kamon-co
 
 #### Gauges
 
-Gauges record the [distribution](https://kamon.io/docs/latest/core/metrics/#gauges) of given metric and there names are prefixed with `openwhisk.gauge`. For example `openwhisk.gauge.loadbalancer_totalHealthyInvoker_counter`. A gauge metrics provides the value at the given point and reports the same data unless the value has been changed be incremental or decremental than before. Gauges are useful for reporting metrics like kafka queue size or disk size.
+Gauges record the [distribution](https://kamon.io/docs/latest/core/metrics/#gauges) of given metric and their names are prefixed with `openwhisk.gauge`. For example `openwhisk.gauge.loadbalancer_totalHealthyInvoker_counter`. A gauge metrics provides the value at the given point and reports the same data unless the value has been changed be incremental or decremental than before. Gauges are useful for reporting metrics like kafka queue size or disk size.
 
 ### Metric Details
 
@@ -156,6 +156,18 @@ Metrics below are for invoker state as recorded within load balancer monitoring.
 * `openwhisk.gauge.loadbalancer_totalUnresponsiveInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered unresponsive when health pings arriving fine but the invokers do not respond with active-acks in given time. **invokerType** defines whether it is a managed or a blackbox invoker.
 * `openwhisk.gauge.loadbalancer_totalOfflineInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered offline when no health pings arrive from the invokers. **invokerType** defines whether it is a managed or a blackbox invoker.
 * `openwhisk.gauge.loadbalancer_totalUnhealthyInvoker<invokerType>_counter` (gauge) - Records the count of managed invokers considered unhealthy when health pings arrive fine but the invokers report system errors. **invokerType** defines whether it is a managed or a blackbox invoker.
+
+Metrics below provide information about completion ack processing in load balancers. Depending on configuration setting `metrics_kamon_tags` (see above), a base metric with tags or a set of metrics without tags will be emitted.
+
+* Base metric `openwhisk.counter.loadbalancer_completionAck_counter`: count of processed regular or forced completion acks.
+* Tag `controller_id`: the controller's id.
+* Tag `type`: the exact type of completion ack.
+  * Type `regular`: a regular completion ack sent by an invoker and received in time. Does not include completion acks for healthcheck actions.
+  * Type `forced`: no completion ack was received in time and the timeout forced the completion ack to close.
+  * Type `healthcheck`: a regular completion ack for healthcheck actions sent by an invoker and received in time.
+  * Type `regularAfterForced`: a regular completion ack sent by an invoker and not received in time. The completion ack was already forced.
+  * Type `forcedAfterRegular`: a timeout tries to force a completion ack that has already been closed by a regular completion ack. A race condition that can occur if the regular completion ack is received near the timeout.
+* If `metrics_kamon_tags` is set to `false`, a set of metrics will be emitted constructed using following scheme: `openwhisk.counter.loadbalancer<controller_id>_completionAck_<type>_counter`.
 
 #### Invoker metrics
 

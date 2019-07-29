@@ -32,6 +32,11 @@ class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors 
 
   override def storeType: String = "Memory"
 
+  override protected def beforeAll(): Unit = {
+    MemoryArtifactStoreProvider.purgeAll()
+    super.beforeAll()
+  }
+
   override def afterAll(): Unit = {
     super.afterAll()
     val count = store.asInstanceOf[MemoryAttachmentStore].attachmentCount

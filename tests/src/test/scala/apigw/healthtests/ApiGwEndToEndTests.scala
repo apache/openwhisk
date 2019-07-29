@@ -22,21 +22,18 @@ import java.io.File
 import java.io.FileWriter
 
 import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
-import io.restassured.RestAssured
-
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.WskOperations
 import common.WskProps
 import common.WskTestHelpers
+import io.restassured.RestAssured
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil

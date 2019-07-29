@@ -170,13 +170,13 @@ class Controller(val instance: ControllerInstanceId,
 object Controller {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+  protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
   // no default value specified, so it must appear in the properties file
   def requiredProperties =
-    Map(WhiskConfig.controllerInstances -> null) ++
-      ExecManifest.requiredProperties ++
+    ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       SpiLoader.get[LoadBalancerProvider].requiredProperties ++
       EntitlementProvider.requiredProperties
@@ -207,10 +207,14 @@ object Controller {
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {
-    ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
     implicit val actorSystem = ActorSystem("controller-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    start(args)
+  }
+
+  def start(args: Array[String])(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
+    ConfigMXBean.register()
+    Kamon.loadReportersFromConfig()
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
@@ -263,7 +267,9 @@ object Controller {
         val httpsConfig =
           if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(controller.route, port, httpsConfig)(actorSystem, controller.materializer)
+        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
+          actorSystem,
+          controller.materializer)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")

@@ -301,7 +301,7 @@ The result of these changes is that the `name` is bound to `Jane` and may not be
 
 ## Securing web actions
 
-By default, a web action can be invoked by anyone having the web action's invocation URL. Use the `require-whisk-auth` [web action annotation](annotations.md#annotations-specific-to-web-actions) to secure the web action. When the `require-whisk-auth` annotation is set to `true`, the action will authenticate the invocation request's Basic Authorization credentials against the action owner's whisk auth key.  When set to a number or a case-sensitive string, the action's invocation request must include a `X-Require-Whisk-Auth` header having this same value. Secured web actions will return a `Not Authorized` when credential validation fails.
+By default, a web action can be invoked by anyone having the web action's invocation URL. Use the `require-whisk-auth` [web action annotation](annotations.md#annotations-specific-to-web-actions) to secure the web action. When the `require-whisk-auth` annotation is set to `true`, the action will authenticate the invocation request's Basic Authorization credentials to confirm they represent a valid OpenWhisk identity.  When set to a number or a case-sensitive string, the action's invocation request must include a `X-Require-Whisk-Auth` header having this same value. Secured web actions will return a `Not Authorized` when credential validation fails.
 
 Alternatively, use the `--web-secure` flag to automatically set the `require-whisk-auth` annotation.  When set to `true` a random number is generated as the `require-whisk-auth` annotation value. When set to `false` the `require-whisk-auth` annotation is removed.  When set to any other value, that value is used as the `require-whisk-auth` annotation value.
 

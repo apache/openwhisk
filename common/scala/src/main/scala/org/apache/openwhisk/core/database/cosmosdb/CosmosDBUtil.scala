@@ -19,7 +19,8 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
-import spray.json.{JsObject, JsString, JsValue}
+import org.apache.openwhisk.core.database.StoreUtils.transform
+import spray.json.{JsObject, JsString}
 
 import scala.collection.immutable.Iterable
 
@@ -122,21 +123,6 @@ private[cosmosdb] trait CosmosDBUtil {
   def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
     val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(id)))), (_rev, etag))
     transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
-  }
-
-  /**
-   * Transforms a json object by adding and removing fields
-   *
-   * @param json base json object to transform
-   * @param fieldsToAdd list of fields to add. If the value provided is `None` then it would be ignored
-   * @param fieldsToRemove list of field names to remove
-   * @return transformed json
-   */
-  def transform(json: JsObject,
-                fieldsToAdd: Seq[(String, Option[JsValue])],
-                fieldsToRemove: Seq[String] = Seq.empty): JsObject = {
-    val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
-    JsObject(fields)
   }
 
   private def stripInternalFields(js: JsObject) = {

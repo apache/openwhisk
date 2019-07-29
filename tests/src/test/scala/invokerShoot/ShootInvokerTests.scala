@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.{Annotations}
 import org.apache.commons.io.FileUtils
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -186,10 +186,10 @@ class ShootInvokerTests extends TestHelpers with WskTestHelpers with JsHelpers w
         JsObject("key" -> JsString("origParam2"), "value" -> JsNumber(999)))
       val resAnnots = Seq(
         JsObject("key" -> JsString("origAnnot1"), "value" -> JsString("origAnnotValue1")),
-        JsObject("key" -> JsString("copiedAnnot2"), "value" -> JsBoolean(false)),
+        JsObject("key" -> JsString("copiedAnnot2"), "value" -> JsFalse),
         JsObject("key" -> JsString("copiedAnnot1"), "value" -> JsString("copiedAnnotValue1")),
-        JsObject("key" -> JsString("origAnnot2"), "value" -> JsBoolean(true)),
-        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsBoolean(false)))
+        JsObject("key" -> JsString("origAnnot2"), "value" -> JsTrue),
+        JsObject("key" -> Annotations.ProvideApiKeyAnnotationName.toJson, "value" -> JsFalse))
 
       assetHelper.withCleaner(wsk.action, origName) {
         val file = Some(TestUtils.getTestActionFilename("echo.js"))
@@ -267,7 +267,7 @@ class ShootInvokerTests extends TestHelpers with WskTestHelpers with JsHelpers w
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("wcbin.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsBoolean(true)))
+        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue))
     }
     assetHelper.withCleaner(wsk.action, child) { (action, _) =>
       action.create(child, Some(TestUtils.getTestActionFilename("wc.js")))

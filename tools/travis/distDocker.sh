@@ -29,5 +29,6 @@ TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
 TERM=dumb ./gradlew :core:controller:distDockerCoverage -PdockerImagePrefix=testing
 TERM=dumb ./gradlew :core:invoker:distDockerCoverage -PdockerImagePrefix=testing
+TERM=dumb ./gradlew :core:standalone:build
 
 echo "Time taken for ${0##*/} is $SECONDS secs"

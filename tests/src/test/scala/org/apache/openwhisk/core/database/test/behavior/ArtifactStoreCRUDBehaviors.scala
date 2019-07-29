@@ -48,6 +48,20 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
     doc2.rev.empty shouldBe false
   }
 
+  it should "put delete and then recreate document with same id with different rev" in {
+    implicit val tid: TransactionId = transid()
+    val auth = newAuth()
+    val doc = put(authStore, auth)
+
+    delete(authStore, doc) shouldBe true
+
+    val auth2 = auth.copy(namespaces = Set(wskNS("foo1")))
+    val doc2 = put(authStore, auth2)
+
+    doc2.rev should not be doc.rev
+    doc2.rev.empty shouldBe false
+  }
+
   it should "throw DocumentConflictException when updated with old revision" in {
     implicit val tid: TransactionId = transid()
     val auth = newAuth()

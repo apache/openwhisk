@@ -82,6 +82,8 @@ trait Container {
   protected var containerHttpMaxConcurrent: Int = 1
   protected var containerHttpTimeout: FiniteDuration = 60.seconds
 
+  def containerId: ContainerId = id
+
   /** Stops the container from consuming CPU cycles. NOT thread-safe - caller must synchronize. */
   def suspend()(implicit transid: TransactionId): Future[Unit] = {
     //close connection first, then close connection pool

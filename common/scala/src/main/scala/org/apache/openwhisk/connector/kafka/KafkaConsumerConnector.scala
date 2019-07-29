@@ -132,6 +132,9 @@ class KafkaConsumerConnector(
         } else {
           throw e
         }
+      case e: WakeupException =>
+        logging.info(this, s"WakeupException happened when do commit action for topic ${topic}")
+        recreateConsumer()
     }
 
   override def close(): Unit = synchronized {
@@ -196,6 +199,8 @@ class KafkaConsumerConnector(
         }
       }
     }.andThen {
+      case Failure(_: WakeupException) =>
+        recreateConsumer()
       case Failure(e) =>
         // Only log level info because failed metric reporting is not critical
         logging.info(this, s"lag metric reporting failed for topic '$topic': $e")

@@ -64,12 +64,17 @@ class DockerForMacClient(dockerHost: Option[String] = None)(executionContext: Ex
   override def inspectIPAddress(id: ContainerId, network: String)(
     implicit transid: TransactionId): Future[ContainerAddress] = {
     super
-      .runCmd(
-        Seq("inspect", "--format", """{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}""", id.asString),
-        10.seconds)
+      .runCmd(Seq("inspect", "--format", inspectCommand, id.asString), 10.seconds)
       .flatMap {
         case "<no value>" => Future.failed(new NoSuchElementException)
         case stdout       => Future.successful(ContainerAddress("localhost", stdout.toInt))
       }
   }
+
+  def inspectCommand: String = """{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}"""
+
+  //Pause unpause is causing issue on non Linux setups. So disable by default
+  override def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = Future.successful(())
+
+  override def unpause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = Future.successful(())
 }

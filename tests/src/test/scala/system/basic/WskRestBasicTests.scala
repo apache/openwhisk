@@ -33,13 +33,13 @@ import common.rest.RestResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.Annotations
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
 
-  implicit val wskprops = WskProps()
+  implicit def wskprops: WskProps = WskProps()
   val wsk = new WskRestOperations
 
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
@@ -173,8 +173,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                               "name" -> JsString("paramName2"),
                                               "description" -> JsString("Parameter description 2")))),
                                         JsObject(
-                                          "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                          "value" -> JsBoolean(false)))
+                                          "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
+                                          "value" -> JsFalse))
                                     } else {
                                       JsArray(
                                         JsObject(
@@ -405,9 +405,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         .filter(annotation => annotation.fields("key").convertTo[String] != "exec")
         .toJson shouldBe (if (requireAPIKeyAnnotation) {
                             JsArray(
-                              JsObject(
-                                "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                "value" -> JsBoolean(false)))
+                              JsObject("key" -> Annotations.ProvideApiKeyAnnotationName.toJson, "value" -> JsFalse))
                           } else {
                             JsArray()
                           })
@@ -539,8 +537,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                                          "name" -> JsString("paramName2"),
                                          "description" -> JsString("Parameter description 2")))),
                                    JsObject(
-                                     "key" -> WhiskAction.provideApiKeyAnnotationName.toJson,
-                                     "value" -> JsBoolean(false)))
+                                     "key" -> Annotations.ProvideApiKeyAnnotationName.toJson,
+                                     "value" -> JsFalse))
                                } else {
                                  JsArray(
                                    JsObject(

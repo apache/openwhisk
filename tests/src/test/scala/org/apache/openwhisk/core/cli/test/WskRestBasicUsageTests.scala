@@ -304,7 +304,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")),
-        annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsTrue))
+        annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue))
     }
 
     val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
@@ -348,7 +348,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         action.create(
           name,
           Some(TestUtils.getTestActionFilename("helloContext.js")),
-          annotations = Map(WhiskAction.provideApiKeyAnnotationName -> JsTrue))
+          annotations = Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue))
       }
 
       val start = Instant.now(Clock.systemUTC()).toEpochMilli
@@ -453,7 +453,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         Parameters("raw-http", JsBoolean(rawEnabled)) ++
         Parameters("final", JsBoolean(webEnabled || rawEnabled))
       val testAnnotations = if (requireAPIKeyAnnotation) {
-        baseAnnotations ++ Parameters(WhiskAction.provideApiKeyAnnotationName, JsFalse)
+        baseAnnotations ++ Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
       } else baseAnnotations
 
       // we ignore the exec field here, since we already compared it above
@@ -476,13 +476,13 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
 
       val baseAnnotations =
-        Parameters("web-export", JsBoolean(true)) ++
-          Parameters("raw-http", JsBoolean(false)) ++
-          Parameters("final", JsBoolean(true))
+        Parameters("web-export", JsTrue) ++
+          Parameters("raw-http", JsFalse) ++
+          Parameters("final", JsTrue)
 
       val testAnnotations = if (requireAPIKeyAnnotation) {
         baseAnnotations ++
-          Parameters(WhiskAction.provideApiKeyAnnotationName, JsBoolean(false))
+          Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
       } else {
         baseAnnotations
       }

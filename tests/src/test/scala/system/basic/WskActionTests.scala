@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
-import org.apache.openwhisk.core.entity.WhiskAction
+import org.apache.openwhisk.core.entity.Annotations
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.core.FeatureFlags
 import spray.json._
@@ -190,9 +190,9 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
         JsObject("key" -> JsString("copiedAnnot2"), "value" -> JsFalse),
         JsObject("key" -> JsString("copiedAnnot1"), "value" -> JsString("copiedAnnotValue1")),
         JsObject("key" -> JsString("origAnnot2"), "value" -> JsTrue),
-        JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsFalse))
+        JsObject("key" -> Annotations.ProvideApiKeyAnnotationName.toJson, "value" -> JsFalse))
       val resAnnots: Seq[JsObject] = if (FeatureFlags.requireApiKeyAnnotation) {
-        baseAnnots ++ Seq(JsObject("key" -> WhiskAction.provideApiKeyAnnotationName.toJson, "value" -> JsFalse))
+        baseAnnots ++ Seq(JsObject("key" -> Annotations.ProvideApiKeyAnnotationName.toJson, "value" -> JsFalse))
       } else baseAnnots
 
       assetHelper.withCleaner(wsk.action, origName) {
@@ -270,7 +270,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       val annotations =
-        if (FeatureFlags.requireApiKeyAnnotation) Map(WhiskAction.provideApiKeyAnnotationName -> JsTrue)
+        if (FeatureFlags.requireApiKeyAnnotation) Map(Annotations.ProvideApiKeyAnnotationName -> JsTrue)
         else Map.empty[String, JsValue]
       action.create(name, Some(TestUtils.getTestActionFilename("wcbin.js")), annotations = annotations)
 

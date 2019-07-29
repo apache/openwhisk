@@ -1,0 +1,91 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'org.springframework.boot' version '2.1.6.RELEASE'
+    id "com.gorylenko.gradle-git-properties" version "2.0.0"
+    id 'scala'
+}
+
+apply plugin: 'org.scoverage'
+apply plugin: 'maven'
+
+project.archivesBaseName = "openwhisk-standalone"
+
+repositories {
+    mavenCentral()
+}
+
+task copySwagger(type: Copy) {
+    def version = "3.6.0"
+    mkdir("$buildDir/tmp/swagger")
+    def destFile = file("$buildDir/tmp/swagger/swagger-ui.tar")
+    def uiDir = file("$buildDir/tmp/swagger/swagger-ui")
+    if (!destFile.exists()) {
+        ant.get(src: "https://github.com/swagger-api/swagger-ui/archive/v${version}.tar.gz", dest: destFile)
+    }
+    from(tarTree(resources.gzip(destFile))){
+        include("swagger-ui-${version}/dist/**")
+    }
+    into(uiDir)
+    includeEmptyDirs = false
+    project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${version}/dist")
+}
+
+processResources.dependsOn copySwagger
+
+processResources {
+    from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
+        into(".")
+    }
+    //Implement the logic present in controller Docker file
+    from(project.swaggerUiDir) {
+        include "index.html"
+        filter {
+            it.replace("http://petstore.swagger.io/v2/swagger.json", "/api/v1/api-docs")
+        }
+        into("swagger-ui")
+    }
+    from(project.swaggerUiDir) {
+        exclude "index.html"
+        into("swagger-ui")
+    }
+}
+
+task copyBootJarToBin(type:Copy){
+    from ("${buildDir}/libs")
+    into file("${project.rootProject.projectDir}/bin")
+    rename("${project.archivesBaseName}-${version}.jar", "${project.archivesBaseName}.jar")
+}
+
+bootJar {
+    mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
+    finalizedBy copyBootJarToBin
+}
+
+// Gradle boot disables the default jar task. So need to now make
+// install task depend on bootJar such that it finds the required jar file
+// https://github.com/spring-projects/spring-boot/issues/13187
+install.dependsOn(bootJar)
+
+dependencies {
+    compile project(':core:controller')
+    compile project(':tools:admin')
+    compile 'org.rogach:scallop_2.12:3.3.1'
+    scoverage gradle.scoverage.deps
+}
+

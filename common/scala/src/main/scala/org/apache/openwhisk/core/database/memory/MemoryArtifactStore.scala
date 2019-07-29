@@ -17,13 +17,13 @@
 
 package org.apache.openwhisk.core.database.memory
 
+import java.nio.charset.StandardCharsets.UTF_8
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, Uri}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import pureconfig.loadConfigOrThrow
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.StoreUtils._
@@ -32,6 +32,8 @@ import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import pureconfig.loadConfigOrThrow
+import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,6 +41,7 @@ import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
+  private val stores = new TrieMap[String, MemoryArtifactStore[_]]()
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
@@ -58,8 +61,11 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
     val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
-    new MemoryArtifactStore(dbName, handler, viewMapper, inliningConfig, attachmentStore)
+    val storeFactory = () => new MemoryArtifactStore(dbName, handler, viewMapper, inliningConfig, attachmentStore)
+    stores.getOrElseUpdate(dbName, storeFactory.apply()).asInstanceOf[ArtifactStore[D]]
   }
+
+  def purgeAll(): Unit = stores.clear()
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
     implicit actorSystem: ActorSystem,
@@ -96,6 +102,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     with DocumentProvider
     with AttachmentSupport[DocumentAbstraction] {
 
+  logging.info(this, s"Created MemoryStore for [$dbName]")
+
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val artifacts = new TrieMap[String, Artifact]
@@ -110,22 +118,25 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     val id = asJson.fields(_id).convertTo[String].trim
     require(!id.isEmpty, "document id must be defined")
 
-    val rev: Int = getRevision(asJson)
-    val docinfoStr = s"id: $id, rev: $rev"
+    val (oldRev, newRev) = computeRevision(asJson)
+    val docinfoStr = s"id: $id, rev: ${oldRev.getOrElse("null")}"
     val start = transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$dbName' saving document: '$docinfoStr'")
 
-    val existing = Artifact(id, rev, asJson)
-    val updated = existing.incrementRev()
+    val updated = Artifact(id, newRev, asJson)
     val t = Try[DocInfo] {
-      if (rev == 0) {
-        artifacts.putIfAbsent(id, updated) match {
-          case Some(_) => throw DocumentConflictException("conflict on 'put'")
-          case None    => updated.docInfo
-        }
-      } else if (artifacts.replace(id, existing, updated)) {
-        updated.docInfo
-      } else {
-        throw DocumentConflictException("conflict on 'put'")
+      oldRev match {
+        case Some(rev) =>
+          val existing = Artifact(id, rev, asJson)
+          if (artifacts.replace(id, existing, updated)) {
+            updated.docInfo
+          } else {
+            throw DocumentConflictException("conflict on 'put'")
+          }
+        case None =>
+          artifacts.putIfAbsent(id, updated) match {
+            case Some(_) => throw DocumentConflictException("conflict on 'put'")
+            case None    => updated.docInfo
+          }
       }
     }
 
@@ -285,7 +296,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   }
 
   override def shutdown(): Unit = {
-    artifacts.clear()
     attachmentStore.shutdown()
   }
 
@@ -308,38 +318,34 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     reportFailure(f, start, failure => s"[GET] '$dbName' internal error, doc: '$id', failure: '${failure.getMessage}'")
   }
 
-  private def getRevision(asJson: JsObject) = {
-    asJson.fields.get(_rev) match {
-      case Some(JsString(r)) => r.toInt
-      case _                 => 0
+  private def computeRevision(js: JsObject): (Option[String], String) = {
+    js.fields.get(_rev) match {
+      case Some(JsString(r)) => (Some(r), digest(js))
+      case _                 => (None, digest(js))
     }
+  }
+
+  private def digest(js: JsObject) = {
+    val jsWithoutRev = transform(js, Seq.empty, Seq(_rev))
+    val md = emptyDigest()
+    encodeDigest(md.digest(jsWithoutRev.compactPrint.getBytes(UTF_8)))
   }
 
   //Use curried case class to allow equals support only for id and rev
   //This allows us to implement atomic replace and remove which check
   //for id,rev equality only
-  private case class Artifact(id: String, rev: Int)(val doc: JsObject, val computed: JsObject) {
-    def incrementRev(): Artifact = {
-      val (newRev, updatedDoc) = incrementAndGet()
-      copy(rev = newRev)(updatedDoc, computed) //With Couch attachments are lost post update
-    }
-
+  private case class Artifact(id: String, rev: String)(val doc: JsObject, val computed: JsObject) {
     def docInfo = DocInfo(DocId(id), DocRevision(rev.toString))
-
-    private def incrementAndGet() = {
-      val newRev = rev + 1
-      val updatedDoc = JsObject(doc.fields + (_rev -> JsString(newRev.toString)))
-      (newRev, updatedDoc)
-    }
   }
 
   private object Artifact {
-    def apply(id: String, rev: Int, doc: JsObject): Artifact = {
-      Artifact(id, rev)(doc, documentHandler.computedFields(doc))
+    def apply(id: String, rev: String, doc: JsObject): Artifact = {
+      val docWithRev = transform(doc, Seq((_rev, Some(JsString(rev)))))
+      Artifact(id, rev)(docWithRev, documentHandler.computedFields(doc))
     }
 
     def apply(info: DocInfo): Artifact = {
-      Artifact(info.id.id, info.rev.rev.toInt)(JsObject.empty, JsObject.empty)
+      Artifact(info.id.id, info.rev.rev)(JsObject.empty, JsObject.empty)
     }
   }
 }

@@ -83,7 +83,7 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
 
   /** @return true iff action has appropriate annotation. */
   def hasFinalParamsAnnotation = {
-    annotations.getAs[Boolean](WhiskAction.finalParamsAnnotationName) getOrElse false
+    annotations.getAs[Boolean](Annotations.FinalParamsAnnotationName) getOrElse false
   }
 
   /** @return a Set of immutable parameternames */
@@ -329,13 +329,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
 
   val execFieldName = "exec"
-  val finalParamsAnnotationName = "final"
-  val webActionAnnotationName = "web-export"
-  val webCustomOptionsAnnotationName = "web-custom-options"
-  val rawHttpAnnotationName = "raw-http"
-  val requireWhiskAuthAnnotation = "require-whisk-auth"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
-  val provideApiKeyAnnotationName = "provide-api-key"
 
   override val collectionName = "actions"
 

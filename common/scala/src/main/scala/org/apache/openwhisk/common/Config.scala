@@ -116,14 +116,14 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
    */
   protected def getProperties(): scala.collection.mutable.Map[String, String] = {
     val required = scala.collection.mutable.Map[String, String]() ++= requiredProperties
-    Config.readPropertiesFromEnvironment(required, env)
+    Config.readPropertiesFromSystemAndEnv(required, env)
 
     // for optional value, assign them a default from the required properties list
     // to prevent loss of a default value on a required property that may not otherwise be defined
     val optional = scala.collection.mutable.Map[String, String]() ++= optionalProperties.map { k =>
       k -> required.getOrElse(k, null)
     }
-    Config.readPropertiesFromEnvironment(optional, env)
+    Config.readPropertiesFromSystemAndEnv(optional, env)
 
     required ++ optional
   }
@@ -133,19 +133,31 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
  * Singleton object which provides global methods to manage configuration.
  */
 object Config {
+  val prefix = "whisk-config."
 
   /**
    * Reads a Map of key-value pairs from the environment -- store them in the
    * mutable properties object.
    */
-  def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String])(
-    implicit logging: Logging) = {
+  def readPropertiesFromSystemAndEnv(properties: scala.collection.mutable.Map[String, String],
+                                     env: Map[String, String])(implicit logging: Logging) = {
+    readPropertiesFromSystem(properties)
     for (p <- properties.keys) {
       val envp = p.replace('.', '_').toUpperCase
       val envv = env.get(envp)
       if (envv.isDefined) {
         logging.info(this, s"environment set value for $p")
         properties += p -> envv.get.trim
+      }
+    }
+  }
+
+  def readPropertiesFromSystem(properties: scala.collection.mutable.Map[String, String])(implicit logging: Logging) = {
+    for (p <- properties.keys) {
+      val sysv = Option(System.getProperty(prefix + p))
+      if (sysv.isDefined) {
+        logging.info(this, s"system set value for $p")
+        properties += p -> sysv.get.trim
       }
     }
   }

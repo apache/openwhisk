@@ -563,7 +563,7 @@ class ContainerProxy(
         // if the action requests the api key to be injected into the action context, add it here;
         // treat a missing annotation as requesting the api key for backward compatibility
         val authEnvironment = {
-          if (job.action.annotations.isTruthy(WhiskAction.provideApiKeyAnnotationName, valueForNonExistent = true)) {
+          if (job.action.annotations.isTruthy(Annotations.ProvideApiKeyAnnotationName, valueForNonExistent = true)) {
             job.msg.user.authkey.toEnvironment
           } else JsObject.empty
         }
