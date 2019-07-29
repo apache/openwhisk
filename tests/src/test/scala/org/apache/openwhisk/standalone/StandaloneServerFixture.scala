@@ -72,6 +72,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         val args = Seq(
           Seq(
             "java",
+            //For tests let it bound on all ip to make it work on travis which uses linux
+            "-Dwhisk.controller.interface=0.0.0.0",
             s"-D$disablePullConfig=false",
             "-jar",
             standaloneServerJar.getAbsolutePath,
