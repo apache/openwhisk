@@ -62,7 +62,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val colorEnabled = !disableColorLogging()
 
-  def serverUrl: Uri = Uri(s"http://localhost:${port()}")
+  def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getHostAddress()}:${port()}")
 }
 
 case class GitInfo(commitId: String, commitTime: String)

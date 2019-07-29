@@ -123,7 +123,7 @@ object StandaloneDockerSupport {
 
   def getLocalHostIp(): String = {
     if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-      hostIpLinuxNonLinux
+      hostIpNonLinux
     else hostIpLinux
   }
 
@@ -140,7 +140,7 @@ object StandaloneDockerSupport {
       .getOrElse(throw new IllegalStateException(s"'ip route' result did not match expected output - \n$cmdResult"))
   }
 
-  private lazy val hostIpLinuxNonLinux: String = {
+  private lazy val hostIpNonLinux: String = {
     //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api gateway
     //Based on https://unix.stackexchange.com/a/20793
     //$ docker run --rm alpine getent hosts host.docker.internal
