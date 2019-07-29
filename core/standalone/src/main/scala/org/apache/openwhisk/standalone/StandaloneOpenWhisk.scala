@@ -62,7 +62,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val colorEnabled = !disableColorLogging()
 
-  def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getHostAddress()}:${port()}")
+  def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getLocalHostName()}:${port()}")
 }
 
 case class GitInfo(commitId: String, commitTime: String)
@@ -160,7 +160,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.servicePort, port.toString)
     setConfigProp(WhiskConfig.wskApiPort, port.toString)
     setConfigProp(WhiskConfig.wskApiProtocol, "http")
-    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostName())
+    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostIp())
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -215,7 +215,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def configureOSSpecificOpts(): Unit = {
     //Set the interface based on OS
-    setSysProp("whisk.controller.interface", StandaloneDockerSupport.getHostAddress())
+    setSysProp("whisk.controller.interface", StandaloneDockerSupport.getLocalHostName())
   }
 
   private def loadGitInfo() = {
@@ -297,7 +297,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
     val user = "whisk.system"
-    val apiGwHostv2 = s"http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwApiPort/v2"
+    val apiGwHostv2 = s"http://${StandaloneDockerSupport.getLocalHostIp()}:$apiGwApiPort/v2"
     val authKey = getUsers().getOrElse(
       user,
       throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))

@@ -102,23 +102,9 @@ object StandaloneDockerSupport {
    * server. On non linux setups its 'localhost'. However for Linux setups its the ip used
    * by docker for docker0 network to refer to host system
    */
-  def getHostAddress(): String = {
+  def getLocalHostName(): String = {
     if (SystemUtils.IS_OS_LINUX) hostIpLinux
     else "localhost"
-  }
-
-  /**
-   * Returns the name used for referring to host system by code running within the container.
-   * For non linux setups it is `host.docker.internal`. For linux setups its the ip of the host
-   * as per docker bridge network setup
-   */
-  def getLocalHostName(): String = {
-    //For connecting back to controller on container host following name needs to be used
-    // on Windows and Mac
-    // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
-    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-      "host.docker.internal"
-    else StandaloneDockerSupport.hostIpLinux
   }
 
   def getLocalHostIp(): String = {
