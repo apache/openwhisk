@@ -54,8 +54,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val verbose = tally()
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
-  val apiGw = opt[Boolean](descr = "Enable API Gateway support")
-  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234))
+  val apiGw = opt[Boolean](descr = "Enable API Gateway support", noshort = true)
+  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   verify()
