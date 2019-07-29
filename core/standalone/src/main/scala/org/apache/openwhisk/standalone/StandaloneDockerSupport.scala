@@ -127,7 +127,7 @@ object StandaloneDockerSupport {
     else hostIpLinux
   }
 
-  lazy val hostIpLinux: String = {
+  private lazy val hostIpLinux: String = {
     //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
     // Typical output would be like and we need line with default
     // $ docker run --rm alpine ip route
@@ -140,18 +140,21 @@ object StandaloneDockerSupport {
       .getOrElse(throw new IllegalStateException(s"'ip route' result did not match expected output - \n$cmdResult"))
   }
 
-  lazy val hostIpLinuxNonLinux: String = {
-    //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api ggateway
+  private lazy val hostIpLinuxNonLinux: String = {
+    //Gets the hostIp as names like host.docker.internal do not resolve for some reason in api gateway
     //Based on https://unix.stackexchange.com/a/20793
-    val cmdResult = s"$dockerCmd run --rm getent hosts host.docker.internal".!!
+    //$ docker run --rm alpine getent hosts host.docker.internal
+    //192.168.65.2      host.docker.internal  host.docker.internal
+    val hostName = "host.docker.internal"
+    val cmdResult = s"$dockerCmd run --rm alpine getent hosts $hostName".!!
     cmdResult.linesIterator
-      .find(_.contains("default"))
+      .find(_.contains(hostName))
       .map(_.split(" ").head.trim)
       .getOrElse(throw new IllegalStateException(
         s"'getent hosts host.docker.internal' result did not match expected output - \n$cmdResult"))
   }
 
-  lazy val dockerCmd = {
+  private lazy val dockerCmd = {
     //TODO Logic duplicated from DockerClient and WindowsDockerClient for now
     val executable = loadConfig[String]("whisk.docker.executable").map(Some(_)).getOrElse(None)
     val alternatives =
