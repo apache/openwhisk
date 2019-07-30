@@ -33,6 +33,7 @@ cat "$ROOTDIR/tests/src/test/resources/application.conf"
 
 ./distDocker.sh
 
+# wsk cli is needed for standalone server tests
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD downloadcli.yml
 
