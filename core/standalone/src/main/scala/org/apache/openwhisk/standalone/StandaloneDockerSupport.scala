@@ -63,7 +63,7 @@ class StandaloneDockerSupport(docker: DockerClient)(implicit logging: Logging,
 case class ServiceContainer(port: Int, description: String, name: String)
 
 object StandaloneDockerSupport {
-  val prefix = "whisk-standalone-"
+  val prefix = "whisk-"
   val network = "bridge"
 
   def checkOrAllocatePort(preferredPort: Int): Int = {
