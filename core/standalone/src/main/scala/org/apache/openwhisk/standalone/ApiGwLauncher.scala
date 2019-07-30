@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.standalone
 
-import akka.Done
 import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
@@ -41,23 +40,26 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
   private val redisConfig = loadConfigOrThrow[RedisConfig](StandaloneConfigKeys.redisConfigKey)
   private val apiGwConfig = loadConfigOrThrow[ApiGwConfig](StandaloneConfigKeys.apiGwConfigKey)
 
-  def run(): Future[Done] = {
+  def run(): Future[Seq[ServiceContainer]] = {
     for {
-      redis <- runRedis()
+      (redis, redisSvcs) <- runRedis()
       _ <- waitForRedis(redis)
-      _ <- runApiGateway(redis, StandaloneDockerSupport.getLocalHostIp())
+      (_, apiGwSvcs) <- runApiGateway(redis)
       _ <- waitForApiGw()
-    } yield Done
+    } yield Seq(redisSvcs, apiGwSvcs).flatten
   }
 
-  def runRedis(): Future[StandaloneDockerContainer] = {
+  def runRedis(): Future[(StandaloneDockerContainer, Seq[ServiceContainer])] = {
     val defaultRedisPort = 6379
     val redisPort = StandaloneDockerSupport.checkOrAllocatePort(defaultRedisPort)
     logging.info(this, s"Starting Redis at $redisPort")
 
     val params = Map("-p" -> Set(s"$redisPort:6379"))
-    val args = createRunCmd("redis", dockerRunParameters = params)
-    runDetached(redisConfig.image, args, pull = true)
+    val name = containerName("redis")
+    val args = createRunCmd(name, dockerRunParameters = params)
+    val f = runDetached(redisConfig.image, args, pull = true)
+    val sc = ServiceContainer(redisPort, "Redis", name)
+    f.map(c => (c, Seq(sc)))
   }
 
   def waitForRedis(c: StandaloneDockerContainer): Future[Unit] = {
@@ -80,7 +82,8 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     docker.runCmd(args, docker.clientConfig.timeouts.run).map(out => require(out.toLowerCase == "pong"))
   }
 
-  def runApiGateway(redis: StandaloneDockerContainer, hostIp: String): Future[StandaloneDockerContainer] = {
+  def runApiGateway(redis: StandaloneDockerContainer): Future[(StandaloneDockerContainer, Seq[ServiceContainer])] = {
+    val hostIp = StandaloneDockerSupport.getLocalHostIp()
     val env = Map(
       "BACKEND_HOST" -> s"http://$hostIp:$serverPort",
       "REDIS_HOST" -> redis.addr.host,
@@ -91,13 +94,18 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
       "PUBLIC_MANAGEDURL_PORT" -> apiGwMgmtPort.toString)
 
     logging.info(this, s"Starting Api Gateway at api port: $apiGwApiPort, management port: $apiGwMgmtPort")
+    val name = containerName("apigw")
     val params = Map("-p" -> Set(s"$apiGwApiPort:9000", s"$apiGwMgmtPort:8080"))
-    val args = createRunCmd("apigw", env, params)
+    val args = createRunCmd(name, env, params)
 
     //TODO ExecManifest is scoped to core. Ideally we would like to do
     // ExecManifest.ImageName(apiGwConfig.image).prefix.contains("openwhisk")
     val pull = apiGwConfig.image.startsWith("openwhisk")
-    runDetached(apiGwConfig.image, args, pull)
+    val f = runDetached(apiGwConfig.image, args, pull)
+    val sc = Seq(
+      ServiceContainer(apiGwApiPort, "Api Gateway - Api Service", name),
+      ServiceContainer(apiGwMgmtPort, "Api Gateway - Management Service", name))
+    f.map(c => (c, sc))
   }
 
   def waitForApiGw(): Future[Unit] = {

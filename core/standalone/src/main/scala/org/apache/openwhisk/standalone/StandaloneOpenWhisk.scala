@@ -39,7 +39,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner(StandaloneOpenWhisk.banner)
@@ -132,9 +132,13 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val ec: ExecutionContext = actorSystem.dispatcher
 
     val (dataDir, workDir) = initializeDirs(conf)
-    val apiGwApiPort = if (conf.apiGw()) {
+    val (apiGwApiPort, svcs) = if (conf.apiGw()) {
       startApiGateway(conf)
-    } else -1
+    } else (-1, Seq.empty)
+
+    if (svcs.nonEmpty) {
+      new ServiceInfoLogger(conf, svcs, dataDir).run()
+    }
 
     startServer(conf)
     new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
@@ -278,7 +282,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def startApiGateway(conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext): Int = {
+  private def startApiGateway(
+    conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext): (Int, Seq[ServiceContainer]) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
 
     // api port is the port used by rout management actions to configure the api gw upon wsk api commands
@@ -293,14 +298,16 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     dockerSupport.cleanup()
     val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, conf.port())
     val f = gw.run()
-    f.foreach(
-      _ =>
+    val g = f.andThen {
+      case Success(_) =>
         logging.info(
           this,
-          s"Api Gateway started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwMgmtPort"))
-    f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))
-    Await.ready(f, 5.minutes)
-    apiGwApiPort
+          s"Api Gateway started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwMgmtPort")
+      case Failure(t) =>
+        logging.error(this, "Error starting Api Gateway" + t)
+    }
+    val services = Await.result(g, 5.minutes)
+    (apiGwApiPort, services)
   }
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {

@@ -60,6 +60,8 @@ class StandaloneDockerSupport(docker: DockerClient)(implicit logging: Logging,
   }
 }
 
+case class ServiceContainer(port: Int, description: String, name: String)
+
 object StandaloneDockerSupport {
   val prefix = "whisk-standalone-"
   val network = "bridge"
@@ -89,7 +91,7 @@ object StandaloneDockerSupport {
       case (key, valueList) => valueList.toList.flatMap(Seq(key, _))
     }
 
-    Seq("--name", containerName(name), "--network", network) ++
+    Seq("--name", name, "--network", network) ++
       environmentArgs ++ params
   }
 
