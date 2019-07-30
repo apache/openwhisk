@@ -26,10 +26,9 @@ import common.WhiskProperties.WHISK_SERVER
 import common.{FreePortFinder, StreamLogging, WhiskProperties}
 import io.restassured.RestAssured
 import org.apache.commons.io.FileUtils
-import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.utils.retry
-import org.scalatest.{BeforeAndAfterAll, Pending, Suite, TestSuite}
+import org.scalatest.{BeforeAndAfterAll, Suite, TestSuite}
 
 import scala.concurrent.duration._
 import scala.sys.process._
@@ -46,16 +45,9 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   private val disablePullConfig = "whisk.docker.standalone.container-factory.pull-standard-images"
   private var serverStartedForTest = false
 
-  //Following tests always fail on Mac but pass when standalone server is running on Linux
-  //It looks related to how networking works on Mac for Docker container
-  //For now ignoring there failure
-  private val ignoredTestsOnMac = Set(
-    "Wsk Action REST should create, and invoke an action that utilizes a docker container",
-    "Wsk Action REST should create, and invoke an action that utilizes dockerskeleton with native zip",
-    "Wsk Action REST should create and invoke a blocking action resulting in an application error response",
-    "Wsk Action REST should create an action, and invoke an action that returns an empty JSON object")
-
   private val whiskServerPreDefined = System.getProperty(WHISK_SERVER) != null
+
+  protected def extraArgs: Seq[String] = Seq.empty
 
   override def beforeAll(): Unit = {
     val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
@@ -65,7 +57,6 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         println(s"Connecting to existing server at $serverUrl")
       case None =>
         System.setProperty(WHISK_SERVER, serverUrl)
-        //TODO avoid starting the server if url whisk.server property is predefined
         super.beforeAll()
         println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
         manifestFile = getRuntimeManifest()
@@ -77,7 +68,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             s"-D$disablePullConfig=false",
             "-jar",
             standaloneServerJar.getAbsolutePath,
-            "--disable-color-logging"),
+            "--disable-color-logging") ++ extraArgs,
           Seq("-p", serverPort.toString),
           manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
 
@@ -105,11 +96,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
       println(logLines.mkString("\n"))
     }
     stream.reset()
-    val result = if (outcome.isFailed && SystemUtils.IS_OS_MAC && ignoredTestsOnMac.contains(test.name)) {
-      println(s"Ignoring known failed test for Mac [${test.name}]")
-      Pending
-    } else outcome
-    result
+    outcome
   }
 
   def waitForServerToStart(): Stopwatch = {
