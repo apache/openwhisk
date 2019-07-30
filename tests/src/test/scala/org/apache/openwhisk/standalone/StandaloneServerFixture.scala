@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import com.google.common.base.Stopwatch
 import common.WhiskProperties.WHISK_SERVER
-import common.{FreePortFinder, StreamLogging, WhiskProperties}
+import common.{FreePortFinder, StreamLogging, WhiskProperties, Wsk}
 import io.restassured.RestAssured
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.core.WhiskConfig
@@ -65,6 +65,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             "java",
             //For tests let it bound on all ip to make it work on travis which uses linux
             "-Dwhisk.controller.interface=0.0.0.0",
+            s"-Dwhisk.standalone.wsk=${Wsk.defaultCliPath}",
             s"-D$disablePullConfig=false",
             "-jar",
             standaloneServerJar.getAbsolutePath,
@@ -106,7 +107,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         println(s"Waiting for OpenWhisk server to start since $w")
         val response = RestAssured.get(new URI(serverUrl))
         require(response.statusCode() == 200)
-      }, 30, Some(1.second))
+      }, 60, Some(1.second))
     } catch {
       case NonFatal(e) =>
         println(logLines.mkString("\n"))

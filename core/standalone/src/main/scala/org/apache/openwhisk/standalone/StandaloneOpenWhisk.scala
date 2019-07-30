@@ -117,6 +117,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   val defaultWorkDir = new File(FilenameUtils.concat(FileUtils.getUserDirectoryPath, ".openwhisk/standalone"))
 
+  val wskPath = System.getProperty("whisk.standalone.wsk", "wsk")
+
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
 
@@ -320,7 +322,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val authKey = getUsers().getOrElse(
       user,
       throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))
-    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + user, Uri(apiGwHostv2))
+    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + user, Uri(apiGwHostv2), wskPath)
     installer.run()
   }
 

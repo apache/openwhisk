@@ -28,8 +28,12 @@ import scala.sys.process.ProcessLogger
 import scala.util.Try
 import scala.sys.process._
 
-case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namespace: String, gatewayUrl: Uri)(
-  implicit log: Logging) {
+case class InstallRouteMgmt(workDir: File,
+                            authKey: String,
+                            apiHost: Uri,
+                            namespace: String,
+                            gatewayUrl: Uri,
+                            wsk: String)(implicit log: Logging) {
   case class Action(name: String, desc: String)
   private val noopLogger = ProcessLogger(_ => ())
   private implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
@@ -39,7 +43,7 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
     Action("getApi", "Retrieve the specified API configuration (in JSON format)"))
 
   def run(): Unit = {
-    require(wskExists, "wsk command not found. Route management actions cannot be installed")
+    require(wskExists, s"wsk command not found at $wsk. Route management actions cannot be installed")
     log.info(this, packageUpdateCmd.!!.trim)
     //TODO Optimize to ignore this if package already installed
     actionNames.foreach { action =>
@@ -55,7 +59,7 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
 
   private def createActionUpdateCmd(action: Action, name: String, actionZip: File) = {
     Seq(
-      "wsk",
+      wsk,
       "--apihost",
       apiHost.toString(),
       "--auth",
@@ -79,7 +83,7 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
 
   private def packageUpdateCmd = {
     Seq(
-      "wsk",
+      wsk,
       "--apihost",
       apiHost.toString(),
       "--auth",
@@ -97,5 +101,5 @@ case class InstallRouteMgmt(workDir: File, authKey: String, apiHost: Uri, namesp
       gatewayUrl.toString())
   }
 
-  def wskExists: Boolean = Try("wsk property get --cliversion".!(noopLogger)).getOrElse(-1) == 0
+  def wskExists: Boolean = Try(s"$wsk property get --cliversion".!(noopLogger)).getOrElse(-1) == 0
 }
