@@ -129,8 +129,19 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val actorSystem = ActorSystem("standalone-actor-system")
     implicit val materializer = ActorMaterializer.create(actorSystem)
     implicit val logger: Logging = createLogging(actorSystem, conf)
+    implicit val ec: ExecutionContext = actorSystem.dispatcher
+
+    val (dataDir, workDir) = initializeDirs(conf)
+    val apiGwApiPort = if (conf.apiGw()) {
+      startApiGateway(conf)
+    } else -1
 
     startServer(conf)
+    new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
+
+    if (conf.apiGw()) {
+      installRouteMgmt(conf, workDir, apiGwApiPort)
+    }
   }
 
   def initialize(conf: Conf): Unit = {
@@ -146,11 +157,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     conf: Conf)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
     bootstrapUsers()
     startController()
-
-    if (conf.apiGw()) {
-      implicit val ec: ExecutionContext = actorSystem.dispatcher
-      startApiGateway(conf)
-    }
   }
 
   private def configureServerPort(conf: Conf) = {
@@ -272,16 +278,13 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def startApiGateway(conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext) = {
+  private def startApiGateway(conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext): Int = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
 
     // api port is the port used by rout management actions to configure the api gw upon wsk api commands
     // mgmt port is the port used by end user while making actual use of api gw
     val apiGwApiPort = StandaloneDockerSupport.checkOrAllocatePort(9000)
     val apiGwMgmtPort = conf.apiGwPort()
-    val (dataDir, workDir) = initializeDirs(conf)
-    new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
-    installRouteMgmt(conf, workDir, apiGwApiPort)
 
     val dockerClient = new StandaloneDockerClient()
     val dockerSupport = new StandaloneDockerSupport(dockerClient)
@@ -297,6 +300,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
           s"Api Gateway started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwMgmtPort"))
     f.failed.foreach(t => logging.error(this, "Error starting Api Gateway" + t))
     Await.ready(f, 5.minutes)
+    apiGwApiPort
   }
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
