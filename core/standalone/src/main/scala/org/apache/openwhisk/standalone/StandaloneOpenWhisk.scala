@@ -170,7 +170,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.servicePort, port.toString)
     setConfigProp(WhiskConfig.wskApiPort, port.toString)
     setConfigProp(WhiskConfig.wskApiProtocol, "http")
-    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostIp())
+
+    //Using hostInternalName instead of getLocalHostIp as using docker alpine way to
+    //determine the ip is seen to be failing with older version of Docker
+    //So to keep main flow which does not use api gw working fine play safe
+    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostInternalName())
   }
 
   private def initConfigLocation(conf: Conf): Unit = {

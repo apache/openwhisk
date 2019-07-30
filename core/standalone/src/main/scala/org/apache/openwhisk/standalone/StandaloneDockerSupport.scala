@@ -115,6 +115,15 @@ object StandaloneDockerSupport {
     else hostIpLinux
   }
 
+  /**
+   * Determines the name/ip which code running within container can use to connect back to Controller
+   */
+  def getLocalHostInternalName(): String = {
+    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+      "host.docker.internal"
+    else hostIpLinux
+  }
+
   private lazy val hostIpLinux: String = {
     //Gets the hostIp for linux https://github.com/docker/for-linux/issues/264#issuecomment-387525409
     // Typical output would be like and we need line with default
