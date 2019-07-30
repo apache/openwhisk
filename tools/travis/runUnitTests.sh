@@ -33,6 +33,10 @@ cat "$ROOTDIR/tests/src/test/resources/application.conf"
 
 ./distDocker.sh
 
+cd $ROOTDIR/ansible
+$ANSIBLE_CMD downloadcli.yml
+
+cd $ROOTDIR
 ./runTests.sh
 
 TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
