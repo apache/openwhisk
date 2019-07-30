@@ -37,6 +37,9 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
   private val cliDownloadUrl = "https://s.apache.org/openwhisk-cli-download"
   private val dockerUrl = "https://docs.docker.com/install/"
 
+  //Support for host.docker.internal is from 18.03
+  private val supportedDockerVersion = DockerVersion("18.03")
+
   def run(): Unit = {
     println(separator)
     println("Running pre flight checks ...")
@@ -54,12 +57,27 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
       println(s"$failed 'docker' cli not found.")
       println(s"\t Install docker from $dockerUrl")
     } else {
-      println(s"$pass 'docker' cli found. $dockerVersion")
+      val versionCmdOutput = dockerVersion
+      println(s"$pass 'docker' cli found. $versionCmdOutput")
+
+      //Wrap in try to discard any issue related to version parsing
+      Try(checkDockerVersion(versionCmdOutput)).failed.foreach(t =>
+        println(s"Error occurred while parsing version - ${t.getMessage}"))
+
       checkDockerIsRunning()
       //Other things we can possibly check for
       //1. add check for minimal supported docker version
       //2. should we also run `docker run hello-world` to see if we can execute docker run command
       //This command takes 2-4 secs. So running it by default for every run should be avoided
+    }
+  }
+
+  private def checkDockerVersion(versionCmdOutput: String)(implicit ordering: Ordering[DockerVersion]): Unit = {
+    val dv = DockerVersion.fromVersionCommand(versionCmdOutput)
+    if (dv < supportedDockerVersion) {
+      println(s"$failed 'docker' version $dv older than minimum supported $supportedDockerVersion")
+    } else {
+      println(s"$pass 'docker' version $dv is newer than minimum supported $supportedDockerVersion")
     }
   }
 
