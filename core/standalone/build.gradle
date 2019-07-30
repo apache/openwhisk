@@ -119,5 +119,17 @@ dependencies {
     compile project(':core:controller')
     compile project(':tools:admin')
     compile 'org.rogach:scallop_2.12:3.3.1'
+
+    testCompile 'junit:junit:4.11'
+    testCompile 'org.scalatest:scalatest_2.12:3.0.5'
 }
 
+gradle.projectsEvaluated {
+    tasks.withType(Test) {
+        testLogging {
+            events "passed", "skipped", "failed"
+            showStandardStreams = true
+            exceptionFormat = 'full'
+        }
+    }
+}

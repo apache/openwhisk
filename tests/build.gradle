@@ -202,7 +202,6 @@ dependencies {
     compile project(':core:controller')
     compile project(':core:invoker')
     compile project(':core:cosmosdb:cache-invalidator')
-    compile project(':core:standalone')
     compile project(':tools:admin')
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'

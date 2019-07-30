@@ -35,3 +35,5 @@ cat "$ROOTDIR/tests/src/test/resources/application.conf"
 
 ./runTests.sh
 
+TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
+
