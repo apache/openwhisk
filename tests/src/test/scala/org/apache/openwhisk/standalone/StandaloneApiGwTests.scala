@@ -17,14 +17,27 @@
 
 package org.apache.openwhisk.standalone
 
+import com.google.common.base.Stopwatch
 import common.{FreePortFinder, WskProps}
 import org.apache.openwhisk.core.cli.test.ApiGwRestTests
+import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class StandaloneApiGwTests extends ApiGwRestTests with StandaloneServerFixture {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
   override protected def extraArgs: Seq[String] = Seq("--api-gw", "--api-gw-port", FreePortFinder.freePort().toString)
+
+  override protected def waitForOtherThings(): Unit = {
+    val w = Stopwatch.createStarted()
+    retry({
+      println(s"Waiting for route management actions to be installed since $w")
+      require(logLines.exists(_.contains("Installed Route Management Actions")))
+    }, 30, Some(500.millis))
+  }
+
 }

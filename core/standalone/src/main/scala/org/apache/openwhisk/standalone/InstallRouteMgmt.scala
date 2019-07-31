@@ -55,6 +55,8 @@ case class InstallRouteMgmt(workDir: File,
       log.info(this, s"Installed $name - $result")
       FileUtils.deleteQuietly(actionZip)
     }
+    //This log message is used by tests to confirm that actions are installed
+    log.info(this, "Installed Route Management Actions")
   }
 
   private def createActionUpdateCmd(action: Action, name: String, actionZip: File) = {

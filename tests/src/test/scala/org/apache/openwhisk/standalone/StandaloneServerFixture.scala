@@ -49,6 +49,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   protected def extraArgs: Seq[String] = Seq.empty
 
+  protected def waitForOtherThings(): Unit = {}
+
   override def beforeAll(): Unit = {
     val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
     serverUrlViaSysProp match {
@@ -77,6 +79,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         val w = waitForServerToStart()
         serverStartedForTest = true
         println(s"Started test server at $serverUrl in [$w]")
+        waitForOtherThings()
     }
   }
 
