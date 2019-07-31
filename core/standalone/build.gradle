@@ -64,6 +64,13 @@ task copyGWActions() {
                 ant.zip(destfile:zipFile){
                     fileset(dir:actionDir){
                         exclude(name:zipFileName)
+                        //Somehow if in zip we add same file twice it causes issues
+                        //Its possible that installRouteMgmt.sh has been invoked which would
+                        //have copied the common files to each action dir.
+                        //Exclude such files to zipped twice
+                        commonDir.listFiles().each {f ->
+                            exclude(name:f.name)
+                        }
                     }
                     fileset(dir:commonDir)
                 }
