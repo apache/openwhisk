@@ -33,11 +33,6 @@ cat "$ROOTDIR/tests/src/test/resources/application.conf"
 
 ./distDocker.sh
 
-# wsk cli is needed for standalone server tests
-cd $ROOTDIR/ansible
-$ANSIBLE_CMD downloadcli.yml
-
-cd $ROOTDIR
 ./runTests.sh
 
 TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
