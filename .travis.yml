@@ -74,33 +74,8 @@ after_success:
 jobs:
   include:
     - script:
-        - ./tools/travis/runUnitTests.sh
-        - ./tools/travis/checkAndUploadLogs.sh unit db
+        -  ./gradlew :core:standalone:build
       name: "Unit Tests"
-    - script:
-       - ./tools/travis/runSystemTests.sh
-       - ./tools/travis/checkAndUploadLogs.sh system
-      name: "System Tests"
-    - script:
-      - ./tools/travis/runMultiRuntimeTests.sh
-      - ./tools/travis/checkAndUploadLogs.sh multi-runtime
-      name: "Multi-Runtime Tests"
-    - script:
-        - ./tests/performance/preparation/deploy.sh
-        - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
-        - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
-        - OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
-        - OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
-        - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
-        - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
-        # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
-        - OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
-        - ./tools/travis/checkAndUploadLogs.sh perf
-      name: "Performance Tests"
 
 before_deploy:
   - export RELEASE_JAR_FILE="$TRAVIS_BUILD_DIR/bin/openwhisk-standalone.jar"
@@ -112,14 +87,14 @@ before_deploy:
       export TAG=true;
     fi
   # This tag is automatically generated for the latest merged commit in master branch.
-  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
+  - if [ "$TRAVIS_BRANCH" == "standalone-release" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
       git config --global user.email "builds@travis-ci.com";
       git config --global user.name "Travis CI";
       export GIT_TAG="latest";
       git tag -d $GIT_TAG;
-      git push -q https://$API_KEY@github.com/apache/incubator-openwhisk :refs/tags/$GIT_TAG;
+      git push -q https://$API_KEY@github.com/chetanmeh/incubator-openwhisk :refs/tags/$GIT_TAG;
       GIT_COMMITTER_DATE="$(git show --format=%aD | head -1)" git tag $GIT_TAG -a -m "Generated tag from Travis CI build $TRAVIS_BUILD_NUMBER";
-      git push -f -q https://$API_KEY@github.com/apache/incubator-openwhisk $GIT_TAG;
+      git push -f -q https://$API_KEY@github.com/chetanmeh/incubator-openwhisk $GIT_TAG;
     fi
   - echo "The GIT_TAG of this Travis build is $GIT_TAG."
 
@@ -133,7 +108,7 @@ deploy:
   target_commitish: $TRAVIS_COMMIT
   tag_name: $GIT_TAG
   on:
-    repo: apache/incubator-openwhisk
+    repo: chetanmeh/incubator-openwhisk
     tags: $TAG
     condition: "$DEPLOY_BUILD_READY = true"
   prerelease: true
