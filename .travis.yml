@@ -60,9 +60,16 @@ before_install:
   - ./tools/travis/docker.sh
   - pip install --upgrade pip setuptools six
   - pip3 install --upgrade pip setuptools six
+  - export DEPLOY_BUILD_READY=false
 
 install:
   - ./tools/travis/setup.sh
+
+after_success:
+  - export DEPLOY_BUILD_READY=true
+  - if [ "$TRAVIS_EVENT_TYPE" == "cron" ] ; then
+      export DEPLOY_BUILD_READY=false;
+    fi
 
 jobs:
   include:
@@ -94,3 +101,39 @@ jobs:
         - OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
         - ./tools/travis/checkAndUploadLogs.sh perf
       name: "Performance Tests"
+
+before_deploy:
+  - export RELEASE_JAR_FILE="$TRAVIS_BUILD_DIR/bin/openwhisk-standalone.jar"
+  - echo "Deploying $RELEASE_JAR_FILE to GitHub releases."
+  - export GIT_TAG="nightly"
+  - export TAG=false;
+  - if [ ! -z "$TRAVIS_TAG" ] ; then
+      export GIT_TAG=$TRAVIS_TAG;
+      export TAG=true;
+    fi
+  # This tag is automatically generated for the latest merged commit in master branch.
+  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
+      git config --global user.email "builds@travis-ci.com";
+      git config --global user.name "Travis CI";
+      export GIT_TAG="latest";
+      git tag -d $GIT_TAG;
+      git push -q https://$API_KEY@github.com/apache/incubator-openwhisk :refs/tags/$GIT_TAG;
+      GIT_COMMITTER_DATE="$(git show --format=%aD | head -1)" git tag $GIT_TAG -a -m "Generated tag from Travis CI build $TRAVIS_BUILD_NUMBER";
+      git push -f -q https://$API_KEY@github.com/apache/incubator-openwhisk $GIT_TAG;
+    fi
+  - echo "The GIT_TAG of this Travis build is $GIT_TAG."
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "46fubC1UPukvkVmkfClJKLzktvHfAxNfSKRJhG59UD5HpEF7i4ah9I0QkUTJ/MdWgm/9rDwCKy/DYhVf8kvKoDJuSDCHoAPs2B4BjrYzU5JO8RH6Fgyt9NNS4VGd3jGM+Y4pMV04dJ3ZJDQIkQ6icpC2cEwpSZFpSN6gTTBGJ0+q7Qv62DotwUODw/mUN6/6tpC5ek7NuI5sPyQRw5BXywELM3mUQN31WtblXt+c5CDOfJ6WtJ6TsZXdy21T1Oe8yFbCqnpSelZ/ZSOy/I+Bd/O3EovLeBvrHge8xRf8rmWPpjgknndkXr2KbTo8lP8+OMYVjlIwnv6T8NyF5P1Tz/z3t+fszvp9ndkxfuIH2kpRLabLLJpxF8f59Kmm67YC2SeOCVP41UNKGjkiaJErcmKB1k75A34A3jhYcgIb0PzQ+mzYEtyAbyneYyKUijLuqIPdPoNJgW2uoL2ka4tlhgKX/X3TE0foGSOeekgmeZe7lE741e3ZQrwup8uxZZOA/vF0YptUfo29VFdbqTEsoPMjbAdVFqLawewv2bBEVnqDKH8Cxx/hfE1WAmL96r2fbGGYQNl/kOqk/ZXiOFShF0iv44ld6AB/uluk9q49IJ8uhpdYDtER6dEakLCHqbdL2kX2l493p6eV/NNGUbtV66M7bgHwxmXQOBjUGC3SUsg="
+  file: bin/openwhisk-standalone.jar
+  overwrite: true
+  skip_cleanup: true
+  target_commitish: $TRAVIS_COMMIT
+  tag_name: $GIT_TAG
+  on:
+    repo: apache/incubator-openwhisk
+    tags: $TAG
+    condition: "$DEPLOY_BUILD_READY = true"
+  prerelease: true
