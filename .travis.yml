@@ -91,7 +91,7 @@ before_deploy:
   - if [ "$TRAVIS_BRANCH" == "standalone-release" ] && [ "$TRAVIS_EVENT_TYPE" == "push" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
       git config --global user.email "builds@travis-ci.com";
       git config --global user.name "Travis CI";
-      export GIT_TAG="latest";
+      export GIT_TAG="nightly";
       git tag -d $GIT_TAG;
       git push -q https://$API_KEY@github.com/chetanmeh/incubator-openwhisk :refs/tags/$GIT_TAG;
       GIT_COMMITTER_DATE="$(git show --format=%aD | head -1)" git tag $GIT_TAG -a -m "Generated tag from Travis CI build $TRAVIS_BUILD_NUMBER";
