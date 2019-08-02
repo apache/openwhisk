@@ -254,6 +254,7 @@ gradle.projectsEvaluated {
             showStandardStreams = true
             exceptionFormat = 'full'
         }
+        maxHeapSize = "1500m"
         outputs.upToDateWhen { false } // force tests to run every time
     }
 }
