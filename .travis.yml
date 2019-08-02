@@ -30,6 +30,7 @@ env:
   global:
     - ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
     - GRADLE_PROJS_SKIP=""
+    # Defines the API_KEY used to create tag for release
     - secure: "ChSOkhFvCMEj7dvthS9QUpfNDl8/x0lOTm2IHu2pupBRRGSJxCEZ6T4cIl6CAHWid1sSqMJjBBwZRPGzZsBDTWdWWaUBTJMmL4fRtW4MjP7P9Oi2Zjml7QFoehgMB18jKYmgTNSFTA9nE7pbOWW3aN6ootLvIB5jpfdgU07z81xIr5eXTOOjrYU2hFi5nRSiuNsK2HjogCUN+iIB09ubBYd/XJ6OCUQraH0BMj0FdMlyFRvYvrpddoCGmrKb6Axt2QCTRwfht8FTOX1CRBy/PLIJj3k4GtuOXnrSpFIdKREyGfqqiiPIYnncyNSFp8kzDA0N4/WfY7dzkm3TBoF2dox54V3pQcvnpJH9afAw8Jj7gxfTWaKhP/LKV+Fu1u3mKiWLpVmiqB6otpybl5KQnHGMxBgurvVxncOC/X34rjj32IGU+NAR7lO5u5Wn2FUeJw1sNe8HynPOdHE4SHhlttfv1LYD2BG4IJ5Qo2N6SFDI6OPIAWHyLiPwkg/vR1BOFxFxZBYkYliO1BZToFbZC7FFNntwgF1Cr2Ty+yuAXhNB//azXa4YEJ/VwVgizr3uhOyE0iwlRdogQnQhhYacSS/c4VLcpyX/8e52OC4JI5ZWUXMoqC1vcd+H6wz8Kx/qwY5brVmSNERIGhHAr5paUqBYEa5HsMACgtMYx75qOj4="
 
 notifications:
@@ -126,6 +127,7 @@ before_deploy:
 
 deploy:
   provider: releases
+  # Secure key here is the encrypted Github access token.
   api_key:
     secure: "BmUqo91TCbfhsLIIeeDPlg1501jigTOy3nmrKq13rq7lAGYUeGQcS3lwuRltnzDhZidwGXgXxMnCuc4gh5UIAia2uB0wQ5538njQMr0xQGgN9rbbXThTgoKXE+lSga0rBsLP/MCTB+7LaUoHXAUXFL7U7rJoyhG8jz9esQBIO12/3Nd8RZf991j0ddY+PBD768pQQ+FQjQPLuZxAFQXSlAiCkJj/l/LR1v51N94+5B9WIoSTuAVqb2E//0UMu+o+a5w3/eM9+owfZRJeLhKwERE9HSGWN/AeVbxJLYwKRiYo9fTVbOaMPEcvcZX2lTcvKlZbVmKioafvJuIBwJp3iO53nVH+MiMgs0qrSTQMQZVYFrEz58pJ6/LkUPkdM4Rn/HHZ3rn+pJh+hZLfKxocoXjUjs2fHMYfi4QHVt5N1CvqzdJmUEU2J9byr/LyIkp1XnmWgSvV7KbmWwiD6gI/vTfWyILWQZVWaOkqAriB3FH75Lx+Ni7x0+FtyIp7qeLpo6dx+alRAVgChhpw3qQto5kdq8+tJMKRhugEXWs2ng/NxCBoHFo7m4XWYIHAqFL5KdNUbfCQpkkW3zg+6camdeupd3vsUAnBtU231CTz6JDaWXMOYXC1izBwAXHgVgZ3Uq1IckBzAHHn3wWFVOr6JQnZbE5W01KoBRwNVwgs3ic="
   file: bin/openwhisk-standalone.jar
