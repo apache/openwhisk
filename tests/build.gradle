@@ -46,7 +46,7 @@ def projectsWithCoverage = [
     ':core:controller',
     ':core:invoker',
     ':tools:admin',
-    ':core:cosmosdb:cache-invalidator:reportScoverage'
+    ':core:cosmosdb:cache-invalidator'
 ]
 
 def systemIncludes = [
