@@ -27,12 +27,6 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
 
-ext.coverageJars = [
-    "${buildDir}/libs/${project.archivesBaseName}-$version-scoverage.jar",
-    "${project(':common:scala').buildDir.absolutePath}/libs/openwhisk-common-$version-scoverage.jar"
-]
-distDockerCoverage.dependsOn ':common:scala:jarScoverage', 'jarScoverage'
-
 repositories {
     mavenCentral()
 }
@@ -45,7 +39,6 @@ dependencies {
         exclude group: 'commons-logging'
     }
     compile 'com.typesafe.akka:akka-stream-kafka_2.12:1.0'
-    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {
