@@ -22,7 +22,8 @@ apply plugin: 'maven'
 apply plugin: 'org.scoverage'
 
 ext.dockerImageName = 'cache-invalidator-cosmosdb'
-apply from: '../../gradle/docker.gradle'
+/*apply from: '../../gradle/docker.gradle'*/
+apply from: "${project.rootProject.projectDir.absolutePath}/gradle/docker.gradle"
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
