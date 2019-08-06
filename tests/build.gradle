@@ -255,7 +255,7 @@ gradle.projectsEvaluated {
             showStandardStreams = true
             exceptionFormat = 'full'
         }
-        maxHeapSize = "1500m"
+        maxHeapSize = "1024m" //Gradle 5.5 defaults to 512MB which is low
         outputs.upToDateWhen { false } // force tests to run every time
     }
     /**
