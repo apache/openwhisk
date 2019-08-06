@@ -29,13 +29,6 @@ plugins {
     id "org.scoverage" version "3.1.5" apply false
 }
 
-apply plugin: 'org.scoverage'
-
-allprojects {
-    repositories{
-        jcenter()
-    }
-}
 
 buildScan {
     termsOfServiceUrl = 'https://gradle.com/terms-of-service'
