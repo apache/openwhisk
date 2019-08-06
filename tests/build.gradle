@@ -194,6 +194,7 @@ dependencies {
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
     compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
     compile 'com.typesafe.akka:akka-stream-kafka-testkit_2.12:1.0'
+    compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
 
@@ -257,6 +258,30 @@ gradle.projectsEvaluated {
         maxHeapSize = "1500m"
         outputs.upToDateWhen { false } // force tests to run every time
     }
+    /**
+     * Task to generate coverage xml report. Requires the
+     * tests to be executed prior to its invocation
+     */
+    task reportCoverage(type: ScoverageReport) {
+        def dependentTasks = []
+        dependentTasks << copyMeasurementFiles
+        projectsWithCoverage.forEach {
+            dependentTasks << it + ':reportScoverage'
+        }
+        dependsOn(dependentTasks)
+        //Need to recreate the logic from
+        //https://github.com/scoverage/gradle-scoverage/blob/924bf49a8f981f119d0604b44a782f3f8eecb359/src/main/groovy/org/scoverage/ScoveragePlugin.groovy#L137
+        //default tasks retrigger the tests. As ours is a multi module integration
+        //test we have to adapt the classpath and hence cannot use default reportXXXScoverage tasks
+        runner = new org.scoverage.ScoverageRunner(project.configurations.scoverage)
+        reportDir = reportTestScoverage.reportDir
+        sources = reportTestScoverage.sources
+        dataDir = reportTestScoverage.dataDir
+        coverageOutputCobertura = reportTestScoverage.coverageOutputCobertura
+        coverageOutputXML = reportTestScoverage.coverageOutputXML
+        coverageOutputHTML = reportTestScoverage.coverageOutputHTML
+        coverageDebug = reportTestScoverage.coverageDebug
+    }
 }
 
 task copyMeasurementFiles() {
@@ -278,18 +303,6 @@ task copyMeasurementFiles() {
     }
 }
 
-/**
- * Task to generate coverage xml report. Requires the
- * tests to be executed prior to its invocation
- */
-task reportCoverage(type: ScoverageReport) {
-    def dependentTasks = []
-    dependentTasks << copyMeasurementFiles
-    projectsWithCoverage.forEach {
-        dependentTasks << it + ':reportScoverage'
-    }
-    dependsOn(dependentTasks)
-}
 
 /**
  * Scoverage measurement files are named like scoverage.measurements.xxx. Where xxx is thread id. While
