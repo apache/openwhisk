@@ -270,7 +270,7 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
       "CONFIG_whisk_containerPool_akkaClient": "{{ container_pool_akka_client | default('false') | string }}"
-      "CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0": "__OW_ALLOW_CONCURRENT={{ runtimes_enable_concurrency | default('false') }}"
+      "CONFIG_whisk_containerFactory_containerArgs_extraEnvVars_0": "__OW_ALLOW_CONCURRENT={{ runtimes_enable_concurrency | default('false') }}"
       "CONFIG_whisk_invoker_protocol": "{{ invoker.protocol }}"
       "CONFIG_whisk_invoker_https_keystorePath": "/conf/{{ invoker.ssl.keystore.name }}"
       "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"

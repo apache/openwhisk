@@ -94,6 +94,7 @@ class MesosContainerFactoryTest
       Seq("dns1", "dns2"),
       Seq.empty,
       Seq.empty,
+      Seq.empty,
       Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
 
   private var factory: MesosContainerFactory = _
@@ -271,6 +272,7 @@ class MesosContainerFactoryTest
       Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
       new ContainerArgsConfig(
         "bridge",
+        Seq.empty,
         Seq.empty,
         Seq.empty,
         Seq.empty,

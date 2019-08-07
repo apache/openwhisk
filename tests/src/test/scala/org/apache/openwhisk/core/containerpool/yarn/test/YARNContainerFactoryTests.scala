@@ -84,6 +84,7 @@ class YARNContainerFactoryTests
       Seq("dns1", "dns2"),
       Seq.empty,
       Seq.empty,
+      Seq.empty,
       Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
   val yarnConfig =
     YARNConfig(
