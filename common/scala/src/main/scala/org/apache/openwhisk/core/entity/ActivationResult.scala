@@ -55,18 +55,19 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   /* The field name that is universally recognized as the marker of an error, from the application or otherwise. */
   val ERROR_FIELD: String = "error"
 
+  // These constants need to be synchronized with messageForCode() method below
   val Success = 0 // action ran successfully and produced a result
   val ApplicationError = 1 // action ran but there was an error and it was handled
   val DeveloperError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize
   val WhiskError = 3 // internal system error
 
   protected[core] def messageForCode(code: Int) = {
-    require(code >= 0 && code <= 3)
+    require(code >= Success && code <= WhiskError)
     code match {
-      case 0 => "success"
-      case 1 => "application error"
-      case 2 => "action developer error"
-      case 3 => "whisk internal error"
+      case Success          => "success"
+      case ApplicationError => "application error"
+      case DeveloperError   => "action developer error"
+      case WhiskError       => "whisk internal error"
     }
   }
 
