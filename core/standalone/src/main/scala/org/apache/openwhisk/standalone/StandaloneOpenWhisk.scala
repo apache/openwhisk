@@ -123,7 +123,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   def initialize(conf: Conf): Unit = {
     configureBuildInfo()
     configureServerPort(conf)
-    configureOSSpecificOpts()
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
@@ -194,19 +193,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         Await.ready(admin.executeCommand(), 60.seconds)
         logging.info(this, s"Created user [$subject]")
     }
-  }
-
-  private def configureOSSpecificOpts(): Unit = {
-    setSysProp(
-      "whisk.spi.ContainerFactoryProvider",
-      "org.apache.openwhisk.core.containerpool.docker.StandaloneDockerContainerFactoryProvider")
-
-    //Disable runc by default to keep things stable
-    setSysProp("whisk.docker.container-factory.use-runc", "False")
-
-    //Use cli based log store for all setups as its more stable to use
-    // and does not require root user access
-    setSysProp("whisk.spi.LogStoreProvider", "org.apache.openwhisk.core.containerpool.docker.DockerCliLogStoreProvider")
   }
 
   private def localHostName = {
