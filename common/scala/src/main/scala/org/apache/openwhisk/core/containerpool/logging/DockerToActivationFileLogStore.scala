@@ -123,8 +123,12 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val isTimedoutActivation = activation.isTimedoutActivation
-    val logs = logStream(transid, container, action, isTimedoutActivation)
+    val logs = logStream(
+      transid,
+      container,
+      action.limits.logs,
+      action.exec.sentinelledLogs,
+      activation.response.isContainerError) // container error means developer error
 
     // Adding the userId field to every written record, so any background process can properly correlate.
     val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)
@@ -150,8 +154,10 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
     val combined = OwSink.combine(toSeq, toFile)(Broadcast[ByteString](_))
 
     logs.runWith(combined)._1.flatMap { seq =>
+      // Messages.logWarningDeveloperError shows up if the activation ends in a developer error.
+      // This must not be reported as log collection error.
       val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-      val errored = isTimedoutActivation || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+      val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
       val logs = ActivationLogs(seq.toVector)
       if (!errored) {
         Future.successful(logs)

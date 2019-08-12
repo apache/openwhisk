@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.logging
 
 import java.time.Instant
+
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -25,15 +26,13 @@ import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, LogLimit, WhiskActivation}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 
 import scala.concurrent.{ExecutionContext, Future}
-
 import spray.json._
 
 /**
@@ -75,8 +74,19 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   /**
    * Obtains the container's stdout and stderr output.
    *
-   * In case of a timed out activation do not wait for a sentinel to appear but instead
-   * collect the log as is and add a message to the log that data might be missing
+   * Managed action runtimes are expected to produce sentinels on developer errors during
+   * init and run. For certain developer errors like process abortion due to unhandled errors
+   * or memory limit exhaustion, the action runtime will likely not be able to produce sentinels.
+   *
+   * In addition, there are situations where user actions (un)intentionally cause a developer error
+   * in a managed action runtime and prevent the production of sentinels. In that case, log file
+   * reading may continue endlessly.
+   *
+   * For these reasons, do not wait for sentinels to appear in log output when activations end up
+   * in a developer error. It is expected that sentinels are filtered in container.logs() even
+   * if they are not waited for.
+   *
+   * In case of a developer error, append a warning message to the logs that data might be missing.
    *
    * @param transid transaction id
    * @param container container to obtain the log from
@@ -87,16 +97,18 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
    */
   protected def logStream(transid: TransactionId,
                           container: Container,
-                          action: ExecutableWhiskAction,
-                          isTimedoutActivation: Boolean): Source[ByteString, Any] = {
+                          logLimit: LogLimit,
+                          sentinelledLogs: Boolean,
+                          isDeveloperError: Boolean): Source[ByteString, Any] = {
 
-    // wait for a sentinel only if no container (developer) error occurred to avoid
-    // that log collection continues if the action code still logs after timeout
-    val sentinel = action.exec.sentinelledLogs && !isTimedoutActivation
-    val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
-    val logsWithPossibleError = if (isTimedoutActivation) {
+    // Wait for a sentinel only if no container (developer) error occurred to avoid
+    // that log collection continues if the action code still logs after developer error.
+    val waitForSentinel = sentinelledLogs && !isDeveloperError
+    val logs = container.logs(logLimit.asMegaBytes, waitForSentinel)(transid)
+    val logsWithPossibleError = if (isDeveloperError) {
       logs.concat(
-        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
+        Source.single(
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logWarningDeveloperError).toJson.compactPrint)))
     } else logs
     logsWithPossibleError
   }
@@ -107,15 +119,21 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val isTimedoutActivation = activation.isTimedoutActivation
-    val logs = logStream(transid, container, action, isTimedoutActivation)
+    val logs = logStream(
+      transid,
+      container,
+      action.limits.logs,
+      action.exec.sentinelledLogs,
+      activation.response.isContainerError) // container error means developer error
 
     logs
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
+        // Messages.logWarningDeveloperError shows up if the activation ends in a developer error.
+        // This must not be reported as log collection error.
         val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-        val errored = isTimedoutActivation || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
+        val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
         val logs = ActivationLogs(seq.toVector)
         if (!errored) {
           Future.successful(logs)
