@@ -189,5 +189,5 @@ whisk {
 
 Then pass this config file via `-c` option.
 
-[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
-[2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
+[1]: https://github.com/apache/openwhisk/blob/master/docs/cli.md
+[2]: https://github.com/apache/openwhisk/blob/master/docs/samples.md

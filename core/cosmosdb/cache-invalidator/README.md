@@ -62,5 +62,5 @@ event is generated:
 
 [1]: https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed
 [2]: https://github.com/Azure/azure-documentdb-changefeedprocessor-java
-[3]: https://github.com/apache/incubator-openwhisk-devtools/tree/master/docker-compose
+[3]: https://github.com/apache/openwhisk-devtools/tree/master/docker-compose
 [4]: https://github.com/Landoop/kafka-topics-ui

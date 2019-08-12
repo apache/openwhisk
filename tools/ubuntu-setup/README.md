@@ -30,7 +30,7 @@ Your local machine can act as the bootstrapper as well if it can connect to the 
   sudo apt-get install git -y
 
   # Clone openwhisk
-  git clone https://github.com/apache/incubator-openwhisk.git openwhisk
+  git clone https://github.com/apache/openwhisk.git openwhisk
 
   # Change current directory to openwhisk
   cd openwhisk

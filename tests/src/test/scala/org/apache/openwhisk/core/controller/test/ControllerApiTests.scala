@@ -48,7 +48,7 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
 
     val expectedJson = JsObject(
       "support" -> JsObject(
-        "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
+        "github" -> "https://github.com/apache/openwhisk/issues".toJson,
         "slack" -> "http://slack.openwhisk.org".toJson),
       "description" -> "OpenWhisk".toJson,
       "api_paths" -> JsArray("/api/v1".toJson),

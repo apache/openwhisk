@@ -27,23 +27,23 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 
 | Package | Description |
 | --- | --- |
-| [/whisk.system/alarms](https://github.com/apache/incubator-openwhisk-package-alarms/blob/master/README.md) | Package to create periodic triggers |
-| [/whisk.system/cloudant](https://github.com/apache/incubator-openwhisk-package-cloudant/blob/master/README.md) | Package to work with [Cloudant NoSQL DB](https://console.ng.bluemix.net/docs/services/Cloudant/index.html) service |
-| [/whisk.system/github](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/github/README.md) | Package to create webhook triggers for [GitHub](https://developer.github.com/) |
-| [/whisk.system/messaging](https://github.com/apache/incubator-openwhisk-package-kafka/blob/master/README.md) | Package to work with [Message Hub](https://console.ng.bluemix.net/docs/services/MessageHub/index.html) service |
-| [/whisk.system/pushnotifications](https://github.com/apache/incubator-openwhisk-package-pushnotifications/blob/master/README.md) | Package to work with [Push Notification](https://console.ng.bluemix.net/docs/services/mobilepush/index.html) service |
-| [/whisk.system/slack](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/slack/README.md) | Package to post to the [Slack APIs](https://api.slack.com/) |
-| [/whisk.system/watson-translator](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for [text translation and language identification](https://www.ibm.com/watson/developercloud/language-translator.html) |
-| [/whisk.system/watson-speechToText](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert [speech into text](https://www.ibm.com/watson/developercloud/speech-to-text.html) |
-| [/whisk.system/watson-textToSpeech](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech](https://www.ibm.com/watson/developercloud/text-to-speech.html) |
-| [/whisk.system/weather](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/weather/README.md) | Package to work with [Weather Company Data](https://console.ng.bluemix.net/docs/services/Weather/index.html) service |
-| [/whisk.system/websocket](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/websocket/README.md) | Package to work with a [Web Socket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) server |
+| [/whisk.system/alarms](https://github.com/apache/openwhisk-package-alarms/blob/master/README.md) | Package to create periodic triggers |
+| [/whisk.system/cloudant](https://github.com/apache/openwhisk-package-cloudant/blob/master/README.md) | Package to work with [Cloudant NoSQL DB](https://console.ng.bluemix.net/docs/services/Cloudant/index.html) service |
+| [/whisk.system/github](https://github.com/apache/openwhisk-catalog/blob/master/packages/github/README.md) | Package to create webhook triggers for [GitHub](https://developer.github.com/) |
+| [/whisk.system/messaging](https://github.com/apache/openwhisk-package-kafka/blob/master/README.md) | Package to work with [Message Hub](https://console.ng.bluemix.net/docs/services/MessageHub/index.html) service |
+| [/whisk.system/pushnotifications](https://github.com/apache/openwhisk-package-pushnotifications/blob/master/README.md) | Package to work with [Push Notification](https://console.ng.bluemix.net/docs/services/mobilepush/index.html) service |
+| [/whisk.system/slack](https://github.com/apache/openwhisk-catalog/blob/master/packages/slack/README.md) | Package to post to the [Slack APIs](https://api.slack.com/) |
+| [/whisk.system/watson-translator](https://github.com/apache/openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for [text translation and language identification](https://www.ibm.com/watson/developercloud/language-translator.html) |
+| [/whisk.system/watson-speechToText](https://github.com/apache/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert [speech into text](https://www.ibm.com/watson/developercloud/speech-to-text.html) |
+| [/whisk.system/watson-textToSpeech](https://github.com/apache/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech](https://www.ibm.com/watson/developercloud/text-to-speech.html) |
+| [/whisk.system/weather](https://github.com/apache/openwhisk-catalog/blob/master/packages/weather/README.md) | Package to work with [Weather Company Data](https://console.ng.bluemix.net/docs/services/Weather/index.html) service |
+| [/whisk.system/websocket](https://github.com/apache/openwhisk-catalog/blob/master/packages/websocket/README.md) | Package to work with a [Web Socket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) server |
 
 <!--
 TODO: place holder until we have a README for samples
-| [/whisk.system/samples](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/samples/README.md) | offers sample actions in different languages |
+| [/whisk.system/samples](https://github.com/apache/openwhisk-catalog/blob/master/packages/samples/README.md) | offers sample actions in different languages |
 -->
 <!--
 TODO: place holder until we have a README for utils
-| [/whisk.system/utils](https://github.com/apache/incubator-openwhisk-catalog/blob/master/packages/utils/README.md) | offers utilities actions such as cat, echo, and etc. |
+| [/whisk.system/utils](https://github.com/apache/openwhisk-catalog/blob/master/packages/utils/README.md) | offers utilities actions such as cat, echo, and etc. |
 -->
