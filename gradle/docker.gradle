@@ -74,8 +74,8 @@ task distDockerCoverage() {
         //Copy the scoverage runtime jars
         copy {from configurations.scoverage - configurations.compile; into "build/tmp/docker-coverage/ext-lib"}
         //Copy the scoverage prepared jars
-        coverageJars.each {jar ->
-            copy {from file(jar); into "build/tmp/docker-coverage/lib"; rename { it.replace('-scoverage', '')}}
+        coverageDirs.each {dir ->
+            copy {from file(dir); into "build/tmp/docker-coverage/classes"}
         }
 
         def buildArgs = [
