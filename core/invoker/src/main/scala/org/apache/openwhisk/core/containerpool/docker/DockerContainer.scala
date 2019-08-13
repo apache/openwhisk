@@ -259,24 +259,26 @@ class DockerContainer(protected val id: ContainerId,
    *
    * There are two possible modes controlled by parameter waitForSentinel:
    *
-   * 1. Wait for sentinel: tail container log file until two sentinel markers show up. Complete
-   *                       once two sentinel markers have been identified, regardless whether more
-   *                       data could be read from container log file.
-   *                       A log file reading error is reported if sentinels cannot be found.
-   *                       Managed action runtimes use the the sentinels to mark the end of
-   *                       an individual activation.
+   * 1. Wait for sentinel:
+   *    Tail container log file until two sentinel markers show up. Complete
+   *    once two sentinel markers have been identified, regardless whether more
+   *    data could be read from container log file.
+   *    A log file reading error is reported if sentinels cannot be found.
+   *    Managed action runtimes use the the sentinels to mark the end of
+   *    an individual activation.
    *
-   * 2. Do not wait for sentinel: read container log file up to its end. Stop reading once the end
-   *                              has been reached. Complete once two sentinel markers have been
-   *                              identified, regardless whether more data could be read from
-   *                              container log file.
-   *                              No log file reading error is reported if sentinels cannot be found.
-   *                              Blackbox actions do not necessarily produce marker sentinels properly,
-   *                              so this mode is used for all blackbox actions.
-   *                              In addition, this mode can / should be used in error situations with
-   *                              managed action runtimes where sentinel markers may be missing or
-   *                              arrive too late - Example: action exceeds time or memory limit during
-   *                              init or run.
+   * 2. Do not wait for sentinel:
+   *    Read container log file up to its end. Stop reading once the end
+   *    has been reached. Complete once two sentinel markers have been
+   *    identified, regardless whether more data could be read from
+   *    container log file.
+   *    No log file reading error is reported if sentinels cannot be found.
+   *    Blackbox actions do not necessarily produce marker sentinels properly,
+   *    so this mode is used for all blackbox actions.
+   *    In addition, this mode can / should be used in error situations with
+   *    managed action runtimes where sentinel markers may be missing or
+   *    arrive too late - Example: action exceeds time or memory limit during
+   *    init or run.
    *
    * The result returned from this method does never contain any log sentinel markers. These are always
    * filtered - regardless of the specified waitForSentinel mode.
