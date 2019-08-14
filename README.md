@@ -19,13 +19,13 @@
 
 # OpenWhisk
 
-[![Build Status](https://travis-ci.org/apache/incubator-openwhisk.svg?branch=master)](https://travis-ci.org/apache/incubator-openwhisk)
+[![Build Status](https://travis-ci.org/apache/openwhisk.svg?branch=master)](https://travis-ci.org/apache/openwhisk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Join Slack](https://img.shields.io/badge/join-slack-9B69A0.svg)](http://slack.openwhisk.org/)
-[![codecov](https://codecov.io/gh/apache/incubator-openwhisk/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/incubator-openwhisk)
+[![codecov](https://codecov.io/gh/apache/openwhisk/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/openwhisk)
 [![Twitter](https://img.shields.io/twitter/follow/openwhisk.svg?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=openwhisk)
 
-OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at [http://openwhisk.incubator.apache.org](http://openwhisk.incubator.apache.org).
+OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at [http://openwhisk.apache.org](http://openwhisk.apache.org).
 
 
 * [Quick Start](#quick-start) (Docker-Compose)
@@ -40,22 +40,22 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 The easiest way to start using OpenWhisk is to get Docker installed on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has detailed instructions on getting the tools installed. This does not give you a production deployment but gives you enough of the pieces to start writing functions and seeing them run.
 
 ```
-git clone https://github.com/apache/incubator-openwhisk-devtools.git
-cd incubator-openwhisk-devtools/docker-compose
+git clone https://github.com/apache/openwhisk-devtools.git
+cd openwhisk-devtools/docker-compose
 make quick-start
 ```
 
-For more detailed instructions or if you encounter problems see the [OpenWhisk-dev tools](https://github.com/apache/incubator-openwhisk-devtools/blob/master/docker-compose/README.md) project.
+For more detailed instructions or if you encounter problems see the [OpenWhisk-dev tools](https://github.com/apache/openwhisk-devtools/blob/master/docker-compose/README.md) project.
 
 ### Kubernetes Setup
 
 Another path to quickly starting to use OpenWhisk is to install it on a Kubernetes cluster.  On a Mac, you can use the Kubernetes support built into Docker 18.06 (or higher). You can also deploy OpenWhisk on Minikube, on a managed Kubernetes cluster provisioned from a public cloud provider, or on a Kubernetes cluster you manage yourself. To get started,
 
 ```
-git clone https://github.com/apache/incubator-openwhisk-deploy-kube.git
+git clone https://github.com/apache/openwhisk-deploy-kube.git
 ```
 
-Then follow the instructions in the [OpenWhisk on Kubernetes README.md](https://github.com/apache/incubator-openwhisk-deploy-kube/blob/master/README.md).
+Then follow the instructions in the [OpenWhisk on Kubernetes README.md](https://github.com/apache/openwhisk-deploy-kube/blob/master/README.md).
 
 ### Vagrant Setup
 A [Vagrant](http://vagrantup.com) machine is also available to run OpenWhisk on Mac, Windows PC or GNU/Linux but isn't used by as much of the dev team so sometimes lags behind.
@@ -66,7 +66,7 @@ Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and
 Follow these step to run your first OpenWhisk Action:
 ```
 # Clone openwhisk
-git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
+git clone --depth=1 https://github.com/apache/openwhisk.git openwhisk
 
 # Change directory to tools/vagrant
 cd openwhisk/tools/vagrant
@@ -124,4 +124,4 @@ Report bugs, ask questions and request features [here on GitHub](../../issues).
 
 ### Slack
 
-You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com](https://openwhisk-team.slack.com) and chat with developers. To get access to our public slack team, request an invite [https://openwhisk.incubator.apache.org/slack.html](https://openwhisk.incubator.apache.org/slack.html).
+You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com](https://openwhisk-team.slack.com) and chat with developers. To get access to our public slack team, request an invite [https://openwhisk.apache.org/slack.html](https://openwhisk.apache.org/slack.html).

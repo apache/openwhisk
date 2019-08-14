@@ -23,14 +23,14 @@ SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 HOMEDIR="$SCRIPTDIR/../../../"
-UTILDIR="$HOMEDIR/incubator-openwhisk-utilities/"
+UTILDIR="$HOMEDIR/openwhisk-utilities/"
 
 cd $ROOTDIR
 ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
 
 # clone the openwhisk utilities repo.
 cd $HOMEDIR
-git clone https://github.com/apache/incubator-openwhisk-utilities.git
+git clone https://github.com/apache/openwhisk-utilities.git
 
 # run the scancode util. against project source code starting at its root
 cd $UTILDIR

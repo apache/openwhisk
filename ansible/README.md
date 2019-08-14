@@ -202,25 +202,25 @@ There are two installation modes to install `wsk` CLI: remote and local.
 The mode "remote" means to download the `wsk` binaries from available web links.
 By default, OpenWhisk sets the installation mode to remote and downloads the
 binaries from the CLI
-[release page](https://github.com/apache/incubator-openwhisk-cli/releases),
+[release page](https://github.com/apache/openwhisk-cli/releases),
 where OpenWhisk publishes the official `wsk` binaries.
 
 The mode "local" means to build and install the `wsk` binaries from local CLI
 project. You can download the source code of OpenWhisk CLI
-[here](https://github.com/apache/incubator-openwhisk-cli).
+[here](https://github.com/apache/openwhisk-cli).
 Let's assume your OpenWhisk CLI home directory is
-`$OPENWHISK_HOME/../incubator-openwhisk-cli` and you've already `export`ed
+`$OPENWHISK_HOME/../openwhisk-cli` and you've already `export`ed
 `OPENWHISK_HOME` to be the root directory of this project. After you download
 the CLI repository, use the gradle command to build the binaries (you can omit
 the `-PnativeBuild` if you want to cross-compile for all supported platforms):
 
 ```
-cd "$OPENWHISK_HOME/../incubator-openwhisk-cli"
+cd "$OPENWHISK_HOME/../openwhisk-cli"
 ./gradlew releaseBinaries -PnativeBuild
 ```
 
 The binaries are generated and put into a tarball in the folder
-`../incubator-openwhisk-cli/release`.  Then, use the following Ansible command
+`../openwhisk-cli/release`.  Then, use the following Ansible command
 to (re-)configure the CLI installation:
 
 ```
@@ -228,13 +228,13 @@ export OPENWHISK_ENVIRONMENT=local  # ... or whatever
 ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml -e mode=clean
 ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml \
     -e cli_installation_mode=local \
-    -e openwhisk_cli_home="$OPENWHISK_HOME/../incubator-openwhisk-cli"
+    -e openwhisk_cli_home="$OPENWHISK_HOME/../openwhisk-cli"
 ```
 
 The parameter `cli_installation_mode` specifies the CLI installation mode and
 the parameter `openwhisk_cli_home` specifies the home directory of your local
 OpenWhisk CLI.  (_n.b._ `openwhisk_cli_home` defaults to
-`$OPENWHISK_HOME/../incubator-openwhisk-cli`.)
+`$OPENWHISK_HOME/../openwhisk-cli`.)
 
 Once the CLI is installed, you can [use it to work with Whisk](../docs/cli.md).
 

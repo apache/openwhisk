@@ -46,7 +46,7 @@ RUN wget --no-verbose https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER
   chmod +x /usr/bin/docker
 
 # # Install `wsk` cli in /usr/local/bin
-RUN wget -q https://github.com/apache/incubator-openwhisk-cli/releases/download/$WHISK_CLI_VERSION/OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz && \
+RUN wget -q https://github.com/apache/openwhisk-cli/releases/download/$WHISK_CLI_VERSION/OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz && \
   tar xzf OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz -C /usr/local/bin wsk && \
   rm OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz
 

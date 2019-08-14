@@ -190,7 +190,7 @@ object Controller {
     JsObject(
       "description" -> "OpenWhisk".toJson,
       "support" -> JsObject(
-        "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
+        "github" -> "https://github.com/apache/openwhisk/issues".toJson,
         "slack" -> "http://slack.openwhisk.org".toJson),
       "api_paths" -> apis.toJson,
       "limits" -> JsObject(

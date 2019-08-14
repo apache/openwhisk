@@ -17,7 +17,7 @@
 #
 -->
 # OpenWhisk samples
-Here is a list of [OpenWhisk community resources](https://github.com/apache/incubator-openwhisk-external-resources), which includes more samples, complete OpenWhisk applications, articles, tutorials, podcasts and much more.
+Here is a list of [OpenWhisk community resources](https://github.com/apache/openwhisk-external-resources), which includes more samples, complete OpenWhisk applications, articles, tutorials, podcasts and much more.
 
 <!-- TODO
 "Complete listing of OpenWhisk samples can be found here." <- need to insert a link to the OpenWhisk samples repo when there is one -->
@@ -75,4 +75,4 @@ You can also use the event-driven capabilities in OpenWhisk to invoke this actio
 
 ## CLI tutorial
 
-If you prefer learning while doing, consider using this [OpenWhisk Workshop](https://github.com/apache/incubator-openwhisk-workshop).
+If you prefer learning while doing, consider using this [OpenWhisk Workshop](https://github.com/apache/openwhisk-workshop).

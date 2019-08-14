@@ -21,7 +21,7 @@
 OpenWhisk actions can benefit from being managed by API management.
 
 The API Gateway can act as a proxy to [Web Actions](webactions.md) and provides them with additional features including HTTP method routing , client id/secrets, rate limiting and CORS.
-For more information on API Gateway feature you can read the [api management documentation](https://github.com/apache/incubator-openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md)
+For more information on API Gateway feature you can read the [api management documentation](https://github.com/apache/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md)
 
 
 ## Create APIs from OpenWhisk web actions using the CLI
@@ -215,7 +215,7 @@ ok: deleted API /club
 ```
 ### Changing the configuration
 
-You can edit the configuration file to configure API Gateway extensions such as disabling or enabling CORS, for more info on the format of the configuration file refer to the API Gateway [docs](https://github.com/apache/incubator-openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md#gateway-specific-extensions).
+You can edit the configuration file to configure API Gateway extensions such as disabling or enabling CORS, for more info on the format of the configuration file refer to the API Gateway [docs](https://github.com/apache/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md#gateway-specific-extensions).
 
 ### Importing the configuration
 

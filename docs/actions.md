@@ -27,7 +27,7 @@ observable output.
 An action may be created from a function programmed using a number of [supported languages and runtimes](#languages-and-runtimes),
 or from a binary-compatible executable, or even executables packaged as Docker containers.
 
-* The OpenWhisk CLI [`wsk`](https://github.com/apache/incubator-openwhisk-cli/releases)
+* The OpenWhisk CLI [`wsk`](https://github.com/apache/openwhisk-cli/releases)
 makes it easy to create and invoke actions. Instructions for configuring the CLI are available [here](cli.md).
 * You can also use the [REST API](rest_api.md).
 

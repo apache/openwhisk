@@ -19,7 +19,7 @@ mode: deploy
 lean: false
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
-openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
+openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../openwhisk-cli', true) }}"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -339,7 +339,7 @@ catalog_auth_key: "{{ playbook_dir }}/files/auth.whisk.system"
 #
 catalog_repos:
   openwhisk-catalog:
-    url: https://github.com/apache/incubator-openwhisk-catalog.git
+    url: https://github.com/apache/openwhisk-catalog.git
     # Set the local location as the same level as openwhisk home, but it can be changed.
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
@@ -369,7 +369,7 @@ openwhisk_cli:
   local:
     location: "{{ openwhisk_cli_home }}/build"
   remote:
-    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+    location: "https://github.com/apache/openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 # Controls access to log directories
 logs:

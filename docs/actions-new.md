@@ -103,7 +103,7 @@ The runtime repository should follow the canonical structure used by other runti
         └── ...          # ... which extend canonical interface plus additional runtime specific tests
 ```
 
-The [Docker skeleton repository](https://github.com/apache/incubator-openwhisk-runtime-docker)
+The [Docker skeleton repository](https://github.com/apache/openwhisk-runtime-docker)
 is an example starting point to fork and modify for your new runtime.
 
 ### The test action
@@ -232,7 +232,7 @@ will destroy the container.
 
 The proxy must flush all the logs produced during initialization and execution and add a frame marker
 to denote the end of the log stream for an activation. This is done by emitting the token
-[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
+[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
 as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
 or truncated activation logs.
 

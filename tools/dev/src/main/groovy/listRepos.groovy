@@ -47,7 +47,7 @@ while ( link ) {
     // add all projects matching naming conventions
     def result = parser.parse(conn.inputStream)
     owRepos += result
-            .findAll { it.name.startsWith('incubator-openwhisk') }
+            .findAll { it.name.startsWith('openwhisk') }
 
     // find link to next page, if applicable
     link = null
