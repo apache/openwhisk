@@ -40,7 +40,6 @@ import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.apache.openwhisk.core.containerpool.Container
 import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.http.Messages
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -123,12 +122,9 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val logs = logStream(
-      transid,
-      container,
-      action.limits.logs,
-      action.exec.sentinelledLogs,
-      activation.response.isContainerError) // container error means developer error
+    val logLimit = action.limits.logs
+    val isDeveloperError = activation.response.isContainerError // container error means developer error
+    val logs = logStream(transid, container, logLimit, action.exec.sentinelledLogs, isDeveloperError)
 
     // Adding the userId field to every written record, so any background process can properly correlate.
     val userIdField = Map("namespaceId" -> user.namespace.uuid.toJson)
@@ -154,12 +150,8 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
     val combined = OwSink.combine(toSeq, toFile)(Broadcast[ByteString](_))
 
     logs.runWith(combined)._1.flatMap { seq =>
-      // Messages.logWarningDeveloperError shows up if the activation ends in a developer error.
-      // This must not be reported as log collection error.
-      val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-      val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
       val logs = ActivationLogs(seq.toVector)
-      if (!errored) {
+      if (!isLogCollectingError(logs, logLimit, isDeveloperError)) {
         Future.successful(logs)
       } else {
         Future.failed(LogCollectingException(logs))

@@ -28,7 +28,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, LogLimit, WhiskActivation}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 
@@ -113,29 +113,61 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
     logsWithPossibleError
   }
 
+  /**
+   * Determine whether the passed activation log had a log collecting error or not.
+   * It is expected that the log collecting stream appends a message from a well known
+   * set of error messages if log collecting failed.
+   *
+   * If the activation failed due to a developer error, an additional error message is appended.
+   * In that case, the second last message indicates whether there was a log collecting error AND
+   * the last message MUST be the additional error message mentioned above.
+   *
+   * @param actLogs the activation logs to check
+   * @param logLimit the log limit applying to the activation
+   * @param isDeveloperError did activation fail due to developer error?
+   * @return true if log collecting failed, false otherwise
+   */
+  protected def isLogCollectingError(actLogs: ActivationLogs,
+                                     logLimit: LogLimit,
+                                     isDeveloperError: Boolean): Boolean = {
+    val logs = actLogs.logs
+    val logCollectingErrorMessages = Set(Messages.logFailure, Messages.truncateLogs(logLimit.asMegaBytes))
+    val lastLine: Option[String] = logs.lastOption
+    val secondLastLine: Option[String] = logs.takeRight(2).dropRight(1).lastOption
+
+    if (isDeveloperError) {
+      // Developer error: the second last line indicates whether there was a log collecting error.
+      val secondLastLineContainsLogCollectingError =
+        secondLastLine.exists(line => logCollectingErrorMessages.exists(line.contains))
+
+      // If a developer error occurred when initializing or running an action,
+      // the last message in logs must be Messages.logWarningDeveloperError.
+      // If not, this is a log collecting error.
+      val lastLineContainsDeveloperError = lastLine.exists(line => line.contains(Messages.logWarningDeveloperError))
+
+      secondLastLineContainsLogCollectingError || !lastLineContainsDeveloperError
+    } else {
+      // The last line indicates whether there was a log collecting error.
+      lastLine.exists(line => logCollectingErrorMessages.exists(line.contains))
+    }
+  }
+
   override def collectLogs(transid: TransactionId,
                            user: Identity,
                            activation: WhiskActivation,
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val logs = logStream(
-      transid,
-      container,
-      action.limits.logs,
-      action.exec.sentinelledLogs,
-      activation.response.isContainerError) // container error means developer error
+    val logLimit = action.limits.logs
+    val isDeveloperError = activation.response.isContainerError // container error means developer error
+    val logs = logStream(transid, container, logLimit, action.exec.sentinelledLogs, isDeveloperError)
 
     logs
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
-        // Messages.logWarningDeveloperError shows up if the activation ends in a developer error.
-        // This must not be reported as log collection error.
-        val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-        val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
         val logs = ActivationLogs(seq.toVector)
-        if (!errored) {
+        if (!isLogCollectingError(logs, logLimit, isDeveloperError)) {
           Future.successful(logs)
         } else {
           Future.failed(LogCollectingException(logs))
