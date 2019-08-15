@@ -1,0 +1,18 @@
+# IntelliJ
+.idea
+*.class
+*.iml
+out/
+
+# Mac
+.DS_Store
+
+# Linux
+*~
+*.swp
+
+# Gradle
+.gradle
+build/
+
+
