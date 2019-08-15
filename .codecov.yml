@@ -1,4 +1,0 @@
-
-ignore:
-  # Exclude the Main file as its not exercised by any test
-  - "**/*Main.scala"
