@@ -31,7 +31,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 trait MetricRecorder {
-  def processEvent(activation: Activation, initiatorNamespace: String): Unit
+  def processActivation(activation: Activation, initiatorNamespace: String): Unit
+  def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
 case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder])(
@@ -93,11 +94,14 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
         }
         e
       }
-      .collect { case e if e.eventType == Activation.typeName => e } //Look for only Activations
       .foreach { e =>
-        val a = e.body.asInstanceOf[Activation]
-        recorders.foreach(_.processEvent(a, e.namespace))
-        updateGlobalMetrics(a)
+        e.body match {
+          case a: Activation =>
+            recorders.foreach(_.processActivation(a, e.namespace))
+            updateGlobalMetrics(a)
+          case m: Metric =>
+            recorders.foreach(_.processMetric(m, e.namespace))
+        }
       }
   }
 

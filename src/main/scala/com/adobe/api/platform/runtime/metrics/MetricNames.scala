@@ -26,4 +26,7 @@ trait MetricNames {
   def initTimeMetric: String
   def durationMetric: String
   def statusMetric: String
+
+  def concurrentLimitMetric: String
+  def timedLimitMetric: String
 }
