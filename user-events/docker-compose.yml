@@ -1,0 +1,44 @@
+version: '3'
+
+networks:
+  default:
+    external:
+      # Match the network name used by devtool docker compose setup
+      name: openwhisk_default
+
+services:
+  user-events:
+    image: adobeapiplatform/openwhisk-user-events
+    ports:
+      - "9095:9095"
+    environment:
+      - KAFKA_HOSTS=kafka:9092
+
+  prometheus:
+    image: prom/prometheus:v2.5.0
+    volumes:
+      - ./compose/prometheus/:/etc/prometheus/
+      - ~/tmp/openwhisk/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - 9096:9090
+
+  grafana:
+    image: grafana/grafana:6.1.6
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - ~/tmp/openwhisk/grafana:/var/lib/grafana
+      - ./compose/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./compose/grafana/dashboards/:/var/lib/grafana/dashboards/
+
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
