@@ -88,6 +88,9 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
    *
    * In case of a developer error, append a warning message to the logs that data might be missing.
    *
+   * TODO: instead of just appending a warning message when a developer error occurs, we should
+   *       have an out-of-band error handling that injects such messages later on.
+   *
    * @param transid transaction id
    * @param container container to obtain the log from
    * @param action action that defines the log limit
@@ -121,6 +124,12 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
    * If the activation failed due to a developer error, an additional error message is appended.
    * In that case, the second last message indicates whether there was a log collecting error AND
    * the last message MUST be the additional error message mentioned above.
+   *
+   * TODO: this function needs to deal with different combinations of error / warning messages that
+   *       were appended to / injected into the log collecting stream.
+   *       Instead, we should have an out-of-band error handling that does not use log messages to
+   *       detect error conditions but detects errors and appends error / warning messages in
+   *       a different way.
    *
    * @param actLogs the activation logs to check
    * @param logLimit the log limit applying to the activation

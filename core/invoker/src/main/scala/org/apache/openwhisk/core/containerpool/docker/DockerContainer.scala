@@ -173,7 +173,8 @@ class DockerContainer(protected val id: ContainerId,
   /** The last read-position in the log file */
   private var logFileOffset = new AtomicLong(0)
 
-  protected val waitForLogs: FiniteDuration = 2.seconds
+  protected val logCollectingIdleTimeout: FiniteDuration = 2.seconds
+  protected val logCollectingTimeoutPerMBLogLimit: FiniteDuration = 2.seconds
   protected val waitForOomState: FiniteDuration = 2.seconds
   protected val filePollInterval: FiniteDuration = 5.milliseconds
 
@@ -293,8 +294,9 @@ class DockerContainer(protected val id: ContainerId,
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
     // Define a time limit for collecting and processing the logs of a single activation.
     // If this time limit is exceeded, log processing is stopped and declared unsuccessful.
-    // Allow 2 seconds per MB log limit, with a minimum of 10 seconds.
-    val logProcessingTimeout = limit.toMB.toInt.max(5) * 2.seconds
+    // Calculate the timeout based on the maximum expected log size, i.e. the log limit.
+    // Use a lower bound of 5 MB log size to account for base overhead.
+    val logCollectingTimeout = limit.toMB.toInt.max(5) * logCollectingTimeoutPerMBLogLimit
 
     docker
       .rawContainerLogs(id, logFileOffset.get(), if (waitForSentinel) Some(filePollInterval) else None)
@@ -311,9 +313,9 @@ class DockerContainer(protected val id: ContainerId,
       // As we're reading the logs after the activation has finished the invariant is that all loglines are already
       // written and we mostly await them being flushed by the docker daemon. Therefore we can time out based on the time
       // between two loglines appear without relying on the log frequency in the action itself.
-      .idleTimeout(waitForLogs)
+      .idleTimeout(logCollectingIdleTimeout)
       // Apply an overall time limit for this log collecting and processing stream.
-      .completionTimeout(logProcessingTimeout)
+      .completionTimeout(logCollectingTimeout)
       .recover {
         case _: StreamLimitReachedException =>
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation

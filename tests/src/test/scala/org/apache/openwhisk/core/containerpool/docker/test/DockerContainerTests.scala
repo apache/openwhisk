@@ -115,7 +115,7 @@ class DockerContainerTests
         retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
       }
-      override protected val waitForLogs = awaitLogs
+      override protected val logCollectingIdleTimeout = awaitLogs
       override protected val filePollInterval = 1.millisecond
     }
   }
