@@ -71,6 +71,7 @@ ext.testSets = [
         "excludes" : [
             "org/apache/openwhisk/core/admin/**",
             "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/standalone/**",
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
             "**/*CacheConcurrencyTests*",
@@ -80,7 +81,9 @@ ext.testSets = [
         ]
     ],
     "REQUIRE_SYSTEM" : [
-        "includes" : systemIncludes,
+        "includes" : systemIncludes + [
+            "org/apache/openwhisk/standalone/**"
+        ],
         "excludes": [
             "system/basic/WskMultiRuntimeTests*",
             'invokerShoot/**'

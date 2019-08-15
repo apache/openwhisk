@@ -23,9 +23,10 @@ import java.util.Properties
 
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
+import akka.http.scaladsl.model.Uri
 import akka.stream.ActorMaterializer
-import org.apache.commons.io.{FileUtils, IOUtils}
-import org.apache.commons.lang3.SystemUtils
+import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
+import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
@@ -35,10 +36,10 @@ import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner(StandaloneOpenWhisk.banner)
@@ -53,16 +54,26 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val verbose = tally()
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
+  val apiGw = opt[Boolean](descr = "Enable API Gateway support", noshort = true)
+  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
+  val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   verify()
 
   val colorEnabled = !disableColorLogging()
+
+  def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getLocalHostName()}:${port()}")
 }
 
 case class GitInfo(commitId: String, commitTime: String)
 
-object StandaloneOpenWhisk extends SLF4JLogging {
+object StandaloneConfigKeys {
   val usersConfigKey = "whisk.users"
+  val redisConfigKey = "whisk.standalone.redis"
+  val apiGwConfigKey = "whisk.standalone.api-gateway"
+}
+
+object StandaloneOpenWhisk extends SLF4JLogging {
 
   val banner =
     """
@@ -104,6 +115,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   val gitInfo: Option[GitInfo] = loadGitInfo()
 
+  val defaultWorkDir = new File(FilenameUtils.concat(FileUtils.getUserDirectoryPath, ".openwhisk/standalone"))
+
+  val wskPath = System.getProperty("whisk.standalone.wsk", "wsk")
+
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
 
@@ -116,19 +131,36 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val actorSystem = ActorSystem("standalone-actor-system")
     implicit val materializer = ActorMaterializer.create(actorSystem)
     implicit val logger: Logging = createLogging(actorSystem, conf)
+    implicit val ec: ExecutionContext = actorSystem.dispatcher
 
-    startServer()
+    val (dataDir, workDir) = initializeDirs(conf)
+    val (apiGwApiPort, svcs) = if (conf.apiGw()) {
+      startApiGateway(conf)
+    } else (-1, Seq.empty)
+
+    if (svcs.nonEmpty) {
+      new ServiceInfoLogger(conf, svcs, dataDir).run()
+    }
+
+    startServer(conf)
+    new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
+
+    if (conf.apiGw()) {
+      installRouteMgmt(conf, workDir, apiGwApiPort)
+    }
   }
 
   def initialize(conf: Conf): Unit = {
     configureBuildInfo()
     configureServerPort(conf)
+    configureOSSpecificOpts()
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
   }
 
-  def startServer()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+  def startServer(
+    conf: Conf)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
     bootstrapUsers()
     startController()
   }
@@ -140,7 +172,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.servicePort, port.toString)
     setConfigProp(WhiskConfig.wskApiPort, port.toString)
     setConfigProp(WhiskConfig.wskApiProtocol, "http")
-    setConfigProp(WhiskConfig.wskApiHostname, localHostName)
+
+    //Using hostInternalName instead of getLocalHostIp as using docker alpine way to
+    //determine the ip is seen to be failing with older version of Docker
+    //So to keep main flow which does not use api gw working fine play safe
+    setConfigProp(WhiskConfig.wskApiHostname, StandaloneDockerSupport.getLocalHostInternalName())
   }
 
   private def initConfigLocation(conf: Conf): Unit = {
@@ -183,11 +219,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def bootstrapUsers()(implicit actorSystem: ActorSystem,
                                materializer: ActorMaterializer,
                                logging: Logging): Unit = {
-    val users = loadConfigOrThrow[Map[String, String]](usersConfigKey)
-    implicit val userTid: TransactionId = TransactionId("userBootstrap")
-    users.foreach {
-      case (name, key) =>
-        val subject = name.replace('-', '.')
+    implicit val userTid: TransactionId = TransactionId(systemPrefix + "userBootstrap")
+    getUsers().foreach {
+      case (subject, key) =>
         val conf = new org.apache.openwhisk.core.cli.Conf(Seq("user", "create", "--auth", key, subject))
         val admin = WhiskAdmin(conf)
         Await.ready(admin.executeCommand(), 60.seconds)
@@ -195,13 +229,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     }
   }
 
-  private def localHostName = {
-    //For connecting back to controller on container host following name needs to be used
-    // on Windows and Mac
-    // https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
-    if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-      "host.docker.internal"
-    else "localhost"
+  private def configureOSSpecificOpts(): Unit = {
+    //Set the interface based on OS
+    setSysProp("whisk.controller.interface", StandaloneDockerSupport.getLocalHostName())
   }
 
   private def loadGitInfo() = {
@@ -256,5 +286,61 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new AkkaLogging(adapter)
     else
       new ColoredAkkaLogging(adapter)
+  }
+
+  private def startApiGateway(
+    conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext): (Int, Seq[ServiceContainer]) = {
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
+
+    // api port is the port used by rout management actions to configure the api gw upon wsk api commands
+    // mgmt port is the port used by end user while making actual use of api gw
+    val apiGwApiPort = StandaloneDockerSupport.checkOrAllocatePort(9000)
+    val apiGwMgmtPort = conf.apiGwPort()
+
+    val dockerClient = new StandaloneDockerClient()
+    val dockerSupport = new StandaloneDockerSupport(dockerClient)
+
+    //Remove any existing launched containers
+    dockerSupport.cleanup()
+    val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, conf.port())
+    val f = gw.run()
+    val g = f.andThen {
+      case Success(_) =>
+        logging.info(
+          this,
+          s"Api Gateway started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$apiGwMgmtPort")
+      case Failure(t) =>
+        logging.error(this, "Error starting Api Gateway" + t)
+    }
+    val services = Await.result(g, 5.minutes)
+    (apiGwApiPort, services)
+  }
+
+  private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
+    val user = "whisk.system"
+    val apiGwHostv2 = s"http://${StandaloneDockerSupport.getLocalHostIp()}:$apiGwApiPort/v2"
+    val authKey = getUsers().getOrElse(
+      user,
+      throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))
+    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + user, Uri(apiGwHostv2), wskPath)
+    installer.run()
+  }
+
+  private def initializeDirs(conf: Conf): (File, File) = {
+    val baseDir = conf.dataDir()
+    val thisServerDir = s"server-${conf.port()}"
+    val dataDir = new File(baseDir, thisServerDir)
+    FileUtils.forceMkdir(dataDir)
+    log.info(s"Using [${dataDir.getAbsolutePath}] as data directory")
+
+    val workDir = new File(dataDir, "tmp")
+    FileUtils.deleteDirectory(workDir)
+    FileUtils.forceMkdir(workDir)
+    (dataDir, workDir)
+  }
+
+  private def getUsers(): Map[String, String] = {
+    val m = loadConfigOrThrow[Map[String, String]](StandaloneConfigKeys.usersConfigKey)
+    m.map { case (name, key) => (name.replace('-', '.'), key) }
   }
 }
