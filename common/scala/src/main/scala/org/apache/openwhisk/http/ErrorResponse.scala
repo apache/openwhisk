@@ -166,6 +166,8 @@ object Messages {
   }
   val logFailure = "There was an issue while collecting your logs. Data might be missing."
 
+  val logWarningDeveloperError = "The action did not initialize or run as expected. Log data might be missing."
+
   /** Error for meta api. */
   val propertyNotFound = "Response does not include requested property."
   def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
