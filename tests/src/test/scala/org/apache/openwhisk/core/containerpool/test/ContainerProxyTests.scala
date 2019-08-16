@@ -1164,6 +1164,7 @@ class ContainerProxyTests
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
+      environment.fields("transaction_id") shouldBe transid.id.toJson
       val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
       if (apiKeyMustBePresent) {
         message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject

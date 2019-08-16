@@ -196,6 +196,7 @@ platform follows the following schema:
   "api_host": String,
   "api_key": String,
   "activation_id": String,
+  "transaction_id": String,
   "deadline": Number
 }
 ```
@@ -204,6 +205,7 @@ platform follows the following schema:
 * `namespace` is the OpenWhisk namespace for the action (e.g., `whisk.system`).
 * `action_name` is the [fully qualified name](reference.md#fully-qualified-names) of the action.
 * `activation_id` is a unique ID for this activation.
+* `transaction_id` is a unique ID for the request of which this activation is part of. 
 * `deadline` is the deadline for the function.
 * `api_key` is the API key used to invoke the action.
 
