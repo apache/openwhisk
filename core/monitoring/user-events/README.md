@@ -1,0 +1,34 @@
+# OpenWhisk User Events
+
+This service connects to `events` topic and publishes the events to various services like Prometheus, Datadog etc via Kamon. Refer to [user specific metrics][1] on how to enable them.
+
+
+## Local Run
+>First configure and run `openwhisk docker-compose` that can be found in the [openwhisk-tools][2] project. 
+
+Start the service inside that cluster. 
+- The service will be available on port `9095` 
+- The endpoint for exposing the metrics for Prometheus can be found on `/metrics`.
+
+## Usage
+
+The service needs the following env variables to be set
+
+- `KAFKA_HOSTS` - For local env it can be set to `172.17.0.1:9093`. When using [OpenWhisk Devtools][2] based setup use `kafka`
+
+Integrations
+------------
+
+#### Prometheus
+The docker container would run the service and expose the metrics in format required by [Prometheus][3] at `9095` port
+
+#### Grafana
+The `Openwhisk - Action Performance Metrics` Grafana[4] dashboard is available on localhost port `3000` at this address: 
+http://localhost:3000/d/Oew1lvymk/openwhisk-action-performance-metrics
+
+The latest version of the dashboard can be found in the "compose/dashboard/openwhisk_events.json"
+
+[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/metrics.md#user-specific-metrics
+[2]: https://github.com/apache/incubator-openwhisk-devtools/tree/master/docker-compose
+[3]: https://hub.docker.com/r/prom/prometheus/
+[4]: https://hub.docker.com/r/grafana/grafana/
