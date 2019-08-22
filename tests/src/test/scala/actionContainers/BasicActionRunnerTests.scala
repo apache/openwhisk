@@ -18,6 +18,7 @@
 package actionContainers
 
 import org.junit.runner.RunWith
+import org.scalatest.exceptions.TestPendingException
 import org.scalatest.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -285,14 +286,11 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   it should s"export environment variables before initialization" in {
     val config = testEnvPartition
-    if (!config.skipTest) {
-      val env = JsObject(
-        "ARRAY" -> JsArray(JsString("a"), JsString("b")),
-        "OBJECT" -> JsObject("a" -> JsString("A")),
-        "STRING" -> JsString("xyz"),
-        "NUMBER" -> JsNumber(3),
-        "BOOL" -> JsTrue,
-        "NULL" -> JsNull)
+
+    if (config.skipTest) {
+      throw new TestPendingException
+    } else {
+      val env = Map("SOME_VAR" -> JsString("xyz"), "ANOTHER_VAR" -> JsString.empty)
 
       val (out, err) = withActionContainer() { c =>
         val (initCode, _) = c.init(initPayload(config.code, config.main, Some(env)))
@@ -358,7 +356,9 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   it should s"echo a large input" in {
     val config = testLargeInput
-    if (!config.skipTest) {
+    if (config.skipTest) {
+      throw new TestPendingException
+    } else {
       var passed = true
 
       val (out, err) = withActionContainer() { c =>
