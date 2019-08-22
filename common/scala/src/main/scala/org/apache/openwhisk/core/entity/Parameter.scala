@@ -160,10 +160,10 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
 protected[entity] case class ParameterValue protected[entity] (private val v: JsValue, val init: Boolean) {
 
   /** @return JsValue if defined else JsNull. */
-  protected[entity] val value = Option(v) getOrElse JsNull
+  protected[entity] def value = Option(v) getOrElse JsNull
 
   /** @return true iff value is not JsNull. */
-  protected[entity] val isDefined = value != JsNull
+  protected[entity] def isDefined = value != JsNull
 
   /**
    * The size of the ParameterValue entity as ByteSize.
@@ -193,7 +193,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: String, init: Boolean = false): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    new ParameterValue(Option(v).map(_.trim.toJson).getOrElse(JsNull), init))
+    ParameterValue(Option(v).map(_.trim.toJson).getOrElse(JsNull), init))
   }
 
   /**
@@ -209,7 +209,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: JsValue, init: Boolean): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    new ParameterValue(Option(v).getOrElse(JsNull), init))
+    ParameterValue(Option(v).getOrElse(JsNull), init))
   }
 
   /**
@@ -224,7 +224,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: JsValue): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    new ParameterValue(Option(v).getOrElse(JsNull), false))
+    ParameterValue(Option(v).getOrElse(JsNull), false))
   }
 
   override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {
@@ -257,11 +257,11 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
         _.asJsObject.getFields("key", "value", "init") match {
           case Seq(JsString(k), v: JsValue) =>
             val key = new ParameterName(k)
-            val value = new ParameterValue(v, false)
+            val value = ParameterValue(v, false)
             (key, value)
           case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
             val key = new ParameterName(k)
-            val value = new ParameterValue(v, i)
+            val value = ParameterValue(v, i)
             (key, value)
         }
       } toMap)

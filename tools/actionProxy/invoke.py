@@ -104,8 +104,6 @@ def init(args):
         contents = None
         binary = False
 
-    value = processPayload(args.env)
-
     r = requests.post(
         containerRoute(args, 'init'),
         json = {
@@ -113,7 +111,7 @@ def init(args):
                 "code": contents,
                 "binary": binary,
                 "main": main,
-                "env": value
+                "env": processPayload(args.env)
             }
         })
     print(r.text)
