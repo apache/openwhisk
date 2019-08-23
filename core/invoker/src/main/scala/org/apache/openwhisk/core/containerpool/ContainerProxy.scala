@@ -572,7 +572,7 @@ class ContainerProxy(
           "namespace" -> job.msg.user.namespace.name.toJson,
           "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
           "activation_id" -> job.msg.activationId.toString.toJson,
-          "transaction_id" -> tid.id.toJson,
+          "transaction_id" -> job.msg.transid.id.toJson,
           // compute deadline on invoker side avoids discrepancies inside container
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
