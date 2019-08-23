@@ -34,6 +34,7 @@ import kamon.metric.MeasurementUnit
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
 
 trait MetricRecorder {
   def processActivation(activation: Activation, initiatorNamespace: String): Unit

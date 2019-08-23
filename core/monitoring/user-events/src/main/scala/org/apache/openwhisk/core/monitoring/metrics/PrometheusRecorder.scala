@@ -25,7 +25,7 @@ import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.{HttpEntity, MessageEntity}
 import akka.stream.scaladsl.{Concat, Source}
 import akka.util.ByteString
-import Activation.getNamespaceAndActionName
+import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
@@ -73,7 +73,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     val kind = activation.kind
     val memory = activation.memory.toString
     activationMetrics.getOrElseUpdate(name, {
-      val (namespace, action) = getNamespaceAndActionName(name)
+      val (namespace, action) = Activation.getNamespaceAndActionName(name)
       ActivationPromMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }

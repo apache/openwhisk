@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.connector.test
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
@@ -57,7 +58,7 @@ class EventMessageTests extends FlatSpec with Matchers {
 
   it should "transform an activation into an event body" in {
     Activation.from(fullActivation) shouldBe Success(
-      Activation("ns2/a", 0, 123, 5, 10, "testkind", false, 128, Some("sequence")))
+      Activation("ns2/a", 0, toDuration(123), toDuration(5), toDuration(10), "testkind", false, 128, Some("sequence")))
   }
 
   it should "fail transformation if needed annotations are missing" in {
@@ -75,6 +76,8 @@ class EventMessageTests extends FlatSpec with Matchers {
             WhiskActivation.pathAnnotation,
             "ns2/a"))
 
-    Activation.from(a) shouldBe Success(Activation("ns2/a", 0, 0, 0, 0, "testkind", false, 0, None))
+    Activation.from(a) shouldBe Success(Activation("ns2/a", 0, toDuration(0), toDuration(0), toDuration(0), "testkind", false, 0, None))
   }
+
+  def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)
 }

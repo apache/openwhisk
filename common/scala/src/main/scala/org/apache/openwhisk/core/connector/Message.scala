@@ -21,6 +21,8 @@ import scala.util.Try
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
+import scala.concurrent.duration._
+import java.util.concurrent.TimeUnit
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -194,22 +196,53 @@ object EventMessageBody extends DefaultJsonProtocol {
 
 case class Activation(name: String,
                       statusCode: Int,
-                      duration: Long,
-                      waitTime: Long,
-                      initTime: Long,
+                      duration: Duration,
+                      waitTime: Duration,
+                      initTime: Duration,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
                       causedBy: Option[String])
     extends EventMessageBody {
-  val typeName = "Activation"
+  val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
 
   def toJson = Activation.activationFormat.write(this)
+
+  def status: String = statusCode match {
+    // Defined in ActivationResponse
+    case 0 => Activation.statusSuccess
+    case 1 => Activation.statusApplicationError
+    case 2 => Activation.statusDeveloperError
+    case 3 => Activation.statusInternalError
+    case x => x.toString
+  }
+
+  def isColdStart: Boolean = initTime != Duration.Zero
 }
 
 object Activation extends DefaultJsonProtocol {
+
+  val typeName = "Activation"
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
+
+  val statusSuccess = "success"
+  val statusApplicationError = "application_error"
+  val statusDeveloperError = "developer_error"
+  val statusInternalError = "internal_error"
+
+  private implicit val durationFormat = new RootJsonFormat[Duration] {
+    override def write(obj: Duration): JsValue = obj match {
+      case o if o.isFinite() => JsNumber(o.toMillis)
+      case _                 => JsNumber.zero
+    }
+
+    override def read(json: JsValue): Duration = json match {
+      case JsNumber(n) if n <= 0 => Duration.Zero
+      case JsNumber(n)           => toDuration(n.longValue())
+    }
+  }
+
   implicit val activationFormat =
     jsonFormat(
       Activation.apply _,
@@ -223,6 +256,15 @@ object Activation extends DefaultJsonProtocol {
       "memory",
       "causedBy")
 
+  /**
+    * Extract namespace and action from name
+    * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
+    */
+  def getNamespaceAndActionName(name: String): (String, String) = {
+    val nameArr = name.split("/", 2)
+    (nameArr(0), nameArr(1))
+  }
+
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
     for {
@@ -234,9 +276,9 @@ object Activation extends DefaultJsonProtocol {
       Activation(
         fqn,
         a.response.statusCode,
-        a.duration.getOrElse(0),
-        a.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
-        a.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
+        toDuration(a.duration.getOrElse(0)),
+        toDuration(a.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0)),
+        toDuration(a.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0)),
         kind,
         a.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
         a.annotations
@@ -246,6 +288,8 @@ object Activation extends DefaultJsonProtocol {
         a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
     }
   }
+
+  def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
@@ -255,6 +299,7 @@ case class Metric(metricName: String, metricValue: Long) extends EventMessageBod
 }
 
 object Metric extends DefaultJsonProtocol {
+  val typeName = "Metric"
   def parse(msg: String) = Try(metricFormat.read(msg.parseJson))
   implicit val metricFormat = jsonFormat(Metric.apply _, "metricName", "metricValue")
 }
@@ -280,5 +325,5 @@ object EventMessage extends DefaultJsonProtocol {
     }
   }
 
-  def parse(msg: String) = format.read(msg.parseJson)
+  def parse(msg: String) = Try(format.read(msg.parseJson))
 }

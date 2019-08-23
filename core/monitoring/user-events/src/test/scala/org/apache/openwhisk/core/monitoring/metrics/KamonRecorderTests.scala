@@ -27,6 +27,8 @@ import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import org.apache.openwhisk.core.connector.{Activation, EventMessage}
+import org.apache.openwhisk.core.entity.{Subject,UUID}
 
 import scala.concurrent.duration._
 
@@ -93,9 +95,9 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
     EventMessage(
       "test",
       Activation(name, 2, 3.millis, 5.millis, 11.millis, kind, false, 256, None),
-      "testuser",
+      Subject("testuser"),
       initiator,
-      "test",
+      UUID("test"),
       Activation.typeName)
 
   private object TestReporter extends MetricReporter {

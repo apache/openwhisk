@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.event.slf4j.SLF4JLogging
-import Activation.getNamespaceAndActionName
+import org.apache.openwhisk.core.connector.{Activation, Metric}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 
@@ -54,7 +54,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     val kind = activation.kind
     val memory = activation.memory.toString
     activationMetrics.getOrElseUpdate(name, {
-      val (namespace, action) = getNamespaceAndActionName(name)
+      val (namespace, action) = Activation.getNamespaceAndActionName(name)
       ActivationKamonMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }

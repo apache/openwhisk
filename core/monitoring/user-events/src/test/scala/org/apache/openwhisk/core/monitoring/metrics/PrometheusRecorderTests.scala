@@ -22,6 +22,8 @@ import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import org.apache.openwhisk.core.connector.{Activation, EventMessage}
+import org.apache.openwhisk.core.entity.{Subject, UUID}
 
 import scala.concurrent.duration._
 
@@ -69,9 +71,9 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     EventMessage(
       "test",
       Activation(name, 2, 1254.millis, 30.millis, 433433.millis, kind, false, memory.toInt, None),
-      "testuser",
+      Subject("testuser"),
       initiator,
-      "test",
+      UUID("test"),
       Activation.typeName)
 
   private def gauge(name: String) =
