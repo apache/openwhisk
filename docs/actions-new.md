@@ -147,7 +147,7 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
     "main" : String,
     "code" : String,
     "binary": Boolean,
-    "env": Map[String, JSON Value]
+    "env": Map[String, String]
   }
 }
 ```

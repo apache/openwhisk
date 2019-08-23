@@ -780,11 +780,12 @@ object ContainerProxy {
    * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
    */
   def partitionArguments(content: Option[JsObject], initArgs: Set[String]): (Map[String, JsValue], JsObject) = {
-    if (content.isEmpty || initArgs.isEmpty) {
-      (Map.empty, content.getOrElse(JsObject.empty))
-    } else {
-      val (env, args) = content.get.fields.partition(k => initArgs.contains(k._1))
-      (env, JsObject(args))
+    content match {
+      case None                         => (Map.empty, JsObject.empty)
+      case Some(js) if initArgs.isEmpty => (Map.empty, js)
+      case Some(js) =>
+        val (env, args) = js.fields.partition(k => initArgs.contains(k._1))
+        (env, JsObject(args))
     }
   }
 }

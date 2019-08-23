@@ -113,22 +113,11 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   /**
    * Tests that action parameters at initialization time are available before an action
-   * is initialized. The value of a parameter is a legal JSON value and should be exported
-   * to the environment as follows.
-   * - array: string representation of the array (e.g., JSON.stringify)
-   * - object: string representation of the object (e.g., JSON.stringify)
-   * - string: the string
-   * - number: the number as a string
-   * - bool: the string "true" or "false"
-   * - null: the empty string ""
+   * is initialized. The value of a parameter is always a String (including the empty string.
    *
    * @param code a function returning a dictionary consisting of the following properties
-   *             { "ARRAY" : process.env.ARRAY,
-   *               "OBJECT": process.env.OBJECT,
-   *               "STRING": process.env.STRING,
-   *               "NUMBER": process.env.NUMBER,
-   *               "BOOL"  : process.env.BOOL,
-   *               "NULL"  : process.env.NULL
+   *             { "SOME_VAR" : process.env.SOME_VAR,
+   *               "ANOTHER_VAR": process.env.ANOTHER_VAR
    *             }
    * @param main the main function
    */
@@ -300,14 +289,8 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
         runCode should be(200)
         out shouldBe defined
         val fields = out.get.fields
-        val JsString(a) = fields("ARRAY")
-        val JsString(b) = fields("OBJECT")
-        a.parseJson shouldBe JsArray(JsString("a"), JsString("b"))
-        b.parseJson shouldBe JsObject("a" -> JsString("A"))
-        fields("STRING") shouldBe JsString("xyz")
-        fields("NUMBER") shouldBe JsString("3")
-        fields("BOOL") shouldBe JsString("true")
-        fields("NULL") shouldBe JsString.empty
+        fields("SOME_VAR") shouldBe JsString("xyz")
+        fields("ANOTHER_VAR") shouldBe JsString("")
       }
 
       checkStreams(out, err, {

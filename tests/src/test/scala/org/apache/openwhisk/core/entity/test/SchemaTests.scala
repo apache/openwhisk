@@ -569,13 +569,26 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "include optional environment variables" in {
-    val env = Map("E" -> "e".toJson)
+    val env = Map(
+      "A" -> "c".toJson,
+      "B" -> JsNull,
+      "C" -> JsTrue,
+      "D" -> JsNumber(3),
+      "E" -> JsArray(JsString("a")),
+      "F" -> JsObject("a" -> JsFalse))
+
     ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer(env) shouldBe {
       JsObject(
         "name" -> "b".toJson,
         "binary" -> false.toJson,
         "main" -> "main".toJson,
-        "env" -> JsObject("E" -> "e".toJson))
+        "env" -> JsObject(
+          "A" -> JsString("c"),
+          "B" -> JsString(""),
+          "C" -> JsString("true"),
+          "D" -> JsString("3"),
+          "E" -> JsString("[\"a\"]"),
+          "F" -> JsString("{\"a\":false}")))
     }
   }
 
