@@ -112,7 +112,7 @@
         ],
         "java": [
             {
-                "kind": "java",
+                "kind": "java:8",
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
