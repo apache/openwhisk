@@ -19,11 +19,11 @@ apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'org.scoverage'
 
-ext.dockerImageName = 'monitoring-user-events'
+ext.dockerImageName = 'user-events'
 apply from: "../../../gradle/docker.gradle"
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
-project.archivesBaseName = "openwhisk-monitoring-user-events"
+project.archivesBaseName = "openwhisk-user-events"
 
 repositories {
     mavenCentral()

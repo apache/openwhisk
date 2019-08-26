@@ -22,4 +22,4 @@
 export CACHE_INVALIDATOR_OPTS
 CACHE_INVALIDATOR_OPTS="$CACHE_INVALIDATOR_OPTS $(./transformEnvironment.sh)"
 
-exec cache-invalidator/bin/cache-invalidator "$@"
+exec user-events/bin/user-events "$@"

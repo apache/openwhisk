@@ -16,6 +16,9 @@
 # limitations under the License.
 #
 -->
+
+# ![OpenWhisk User Events](https://raw.githubusercontent.com/apache/openwhisk/master/core/monitoring/user-events/images/demo_landing.png)
+
 # OpenWhisk User Events
 
 This service connects to `events` topic and publishes the events to various services like Prometheus, Datadog etc via Kamon. Refer to [user specific metrics][1] on how to enable them.
