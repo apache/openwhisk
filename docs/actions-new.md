@@ -146,7 +146,8 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
     "name" : String,
     "main" : String,
     "code" : String,
-    "binary": Boolean
+    "binary": Boolean,
+    "env": Map[String, String]
   }
 }
 ```
@@ -155,10 +156,12 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
 * `main` is the name of the function to execute.
 * `code` is either plain text or a base64 encoded string for binary functions (i.e., a compiled executable).
 * `binary` is false if `code` is in plain text, and true if `code` is base64 encoded.
+* `env` is an map of key-value pairs of properties to export to the environment.
 
 The initialization route is called exactly once by the OpenWhisk platform, before executing a function.
 The route should report an error if called more than once. It is possible however that a single initialization
-will be followed by many activations (via `/run`).
+will be followed by many activations (via `/run`). If an `env` property is provided, the corresponding environment
+variables should be defined before the action code is initialized.
 
 **Successful initialization:** The route should respond with `200 OK` if the initialization is successful and
 the function is ready to execute. Any content provided in the response is ignored.

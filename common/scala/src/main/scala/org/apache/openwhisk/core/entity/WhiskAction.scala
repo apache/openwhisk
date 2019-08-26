@@ -286,12 +286,27 @@ case class ExecutableWhiskAction(namespace: EntityPath,
   /**
    * Gets initializer for action. This typically includes the code to execute,
    * or a zip file containing the executable artifacts.
+   *
+   * @param env optional map of properties to be exported to the environment
    */
-  def containerInitializer: JsObject = {
+  def containerInitializer(env: Map[String, JsValue] = Map.empty): JsObject = {
     val code = Option(exec.codeAsJson).filter(_ != JsNull).map("code" -> _)
+    val envargs = if (env.nonEmpty) {
+      val stringifiedEnvVars = env.map {
+        case (k, v: JsString)  => (k, v)
+        case (k, JsNull)       => (k, JsString.empty)
+        case (k, JsBoolean(v)) => (k, JsString(v.toString))
+        case (k, JsNumber(v))  => (k, JsString(v.toString))
+        case (k, v)            => (k, JsString(v.compactPrint))
+      }
+
+      Some("env" -> JsObject(stringifiedEnvVars))
+    } else None
+
     val base =
       Map("name" -> name.toJson, "binary" -> exec.binary.toJson, "main" -> exec.entryPoint.getOrElse("main").toJson)
-    JsObject(base ++ code)
+
+    JsObject(base ++ envargs ++ code)
   }
 
   def toWhiskAction =

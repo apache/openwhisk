@@ -100,6 +100,8 @@ class ContainerProxyTests
 
   val uuid = UUID()
 
+  val activationArguments = JsObject("ENV_VAR" -> "env".toJson, "param" -> "param".toJson)
+
   val message = ActivationMessage(
     messageTransId,
     action.fullyQualifiedName(true),
@@ -108,7 +110,8 @@ class ContainerProxyTests
     ActivationId.generate(),
     ControllerInstanceId("0"),
     blocking = false,
-    content = None)
+    content = Some(activationArguments),
+    initArgs = Set("ENV_VAR"))
 
   /*
    * Helpers for assertions and actor lifecycles
@@ -199,8 +202,24 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
+  val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 
   behavior of "ContainerProxy"
+
+  it should "partition activation arguments into environment variables and main arguments" in {
+    ContainerProxy.partitionArguments(None, Set.empty) should be(Map.empty, JsObject.empty)
+    ContainerProxy.partitionArguments(Some(JsObject.empty), Set("a")) should be(Map.empty, JsObject.empty)
+
+    val content = JsObject("a" -> "A".toJson, "b" -> "B".toJson, "C" -> "c".toJson, "D" -> "d".toJson)
+    val (env, args) = ContainerProxy.partitionArguments(Some(content), Set("C", "D"))
+    env should be {
+      content.fields.filter(k => filterEnvVar(k._1))
+    }
+
+    args should be {
+      JsObject(content.fields.filterNot(k => filterEnvVar(k._1)))
+    }
+  }
 
   /*
    * SUCCESSFUL CASES
@@ -1153,13 +1172,19 @@ class ContainerProxyTests
     override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
-      initializer shouldBe action.containerInitializer
+      initializer shouldBe action.containerInitializer {
+        activationArguments.fields.filter(k => filterEnvVar(k._1))
+      }
       timeout shouldBe action.limits.timeout.duration
 
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
     override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+      // the "init" arguments are not passed on run
+      parameters shouldBe JsObject(activationArguments.fields.filter(k => !filterEnvVar(k._1)))
+
       val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
