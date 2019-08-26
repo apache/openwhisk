@@ -257,9 +257,9 @@ object Activation extends DefaultJsonProtocol {
       "causedBy")
 
   /**
-    * Extract namespace and action from name
-    * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
-    */
+   * Extract namespace and action from name
+   * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
+   */
   def getNamespaceAndActionName(name: String): (String, String) = {
     val nameArr = name.split("/", 2)
     (nameArr(0), nameArr(1))
