@@ -22,10 +22,10 @@ This service connects to `events` topic and publishes the events to various serv
 
 
 ## Local Run
->First configure and run `openwhisk docker-compose` that can be found in the [openwhisk-tools][2] project. 
+>First configure and run `openwhisk docker-compose` that can be found in the [openwhisk-tools][2] project.
 
-Start the service inside that cluster. 
-- The service will be available on port `9095` 
+Start the service inside that cluster.
+- The service will be available on port `9095`
 - The endpoint for exposing the metrics for Prometheus can be found on `/metrics`.
 
 ## Usage
@@ -41,7 +41,7 @@ Integrations
 The docker container would run the service and expose the metrics in format required by [Prometheus][3] at `9095` port
 
 #### Grafana
-The `Openwhisk - Action Performance Metrics` Grafana[4] dashboard is available on localhost port `3000` at this address: 
+The `Openwhisk - Action Performance Metrics` Grafana[4] dashboard is available on localhost port `3000` at this address:
 http://localhost:3000/d/Oew1lvymk/openwhisk-action-performance-metrics
 
 The latest version of the dashboard can be found in the "compose/dashboard/openwhisk_events.json"
