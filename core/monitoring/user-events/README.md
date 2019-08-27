@@ -27,7 +27,7 @@ This service connects to `events` topic and publishes the events to various serv
 ## Local Run
 >First configure and run `openwhisk docker-compose` that can be found in the [openwhisk-tools][2] project.
 
-Start the service inside that cluster.
+- Start service inside the cluster (on the same docker-compose network: `openwhisk_default`)
 - The service will be available on port `9095`
 - The endpoint for exposing the metrics for Prometheus can be found on `/metrics`.
 
