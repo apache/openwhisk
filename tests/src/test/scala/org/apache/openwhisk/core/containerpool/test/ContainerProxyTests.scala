@@ -22,6 +22,7 @@ import java.time.Instant
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
+import akka.testkit.CallingThreadDispatcher
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
@@ -161,6 +162,14 @@ class ContainerProxyTests
     val test = EntityName(namespace)
     expectMsgPF() {
       case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) => //matched, otherwise will fail
+    }
+  }
+
+  /** Expect a NeedWork message with warmed data */
+  def expectWarmed(namespace: String, action: ExecutableWhiskAction, activationCount: Int) = {
+    val test = EntityName(namespace)
+    expectMsgPF() {
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, `activationCount`)) => //matched, otherwise will fail
     }
   }
 
@@ -705,14 +714,15 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = pauseGrace))
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
     registerCallback(machine)
     preWarm(machine) //ends in Started state
 
     machine ! Run(concurrentAction, message) //first in Started state
     machine ! Run(concurrentAction, message) //second in Started or Running state
 
-    //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
+    //first message go from Started -> Running -> Ready, with 1 NeedWork messages (after buffered messages are completed below concurrent max)
     //second message will be delayed until we get to Running state with WarmedData
     //   (and will produce 1 NeedWork message after run)
     expectMsg(Transition(machine, Started, Running))
@@ -722,14 +732,11 @@ class ContainerProxyTests
 
     //complete the first run
     runPromises(0).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction) //when first completes (count is 0 since stashed not counted)
-    expectMsg(Transition(machine, Running, Ready)) //wait for first to complete to skip the delay step that can only reliably be tested in single threaded
-    expectMsg(Transition(machine, Ready, Running)) //when second starts (after delay...)
-
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when first completes
     //complete the second run
     runPromises(1).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction) //when second completes
-
+    //request new work since buffer is empty AND activationCount < max concurrent
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when second completes
     //go back to ready after first and second runs are complete
     expectMsg(Transition(machine, Running, Ready))
 
@@ -740,21 +747,25 @@ class ContainerProxyTests
 
     //third message will go from Ready -> Running -> Ready (after fourth run)
     expectMsg(Transition(machine, Ready, Running))
+    //expect no NeedWork since there are still running and queued messages
+    expectNoMessage(500.milliseconds)
 
     //complete the third run (do not request new work yet)
     runPromises(2).success(runInterval, ActivationResponse.success())
+    //expect no NeedWork since there are still queued messages
+    expectNoMessage(500.milliseconds)
 
     //complete the fourth run -> dequeue the fifth run (do not request new work yet)
     runPromises(3).success(runInterval, ActivationResponse.success())
 
     //complete the fifth run (request new work, 1 active remain)
     runPromises(4).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction) //when fifth completes
-
     //complete the sixth run (request new work 0 active remain)
     runPromises(5).success(runInterval, ActivationResponse.success())
 
-    expectWarmed(invocationNamespace.name, concurrentAction) //when sixth completes
+    //request new work since buffer is now empty AND activationCount < concurrent max
+    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when fifth completes
+    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when sixth completes
 
     // back to ready
     expectMsg(Transition(machine, Running, Ready))

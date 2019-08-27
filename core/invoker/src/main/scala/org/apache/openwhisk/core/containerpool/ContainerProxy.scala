@@ -351,6 +351,11 @@ class ContainerProxy(factory: (TransactionId,
     // and we keep it in case we need to destroy it.
     case Event(completed: PreWarmCompleted, _) => stay using completed.data
 
+    // Init still in progress
+    case Event(job: Run, _: PreWarmedData) =>
+      runBuffer = runBuffer.enqueue(job)
+      stay()
+
     // Init was successful
     case Event(completed: InitCompleted, _: PreWarmedData) =>
       stay using completed.data
@@ -373,7 +378,7 @@ class ContainerProxy(factory: (TransactionId,
       }
     case Event(job: Run, data: WarmedData)
         if activeCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
-      logging.warn(this, s"buffering for container ${data.container}; ${activeCount} activations in flight")
+      logging.warn(this, s"buffering for container ${data.container}; buffer: ${runBuffer}  active: ${activeCount}")
       runBuffer = runBuffer.enqueue(job)
       stay()
     case Event(job: Run, data: WarmedData)
@@ -479,15 +484,18 @@ class ContainerProxy(factory: (TransactionId,
 
   /** Either process runbuffer or signal parent to send work; return true if runbuffer is being processed */
   def requestWork(newData: WarmedData): Boolean = {
-    //if there is concurrency capacity, process runbuffer, or signal NeedWork
+    //if there is concurrency capacity, process runbuffer, signal NeedWork, or both
     if (activeCount < newData.action.limits.concurrency.maxConcurrent) {
       runBuffer.dequeueOption match {
         case Some((run, q)) =>
           runBuffer = q
           self ! run
+          if (activeCount + 1 < newData.action.limits.concurrency.maxConcurrent) {
+            context.parent ! NeedWork(newData.copy(activeActivationCount = activeCount + 1))
+          }
           true
         case _ =>
-          context.parent ! NeedWork(newData)
+          context.parent ! NeedWork(newData.copy(activeActivationCount = activeCount))
           false
       }
     } else {
@@ -555,6 +563,7 @@ class ContainerProxy(factory: (TransactionId,
    *         added to the WhiskActivation
    */
   def initializeAndRun(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
+
     val actionTimeout = job.action.limits.timeout.duration
     val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 

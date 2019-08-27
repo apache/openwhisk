@@ -107,17 +107,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case r: Run =>
       // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
       val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
-
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
       if (runBuffer.isEmpty || isResentFromBuffer) {
+        // First grab a warm container if possible
+        val warmContainer = ContainerPool
+          .schedule(r.action, r.msg.user.namespace.name, freePool)
         val createdContainer =
-          // Is there enough space on the invoker for this action to be executed.
-          if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
+          // Is there an existing container, OR is there enough space on the invoker for this action to be executed.
+          if (warmContainer.isDefined || hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
             // Schedule a job to a warm container
-            ContainerPool
-              .schedule(r.action, r.msg.user.namespace.name, freePool)
+            warmContainer
               .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
               .orElse(
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
@@ -173,7 +174,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               // from the buffer
               val (_, newBuffer) = runBuffer.dequeue
               runBuffer = newBuffer
-              runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
+              // Try to process the next item in buffer (or get another message from feed, if buffer is now empty)
+              processBufferOrFeed()
             }
             actor ! r // forwards the run request to the container
             logContainerStart(r, containerState, newData.activeActivationCount, container)
@@ -199,10 +201,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             }
             if (!isResentFromBuffer) {
               // Add this request to the buffer, as it is not there yet.
-              runBuffer = runBuffer.enqueue(r)
+              runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
             }
-            // As this request is the first one in the buffer, try again to execute it.
-            self ! Run(r.action, r.msg, retryLogDeadline)
+          // As this request is the first one in the buffer, try again to execute it.
+          //self ! Run(r.action, r.msg, retryLogDeadline)
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
@@ -212,7 +214,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
-      feed ! MessageFeed.Processed
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
       val newData =
         warmData.copy(lastUsed = oldData.lastUsed, activeActivationCount = oldData.activeActivationCount - 1)
@@ -234,7 +235,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool + (sender() -> newData)
         freePool = freePool - sender()
       }
-
+      processBufferOrFeed()
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
       prewarmedPool = prewarmedPool + (sender() -> data)
@@ -245,16 +246,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // so there is capacity to accept another job request
       freePool.get(sender()).foreach { f =>
         freePool = freePool - sender()
-        if (f.activeActivationCount > 0) {
-          feed ! MessageFeed.Processed
-        }
       }
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
-        feed ! MessageFeed.Processed
       }
-
+      processBufferOrFeed()
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
     // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
@@ -265,6 +262,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       busyPool = busyPool - sender()
     case EmitMetrics =>
       emitMetrics()
+  }
+
+  /** Resend next item in the buffer, or trigger next item in the feed, if no items in the buffer. */
+  def processBufferOrFeed() = {
+    // If buffer has more items, send next one, otherwise get next from feed.
+    runBuffer.dequeueOption match {
+      case Some((run, _)) => //run the first from buffer
+        self ! run
+      case None => //feed me!
+        feed ! MessageFeed.Processed
+    }
   }
 
   /** Creates a new container and updates state accordingly. */
