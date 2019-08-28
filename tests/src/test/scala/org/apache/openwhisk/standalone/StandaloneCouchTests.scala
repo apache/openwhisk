@@ -29,7 +29,7 @@ class StandaloneCouchTests extends WskRestBasicTests with StandaloneServerFixtur
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
   override protected def extraArgs: Seq[String] =
-    Seq("--couchdb", "--data-dir", FilenameUtils.concat(FileUtils.getUserDirectoryPath, "standalone"))
+    Seq("--couchdb", "--data-dir", FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone"))
 
   private val supportedTests = Set("Wsk Action REST should create, update, get and list an action")
 
