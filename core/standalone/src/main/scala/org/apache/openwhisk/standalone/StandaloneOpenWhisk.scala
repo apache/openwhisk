@@ -362,7 +362,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def startCouchDb(dataDir: File, dockerClient: StandaloneDockerClient)(
     implicit logging: Logging,
     as: ActorSystem,
-    ec: ExecutionContext): ServiceContainer = {
+    ec: ExecutionContext,
+    materializer: ActorMaterializer): ServiceContainer = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "couchDB")
     val port = StandaloneDockerSupport.checkOrAllocatePort(5984)
     val dbDataDir = new File(dataDir, "couchdb")

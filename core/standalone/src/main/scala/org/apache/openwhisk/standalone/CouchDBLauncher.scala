@@ -24,7 +24,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
-import akka.http.scaladsl.model.{HttpHeader, HttpMethods, MediaTypes, StatusCodes, Uri}
+import akka.http.scaladsl.model.{HttpHeader, HttpMethods, HttpRequest, MediaTypes, StatusCode, StatusCodes, Uri}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.IOUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -41,6 +43,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(implicit logging: Logging,
                                                                                 ec: ExecutionContext,
                                                                                 actorSystem: ActorSystem,
+                                                                                materializer: ActorMaterializer,
                                                                                 tid: TransactionId) {
   case class CouchDBConfig(image: String,
                            user: String,
@@ -58,7 +61,6 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
   private val whisksDb = dbConfig.prefix + "whisks"
   private val resourcePrefix = "couch"
 
-  //TODO Log the server url
   def run(): Future[ServiceContainer] = {
     for {
       (_, dbSvcs) <- runCouch()
@@ -76,8 +78,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
 
   def runCouch(): Future[(StandaloneDockerContainer, ServiceContainer)] = {
     logging.info(this, s"Starting CouchDB at $port")
-    val params = Map("-p" -> Set(s"$port:5984"))
-    //TODO Local volume
+    val params = Map("-p" -> Set(s"$port:5984"), "-v" -> Set(s"${dataDir.getAbsolutePath}:/opt/couchdb/data"))
     val env = Map("COUCHDB_USER" -> dbConfig.user, "COUCHDB_PASSWORD" -> dbConfig.password)
     val name = containerName("couch")
     val args = createRunCmd(name, env, params)
@@ -107,8 +108,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
   }
 
   private def doesDbExist(dbName: String): Future[Boolean] = {
-    couchClient
-      .requestJson[JsObject](mkRequest(HttpMethods.HEAD, uri(dbName), headers = baseHeaders))
+    requestString(mkRequest(HttpMethods.HEAD, uri(dbName), headers = baseHeaders))
       .map {
         case Right(_)                   => true
         case Left(StatusCodes.NotFound) => false
@@ -117,8 +117,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
   }
 
   private def createDb(dbName: String): Future[Done] = {
-    couchClient
-      .requestJson[JsObject](mkRequest(HttpMethods.PUT, uri(dbName), headers = baseHeaders))
+    requestString(mkRequest(HttpMethods.PUT, uri(dbName), headers = baseHeaders))
       .map {
         case Right(_) => Done
         case Left(s)  => throw new IllegalStateException(("Unknown status code while creating user db" + s))
@@ -211,6 +210,29 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
 
   private def setp(key: String, value: String): Unit = {
     System.setProperty(s"whisk.couchdb.$key", value)
+  }
+
+  /**
+   * This is similar to PoolingRestClient#requestJson just that here we materialize to String. As some of the db
+   * related operation return with empty body
+   */
+  private def requestString(futureRequest: Future[HttpRequest]): Future[Either[StatusCode, String]] = {
+    couchClient.request(futureRequest).flatMap { response =>
+      if (response.status.isSuccess) {
+        Unmarshal(response.entity.withoutSizeLimit).to[String].map(Right.apply)
+      } else {
+        Unmarshal(response.entity).to[String].flatMap { body =>
+          val statusCode = response.status
+          val reason =
+            if (body.nonEmpty) s"${statusCode.reason} (details: $body)" else statusCode.reason
+          val customStatusCode = StatusCodes
+            .custom(intValue = statusCode.intValue, reason = reason, defaultMessage = statusCode.defaultMessage)
+          // This is important, as it drains the entity stream.
+          // Otherwise the connection stays open and the pool dries up.
+          response.discardEntityBytes().future.map(_ => Left(customStatusCode))
+        }
+      }
+    }
   }
 }
 
