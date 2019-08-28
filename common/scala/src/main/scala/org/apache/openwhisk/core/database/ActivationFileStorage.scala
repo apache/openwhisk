@@ -114,6 +114,7 @@ class ActivationFileStorage(logFilePrefix: String,
     activationToFileExtended(activation, context, additionalFields, additionalFields)
   }
 
+  // used by external ArtifactActivationStore SPI implementation
   def activationToFileExtended(activation: WhiskActivation,
                                context: UserContext,
                                additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
