@@ -49,6 +49,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
                            user: String,
                            password: String,
                            prefix: String,
+                           volumesEnabled: Boolean,
                            subjectViews: List[String],
                            whiskViews: List[String],
                            activationViews: List[String])
@@ -87,7 +88,10 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
 
   def runCouch(): Future[(StandaloneDockerContainer, ServiceContainer)] = {
     logging.info(this, s"Starting CouchDB at $port")
-    val params = Map("-p" -> Set(s"$port:5984"), "-v" -> Set(s"${dataDir.getAbsolutePath}:/opt/couchdb/data"))
+    val baseParams = Map("-p" -> Set(s"$port:5984"))
+    val params =
+      if (dbConfig.volumesEnabled) baseParams + ("-v" -> Set(s"${dataDir.getAbsolutePath}:/opt/couchdb/data"))
+      else baseParams
     val env = Map("COUCHDB_USER" -> dbConfig.user, "COUCHDB_PASSWORD" -> dbConfig.password)
     val name = containerName("couch")
     val args = createRunCmd(name, env, params)
