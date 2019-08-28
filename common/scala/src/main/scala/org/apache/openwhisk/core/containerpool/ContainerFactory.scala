@@ -97,7 +97,7 @@ trait ContainerFactory {
     memory: ByteSize,
     cpuShares: Int,
     action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
-    createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares, None)
+    createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
   }
 
   def createContainer(tid: TransactionId,
