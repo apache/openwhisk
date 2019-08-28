@@ -18,6 +18,7 @@
 package org.apache.openwhisk.standalone
 
 import common.WskProps
+import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Canceled, Outcome}
@@ -27,7 +28,8 @@ import system.basic.WskRestBasicTests
 class StandaloneCouchTests extends WskRestBasicTests with StandaloneServerFixture {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
-  override protected def extraArgs: Seq[String] = Seq("--couchdb")
+  override protected def extraArgs: Seq[String] =
+    Seq("--couchdb", "--data-dir", FilenameUtils.concat(FileUtils.getUserDirectoryPath, "standalone"))
 
   private val supportedTests = Set("Wsk Action REST should create, update, get and list an action")
 
