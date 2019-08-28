@@ -76,6 +76,10 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
       _ <- createDbWithViews(activationsDb, dbConfig.activationViews)
       _ <- {
         updateConfig()
+        logging.info(
+          this,
+          s"CouchDB started successfully at http://${StandaloneDockerSupport
+            .getLocalHostName()}:$port/_utils . Username: [${dbConfig.user}], Password: [${dbConfig.password}]")
         Future.successful(Done)
       }
     } yield dbSvcs
