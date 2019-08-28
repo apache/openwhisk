@@ -137,7 +137,7 @@ case class WarmingData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warming"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a cold (not yet running) container that is being initialized (for a specific action + invocation namespace) */
@@ -148,7 +148,7 @@ case class WarmingColdData(invocationNamespace: EntityName,
     extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmingCold"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a warm container that has already been in use (for a specific action + invocation namespace) */
@@ -160,7 +160,7 @@ case class WarmedData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmed"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 // Events received by the actor

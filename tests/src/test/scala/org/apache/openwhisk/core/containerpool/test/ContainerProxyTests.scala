@@ -18,15 +18,14 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
-
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -34,6 +33,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
+import org.apache.openwhisk.core.containerpool.WarmingData
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
@@ -41,7 +41,6 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -1127,6 +1126,61 @@ class ContainerProxyTests
       acker.calls should have size 1
       store.calls should have size 1
     }
+  }
+  it should "reset the lastUse and increment the activationCount on nextRun()" in {
+    //NoData/MemoryData/PrewarmedData always reset activation count to 1, and reset lastUse
+    val noData = NoData()
+    noData.nextRun(Run(action, message)) should matchPattern {
+      case WarmingColdData(message.user.namespace.name, action, _, 1) =>
+    }
+
+    val memData = MemoryData(action.limits.memory.megabytes.MB)
+    memData.nextRun(Run(action, message)) should matchPattern {
+      case WarmingColdData(message.user.namespace.name, action, _, 1) =>
+    }
+    val pwData = PreWarmedData(new TestContainer(), action.exec.kind, action.limits.memory.megabytes.MB)
+    pwData.nextRun(Run(action, message)) should matchPattern {
+      case WarmingData(pwData.container, message.user.namespace.name, action, _, 1) =>
+    }
+
+    //WarmingData, WarmingColdData, and WarmedData increment counts and reset lastUse
+    val timeDiffSeconds = 20
+    val initialCount = 10
+    //WarmingData
+    val warmingData = WarmingData(
+      pwData.container,
+      message.user.namespace.name,
+      action,
+      Instant.now.minusSeconds(timeDiffSeconds),
+      initialCount)
+    val nextWarmingData = warmingData.nextRun(Run(action, message))
+    val nextCount = warmingData.activeActivationCount + 1
+    nextWarmingData should matchPattern {
+      case WarmingData(pwData.container, message.user.namespace.name, action, _, nextCount) =>
+    }
+    warmingData.lastUsed.until(nextWarmingData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
+
+    //WarmingColdData
+    val warmingColdData =
+      WarmingColdData(message.user.namespace.name, action, Instant.now.minusSeconds(timeDiffSeconds), initialCount)
+    val nextWarmingColdData = warmingColdData.nextRun(Run(action, message))
+    nextWarmingColdData should matchPattern {
+      case WarmingColdData(message.user.namespace.name, action, _, newCount) =>
+    }
+    warmingColdData.lastUsed.until(nextWarmingColdData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
+
+    //WarmedData
+    val warmedData = WarmedData(
+      pwData.container,
+      message.user.namespace.name,
+      action,
+      Instant.now.minusSeconds(timeDiffSeconds),
+      initialCount)
+    val nextWarmedData = warmedData.nextRun(Run(action, message))
+    nextWarmedData should matchPattern {
+      case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount) =>
+    }
+    warmedData.lastUsed.until(nextWarmedData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
   }
 
   /**
