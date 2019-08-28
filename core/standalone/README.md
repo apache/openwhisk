@@ -169,7 +169,7 @@ java -jar openwhisk-standalone.jar -m custom-runtime.json
 
 You can then see the runtime config reflect in `http://localhost:3233`
 
-#### Using existing CouchDB
+#### Using CouchDB
 
 If you need to use CouchDB then you can launch the standalone server with `--couchdb` option. This would launch
 a CouchDB server which would configured to store files in user home directory under `.openwhisk/standalone` folder.
