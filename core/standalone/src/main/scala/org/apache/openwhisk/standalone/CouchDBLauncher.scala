@@ -202,6 +202,8 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
       dbName)(actorSystem, logging)
 
   private def updateConfig(): Unit = {
+    //The config needs to pushed via system property and then the Typesafe ConfigFactory cache
+    //should be purged such that config gets read again and hence read these system properties
     setp("host", StandaloneDockerSupport.getLocalHostName())
     setp("port", port.toString)
     setp("password", dbConfig.password)

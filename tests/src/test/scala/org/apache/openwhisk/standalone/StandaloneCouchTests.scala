@@ -31,6 +31,8 @@ class StandaloneCouchTests extends WskRestBasicTests with StandaloneServerFixtur
   override protected def extraArgs: Seq[String] =
     Seq("--couchdb", "--data-dir", FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone"))
 
+  //This is more of a sanity test. So just run one of the test which trigger interaction with couchdb
+  //and skip running all other tests
   private val supportedTests = Set("Wsk Action REST should create, update, get and list an action")
 
   override def withFixture(test: NoArgTest): Outcome = {
