@@ -180,11 +180,23 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
   }
 
   private def createDbClient(dbName: String) =
-    new CouchDbRestClient(
+    new NonEscapingClient(
       "http",
       StandaloneDockerSupport.getLocalHostName(),
       port,
       dbConfig.user,
       dbConfig.password,
-      dbName)
+      dbName)(actorSystem, logging)
+}
+
+private class NonEscapingClient(protocol: String,
+                                host: String,
+                                port: Int,
+                                username: String,
+                                password: String,
+                                db: String)(implicit system: ActorSystem, logging: Logging)
+    extends CouchDbRestClient(protocol, host, port, username, password, db) {
+
+  //Do not escape the design doc id like _design/subjects etc
+  override protected def uri(segments: Any*): Uri = Uri(s"/${segments.mkString("/")}")
 }
