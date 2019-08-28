@@ -25,6 +25,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.{HttpHeader, HttpMethods, MediaTypes, StatusCodes, Uri}
+import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.IOUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.database.CouchDbRestClient
@@ -66,6 +67,10 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
       _ <- createDbWithViews(subjectDb, dbConfig.subjectViews)
       _ <- createDbWithViews(whisksDb, dbConfig.whiskViews)
       _ <- createDbWithViews(activationsDb, dbConfig.activationViews)
+      _ <- {
+        updateConfig()
+        Future.successful(Done)
+      }
     } yield dbSvcs
   }
 
@@ -107,7 +112,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
       .map {
         case Right(_)                   => true
         case Left(StatusCodes.NotFound) => false
-        case Left(s)                    => throw new IllegalStateException(("Unknown status code while checking user db" + s))
+        case Left(s)                    => throw new IllegalStateException("Unknown status code while checking user db" + s)
       }
   }
 
@@ -187,6 +192,26 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
       dbConfig.user,
       dbConfig.password,
       dbName)(actorSystem, logging)
+
+  private def updateConfig(): Unit = {
+    setp("host", StandaloneDockerSupport.getLocalHostName())
+    setp("port", port.toString)
+    setp("password", dbConfig.password)
+    setp("username", dbConfig.user)
+    setp("protocol", "http")
+    setp("provider", "CouchDB")
+    setp("databases.WhiskActivation", activationsDb)
+    setp("databases.WhiskAuth", subjectDb)
+    setp("databases.WhiskEntity", whisksDb)
+
+    System.setProperty(s"whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.CouchDbStoreProvider")
+    ConfigFactory.invalidateCaches()
+    logging.info(this, "Invalidated config cached")
+  }
+
+  private def setp(key: String, value: String): Unit = {
+    System.setProperty(s"whisk.couchdb.$key", value)
+  }
 }
 
 private class NonEscapingClient(protocol: String,

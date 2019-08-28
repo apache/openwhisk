@@ -373,7 +373,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       case Success(_) =>
         logging.info(
           this,
-          s"CouchDB started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$port")
+          s"CouchDB started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$port/_utils")
       case Failure(t) =>
         logging.error(this, "Error starting CouchDB" + t)
     }
