@@ -56,10 +56,10 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
   val apiGw = opt[Boolean](descr = "Enable API Gateway support", noshort = true)
   val couchdb = opt[Boolean](descr = "Enable CouchDB support", noshort = true)
+  val clean = opt[Boolean](descr = "Clean any existing state like database", noshort = true)
   val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
-  //TODO Clean option
   verify()
 
   val colorEnabled = !disableColorLogging()
@@ -341,10 +341,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     installer.run()
   }
 
-  private def initializeDirs(conf: Conf): (File, File) = {
+  private def initializeDirs(conf: Conf)(implicit logging: Logging): (File, File) = {
     val baseDir = conf.dataDir()
     val thisServerDir = s"server-${conf.port()}"
     val dataDir = new File(baseDir, thisServerDir)
+    if (conf.clean() && dataDir.exists()) {
+      FileUtils.deleteDirectory(dataDir)
+      logging.info(this, s"Cleaned existing directory ${dataDir.getAbsolutePath}")
+    }
     FileUtils.forceMkdir(dataDir)
     log.info(s"Using [${dataDir.getAbsolutePath}] as data directory")
 

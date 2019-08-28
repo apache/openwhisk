@@ -62,6 +62,11 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
   private val resourcePrefix = "couch"
 
   def run(): Future[ServiceContainer] = {
+    if (dataDir.list().nonEmpty) {
+      logging.info(this, s"Using pre-existing database from ${dataDir.getAbsolutePath}")
+    } else {
+      logging.info(this, s"Creating new database at ${dataDir.getAbsolutePath}")
+    }
     for {
       (_, dbSvcs) <- runCouch()
       _ <- waitForCouchDB()
