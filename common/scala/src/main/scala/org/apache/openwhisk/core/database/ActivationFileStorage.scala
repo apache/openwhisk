@@ -111,7 +111,7 @@ class ActivationFileStorage(logFilePrefix: String,
 
   def activationToFile(activation: WhiskActivation,
                        context: UserContext,
-                       additionalFields: Map[String, JsValue] = Map.empty): NotUsed = {
+                       additionalFields: Map[String, JsValue] = Map.empty): Unit = {
     activationToFileExtended(activation, context, additionalFields, additionalFields)
   }
 
@@ -119,7 +119,7 @@ class ActivationFileStorage(logFilePrefix: String,
   def activationToFileExtended(activation: WhiskActivation,
                                context: UserContext,
                                additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
-                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty): NotUsed = {
+                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty): Unit = {
     val transcribedLogs = transcribeLogs(activation, additionalFieldsForLogs)
     val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation)
 
