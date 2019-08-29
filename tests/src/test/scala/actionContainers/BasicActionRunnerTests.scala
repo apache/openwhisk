@@ -113,7 +113,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
   /**
    * Tests that action parameters at initialization time are available before an action
-   * is initialized. The value of a parameter is always a String (including the empty string.
+   * is initialized. The value of a parameter is always a String (and may include the empty string).
    *
    * @param code a function returning a dictionary consisting of the following properties
    *             { "SOME_VAR" : process.env.SOME_VAR,
@@ -121,7 +121,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
    *             }
    * @param main the main function
    */
-  def testEnvPartition: TestConfig = TestConfig("", skipTest = true) // so as not to break downstream dependencies
+  def testEnvParameters: TestConfig = TestConfig("", skipTest = true) // so as not to break downstream dependencies
 
   /**
    * Tests the action to confirm it can handle a large parameter (larger than 128K) when using STDIN.
@@ -274,7 +274,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
   }
 
   it should s"export environment variables before initialization" in {
-    val config = testEnvPartition
+    val config = testEnvParameters
 
     if (config.skipTest) {
       throw new TestPendingException
