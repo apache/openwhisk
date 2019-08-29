@@ -22,6 +22,7 @@ import java.nio.file.{Files, Path}
 import java.time.Instant
 import java.util.EnumSet
 
+import akka.NotUsed
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
@@ -106,11 +107,11 @@ class ActivationFileStorage(logFilePrefix: String,
     ByteString(s"${line.compactPrint}\n")
   }
 
-  def getLogFile = logFile
+  def getLogFile: Path = logFile
 
   def activationToFile(activation: WhiskActivation,
                        context: UserContext,
-                       additionalFields: Map[String, JsValue] = Map.empty) = {
+                       additionalFields: Map[String, JsValue] = Map.empty): NotUsed = {
     activationToFileExtended(activation, context, additionalFields, additionalFields)
   }
 
@@ -118,7 +119,7 @@ class ActivationFileStorage(logFilePrefix: String,
   def activationToFileExtended(activation: WhiskActivation,
                                context: UserContext,
                                additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
-                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty) = {
+                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty): NotUsed = {
     val transcribedLogs = transcribeLogs(activation, additionalFieldsForLogs)
     val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation)
 
