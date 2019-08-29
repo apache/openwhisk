@@ -21,7 +21,6 @@ import akka.actor.{ActorSystem, Scheduler}
 import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.containerpool.docker.BrokenDockerContainer
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
 import pureconfig.loadConfigOrThrow
 
@@ -57,7 +56,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     val params = Map("-p" -> Set(s"$redisPort:6379"))
     val name = containerName("redis")
     val args = createRunCmd(name, dockerRunParameters = params)
-    val f = runDetached(redisConfig.image, args, pull = true)
+    val f = docker.runDetached(redisConfig.image, args, shouldPull = true)
     val sc = ServiceContainer(redisPort, "Redis", name)
     f.map(c => (c, Seq(sc)))
   }
@@ -101,7 +100,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     //TODO ExecManifest is scoped to core. Ideally we would like to do
     // ExecManifest.ImageName(apiGwConfig.image).prefix.contains("openwhisk")
     val pull = apiGwConfig.image.startsWith("openwhisk")
-    val f = runDetached(apiGwConfig.image, args, pull)
+    val f = docker.runDetached(apiGwConfig.image, args, pull)
     val sc = Seq(
       ServiceContainer(apiGwApiPort, "Api Gateway - Api Service", name),
       ServiceContainer(apiGwMgmtPort, "Api Gateway - Management Service", name))
@@ -114,26 +113,5 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
       "ApiGateway")
       .waitForServerToStart()
     Future.successful(())
-  }
-
-  private def runDetached(image: String, args: Seq[String], pull: Boolean): Future[StandaloneDockerContainer] = {
-    for {
-      _ <- if (pull) docker.pull(image) else Future.successful(())
-      id <- docker.run(image, args).recoverWith {
-        case t @ BrokenDockerContainer(brokenId, _) =>
-          // Remove the broken container - but don't wait or check for the result.
-          // If the removal fails, there is nothing we could do to recover from the recovery.
-          docker.rm(brokenId)
-          Future.failed(t)
-        case t => Future.failed(t)
-      }
-      ip <- docker.inspectIPAddress(id, StandaloneDockerSupport.network).recoverWith {
-        // remove the container immediately if inspect failed as
-        // we cannot recover that case automatically
-        case e =>
-          docker.rm(id)
-          Future.failed(e)
-      }
-    } yield StandaloneDockerContainer(id, ip)
   }
 }

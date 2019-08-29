@@ -55,6 +55,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val verbose = tally()
   val disableColorLogging = opt[Boolean](descr = "Disables colored logging", noshort = true)
   val apiGw = opt[Boolean](descr = "Enable API Gateway support", noshort = true)
+  val couchdb = opt[Boolean](descr = "Enable CouchDB support", noshort = true)
+  val clean = opt[Boolean](descr = "Clean any existing state like database", noshort = true)
   val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
@@ -71,6 +73,7 @@ object StandaloneConfigKeys {
   val usersConfigKey = "whisk.users"
   val redisConfigKey = "whisk.standalone.redis"
   val apiGwConfigKey = "whisk.standalone.api-gateway"
+  val couchDBConfigKey = "whisk.standalone.couchdb"
 }
 
 object StandaloneOpenWhisk extends SLF4JLogging {
@@ -134,10 +137,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val ec: ExecutionContext = actorSystem.dispatcher
 
     val (dataDir, workDir) = initializeDirs(conf)
-    val (apiGwApiPort, svcs) = if (conf.apiGw()) {
-      startApiGateway(conf)
+    val (dockerClient, dockerSupport) = prepareDocker()
+
+    val (apiGwApiPort, apiGwSvcs) = if (conf.apiGw()) {
+      startApiGateway(conf, dockerClient, dockerSupport)
     } else (-1, Seq.empty)
 
+    val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
+    val svcs = Seq(apiGwSvcs, couchSvcs.toList).flatten
     if (svcs.nonEmpty) {
       new ServiceInfoLogger(conf, svcs, dataDir).run()
     }
@@ -288,8 +295,21 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def startApiGateway(
-    conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext): (Int, Seq[ServiceContainer]) = {
+  private def prepareDocker()(implicit logging: Logging,
+                              as: ActorSystem,
+                              ec: ExecutionContext): (StandaloneDockerClient, StandaloneDockerSupport) = {
+    val dockerClient = new StandaloneDockerClient()
+    val dockerSupport = new StandaloneDockerSupport(dockerClient)
+
+    //Remove any existing launched containers
+    dockerSupport.cleanup()
+    (dockerClient, dockerSupport)
+  }
+
+  private def startApiGateway(conf: Conf, dockerClient: StandaloneDockerClient, dockerSupport: StandaloneDockerSupport)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext): (Int, Seq[ServiceContainer]) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "apiMgmt")
 
     // api port is the port used by rout management actions to configure the api gw upon wsk api commands
@@ -297,11 +317,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val apiGwApiPort = StandaloneDockerSupport.checkOrAllocatePort(9000)
     val apiGwMgmtPort = conf.apiGwPort()
 
-    val dockerClient = new StandaloneDockerClient()
-    val dockerSupport = new StandaloneDockerSupport(dockerClient)
-
-    //Remove any existing launched containers
-    dockerSupport.cleanup()
     val gw = new ApiGwLauncher(dockerClient, apiGwApiPort, apiGwMgmtPort, conf.port())
     val f = gw.run()
     val g = f.andThen {
@@ -326,10 +341,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     installer.run()
   }
 
-  private def initializeDirs(conf: Conf): (File, File) = {
+  private def initializeDirs(conf: Conf)(implicit logging: Logging): (File, File) = {
     val baseDir = conf.dataDir()
     val thisServerDir = s"server-${conf.port()}"
     val dataDir = new File(baseDir, thisServerDir)
+    if (conf.clean() && dataDir.exists()) {
+      FileUtils.deleteDirectory(dataDir)
+      logging.info(this, s"Cleaned existing directory ${dataDir.getAbsolutePath}")
+    }
     FileUtils.forceMkdir(dataDir)
     log.info(s"Using [${dataDir.getAbsolutePath}] as data directory")
 
@@ -342,5 +361,24 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def getUsers(): Map[String, String] = {
     val m = loadConfigOrThrow[Map[String, String]](StandaloneConfigKeys.usersConfigKey)
     m.map { case (name, key) => (name.replace('-', '.'), key) }
+  }
+
+  private def startCouchDb(dataDir: File, dockerClient: StandaloneDockerClient)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext,
+    materializer: ActorMaterializer): ServiceContainer = {
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "couchDB")
+    val port = StandaloneDockerSupport.checkOrAllocatePort(5984)
+    val dbDataDir = new File(dataDir, "couchdb")
+    FileUtils.forceMkdir(dbDataDir)
+    val db = new CouchDBLauncher(dockerClient, port, dbDataDir)
+    val f = db.run()
+    val g = f.andThen {
+      case Success(_) =>
+      case Failure(t) =>
+        logging.error(this, "Error starting CouchDB" + t)
+    }
+    Await.result(g, 5.minutes)
   }
 }
