@@ -43,7 +43,7 @@ object OpenWhiskEvents extends SLF4JLogging {
     Kamon.addReporter(prometheusReporter)
     SystemMetrics.startCollecting()
 
-    val metricConfig = loadConfigOrThrow[MetricConfig](config, "user-events")
+    val metricConfig = loadConfigOrThrow[MetricConfig](config, "whisk.user-events")
 
     val prometheusRecorder = PrometheusRecorder(prometheusReporter)
     val recorders = if (metricConfig.enableKamon) Seq(prometheusRecorder, KamonRecorder) else Seq(prometheusRecorder)

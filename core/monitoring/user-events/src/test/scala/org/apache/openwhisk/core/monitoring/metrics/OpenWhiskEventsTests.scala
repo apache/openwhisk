@@ -49,8 +49,10 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
            |    optimistic-tick-alignment = no
            |  }
            | }
-           | user-events {
-           |  port = $httpPort
+           | whisk {
+           |  user-events {
+           |    port = $httpPort
+           |  }
            | }
          """.stripMargin).withFallback(globalConfig)
 
