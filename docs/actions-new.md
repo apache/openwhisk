@@ -254,10 +254,11 @@ runtime should extend this test suite, and of course include additional tests as
 There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
 for validating a new runtime.
 
-The harness will performing the following:
+The tests verify that the proxy can handle the following scenarios:
 * Test the proxy can handle the identity functions (initialize and run).
-* Test the proxy can properly handle functions with Unicode characters.
+* Test the proxy can handle pre-defined environment variables as well as initialization parameters.
 * Test the proxy properly constructs the activation context.
+* Test the proxy can properly handle functions with Unicode characters.
 * Test the proxy can handle large payloads (more than 1MB).
 * Test the proxy can handle an entry point other than "main".
 * Test the proxy does not permit re-initialization.
