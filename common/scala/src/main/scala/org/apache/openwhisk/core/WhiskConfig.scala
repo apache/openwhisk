@@ -36,11 +36,13 @@ import scala.util.Try
  * @param propertiesFile     a File object, the whisk.properties file, which if given contains the property values.
  * @param env                an optional environment to initialize from.
  */
-class WhiskConfig(requiredProperties: Map[String, String],
-                  optionalProperties: Set[String] = Set.empty,
-                  propertiesFile: File = null,
-                  env: Map[String, String] = sys.env)(implicit logging: Logging)
-    extends Config(requiredProperties, optionalProperties)(env) {
+class WhiskConfig(
+  requiredProperties: Map[String, String],
+  optionalProperties: Set[String]         = Set.empty,
+  propertiesFile:     File                = null,
+  env:                Map[String, String] = sys.env
+)(implicit logging: Logging)
+  extends Config(requiredProperties, optionalProperties)(env) {
 
   /**
    * Loads the properties as specified above.
@@ -63,7 +65,9 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val wskApiHost: String = Try(
     normalize(
-      s"${this(WhiskConfig.wskApiProtocol)}://${this(WhiskConfig.wskApiHostname)}:${this(WhiskConfig.wskApiPort)}"))
+      s"${this(WhiskConfig.wskApiProtocol)}://${this(WhiskConfig.wskApiHostname)}:${this(WhiskConfig.wskApiPort)}"
+    )
+  )
     .getOrElse("")
 
   val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
@@ -120,7 +124,9 @@ object WhiskConfig {
    * mutable properties object.
    */
   def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File)(
-    implicit logging: Logging) = {
+    implicit
+    logging: Logging
+  ) = {
     if (file != null && file.exists) {
       logging.info(this, s"reading properties from file $file")
       val source = Source.fromFile(file)
@@ -206,6 +212,7 @@ object ConfigKeys {
   val kafkaTopics = s"$kafka.topics"
 
   val memory = "whisk.memory"
+  val cpu = "whisk.cpu"
   val timeLimit = "whisk.time-limit"
   val logLimit = "whisk.log-limit"
   val concurrencyLimit = "whisk.concurrency-limit"
