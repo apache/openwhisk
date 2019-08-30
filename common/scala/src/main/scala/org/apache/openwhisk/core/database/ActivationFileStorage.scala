@@ -22,7 +22,6 @@ import java.nio.file.{Files, Path}
 import java.time.Instant
 import java.util.EnumSet
 
-import akka.NotUsed
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
