@@ -159,6 +159,7 @@ class Controller(val instance: ControllerInstanceId,
     whiskConfig,
     TimeLimit.config,
     MemoryLimit.config,
+    CPULimit.config,
     LogLimit.config,
     runtimes,
     List(apiV1.basepath()))
@@ -184,6 +185,7 @@ object Controller {
   private def info(config: WhiskConfig,
                    timeLimit: TimeLimitConfig,
                    memLimit: MemoryLimitConfig,
+                   cpuLimit: CPULimitConfig,
                    logLimit: MemoryLimitConfig,
                    runtimes: Runtimes,
                    apis: List[String]) =
@@ -202,6 +204,9 @@ object Controller {
         "max_action_duration" -> timeLimit.max.toMillis.toJson,
         "min_action_memory" -> memLimit.min.toBytes.toJson,
         "max_action_memory" -> memLimit.max.toBytes.toJson,
+        "cpu_limit_enabled" -> cpuLimit.controlEnabled.toJson,
+        "min_action_cpu" -> cpuLimit.min.toJson,
+        "max_action_cpu" -> cpuLimit.max.toJson,
         "min_action_logs" -> logLimit.min.toBytes.toJson,
         "max_action_logs" -> logLimit.max.toBytes.toJson),
       "runtimes" -> runtimes.toJson)
