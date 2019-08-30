@@ -27,11 +27,18 @@ import org.apache.openwhisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
  * @param instance a numeric value used for the load balancing and Kafka topic creation
  * @param uniqueName an identifier required for dynamic instance assignment by Zookeeper
  * @param displayedName an identifier that is required for the health protocol to correlate Kafka topics with invoker container names
+ * @param userMemory an ByteSize value for user container pool memory limit. It would grep more CPU when you require
+ *                   more userMemory, iff we not enable cpu limit.
+ * @param cpuCores a numeric value used for reporting the invoker instance's CPU cores. Default
+  *                        is `1.0`. Could not be modified once set, since it's solidified.
  */
-case class InvokerInstanceId(val instance: Int,
-                             uniqueName: Option[String] = None,
-                             displayedName: Option[String] = None,
-                             val userMemory: ByteSize) {
+case class InvokerInstanceId(
+  val instance:    Int,
+  uniqueName:      Option[String] = None,
+  displayedName:   Option[String] = None,
+  val userMemory:  ByteSize,
+  val cpuCores: Float = CPULimit.MAX_CPU
+) {
   def toInt: Int = instance
 
   override def toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
@@ -40,12 +47,13 @@ case class InvokerInstanceId(val instance: Int,
 case class ControllerInstanceId(val asString: String) {
   require(
     asString.length <= MAX_NAME_LENGTH && asString.matches(LEGAL_CHARS),
-    "Controller instance id contains invalid characters")
+    "Controller instance id contains invalid characters"
+  )
 }
 
 object InvokerInstanceId extends DefaultJsonProtocol {
   import org.apache.openwhisk.core.entity.size.{serdes => xserds}
-  implicit val serdes = jsonFormat4(InvokerInstanceId.apply)
+  implicit val serdes = jsonFormat5(InvokerInstanceId.apply)
 }
 
 object ControllerInstanceId extends DefaultJsonProtocol {
