@@ -72,10 +72,10 @@ function deploy_assets() {
 
 
 # Always start with removal of existing assets
-remove_assets
+remove_assets $wskparams
 
 # If setup requested, deploy new assets
 if [ "$op" = "s" ]; then
-	deploy_assets
+	deploy_assets $wskparams
 fi
 
