@@ -21,7 +21,7 @@ import akka.actor.ActorRef
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.LongAdder
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -363,3 +363,30 @@ abstract class CommonLoadBalancer(
     }
   }
 }
+
+/**
+ * State kept for each activation slot until completion.
+ *
+ * @param id id of the activation
+ * @param namespaceId namespace that invoked the action
+ * @param invokerName invoker the action is scheduled to
+ * @param memoryLimit memory limit of the invoked action
+ * @param timeLimit time limit of the invoked action
+ * @param maxConcurrent concurrency limit of the invoked action
+ * @param fullyQualifiedEntityName fully qualified name of the invoked action
+ * @param timeoutHandler times out completion of this activation, should be canceled on good paths
+ * @param isBlackbox true if the invoked action is a blackbox action, otherwise false (managed action)
+ * @param isBlocking true if the action is invoked in a blocking fashion, i.e. "somebody" waits for the result
+ */
+case class ActivationEntry(
+  id:                       ActivationId,
+  namespaceId:              UUID,
+  invokerName:              InvokerInstanceId,
+  memoryLimit:              ByteSize,
+  timeLimit:                FiniteDuration,
+  maxConcurrent:            Int,
+  fullyQualifiedEntityName: FullyQualifiedEntityName,
+  timeoutHandler:           Cancellable,
+  isBlackbox:               Boolean,
+  isBlocking:               Boolean
+)
