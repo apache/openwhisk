@@ -476,7 +476,7 @@ case class ShardingContainerPoolBalancerState(
 
   protected[loadBalancer] var _invokerSlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = IndexedSeq.empty[NestedMemorySemaphore[FullyQualifiedEntityName]]
 )(
-  lbConfig: ShardingContainerPoolBalancerConfig = loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
+  lbConfig: ContainerPoolBalancerConfig = loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
 )(implicit logging: Logging) {
 
   // Managed fraction and blackbox fraction can be between 0.0 and 1.0. The sum of these two fractions has to be between
@@ -618,12 +618,3 @@ case class ShardingContainerPoolBalancerState(
  * @param useClusterBootstrap Whether or not to use a bootstrap mechanism
  */
 case class ClusterConfig(useClusterBootstrap: Boolean)
-
-/**
- * Configuration for the sharding container pool balancer.
- *
- * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
- * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
- */
-case class ShardingContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction: Double, timeoutFactor: Int)
-

@@ -54,8 +54,8 @@ abstract class CommonLoadBalancer(
 
   protected implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  val lbConfig: ShardingContainerPoolBalancerConfig =
-    loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
+  val lbConfig: ContainerPoolBalancerConfig =
+    loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
   protected val invokerPool: ActorRef
 
   /** State related to invocations and throttling */
@@ -363,6 +363,14 @@ abstract class CommonLoadBalancer(
     }
   }
 }
+
+/**
+ * Configuration for the container pool balancer.
+ *
+ * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
+ * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
+ */
+case class ContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction: Double, timeoutFactor: Int)
 
 /**
  * State kept for each activation slot until completion.
