@@ -91,9 +91,11 @@ class ActivationFileStorage(logFilePrefix: String,
       ByteString(s"${line.compactPrint}\n")
     }
 
-  private def transcribeActivation(activation: WhiskActivation, additionalFields: Map[String, JsValue]) = {
+  private def transcribeActivation(activation: WhiskActivation,
+                                   additionalFields: Map[String, JsValue],
+                                   includeResult: Boolean) = {
     val transactionType = Map("type" -> "activation_record".toJson)
-    val message = Map(if (writeResultToFile) {
+    val message = Map(if (includeResult) {
       "message" -> JsString(activation.response.result.getOrElse(JsNull).compactPrint)
     } else {
       "message" -> JsString(s"Activation record '${activation.activationId}' for entity '${activation.name}'")
@@ -118,9 +120,10 @@ class ActivationFileStorage(logFilePrefix: String,
   def activationToFileExtended(activation: WhiskActivation,
                                context: UserContext,
                                additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
-                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty): Unit = {
+                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty,
+                               includeResult: Boolean = writeResultToFile): Unit = {
     val transcribedLogs = transcribeLogs(activation, additionalFieldsForLogs)
-    val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation)
+    val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation, includeResult)
 
     // Write each log line to file and then write the activation metadata
     Source
