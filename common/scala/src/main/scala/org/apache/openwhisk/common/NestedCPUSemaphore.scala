@@ -17,10 +17,30 @@
 
 package org.apache.openwhisk.common
 
-private object NestedCPUSemaphoreUtils {
+/**
+  * A singleton object which defines the properties that must be present in a configuration
+  * in order to implement the actions API.
+  */
+object CPULimitUtils {
   // CPU cores would be transformed to CPU permits, and calculate by CPU permits.
-  val unitScala = 100
+  private val unitScala = 100
+
+  /**
+    * transform CPU cores to CPU permits for counting slots.
+    * @param cores CPU cores, count in Float
+    */
   def coresToPermits(cores: Float): Int = (cores * unitScala).toInt
+
+  /**
+    * transform CPU cores to CPU permits for counting slots.
+    * @param cores CPU cores, count in Float
+    */
+  def coresToPermits(cores: Double): Int = (cores * unitScala).toInt
+
+  /**
+    * transform CPU permits to CPU core for nice printing.
+    * @param permits CPU permits, count in Int
+    */
   def permitsToCores(permits: Int): Float = permits.toFloat / unitScala
 }
 
@@ -31,7 +51,7 @@ private object NestedCPUSemaphoreUtils {
  * @param cpuCores
  * @tparam T
  */
-class NestedCPUSemaphore[T](cpuCores: Float) extends NestedSemaphore[T](NestedCPUSemaphoreUtils.coresToPermits(cpuCores)) {
+class NestedCPUSemaphore[T](cpuCores: Float) extends NestedSemaphore[T](CPULimitUtils.coresToPermits(cpuCores)) {
   final override def tryAcquireConcurrent(actionid: T, maxConcurrent: Int, permits: Int): Boolean = {
     super.tryAcquireConcurrent(actionid, maxConcurrent, permits)
   }
