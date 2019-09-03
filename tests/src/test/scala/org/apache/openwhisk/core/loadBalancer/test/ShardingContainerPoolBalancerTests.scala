@@ -107,7 +107,7 @@ class ShardingContainerPoolBalancerTests
     state.invokers shouldBe 'empty
     state.blackboxInvokers shouldBe 'empty
     state.managedInvokers shouldBe 'empty
-    state.invokerSlots shouldBe 'empty
+    state.invokerMemorySlots shouldBe 'empty
     state.managedStepSizes shouldBe Seq.empty
     state.blackboxStepSizes shouldBe Seq.empty
 
@@ -118,14 +118,14 @@ class ShardingContainerPoolBalancerTests
     state.invokers shouldBe update1
     state.blackboxInvokers shouldBe update1 // fallback to at least one
     state.managedInvokers shouldBe update1 // fallback to at least one
-    state.invokerSlots should have size update1.size
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots should have size update1.size
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB
     state.managedStepSizes shouldBe Seq(1)
     state.blackboxStepSizes shouldBe Seq(1)
 
     // aquire a slot to alter invoker state
-    state.invokerSlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
-    state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
+    state.invokerMemorySlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerMemorySlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
 
     // apply second update, growing the state
     val update2 =
@@ -135,10 +135,10 @@ class ShardingContainerPoolBalancerTests
     state.invokers shouldBe update2
     state.managedInvokers shouldBe IndexedSeq(update2.head)
     state.blackboxInvokers shouldBe IndexedSeq(update2.last)
-    state.invokerSlots should have size update2.size
-    state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
-    state.invokerSlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
-    state.invokerSlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
+    state.invokerMemorySlots should have size update2.size
+    state.invokerMemorySlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
+    state.invokerMemorySlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerMemorySlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
     state.managedStepSizes shouldBe Seq(1)
     state.blackboxStepSizes shouldBe Seq(1)
   }
@@ -190,15 +190,15 @@ class ShardingContainerPoolBalancerTests
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory), healthy(1, memory * 2)))
 
-    state.invokerSlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
-    state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB
+    state.invokerMemorySlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerMemorySlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB
 
-    state.invokerSlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
-    state.invokerSlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
+    state.invokerMemorySlots(1).tryAcquire(memoryPerSlot.toMB.toInt)
+    state.invokerMemorySlots(1).availablePermits shouldBe memory.toMB * 2 - memoryPerSlot.toMB
 
     state.updateCluster(2)
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB / 2 // state reset + divided by 2
-    state.invokerSlots(1).availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB / 2 // state reset + divided by 2
+    state.invokerMemorySlots(1).availablePermits shouldBe memory.toMB
   }
 
   it should "fallback to a size of 1 (alone) if cluster size is < 1" in {
@@ -208,16 +208,16 @@ class ShardingContainerPoolBalancerTests
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory)))
 
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB
 
     state.updateCluster(2)
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB / 2
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB / 2
 
     state.updateCluster(0)
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB
 
     state.updateCluster(-1)
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB
   }
 
   it should "set the threshold to 1 if the cluster is bigger than there are slots on 1 invoker" in {
@@ -227,11 +227,11 @@ class ShardingContainerPoolBalancerTests
     val state = ShardingContainerPoolBalancerState()(lbConfig(0.5))
     state.updateInvokers(IndexedSeq(healthy(0, memory)))
 
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe memory.toMB
 
     state.updateCluster(20)
 
-    state.invokerSlots.head.availablePermits shouldBe MemoryLimit.MIN_MEMORY.toMB
+    state.invokerMemorySlots.head.availablePermits shouldBe MemoryLimit.MIN_MEMORY.toMB
   }
   val namespace = EntityPath("testspace")
   val name = EntityName("testname")
@@ -536,7 +536,7 @@ class ShardingContainerPoolBalancerTests
     var nextInvoker = home
     ids.toList.grouped(maxActivationsPerInvoker).zipWithIndex.foreach { g =>
       val remaining = rem(g._1.size)
-      val concurrentState = balancer.schedulingState._invokerSlots
+      val concurrentState = balancer.schedulingState._invokerMemorySlots
         .lift(nextInvoker)
         .get
         .concurrentState(fqn)
@@ -555,14 +555,14 @@ class ShardingContainerPoolBalancerTests
 
     //verify invokers go back to unused state
     invokers.foreach { i =>
-      val concurrentState = balancer.schedulingState._invokerSlots
+      val concurrentState = balancer.schedulingState._invokerMemorySlots
         .lift(i.id.toInt)
         .get
         .concurrentState
         .get(fqn)
 
       concurrentState shouldBe None
-      balancer.schedulingState._invokerSlots.lift(i.id.toInt).map { i =>
+      balancer.schedulingState._invokerMemorySlots.lift(i.id.toInt).map { i =>
         i.availablePermits shouldBe invokerMem.toMB
       }
 

@@ -279,7 +279,7 @@ class ShardingContainerPoolBalancer(
         action.limits.concurrency.maxConcurrent,
         action.fullyQualifiedName(true),
         invokersToUse,
-        schedulingState.invokerSlots,
+        schedulingState.invokerMemorySlots,
         action.limits.memory.megabytes,
         homeInvoker,
         stepSize
@@ -338,7 +338,7 @@ class ShardingContainerPoolBalancer(
     )
 
   override protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry) = {
-    schedulingState.invokerSlots
+    schedulingState.invokerMemorySlots
       .lift(invoker.toInt)
       .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, entry.memoryLimit.toMB.toInt))
   }
@@ -464,7 +464,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
  * @param _blackboxInvokers all invokers for blackbox runtimes
  * @param _managedStepSizes the step-sizes possible for the current managed invoker count
  * @param _blackboxStepSizes the step-sizes possible for the current blackbox invoker count
- * @param _invokerSlots state of accessible slots of each invoker
+ * @param _invokerMemorySlots state of accessible slots of each invoker
  */
 case class ShardingContainerPoolBalancerState(
   private var _invokers:          IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
@@ -474,7 +474,7 @@ case class ShardingContainerPoolBalancerState(
   private var _blackboxStepSizes: Seq[Int]                  = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
   private var _clusterSize:       Int                       = 1,
 
-  protected[loadBalancer] var _invokerSlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = IndexedSeq.empty[NestedMemorySemaphore[FullyQualifiedEntityName]]
+  protected[loadBalancer] var _invokerMemorySlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = IndexedSeq.empty[NestedMemorySemaphore[FullyQualifiedEntityName]]
 )(
   lbConfig: ContainerPoolBalancerConfig = loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
 )(implicit logging: Logging) {
@@ -497,7 +497,7 @@ case class ShardingContainerPoolBalancerState(
   def blackboxInvokers: IndexedSeq[InvokerHealth] = _blackboxInvokers
   def managedStepSizes: Seq[Int] = _managedStepSizes
   def blackboxStepSizes: Seq[Int] = _blackboxStepSizes
-  def invokerSlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = _invokerSlots
+  def invokerMemorySlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = _invokerMemorySlots
   def clusterSize: Int = _clusterSize
 
   /**
@@ -552,8 +552,8 @@ case class ShardingContainerPoolBalancerState(
 
       if (oldSize < newSize) {
         // Keeps the existing state..
-        val onlyNewInvokers = _invokers.drop(_invokerSlots.length)
-        _invokerSlots = _invokerSlots ++ onlyNewInvokers.map { invoker =>
+        val onlyNewInvokers = _invokers.drop(_invokerMemorySlots.length)
+        _invokerMemorySlots = _invokerMemorySlots ++ onlyNewInvokers.map { invoker =>
           new NestedMemorySemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
         }
         val newInvokerDetails = onlyNewInvokers
@@ -589,7 +589,7 @@ case class ShardingContainerPoolBalancerState(
     if (_clusterSize != actualSize) {
       val oldSize = _clusterSize
       _clusterSize = actualSize
-      _invokerSlots = _invokers.map { invoker =>
+      _invokerMemorySlots = _invokers.map { invoker =>
         new NestedMemorySemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
       }
       // Directly after startup, no invokers have registered yet. This needs to be handled gracefully.
