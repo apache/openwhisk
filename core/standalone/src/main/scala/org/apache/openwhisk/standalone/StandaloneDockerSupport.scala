@@ -169,9 +169,14 @@ object StandaloneDockerSupport {
   }
 }
 
-class StandaloneDockerClient(implicit log: Logging, as: ActorSystem, ec: ExecutionContext)
+class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: ActorSystem, ec: ExecutionContext)
     extends DockerClient()(ec)
     with WindowsDockerClient {
+
+  override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+    if (pullDisabled) Future.successful(Unit) else super.pull(image)
+  }
+
   override def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] =
     super.runCmd(args, timeout)
 
