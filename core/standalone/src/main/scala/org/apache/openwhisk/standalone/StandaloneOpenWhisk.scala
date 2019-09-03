@@ -57,6 +57,9 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val apiGw = opt[Boolean](descr = "Enable API Gateway support", noshort = true)
   val couchdb = opt[Boolean](descr = "Enable CouchDB support", noshort = true)
   val clean = opt[Boolean](descr = "Clean any existing state like database", noshort = true)
+  val devMode = opt[Boolean](
+    descr = "Developer mode speeds up the startup by disabling preflight checks and avoiding explicit pulls.",
+    noshort = true)
   val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
@@ -126,18 +129,20 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val conf = new Conf(args)
 
     printBanner(conf)
-    PreFlightChecks(conf).run()
+    if (!conf.devMode()) {
+      PreFlightChecks(conf).run()
+    }
 
     configureLogging(conf)
     initialize(conf)
     //Create actor system only after initializing the config
-    implicit val actorSystem = ActorSystem("standalone-actor-system")
-    implicit val materializer = ActorMaterializer.create(actorSystem)
+    implicit val actorSystem: ActorSystem = ActorSystem("standalone-actor-system")
+    implicit val materializer: ActorMaterializer = ActorMaterializer.create(actorSystem)
     implicit val logger: Logging = createLogging(actorSystem, conf)
     implicit val ec: ExecutionContext = actorSystem.dispatcher
 
     val (dataDir, workDir) = initializeDirs(conf)
-    val (dockerClient, dockerSupport) = prepareDocker()
+    val (dockerClient, dockerSupport) = prepareDocker(conf)
 
     val (apiGwApiPort, apiGwSvcs) = if (conf.apiGw()) {
       startApiGateway(conf, dockerClient, dockerSupport)
@@ -164,6 +169,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     initConfigLocation(conf)
     configureRuntimeManifest(conf)
     loadWhiskConfig()
+
+    if (conf.devMode()) {
+      configureDevMode()
+    }
   }
 
   def startServer(
@@ -249,7 +258,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     } yield GitInfo(commit, time)
   }
 
-  private def printBanner(conf: Conf) = {
+  private def printBanner(conf: Conf): Unit = {
     val bannerTxt = clr(banner, AnsiColor.CYAN, conf.colorEnabled)
     println(bannerTxt)
     gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
@@ -295,10 +304,12 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       new ColoredAkkaLogging(adapter)
   }
 
-  private def prepareDocker()(implicit logging: Logging,
-                              as: ActorSystem,
-                              ec: ExecutionContext): (StandaloneDockerClient, StandaloneDockerSupport) = {
-    val dockerClient = new StandaloneDockerClient()
+  private def prepareDocker(conf: Conf)(implicit logging: Logging,
+                                        as: ActorSystem,
+                                        ec: ExecutionContext): (StandaloneDockerClient, StandaloneDockerSupport) = {
+    //In dev mode disable the pull
+    val pullDisabled = conf.devMode()
+    val dockerClient = new StandaloneDockerClient(pullDisabled)
     val dockerSupport = new StandaloneDockerSupport(dockerClient)
 
     //Remove any existing launched containers
@@ -380,5 +391,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         logging.error(this, "Error starting CouchDB" + t)
     }
     Await.result(g, 5.minutes)
+  }
+
+  private def configureDevMode(): Unit = {
+    setSysProp("whisk.docker.standalone.container-factory.pull-standard-images", "false")
   }
 }
