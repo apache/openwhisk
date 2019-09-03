@@ -56,6 +56,7 @@ abstract class CommonLoadBalancer(
 
   val lbConfig: ContainerPoolBalancerConfig =
     loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer)
+  val cpuLimitConfig: CPULimitConfig = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
   protected val invokerPool: ActorRef
 
   /** State related to invocations and throttling */
@@ -127,9 +128,6 @@ abstract class CommonLoadBalancer(
     // Needed for emitting metrics.
     totalActivations.increment()
     val isBlackboxInvocation = action.exec.pull
-    val totalActivationMemory =
-      if (isBlackboxInvocation) totalBlackBoxActivationMemory else totalManagedActivationMemory
-    totalActivationMemory.add(action.limits.memory.megabytes)
 
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
@@ -291,13 +289,9 @@ abstract class CommonLoadBalancer(
       }
     }
 
-    // TODO: Need to do something when enabled CPU limits
     activationSlots.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
-        val totalActivationMemory =
-          if (entry.isBlackbox) totalBlackBoxActivationMemory else totalManagedActivationMemory
-        totalActivationMemory.add(entry.memoryLimit.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
 
         releaseInvoker(invoker, entry)
@@ -322,10 +316,12 @@ abstract class CommonLoadBalancer(
           val completionAckTimeout = calculateCompletionAckTimeout(entry.timeLimit)
           logging.warn(
             this,
-            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
-          )(
-              tid
-            )
+            if (cpuLimitConfig.controlEnabled) {
+              s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, cpu limit ${entry.cpuLimit} cores, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
+            } else {
+              s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
+            }
+          )(tid)
 
           MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED)
         }
