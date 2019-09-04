@@ -146,10 +146,12 @@ object Invoker {
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
 
-    val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
+    val cpuCores = Runtime.getRuntime.availableProcessors.toFloat // get current node's CPU cores
+    logger.info(this, s"cpu cores of id $assignedInvokerId: $cpuCores")
     val invokerInstance =
-      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory)
+      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory, cpuCores)
 
+    val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
           .ensureTopic(config, topic = topicName, topicConfig = topicBaseName, maxMessageBytes = maxMessageBytes)
