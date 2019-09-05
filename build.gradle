@@ -21,13 +21,14 @@ buildscript {
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-        classpath 'org.scoverage:gradle-scoverage:2.3.0'
     }
 }
 
 plugins {
-    id "com.gradle.build-scan" version "1.14"
+    id "com.gradle.build-scan" version "2.3"
+    id "org.scoverage" version "3.1.5" apply false
 }
+
 
 buildScan {
     termsOfServiceUrl = 'https://gradle.com/terms-of-service'
@@ -102,6 +103,8 @@ def configureUnixClasspath(File script) {
                 // Get original line and append it
                 // with the configuration directory.
                 original += ':$APP_HOME/ext-lib/*:$APP_HOME/config'
+                //Ensure classes comes first. Used to refer to instrumented classes for code coverage
+                original = original.replace('CLASSPATH=', 'CLASSPATH=$APP_HOME/classes:')
             }
         }
         .join('\n')

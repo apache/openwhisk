@@ -35,11 +35,11 @@ install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
 
 target 'MyApp' do
-     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.3.0'
+     pod 'OpenWhisk', :git => 'https://github.com/apache/openwhisk-client-swift.git', :tag => '0.3.0'
 end
 
 target 'MyApp WatchKit Extension' do
-     pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.3.0'
+     pod 'OpenWhisk', :git => 'https://github.com/apache/openwhisk-client-swift.git', :tag => '0.3.0'
 end
 ```
 
@@ -72,7 +72,7 @@ You must then add OpenWhisk.framework to the embedded frameworks in your Xcode p
 
 ### Installing from source code
 
-Source code is available at https://github.com/apache/incubator-openwhisk-client-swift.git.
+Source code is available at https://github.com/apache/openwhisk-client-swift.git.
 Open the project by using the `OpenWhisk.xcodeproj` using Xcode.
 The project contains two schemes: "OpenWhisk" (targeted for iOS) and "OpenWhiskWatch" (targeted for watchOS 2).
 Build the project for the targets that you need and add the resulting frameworks to your app (usually in ~/Library/Developer/Xcode/DerivedData/your app name).

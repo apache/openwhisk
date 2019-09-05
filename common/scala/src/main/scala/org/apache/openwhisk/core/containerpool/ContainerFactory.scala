@@ -30,7 +30,18 @@ case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq.empty,
                                dnsSearch: Seq[String] = Seq.empty,
                                dnsOptions: Seq[String] = Seq.empty,
-                               extraArgs: Map[String, Set[String]] = Map.empty)
+                               extraEnvVars: Seq[String] = Seq.empty,
+                               extraArgs: Map[String, Set[String]] = Map.empty) {
+
+  val extraEnvVarMap: Map[String, String] =
+    extraEnvVars.flatMap {
+      _.split("=", 2) match {
+        case Array(key)        => Some(key -> "")
+        case Array(key, value) => Some(key -> value)
+        case _                 => None
+      }
+    }.toMap
+}
 
 case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Double, akkaClient: Boolean) {
   require(

@@ -106,13 +106,21 @@ class ActivationFileStorage(logFilePrefix: String,
     ByteString(s"${line.compactPrint}\n")
   }
 
-  def getLogFile = logFile
+  def getLogFile: Path = logFile
 
   def activationToFile(activation: WhiskActivation,
                        context: UserContext,
-                       additionalFields: Map[String, JsValue] = Map.empty) = {
-    val transcribedLogs = transcribeLogs(activation, additionalFields)
-    val transcribedActivation = transcribeActivation(activation, additionalFields)
+                       additionalFields: Map[String, JsValue] = Map.empty): Unit = {
+    activationToFileExtended(activation, context, additionalFields, additionalFields)
+  }
+
+  // used by external ArtifactActivationStore SPI implementation
+  def activationToFileExtended(activation: WhiskActivation,
+                               context: UserContext,
+                               additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
+                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty): Unit = {
+    val transcribedLogs = transcribeLogs(activation, additionalFieldsForLogs)
+    val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation)
 
     // Write each log line to file and then write the activation metadata
     Source

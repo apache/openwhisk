@@ -41,6 +41,14 @@ def leanExcludes = [
     'invokerShoot/**'
 ]
 
+def projectsWithCoverage = [
+    ':common:scala',
+    ':core:controller',
+    ':core:invoker',
+    ':tools:admin',
+    ':core:cosmosdb:cache-invalidator'
+]
+
 def systemIncludes = [
             "org/apache/openwhisk/core/limits/**",
             "org/apache/openwhisk/core/admin/**",
@@ -63,6 +71,7 @@ ext.testSets = [
         "excludes" : [
             "org/apache/openwhisk/core/admin/**",
             "org/apache/openwhisk/core/apigw/actions/test/**",
+            "org/apache/openwhisk/standalone/**",
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
             "**/*CacheConcurrencyTests*",
@@ -72,7 +81,9 @@ ext.testSets = [
         ]
     ],
     "REQUIRE_SYSTEM" : [
-        "includes" : systemIncludes,
+        "includes" : systemIncludes + [
+            "org/apache/openwhisk/standalone/**"
+        ],
         "excludes": [
             "system/basic/WskMultiRuntimeTests*",
             'invokerShoot/**'
@@ -186,6 +197,7 @@ dependencies {
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
     compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
     compile 'com.typesafe.akka:akka-stream-kafka-testkit_2.12:1.0'
+    compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
 
@@ -194,10 +206,6 @@ dependencies {
     compile project(':core:invoker')
     compile project(':core:cosmosdb:cache-invalidator')
     compile project(':tools:admin')
-
-
-
-    scoverage gradle.scoverage.deps
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'
 }
@@ -233,13 +241,13 @@ gradle.projectsEvaluated {
         doFirst {
             logTestSetInfo()
         }
-        classpath = getScoverageClasspath(project)
+        classpath = getScoverageClasspath(project, projectsWithCoverage)
         exclude getPattern(testSetName, "excludes")
         include getPattern(testSetName, "includes")
     }
 
     task testCoverage(type: Test) {
-        classpath = getScoverageClasspath(project)
+        classpath = getScoverageClasspath(project, projectsWithCoverage)
     }
     tasks.withType(Test) {
         systemProperties(System.getProperties())
@@ -250,7 +258,32 @@ gradle.projectsEvaluated {
             showStandardStreams = true
             exceptionFormat = 'full'
         }
+        maxHeapSize = "1024m" //Gradle 5.5 defaults to 512MB which is low
         outputs.upToDateWhen { false } // force tests to run every time
+    }
+    /**
+     * Task to generate coverage xml report. Requires the
+     * tests to be executed prior to its invocation
+     */
+    task reportCoverage(type: ScoverageReport) {
+        def dependentTasks = []
+        dependentTasks << copyMeasurementFiles
+        projectsWithCoverage.forEach {
+            dependentTasks << it + ':reportScoverage'
+        }
+        dependsOn(dependentTasks)
+        //Need to recreate the logic from
+        //https://github.com/scoverage/gradle-scoverage/blob/924bf49a8f981f119d0604b44a782f3f8eecb359/src/main/groovy/org/scoverage/ScoveragePlugin.groovy#L137
+        //default tasks retrigger the tests. As ours is a multi module integration
+        //test we have to adapt the classpath and hence cannot use default reportXXXScoverage tasks
+        runner = new org.scoverage.ScoverageRunner(project.configurations.scoverage)
+        reportDir = reportTestScoverage.reportDir
+        sources = reportTestScoverage.sources
+        dataDir = reportTestScoverage.dataDir
+        coverageOutputCobertura = reportTestScoverage.coverageOutputCobertura
+        coverageOutputXML = reportTestScoverage.coverageOutputXML
+        coverageOutputHTML = reportTestScoverage.coverageOutputHTML
+        coverageDebug = reportTestScoverage.coverageDebug
     }
 }
 
@@ -273,21 +306,6 @@ task copyMeasurementFiles() {
     }
 }
 
-/**
- * Task to generate coverage xml report. Requires the
- * tests to be executed prior to its invocation
- */
-task reportCoverage(type: ScoverageReport) {
-    dependsOn([
-        copyMeasurementFiles,
-        ':common:scala:reportScoverage',
-        ':core:controller:reportScoverage',
-        ':core:invoker:reportScoverage',
-        ':tools:admin:reportScoverage',
-        ':core:cosmosdb:cache-invalidator:reportScoverage',
-    ])
-
-}
 
 /**
  * Scoverage measurement files are named like scoverage.measurements.xxx. Where xxx is thread id. While
@@ -316,36 +334,10 @@ def loadWhiskProps(){
 }
 
 /**
- * Aggregates the scoverage xml reports from various modules into a
- * single report
- */
-task aggregateCoverage(type: JavaExec, dependsOn: reportCoverage) {
-    //Taken from ScoverageAggregate
-    main = 'org.scoverage.AggregateReportApp'
-    classpath = project.extensions.scoverage.pluginClasspath
-    args = [
-        project.rootProject.projectDir, //Use the root project path so as to "see" all source paths
-        new File(project.buildDir, 'scoverage-aggregate'),
-        false, //Clean scoverage report post process
-        true,  //coverageOutputCobertura
-        true,  //coverageOutputXML
-        true,  //coverageOutputHTML
-        false  //coverageDebug
-    ]
-}
-
-/**
  * Prepares the classpath which refer to scoverage instrumented classes from
  * dependent projects "before" the non instrumented classes
  */
-def getScoverageClasspath(Project project) {
-    def projectNames = [
-        ':common:scala',
-        ':core:controller',
-        ':core:invoker',
-        ':tools:admin',
-        ':core:cosmosdb:cache-invalidator'
-    ]
+def getScoverageClasspath(Project project, List<String> projectNames) {
     def combinedClasspath = projectNames.inject(project.files([])) { result, name ->
         def cp = project.project(name).sourceSets.scoverage.runtimeClasspath
         result + cp.filter {it.name.contains('scoverage')}

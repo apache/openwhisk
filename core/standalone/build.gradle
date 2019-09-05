@@ -46,11 +46,50 @@ task copySwagger(type: Copy) {
     project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${version}/dist")
 }
 
+def apiGwActions = ['createApi', "deleteApi", "getApi"]
+
+task copyGWActions() {
+    doLast {
+        def routeMgmtDir = new File(project.projectDir.getParentFile(), "routemgmt")
+        def commonDir = new File(routeMgmtDir, "common")
+        def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
+        apiGwActions.each { actionName ->
+            def zipFileName = actionName + ".zip"
+            def actionDir = new File(routeMgmtDir, actionName)
+            def zipFile = new File(routeBuildDir, zipFileName)
+            if (!zipFile.exists()) {
+                ant.exec(dir:actionDir, executable:"npm", failonerror:true){
+                    arg(line:"install")
+                }
+                ant.zip(destfile:zipFile){
+                    fileset(dir:actionDir){
+                        exclude(name:zipFileName)
+                        //Somehow if in zip we add same file twice it causes issues
+                        //Its possible that installRouteMgmt.sh has been invoked which would
+                        //have copied the common files to each action dir.
+                        //Exclude such files to zipped twice
+                        commonDir.listFiles().each {f ->
+                            exclude(name:f.name)
+                        }
+                    }
+                    fileset(dir:commonDir)
+                }
+                logger.info("Create action zip $zipFileName")
+            }
+        }
+    }
+}
+
 processResources.dependsOn copySwagger
+processResources.dependsOn copyGWActions
 
 processResources {
     from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
         into(".")
+    }
+    from(new File(project.rootProject.projectDir, "ansible/files")) {
+        include "*.json"
+        into("couch")
     }
     //Implement the logic present in controller Docker file
     from(project.swaggerUiDir) {
@@ -63,6 +102,11 @@ processResources {
     from(project.swaggerUiDir) {
         exclude "index.html"
         into("swagger-ui")
+    }
+    apiGwActions.each { action ->
+        from(file("$buildDir/tmp/routemgmt/${action}.zip")){
+            into(".")
+        }
     }
 }
 
@@ -86,6 +130,17 @@ dependencies {
     compile project(':core:controller')
     compile project(':tools:admin')
     compile 'org.rogach:scallop_2.12:3.3.1'
-    scoverage gradle.scoverage.deps
+
+    testCompile 'junit:junit:4.11'
+    testCompile 'org.scalatest:scalatest_2.12:3.0.5'
 }
 
+gradle.projectsEvaluated {
+    tasks.withType(Test) {
+        testLogging {
+            events "passed", "skipped", "failed"
+            showStandardStreams = true
+            exceptionFormat = 'full'
+        }
+    }
+}

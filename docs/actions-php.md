@@ -24,7 +24,7 @@ The following sections guide you through creating and invoking a single PHP acti
 and demonstrate how to bundle multiple PHP files and third party dependencies.
 
 PHP actions are executed using PHP 7.3. The specific
-version of PHP is listed in the CHANGELOG files in the [PHP runtime repository](https://github.com/apache/incubator-openwhisk-runtime-php).
+version of PHP is listed in the CHANGELOG files in the [PHP runtime repository](https://github.com/apache/openwhisk-runtime-php).
 
 To use a PHP runtime, specify the `wsk` CLI parameter `--kind` when creating or
 updating an action. The available PHP kinds are:
@@ -108,7 +108,7 @@ then the runtime will include one for you with the following Composer packages:
 - ramsey/uuid
 
 The specific versions of these packages depends on the PHP runtime in use and is listed in the
-CHANGELOG files in the [PHP runtime repository](https://github.com/apache/incubator-openwhisk-runtime-php).
+CHANGELOG files in the [PHP runtime repository](https://github.com/apache/openwhisk-runtime-php).
 
 
 ## Built-in PHP extensions

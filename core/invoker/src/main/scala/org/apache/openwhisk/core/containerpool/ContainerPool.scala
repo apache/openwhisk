@@ -208,7 +208,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case NeedWork(warmData: WarmedData) =>
       feed ! MessageFeed.Processed
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
-      val newData = warmData.copy(activeActivationCount = oldData.activeActivationCount - 1)
+      val newData =
+        warmData.copy(lastUsed = oldData.lastUsed, activeActivationCount = oldData.activeActivationCount - 1)
       if (newData.activeActivationCount < 0) {
         logging.error(this, s"invalid activation count after warming < 1 ${newData}")
       }

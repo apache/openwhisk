@@ -28,6 +28,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.{
   Container,
+  ContainerArgsConfig,
   ContainerFactory,
   ContainerFactoryProvider,
   RuntimesRegistryConfig
@@ -40,6 +41,7 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 class KubernetesContainerFactory(
   label: String,
   config: WhiskConfig,
+  containerArgsConfig: ContainerArgsConfig = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
   runtimesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
     ConfigKeys.runtimesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends ContainerFactory {
@@ -82,7 +84,7 @@ class KubernetesContainerFactory(
       image,
       userProvidedImage,
       memory,
-      environment = Map("__OW_API_HOST" -> config.wskApiHost),
+      environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,
       labels = Map("invoker" -> label))
   }
 }

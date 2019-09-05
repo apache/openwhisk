@@ -79,7 +79,8 @@ class ContainerPoolTests
       ActivationId.generate(),
       ControllerInstanceId("0"),
       blocking = false,
-      content = None)
+      content = None,
+      initArgs = Set.empty)
     Run(action, message)
   }
 

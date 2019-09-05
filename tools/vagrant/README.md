@@ -32,7 +32,7 @@ The following instructions were tested on Mac OS X El Capitan, Ubuntu 16.04 LTS.
 ### Clone the repository and change directory to `tools/vagrant`
 
 ```
-git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
+git clone --depth=1 https://github.com/apache/openwhisk.git openwhisk
 cd openwhisk/tools/vagrant
 ```
 
@@ -104,7 +104,7 @@ same IP address.
 The CLI is available in `../../bin`.
 The CLI `../../bin/wsk` is for Linux amd64.
 The CLI for all other operating systems and architectures (as well as Linux) can be
-downloaded in a compressed format from [https://github.com/apache/incubator-openwhisk-cli/releases](https://github.com/apache/incubator-openwhisk-cli/releases) .
+downloaded in a compressed format from [https://github.com/apache/openwhisk-cli/releases](https://github.com/apache/openwhisk-cli/releases) .
 For more details, please consult the relevant [documentation](https://openwhisk.apache.org/documentation.html) section "Download and
 install the wsk CLI from (Linux, Mac or Windows):".
 

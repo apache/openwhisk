@@ -23,13 +23,12 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import com.google.common.base.Stopwatch
 import common.WhiskProperties.WHISK_SERVER
-import common.{FreePortFinder, StreamLogging, WhiskProperties}
+import common.{FreePortFinder, StreamLogging, WhiskProperties, Wsk}
 import io.restassured.RestAssured
 import org.apache.commons.io.FileUtils
-import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.utils.retry
-import org.scalatest.{BeforeAndAfterAll, Pending, Suite, TestSuite}
+import org.scalatest.{BeforeAndAfterAll, Suite, TestSuite}
 
 import scala.concurrent.duration._
 import scala.sys.process._
@@ -46,16 +45,12 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   private val disablePullConfig = "whisk.docker.standalone.container-factory.pull-standard-images"
   private var serverStartedForTest = false
 
-  //Following tests always fail on Mac but pass when standalone server is running on Linux
-  //It looks related to how networking works on Mac for Docker container
-  //For now ignoring there failure
-  private val ignoredTestsOnMac = Set(
-    "Wsk Action REST should create, and invoke an action that utilizes a docker container",
-    "Wsk Action REST should create, and invoke an action that utilizes dockerskeleton with native zip",
-    "Wsk Action REST should create and invoke a blocking action resulting in an application error response",
-    "Wsk Action REST should create an action, and invoke an action that returns an empty JSON object")
-
   private val whiskServerPreDefined = System.getProperty(WHISK_SERVER) != null
+
+  protected def extraArgs: Seq[String] = Seq.empty
+  protected def extraVMArgs: Seq[String] = Seq.empty
+
+  protected def waitForOtherThings(): Unit = {}
 
   override def beforeAll(): Unit = {
     val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
@@ -65,17 +60,19 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         println(s"Connecting to existing server at $serverUrl")
       case None =>
         System.setProperty(WHISK_SERVER, serverUrl)
-        //TODO avoid starting the server if url whisk.server property is predefined
         super.beforeAll()
         println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
         manifestFile = getRuntimeManifest()
         val args = Seq(
           Seq(
             "java",
-            s"-D$disablePullConfig=false",
-            "-jar",
-            standaloneServerJar.getAbsolutePath,
-            "--disable-color-logging"),
+            //For tests let it bound on all ip to make it work on travis which uses linux
+            "-Dwhisk.controller.interface=0.0.0.0",
+            s"-Dwhisk.standalone.wsk=${Wsk.defaultCliPath}",
+            s"-D$disablePullConfig=false")
+            ++ extraVMArgs
+            ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging")
+            ++ extraArgs,
           Seq("-p", serverPort.toString),
           manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
 
@@ -83,6 +80,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         val w = waitForServerToStart()
         serverStartedForTest = true
         println(s"Started test server at $serverUrl in [$w]")
+        waitForOtherThings()
     }
   }
 
@@ -103,11 +101,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
       println(logLines.mkString("\n"))
     }
     stream.reset()
-    val result = if (outcome.isFailed && SystemUtils.IS_OS_MAC && ignoredTestsOnMac.contains(test.name)) {
-      println(s"Ignoring known failed test for Mac [${test.name}]")
-      Pending
-    } else outcome
-    result
+    outcome
   }
 
   def waitForServerToStart(): Stopwatch = {
@@ -117,7 +111,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         println(s"Waiting for OpenWhisk server to start since $w")
         val response = RestAssured.get(new URI(serverUrl))
         require(response.statusCode() == 200)
-      }, 30, Some(1.second))
+      }, 60, Some(1.second))
     } catch {
       case NonFatal(e) =>
         println(logLines.mkString("\n"))

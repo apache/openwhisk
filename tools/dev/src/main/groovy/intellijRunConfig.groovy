@@ -87,7 +87,7 @@ containerNames.each{cn ->
 
         //Prepare system properties
         def sysProps = getSysProps(envMap,type)
-        // disable log collection. See more at: https://github.com/apache/incubator-openwhisk/issues/3195
+        // disable log collection. See more at: https://github.com/apache/openwhisk/issues/3195
         sysProps += " -Dwhisk.log-limit.max=0 -Dwhisk.log-limit.std=0"
         // disable https protocol for controller and invoker
         sysProps = sysProps.replaceAll("protocol=https", "protocol=http")

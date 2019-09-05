@@ -78,6 +78,7 @@ def parseArgs():
     initmenu.add_argument('-b', '--binary', help='treat artifact as binary', action='store_true')
     initmenu.add_argument('main', nargs='?', default='main', help='name of the "main" entry method for the action')
     initmenu.add_argument('artifact', help='a source file or zip/tgz archive')
+    initmenu.add_argument('env', nargs='?', help='the environment variables to export to the action, either a reference to a file or an inline JSON object', default=None)
 
     runmenu = subparsers.add_parser('run', help='send arguments to container to run action')
     runmenu.add_argument('payload', nargs='?', help='the arguments to send to the action, either a reference to a file or an inline JSON object', default=None)
@@ -105,9 +106,14 @@ def init(args):
 
     r = requests.post(
         containerRoute(args, 'init'),
-        json = {"value": {"code": contents,
-                          "binary": binary,
-                          "main": main}})
+        json = {
+            "value": {
+                "code": contents,
+                "binary": binary,
+                "main": main,
+                "env": processPayload(args.env)
+            }
+        })
     print(r.text)
 
 def run(args):

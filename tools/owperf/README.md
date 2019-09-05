@@ -49,7 +49,7 @@ Test setup and teardown can be independently skipped via CLI, and/or directly in
 
 ## Initial Setup
 The tool requires very little setup. You need to have node.js (v8+) and the wsk CLI client installed (on $PATH). Before the first run, execute ```npm install``` in the tool folder to install the dependencies.
-**Throttling**: By default, OW performance is throttled according to some [limits](https://github.com/apache/incubator-openwhisk/blob/master/docs/reference.md#system-limits), such as maximum number of concurrent requests, or maximum invocations per minute. If your benchmark stresses OpenWhisk beyond the limit value, you might want to relax those limits. If it's an OpenWhisk deployment that you control, you can set the limits to 999999, thereby effectively cancelling the limits. If it's a third-party service, you may want to consult the service documentation and/or support to see what limits can be relaxed and by how much.
+**Throttling**: By default, OW performance is throttled according to some [limits](https://github.com/apache/openwhisk/blob/master/docs/reference.md#system-limits), such as maximum number of concurrent requests, or maximum invocations per minute. If your benchmark stresses OpenWhisk beyond the limit value, you might want to relax those limits. If it's an OpenWhisk deployment that you control, you can set the limits to 999999, thereby effectively cancelling the limits. If it's a third-party service, you may want to consult the service documentation and/or support to see what limits can be relaxed and by how much.
 
 ## Usage
 To use the tool, run ```./owperf.sh <options>``` to perform a test. To see all the available options and defaults run ```./owperf.sh -h```.

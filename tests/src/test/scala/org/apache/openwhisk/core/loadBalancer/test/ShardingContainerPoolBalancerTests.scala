@@ -506,7 +506,8 @@ class ShardingContainerPoolBalancerTests
         aid,
         ControllerInstanceId("0"),
         blocking = false,
-        content = None)
+        content = None,
+        initArgs = Set.empty)
 
       //send activation to loadbalancer
       aid -> balancer.publish(actionMetaData.toExecutableWhiskAction.get, msg)

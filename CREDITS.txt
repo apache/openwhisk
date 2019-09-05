@@ -87,4 +87,4 @@ The following repositories were included in the donation:
 
 
                           The Apache OpenWhisk Community
-                       http://openwhisk.incubator.apache.org/
+                           http://openwhisk.apache.org/

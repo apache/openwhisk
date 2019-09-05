@@ -51,7 +51,7 @@ Some components are dynamically generated. This is supported by a generic compon
 which specifies a regex. The `runtime:([\w]+)` is one such component, useful for rebuilding
 action runtime images.
 
-  * `redo --dir /path/to/incubator-openwhisk-runtime-nodejs runtime:nodejs6action`
+  * `redo --dir /path/to/openwhisk-runtime-nodejs runtime:nodejs6action`
 
 ## How to use `citool`
 

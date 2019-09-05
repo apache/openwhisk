@@ -19,17 +19,17 @@
 
 # Developing a new Runtime with the ActionLoop proxy
 
-The [OpenWhisk runtime specification](actions-new.md) defines the expected behavior of an OpenWhisk runtime; you can choose to implement a new runtime from scratch by just following this specification. However, the fastest way to develop a new, compliant runtime is by reusing the *[ActionLoop proxy](https://github.com/apache/incubator-openwhisk-runtime-go#actionloop-runtime)* which already implements most of the specification and requires you to write code for just a few hooks to get a fully functional (and *fast*) runtime in a few hours or less.
+The [OpenWhisk runtime specification](actions-new.md) defines the expected behavior of an OpenWhisk runtime; you can choose to implement a new runtime from scratch by just following this specification. However, the fastest way to develop a new, compliant runtime is by reusing the *[ActionLoop proxy](https://github.com/apache/openwhisk-runtime-go#actionloop-runtime)* which already implements most of the specification and requires you to write code for just a few hooks to get a fully functional (and *fast*) runtime in a few hours or less.
 
 ## What is the ActionLoop proxy
 
-The `ActionLoop proxy` is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support the [OpenWhisk Go language runtime](https://github.com/apache/incubator-openwhisk-runtime-go). However, it was written in a  generic way such that it has since been adopted to implement OpenWhisk runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
+The `ActionLoop proxy` is a runtime "engine", written in the [Go programming language](https://golang.org/), originally developed specifically to support the [OpenWhisk Go language runtime](https://github.com/apache/openwhisk-runtime-go). However, it was written in a  generic way such that it has since been adopted to implement OpenWhisk runtimes for Swift, PHP, Python, Rust, Java, Ruby and Crystal. Even though it was developed with compiled languages in mind it works equally well with scripting languages.
 
 Using it, you can develop a new runtime in a fraction of the time needed for authoring a full-fledged runtime from scratch. This is due to the fact that you have only to write a command line protocol and not a fully-featured web server (with a small amount of corner cases to consider). The results should also produce a runtime that is fairly fast and responsive.  In fact, the ActionLoop proxy has also been adopted to improve the performance of existing runtimes like Python, Ruby, PHP, and Java where performance has improved by a factor between 2x to 20x.
 
 ### Precompilation of OpenWhisk Actions
 
-In addition to being the basis for new runtime development,  ActionLoop runtimes can also support offline "precompilation" of OpenWhisk Action source files into a ZIP file that contains only the compiled binaries which are very fast to start once deployed. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/incubator-openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
+In addition to being the basis for new runtime development,  ActionLoop runtimes can also support offline "precompilation" of OpenWhisk Action source files into a ZIP file that contains only the compiled binaries which are very fast to start once deployed. More information on this approach can be found here: [Precompiling Go Sources Offline](https://github.com/apache/openwhisk-runtime-go/blob/master/docs/DEPLOY.md#precompile) which describes how to do this for the Go language, but the approach applies to any language supported by ActionLoop.
 
 # Tutorial - How to write a new runtime with the ActionLoop Proxy
 
@@ -46,11 +46,11 @@ The general procedure for authoring a runtime with the `ActionLoop proxy` requir
 
 ## ActionLoop Starter Kit
 
-To facilitate the process, there is an `actionloop-starter-kit` in the [openwhisk-devtools](https://github.com/apache/incubator-openwhisk-devtools/tree/master/actionloop-starter-kit) GitHub repository, that implements a fully working runtime for Python.  It contains a stripped-down version of the real Python runtime (with some advanced features removed) along with guided, step-by-step instructions on how to translate it to a different target runtime language using Ruby as an example.
+To facilitate the process, there is an `actionloop-starter-kit` in the [openwhisk-devtools](https://github.com/apache/openwhisk-devtools/tree/master/actionloop-starter-kit) GitHub repository, that implements a fully working runtime for Python.  It contains a stripped-down version of the real Python runtime (with some advanced features removed) along with guided, step-by-step instructions on how to translate it to a different target runtime language using Ruby as an example.
 
 In short, the starter kit provides templates you can adapt in creating an ActionLoop runtime for each of the steps listed above, these include :
 
--checking out  the `actionloop-starter-kit` from the `incubator-openwhisk-devtools` repository
+-checking out  the `actionloop-starter-kit` from the `openwhisk-devtools` repository
 -editing the `Dockerfile` to create the target environment for your target language.
 -converting (rewrite) the `launcher.py` script to an equivalent for script for your target language.
 -editing the `compile` script to compile your action in your target language.
@@ -88,8 +88,8 @@ $ docker ps
 So let's start to create our own `actionloop-demo-ruby-2.6` runtime. First, check out the `devtools` repository to access the starter kit, then move it in your home directory to work on it.
 
 ```bash
-$ git clone https://github.com/apache/incubator-openwhisk-devtools
-$ mv incubator-openwhisk-devtools/actionloop-starter-kit ~/actionloop-demo-ruby-v2.6
+$ git clone https://github.com/apache/openwhisk-devtools
+$ mv openwhisk-devtools/actionloop-starter-kit ~/actionloop-demo-ruby-v2.6
 ```
 
 Now, take the directory `python3.7` and rename it to `ruby2.6` and use `sed` to fix the directory name references in the Gradle build files.
@@ -770,7 +770,7 @@ Rename to `tests/src/test/scala/runtime/actionContainers/ActionLoopRubyBasicTest
 - `testEntryPointOtherThanMain`
 - `testLargeInput`
 
-You should convert Python code to Ruby code. We do not do go into the details of each test, as they are pretty simple and obvious. You can check the source code for the real test [here](https://github.com/apache/incubator-openwhisk-runtime-ruby/blob/master/tests/src/test/scala/actionContainers/Ruby26ActionLoopContainerTests.scala).
+You should convert Python code to Ruby code. We do not do go into the details of each test, as they are pretty simple and obvious. You can check the source code for the real test [here](https://github.com/apache/openwhisk-runtime-ruby/blob/master/tests/src/test/scala/actionContainers/Ruby26ActionLoopContainerTests.scala).
 
 You can verify tests are running properly with:
 

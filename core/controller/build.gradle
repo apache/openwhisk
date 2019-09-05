@@ -27,11 +27,11 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-controller"
 
-ext.coverageJars = [
-    "${buildDir}/libs/${project.archivesBaseName}-$version-scoverage.jar",
-    "${project(':common:scala').buildDir.absolutePath}/libs/openwhisk-common-$version-scoverage.jar"
+ext.coverageDirs = [
+    "${buildDir}/classes/scala/scoverage",
+    "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
 ]
-distDockerCoverage.dependsOn ':common:scala:jarScoverage', 'jarScoverage'
+distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
 
 repositories {
     mavenCentral()
@@ -44,7 +44,6 @@ dependencies {
     compile 'com.lightbend.akka.discovery:akka-discovery-marathon-api_2.12:0.11.0'
     compile project(':common:scala')
     compile project(':core:invoker')
-    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {

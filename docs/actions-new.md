@@ -103,7 +103,7 @@ The runtime repository should follow the canonical structure used by other runti
         └── ...          # ... which extend canonical interface plus additional runtime specific tests
 ```
 
-The [Docker skeleton repository](https://github.com/apache/incubator-openwhisk-runtime-docker)
+The [Docker skeleton repository](https://github.com/apache/openwhisk-runtime-docker)
 is an example starting point to fork and modify for your new runtime.
 
 ### The test action
@@ -146,7 +146,8 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
     "name" : String,
     "main" : String,
     "code" : String,
-    "binary": Boolean
+    "binary": Boolean,
+    "env": Map[String, String]
   }
 }
 ```
@@ -155,10 +156,12 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
 * `main` is the name of the function to execute.
 * `code` is either plain text or a base64 encoded string for binary functions (i.e., a compiled executable).
 * `binary` is false if `code` is in plain text, and true if `code` is base64 encoded.
+* `env` is an map of key-value pairs of properties to export to the environment.
 
 The initialization route is called exactly once by the OpenWhisk platform, before executing a function.
 The route should report an error if called more than once. It is possible however that a single initialization
-will be followed by many activations (via `/run`).
+will be followed by many activations (via `/run`). If an `env` property is provided, the corresponding environment
+variables should be defined before the action code is initialized.
 
 **Successful initialization:** The route should respond with `200 OK` if the initialization is successful and
 the function is ready to execute. Any content provided in the response is ignored.
@@ -196,6 +199,7 @@ platform follows the following schema:
   "api_host": String,
   "api_key": String,
   "activation_id": String,
+  "transaction_id": String,
   "deadline": Number
 }
 ```
@@ -204,6 +208,7 @@ platform follows the following schema:
 * `namespace` is the OpenWhisk namespace for the action (e.g., `whisk.system`).
 * `action_name` is the [fully qualified name](reference.md#fully-qualified-names) of the action.
 * `activation_id` is a unique ID for this activation.
+* `transaction_id` is a unique ID for the request of which this activation is part of.
 * `deadline` is the deadline for the function.
 * `api_key` is the API key used to invoke the action.
 
@@ -232,7 +237,7 @@ will destroy the container.
 
 The proxy must flush all the logs produced during initialization and execution and add a frame marker
 to denote the end of the log stream for an activation. This is done by emitting the token
-[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/incubator-openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
+[`XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX`](https://github.com/apache/openwhisk/blob/59abfccf91b58ee39f184030374203f1bf372f2d/core/invoker/src/main/scala/whisk/core/containerpool/docker/DockerContainer.scala#L51)
 as the last log line for the `stdout` _and_ `stderr` streams. Failure to emit this marker will cause delayed
 or truncated activation logs.
 
@@ -249,10 +254,11 @@ runtime should extend this test suite, and of course include additional tests as
 There is a [canonical test harness](../tests/src/test/scala/actionContainers/BasicActionRunnerTests.scala)
 for validating a new runtime.
 
-The harness will performing the following:
+The tests verify that the proxy can handle the following scenarios:
 * Test the proxy can handle the identity functions (initialize and run).
-* Test the proxy can properly handle functions with Unicode characters.
+* Test the proxy can handle pre-defined environment variables as well as initialization parameters.
 * Test the proxy properly constructs the activation context.
+* Test the proxy can properly handle functions with Unicode characters.
 * Test the proxy can handle large payloads (more than 1MB).
 * Test the proxy can handle an entry point other than "main".
 * Test the proxy does not permit re-initialization.

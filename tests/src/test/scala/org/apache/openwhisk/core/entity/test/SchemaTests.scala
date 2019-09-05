@@ -138,7 +138,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     }
 
     DocRevision.serdes.read(JsNull) shouldBe DocRevision.empty
-    DocRevision.serdes.read(JsString("")) shouldBe DocRevision("")
+    DocRevision.serdes.read(JsString.empty) shouldBe DocRevision("")
     DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
     DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
     DocRevision.serdes.read(JsString("a ")) shouldBe DocRevision("a")
@@ -367,7 +367,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
     FullyQualifiedEntityName.resolveName(JsString("/a/b/c/d"), EntityName("ns")) shouldBe None
 
-    FullyQualifiedEntityName.resolveName(JsString(""), EntityName("ns")) shouldBe None
+    FullyQualifiedEntityName.resolveName(JsString.empty, EntityName("ns")) shouldBe None
   }
 
   behavior of "Binding"
@@ -545,14 +545,50 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "exclude undefined code in whisk action initializer" in {
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson)
     }
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson)
     }
-    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim")))
+      .containerInitializer() shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson)
+    }
+  }
+
+  it should "allow of main override in action initializer" in {
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), jsDefault("")).containerInitializer() shouldBe {
+      JsObject("name" -> "b".toJson, "binary" -> false.toJson, "code" -> JsString.empty, "main" -> "main".toJson)
+    }
+
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), jsDefault("", Some("bar")))
+      .containerInitializer() shouldBe {
+      JsObject("name" -> "b".toJson, "binary" -> false.toJson, "code" -> JsString.empty, "main" -> "bar".toJson)
+    }
+  }
+
+  it should "include optional environment variables" in {
+    val env = Map(
+      "A" -> "c".toJson,
+      "B" -> JsNull,
+      "C" -> JsTrue,
+      "D" -> JsNumber(3),
+      "E" -> JsArray(JsString("a")),
+      "F" -> JsObject("a" -> JsFalse))
+
+    ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer(env) shouldBe {
+      JsObject(
+        "name" -> "b".toJson,
+        "binary" -> false.toJson,
+        "main" -> "main".toJson,
+        "env" -> JsObject(
+          "A" -> JsString("c"),
+          "B" -> JsString(""),
+          "C" -> JsString("true"),
+          "D" -> JsString("3"),
+          "E" -> JsString("[\"a\"]"),
+          "F" -> JsString("{\"a\":false}")))
     }
   }
 
@@ -608,7 +644,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "reject null code/image arguments" in {
     an[IllegalArgumentException] should be thrownBy Exec.serdes.read(null)
     a[DeserializationException] should be thrownBy Exec.serdes.read("{}" parseJson)
-    a[DeserializationException] should be thrownBy Exec.serdes.read(JsString(""))
+    a[DeserializationException] should be thrownBy Exec.serdes.read(JsString.empty)
   }
 
   it should "serialize to json" in {
@@ -621,7 +657,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "Parameter"
 
-  it should "properly deserialize and reserialize JSON" in {
+  it should "properly deserialize and reserialize JSON without optional field" in {
     val json = Seq[JsValue](
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "foo" -> "bar".toJson)),
@@ -637,6 +673,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     assert(params(1).toString != json(1).compactPrint) // drops unknown prop "foo"
     assert(params(2).toString == json(2).compactPrint) // drops unknown prop "foo"
     assert(params(3).toString == json(3).compactPrint) // drops unknown prop "foo"
+  }
+
+  it should "properly deserialize and reserialize parameters with optional field" in {
+    val json = Seq[JsValue](
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsFalse)),
+      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsTrue)))
+
+    val params = json.map { p =>
+      Parameters.serdes.read(p)
+    }
+    assert(params(0) == Parameters("k", "v"))
+    assert(params(1) == Parameters("k", "v", false))
+    assert(params(2) == Parameters("k", "v", true))
+    assert(params(0).toString == json(0).compactPrint)
+    assert(params(1).toString == json(0).compactPrint) // init == false drops the property from the JSON
+    assert(params(2).toString == json(2).compactPrint)
+  }
+
+  it should "reject parameters with invalid optional field" in {
+    val json = Seq[JsValue](JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsString("true"))))
+
+    json.foreach { p =>
+      an[DeserializationException] should be thrownBy Parameters.serdes.read(p)
+    }
   }
 
   it should "filter immutable parameters" in {
@@ -676,7 +737,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       Parameters("x", v).isTruthy("x") shouldBe true
     }
 
-    Seq(JsFalse, JsNumber(0), JsString(""), JsNull).foreach { v =>
+    Seq(JsFalse, JsNumber(0), JsString.empty, JsNull).foreach { v =>
       Parameters("x", v).isTruthy("x") shouldBe false
     }
 

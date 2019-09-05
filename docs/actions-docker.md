@@ -25,7 +25,7 @@ Building custom runtime images is a common solution to the issue of having exter
 
 ### Usage
 
-The [Apache OpenWhisk CLI](https://github.com/apache/incubator-openwhisk-cli) has a `--docker` configuration parameter to set a custom runtime for an action.
+The [Apache OpenWhisk CLI](https://github.com/apache/openwhisk-cli) has a `--docker` configuration parameter to set a custom runtime for an action.
 
 ```
 wsk action create <ACTION_NAME> --docker <IMAGE> source.js
@@ -43,7 +43,7 @@ In this scenario, action source code will not be injected into the runtime durin
 
 ### Restrictions
 
-- Custom runtime images must implement the [Action interface](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-new.md#runtime-general-requirements). This is the [protocol used by the platform](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-new.md#action-interface) to pass invocation requests to the runtime containers. Containers are expected to expose a HTTP server (running on port 8080) with `/init` and `/run` endpoints.
+- Custom runtime images must implement the [Action interface](https://github.com/apache/openwhisk/blob/master/docs/actions-new.md#runtime-general-requirements). This is the [protocol used by the platform](https://github.com/apache/openwhisk/blob/master/docs/actions-new.md#action-interface) to pass invocation requests to the runtime containers. Containers are expected to expose a HTTP server (running on port 8080) with `/init` and `/run` endpoints.
 - Custom runtime images must be available on [Docker Hub](https://hub.docker.com/search?q=&type=image). Docker Hub is the only container registry currently supported. This means all custom runtime images will need to be publicly available.
 - Custom runtime images will be pulled from Docker Hub into the local platform registry upon the first invocation. This can lead to longer cold-start times on the first invocation with a new or updated image. Once images have been pulled down, they are cached locally.
 
@@ -61,12 +61,12 @@ Apache OpenWhisk publishes all the [existing runtime images](https://hub.docker.
 
 Here are some of the more common runtime images...
 
-- `openwhisk/action-nodejs-v10` - [Node.js 10](https://hub.docker.com/r/openwhisk/action-nodejs-v10) ([Source](https://github.com/apache/incubator-openwhisk-runtime-nodejs/blob/master/core/nodejs10Action/Dockerfile))
-- `openwhisk/python3action` - [Python 3](https://hub.docker.com/r/openwhisk/python3action) ([Source](https://github.com/apache/incubator-openwhisk-runtime-python/blob/master/core/pythonAction/Dockerfile))
-- `openwhisk/java8action` - [Java 8](https://hub.docker.com/r/openwhisk/java8action) ([Source](https://github.com/apache/incubator-openwhisk-runtime-java/blob/master/core/java8/Dockerfile))
-- `openwhisk/action-swift-v4.2` - [Swift 4.2](https://hub.docker.com/r/openwhisk/action-swift-v4.2) ([Source](https://github.com/apache/incubator-openwhisk-runtime-swift/blob/master/core/swift42Action/Dockerfile))
-- `openwhisk/action-php-v7.3` - [PHP 7.3](https://hub.docker.com/r/openwhisk/action-php-v7.3) ([Source](https://github.com/apache/incubator-openwhisk-runtime-php/blob/master/core/php7.3Action/Dockerfile))
-- `openwhisk/action-ruby-v2.5` - [Ruby 2.5](https://hub.docker.com/r/openwhisk/action-ruby-v2.5) ([Source](https://github.com/apache/incubator-openwhisk-runtime-ruby/blob/master/core/ruby2.5Action/Dockerfile))
+- `openwhisk/action-nodejs-v10` - [Node.js 10](https://hub.docker.com/r/openwhisk/action-nodejs-v10) ([Source](https://github.com/apache/openwhisk-runtime-nodejs/blob/master/core/nodejs10Action/Dockerfile))
+- `openwhisk/python3action` - [Python 3](https://hub.docker.com/r/openwhisk/python3action) ([Source](https://github.com/apache/openwhisk-runtime-python/blob/master/core/pythonAction/Dockerfile))
+- `openwhisk/java8action` - [Java 8](https://hub.docker.com/r/openwhisk/java8action) ([Source](https://github.com/apache/openwhisk-runtime-java/blob/master/core/java8/Dockerfile))
+- `openwhisk/action-swift-v4.2` - [Swift 4.2](https://hub.docker.com/r/openwhisk/action-swift-v4.2) ([Source](https://github.com/apache/openwhisk-runtime-swift/blob/master/core/swift42Action/Dockerfile))
+- `openwhisk/action-php-v7.3` - [PHP 7.3](https://hub.docker.com/r/openwhisk/action-php-v7.3) ([Source](https://github.com/apache/openwhisk-runtime-php/blob/master/core/php7.3Action/Dockerfile))
+- `openwhisk/action-ruby-v2.5` - [Ruby 2.5](https://hub.docker.com/r/openwhisk/action-ruby-v2.5) ([Source](https://github.com/apache/openwhisk-runtime-ruby/blob/master/core/ruby2.5Action/Dockerfile))
 
 ## Extending Existing Runtimes
 
@@ -147,7 +147,7 @@ wsk action invoke tfjs --result
 
 Python is a popular language for machine learning and data science due to availability of libraries like [numpy](http://www.numpy.org/).
 
-Python libraries can be [imported into the Python runtime](https://github.com/apache/incubator-openwhisk/blob/master/docs/actions-python.md#packaging-python-actions-with-a-virtual-environment-in-zip-files) in Apache OpenWhisk by including a `virtualenv` folder in the deployment archive. This approach does not work when the deployment archive would be larger than the action size limit (48MB).
+Python libraries can be [imported into the Python runtime](https://github.com/apache/openwhisk/blob/master/docs/actions-python.md#packaging-python-actions-with-a-virtual-environment-in-zip-files) in Apache OpenWhisk by including a `virtualenv` folder in the deployment archive. This approach does not work when the deployment archive would be larger than the action size limit (48MB).
 
 Instead, we can build a custom runtime which extends the project's Python runtime image and runs `pip install` during the container build process. These libraries will then be pre-installed into the runtime and can be excluded from the deployment archive.
 
@@ -207,7 +207,7 @@ wsk action invoke ml-libs --result
 
 ## Creating native actions
 
-Docker support can also be used to run any executable file (from static binaries to shell scripts) on the platform. Executable files need to use the `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/incubator-openwhisk-runtime-docker). Native actions can be created using the `--native` CLI flag, rather than explicitly specifying `dockerskeleton` as the runtime image name.
+Docker support can also be used to run any executable file (from static binaries to shell scripts) on the platform. Executable files need to use the `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/openwhisk-runtime-docker). Native actions can be created using the `--native` CLI flag, rather than explicitly specifying `dockerskeleton` as the runtime image name.
 
 ### Usage
 
@@ -218,7 +218,7 @@ wsk action create my-action --native archive.zip
 
 Executables can either be text or binary files. Text-based executable files (e.g. shell scripts) are passed directly as the action source files. Binary files (e.g. C programs) must be named `exec` and packaged into a zip archive.
 
-Native action source files must be executable within the  `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/incubator-openwhisk-runtime-docker). This means being compiled for the correct platform architecture, linking to the correct dynamic libraries  and using pre-installed external dependencies.
+Native action source files must be executable within the  `openwhisk/dockerskeleton` [runtime image](https://github.com/apache/openwhisk-runtime-docker). This means being compiled for the correct platform architecture, linking to the correct dynamic libraries  and using pre-installed external dependencies.
 
 When an invocation request is received by the runtime container, the native action file will be executed until the process exits. Action invocation parameters will be passed as a JSON string to `stdin`.
 

@@ -86,16 +86,26 @@ class DockerContainerFactoryTests
           "net1",
           "-e",
           "__OW_API_HOST=",
+          "-e",
+          "k1=v1",
+          "-e",
+          "k2=v2",
+          "-e",
+          "k3=",
           "--dns",
           "dns1",
           "--dns",
           "dns2",
           "--name",
           "testContainer",
-          "--env",
+          "--extra1",
           "e1",
-          "--env",
-          "e2"),
+          "--extra1",
+          "e2",
+          "--extra2",
+          "e3",
+          "--extra2",
+          "e4"),
         *)
       .returning(Future.successful { ContainerId("fakecontainerid") })
     //setup inspect expectation
@@ -117,7 +127,13 @@ class DockerContainerFactoryTests
       new DockerContainerFactory(
         InvokerInstanceId(0, userMemory = defaultUserMemory),
         Map.empty,
-        ContainerArgsConfig("net1", Seq("dns1", "dns2"), Seq.empty, Seq.empty, Map("env" -> Set("e1", "e2"))),
+        ContainerArgsConfig(
+          "net1",
+          Seq("dns1", "dns2"),
+          Seq.empty,
+          Seq.empty,
+          Seq("k1=v1", "k2=v2", "k3"),
+          Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
         runtimesRegistryConfig,
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
 

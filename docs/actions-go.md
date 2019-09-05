@@ -116,7 +116,7 @@ cd ..
 wsk action create hellozip hello.zip --kind go:1.11
 ```
 
-Check the example [golang-main-package](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples/golang-main-package) and the associated `Makefile`.
+Check the example [golang-main-package](https://github.com/apache/openwhisk-runtime-go/tree/master/examples/golang-main-package) and the associated `Makefile`.
 
 ### Using vendor folders
 
@@ -155,7 +155,7 @@ golang-hello-vendor
             - golang.org/...
 ```
 
-Check the example [golang-hello-vendor](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples/golang-hello-vendor)
+Check the example [golang-hello-vendor](https://github.com/apache/openwhisk-runtime-go/tree/master/examples/golang-hello-vendor)
 
 Note you do not need to store the `vendor` folder in the version control system as it can be regenerated, you only the manifest files. However, you need to include the entire vendor folder when you deploy the action in source format for compilation by the runtime.
 
@@ -185,7 +185,7 @@ docker run openwhisk/actionloop-golang-v1.11 -compile main <src.zip >exec.zip
 
 Note that the output is always a zip file in  Linux AMD64 format so the executable can be run only inside a Docker Linux container.
 
-Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/incubator-openwhisk-runtime-go/tree/master/examples) for a collection of tested Makefiles. The  generated executable is suitable to be deployed in OpenWhisk, so you can do:
+Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/openwhisk-runtime-go/tree/master/examples) for a collection of tested Makefiles. The  generated executable is suitable to be deployed in OpenWhisk, so you can do:
 
 `wsk action create my-action exec.zip --kind go:1.11`
 
