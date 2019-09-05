@@ -42,8 +42,8 @@ class KubernetesContainerFactory(
   label: String,
   config: WhiskConfig,
   containerArgsConfig: ContainerArgsConfig = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
-  runtimesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
-    ConfigKeys.runtimesRegistry),
+  runtimesRegistryConfig: RuntimesRegistryConfig =
+    loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry),
   userImagesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
     ConfigKeys.userImagesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends ContainerFactory {
