@@ -62,9 +62,7 @@ case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Doubl
 
 case class RuntimesRegistryCredentials(user: String, password: String)
 
-case class RuntimesRegistryConfig(url: String,
-                                  includeUserImages: Option[Boolean] = None,
-                                  credentials: Option[RuntimesRegistryCredentials])
+case class RuntimesRegistryConfig(url: String, credentials: Option[RuntimesRegistryCredentials])
 
 /**
  * An abstraction for Container creation
@@ -113,6 +111,20 @@ object ContainerFactory {
   /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
   def containerNamePrefix(instanceId: InvokerInstanceId): String =
     s"wsk${instanceId.uniqueName.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
+
+  def resolveRegisterConfig(userProvidedImage: Boolean,
+                            runtimesRegistryConfig: RuntimesRegistryConfig,
+                            userImagesRegistryConfig: RuntimesRegistryConfig): RuntimesRegistryConfig = {
+    if (userProvidedImage) userImagesRegistryConfig else runtimesRegistryConfig
+  }
+
+  def resolveImage(actionImage: ExecManifest.ImageName, config: RuntimesRegistryConfig): String = {
+    if (config.url.isEmpty) {
+      actionImage.publicImageName
+    } else {
+      actionImage.localImageName(config.url)
+    }
+  }
 }
 
 /**

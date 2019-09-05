@@ -44,6 +44,8 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                                loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
                              protected val runtimesRegistryConfig: RuntimesRegistryConfig =
                                loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry),
+                             protected val userImagesRegistryConfig: RuntimesRegistryConfig =
+                               loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.userImagesRegistry),
                              dockerContainerFactoryConfig: DockerContainerFactoryConfig =
                                loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.dockerContainerFactory))(
   implicit actorSystem: ActorSystem,
@@ -60,11 +62,11 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                                userProvidedImage: Boolean,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
-    val image = if (userProvidedImage && !runtimesRegistryConfig.includeUserImages.getOrElse(false)) {
-      Left(actionImage)
-    } else {
-      Right(actionImage.localImageName(runtimesRegistryConfig.url))
-    }
+    val registryConfig =
+      ContainerFactory.resolveRegisterConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig)
+    val image =
+      if (registryConfig.url.isEmpty) Left(actionImage)
+      else Right(actionImage.localImageName(runtimesRegistryConfig.url))
     DockerContainer.create(
       tid,
       image = image,

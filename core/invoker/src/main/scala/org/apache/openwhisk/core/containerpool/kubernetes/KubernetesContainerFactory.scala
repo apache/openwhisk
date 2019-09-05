@@ -43,7 +43,9 @@ class KubernetesContainerFactory(
   config: WhiskConfig,
   containerArgsConfig: ContainerArgsConfig = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
   runtimesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
-    ConfigKeys.runtimesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
+    ConfigKeys.runtimesRegistry),
+  userImagesRegistryConfig: RuntimesRegistryConfig = loadConfigOrThrow[RuntimesRegistryConfig](
+    ConfigKeys.userImagesRegistry))(implicit actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends ContainerFactory {
 
   implicit val kubernetes = initializeKubeClient()
@@ -72,11 +74,9 @@ class KubernetesContainerFactory(
                                userProvidedImage: Boolean,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
-    val image = if (userProvidedImage && !runtimesRegistryConfig.includeUserImages.getOrElse(false)) {
-      actionImage.publicImageName
-    } else {
-      actionImage.localImageName(runtimesRegistryConfig.url)
-    }
+    val image = ContainerFactory.resolveImage(
+      actionImage,
+      ContainerFactory.resolveRegisterConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig))
 
     KubernetesContainer.create(
       tid,
