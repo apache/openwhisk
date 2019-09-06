@@ -106,12 +106,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     Identity.serdes.write(i) shouldBe expected
   }
 
-  it should "serdes read an generic identity" in {
+  it should "serdes read a generic identity" in {
     val uuid = UUID()
     val subject = Subject("test_subject")
     val entity = EntityName("test_subject")
     val genericAuthKey = new GenericAuthKey(JsObject("test_key" -> "test_value".toJson))
-    val i = WhiskAuthHelpers.newIdentity(subject, uuid, genericAuthKey)
+    val i = WhiskAuthHelpers.newIdentityGenricAuth(subject, uuid, genericAuthKey)
 
     val json = JsObject(
       "subject" -> Subject("test_subject").toJson,
@@ -120,6 +120,22 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
       "limits" -> JsObject.empty)
     Identity.serdes.read(json) shouldBe i
+  }
+
+  it should "deserialize view result" in {
+    implicit val tid = TransactionId("test")
+    val subject = Subject("test_subject")
+    val id = WhiskAuthHelpers.newIdentity(subject)
+
+    val json = JsObject(
+      "id" -> subject.asString.toJson,
+      "value" -> JsObject(
+        "uuid" -> id.authkey.asInstanceOf[BasicAuthenticationAuthKey].uuid.toJson,
+        "key" -> id.authkey.asInstanceOf[BasicAuthenticationAuthKey].key.toJson,
+        "namespace" -> "test_subject".toJson),
+      "doc" -> JsNull)
+
+    Identity.rowToIdentity(json, "test") shouldBe id
   }
 
   behavior of "DocInfo"

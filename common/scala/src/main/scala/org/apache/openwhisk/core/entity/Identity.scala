@@ -131,10 +131,12 @@ object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocIn
       stale = StaleParameter.No)
   }
 
-  private def rowToIdentity(row: JsObject, key: String)(implicit transid: TransactionId, logger: Logging) = {
+  protected[entity] def rowToIdentity(row: JsObject, key: String)(implicit transid: TransactionId, logger: Logging) = {
     row.getFields("id", "value", "doc") match {
       case Seq(JsString(id), JsObject(value), doc) =>
-        val limits = Try(doc.convertTo[UserLimits]).getOrElse(UserLimits.standardUserLimits)
+        val limits =
+          if (doc != JsNull) Try(doc.convertTo[UserLimits]).getOrElse(UserLimits.standardUserLimits)
+          else UserLimits.standardUserLimits
         val subject = Subject(id)
         val JsString(uuid) = value("uuid")
         val JsString(secret) = value("key")
