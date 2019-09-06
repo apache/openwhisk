@@ -498,11 +498,7 @@ class ShardingContainerPoolBalancerTests
         TransactionId.testing,
         actionMetaData.fullyQualifiedName(true),
         actionMetaData.rev,
-        Identity(
-          Subject(),
-          Namespace(invocationNamespace, uuid),
-          BasicAuthenticationAuthKey(uuid, Secret()),
-          Set.empty),
+        Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret())),
         aid,
         ControllerInstanceId("0"),
         blocking = false,

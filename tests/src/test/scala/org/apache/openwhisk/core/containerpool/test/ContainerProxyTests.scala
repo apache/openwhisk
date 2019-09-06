@@ -105,7 +105,7 @@ class ContainerProxyTests
     messageTransId,
     action.fullyQualifiedName(true),
     action.rev,
-    Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty),
+    Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret())),
     ActivationId.generate(),
     ControllerInstanceId("0"),
     blocking = false,

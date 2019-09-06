@@ -69,18 +69,13 @@ class NamespaceBlacklistTests
 
   private def authToIdentities(auth: WhiskAuth): Set[Identity] = {
     auth.namespaces.map { ns =>
-      Identity(auth.subject, ns.namespace, ns.authkey, Set.empty, UserLimits())
+      Identity(auth.subject, ns.namespace, ns.authkey)
     }
   }
 
   private def limitToIdentity(limit: LimitEntity): Identity = {
     val namespace = limit.docid.id.dropRight("/limits".length)
-    Identity(
-      limit.subject,
-      Namespace(EntityName(namespace), UUID()),
-      BasicAuthenticationAuthKey(UUID(), Secret()),
-      Set(),
-      UserLimits())
+    Identity(limit.subject, Namespace(EntityName(namespace), UUID()), BasicAuthenticationAuthKey(UUID(), Secret()))
   }
 
   override def beforeAll() = {

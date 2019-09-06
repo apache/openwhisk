@@ -70,7 +70,7 @@ class BasicAuthenticateTests extends ControllerTestCommon {
           BasicAuthenticationDirective
             .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
           dbOpTimeout)
-        user.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
+        user.get shouldBe Identity(subject, ns.namespace, ns.authkey, rights = Privilege.ALL)
 
         // first lookup should have been from datastore
         stream.toString should include(s"serving from datastore: ${CacheKey(ns.authkey)}")
@@ -81,7 +81,7 @@ class BasicAuthenticateTests extends ControllerTestCommon {
           BasicAuthenticationDirective
             .validateCredentials(Some(pass))(transid, executionContext, logging, authStore),
           dbOpTimeout)
-        cachedUser.get shouldBe Identity(subject, ns.namespace, ns.authkey, Privilege.ALL)
+        cachedUser.get shouldBe Identity(subject, ns.namespace, ns.authkey, rights = Privilege.ALL)
 
         stream.toString should include(s"serving from cache: ${CacheKey(ns.authkey)}")
         stream.reset()
