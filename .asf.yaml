@@ -19,8 +19,8 @@ github:
   description: "Apache OpenWhisk is an open source serverless cloud platform"
   homepage: https://openwhisk.apache.org/
   labels:
-    - openwhisk
-    - apache
-    - serverless
-    - cloud
-    - FaaS
+  - openwhisk
+  - apache
+  - serverless
+  - cloud
+  - FaaS
