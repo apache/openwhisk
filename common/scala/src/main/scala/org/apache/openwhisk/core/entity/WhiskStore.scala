@@ -139,7 +139,7 @@ protected[core] case class View(ddoc: String, view: String) {
  * refined by name.
  *
  */
-object WhiskEntityQueries {
+object WhiskQueries {
   val TOP = "\ufff0"
 
   /** The design document to use for queries. */
@@ -152,10 +152,10 @@ object WhiskEntityQueries {
 trait WhiskEntityQueries[T] {
   val collectionName: String
   val serdes: RootJsonFormat[T]
-  import WhiskEntityQueries._
+  import WhiskQueries._
 
   /** The view name for the collection, within the design document. */
-  lazy val view: View = WhiskEntityQueries.view(collection = collectionName)
+  lazy val view: View = WhiskQueries.view(collection = collectionName)
 
   /**
    * Queries the datastore for records from a specific collection (i.e., type) matching

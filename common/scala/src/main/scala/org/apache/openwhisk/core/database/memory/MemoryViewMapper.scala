@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.memory
 
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsTrue}
 import org.apache.openwhisk.core.database.{ActivationHandler, UnsupportedQueryKeys, UnsupportedView, WhisksHandler}
-import org.apache.openwhisk.core.entity.{UserLimits, WhiskEntityQueries}
+import org.apache.openwhisk.core.entity.{UserLimits, WhiskQueries}
 import org.apache.openwhisk.utils.JsHelpers
 
 /**
@@ -28,7 +28,7 @@ import org.apache.openwhisk.utils.JsHelpers
  * are to be supported by any {{{ArtifactStore}}} implementation
  */
 trait MemoryViewMapper {
-  protected val TOP: String = WhiskEntityQueries.TOP
+  protected val TOP: String = WhiskQueries.TOP
 
   def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject): Boolean
 
