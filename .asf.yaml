@@ -22,5 +22,11 @@ github:
   - openwhisk
   - apache
   - serverless
-  - cloud
   - faas
+  - functions-as-a-service
+  - cloud
+  - serverless-architectures
+  - serverless-functions
+  - docker
+  - kubernetes
+  - functions
