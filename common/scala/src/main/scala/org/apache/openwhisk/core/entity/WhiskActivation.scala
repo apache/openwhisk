@@ -24,9 +24,7 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.{ArtifactStore, CacheChangeNotification, DocumentFactory, StaleParameter}
-import pureconfig._
 
 /**
  * A WhiskActivation provides an abstraction of the meta-data
@@ -168,18 +166,14 @@ object WhiskActivation
 
   override val collectionName = "activations"
 
-  private val dbConfig = loadConfigOrThrow[DBConfig](ConfigKeys.db)
-  private val mainDdoc = dbConfig.activationsDdoc
-  private val filtersDdoc = dbConfig.activationsFilterDdoc
-
   /** The main view for activations, keyed by namespace, sorted by date. */
-  override lazy val view = WhiskQueries.view(mainDdoc, collectionName)
+  override lazy val view = WhiskQueries.view(WhiskQueries.dbConfig.activationsDdoc, collectionName)
 
   /**
    * A view for activations in a namespace additionally keyed by action name
    * (and package name if present) sorted by date.
    */
-  lazy val filtersView = WhiskQueries.view(filtersDdoc, collectionName)
+  lazy val filtersView = WhiskQueries.view(WhiskQueries.dbConfig.activationsFilterDdoc, collectionName)
 
   override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 

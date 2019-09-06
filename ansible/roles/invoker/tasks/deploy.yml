@@ -235,6 +235,7 @@
       "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
       "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
       "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_db_subjectsDdoc": "{{ db_whisk_subjects_ddoc | default() }}"
       "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
       "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"

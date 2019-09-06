@@ -55,7 +55,7 @@ protected[core] case class Identity(subject: Subject,
 
 object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocInfo] with DefaultJsonProtocol {
 
-  private val viewName = "subjects/identities"
+  private val viewName = WhiskQueries.view(WhiskQueries.dbConfig.subjectsDdoc, "identities").name
 
   override val cacheEnabled = true
   override val evictionPolicy = WriteTime
