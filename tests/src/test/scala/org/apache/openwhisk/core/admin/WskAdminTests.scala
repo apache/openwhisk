@@ -218,13 +218,16 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
           "--firesPerMinute",
           "2",
           "--concurrentInvocations",
-          "3"))
+          "3",
+          "--reason",
+          "WskAdminTests: adjust throttles for namespace"))
       // check correctly set
       val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.linesIterator.toSeq
-      lines should have size 3
+      lines should have size 4
       lines(0) shouldBe "invocationsPerMinute = 1"
       lines(1) shouldBe "firesPerMinute = 2"
       lines(2) shouldBe "concurrentInvocations = 3"
+      lines(3) shouldBe "reason = WskAdminTests: adjust throttles for namespace"
     } finally {
       wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
     }
