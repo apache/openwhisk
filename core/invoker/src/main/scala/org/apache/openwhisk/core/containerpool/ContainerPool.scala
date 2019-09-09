@@ -49,19 +49,22 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * to the provided prewarmConfig, iff set. Those containers will **not** be
  * part of the poolsize calculation, which is capped by the poolSize parameter.
  * Prewarm containers are only used, if they have matching arguments
- * (kind, memory) and there is space in the pool.
+ * (kind, memory, cpu) and there is space in the pool.
  *
  * @param childFactory method to create new container proxy actor
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  * @param poolConfig config for the ContainerPool
  */
-class ContainerPool(childFactory: ActorRefFactory => ActorRef,
-                    feed: ActorRef,
-                    prewarmConfig: List[PrewarmingConfig] = List.empty,
-                    poolConfig: ContainerPoolConfig)
-    extends Actor {
-  import ContainerPool.memoryConsumptionOf
+class ContainerPool(
+  childFactory:  ActorRefFactory => ActorRef,
+  feed:          ActorRef,
+  prewarmConfig: List[PrewarmingConfig]      = List.empty,
+  poolConfig:    ContainerPoolConfig,
+  cpuCores:      Float
+)
+  extends Actor {
+  import ContainerPool.{memoryConsumptionOf, cpuConsumptionOf}
 
   implicit val logging = new AkkaLogging(context.system.log)
 
@@ -70,17 +73,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
-  // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
+  // If all memory/CPU slots are occupied and if there is currently no container to be removed, then the actions will be
   // buffered here to keep order of computation.
-  // Otherwise actions with small memory-limits could block actions with large memory limits.
+  // Otherwise actions with small memory-limits/CPU-limits could block actions with large memory/CPU limits.
   var runBuffer = immutable.Queue.empty[Run]
   val logMessageInterval = 10.seconds
 
   prewarmConfig.foreach { config =>
-    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
-      TransactionId.invokerWarmup)
+    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString} ${config.cpuLimit}")(
+      TransactionId.invokerWarmup
+    )
     (1 to config.count).foreach { _ =>
-      prewarmContainer(config.exec, config.memoryLimit)
+      prewarmContainer(config.exec, config.memoryLimit, config.cpuLimit)
     }
   }
 
@@ -113,7 +117,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       if (runBuffer.isEmpty || isResentFromBuffer) {
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
-          if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
+          if (if (!cpuLimitConfig.controlEnabled)
+            hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)
+          else
+            hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB, r.action.limits.cpu.cores)) {
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
@@ -122,15 +129,20 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
-                if (hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)) {
+                if (if (!cpuLimitConfig.controlEnabled)
+                  hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)
+                else
+                  hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB, r.action.limits.cpu.cores)) {
                   takePrewarmContainer(r.action)
                     .map(container => (container, "prewarmed"))
-                    .orElse(Some(createContainer(r.action.limits.memory.megabytes.MB), "cold"))
-                } else None)
+                    .orElse(Some(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.cores), "cold"))
+                } else None
+              )
               .orElse(
                 // Remove a container and create a new one for the given job
-                ContainerPool
-                // Only free up the amount, that is really needed to free up
+                if (!cpuLimitConfig.controlEnabled)
+                  ContainerPool
+                  // Only free up the amount, that is really needed to free up
                   .remove(freePool, Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
                   .map(removeContainer)
                   // If the list had at least one entry, enough containers were removed to start the new container. After
@@ -139,7 +151,20 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   .map(_ =>
                     takePrewarmContainer(r.action)
                       .map(container => (container, "recreatedPrewarm"))
-                      .getOrElse(createContainer(r.action.limits.memory.megabytes.MB), "recreated")))
+                      .getOrElse(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.cores), "recreated"))
+                else
+                  ContainerPool
+                    // Only free up the amount, that is really needed to free up
+                    .removeByCPU(freePool, Math.min(r.action.limits.cpu.cores, cpuConsumptionOf(freePool)), Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
+                    .map(removeContainer)
+                    // If the list had at least one entry, enough containers were removed to start the new container. After
+                    // removing the containers, we are not interested anymore in the containers that have been removed.
+                    .headOption
+                    .map(_ =>
+                      takePrewarmContainer(r.action)
+                        .map(container => (container, "recreatedPrewarm"))
+                        .getOrElse(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.cores), "recreated"))
+              )
 
           } else None
 
@@ -182,15 +207,31 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // (and a new container would over commit the pool)
             val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
             val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
-                this,
-                s"Rescheduling Run message, too many message in the pool, " +
-                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
-                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
-                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
-                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                  s"waiting messages: ${runBuffer.size}")(r.msg.transid)
+              if (!cpuLimitConfig.controlEnabled)
+                logging.error(
+                  this,
+                  s"Rescheduling Run message, too many message in the pool, " +
+                    s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
+                    s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
+                    s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                    s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                    s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                    s"waiting messages: ${runBuffer.size}"
+                )(r.msg.transid)
+              else
+                logging.error(
+                  this,
+                  s"Rescheduling Run message, too many message in the pool, " +
+                    s"freePoolSize: ${freePool.size} containers and ${cpuConsumptionOf(freePool)} cores and ${memoryConsumptionOf(freePool)} MB, " +
+                    s"busyPoolSize: ${busyPool.size} containers and ${cpuConsumptionOf(busyPool)} cores and  ${memoryConsumptionOf(busyPool)} MB, " +
+                    s"maxContainerCPU ${cpuCores} cores," +
+                    s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                    s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                    s"needed CPU: ${r.action.limits.cpu.cores} cores," +
+                    s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                    s"waiting messages: ${runBuffer.size}"
+                )(r.msg.transid)
+
               Some(logMessageInterval.fromNow)
             } else {
               r.retryLogDeadline
@@ -321,6 +362,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def hasPoolSpaceFor[A](pool: Map[A, ContainerData], memory: ByteSize): Boolean = {
     memoryConsumptionOf(pool) + memory.toMB <= poolConfig.userMemory.toMB
   }
+
+  /**
+   * Calculate if there is enough free memory within a given pool.
+   *
+   * @param pool The pool, that has to be checked, if there is enough free memory.
+   * @param memory The amount of memory to check.
+   * @return true, if there is enough space for the given amount of memory.
+   */
+  def hasPoolSpaceFor[A](pool: Map[A, ContainerData], memory: ByteSize, cpu: Float): Boolean = {
+    cpuConsumptionOf(pool) + cpu <= cpuCores && hasPoolSpaceFor(pool, memory)
+  }
 }
 
 object ContainerPool {
@@ -333,6 +385,16 @@ object ContainerPool {
    */
   protected[containerpool] def memoryConsumptionOf[A](pool: Map[A, ContainerData]): Long = {
     pool.map(_._2.memoryLimit.toMB).sum
+  }
+
+  /**
+   * Calculate the CPU of a given pool.
+   *
+   * @param pool The pool with the containers.
+   * @return The cpu consumption of all containers in the pool in cores.
+   */
+  protected[containerpool] def cpuConsumptionOf[A](pool: Map[A, ContainerData]): Float = {
+    pool.map(_._2.cpuCoresLimit).sum
   }
 
   /**
@@ -412,11 +474,59 @@ object ContainerPool {
     }
   }
 
-  def props(factory: ActorRefFactory => ActorRef,
-            poolConfig: ContainerPoolConfig,
-            feed: ActorRef,
-            prewarmConfig: List[PrewarmingConfig] = List.empty) =
-    Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
+  /**
+   * Finds the oldest previously used container to remove to make space for the job passed to run.
+   * Depending on the space that has to be allocated, several containers might be removed.
+   *
+   * NOTE: This method is never called to remove an action that is in the pool already,
+   * since this would be picked up earlier in the scheduler and the container reused.
+   *
+   * @param pool a map of all free containers in the pool
+   * @param cpu the cores of CPU that has to be freed up
+   * @param memory the amount of memory that has to be freed up
+   * @return a list of containers to be removed iff found
+   */
+  @tailrec
+  protected[containerpool] def removeByCPU[A](
+    pool:     Map[A, ContainerData],
+    cpu:      Float,
+    memory:   ByteSize,
+    toRemove: List[A]               = List.empty
+  ): List[A] = {
+    // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
+    val freeContainers = pool.collect {
+      // Only warm containers will be removed. Prewarmed containers will stay always.
+      case (ref, w: WarmedData) if w.activeActivationCount == 0 =>
+        ref -> w
+    }
+
+    if (cpu > 0.toFloat && memory > 0.B && freeContainers.nonEmpty && cpuConsumptionOf(freeContainers) >= cpu && memoryConsumptionOf(freeContainers) >= memory.toMB) {
+      // Remove the oldest container if:
+      // - there is more CPU/memory required
+      // - there are still containers that can be removed
+      // - there are enough free containers that can be removed
+      val (ref, data) = freeContainers.minBy(_._2.lastUsed)
+      // Catch exception if remaining CPU/memory will be negative
+      val remainingCPU = Try(cpu - data.cpuCoresLimit).getOrElse(0.toFloat)
+      val remainingMemory = Try(memory - data.memoryLimit).getOrElse(0.B)
+      removeByCPU(freeContainers - ref, remainingCPU, remainingMemory, toRemove ++ List(ref))
+    } else {
+      // If this is the first call: All containers are in use currently, or there is more memory needed than
+      // containers can be removed.
+      // Or, if this is one of the recursions: Enough containers are found to get the memory, that is
+      // necessary. -> Abort recursion
+      toRemove
+    }
+  }
+
+  def props(
+    factory:       ActorRefFactory => ActorRef,
+    poolConfig:    ContainerPoolConfig,
+    feed:          ActorRef,
+    prewarmConfig: List[PrewarmingConfig]      = List.empty,
+    cpuCores:      Float                       = CPULimit.MAX_CPU
+  ) =
+    Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig, cpuCores))
 }
 
 /** Contains settings needed to perform container prewarming. */

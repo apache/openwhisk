@@ -67,6 +67,7 @@ class ContainerPoolTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
+  val cpuLimit = (0.2).toFloat
 
   /** Creates a `Run` message */
   def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
@@ -109,8 +110,8 @@ class ContainerPoolTests
   val runMessageConcurrentDifferentNamespace = createRunMessage(concurrentAction, differentInvocationNamespace)
 
   /** Helper to create PreWarmedData */
-  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
-    PreWarmedData(stub[Container], kind, memoryLimit)
+  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit, cpuLimit: Float = cpuLimit) =
+    PreWarmedData(stub[Container], kind, memoryLimit, cpuLimit)
 
   /** Helper to create WarmedData */
   def warmedData(action: ExecutableWhiskAction = action,
@@ -604,7 +605,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
-  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
+  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB, (0.2).toFloat)
 
   /** Helper to create NoData */
   def noData() = NoData()
