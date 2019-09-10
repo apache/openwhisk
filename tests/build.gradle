@@ -218,6 +218,7 @@ dependencies {
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')
+    compile project(':core:persister')
     compile project(':core:cosmosdb:cache-invalidator')
     compile project(':core:monitoring:user-events')
     compile project(':tools:admin')

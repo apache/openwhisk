@@ -34,7 +34,7 @@ repositories {
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
-    compile 'com.typesafe.akka:akka-stream-kafka_2.12:1.0'
+    compile "com.typesafe.akka:akka-stream-kafka_2.12:${gradle.akka_kafka.version}"
 }
 
 tasks.withType(ScalaCompile) {
