@@ -24,14 +24,17 @@ import org.apache.openwhisk.core.database.ActivationStore
 
 import scala.concurrent.ExecutionContext
 
+case class PersisterConfig(port: Int, clientId: String, kafkaHosts: String)
+
 object Persister {
+  val configRoot = "whisk.persister"
 
   def start(config: PersisterConfig, store: ActivationStore)(implicit system: ActorSystem,
                                                              materializer: ActorMaterializer,
                                                              logging: Logging): Unit = {
     implicit val ec: ExecutionContext = system.dispatcher
     val persisterStore = new ActivationStorePersister(store)
-    val consumer = new ActivationConsumer(config.serviceConfig, persisterStore)
+    val consumer = new ActivationConsumer(config, persisterStore)
 
     //TODO Review if explicit shutdown is needed or stream would shutdown when actor system would shutdown
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>

@@ -37,10 +37,9 @@ trait ActivationPersister {
   def persist(wa: WhiskActivation)(implicit tid: TransactionId): Future[Done]
 }
 
-case class ActivationConsumer(config: PersisterServiceConfig, persister: ActivationPersister)(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer,
-  logging: Logging) {
+case class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister)(implicit system: ActorSystem,
+                                                                                       materializer: ActorMaterializer,
+                                                                                       logging: Logging) {
   import ActivationConsumer._
 
   def isRunning: Boolean = !control.isShutdown.isCompleted

@@ -24,6 +24,7 @@ import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
 import org.apache.openwhisk.core.database.ActivationStoreProvider
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
+import pureconfig.loadConfigOrThrow
 
 object Main {
   def main(args: Array[String]): Unit = {
@@ -32,12 +33,12 @@ object Main {
     implicit val logging: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
     ConfigMXBean.register()
     Kamon.loadReportersFromConfig()
-    val config = new PersisterConfig(system.settings.config)
-    val port = config.serviceConfig.port
+    val persisterConfig =
+      loadConfigOrThrow[PersisterConfig](system.settings.config.getConfig(Persister.configRoot))
     val activationStore =
       SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
     //TODO ping to be wired with health
-    Persister.start(config, activationStore)
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
+    Persister.start(persisterConfig, activationStore)
+    BasicHttpService.startHttpService(new BasicRasService {}.route, persisterConfig.port, None)
   }
 }
