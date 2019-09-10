@@ -17,10 +17,25 @@
 
 package org.apache.openwhisk.core.database.persister
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.core.database.ActivationStore
+
+import scala.concurrent.ExecutionContext
 
 object Persister {
 
-  def start(config: PersisterConfig)(implicit system: ActorSystem, materializer: ActorMaterializer): Unit = {}
+  def start(config: PersisterConfig, store: ActivationStore)(implicit system: ActorSystem,
+                                                             materializer: ActorMaterializer,
+                                                             logging: Logging): Unit = {
+    implicit val ec: ExecutionContext = system.dispatcher
+    val persisterStore = new ActivationStorePersister(store)
+    val consumer = new ActivationConsumer(config.serviceConfig, persisterStore)
+
+    //TODO Review if explicit shutdown is needed or stream would shutdown when actor system would shutdown
+    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
+      consumer.shutdown()
+    }
+  }
 }

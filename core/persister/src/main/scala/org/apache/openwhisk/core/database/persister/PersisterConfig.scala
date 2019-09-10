@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.database.persister
 import com.typesafe.config.Config
 import pureconfig.loadConfigOrThrow
 
-case class PersisterServiceConfig(port: Int)
+case class PersisterServiceConfig(port: Int, clientId: String, kafkaHosts: String)
 
-case class PersisterConfig(globalConfig: Config) {
+class PersisterConfig(globalConfig: Config) {
   val configRoot = "whisk.persister"
 
   val serviceConfig: PersisterServiceConfig =

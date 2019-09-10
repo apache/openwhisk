@@ -20,18 +20,24 @@ package org.apache.openwhisk.core.database.persister
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import kamon.Kamon
-import org.apache.openwhisk.common.ConfigMXBean
+import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
+import org.apache.openwhisk.core.database.ActivationStoreProvider
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
+import org.apache.openwhisk.spi.SpiLoader
 
 object Main {
   def main(args: Array[String]): Unit = {
     implicit val system: ActorSystem = ActorSystem("persister-actor-system")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
+    implicit val logging: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
     ConfigMXBean.register()
     Kamon.loadReportersFromConfig()
-    val config = PersisterConfig(system.settings.config)
+    val config = new PersisterConfig(system.settings.config)
     val port = config.serviceConfig.port
+    val activationStore =
+      SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
+    //TODO ping to be wired with health
+    Persister.start(config, activationStore)
     BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
-    Persister.start(config)
   }
 }
