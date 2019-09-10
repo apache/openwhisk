@@ -99,9 +99,9 @@ class ArtifactWithFileStorageActivationStoreTests()
             "type" -> "user_log".toJson,
             "message" -> log.toJson,
             "activationId" -> activation.activationId.toJson,
+            "namespace" -> activation.namespace.asString.toJson,
             "namespaceId" -> user.namespace.uuid.toJson)
             ++ additionalFieldsForLogs: _*)
-
       }
     }
     val expectedResult = if (includeResult) {

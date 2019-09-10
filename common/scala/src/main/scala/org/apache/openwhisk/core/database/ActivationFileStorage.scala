@@ -84,9 +84,11 @@ class ActivationFileStorage(logFilePrefix: String,
 
   private def transcribeLogs(activation: WhiskActivation, additionalFields: Map[String, JsValue]) =
     activation.logs.logs.map { log =>
-      val line = JsObject(
-        Map("type" -> "user_log".toJson) ++ Map("message" -> log.toJson) ++ Map(
-          "activationId" -> activation.activationId.toJson) ++ additionalFields)
+      val line =
+        JsObject(
+          Map("type" -> "user_log".toJson) ++ Map("message" -> log.toJson) ++ Map(
+            "activationId" -> activation.activationId.toJson) ++ Map(
+            "namespace" -> activation.namespace.asString.toJson) ++ additionalFields)
 
       ByteString(s"${line.compactPrint}\n")
     }
