@@ -35,10 +35,11 @@ object Main {
     Kamon.loadReportersFromConfig()
     val persisterConfig =
       loadConfigOrThrow[PersisterConfig](system.settings.config.getConfig(Persister.configRoot))
+    val port = persisterConfig.port
     val activationStore =
       SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
     //TODO ping to be wired with health
     Persister.start(persisterConfig, activationStore)
-    BasicHttpService.startHttpService(new BasicRasService {}.route, persisterConfig.port, None)
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
   }
 }
