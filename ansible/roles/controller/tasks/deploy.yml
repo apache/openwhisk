@@ -219,7 +219,7 @@
       "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
       "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
 
-      "CONFIG_whisk_featureFlags_requireApiKeyAnnotation" : "{{ whisk.feature_flags.require_api_key_annotation | default(true) }}"
+      "CONFIG_whisk_featureFlags_requireApiKeyAnnotation": "{{ whisk.feature_flags.require_api_key_annotation | default(true) | string }}"
 
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
