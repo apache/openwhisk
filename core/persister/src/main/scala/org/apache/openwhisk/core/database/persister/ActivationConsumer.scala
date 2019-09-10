@@ -72,7 +72,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
     control.drainAndShutdown()(system.dispatcher)
   }
 
-  def persist(act: WhiskActivation): Future[Done] = {
+  private def persist(act: WhiskActivation): Future[Done] = {
     //TODO Once tid is added as meta property then extract it and use that
     //TODO Failure case handling - If there is an issue in storing then stream
     persister.persist(act)(tid)
@@ -83,7 +83,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
     WhiskActivation.serdes.read(js)
   }
 
-  def consumerSettings(): ConsumerSettings[String, Array[Byte]] =
+  private def consumerSettings(): ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(system, new StringDeserializer, new ByteArrayDeserializer)
       .withGroupId("activation-persister") //TODO Make it configurable
       .withBootstrapServers(config.kafkaHosts)
