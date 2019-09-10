@@ -290,7 +290,11 @@ class InvokerReactive(
       }
   }
 
-  /** Generates an activation with zero runtime. Usually used for error cases */
+  /**
+   * Generates an activation with zero runtime. Usually used for error cases.
+   *
+   * Set the kind annotation to `Exec.UNKNOWN` as user metric requires it
+   */
   private def generateFallbackActivation(msg: ActivationMessage, response: ActivationResponse): WhiskActivation = {
     val now = Instant.now
     val causedBy = if (msg.causedBySequence) {
@@ -309,7 +313,8 @@ class InvokerReactive(
       duration = Some(0),
       response = response,
       annotations = {
-        Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++ causedBy
+        Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++
+          Parameters(WhiskActivation.kindAnnotation, JsString(Exec.UNKNOWN)) ++ causedBy
       })
   }
 
