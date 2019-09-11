@@ -39,7 +39,7 @@ import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.duration._
@@ -51,6 +51,7 @@ class PersisterTests
     with FlatSpecLike
     with Matchers
     with ScalaFutures
+    with BeforeAndAfterAll
     with MockFactory
     with StreamLogging {
 
@@ -73,6 +74,8 @@ class PersisterTests
     store
   }
 
+  private var consumer: ActivationConsumer = _
+
   //We just need stubbing and not verification
   autoVerify = false
 
@@ -91,6 +94,11 @@ class PersisterTests
       stream.reset()
     }
     outcome
+  }
+
+  protected override def beforeAll(): Unit = {
+    super.beforeAll()
+    consumer = Persister.start(persisterConfig, activationStore)
   }
 
   behavior of "ActivationPersister"
@@ -113,13 +121,7 @@ class PersisterTests
 
   private def produceAndAssert(acts: Seq[WhiskActivation], ns: String, predicate: Int => Boolean): Unit = {
     produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint).toList).futureValue
-
-    val consumer = Persister.start(persisterConfig, activationStore)
-    consumer.isRunning shouldBe true
-
-    periodicalCheck[Int]("Check persisted activations count", 2, 10.seconds)(() => countActivations(ns))(predicate)
-
-    consumer.shutdown().futureValue
+    periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
   }
 
   private def newActivation(namespace: String): WhiskActivation = {
