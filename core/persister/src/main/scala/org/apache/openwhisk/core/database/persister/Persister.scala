@@ -31,7 +31,7 @@ object Persister {
 
   def start(config: PersisterConfig, store: ActivationStore)(implicit system: ActorSystem,
                                                              materializer: ActorMaterializer,
-                                                             logging: Logging): Unit = {
+                                                             logging: Logging): ActivationConsumer = {
     implicit val ec: ExecutionContext = system.dispatcher
     val persisterStore = new ActivationStorePersister(store)
     val consumer = new ActivationConsumer(config, persisterStore)
@@ -40,5 +40,6 @@ object Persister {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
       consumer.shutdown()
     }
+    consumer
   }
 }
