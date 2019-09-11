@@ -122,6 +122,7 @@ class PersisterTests
   private def produceAndAssert(acts: Seq[WhiskActivation], ns: String, predicate: Int => Boolean): Unit = {
     produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint).toList).futureValue
     periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
+    consumer.consumerLag shouldBe 0
   }
 
   private def newActivation(namespace: String): WhiskActivation = {

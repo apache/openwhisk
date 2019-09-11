@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.database.persister
 
+import java.lang.management.ManagementFactory
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.Done
@@ -25,9 +26,10 @@ import akka.kafka.scaladsl.{Committer, Consumer}
 import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{RestartSource, Sink}
+import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 
@@ -49,6 +51,10 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
   def isRunning: Boolean = !control.get().isShutdown.isCompleted
 
   private implicit val ec: ExecutionContext = system.dispatcher
+
+  private val server = ManagementFactory.getPlatformMBeanServer
+  private val name = new ObjectName(s"kafka.consumer:type=consumer-fetch-manager-metrics,client-id=${config.clientId}")
+  private val queueMetric = LoggingMarkers.KAFKA_QUEUE(topic)
 
   private val control = new AtomicReference[Consumer.Control](Consumer.NoopControl)
   private val streamFuture: Future[Done] = {
@@ -81,10 +87,15 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
     f
   }
 
+  private val lagRecorder =
+    system.scheduler.schedule(10.seconds, 10.seconds)(queueMetric.gauge.set(consumerLag))
+
   def shutdown(): Future[Done] = {
-    //TODO Lag recording
+    lagRecorder.cancel()
     control.get().drainAndShutdown(streamFuture)(system.dispatcher)
   }
+
+  def consumerLag: Long = server.getAttribute(name, "records-lag-max").asInstanceOf[Double].toLong.max(0)
 
   private def persist(act: WhiskActivation): Future[Done] = {
     //TODO Once tid is added as meta property then extract it and use that
