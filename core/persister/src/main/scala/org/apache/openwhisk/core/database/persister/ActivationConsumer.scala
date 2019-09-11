@@ -51,7 +51,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
 
     val controlResult = Consumer
       .committableSource(consumerSettings(), Subscriptions.topics(topic))
-      .mapAsync(5) { msg => //TODO Use mapAsyncUnordered
+      .mapAsyncUnordered(5) { msg =>
         //TODO Make parallelism configurable
         val f = Try(parseActivation(msg.record.value())) match {
           case Success(a) => persist(a)
