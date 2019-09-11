@@ -18,6 +18,7 @@
 package org.apache.openwhisk.http
 
 import akka.event.Logging
+import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{MetricsRoute, TransactionId}
 
 /**
@@ -36,7 +37,7 @@ trait BasicRasService extends BasicHttpService {
     }
   }
 
-  val ping = path("ping") {
+  def ping: Route = path("ping") {
     get { complete("pong") }
   }
 }

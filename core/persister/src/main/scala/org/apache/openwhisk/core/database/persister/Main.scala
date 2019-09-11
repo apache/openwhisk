@@ -19,6 +19,8 @@ package org.apache.openwhisk.core.database.persister
 
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
+import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
+import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import kamon.Kamon
 import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
@@ -45,8 +47,17 @@ object Main extends SLF4JLogging {
     val port = persisterConfig.port
     val activationStore =
       SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
-    //TODO ping to be wired with health
-    Persister.start(persisterConfig, activationStore)
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
+    val consumer = Persister.start(persisterConfig, activationStore)
+    BasicHttpService.startHttpService(new PersisterService(consumer).route, port, None)
+  }
+
+  class PersisterService(consumer: ActivationConsumer) extends BasicRasService {
+    override def ping: Route = path("ping") {
+      if (consumer.isRunning) {
+        complete("pong")
+      } else {
+        complete(ServiceUnavailable -> "Consumer not running")
+      }
+    }
   }
 }
