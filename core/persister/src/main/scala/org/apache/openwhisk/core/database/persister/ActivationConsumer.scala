@@ -49,9 +49,9 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
   private val control: DrainingControl[Done] = {
     val committerDefaults = CommitterSettings(system)
 
-    Consumer
+    val controlResult = Consumer
       .committableSource(consumerSettings(), Subscriptions.topics(topic))
-      .mapAsync(5) { msg =>
+      .mapAsync(5) { msg => //TODO Use mapAsyncUnordered
         //TODO Make parallelism configurable
         val f = Try(parseActivation(msg.record.value())) match {
           case Success(a) => persist(a)
@@ -65,6 +65,9 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
       .toMat(Sink.ignore)(Keep.both)
       .mapMaterializedValue(DrainingControl.apply)
       .run()
+
+    controlResult.streamCompletion.failed.foreach(t => logging.error(this, "KafkaConsumer failed " + t.getMessage))
+    controlResult
   }
 
   def shutdown(): Future[Done] = {
