@@ -41,7 +41,6 @@ object Persister {
     val persisterStore = new ActivationStorePersister(store)
     val consumer = new ActivationConsumer(config, persisterStore)
 
-    //TODO Review if explicit shutdown is needed or stream would shutdown when actor system would shutdown
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
       consumer.shutdown()
     }
