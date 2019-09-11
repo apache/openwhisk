@@ -51,8 +51,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
 
     val controlResult = Consumer
       .committableSource(consumerSettings(), Subscriptions.topics(topic))
-      .mapAsyncUnordered(5) { msg =>
-        //TODO Make parallelism configurable
+      .mapAsyncUnordered(config.parallelism) { msg =>
         val f = Try(parseActivation(msg.record.value())) match {
           case Success(a) => persist(a)
           case Failure(e) =>
@@ -88,7 +87,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
 
   private def consumerSettings(): ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(system, new StringDeserializer, new ByteArrayDeserializer)
-      .withGroupId("activation-persister") //TODO Make it configurable
+      .withGroupId(config.groupId)
       .withBootstrapServers(config.kafkaHosts)
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
 }
