@@ -17,8 +17,9 @@
 
 package org.apache.openwhisk.core.database.persister
 import akka.Done
+import com.google.common.base.Throwables
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.{ActivationStore, UserContext}
+import org.apache.openwhisk.core.database.{ActivationStore, DocumentConflictException, UserContext}
 import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.{
   BasicAuthenticationAuthKey,
@@ -51,8 +52,14 @@ class ActivationStorePersister(store: ActivationStore)(implicit ec: ExecutionCon
   }
 
   override def persist(act: WhiskActivation)(implicit tid: TransactionId): Future[Done] = {
-    //TODO Handle conflict if same activation is stored multiple
-    //times due to some Kafka issue then error for conflict should be ignored
-    store.store(act, userContext)(tid, None).map(_ => Done)
+    store
+      .store(act, userContext)(tid, None)
+      .recoverWith {
+        //Recover for conflict case as its possible in case of unclean shutdown persister need to process
+        // same activation again
+        //Checking the chain as exception may get wrapped
+        case t if Throwables.getRootCause(t).isInstanceOf[DocumentConflictException] => Future.successful(Done)
+      }
+      .map(_ => Done)
   }
 }

@@ -37,7 +37,7 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpecLike, Matchers}
 import pureconfig.loadConfigOrThrow
@@ -52,9 +52,9 @@ class PersisterTests
     with Matchers
     with ScalaFutures
     with MockFactory
-    with IntegrationPatience
     with StreamLogging {
 
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val artifactStore = {
     implicit val docReader = WhiskDocumentReader
@@ -73,22 +73,60 @@ class PersisterTests
     store
   }
 
-  private val namespace = "testNs"
+  //We just need stubbing and not verification
+  autoVerify = false
+
+  override def withFixture(test: NoArgTest) = {
+    var testResultHandled = false
+    val outcome = try {
+      val oc = super.withFixture(test)
+      if (!oc.isSucceeded) {
+        println(logLines.mkString("\n"))
+      }
+      testResultHandled = true
+      oc
+    } finally {
+      //periodicalCheck throws Error which is not handled in general. Hence need a try/finally approach
+      if (!testResultHandled) println(logLines.mkString("\n"))
+      stream.reset()
+    }
+    outcome
+  }
 
   behavior of "ActivationPersister"
 
   it should "save activation in store upon event" in {
     val totalCount = 5
-    val acts = (1 to totalCount).map(_ => newActivation())
+    val ns = "testNS"
+    val acts = (1 to totalCount).map(_ => newActivation(ns))
     produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint))
 
-    Persister.start(persisterConfig, activationStore)
+    val consumer = Persister.start(persisterConfig, activationStore)
+    consumer.isRunning shouldBe true
 
-    periodicalCheck[Int]("Check persisted activations count", 10, 10.seconds)(countActivations)(count =>
-      count == totalCount)
+    periodicalCheck[Int]("Check persisted activations count", 10, 10.seconds)(() => countActivations(ns))(
+      _ == totalCount)
+    consumer.shutdown().futureValue
   }
 
-  private def newActivation(): WhiskActivation = {
+  it should "handle duplicate events" in {
+    val totalCount = 4
+    val ns = "testNSConflict"
+    val act1 = newActivation(ns)
+    val act2 = newActivation(ns)
+    val acts = List(act1, act2, act1, newActivation(ns), newActivation(ns))
+    produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint)).futureValue
+
+    val consumer = Persister.start(persisterConfig, activationStore)
+    consumer.isRunning shouldBe true
+
+    periodicalCheck[Int]("Check persisted activations count", 2, 10.seconds)(() => countActivations(ns))(count =>
+      count == totalCount)
+
+    consumer.shutdown().futureValue
+  }
+
+  private def newActivation(namespace: String): WhiskActivation = {
     val start = 1000
     WhiskActivation(
       EntityPath(namespace),
@@ -99,7 +137,7 @@ class PersisterTests
       Instant.ofEpochMilli(start + 1000))
   }
 
-  private def countActivations(): Int = {
+  private def countActivations(namespace: String): Int = {
     artifactStore
       .count(WhiskActivation.view.name, List(namespace), List(namespace, TOP), 0, StaleParameter.Ok)(
         TransactionId.testing)
