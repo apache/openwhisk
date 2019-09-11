@@ -24,13 +24,17 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import common.{FreePortFinder, StreamLogging}
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CompletionMessage, ResultMessage}
 import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, StaleParameter, UserContext}
 import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   ActivationId,
+  DocumentReader,
   EntityName,
   EntityPath,
+  InvokerInstanceId,
   Subject,
   WhiskActivation,
   WhiskDocumentReader
@@ -58,7 +62,7 @@ class PersisterTests
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val artifactStore = {
-    implicit val docReader = WhiskDocumentReader
+    implicit val docReader: DocumentReader = WhiskDocumentReader
     MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
   }
 
@@ -106,34 +110,53 @@ class PersisterTests
   it should "save activation in store upon event" in {
     val totalCount = 5
     val ns = "testNS"
-    val acts = (1 to totalCount).map(_ => newActivation(ns))
-    produceAndAssert(acts, ns, _ == totalCount)
+    val rs = (1 to totalCount).map(_ => newResultMessage(ns))
+    produceAndAssert(rs, ns, _ == totalCount)
   }
 
   it should "handle duplicate events" in {
     val totalCount = 4
     val ns = "testNSConflict"
-    val act1 = newActivation(ns)
-    val act2 = newActivation(ns)
-    val acts = List(act1, act2, act1, newActivation(ns), newActivation(ns))
-    produceAndAssert(acts, ns, _ == totalCount)
+    val rm1 = newResultMessage(ns)
+    val rm2 = newResultMessage(ns)
+    val msgs = List(rm1, rm2, rm1, newResultMessage(ns), newResultMessage(ns))
+    produceAndAssert(msgs, ns, _ == totalCount)
   }
 
-  private def produceAndAssert(acts: Seq[WhiskActivation], ns: String, predicate: Int => Boolean): Unit = {
-    produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint).toList).futureValue
+  it should "handle mixed events" in {
+    val totalCount = 4
+    val ns = "testNSConflict"
+    val rm1 = newResultMessage(ns)
+    val rm2 = newResultMessage(ns)
+    val irm1 = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
+    val irm2 =
+      CompletionMessage(
+        TransactionId.testing,
+        ActivationId.generate(),
+        isSystemError = false,
+        InvokerInstanceId(1, userMemory = 1.MB))
+    val msgs = List(rm1, rm2, newResultMessage(ns), irm1, irm2, newResultMessage(ns))
+    produceAndAssert(msgs, ns, _ == totalCount)
+  }
+
+  //TODO Test with some random json
+
+  private def produceAndAssert(msgs: Seq[AcknowledegmentMessage], ns: String, predicate: Int => Boolean): Unit = {
+    produceString(ActivationConsumer.topic, msgs.map(_.serialize).toList).futureValue
     periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
     consumer.consumerLag shouldBe 0
   }
 
-  private def newActivation(namespace: String): WhiskActivation = {
+  private def newResultMessage(namespace: String): AcknowledegmentMessage = {
     val start = 1000
-    WhiskActivation(
+    val wa = WhiskActivation(
       EntityPath(namespace),
       EntityName("testAction"),
       Subject(),
       ActivationId.generate(),
       Instant.ofEpochMilli(start),
       Instant.ofEpochMilli(start + 1000))
+    ResultMessage(TransactionId.testing, Right(wa))
   }
 
   private def countActivations(namespace: String): Int = {

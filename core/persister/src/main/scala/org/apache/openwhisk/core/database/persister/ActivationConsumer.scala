@@ -30,6 +30,7 @@ import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ResultMessage}
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 
@@ -71,7 +72,8 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
           .committableSource(consumerSettings(), Subscriptions.topics(topic))
           .mapAsyncUnordered(config.parallelism) { msg =>
             val f = Try(parseActivation(msg.record.value())) match {
-              case Success(a) => persist(a)
+              case Success(Some((tid, a))) => persist(a)(tid)
+              case Success(None)           => Future.successful(Done)
               case Failure(e) =>
                 logging.warn(this, s"Error parsing json for record ${msg.record.key()}" + e)
                 Future.successful(Done)
@@ -97,15 +99,17 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
 
   def consumerLag: Long = server.getAttribute(name, "records-lag-max").asInstanceOf[Double].toLong.max(0)
 
-  private def persist(act: WhiskActivation): Future[Done] = {
-    //TODO Once tid is added as meta property then extract it and use that
+  private def persist(act: WhiskActivation)(implicit tid: TransactionId): Future[Done] = {
     //TODO Failure case handling - If there is an issue in storing then stream
-    persister.persist(act)(tid)
+    persister.persist(act)
   }
 
-  private def parseActivation(data: Array[Byte]) = {
+  private def parseActivation(data: Array[Byte]): Option[(TransactionId, WhiskActivation)] = {
     val js = JsonParser(ParserInput(data))
-    WhiskActivation.serdes.read(js)
+    AcknowledegmentMessage.serdes.read(js) match {
+      case ResultMessage(tid, Right(wa)) => Some((tid, wa))
+      case _                             => None
+    }
   }
 
   private def consumerSettings(): ConsumerSettings[String, Array[Byte]] =
