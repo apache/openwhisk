@@ -99,14 +99,7 @@ class PersisterTests
     val totalCount = 5
     val ns = "testNS"
     val acts = (1 to totalCount).map(_ => newActivation(ns))
-    produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint))
-
-    val consumer = Persister.start(persisterConfig, activationStore)
-    consumer.isRunning shouldBe true
-
-    periodicalCheck[Int]("Check persisted activations count", 10, 10.seconds)(() => countActivations(ns))(
-      _ == totalCount)
-    consumer.shutdown().futureValue
+    produceAndAssert(acts, ns, _ == totalCount)
   }
 
   it should "handle duplicate events" in {
@@ -115,13 +108,16 @@ class PersisterTests
     val act1 = newActivation(ns)
     val act2 = newActivation(ns)
     val acts = List(act1, act2, act1, newActivation(ns), newActivation(ns))
-    produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint)).futureValue
+    produceAndAssert(acts, ns, _ == totalCount)
+  }
+
+  private def produceAndAssert(acts: Seq[WhiskActivation], ns: String, predicate: Int => Boolean): Unit = {
+    produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint).toList).futureValue
 
     val consumer = Persister.start(persisterConfig, activationStore)
     consumer.isRunning shouldBe true
 
-    periodicalCheck[Int]("Check persisted activations count", 2, 10.seconds)(() => countActivations(ns))(count =>
-      count == totalCount)
+    periodicalCheck[Int]("Check persisted activations count", 2, 10.seconds)(() => countActivations(ns))(predicate)
 
     consumer.shutdown().futureValue
   }
