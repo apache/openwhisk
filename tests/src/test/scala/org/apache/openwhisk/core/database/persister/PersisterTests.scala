@@ -21,6 +21,7 @@ import java.time.Instant
 
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import common.{FreePortFinder, StreamLogging}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
@@ -39,6 +40,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpecLike, Matchers}
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.duration._
 
@@ -80,8 +82,7 @@ class PersisterTests
     val acts = (1 to totalCount).map(_ => newActivation())
     produceString(ActivationConsumer.topic, acts.map(_.toJson.compactPrint))
 
-    val config = PersisterConfig(8080, "foo", s"localhost:$kafkaPort")
-    Persister.start(config, activationStore)
+    Persister.start(persisterConfig, activationStore)
 
     periodicalCheck[Int]("Check persisted activations count", 10, 10.seconds)(countActivations)(count =>
       count == totalCount)
@@ -104,5 +105,15 @@ class PersisterTests
         TransactionId.testing)
       .futureValue
       .toInt
+  }
+
+  private def persisterConfig: PersisterConfig = {
+    val kafkaHost = s"localhost:$kafkaPort"
+    val config = ConfigFactory.parseString(s"""whisk {
+      |  persister {
+      |    kafka-hosts = "$kafkaHost"
+      |  }
+      |}""".stripMargin).withFallback(ConfigFactory.load())
+    loadConfigOrThrow[PersisterConfig](config.getConfig(Persister.configRoot))
   }
 }
