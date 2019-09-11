@@ -18,7 +18,8 @@
 package org.apache.openwhisk.core.database.persister
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.event.slf4j.SLF4JLogging
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import kamon.Kamon
 import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
 import org.apache.openwhisk.core.database.ActivationStoreProvider
@@ -26,11 +27,17 @@ import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig.loadConfigOrThrow
 
-object Main {
+object Main extends SLF4JLogging {
   def main(args: Array[String]): Unit = {
     implicit val system: ActorSystem = ActorSystem("persister-actor-system")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    val decider: Supervision.Decider = { e =>
+      log.error("Unhandled exception in stream", e)
+      Supervision.Stop
+    }
+    val materializerSettings = ActorMaterializerSettings(system).withSupervisionStrategy(decider)
+    implicit val materializer: ActorMaterializer = ActorMaterializer(materializerSettings)
     implicit val logging: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
+
     ConfigMXBean.register()
     Kamon.loadReportersFromConfig()
     val persisterConfig =
