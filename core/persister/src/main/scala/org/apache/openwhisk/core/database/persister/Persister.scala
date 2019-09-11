@@ -24,7 +24,12 @@ import org.apache.openwhisk.core.database.ActivationStore
 
 import scala.concurrent.ExecutionContext
 
-case class PersisterConfig(port: Int, clientId: String, kafkaHosts: String, parallelism: Int, groupId: String)
+case class PersisterConfig(port: Int,
+                           clientId: String,
+                           kafkaHosts: String,
+                           parallelism: Int,
+                           groupId: String,
+                           retry: RetryConfig)
 
 object Persister {
   val configRoot = "whisk.persister"

@@ -17,19 +17,21 @@
 
 package org.apache.openwhisk.core.database.persister
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.Done
 import akka.actor.ActorSystem
-import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.scaladsl.{Committer, Consumer}
 import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.scaladsl.{RestartSource, Sink}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -37,41 +39,51 @@ trait ActivationPersister {
   def persist(wa: WhiskActivation)(implicit tid: TransactionId): Future[Done]
 }
 
+case class RetryConfig(minBackoff: FiniteDuration, maxBackoff: FiniteDuration, randomFactor: Double, maxRestarts: Int)
+
 case class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister)(implicit system: ActorSystem,
                                                                                        materializer: ActorMaterializer,
                                                                                        logging: Logging) {
   import ActivationConsumer._
 
-  def isRunning: Boolean = !control.isShutdown.isCompleted
+  def isRunning: Boolean = !control.get().isShutdown.isCompleted
 
   private implicit val ec: ExecutionContext = system.dispatcher
 
-  private val control: DrainingControl[Done] = {
+  private val control = new AtomicReference[Consumer.Control](Consumer.NoopControl)
+  private val streamFuture: Future[Done] = {
     val committerDefaults = CommitterSettings(system)
-
-    val controlResult = Consumer
-      .committableSource(consumerSettings(), Subscriptions.topics(topic))
-      .mapAsyncUnordered(config.parallelism) { msg =>
-        val f = Try(parseActivation(msg.record.value())) match {
-          case Success(a) => persist(a)
-          case Failure(e) =>
-            logging.warn(this, s"Error parsing json for record ${msg.record.key()}" + e)
-            Future.successful(Done)
-        }
-        f.map(_ => msg.committableOffset)
+    val r = config.retry
+    val f = RestartSource
+      .onFailuresWithBackoff(
+        minBackoff = r.minBackoff,
+        maxBackoff = r.maxBackoff,
+        randomFactor = r.randomFactor,
+        maxRestarts = r.maxRestarts) { () =>
+        logging.info(this, "Starting the Kafka consumer source")
+        Consumer
+          .committableSource(consumerSettings(), Subscriptions.topics(topic))
+          .mapAsyncUnordered(config.parallelism) { msg =>
+            val f = Try(parseActivation(msg.record.value())) match {
+              case Success(a) => persist(a)
+              case Failure(e) =>
+                logging.warn(this, s"Error parsing json for record ${msg.record.key()}" + e)
+                Future.successful(Done)
+            }
+            f.map(_ => msg.committableOffset)
+          }
+          .mapMaterializedValue(c => control.set(c))
+          .via(Committer.flow(committerDefaults))
       }
-      .via(Committer.flow(committerDefaults))
-      .toMat(Sink.ignore)(Keep.both)
-      .mapMaterializedValue(DrainingControl.apply)
-      .run()
+      .runWith(Sink.ignore)
 
-    controlResult.streamCompletion.failed.foreach(t => logging.error(this, "KafkaConsumer failed " + t.getMessage))
-    controlResult
+    f.failed.foreach(t => logging.error(this, "KafkaConsumer failed " + t.getMessage))
+    f
   }
 
   def shutdown(): Future[Done] = {
     //TODO Lag recording
-    control.drainAndShutdown()(system.dispatcher)
+    control.get().drainAndShutdown(streamFuture)(system.dispatcher)
   }
 
   private def persist(act: WhiskActivation): Future[Done] = {
