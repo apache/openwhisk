@@ -47,8 +47,8 @@ Sample output
             - whisks.v2.1.0-triggers.js
     Processing activations_design_document_for_activations_db.json
             - activations-byDate.js
-    Processing auth_index.json
-            - subjects-identities.js
+    Processing auth_design_document_for_subjects_db_v2.0.0.json
+            - subjects.v2.0.0-identities.js
     Processing filter_design_document.json
     Processing whisks_design_document_for_activations_db_v2.1.0.json
             - whisks.v2.1.0-activations.js

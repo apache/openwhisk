@@ -199,7 +199,7 @@ private object SubjectViewMapper extends MemoryViewMapper {
                       c: JsObject): Boolean = {
     require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
     (ddoc, view) match {
-      case ("subjects", "identities") =>
+      case (s, "identities") if s.startsWith("subjects") =>
         filterForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey, d)
       case ("namespaceThrottlings", "blockedNamespaces") =>
         filterForBlacklistedNamespace(d)

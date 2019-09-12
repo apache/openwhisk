@@ -101,7 +101,7 @@ def parseArgs():
     subparsers.required = True
 
     propmenu = subparsers.add_parser('user', help='manage users')
-    propmenu.add_argument('-w', '--view', help='the subject view to query', default='subjects')
+    propmenu.add_argument('-w', '--view', help='the subject view to query', default='subjects.v2.0.0')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
     subparser.required = True
 
