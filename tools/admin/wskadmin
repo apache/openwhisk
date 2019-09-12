@@ -101,6 +101,7 @@ def parseArgs():
     subparsers.required = True
 
     propmenu = subparsers.add_parser('user', help='manage users')
+    propmenu.add_argument('-w', '--view', help='the subject view to query', default='subjects')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
     subparser.required = True
 
@@ -160,7 +161,7 @@ def parseArgs():
 
     subcmd = subparser.add_parser('get', help='get contents of database')
     subcmd.add_argument('database', help='the database name')
-    subcmd.add_argument('-v', '--view', help='the view in the database to get')
+    subcmd.add_argument('-w', '--view', help='the view in the database to query')
     subcmd.add_argument('--docs', help='include document contents', action='store_true')
 
     propmenu = subparsers.add_parser('syslog', help='work with system logs')
@@ -380,12 +381,13 @@ def getIdentitiesFromNamespace(args, props):
     password = props[DB_PASSWORD]
     database = props[DB_WHISK_AUTHS]
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/identities?key=["%(ns)s"]' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/%(view)s/_view/identities?key=["%(ns)s"]' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'username': username,
         'database': database,
+        'view'    : args.view,
         'ns'      : args.namespace
     }
 
@@ -472,12 +474,13 @@ def whoisUserCmd(args, props):
     uuid      = authParts[0]
     key       = authParts[1]
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/identities?key=["%(uuid)s","%(key)s"]' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/%(view)s/_view/identities?key=["%(uuid)s","%(key)s"]' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'username': username,
         'database': database,
+        'view'    : args.view,
         'uuid'    : uuid,
         'key'     : key
     }
