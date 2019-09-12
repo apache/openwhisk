@@ -245,7 +245,7 @@ class ArtifactWithFileStorageActivationStoreTests()
     val additionalFieldsForLogs = Map("field1" -> JsString("value1"))
     val additionalFieldsForActivation = Map("field2" -> JsString("value2"))
 
-    // START -- example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
+    // START - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
 
     case class ArtifactWithFileStorageActivationStoreConfigExtendedTest(logFilePrefix: String,
                                                                         logPath: String,
@@ -293,7 +293,7 @@ class ArtifactWithFileStorageActivationStoreTests()
 
     }
 
-    // END -- example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
+    // END - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
 
     // writeResultToFile=true should be overriden by this test
     val config = ArtifactWithFileStorageActivationStoreConfigExtendedTest("userlogs", "logs", "namespaceId", true)
