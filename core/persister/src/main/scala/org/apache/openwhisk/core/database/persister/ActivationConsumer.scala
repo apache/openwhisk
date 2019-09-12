@@ -105,6 +105,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
   }
 
   private def parseActivation(data: Array[Byte]): Option[(TransactionId, WhiskActivation)] = {
+    //Avoid converting to string first and then to json. Instead directly parse to JSON
     val js = JsonParser(ParserInput(data))
     AcknowledegmentMessage.serdes.read(js) match {
       case ResultMessage(tid, Right(wa)) => Some((tid, wa))
