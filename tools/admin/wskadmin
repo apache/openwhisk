@@ -555,7 +555,7 @@ def setLimitsCmd(args, props):
             doc[limit] = toSet
     # setting reason
     givenReason = argsDict.get('reason')
-    toSet = givenReason if givenReason != None else doc.get('reason')
+    toSet = givenReason[:256] if givenReason != None else doc.get('reason')
     if toSet != None:
         doc['reason'] = toSet
 
