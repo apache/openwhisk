@@ -154,7 +154,7 @@ class PersisterTests
   }
 
   private def produceAndAssert(msgs: List[String], ns: String, predicate: Int => Boolean): Unit = {
-    produceString(ActivationConsumer.topic, msgs).futureValue
+    produceString(persisterConfig.topic, msgs).futureValue
     periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
     consumer.consumerLag shouldBe 0
   }

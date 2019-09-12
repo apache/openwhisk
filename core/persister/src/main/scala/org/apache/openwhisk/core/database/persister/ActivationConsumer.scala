@@ -47,15 +47,14 @@ case class RetryConfig(minBackoff: FiniteDuration, maxBackoff: FiniteDuration, r
 case class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister)(implicit system: ActorSystem,
                                                                                        materializer: ActorMaterializer,
                                                                                        logging: Logging) {
-  import ActivationConsumer._
-
   def isRunning: Boolean = !control.get().isShutdown.isCompleted
 
   private implicit val ec: ExecutionContext = system.dispatcher
+  private implicit val tid: TransactionId = TransactionId(TransactionId.systemPrefix + "persister")
 
   private val server = ManagementFactory.getPlatformMBeanServer
   private val name = new ObjectName(s"kafka.consumer:type=consumer-fetch-manager-metrics,client-id=${config.clientId}")
-  private val queueMetric = LoggingMarkers.KAFKA_QUEUE(topic)
+  private val queueMetric = LoggingMarkers.KAFKA_QUEUE(config.topic)
 
   private val control = new AtomicReference[Consumer.Control](Consumer.NoopControl)
   private val streamFuture: Future[Done] = {
@@ -69,7 +68,7 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
         maxRestarts = r.maxRestarts) { () =>
         logging.info(this, "Starting the Kafka consumer source")
         Consumer
-          .committableSource(consumerSettings(), Subscriptions.topics(topic))
+          .committableSource(consumerSettings(), Subscriptions.topics(config.topic))
           .mapAsyncUnordered(config.parallelism) { msg =>
             val f = Try(parseActivation(msg.record.value())) match {
               case Success(Some((tid, a))) => persist(a)(tid)
@@ -118,9 +117,4 @@ case class ActivationConsumer(config: PersisterConfig, persister: ActivationPers
       .withGroupId(config.groupId)
       .withBootstrapServers(config.kafkaHosts)
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
-}
-
-object ActivationConsumer {
-  val topic = "activations"
-  val tid = TransactionId(TransactionId.systemPrefix + "persister")
 }

@@ -29,6 +29,7 @@ case class PersisterConfig(port: Int,
                            kafkaHosts: String,
                            parallelism: Int,
                            groupId: String,
+                           topic: String,
                            retry: RetryConfig)
 
 object Persister {
