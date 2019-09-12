@@ -21,9 +21,9 @@ import java.lang.management.ManagementFactory
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.Done
-import akka.actor.ActorSystem
+import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.kafka.scaladsl.{Committer, Consumer}
-import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
+import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions, TopicPartitionsAssigned, TopicPartitionsRevoked}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{RestartSource, Sink}
 import javax.management.ObjectName
@@ -55,6 +55,8 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
   private val server = ManagementFactory.getPlatformMBeanServer
   private val name = new ObjectName(s"kafka.consumer:type=consumer-fetch-manager-metrics,client-id=${config.clientId}")
   private val queueMetric = LoggingMarkers.KAFKA_QUEUE(config.topic)
+
+  private val rebalanceListener = system.actorOf(Props(new RebalanceListener))
 
   logging.info(this, "Starting the consumer with config " + config)
 
@@ -92,7 +94,9 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
 
   private def createSubscription() = {
     if (config.topicIsPattern) {
-      Subscriptions.topicPattern(config.topic)
+      Subscriptions
+        .topicPattern(config.topic)
+        .withRebalanceListener(rebalanceListener)
     } else {
       Subscriptions.topics(config.topic)
     }
@@ -103,7 +107,9 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()
-    control.get().drainAndShutdown(streamFuture)(system.dispatcher)
+    val f = control.get().drainAndShutdown(streamFuture)(system.dispatcher)
+    f.onComplete(_ => system.stop(rebalanceListener))
+    f
   }
 
   def consumerLag: Long = server.getAttribute(name, "records-lag-max").asInstanceOf[Double].toLong.max(0)
@@ -127,4 +133,16 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
       .withGroupId(config.groupId)
       .withBootstrapServers(config.kafkaHosts)
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
+
+  private class RebalanceListener extends Actor with ActorLogging {
+    def receive: Receive = {
+      case TopicPartitionsAssigned(subscription, topicPartitions) =>
+        logging.info(this, s"Assigned to ActivationConsumer [$consumerDesc]: $topicPartitions")
+
+      case TopicPartitionsRevoked(subscription, topicPartitions) =>
+        logging.info(this, s"Revoked from ActivationConsumer [$consumerDesc]: $topicPartitions")
+    }
+  }
+
+  private def consumerDesc = s"${config.groupId}/${config.clientId}"
 }

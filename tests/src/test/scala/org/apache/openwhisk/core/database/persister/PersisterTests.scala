@@ -153,6 +153,28 @@ class PersisterTests
     produceAndAssert(msgs, ns, _ == totalCount)
   }
 
+  it should "listen to events from multiple topics" in {
+    val tc1 = 3
+    val ns1 = "testNSP1"
+    val msgs1 = newMessages(tc1, ns1)
+    produceAndAssert(msgs1, ns1, _ == tc1, "completed-1")
+
+    val tc2 = 3
+    val ns2 = "testNSP2"
+    val msgs2 = newMessages(tc2, ns2)
+    produceAndAssert(msgs2, ns2, _ == tc2, "completed-2")
+
+    // Check that msg are still read from old topic
+    val tc3 = 3
+    val ns3 = "testNSP3"
+    val msgs3 = newMessages(tc3, ns3)
+    produceAndAssert(msgs3, ns3, _ == tc3, "completed-1")
+  }
+
+  private def newMessages(count: Int, namespace: String) = {
+    (1 to count).map(_ => newResultMessage(namespace).serialize).toList
+  }
+
   private def produceAndAssert(msgs: List[String],
                                ns: String,
                                predicate: Int => Boolean,
