@@ -153,8 +153,11 @@ class PersisterTests
     produceAndAssert(msgs, ns, _ == totalCount)
   }
 
-  private def produceAndAssert(msgs: List[String], ns: String, predicate: Int => Boolean): Unit = {
-    produceString(persisterConfig.topic, msgs).futureValue
+  private def produceAndAssert(msgs: List[String],
+                               ns: String,
+                               predicate: Int => Boolean,
+                               topic: String = topicName()): Unit = {
+    produceString(topic, msgs).futureValue
     periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
     consumer.consumerLag shouldBe 0
   }
@@ -177,6 +180,10 @@ class PersisterTests
         TransactionId.testing)
       .futureValue
       .toInt
+  }
+
+  private def topicName() = {
+    if (persisterConfig.topicIsPattern) "completed-foo" else "activations"
   }
 
   private def persisterConfig: PersisterConfig = {

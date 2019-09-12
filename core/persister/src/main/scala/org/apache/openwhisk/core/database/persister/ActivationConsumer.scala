@@ -56,6 +56,8 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
   private val name = new ObjectName(s"kafka.consumer:type=consumer-fetch-manager-metrics,client-id=${config.clientId}")
   private val queueMetric = LoggingMarkers.KAFKA_QUEUE(config.topic)
 
+  logging.info(this, "Starting the consumer with config " + config)
+
   private val control = new AtomicReference[Consumer.Control](Consumer.NoopControl)
   private val streamFuture: Future[Done] = {
     val committerDefaults = CommitterSettings(system)
@@ -68,7 +70,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
         maxRestarts = r.maxRestarts) { () =>
         logging.info(this, "Starting the Kafka consumer source")
         Consumer
-          .committableSource(consumerSettings(), Subscriptions.topics(config.topic))
+          .committableSource(consumerSettings(), createSubscription())
           .mapAsyncUnordered(config.parallelism) { msg =>
             val f = Try(parseActivation(msg.record.value())) match {
               case Success(Some((tid, a))) => persist(a)(tid)
@@ -86,6 +88,14 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
 
     f.failed.foreach(t => logging.error(this, "KafkaConsumer failed " + t.getMessage))
     f
+  }
+
+  private def createSubscription() = {
+    if (config.topicIsPattern) {
+      Subscriptions.topicPattern(config.topic)
+    } else {
+      Subscriptions.topics(config.topic)
+    }
   }
 
   private val lagRecorder =

@@ -30,6 +30,7 @@ case class PersisterConfig(port: Int,
                            parallelism: Int,
                            groupId: String,
                            topic: String,
+                           topicIsPattern: Boolean,
                            retry: RetryConfig)
 
 object Persister {
