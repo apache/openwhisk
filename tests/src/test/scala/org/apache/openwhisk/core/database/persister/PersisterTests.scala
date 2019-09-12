@@ -105,13 +105,18 @@ class PersisterTests
     consumer = Persister.start(persisterConfig, activationStore)
   }
 
+  protected override def afterAll(): Unit = {
+    consumer.shutdown().futureValue
+    super.afterAll()
+  }
+
   behavior of "ActivationPersister"
 
   it should "save activation in store upon event" in {
     val totalCount = 5
     val ns = "testNS"
-    val rs = (1 to totalCount).map(_ => newResultMessage(ns))
-    produceAndAssert(rs, ns, _ == totalCount)
+    val rs = (1 to totalCount).map(_ => newResultMessage(ns)).toList
+    produceAndAssert(rs.map(_.serialize), ns, _ == totalCount)
   }
 
   it should "handle duplicate events" in {
@@ -120,12 +125,12 @@ class PersisterTests
     val rm1 = newResultMessage(ns)
     val rm2 = newResultMessage(ns)
     val msgs = List(rm1, rm2, rm1, newResultMessage(ns), newResultMessage(ns))
-    produceAndAssert(msgs, ns, _ == totalCount)
+    produceAndAssert(msgs.map(_.serialize), ns, _ == totalCount)
   }
 
   it should "handle mixed events" in {
     val totalCount = 4
-    val ns = "testNSConflict"
+    val ns = "testNSConflictMixed"
     val rm1 = newResultMessage(ns)
     val rm2 = newResultMessage(ns)
     val irm1 = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
@@ -136,13 +141,20 @@ class PersisterTests
         isSystemError = false,
         InvokerInstanceId(1, userMemory = 1.MB))
     val msgs = List(rm1, rm2, newResultMessage(ns), irm1, irm2, newResultMessage(ns))
+    produceAndAssert(msgs.map(_.serialize), ns, _ == totalCount)
+  }
+
+  it should "handle unknown events" in {
+    val totalCount = 4
+    val ns = "testNSConflictUnknown"
+    val rm1 = newResultMessage(ns).serialize
+    val rm2 = newResultMessage(ns).serialize
+    val msgs = List(rm1, rm2, newResultMessage(ns).serialize, "{\"foo\": \"bar\"}", newResultMessage(ns).serialize)
     produceAndAssert(msgs, ns, _ == totalCount)
   }
 
-  //TODO Test with some random json
-
-  private def produceAndAssert(msgs: Seq[AcknowledegmentMessage], ns: String, predicate: Int => Boolean): Unit = {
-    produceString(ActivationConsumer.topic, msgs.map(_.serialize).toList).futureValue
+  private def produceAndAssert(msgs: List[String], ns: String, predicate: Int => Boolean): Unit = {
+    produceString(ActivationConsumer.topic, msgs).futureValue
     periodicalCheck[Int]("Check persisted activations count", 10, 2.seconds)(() => countActivations(ns))(predicate)
     consumer.consumerLag shouldBe 0
   }
