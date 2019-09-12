@@ -44,9 +44,9 @@ trait ActivationPersister {
 
 case class RetryConfig(minBackoff: FiniteDuration, maxBackoff: FiniteDuration, randomFactor: Double, maxRestarts: Int)
 
-case class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister)(implicit system: ActorSystem,
-                                                                                       materializer: ActorMaterializer,
-                                                                                       logging: Logging) {
+class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister)(implicit system: ActorSystem,
+                                                                                  materializer: ActorMaterializer,
+                                                                                  logging: Logging) {
   def isRunning: Boolean = !control.get().isShutdown.isCompleted
 
   private implicit val ec: ExecutionContext = system.dispatcher
