@@ -42,8 +42,6 @@ import org.apache.openwhisk.utils.JsHelpers
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Matchers {
 
-  behavior of "AuthKey"
-
   behavior of "Privilege"
 
   private implicit class ExecJson(e: Exec) {
