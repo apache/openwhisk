@@ -235,114 +235,116 @@ class ArtifactWithFileStorageActivationStoreTests()
     }
   }
 
-  // Calling activationToFileExtended with includeResult=true/false is already covered by the
-  // previous tests since activationToFile calls activationToFileExtended, and the tests define
-  // writeResultToFile with true/false (indirectly via the variable 'config').
-  // So it remains to test the ability for setting different additional fields for logs and activation in activationToFileExtended.
-  it should "test activationToFileExtended: store activations in artifact store and in file without result, using different additional fields" in {
+  for (includeResult <- Seq(false, true)) {
 
-    // used in ArtifactWithFileStorageActivationStoreExtended and for test data
-    val additionalFieldsForLogs = Map("field1" -> JsString("value1"))
-    val additionalFieldsForActivation = Map("field2" -> JsString("value2"))
+    it should "test activationToFileExtended: store activations in artifact store and in file " +
+      (if (includeResult) "with" else "without") + " result" in {
 
-    // START - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
+      // used in ArtifactWithFileStorageActivationStoreExtended and for test data
+      val additionalFieldsForLogs = Map("field1" -> JsString("value1"))
+      val additionalFieldsForActivation = Map("field2" -> JsString("value2"))
 
-    case class ArtifactWithFileStorageActivationStoreConfigExtendedTest(logFilePrefix: String,
-                                                                        logPath: String,
-                                                                        userIdField: String,
-                                                                        writeResultToFile: Boolean)
+      // START - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
 
-    class ArtifactWithFileStorageActivationStoreExtendedTest(
-      actorSystem: ActorSystem,
-      actorMaterializer: ActorMaterializer,
-      logging: Logging,
-      config: ArtifactWithFileStorageActivationStoreConfigExtendedTest =
-        loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfigExtendedTest](
-          ConfigKeys.activationStoreWithFileStorage))
-        extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
+      case class ArtifactWithFileStorageActivationStoreConfigExtendedTest(logFilePrefix: String,
+                                                                          logPath: String,
+                                                                          userIdField: String,
+                                                                          writeResultToFile: Boolean)
 
-      private val activationFileStorage =
-        new ActivationFileStorage(
-          config.logFilePrefix,
-          Paths.get(config.logPath),
-          config.writeResultToFile,
-          actorMaterializer,
-          logging)
+      class ArtifactWithFileStorageActivationStoreExtendedTest(
+        actorSystem: ActorSystem,
+        actorMaterializer: ActorMaterializer,
+        logging: Logging,
+        config: ArtifactWithFileStorageActivationStoreConfigExtendedTest =
+          loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfigExtendedTest](
+            ConfigKeys.activationStoreWithFileStorage))
+          extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
 
-      def getLogFile = activationFileStorage.getLogFile
+        private val activationFileStorage =
+          new ActivationFileStorage(
+            config.logFilePrefix,
+            Paths.get(config.logPath),
+            config.writeResultToFile,
+            actorMaterializer,
+            logging)
 
-      // the flag is already tested with the previous tests. Keep it simple for this test.
-      def shallResultBeIncluded: Boolean = false
-      // other simple usage example for the flag: (!activation.response.isSuccess)
+        def getLogFile = activationFileStorage.getLogFile
 
-      override def store(activation: WhiskActivation, context: UserContext)(
-        implicit transid: TransactionId,
-        notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+        def shallResultBeIncluded: Boolean = includeResult
+        // other simple example for the flag: (includeResult && !activation.response.isSuccess)
 
-        val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)
+        override def store(activation: WhiskActivation, context: UserContext)(
+          implicit transid: TransactionId,
+          notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
-        activationFileStorage.activationToFileExtended(
-          activation,
-          context,
-          additionalFields ++ additionalFieldsForLogs,
-          additionalFields ++ additionalFieldsForActivation,
-          shallResultBeIncluded)
+          val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)
 
-        super.store(activation, context)
-      }
+          activationFileStorage.activationToFileExtended(
+            activation,
+            context,
+            additionalFields ++ additionalFieldsForLogs,
+            additionalFields ++ additionalFieldsForActivation,
+            shallResultBeIncluded)
 
-    }
-
-    // END - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
-
-    // writeResultToFile=true should be overriden by this test
-    val config = ArtifactWithFileStorageActivationStoreConfigExtendedTest("userlogs", "logs", "namespaceId", true)
-
-    val activationStore = new ArtifactWithFileStorageActivationStoreExtendedTest(system, materializer, logging, config)
-    val logDir = new File(new File(".").getCanonicalPath, config.logPath)
-
-    try {
-      logDir.mkdir
-
-      val activations = responsePermutations.flatMap { response =>
-        logPermutations.map { logs =>
-          val activation = WhiskActivation(
-            namespace = EntityPath(subject.asString),
-            name = EntityName("name"),
-            subject = subject,
-            activationId = ActivationId.generate(),
-            start = Instant.now.inMills,
-            end = Instant.now.inMills,
-            response = response,
-            logs = logs,
-            duration = Some(101L),
-            annotations = Parameters("kind", "nodejs:6") ++ Parameters(
-              "limits",
-              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
-              Parameters("waitTime", 16.toJson) ++
-              Parameters("initTime", 44.toJson))
-          val docInfo = await(activationStore.store(activation, context))
-          val fullyQualifiedActivationId = ActivationId(docInfo.id.asString)
-
-          await(activationStore.get(fullyQualifiedActivationId, context)) shouldBe activation
-          await(activationStore.delete(fullyQualifiedActivationId, context))
-          activation
+          super.store(activation, context)
         }
+
       }
 
-      Source
-        .fromFile(activationStore.getLogFile.toFile.getAbsoluteFile)
-        .getLines
-        .toList
-        .map(_.parseJson)
-        .toJson
-        .convertTo[JsArray] shouldBe activations
-        .flatMap(a => expectedFileContent(a, false, additionalFieldsForLogs.toSeq, additionalFieldsForActivation.toSeq))
-        .toJson
-        .convertTo[JsArray]
-    } finally {
-      activationStore.getLogFile.toFile.getAbsoluteFile.delete
-      logDir.delete
+      // END - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
+
+      // writeResultToFile is defined with the inverted value of includeResult and should be overriden by the test
+      val config =
+        ArtifactWithFileStorageActivationStoreConfigExtendedTest("userlogs", "logs", "namespaceId", !includeResult)
+
+      val activationStore =
+        new ArtifactWithFileStorageActivationStoreExtendedTest(system, materializer, logging, config)
+      val logDir = new File(new File(".").getCanonicalPath, config.logPath)
+
+      try {
+        logDir.mkdir
+
+        val activations = responsePermutations.flatMap { response =>
+          logPermutations.map { logs =>
+            val activation = WhiskActivation(
+              namespace = EntityPath(subject.asString),
+              name = EntityName("name"),
+              subject = subject,
+              activationId = ActivationId.generate(),
+              start = Instant.now.inMills,
+              end = Instant.now.inMills,
+              response = response,
+              logs = logs,
+              duration = Some(101L),
+              annotations = Parameters("kind", "nodejs:6") ++ Parameters(
+                "limits",
+                ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
+                Parameters("waitTime", 16.toJson) ++
+                Parameters("initTime", 44.toJson))
+            val docInfo = await(activationStore.store(activation, context))
+            val fullyQualifiedActivationId = ActivationId(docInfo.id.asString)
+
+            await(activationStore.get(fullyQualifiedActivationId, context)) shouldBe activation
+            await(activationStore.delete(fullyQualifiedActivationId, context))
+            activation
+          }
+        }
+
+        Source
+          .fromFile(activationStore.getLogFile.toFile.getAbsoluteFile)
+          .getLines
+          .toList
+          .map(_.parseJson)
+          .toJson
+          .convertTo[JsArray] shouldBe activations
+          .flatMap(a =>
+            expectedFileContent(a, includeResult, additionalFieldsForLogs.toSeq, additionalFieldsForActivation.toSeq))
+          .toJson
+          .convertTo[JsArray]
+      } finally {
+        activationStore.getLogFile.toFile.getAbsoluteFile.delete
+        logDir.delete
+      }
     }
   }
 
