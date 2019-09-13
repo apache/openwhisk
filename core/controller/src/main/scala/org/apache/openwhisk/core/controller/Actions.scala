@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import org.apache.kafka.common.errors.RecordTooLargeException
 import akka.actor.ActorSystem
@@ -51,12 +50,6 @@ import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
  */
 object WhiskActionsApi {
   def requiredProperties = Map(WhiskConfig.actionSequenceMaxLimit -> null)
-
-  /**
-   * Max duration to wait for a blocking activation.
-   * This is the default timeout on a POST request.
-   */
-  protected[core] val maxWaitForBlockingActivation = 60 seconds
 
   /**
    * Amends annotations on an action create/update with system defined values.
@@ -245,33 +238,34 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter(
       'blocking ? false,
       'result ? false,
-      'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
-      entity(as[Option[JsObject]]) { payload =>
-        getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-          act: WhiskActionMetaData =>
-            // resolve the action --- special case for sequences that may contain components with '_' as default package
-            val action = act.resolve(user.namespace)
-            onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
-              case Success(_) =>
-                val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
+      'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
+      (blocking, result, waitOverride) =>
+        entity(as[Option[JsObject]]) { payload =>
+          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+            act: WhiskActionMetaData =>
+              // resolve the action --- special case for sequences that may contain components with '_' as default package
+              val action = act.resolve(user.namespace)
+              onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
+                case Success(_) =>
+                  val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
 
-                // incoming parameters may not override final parameters (i.e., parameters with already defined values)
-                // on an action once its parameters are resolved across package and binding
-                val allowInvoke = payload
-                  .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
-                  .getOrElse(true)
+                  // incoming parameters may not override final parameters (i.e., parameters with already defined values)
+                  // on an action once its parameters are resolved across package and binding
+                  val allowInvoke = payload
+                    .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
+                    .getOrElse(true)
 
-                if (allowInvoke) {
-                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
-                } else {
-                  terminate(BadRequest, Messages.parametersNotAllowed)
-                }
+                  if (allowInvoke) {
+                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
+                  } else {
+                    terminate(BadRequest, Messages.parametersNotAllowed)
+                  }
 
-              case Failure(f) =>
-                super.handleEntitlementFailure(f)
-            }
-        })
-      }
+                case Failure(f) =>
+                  super.handleEntitlementFailure(f)
+              }
+          })
+        }
     }
   }
 
@@ -685,12 +679,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] = {
     Unmarshaller.strict[String, FiniteDuration] { value =>
-      val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
+      val max = controllerActivationConfig.maxWaitForBlockingActivation.toMillis
 
       Try { value.toInt } match {
         case Success(i) if i > 0 && i <= max => i.milliseconds
         case _ =>
-          throw new IllegalArgumentException(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+          throw new IllegalArgumentException(
+            Messages.invalidTimeout(controllerActivationConfig.maxWaitForBlockingActivation))
       }
     }
   }

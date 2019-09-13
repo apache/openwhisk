@@ -661,7 +661,6 @@ protected[actions] trait PrimitiveActions {
 
   protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
-
 }
 
-case class ControllerActivationConfig(pollingFromDb: Boolean)
+case class ControllerActivationConfig(pollingFromDb: Boolean, maxWaitForBlockingActivation: FiniteDuration)

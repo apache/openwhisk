@@ -421,7 +421,7 @@ trait WhiskWebActionsApi
 
   def routes()(implicit transid: TransactionId): Route = routes(None)
 
-  private val maxWaitForWebActionResult = Some(WhiskActionsApi.maxWaitForBlockingActivation)
+  private val maxWaitForWebActionResult = Some(controllerActivationConfig.maxWaitForBlockingActivation)
 
   /**
    * Adds route to web based activations. Actions invoked this way are anonymous in that the

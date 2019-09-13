@@ -65,7 +65,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     putSimpleSequenceInDB(seqName, namespace, Vector(compName1, compName2))
     deleteAction(DocId(s"$namespace/$compName2"))
-    loadBalancer.whiskActivationStub = Some((1.milliseconds, comp1Activation))
+    loadBalancer.whiskActivationStub = Some((1.milliseconds, Right(comp1Activation)))
 
     Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
       deleteAction(DocId(s"$namespace/$seqName"))
