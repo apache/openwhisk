@@ -192,6 +192,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                   s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                   s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
                   s"waiting messages: ${runBuffer.size}")(r.msg.transid)
+              MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_RESCHEDULED_ACTIVATION)
               Some(logMessageInterval.fromNow)
             } else {
               r.retryLogDeadline
