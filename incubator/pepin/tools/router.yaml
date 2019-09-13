@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ow-router-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  namespace: knative-serving
+  name: ow-router-knative-serving-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: knative-serving
+  name: ow-router-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ow-router-knative-serving-role
+subjects:
+  - kind: ServiceAccount
+    name: ow-router-sa
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  namespace: default
+  name: ow-router-manage-services-role
+rules:
+  - apiGroups: ["serving.knative.dev"]
+    resources: ["services"]
+    verbs: ["create", "list", "watch", "get", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: ow-router-kn-manage-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ow-router-manage-services-role
+subjects:
+  - kind: ServiceAccount
+    name: ow-router-sa
+    namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ow-router-service
+spec:
+  selector:
+    app: ow-router
+  ports:
+    - protocol: TCP
+      port: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ow-router-deployment
+  labels:
+    app: ow-router
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ow-router
+  template:
+    metadata:
+      labels:
+        app: ow-router
+    spec:
+      serviceAccountName: ow-router-sa
+      containers:
+        - name: ow-router
+#          image: docker-bladerunner-snapshot.dr-uw2.adobeitc.com/ow-knative/ow-router:latest
+          image: docker-bladerunner-snapshot.dr-uw2.adobeitc.com/ow-knative/ow-router:latest
+          args: ["--etcd", "http://router-etcd-0.router-etcd:2379", "--gateway", "knative-external-proxy.gloo-system.svc.cluster.local", "--production"]
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 3
+      imagePullSecrets:
+        - name: regcred
+

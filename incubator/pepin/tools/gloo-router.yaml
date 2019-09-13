@@ -1,0 +1,17 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: ow-router
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - 'ow-router.default.example.com'
+    routes:
+      - matcher:
+          prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: ow-router-service-8080
+              namespace: default

@@ -1,0 +1,12 @@
+{
+  "init": {
+    "name": "nodejs-helloworld",
+    "main": "main",
+    "code": "function main(params) {return {payload: 'Hello World', params: params};}"
+  },
+  "activation": "1234",
+  "value": {
+    "param1": "value1",
+    "param2": "value2"
+  }
+}

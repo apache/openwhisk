@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "pepin.fullname" . }}-test-connection"
+  labels:
+{{ include "pepin.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['{{ include "pepin.fullname" . }}:8080']
+  restartPolicy: Never

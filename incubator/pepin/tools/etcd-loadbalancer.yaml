@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-0
+spec:
+  type: LoadBalancer
+  selector:
+    statefulset.kubernetes.io/pod-name: router-etcd-0
+  ports:
+    - protocol: TCP
+      port: 2379
+      targetPort: 2379

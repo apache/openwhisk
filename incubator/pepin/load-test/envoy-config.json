@@ -1,0 +1,2026 @@
+{
+ "configs": [
+  {
+   "@type": "type.googleapis.com/envoy.admin.v2alpha.BootstrapConfigDump",
+   "bootstrap": {
+    "node": {
+     "id": "clusteringress-proxy-6f6cf9f55c-p9pfh.gloo-system",
+     "cluster": "clusteringress",
+     "metadata": {
+      "role": "gloo-system~clusteringress-proxy"
+     },
+     "build_version": "42c067cce99ada1f73d7bdaa82e583095f920fa7/1.11.0-dev/Distribution/RELEASE/BoringSSL"
+    },
+    "static_resources": {
+     "clusters": [
+      {
+       "name": "xds_cluster",
+       "type": "STRICT_DNS",
+       "connect_timeout": "5s",
+       "http2_protocol_options": {},
+       "upstream_connection_options": {
+        "tcp_keepalive": {}
+       },
+       "load_assignment": {
+        "cluster_name": "xds_cluster",
+        "endpoints": [
+         {
+          "lb_endpoints": [
+           {
+            "endpoint": {
+             "address": {
+              "socket_address": {
+               "address": "gloo",
+               "port_value": 9977
+              }
+             }
+            }
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "dynamic_resources": {
+     "lds_config": {
+      "ads": {}
+     },
+     "cds_config": {
+      "ads": {}
+     },
+     "ads_config": {
+      "api_type": "GRPC",
+      "grpc_services": [
+       {
+        "envoy_grpc": {
+         "cluster_name": "xds_cluster"
+        }
+       }
+      ]
+     }
+    },
+    "admin": {
+     "access_log_path": "/dev/null",
+     "address": {
+      "socket_address": {
+       "address": "127.0.0.1",
+       "port_value": 19000
+      }
+     }
+    }
+   },
+   "last_updated": "2019-08-09T15:04:51.452Z"
+  },
+  {
+   "@type": "type.googleapis.com/envoy.admin.v2alpha.ClustersConfigDump",
+   "version_info": "8236875072819167308",
+   "static_clusters": [
+    {
+     "cluster": {
+      "name": "xds_cluster",
+      "type": "STRICT_DNS",
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "upstream_connection_options": {
+       "tcp_keepalive": {}
+      },
+      "load_assignment": {
+       "cluster_name": "xds_cluster",
+       "endpoints": [
+        {
+         "lb_endpoints": [
+          {
+           "endpoint": {
+            "address": {
+             "socket_address": {
+              "address": "gloo",
+              "port_value": 9977
+             }
+            }
+           }
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "last_updated": "2019-08-09T15:04:51.456Z"
+    }
+   ],
+   "dynamic_active_clusters": [
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "default-helloworld-go-nsbrx-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.598Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "default-helloworld-go-nsbrx-cljgw-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.581Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "default-helloworld-go-nsbrx-cljgw-9091_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.570Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "default-helloworld-go-nsbrx-wjx8d-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.571Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "default-kubernetes-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.549Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "default-ow-029df273-baba-11e9-8-60fd6bb532c3331f8448857e22554a1_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.849Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "default-ow-029df273-baba-11e9-8-e00156df3025a00925a1a9557f3bfdd_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.857Z"
+    },
+    {
+     "version_info": "16679474631879953511",
+     "cluster": {
+      "name": "default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-6hkc9-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:10.854Z"
+    },
+    {
+     "version_info": "4346287789955438149",
+     "cluster": {
+      "name": "default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:11.884Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "default-ow-29f9e564-baba-11e9-8-376d2595a448e4198a78bbdb216b84e_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.919Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "default-ow-29f9e564-baba-11e9-8-b03ad4efb524400cf15068ee988f94f_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.918Z"
+    },
+    {
+     "version_info": "12606319087698079500",
+     "cluster": {
+      "name": "default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:16.860Z"
+    },
+    {
+     "version_info": "12606319087698079500",
+     "cluster": {
+      "name": "default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-qkbh6-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:16.863Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "default-ow-2d95b4b3-baba-11e9-8-2036bb68e31fa65ea0ad610e04748dd_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.890Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "default-ow-2d95b4b3-baba-11e9-8-55bb5860a785c5d23282c8c6435af5f_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.905Z"
+    },
+    {
+     "version_info": "9415191713680210114",
+     "cluster": {
+      "name": "default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:23.914Z"
+    },
+    {
+     "version_info": "16166441873208027958",
+     "cluster": {
+      "name": "default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-tzlqq-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:22.930Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "default-ow-3120f70a-baba-11e9-8-5df3e3c726fc4663d67175ebf7f35d2_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.971Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "default-ow-3120f70a-baba-11e9-8-c4a9cfd73641d6ed4d44d0cd9cc40f1_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.955Z"
+    },
+    {
+     "version_info": "3551593427606480066",
+     "cluster": {
+      "name": "default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-5fjv6-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:29.017Z"
+    },
+    {
+     "version_info": "3551593427606480066",
+     "cluster": {
+      "name": "default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:29.011Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "default-ow-ff2305c1-bab9-11e9-8-2cff29fc86983aec67181b115502c74_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.872Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "default-ow-ff2305c1-bab9-11e9-8-e0a65c2a7f2da96abfd1289ac633660_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.868Z"
+    },
+    {
+     "version_info": "8861426768826197689",
+     "cluster": {
+      "name": "default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-44qfd-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:05.824Z"
+    },
+    {
+     "version_info": "10908058294856969875",
+     "cluster": {
+      "name": "default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:04.839Z"
+    },
+    {
+     "version_info": "4946731820580952899",
+     "cluster": {
+      "name": "default-ow-loopback-perf-service-8080_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:23:02.816Z"
+    },
+    {
+     "version_info": "4346287789955438149",
+     "cluster": {
+      "name": "default-ow-router-service-8080_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:37.855Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "gloo-system-clusteringress-proxy-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.550Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "gloo-system-clusteringress-proxy-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.539Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "gloo-system-gloo-9977_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.582Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.572Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-81_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.599Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.558Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-activator-v0-7-0-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.552Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-activator-v0-7-0-81_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.584Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-activator-service-activator-v0-7-0-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.593Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.585Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-8080_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.573Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.553Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-v0-7-0-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.594Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-v0-7-0-8080_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.541Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-autoscaler-v0-7-0-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.575Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-controller-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.567Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-controller-v0-7-0-9090_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.576Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-webhook-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.542Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "knative-serving-webhook-webhook-v0-7-0-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.586Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:default-helloworld-go-nsbrx-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.565Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:default-helloworld-go-nsbrx-cljgw-9090_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.538Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:default-helloworld-go-nsbrx-cljgw-9091_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.555Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:default-helloworld-go-nsbrx-wjx8d-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.566Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:default-kubernetes-443_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.590Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "kube-svc:default-ow-029df273-baba-11e9-8-60fd6bb532c3331f8448857e22554a1_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.840Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "kube-svc:default-ow-029df273-baba-11e9-8-e00156df3025a00925a1a9557f3bfdd_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.852Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "kube-svc:default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-6hkc9-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.854Z"
+    },
+    {
+     "version_info": "11792529432391069183",
+     "cluster": {
+      "name": "kube-svc:default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:09.855Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "kube-svc:default-ow-29f9e564-baba-11e9-8-376d2595a448e4198a78bbdb216b84e_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.900Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "kube-svc:default-ow-29f9e564-baba-11e9-8-b03ad4efb524400cf15068ee988f94f_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.898Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "kube-svc:default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.916Z"
+    },
+    {
+     "version_info": "1113046786491951749",
+     "cluster": {
+      "name": "kube-svc:default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-qkbh6-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:15.907Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "kube-svc:default-ow-2d95b4b3-baba-11e9-8-2036bb68e31fa65ea0ad610e04748dd_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.883Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "kube-svc:default-ow-2d95b4b3-baba-11e9-8-55bb5860a785c5d23282c8c6435af5f_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.899Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "kube-svc:default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.879Z"
+    },
+    {
+     "version_info": "5855407721442870154",
+     "cluster": {
+      "name": "kube-svc:default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-tzlqq-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:21.889Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "kube-svc:default-ow-3120f70a-baba-11e9-8-5df3e3c726fc4663d67175ebf7f35d2_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.966Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "kube-svc:default-ow-3120f70a-baba-11e9-8-c4a9cfd73641d6ed4d44d0cd9cc40f1_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.958Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "kube-svc:default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-5fjv6-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.944Z"
+    },
+    {
+     "version_info": "13898599847993913191",
+     "cluster": {
+      "name": "kube-svc:default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:27:27.951Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "kube-svc:default-ow-ff2305c1-bab9-11e9-8-2cff29fc86983aec67181b115502c74_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.862Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "kube-svc:default-ow-ff2305c1-bab9-11e9-8-e0a65c2a7f2da96abfd1289ac633660_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.879Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "kube-svc:default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-44qfd-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.864Z"
+    },
+    {
+     "version_info": "13939210336205815170",
+     "cluster": {
+      "name": "kube-svc:default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-80_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:03.881Z"
+    },
+    {
+     "version_info": "4946731820580952899",
+     "cluster": {
+      "name": "kube-svc:default-ow-loopback-perf-service-8080_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:23:02.818Z"
+    },
+    {
+     "version_info": "581636720702699873",
+     "cluster": {
+      "name": "kube-svc:default-ow-router-service-8080_default",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:26:36.859Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:gloo-system-clusteringress-proxy-443_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.560Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:gloo-system-clusteringress-proxy-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.554Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:gloo-system-gloo-9977_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.588Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-activator-service-80_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.595Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-activator-service-81_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "http2_protocol_options": {},
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.544Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-activator-service-9090_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.563Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-autoscaler-443_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.597Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-autoscaler-8080_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.577Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-autoscaler-9090_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.578Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-controller-9090_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.545Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:knative-serving-webhook-443_knative-serving",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.600Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:kube-system-kube-dns-53_kube-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.564Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-svc:kube-system-kubernetes-dashboard-80_kube-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.548Z"
+    },
+    {
+     "version_info": "8236875072819167308",
+     "cluster": {
+      "name": "kube-svc:kube-system-tiller-deploy-44134_kube-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T19:25:07.840Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-system-kube-dns-53_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.589Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-system-kubernetes-dashboard-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.569Z"
+    },
+    {
+     "version_info": "14612476342843120398",
+     "cluster": {
+      "name": "kube-system-kubernetes-dashboard-reconcile-v1-10-1-80_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T15:08:25.561Z"
+    },
+    {
+     "version_info": "8236875072819167308",
+     "cluster": {
+      "name": "kube-system-tiller-deploy-44134_gloo-system",
+      "type": "EDS",
+      "eds_cluster_config": {
+       "eds_config": {
+        "ads": {}
+       }
+      },
+      "connect_timeout": "5s",
+      "metadata": {}
+     },
+     "last_updated": "2019-08-09T19:25:07.836Z"
+    }
+   ]
+  },
+  {
+   "@type": "type.googleapis.com/envoy.admin.v2alpha.ListenersConfigDump",
+   "version_info": "8147672265464688175",
+   "dynamic_active_listeners": [
+    {
+     "version_info": "8147672265464688175",
+     "listener": {
+      "name": "http",
+      "address": {
+       "socket_address": {
+        "address": "::",
+        "port_value": 80,
+        "ipv4_compat": true
+       }
+      },
+      "filter_chains": [
+       {
+        "filters": [
+         {
+          "name": "envoy.http_connection_manager",
+          "config": {
+           "rds": {
+            "route_config_name": "http-routes",
+            "config_source": {
+             "ads": {}
+            }
+           },
+           "stat_prefix": "http",
+           "normalize_path": true,
+           "upgrade_configs": [
+            {
+             "upgrade_type": "websocket"
+            }
+           ],
+           "http_filters": [
+            {
+             "name": "envoy.fault"
+            },
+            {
+             "name": "envoy.cors"
+            },
+            {
+             "name": "io.solo.transformation"
+            },
+            {
+             "name": "envoy.router"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     },
+     "last_updated": "2019-08-09T15:08:25.609Z"
+    }
+   ]
+  },
+  {
+   "@type": "type.googleapis.com/envoy.admin.v2alpha.RoutesConfigDump",
+   "dynamic_route_configs": [
+    {
+     "version_info": "17160711425309959990",
+     "route_config": {
+      "name": "http-routes",
+      "virtual_hosts": [
+       {
+        "name": "helloworld-go_default_example_com-http",
+        "domains": [
+         "helloworld-go.default.example.com",
+         "helloworld-go.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-helloworld-go-nsbrx-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "helloworld-go-nsbrx"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "helloworld-go_default_svc_cluster_local-http",
+        "domains": [
+         "helloworld-go.default.svc.cluster.local",
+         "helloworld-go.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-helloworld-go-nsbrx-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "helloworld-go-nsbrx"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              },
+              "passthrough": {}
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-029df273-baba-11e9-8b5b-0242ac11000e_default_example_com-http",
+        "domains": [
+         "ow-029df273-baba-11e9-8b5b-0242ac11000e.default.example.com",
+         "ow-029df273-baba-11e9-8b5b-0242ac11000e.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              },
+              "passthrough": {}
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-029df273-baba-11e9-8b5b-0242ac11000e_default_svc_cluster_local-http",
+        "domains": [
+         "ow-029df273-baba-11e9-8b5b-0242ac11000e.default.svc.cluster.local",
+         "ow-029df273-baba-11e9-8b5b-0242ac11000e.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-029df273-baba-11e9-8b5b-0242ac11000e-629m9"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-29f9e564-baba-11e9-8f75-0242ac11000e_default_example_com-http",
+        "domains": [
+         "ow-29f9e564-baba-11e9-8f75-0242ac11000e.default.example.com",
+         "ow-29f9e564-baba-11e9-8f75-0242ac11000e.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-29f9e564-baba-11e9-8f75-0242ac11000e_default_svc_cluster_local-http",
+        "domains": [
+         "ow-29f9e564-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local",
+         "ow-29f9e564-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-29f9e564-baba-11e9-8f75-0242ac11000e-dltgr"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e_default_example_com-http",
+        "domains": [
+         "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e.default.example.com",
+         "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e_default_svc_cluster_local-http",
+        "domains": [
+         "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local",
+         "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-2d95b4b3-baba-11e9-8f75-0242ac11000e-wkr7j"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-3120f70a-baba-11e9-8f75-0242ac11000e_default_example_com-http",
+        "domains": [
+         "ow-3120f70a-baba-11e9-8f75-0242ac11000e.default.example.com",
+         "ow-3120f70a-baba-11e9-8f75-0242ac11000e.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-3120f70a-baba-11e9-8f75-0242ac11000e_default_svc_cluster_local-http",
+        "domains": [
+         "ow-3120f70a-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local",
+         "ow-3120f70a-baba-11e9-8f75-0242ac11000e.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-3120f70a-baba-11e9-8f75-0242ac11000e-8lvtr"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e_default_example_com-http",
+        "domains": [
+         "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e.default.example.com",
+         "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e.default.example.com:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       },
+       {
+        "name": "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e_default_svc_cluster_local-http",
+        "domains": [
+         "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e.default.svc.cluster.local",
+         "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e.default.svc.cluster.local:80"
+        ],
+        "routes": [
+         {
+          "match": {
+           "regex": ".*"
+          },
+          "route": {
+           "cluster": "kube-svc:default-ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6-80_default",
+           "timeout": "600s",
+           "retry_policy": {
+            "num_retries": 3,
+            "per_try_timeout": "600s"
+           }
+          },
+          "per_filter_config": {
+           "io.solo.transformation": {
+            "request_transformation": {
+             "transformation_template": {
+              "passthrough": {},
+              "headers": {
+               "Knative-Serving-Revision": {
+                "text": "ow-ff2305c1-bab9-11e9-8b5b-0242ac11000e-8m6t6"
+               },
+               "Knative-Serving-Namespace": {
+                "text": "default"
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       }
+      ]
+     },
+     "last_updated": "2019-08-09T15:27:34.441Z"
+    }
+   ]
+  }
+ ]
+}

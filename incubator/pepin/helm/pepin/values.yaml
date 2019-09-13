@@ -1,0 +1,18 @@
+# Default values for pepin.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace: ow-pepin
+router:
+  image:
+    tag: 0.0.1
+  registry_cred: acr-auth
+
+imageCredentials:
+  registry: k8spepin.azurecr.io
+  username:
+  password:
+
+etcd:
+  fullnameOverride: router-etcd
+  image:
+    tag: 3.3.10-1
