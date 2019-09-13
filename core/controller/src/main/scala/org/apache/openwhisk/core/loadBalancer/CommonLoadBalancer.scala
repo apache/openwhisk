@@ -205,6 +205,10 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     val raw = new String(bytes, StandardCharsets.UTF_8)
     AcknowledegmentMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
+        // if the completion message carries a result, process the active ack
+        if (m.result) processResult(m.response, m.transid)
+
+        // then process the slot release
         processCompletion(
           m.activationId,
           m.transid,
@@ -229,7 +233,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
   /** 5. Process the result ack and return it to the user */
   protected def processResult(response: Either[ActivationId, WhiskActivation], tid: TransactionId): Unit = {
-    val aid = response.fold(l => l, r => r.activationId)
+    val aid = response.fold(identity, _.activationId)
 
     // Resolve the promise to send the result back to the user.
     // The activation will be removed from the activation slots later, when the completion message
