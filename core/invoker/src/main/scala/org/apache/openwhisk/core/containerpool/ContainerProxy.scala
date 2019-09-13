@@ -18,11 +18,13 @@
 package org.apache.openwhisk.core.containerpool
 
 import java.time.Instant
+
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
+
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -36,6 +38,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
 import org.apache.openwhisk.http.Messages
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}

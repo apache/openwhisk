@@ -156,18 +156,18 @@ class InvokerReactive(
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
       val msg = if (isSlotFree) {
-        val aid = res.fold(identity, _.activationId)
-        val isWhiskSystemError = res.fold(_ => false, _.response.isWhiskError)
-        CompletionMessage(transid, aid, isWhiskSystemError, instance)
+        // the result is available and the slot has been released, send a combined message
+        // which includes the active ack for continuations
+        CompletionMessage(transid, res, result = true, instance)
       } else {
+        // only the result is available, send an active ack for continuations
         ResultMessage(transid, res)
       }
 
       producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
-          logging.info(
-            this,
-            s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
+          val msg = if (recovery) "recovery" else if (isSlotFree) "completion" else "result"
+          logging.info(this, s"posted $msg of activation ${activationResult.activationId}")
       }
     }
 
@@ -179,7 +179,8 @@ class InvokerReactive(
       }
     }
 
-    send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
+    // the active ack (containing the result) is only need for blocking invokes to further the continuation
+    send(if (blockingInvoke) Right(activationResult) else Left(activationResult.activationId)).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
         send(Left(activationResult.activationId), recovery = true)
     }

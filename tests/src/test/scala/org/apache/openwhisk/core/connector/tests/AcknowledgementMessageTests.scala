@@ -55,20 +55,18 @@ class AcknowledgementMessageTests extends FlatSpec with Matchers with WhiskInsta
   }
 
   it should "serialize a right result message" in {
-    val m =
-      ResultMessage(TransactionId.testing, Right(activation))
+    val m = ResultMessage(TransactionId.testing, Right(activation))
     m.serialize shouldBe JsObject("transid" -> m.transid.toJson, "response" -> m.response.right.get.toJson).compactPrint
   }
 
   it should "deserialize a left result message" in {
     val m = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
-    ResultMessage.parse(m.serialize) shouldBe Success(m)
+    AcknowledegmentMessage.parse(m.serialize) shouldBe Success(m)
   }
 
   it should "deserialize a right result message" in {
-    val m =
-      ResultMessage(TransactionId.testing, Right(activation))
-    ResultMessage.parse(m.serialize) shouldBe Success(m)
+    val m = ResultMessage(TransactionId.testing, Right(activation))
+    AcknowledegmentMessage.parse(m.serialize) shouldBe Success(m)
   }
 
   behavior of "acknowledgement message"
@@ -76,32 +74,46 @@ class AcknowledgementMessageTests extends FlatSpec with Matchers with WhiskInsta
   it should "serialize a Completion message" in {
     val c = CompletionMessage(
       TransactionId.testing,
-      ActivationId.generate(),
+      Left(ActivationId.generate()),
       false,
       InvokerInstanceId(0, userMemory = defaultUserMemory))
-    val m: AcknowledegmentMessage = c
-    m.serialize shouldBe c.toJson.compactPrint
+    c.serialize shouldBe c.toJson.compactPrint
+  }
+
+  it should "serialize a Completion message with result" in {
+    val c = CompletionMessage(
+      TransactionId.testing,
+      Right(activation),
+      true,
+      InvokerInstanceId(0, userMemory = defaultUserMemory))
+    c.serialize shouldBe c.toJson.compactPrint
   }
 
   it should "serialize a Result message" in {
     val r = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
-    val m: AcknowledegmentMessage = r
-    m.serialize shouldBe r.toJson.compactPrint
+    r.serialize shouldBe r.toJson.compactPrint
   }
 
   it should "deserialize a Completion message" in {
     val c = CompletionMessage(
       TransactionId.testing,
-      ActivationId.generate(),
+      Left(ActivationId.generate()),
       false,
       InvokerInstanceId(0, userMemory = defaultUserMemory))
-    val m: AcknowledegmentMessage = c
-    AcknowledegmentMessage.parse(m.serialize) shouldBe Success(c)
+    AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
+  }
+
+  it should "deserialize a Completion message with result" in {
+    val c = CompletionMessage(
+      TransactionId.testing,
+      Right(activation),
+      true,
+      InvokerInstanceId(0, userMemory = defaultUserMemory))
+    AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
   }
 
   it should "deserialize a Result message" in {
     val r = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
-    val m: AcknowledegmentMessage = r
-    AcknowledegmentMessage.parse(m.serialize) shouldBe Success(r)
+    AcknowledegmentMessage.parse(r.serialize) shouldBe Success(r)
   }
 }

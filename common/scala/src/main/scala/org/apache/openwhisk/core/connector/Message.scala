@@ -64,43 +64,34 @@ case class ActivationMessage(override val transid: TransactionId,
   def causedBySequence: Boolean = cause.isDefined
 }
 
-object ActivationMessage extends DefaultJsonProtocol {
-
-  def parse(msg: String) = Try(serdes.read(msg.parseJson))
-
-  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  implicit val serdes = jsonFormat11(ActivationMessage.apply)
-}
-
 /**
  * Message that is sent from the invoker to the controller after action is completed or after slot is free again for
  * new actions.
  */
 abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Message {
   override val transid: TransactionId = tid
-  override def serialize: String = {
-    AcknowledegmentMessage.serdes.write(this).compactPrint
-  }
+  override def serialize: String = AcknowledegmentMessage.serdes.write(this).compactPrint
+  def toJson: JsValue
 }
 
 /**
- * This message is sent from the invoker to the controller, after the slot of an invoker that has been used by the
- * current action, is free again (after log collection)
+ * This message is sent from an invoker to the controller, after the resource slot in the invoke, used by the
+ * corresponding activation, is free again (i.e., after log collection). In some cases, the activation result is
+ * ready and the slot is freed at the same time. In such cases, the completion message carries the result as well.
+ * This is reflected by the of a Right() `response` and the param `result` is set to true.
+ * In some cases the `result` is true but the response is Left() if the message was too large for the message bus.
  */
 case class CompletionMessage(override val transid: TransactionId,
-                             activationId: ActivationId,
-                             isSystemError: Boolean,
+                             response: Either[ActivationId, WhiskActivation],
+                             result: Boolean, // true iff the message is a combined active ack and slot released
                              invoker: InvokerInstanceId)
     extends AcknowledegmentMessage(transid) {
 
-  override def toString = {
-    activationId.asString
-  }
-}
+  def activationId: ActivationId = response.fold(identity, _.activationId)
+  def isSystemError: Boolean = response.fold(_ => false, _.response.isWhiskError)
 
-object CompletionMessage extends DefaultJsonProtocol {
-  def parse(msg: String): Try[CompletionMessage] = Try(serdes.read(msg.parseJson))
-  implicit val serdes = jsonFormat4(CompletionMessage.apply)
+  override def toJson: JsValue = CompletionMessage.serdes.write(this)
+  override def toString = activationId.asString
 }
 
 /**
@@ -112,49 +103,51 @@ object CompletionMessage extends DefaultJsonProtocol {
 case class ResultMessage(override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
     extends AcknowledegmentMessage(transid) {
 
-  override def toString = {
-    response.fold(l => l, r => r.activationId).asString
-  }
+  override def toJson: JsValue = ResultMessage.serdes.write(this)
+  override def toString = response.fold(identity, _.activationId).asString
+}
+
+object ActivationMessage extends DefaultJsonProtocol {
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  implicit val serdes = jsonFormat11(ActivationMessage.apply)
+}
+
+object CompletionMessage extends DefaultJsonProtocol {
+  implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
+  implicit val serdes = jsonFormat4(CompletionMessage.apply)
 }
 
 object ResultMessage extends DefaultJsonProtocol {
-  implicit def eitherResponse =
-    new JsonFormat[Either[ActivationId, WhiskActivation]] {
-      def write(either: Either[ActivationId, WhiskActivation]) = either match {
-        case Right(a) => a.toJson
-        case Left(b)  => b.toJson
-      }
-
-      def read(value: JsValue) = value match {
-        // per the ActivationId's serializer, it is guaranteed to be a String even if it only consists of digits
-        case _: JsString => Left(value.convertTo[ActivationId])
-        case _: JsObject => Right(value.convertTo[WhiskActivation])
-        case _           => deserializationError("could not read ResultMessage")
-      }
-    }
-
-  def parse(msg: String): Try[ResultMessage] = Try(serdes.read(msg.parseJson))
+  implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
   implicit val serdes = jsonFormat2(ResultMessage.apply)
 }
 
 object AcknowledegmentMessage extends DefaultJsonProtocol {
-  def parse(msg: String): Try[AcknowledegmentMessage] = {
-    Try(serdes.read(msg.parseJson))
+  def parse(msg: String): Try[AcknowledegmentMessage] = Try(serdes.read(msg.parseJson))
+
+  protected[connector] val eitherResponse = new JsonFormat[Either[ActivationId, WhiskActivation]] {
+    def write(either: Either[ActivationId, WhiskActivation]) = either.fold(_.toJson, _.toJson)
+
+    def read(value: JsValue) = value match {
+      case _: JsString =>
+        // per the ActivationId serializer, an activation id is a String even if it only consists of digits
+        Left(value.convertTo[ActivationId])
+
+      case _: JsObject => Right(value.convertTo[WhiskActivation])
+      case _           => deserializationError("could not read ResultMessage")
+    }
   }
 
   implicit val serdes = new RootJsonFormat[AcknowledegmentMessage] {
-    override def write(obj: AcknowledegmentMessage): JsValue = {
-      obj match {
-        case c: CompletionMessage => c.toJson
-        case r: ResultMessage     => r.toJson
-      }
-    }
+    override def write(m: AcknowledegmentMessage): JsValue = m.toJson
 
+    // The field invoker is only part of the CompletionMessage. If this field is part of the JSON, we try to convert
+    // it to a CompletionMessage. Otherwise to a ResultMessage.
+    // If both conversions fail, an error will be thrown that needs to be handled.
     override def read(json: JsValue): AcknowledegmentMessage = {
       json.asJsObject
-      // The field invoker is only part of the CompletionMessage. If this field is part of the JSON, we try to convert
-      // it to a CompletionMessage. Otherwise to a ResultMessage.
-      // If both conversions fail, an error will be thrown that needs to be handled.
         .getFields("invoker")
         .headOption
         .map(_ => json.convertTo[CompletionMessage])

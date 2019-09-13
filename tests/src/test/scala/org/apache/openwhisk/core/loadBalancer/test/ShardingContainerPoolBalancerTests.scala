@@ -565,7 +565,7 @@ class ShardingContainerPoolBalancerTests
 
   def completeActivation(invoker: InvokerInstanceId, balancer: ShardingContainerPoolBalancer, aid: ActivationId) = {
     //complete activation
-    val ack = CompletionMessage(TransactionId.testing, aid, false, invoker).serialize
+    val ack = CompletionMessage(TransactionId.testing, Left(aid), false, invoker).serialize
       .getBytes(StandardCharsets.UTF_8)
     balancer.processAcknowledgement(ack)
   }
