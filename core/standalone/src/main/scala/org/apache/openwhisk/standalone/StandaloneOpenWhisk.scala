@@ -32,6 +32,7 @@ import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.standalone.ColorOutput.clr
+import org.apache.openwhisk.standalone.StandaloneDockerSupport.checkOrAllocatePort
 import org.rogach.scallop.ScallopConf
 import pureconfig.loadConfigOrThrow
 
@@ -62,6 +63,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true)
   val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
+
+  val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
 
   verify()
 
@@ -148,8 +151,12 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       startApiGateway(conf, dockerClient, dockerSupport)
     } else (-1, Seq.empty)
 
+    val (kafkaPort, kafkaSvcs) = if (conf.kafka()) {
+      startKafka(workDir, dockerClient, conf)
+    } else (-1, Seq.empty)
+
     val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
-    val svcs = Seq(apiGwSvcs, couchSvcs.toList).flatten
+    val svcs = Seq(apiGwSvcs, couchSvcs.toList, kafkaSvcs).flatten
     if (svcs.nonEmpty) {
       new ServiceInfoLogger(conf, svcs, dataDir).run()
     }
@@ -380,7 +387,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     ec: ExecutionContext,
     materializer: ActorMaterializer): ServiceContainer = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "couchDB")
-    val port = StandaloneDockerSupport.checkOrAllocatePort(5984)
+    val port = checkOrAllocatePort(5984)
     val dbDataDir = new File(dataDir, "couchdb")
     FileUtils.forceMkdir(dbDataDir)
     val db = new CouchDBLauncher(dockerClient, port, dbDataDir)
@@ -391,6 +398,32 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         logging.error(this, "Error starting CouchDB" + t)
     }
     Await.result(g, 5.minutes)
+  }
+
+  private def startKafka(workDir: File, dockerClient: StandaloneDockerClient, conf: Conf)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext,
+    materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
+    val kafkaPort = checkOrAllocatePort(9092)
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
+    val k = new KafkaLauncher(dockerClient, kafkaPort, workDir)
+
+    val f = k.run()
+    val g = f.andThen {
+      case Success(_) =>
+        logging.info(
+          this,
+          s"Kafka started successfully at http://${StandaloneDockerSupport.getLocalHostName()}:$kafkaPort")
+      case Failure(t) =>
+        logging.error(this, "Error starting Kafka" + t)
+    }
+    val services = Await.result(g, 5.minutes)
+
+    setConfigProp(WhiskConfig.kafkaHostList, s"localhost:$kafkaPort")
+    setSysProp("whisk.spi.MessagingProvider", "org.apache.openwhisk.connector.kafka.KafkaMessagingProvider")
+    setSysProp("whisk.spi.LoadBalancerProvider", "org.apache.openwhisk.standalone.KafkaAwareLeanBalancer")
+    (kafkaPort, services)
   }
 
   private def configureDevMode(): Unit = {
