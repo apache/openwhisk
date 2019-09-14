@@ -75,11 +75,27 @@ abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Me
 }
 
 /**
- * This message is sent from an invoker to the controller, after the resource slot in the invoke, used by the
- * corresponding activation, is free again (i.e., after log collection). In some cases, the activation result is
+ * This message is sent from an invoker to the controller, once the resource slot in the invoker (used by the
+ * corresponding activation) free again (i.e., after log collection). In some cases, the activation result is
  * ready and the slot is freed at the same time. In such cases, the completion message carries the result as well.
- * This is reflected by the of a Right() `response` and the param `result` is set to true.
+ * This is reflected by the presence of a Right() `response` and the param `result` is set to true.
  * In some cases the `result` is true but the response is Left() if the message was too large for the message bus.
+ *
+ * There are four possible combinations as described below.
+ *
+ * - `result` is false and `response` is
+ *
+ *    1. Left: this is a split phase notification (slot released, active ack sent separately).
+ *
+ *    2. Right: should not happen and treated the same as Left.
+ *
+ * - `result` is true and `response` is
+ *
+ *    3. Right: this combines the active ack and slot release and occurs during system generated
+ *               activations for failure scenarios.
+ *
+ *    4. Left: like the previous case but occurs when the message is too large to cross the event
+ *              bus and the sender converts a Right to a Left.
  */
 case class CompletionMessage(override val transid: TransactionId,
                              response: Either[ActivationId, WhiskActivation],
