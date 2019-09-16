@@ -98,7 +98,7 @@ trait DbUtils extends Assertions {
     implicit context: ExecutionContext,
     transid: TransactionId,
     timeout: Duration): Unit =
-    waitOnViewImpl(db, List(namespace.asString), List(namespace.asString, WhiskEntityQueries.TOP), count, view)
+    waitOnViewImpl(db, List(namespace.asString), List(namespace.asString, WhiskQueries.TOP), count, view)
 
   /**
    * Wait on a view to update with documents added to namespace. This uses retry above,
@@ -109,7 +109,7 @@ trait DbUtils extends Assertions {
     implicit context: ExecutionContext,
     transid: TransactionId,
     timeout: Duration): Unit =
-    waitOnViewImpl(db, List(path.asString), List(path.asString, WhiskEntityQueries.TOP), count, view)
+    waitOnViewImpl(db, List(path.asString), List(path.asString, WhiskQueries.TOP), count, view)
 
   /**
    * Wait on a view to update with documents added(don't specify the namespace). This uses retry above,

@@ -25,7 +25,11 @@ object WhiskAuthHelpers {
     WhiskAuth(s, Set(WhiskNamespace(Namespace(EntityName(s.asString), k.uuid), k)))
   }
 
-  def newIdentity(s: Subject = Subject(), uuid: UUID = UUID(), k: GenericAuthKey = BasicAuthenticationAuthKey()) = {
-    Identity(s, Namespace(EntityName(s.asString), uuid), k, Privilege.ALL)
+  def newIdentity(s: Subject = Subject(), k: BasicAuthenticationAuthKey = BasicAuthenticationAuthKey()) = {
+    Identity(s, Namespace(EntityName(s.asString), k.uuid), k, rights = Privilege.ALL)
+  }
+
+  def newIdentityGenricAuth(s: Subject = Subject(), uuid: UUID = UUID(), k: GenericAuthKey) = {
+    Identity(s, Namespace(EntityName(s.asString), uuid), k, rights = Privilege.ALL)
   }
 }

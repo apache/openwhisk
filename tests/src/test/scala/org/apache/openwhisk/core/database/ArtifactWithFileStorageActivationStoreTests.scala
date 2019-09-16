@@ -56,7 +56,7 @@ class ArtifactWithFileStorageActivationStoreTests()
   private val uuid = UUID()
   private val subject = Subject()
   private val user =
-    Identity(subject, Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set())
+    Identity(subject, Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   private val context = UserContext(user, HttpRequest())
 
   override def afterAll(): Unit = {

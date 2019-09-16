@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.database.test.behavior
 import java.time.Instant
 
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity._
 
 trait ArtifactStoreWhisksQueryBehaviors extends ArtifactStoreBehaviorBase {

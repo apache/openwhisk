@@ -34,7 +34,6 @@ import akka.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.database.NoDocumentException
-import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types.EntityStore
@@ -263,11 +262,7 @@ object InvokerPool {
   val healthActionIdentity: Identity = {
     val whiskSystem = "whisk.system"
     val uuid = UUID()
-    Identity(
-      Subject(whiskSystem),
-      Namespace(EntityName(whiskSystem), uuid),
-      BasicAuthenticationAuthKey(uuid, Secret()),
-      Set[Privilege]())
+    Identity(Subject(whiskSystem), Namespace(EntityName(whiskSystem), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   }
 
   /** An action to use for monitoring invoker health. */
