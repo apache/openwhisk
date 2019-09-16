@@ -78,6 +78,9 @@ You can create a new runtime in two ways:
 - Implementing the [runtime specification](actions-new.md)
 - Using the [ActionLoop engine](actions-actionloop.md) that provides a simplified path for building a new runtime.
 
+Follow the instructions in [Updating Action Language Runtimes](actions-update.md) for updating, removing or renaming
+runtime kinds or language families.
+
 ## The basics
 
 To use a function as an action, it must conform to the following:

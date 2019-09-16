@@ -1,4 +1,17 @@
 {
+    "description": [
+        "This file describes the different languages (aka. managed action runtimes) supported by the system",
+        "as well as blackbox images that support the runtime specification.",
+        "Only actions with runtime families / kinds defined here can be created / read / updated / deleted / invoked.",
+        "Define a list of runtime families (example: 'nodejs') with at least one kind per family (example: 'nodejs:10').",
+        "Each runtime family needs a default kind (default: true).",
+        "When removing or renaming runtime families or runtime kinds from this file, all already existing actions",
+        "with the affected kinds can no more be read / updated / deleted / invoked. In order to remove or rename",
+        "runtime families or runtime kinds, mark all affected runtime kinds as deprecated (deprecated: true) and",
+        "perform a manual migration of all affected actions.",
+        "",
+        "This file is meant to list all stable runtimes supported by the Apache Openwhisk community."
+    ],
     "runtimes": {
         "nodejs": [
             {
@@ -16,7 +29,7 @@
                 }
             },
             {
-                "kind": "nodejs:8",
+                "kind": "nodejs:18",
                 "default": false,
                 "image": {
                     "prefix": "openwhisk",
