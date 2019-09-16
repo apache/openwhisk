@@ -29,7 +29,7 @@
                 }
             },
             {
-                "kind": "nodejs:18",
+                "kind": "nodejs:8",
                 "default": false,
                 "image": {
                     "prefix": "openwhisk",
