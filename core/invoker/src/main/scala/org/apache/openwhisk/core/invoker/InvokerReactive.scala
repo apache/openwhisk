@@ -293,7 +293,7 @@ class InvokerReactive(
   /**
    * Generates an activation with zero runtime. Usually used for error cases.
    *
-   * Set the kind annotation to `Exec.UNKNOWN` as user metric requires it
+   * Set the kind annotation to `Exec.UNKNOWN` since it is not known to the invoker because the action fetch failed.
    */
   private def generateFallbackActivation(msg: ActivationMessage, response: ActivationResponse): WhiskActivation = {
     val now = Instant.now
