@@ -187,7 +187,7 @@ trait EventMessageBody extends Message {
 
 object EventMessageBody extends DefaultJsonProtocol {
 
-  implicit def format = new JsonFormat[EventMessageBody] {
+  implicit val format = new JsonFormat[EventMessageBody] {
     def write(eventMessageBody: EventMessageBody) = eventMessageBody match {
       case m: Metric     => m.toJson
       case a: Activation => a.toJson
