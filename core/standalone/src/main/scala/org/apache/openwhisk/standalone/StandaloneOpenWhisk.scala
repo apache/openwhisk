@@ -65,6 +65,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
+  val kafkaUi = opt[Boolean](descr = "Enable Kafka UI", noshort = true)
 
   verify()
 
@@ -152,7 +153,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     } else (-1, Seq.empty)
 
     val (kafkaPort, kafkaSvcs) = if (conf.kafka()) {
-      startKafka(workDir, dockerClient, conf)
+      startKafka(workDir, dockerClient, conf, conf.kafkaUi())
     } else (-1, Seq.empty)
 
     val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
@@ -400,14 +401,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     Await.result(g, 5.minutes)
   }
 
-  private def startKafka(workDir: File, dockerClient: StandaloneDockerClient, conf: Conf)(
+  private def startKafka(workDir: File, dockerClient: StandaloneDockerClient, conf: Conf, kafkaUi: Boolean)(
     implicit logging: Logging,
     as: ActorSystem,
     ec: ExecutionContext,
     materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
     val kafkaPort = checkOrAllocatePort(9092)
     implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
-    val k = new KafkaLauncher(dockerClient, kafkaPort, workDir)
+    val k = new KafkaLauncher(dockerClient, kafkaPort, workDir, kafkaUi)
 
     val f = k.run()
     val g = f.andThen {

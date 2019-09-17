@@ -29,27 +29,30 @@ import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.WhiskConfig.kafkaHosts
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 import org.apache.openwhisk.core.loadBalancer.{LeanBalancer, LoadBalancer, LoadBalancerProvider}
-import org.apache.openwhisk.standalone.StandaloneDockerSupport.checkOrAllocatePort
+import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.io.Directory
 import scala.util.Try
 
-class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: File)(implicit logging: Logging,
-                                                                                   ec: ExecutionContext,
-                                                                                   actorSystem: ActorSystem,
-                                                                                   materializer: ActorMaterializer,
-                                                                                   tid: TransactionId) {
+class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: File, kafkaUi: Boolean)(
+  implicit logging: Logging,
+  ec: ExecutionContext,
+  actorSystem: ActorSystem,
+  materializer: ActorMaterializer,
+  tid: TransactionId) {
   private val kafkaDockerPort = checkOrAllocatePort(kafkaPort - 1)
+  private val zkPort = checkOrAllocatePort(2181)
 
   def run(): Future[Seq[ServiceContainer]] = {
     for {
       kafkaSvcs <- runKafka()
-    } yield kafkaSvcs
+      uiSvcs <- if (kafkaUi) runKafkaUI() else Future.successful(Seq.empty[ServiceContainer])
+    } yield kafkaSvcs ++ uiSvcs
   }
 
   def runKafka(): Future[Seq[ServiceContainer]] = {
-    val zkPort = checkOrAllocatePort(2181)
+
     //Below setting based on https://rmoff.net/2018/08/02/kafka-listeners-explained/
     // We configure two listeners where one is used for host based application and other is used for docker based application
     // to connect to Kafka server running on host
@@ -78,6 +81,24 @@ class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: Fil
               s"${StandaloneDockerSupport.getLocalHostIp()}:$kafkaDockerPort",
               "kafka-docker"),
             ServiceContainer(zkPort, "Zookeeper", "zookeeper")))
+  }
+
+  def runKafkaUI(): Future[Seq[ServiceContainer]] = {
+    val hostIp = StandaloneDockerSupport.getLocalHostIp()
+    val port = checkOrAllocatePort(9000)
+    val env = Map(
+      "ZOOKEEPER_CONNECT" -> s"$hostIp:$zkPort",
+      "KAFKA_BROKERCONNECT" -> s"$hostIp:$kafkaDockerPort",
+      "JVM_OPTS" -> "-Xms32M -Xmx64M",
+      "SERVER_SERVLET_CONTEXTPATH" -> "/")
+
+    logging.info(this, s"Starting Kafka Drop UI port: $port")
+    val name = containerName("kafka-drop-ui")
+    val params = Map("-p" -> Set(s"$port:9000"))
+    val args = createRunCmd(name, env, params)
+
+    val f = docker.runDetached("obsidiandynamics/kafdrop", args, true)
+    f.map(_ => Seq(ServiceContainer(port, s"http://localhost:$port", name)))
   }
 
   private def createDir(name: String) = {
