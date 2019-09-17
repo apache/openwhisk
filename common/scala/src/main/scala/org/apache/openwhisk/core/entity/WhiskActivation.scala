@@ -84,8 +84,8 @@ case class WhiskActivation(namespace: EntityPath,
       if (end != Instant.EPOCH) {
         Map(
           "end" -> end.toJson,
-          "duration" -> (duration getOrElse (end.toEpochMilli - start.toEpochMilli)).toJson,
-          "statusCode" -> response.statusCode.toJson)
+          WhiskActivation.durationAnnotation -> (duration getOrElse (end.toEpochMilli - start.toEpochMilli)).toJson,
+          WhiskActivation.statusCodeAnnotation -> response.statusCode.toJson)
       } else Map.empty
     }
 
@@ -146,6 +146,10 @@ object WhiskActivation
   val waitTimeAnnotation = "waitTime"
   val conductorAnnotation = "conductor"
   val timeoutAnnotation = "timeout"
+
+  val memoryAnnotation = "memory"
+  val durationAnnotation = "duration"
+  val statusCodeAnnotation = "statusCode"
 
   /** Some field names for compositions */
   val actionField = "action"

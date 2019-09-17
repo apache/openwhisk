@@ -242,14 +242,14 @@ object Activation extends DefaultJsonProtocol {
     jsonFormat(
       Activation.apply _,
       "name",
-      "statusCode",
-      "duration",
-      "waitTime",
-      "initTime",
-      "kind",
-      "conductor",
-      "memory",
-      "causedBy")
+      WhiskActivation.statusCodeAnnotation,
+      WhiskActivation.durationAnnotation ,
+      WhiskActivation.waitTimeAnnotation,
+      WhiskActivation.initTimeAnnotation,
+      WhiskActivation.kindAnnotation,
+      WhiskActivation.conductorAnnotation,
+      WhiskActivation.memoryAnnotation,
+      WhiskActivation.causedByAnnotation)
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
