@@ -53,8 +53,9 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     val name = activation.name
     val kind = activation.kind
     val memory = activation.memory.toString
+    val namespace = activation.namespace
+    val action = activation.action
     activationMetrics.getOrElseUpdate(name, {
-      val (namespace, action) = Activation.getNamespaceAndActionName(name)
       ActivationKamonMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }

@@ -23,6 +23,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
 import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
+import org.apache.openwhisk.core.entity.ActivationResponse.statusForCode
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -209,27 +210,28 @@ case class Activation(name: String,
 
   def toJson = Activation.activationFormat.write(this)
 
-  def status: String = statusCode match {
-    // Defined in ActivationResponse
-    case 0 => Activation.statusSuccess
-    case 1 => Activation.statusApplicationError
-    case 2 => Activation.statusDeveloperError
-    case 3 => Activation.statusInternalError
-    case x => x.toString
-  }
+  def status: String = statusForCode(statusCode)
 
   def isColdStart: Boolean = initTime != Duration.Zero
+
+  def namespace: String = getNamespaceAndActionName(name: String)._1
+
+  def action: String = getNamespaceAndActionName(name: String)._2
+
+  /**
+    * Extract namespace and action from name
+    * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
+    */
+  def getNamespaceAndActionName(name: String): (String, String) = {
+    val nameArr = name.split("/", 2)
+    (nameArr(0), nameArr(1))
+  }
 }
 
 object Activation extends DefaultJsonProtocol {
 
   val typeName = "Activation"
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
-
-  val statusSuccess = "success"
-  val statusApplicationError = "application_error"
-  val statusDeveloperError = "developer_error"
-  val statusInternalError = "internal_error"
 
   private implicit val durationFormat = new RootJsonFormat[Duration] {
     override def write(obj: Duration): JsValue = obj match {
@@ -255,15 +257,6 @@ object Activation extends DefaultJsonProtocol {
       "conductor",
       "memory",
       "causedBy")
-
-  /**
-   * Extract namespace and action from name
-   * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
-   */
-  def getNamespaceAndActionName(name: String): (String, String) = {
-    val nameArr = name.split("/", 2)
-    (nameArr(0), nameArr(1))
-  }
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {

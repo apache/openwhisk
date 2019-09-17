@@ -28,7 +28,7 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
-import org.apache.openwhisk.core.entity.{Subject, UUID}
+import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
 
 import scala.concurrent.duration._
 
@@ -78,7 +78,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
       TestReporter.counter(activationMetric).get.tags("kind") shouldBe "nodejs:6"
       TestReporter.counter(activationMetric).get.tags("memory") shouldBe "256"
 
-      TestReporter.counter(statusMetric).get.tags.find(_._2 == Activation.statusDeveloperError).size shouldBe 1
+      TestReporter.counter(statusMetric).get.tags.find(_._2 == ActivationResponse.statusDeveloperError).size shouldBe 1
       TestReporter.counter(coldStartMetric).get.value shouldBe 1
       TestReporter.counter(statusMetric).get.value shouldBe 1
 

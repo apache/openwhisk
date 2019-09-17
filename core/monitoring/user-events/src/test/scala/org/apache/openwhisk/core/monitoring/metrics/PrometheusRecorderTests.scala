@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
-import org.apache.openwhisk.core.entity.{Subject, UUID}
+import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
 
 import scala.concurrent.duration._
 
@@ -52,7 +52,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       consumer.shutdown().futureValue
       counterTotal(activationMetric) shouldBe 1
       counter(coldStartMetric) shouldBe 1
-      counterStatus(statusMetric, Activation.statusDeveloperError) shouldBe 1
+      counterStatus(statusMetric, ActivationResponse.statusDeveloperError) shouldBe 1
 
       histogramCount(waitTimeMetric) shouldBe 1
       histogramSum(waitTimeMetric) shouldBe (0.03 +- 0.001)

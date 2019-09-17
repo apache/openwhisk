@@ -35,6 +35,7 @@ import kamon.metric.MeasurementUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
+import org.apache.openwhisk.core.entity.ActivationResponse
 
 trait MetricRecorder {
   def processActivation(activation: Activation, initiatorNamespace: String): Unit
@@ -55,11 +56,11 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   private val statusCounter = Kamon.counter("openwhisk.userevents.global.status")
   private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts")
 
-  private val statusSuccess = statusCounter.refine("status" -> Activation.statusSuccess)
+  private val statusSuccess = statusCounter.refine("status" -> ActivationResponse.statusSuccess)
   private val statusFailure = statusCounter.refine("status" -> "failure")
-  private val statusApplicationError = statusCounter.refine("status" -> Activation.statusApplicationError)
-  private val statusDeveloperError = statusCounter.refine("status" -> Activation.statusDeveloperError)
-  private val statusInternalError = statusCounter.refine("status" -> Activation.statusInternalError)
+  private val statusApplicationError = statusCounter.refine("status" -> ActivationResponse.statusApplicationError)
+  private val statusDeveloperError = statusCounter.refine("status" -> ActivationResponse.statusDeveloperError)
+  private val statusInternalError = statusCounter.refine("status" -> ActivationResponse.statusWhiskError)
 
   private val waitTime = Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds)
   private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
@@ -113,14 +114,14 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
 
   private def updateGlobalMetrics(a: Activation): Unit = {
     a.status match {
-      case Activation.statusSuccess          => statusSuccess.increment()
-      case Activation.statusApplicationError => statusApplicationError.increment()
-      case Activation.statusDeveloperError   => statusDeveloperError.increment()
-      case Activation.statusInternalError    => statusInternalError.increment()
+      case ActivationResponse.statusSuccess          => statusSuccess.increment()
+      case ActivationResponse.statusApplicationError => statusApplicationError.increment()
+      case ActivationResponse.statusDeveloperError   => statusDeveloperError.increment()
+      case ActivationResponse.statusWhiskError       => statusInternalError.increment()
       case _                                 => //Ignore for now
     }
 
-    if (a.status != Activation.statusSuccess) statusFailure.increment()
+    if (a.status != ActivationResponse.statusSuccess) statusFailure.increment()
     if (a.isColdStart) {
       coldStartCounter.increment()
       initTime.record(a.initTime.toMillis)

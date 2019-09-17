@@ -29,6 +29,7 @@ import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
+import org.apache.openwhisk.core.entity.ActivationResponse
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -72,8 +73,9 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     val name = activation.name
     val kind = activation.kind
     val memory = activation.memory.toString
+    val namespace = activation.namespace
+    val action = activation.action
     activationMetrics.getOrElseUpdate(name, {
-      val (namespace, action) = Activation.getNamespaceAndActionName(name)
       ActivationPromMetrics(namespace, action, kind, memory, initiatorNamespace)
     })
   }
@@ -104,13 +106,13 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 
     private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
 
-    private val statusSuccess = statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusSuccess)
+    private val statusSuccess = statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusSuccess)
     private val statusApplicationError =
-      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusApplicationError)
+      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusApplicationError)
     private val statusDeveloperError =
-      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusDeveloperError)
+      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusDeveloperError)
     private val statusInternalError =
-      statusCounter.labels(namespace, initiatorNamespace, action, Activation.statusInternalError)
+      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
     def record(a: Activation): Unit = {
       gauge.observe(a.memory)
@@ -127,11 +129,11 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       duration.observe(seconds(a.duration))
 
       a.status match {
-        case Activation.statusSuccess          => statusSuccess.inc()
-        case Activation.statusApplicationError => statusApplicationError.inc()
-        case Activation.statusDeveloperError   => statusDeveloperError.inc()
-        case Activation.statusInternalError    => statusInternalError.inc()
-        case x                                 => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
+        case ActivationResponse.statusSuccess          => statusSuccess.inc()
+        case ActivationResponse.statusApplicationError => statusApplicationError.inc()
+        case ActivationResponse.statusDeveloperError   => statusDeveloperError.inc()
+        case ActivationResponse.statusWhiskError       => statusInternalError.inc()
+        case x                                         => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
       }
     }
   }
