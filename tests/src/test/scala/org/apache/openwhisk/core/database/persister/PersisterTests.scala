@@ -27,7 +27,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CompletionMessage, ResultMessage}
 import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, StaleParameter, UserContext}
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   ActivationId,
