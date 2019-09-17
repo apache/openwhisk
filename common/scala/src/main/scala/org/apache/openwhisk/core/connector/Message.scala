@@ -207,6 +207,7 @@ case class Activation(name: String,
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
+  def entityPath = EntityPath(name).toFullyQualifiedEntityName
 
   def toJson = Activation.activationFormat.write(this)
 
@@ -214,18 +215,10 @@ case class Activation(name: String,
 
   def isColdStart: Boolean = initTime != Duration.Zero
 
-  def namespace: String = getNamespaceAndActionName(name: String)._1
+  def namespace: String = entityPath.path.root.name
 
-  def action: String = getNamespaceAndActionName(name: String)._2
+  def action: String = entityPath.fullPath.relativePath.get.namespace
 
-  /**
-    * Extract namespace and action from name
-    * ex. whisk.system/apimgmt/createApi -> (whisk.system, apimgmt/createApi)
-    */
-  def getNamespaceAndActionName(name: String): (String, String) = {
-    val nameArr = name.split("/", 2)
-    (nameArr(0), nameArr(1))
-  }
 }
 
 object Activation extends DefaultJsonProtocol {
@@ -235,13 +228,13 @@ object Activation extends DefaultJsonProtocol {
 
   private implicit val durationFormat = new RootJsonFormat[Duration] {
     override def write(obj: Duration): JsValue = obj match {
-      case o if o.isFinite() => JsNumber(o.toMillis)
+      case o if o.isFinite => JsNumber(o.toMillis)
       case _                 => JsNumber.zero
     }
 
     override def read(json: JsValue): Duration = json match {
       case JsNumber(n) if n <= 0 => Duration.Zero
-      case JsNumber(n)           => toDuration(n.longValue())
+      case JsNumber(n)           => toDuration(n.longValue)
     }
   }
 

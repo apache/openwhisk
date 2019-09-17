@@ -34,7 +34,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   behavior of "PrometheusConsumer"
   val namespace = "whisk.system"
   val initiator = "testNS"
-  val action = "apimgmt/createApi"
+  val actionWithCustomPackage = "apimgmt/createApiOne"
+  val actionWithDefaultPackage = "createApi"
   val kind = "nodejs:10"
   val memory = "256"
 
@@ -46,24 +47,32 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
       publishStringMessageToKafka(
         EventConsumer.userEventTopic,
-        newActivationEvent(s"$namespace/$action", kind, memory, initiator).serialize)
+        newActivationEvent(s"$namespace/$actionWithCustomPackage", kind, memory, initiator).serialize)
 
+      publishStringMessageToKafka(
+        EventConsumer.userEventTopic,
+        newActivationEvent(s"$namespace/$actionWithDefaultPackage", kind, memory, initiator).serialize)
+
+      // Custom package
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
-      counterTotal(activationMetric) shouldBe 1
-      counter(coldStartMetric) shouldBe 1
-      counterStatus(statusMetric, ActivationResponse.statusDeveloperError) shouldBe 1
+      counterTotal(activationMetric, actionWithCustomPackage) shouldBe 1
+      counter(coldStartMetric, actionWithCustomPackage) shouldBe 1
+      counterStatus(statusMetric, actionWithCustomPackage, ActivationResponse.statusDeveloperError) shouldBe 1
 
-      histogramCount(waitTimeMetric) shouldBe 1
-      histogramSum(waitTimeMetric) shouldBe (0.03 +- 0.001)
+      histogramCount(waitTimeMetric, actionWithCustomPackage) shouldBe 1
+      histogramSum(waitTimeMetric, actionWithCustomPackage) shouldBe (0.03 +- 0.001)
 
-      histogramCount(initTimeMetric) shouldBe 1
-      histogramSum(initTimeMetric) shouldBe (433.433 +- 0.01)
+      histogramCount(initTimeMetric, actionWithCustomPackage) shouldBe 1
+      histogramSum(initTimeMetric, actionWithCustomPackage) shouldBe (433.433 +- 0.01)
 
-      histogramCount(durationMetric) shouldBe 1
-      histogramSum(durationMetric) shouldBe (1.254 +- 0.01)
+      histogramCount(durationMetric, actionWithCustomPackage) shouldBe 1
+      histogramSum(durationMetric, actionWithCustomPackage) shouldBe (1.254 +- 0.01)
 
-      gauge(memoryMetric) shouldBe 1
+      gauge(memoryMetric, actionWithCustomPackage) shouldBe 1
+
+      // Default package
+      counterTotal(activationMetric, actionWithDefaultPackage) shouldBe 1
     }
   }
 
@@ -76,37 +85,37 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       UUID("test"),
       Activation.typeName)
 
-  private def gauge(name: String) =
+  private def gauge(name: String, action:String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def counter(name: String) =
+  private def counter(name: String, action:String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def counterTotal(name: String) =
+  private def counterTotal(name: String, action:String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action", "kind", "memory"),
       Array(namespace, initiator, action, kind, memory))
 
-  private def counterStatus(name: String, status: String) =
+  private def counterStatus(name: String, action:String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action", "status"),
       Array(namespace, initiator, action, status))
 
-  private def histogramCount(name: String) =
+  private def histogramCount(name: String, action:String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def histogramSum(name: String) =
+  private def histogramSum(name: String, action:String) =
     CollectorRegistry.defaultRegistry
       .getSampleValue(s"${name}_sum", Array("namespace", "initiator", "action"), Array(namespace, initiator, action))
       .doubleValue()

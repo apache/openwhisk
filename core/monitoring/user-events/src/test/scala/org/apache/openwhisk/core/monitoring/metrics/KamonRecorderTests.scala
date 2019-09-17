@@ -58,43 +58,50 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
 
   behavior of "KamonConsumer"
 
+  val namespace = "whisk.system"
+  val initiator = "testNS"
+  val actionWithCustomPackage = "apimgmt/createApi"
+  val actionWithDefaultPackage = "createApi"
+  val kind = "nodejs:10"
+  val memory = 256
+
   it should "push user events to kamon" in {
     val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
     withRunningKafkaOnFoundPort(kconfig) { implicit actualConfig =>
       createCustomTopic(EventConsumer.userEventTopic)
 
       val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config, KamonRecorder)
+
       publishStringMessageToKafka(
         EventConsumer.userEventTopic,
-        newActivationEvent("whisk.system/apimgmt/createApi").serialize)
+        newActivationEvent(s"$namespace/$actionWithCustomPackage").serialize)
+
+      publishStringMessageToKafka(
+        EventConsumer.userEventTopic,
+        newActivationEvent(s"$namespace/$actionWithDefaultPackage").serialize)
 
       sleep(sleepAfterProduce, "sleeping post produce")
       consumer.shutdown().futureValue
-      sleep(1.second, "sleeping for Kamon reporters to get invoked")
-      TestReporter.counter(activationMetric).get.value shouldBe 1
-      TestReporter.counter(activationMetric).get.tags("namespace") shouldBe "whisk.system"
-      TestReporter.counter(activationMetric).get.tags("initiator") shouldBe "testNS"
-      TestReporter.counter(activationMetric).get.tags("action") shouldBe "apimgmt/createApi"
-      TestReporter.counter(activationMetric).get.tags("kind") shouldBe "nodejs:6"
-      TestReporter.counter(activationMetric).get.tags("memory") shouldBe "256"
+      sleep(4.second, "sleeping for Kamon reporters to get invoked")
 
-      TestReporter.counter(statusMetric).get.tags.find(_._2 == ActivationResponse.statusDeveloperError).size shouldBe 1
-      TestReporter.counter(coldStartMetric).get.value shouldBe 1
-      TestReporter.counter(statusMetric).get.value shouldBe 1
+      // Custom package
+      TestReporter.counter(activationMetric, actionWithCustomPackage).size shouldBe 1
+      TestReporter.counter(activationMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionMemory).get == memory.toString).size shouldBe 1
+      TestReporter.counter(activationMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionKind).get == kind).size shouldBe 1
+      TestReporter.counter(statusMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionStatus).get == ActivationResponse.statusDeveloperError).size shouldBe 1
+      TestReporter.counter(coldStartMetric, actionWithCustomPackage).size shouldBe 1
+      TestReporter.histogram(waitTimeMetric, actionWithCustomPackage).size shouldBe 1
+      TestReporter.histogram(initTimeMetric, actionWithCustomPackage).size shouldBe 1
+      TestReporter.histogram(durationMetric, actionWithCustomPackage).size shouldBe 1
 
-      TestReporter.histogram(waitTimeMetric).get.distribution.count shouldBe 1
-      TestReporter.histogram(initTimeMetric).get.distribution.count shouldBe 1
-      TestReporter.histogram(durationMetric).get.distribution.count shouldBe 1
-      TestReporter.histogram(durationMetric).get.tags("namespace") shouldBe "whisk.system"
-      TestReporter.histogram(durationMetric).get.tags("initiator") shouldBe "testNS"
-      TestReporter.histogram(durationMetric).get.tags("action") shouldBe "apimgmt/createApi"
+//      // Default package
+      TestReporter.histogram(durationMetric, actionWithDefaultPackage).size shouldBe 1
     }
   }
 
-  private def newActivationEvent(name: String, kind: String = "nodejs:6", initiator: String = "testNS") =
-    EventMessage(
-      "test",
-      Activation(name, 2, 3.millis, 5.millis, 11.millis, kind, false, 256, None),
+  private def newActivationEvent(name: String) =
+    EventMessage(namespace,
+      Activation(name, 2, 3.millis, 5.millis, 11.millis, kind, false, memory, None),
       Subject("testuser"),
       initiator,
       UUID("test"),
@@ -114,12 +121,19 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
       snapshotAccumulator = new PeriodSnapshotAccumulator(Duration.ofDays(1), Duration.ZERO)
     }
 
-    def counter(name: String) = {
-      snapshotAccumulator.peek().metrics.counters.find(_.name == name)
+    def counter(name: String, action: String) = {
+      System.out.println()
+      snapshotAccumulator.peek().metrics.counters.filter(_.name == name)
+        .filter((t) => t.tags.get(actionNamespace).get == namespace)
+        .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
+        .filter((t) => t.tags.get(actionName).get == action)
     }
 
-    def histogram(name: String) = {
-      snapshotAccumulator.peek().metrics.histograms.find(_.name == name)
+    def histogram(name: String, action: String) = {
+      snapshotAccumulator.peek().metrics.histograms.filter(_.name == name)
+        .filter((t) => t.tags.get(actionNamespace).get == namespace)
+        .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
+        .filter((t) => t.tags.get(actionName).get == action)
     }
   }
 }
