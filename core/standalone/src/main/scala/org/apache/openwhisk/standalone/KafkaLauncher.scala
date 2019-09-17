@@ -21,6 +21,7 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import kafka.server.KafkaConfig
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -39,6 +40,7 @@ class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: Fil
                                                                                    actorSystem: ActorSystem,
                                                                                    materializer: ActorMaterializer,
                                                                                    tid: TransactionId) {
+  private val kafkaDockerPort = checkOrAllocatePort(kafkaPort - 1)
 
   def run(): Future[Seq[ServiceContainer]] = {
     for {
@@ -48,7 +50,17 @@ class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: Fil
 
   def runKafka(): Future[Seq[ServiceContainer]] = {
     val zkPort = checkOrAllocatePort(2181)
-    implicit val config: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort = kafkaPort, zooKeeperPort = zkPort)
+    //Below setting based on https://rmoff.net/2018/08/02/kafka-listeners-explained/
+    // We configure two listeners where one is used for host based application and other is used for docker based application
+    // to connect to Kafka server running on host
+    val brokerProps = Map(
+      KafkaConfig.ListenersProp -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://localhost:$kafkaDockerPort",
+      KafkaConfig.AdvertisedListenersProp -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://${StandaloneDockerSupport
+        .getLocalHostIp()}:$kafkaDockerPort",
+      KafkaConfig.ListenerSecurityProtocolMapProp -> "LISTENER_LOCAL:PLAINTEXT,LISTENER_DOCKER:PLAINTEXT",
+      KafkaConfig.InterBrokerListenerNameProp -> "LISTENER_LOCAL")
+    implicit val config: EmbeddedKafkaConfig =
+      EmbeddedKafkaConfig(kafkaPort = kafkaPort, zooKeeperPort = zkPort, customBrokerProperties = brokerProps)
 
     val t = Try {
       EmbeddedKafka.startZooKeeper(createDir("zookeeper"))
@@ -61,6 +73,10 @@ class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: Fil
         _ =>
           Seq(
             ServiceContainer(kafkaPort, s"localhost:$kafkaPort", "kafka"),
+            ServiceContainer(
+              kafkaPort,
+              s"${StandaloneDockerSupport.getLocalHostIp()}:$kafkaDockerPort",
+              "kafka-docker"),
             ServiceContainer(zkPort, "Zookeeper", "zookeeper")))
   }
 
