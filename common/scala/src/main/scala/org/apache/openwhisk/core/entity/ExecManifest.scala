@@ -149,20 +149,10 @@ protected[core] object ExecManifest {
                                        tag: Option[String] = None) {
 
     /**
-     * The name of the public image for an action kind.
+     * The actual name of the image for an action kind resolved by registry setting.
      */
-    def publicImageName: String = {
-      val r = registry.filter(_.nonEmpty).map(_ + "/").getOrElse("")
-      val p = prefix.filter(_.nonEmpty).map(_ + "/").getOrElse("")
-      val t = tag.filter(_.nonEmpty).map(":" + _).getOrElse("")
-      r + p + name + t
-    }
-
-    /**
-     * The internal name of the image for an action kind relative to a registry.
-     */
-    def localImageName(systemRegistry: String): String = {
-      val r = Option(registry.getOrElse(systemRegistry))
+    def resolveImageName(systemRegistry: Option[String] = None): String = {
+      val r = Option(registry.getOrElse(systemRegistry.getOrElse((""))))
         .filter(_.nonEmpty)
         .map { reg =>
           if (reg.endsWith("/")) reg else reg + "/"
@@ -302,7 +292,7 @@ protected[core] object ExecManifest {
             case rt =>
               JsObject(
                 "kind" -> rt.kind.toJson,
-                "image" -> rt.image.publicImageName.toJson,
+                "image" -> rt.image.resolveImageName().toJson,
                 "deprecated" -> rt.deprecated.getOrElse(false).toJson,
                 "default" -> rt.default.getOrElse(false).toJson,
                 "attached" -> rt.attached.isDefined.toJson,

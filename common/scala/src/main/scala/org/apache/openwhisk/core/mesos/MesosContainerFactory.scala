@@ -131,9 +131,8 @@ class MesosContainerFactory(config: WhiskConfig,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val transid = tid
-    val image = ContainerFactory.resolveImage(
-      actionImage,
-      ContainerFactory.resolveRegisterConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig))
+    val image = actionImage.resolveImageName(Some(
+      ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig).url))
     val constraintStrings = if (userProvidedImage) {
       mesosConfig.blackboxConstraints
     } else {

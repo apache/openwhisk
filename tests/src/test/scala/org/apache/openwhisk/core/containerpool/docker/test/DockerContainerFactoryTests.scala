@@ -75,7 +75,7 @@ class DockerContainerFactoryTests
     (dockerApiStub
       .run(_: String, _: Seq[String])(_: TransactionId))
       .expects(
-        image.localImageName(runtimesRegistryConfig.url),
+        image.resolveImageName(Some(runtimesRegistryConfig.url)),
         List(
           "--cpu-shares",
           "32", //should be calculated as 1024/(numcore * sharefactor) via ContainerFactory.cpuShare

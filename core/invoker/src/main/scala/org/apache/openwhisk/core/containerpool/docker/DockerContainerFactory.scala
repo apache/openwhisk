@@ -63,13 +63,12 @@ class DockerContainerFactory(instance: InvokerInstanceId,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val registryConfig =
-      ContainerFactory.resolveRegisterConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig)
-    val image =
-      if (userProvidedImage && registryConfig.url.isEmpty) Left(actionImage)
-      else Right(actionImage.localImageName(registryConfig.url))
+      ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig)
+    val image = if (userProvidedImage) Left(actionImage) else Right(actionImage)
     DockerContainer.create(
       tid,
       image = image,
+      registryConfig = Some(registryConfig),
       memory = memory,
       cpuShares = cpuShares,
       environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,

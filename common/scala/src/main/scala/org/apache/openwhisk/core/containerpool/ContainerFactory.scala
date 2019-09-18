@@ -112,18 +112,10 @@ object ContainerFactory {
   def containerNamePrefix(instanceId: InvokerInstanceId): String =
     s"wsk${instanceId.uniqueName.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
 
-  def resolveRegisterConfig(userProvidedImage: Boolean,
+  def resolveRegistryConfig(userProvidedImage: Boolean,
                             runtimesRegistryConfig: RuntimesRegistryConfig,
                             userImagesRegistryConfig: RuntimesRegistryConfig): RuntimesRegistryConfig = {
     if (userProvidedImage) userImagesRegistryConfig else runtimesRegistryConfig
-  }
-
-  def resolveImage(actionImage: ExecManifest.ImageName, config: RuntimesRegistryConfig): String = {
-    if (config.url.isEmpty) {
-      actionImage.publicImageName
-    } else {
-      actionImage.localImageName(config.url)
-    }
   }
 }
 

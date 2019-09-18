@@ -114,15 +114,15 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val rmc = RuntimeManifestConfig()
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
-    runtimes.resolveDefaultRuntime("i1").get.image.publicImageName shouldBe "???"
-    runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "rrr/???"
-    runtimes.resolveDefaultRuntime("i3").get.image.publicImageName shouldBe "rrr/ppp/???"
-    runtimes.resolveDefaultRuntime("i4").get.image.publicImageName shouldBe "rrr/ppp/???:ttt"
-    runtimes.resolveDefaultRuntime("j1").get.image.publicImageName shouldBe "???:ttt"
-    runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "ppp/???"
-    runtimes.resolveDefaultRuntime("p1").get.image.publicImageName shouldBe "ppp/???:ttt"
-    runtimes.resolveDefaultRuntime("q1").get.image.publicImageName shouldBe "rrr/???:ttt"
-    runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "???"
+    runtimes.resolveDefaultRuntime("i1").get.image.resolveImageName() shouldBe "???"
+    runtimes.resolveDefaultRuntime("i2").get.image.resolveImageName() shouldBe "rrr/???"
+    runtimes.resolveDefaultRuntime("i3").get.image.resolveImageName() shouldBe "rrr/ppp/???"
+    runtimes.resolveDefaultRuntime("i4").get.image.resolveImageName() shouldBe "rrr/ppp/???:ttt"
+    runtimes.resolveDefaultRuntime("j1").get.image.resolveImageName() shouldBe "???:ttt"
+    runtimes.resolveDefaultRuntime("k1").get.image.resolveImageName() shouldBe "ppp/???"
+    runtimes.resolveDefaultRuntime("p1").get.image.resolveImageName() shouldBe "ppp/???:ttt"
+    runtimes.resolveDefaultRuntime("q1").get.image.resolveImageName() shouldBe "rrr/???:ttt"
+    runtimes.resolveDefaultRuntime("s1").get.image.resolveImageName() shouldBe "???"
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }
@@ -190,7 +190,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
 
   it should "prefix image name with overrides without registry" in {
     val name = "xyz"
-    ExecManifest.ImageName(name, Some(""), Some(""), Some("")).publicImageName shouldBe name
+    ExecManifest.ImageName(name, Some(""), Some(""), Some("")).resolveImageName() shouldBe name
 
     Seq(
       (ExecManifest.ImageName(name), name),
@@ -199,17 +199,17 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       (ExecManifest.ImageName(name, None, Some("pre"), Some("t")), s"pre/$name:t"),
     ).foreach {
       case (image, exp) =>
-        image.publicImageName shouldBe exp
-        image.localImageName("") shouldBe exp
-        image.localImageName("r") shouldBe s"r/$exp"
-        image.localImageName("r/") shouldBe s"r/$exp"
+        image.resolveImageName() shouldBe exp
+        image.resolveImageName(Some("")) shouldBe exp
+        image.resolveImageName(Some("r")) shouldBe s"r/$exp"
+        image.resolveImageName(Some("r/")) shouldBe s"r/$exp"
 
     }
   }
 
   it should "prefix image name with overrides with registry" in {
     val name = "xyz"
-    ExecManifest.ImageName(name, Some(""), Some(""), Some("")).publicImageName shouldBe name
+    ExecManifest.ImageName(name, Some(""), Some(""), Some("")).resolveImageName() shouldBe name
 
     Seq(
       (ExecManifest.ImageName(name, Some("hostname.com")), s"hostname.com/$name"),
@@ -218,10 +218,10 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       (ExecManifest.ImageName(name, Some("hostname.com"), Some("pre"), Some("t")), s"hostname.com/pre/$name:t"),
     ).foreach {
       case (image, exp) =>
-        image.publicImageName shouldBe exp
-        image.localImageName("") shouldBe exp
-        image.localImageName("r") shouldBe exp
-        image.localImageName("r/") shouldBe exp
+        image.resolveImageName() shouldBe exp
+        image.resolveImageName(Some("")) shouldBe exp
+        image.resolveImageName(Some("r")) shouldBe exp
+        image.resolveImageName(Some("r/")) shouldBe exp
 
     }
   }
