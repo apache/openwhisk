@@ -56,7 +56,7 @@ class ElasticSearchLogStoreTests
 
   private val uuid = UUID()
   private val user =
-    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty)
+    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   private val activationId = ActivationId.generate()
 
   private val defaultLogSchema =

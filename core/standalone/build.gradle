@@ -87,6 +87,10 @@ processResources {
     from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
         into(".")
     }
+    from(new File(project.rootProject.projectDir, "ansible/files")) {
+        include "*.json"
+        into("couch")
+    }
     //Implement the logic present in controller Docker file
     from(project.swaggerUiDir) {
         include "index.html"

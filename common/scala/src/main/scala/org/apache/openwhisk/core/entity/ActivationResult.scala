@@ -55,6 +55,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   /* The field name that is universally recognized as the marker of an error, from the application or otherwise. */
   val ERROR_FIELD: String = "error"
 
+  // These constants need to be synchronized with messageForCode() method below
   val Success = 0 // action ran successfully and produced a result
   val ApplicationError = 1 // action ran but there was an error and it was handled
   val DeveloperError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize

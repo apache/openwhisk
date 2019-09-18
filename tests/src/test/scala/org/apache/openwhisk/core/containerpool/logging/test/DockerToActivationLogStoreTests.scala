@@ -30,12 +30,14 @@ import org.apache.openwhisk.core.containerpool.logging.{
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity._
 import java.time.Instant
+
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerAddress, ContainerId}
 import org.apache.openwhisk.http.Messages
+
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
@@ -45,10 +47,10 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
 
   val uuid = UUID()
   val user =
-    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty)
+    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val action = ExecutableWhiskAction(user.namespace.name.toPath, EntityName("actionName"), exec)
-  val activation =
+  val successfulActivation =
     WhiskActivation(
       user.namespace.name.toPath,
       action.name,
@@ -56,6 +58,7 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
       ActivationId.generate(),
       Instant.EPOCH,
       Instant.EPOCH)
+  val developerErrorActivation = successfulActivation.copy(response = ActivationResponse.developerError("failed"))
 
   def toByteString(logs: List[LogLine]) = logs.map(_.toJson.compactPrint).map(ByteString.apply)
 
@@ -73,8 +76,56 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
       LogLine(Instant.now.toString, "stdout", "this is a log too"))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    await(store.collectLogs(tid, user, activation, container, action)) shouldBe ActivationLogs(
+    await(store.collectLogs(tid, user, successfulActivation, container, action)) shouldBe ActivationLogs(
       logs.map(_.toFormattedString).toVector)
+  }
+
+  it should "read logs into a sequence and parse them into the specified format with developer error" in {
+    val store = createStore()
+
+    val logs = List(
+      LogLine(Instant.now.toString, "stdout", "this is a log"),
+      LogLine(Instant.now.toString, "stdout", "this is a log too"))
+    val container = new TestContainer(Source(toByteString(logs)))
+
+    val collectedLogs = await(store.collectLogs(tid, user, developerErrorActivation, container, action)).logs
+
+    withClue("Collected logs should be empty:") {
+      collectedLogs.dropRight(1) shouldBe logs.map(_.toFormattedString).toVector
+    }
+
+    withClue("Last line should end with developer error warning:") {
+      val lastLogLine = collectedLogs.last
+      lastLogLine should endWith(Messages.logWarningDeveloperError)
+    }
+  }
+
+  it should "accept an empty log" in {
+    val store = createStore()
+
+    val logs = List.empty[LogLine]
+    val container = new TestContainer(Source(toByteString(logs)))
+
+    await(store.collectLogs(tid, user, successfulActivation, container, action)) shouldBe ActivationLogs(
+      Vector.empty[String])
+  }
+
+  it should "accept an empty log with developer error" in {
+    val store = createStore()
+
+    val logs = List.empty[LogLine]
+    val container = new TestContainer(Source(toByteString(logs)))
+
+    val collectedLogs = await(store.collectLogs(tid, user, developerErrorActivation, container, action)).logs
+
+    withClue("Collected logs should be empty:") {
+      collectedLogs.dropRight(1) shouldBe Vector.empty[String]
+    }
+
+    withClue("Last line should end with developer error warning:") {
+      val lastLogLine = collectedLogs.last
+      lastLogLine should endWith(Messages.logWarningDeveloperError)
+    }
   }
 
   it should "report an error if the logs contain an 'official' notice of such" in {
@@ -85,8 +136,31 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
       LogLine(Instant.now.toString, "stderr", Messages.logFailure))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, user, activation, container, action))
+    val ex = the[LogCollectingException] thrownBy await(
+      store.collectLogs(tid, user, successfulActivation, container, action))
     ex.partialLogs shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
+  }
+
+  it should "report an error if the logs contain an 'official' notice of such with developer error" in {
+    val store = createStore()
+
+    val logs = List(
+      LogLine(Instant.now.toString, "stdout", "this is a log"),
+      LogLine(Instant.now.toString, "stderr", Messages.logFailure))
+    val container = new TestContainer(Source(toByteString(logs)))
+
+    val ex = the[LogCollectingException] thrownBy await(
+      store.collectLogs(tid, user, developerErrorActivation, container, action))
+    val collectedLogs = ex.partialLogs.logs
+
+    withClue("Collected logs should match provided logs:") {
+      collectedLogs.dropRight(1) shouldBe logs.map(_.toFormattedString).toVector
+    }
+
+    withClue("Last line should end with developer error warning:") {
+      val lastLogLine = collectedLogs.last
+      lastLogLine should endWith(Messages.logWarningDeveloperError)
+    }
   }
 
   it should "report an error if logs have been truncated" in {
@@ -97,7 +171,8 @@ class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskAct
       LogLine(Instant.now.toString, "stderr", Messages.truncateLogs(action.limits.logs.asMegaBytes)))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, user, activation, container, action))
+    val ex = the[LogCollectingException] thrownBy await(
+      store.collectLogs(tid, user, successfulActivation, container, action))
     ex.partialLogs shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
   }
 

@@ -45,7 +45,7 @@ package object types {
   type EntityStore = ArtifactStore[WhiskEntity]
 }
 
-case class DBConfig(actionsDdoc: String, activationsDdoc: String, activationsFilterDdoc: String)
+case class DBConfig(subjectsDdoc: String, actionsDdoc: String, activationsDdoc: String, activationsFilterDdoc: String)
 
 protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevisionProvider {
 
@@ -139,23 +139,29 @@ protected[core] case class View(ddoc: String, view: String) {
  * refined by name.
  *
  */
-object WhiskEntityQueries {
+object WhiskQueries {
   val TOP = "\ufff0"
 
-  /** The design document to use for queries. */
-  val designDoc = loadConfigOrThrow[DBConfig](ConfigKeys.db).actionsDdoc
+  /** The view name for the collection, within the design document. */
+  def view(ddoc: String, collection: String) = new View(ddoc, collection)
 
   /** The view name for the collection, within the design document. */
-  def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)
+  def entitiesView(collection: String) = new View(entitiesDesignDoc, collection)
+
+  /** The db configuration. */
+  protected[entity] val dbConfig = loadConfigOrThrow[DBConfig](ConfigKeys.db)
+
+  /** The design document to use for queries. */
+  private val entitiesDesignDoc = dbConfig.actionsDdoc
 }
 
 trait WhiskEntityQueries[T] {
   val collectionName: String
   val serdes: RootJsonFormat[T]
-  import WhiskEntityQueries._
+  import WhiskQueries._
 
   /** The view name for the collection, within the design document. */
-  lazy val view: View = WhiskEntityQueries.view(collection = collectionName)
+  lazy val view: View = WhiskQueries.entitiesView(collection = collectionName)
 
   /**
    * Queries the datastore for records from a specific collection (i.e., type) matching

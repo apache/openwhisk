@@ -497,7 +497,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
           result.response.result.get
             .fields("error") shouldBe Messages.timedoutActivation(allowedActionDuration, init = false).toJson
           val logs = result.logs.get
-          logs.last should include(Messages.logFailure)
+          logs.last should include(Messages.logWarningDeveloperError)
 
           val parseLogTime = (line: String) => Instant.parse(line.split(' ').head)
           val startTime = parseLogTime(logs.head)

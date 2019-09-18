@@ -33,7 +33,7 @@ import org.apache.openwhisk.core.database.{
   UnsupportedView,
   WhisksHandler
 }
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 
 private[cosmosdb] trait CosmosDBViewMapper {
   protected val NOTHING = ""

@@ -111,7 +111,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
 
   it should "read code stored as attachment" in {
     val json = """{
-                 |  "kind": "java",
+                 |  "kind": "java:8",
                  |  "code": {
                  |    "attachmentName": "foo:bar",
                  |    "attachmentType": "application/java-archive",

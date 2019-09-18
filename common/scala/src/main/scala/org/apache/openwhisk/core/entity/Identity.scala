@@ -38,6 +38,8 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       storeActivations: Option[Boolean] = None)
 
 object UserLimits extends DefaultJsonProtocol {
+  val standardUserLimits = UserLimits()
+
   implicit val serdes = jsonFormat5(UserLimits.apply)
 }
 
@@ -50,12 +52,12 @@ protected[core] object Namespace extends DefaultJsonProtocol {
 protected[core] case class Identity(subject: Subject,
                                     namespace: Namespace,
                                     authkey: GenericAuthKey,
-                                    rights: Set[Privilege],
-                                    limits: UserLimits = UserLimits())
+                                    rights: Set[Privilege] = Set.empty,
+                                    limits: UserLimits = UserLimits.standardUserLimits)
 
 object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocInfo] with DefaultJsonProtocol {
 
-  private val viewName = "subjects/identities"
+  private val viewName = WhiskQueries.view(WhiskQueries.dbConfig.subjectsDdoc, "identities").name
 
   override val cacheEnabled = true
   override val evictionPolicy = WriteTime
@@ -129,10 +131,12 @@ object Identity extends MultipleReadersSingleWriterCache[Option[Identity], DocIn
       stale = StaleParameter.No)
   }
 
-  private def rowToIdentity(row: JsObject, key: String)(implicit transid: TransactionId, logger: Logging) = {
+  protected[entity] def rowToIdentity(row: JsObject, key: String)(implicit transid: TransactionId, logger: Logging) = {
     row.getFields("id", "value", "doc") match {
       case Seq(JsString(id), JsObject(value), doc) =>
-        val limits = Try(doc.convertTo[UserLimits]).getOrElse(UserLimits())
+        val limits =
+          if (doc != JsNull) Try(doc.convertTo[UserLimits]).getOrElse(UserLimits.standardUserLimits)
+          else UserLimits.standardUserLimits
         val subject = Subject(id)
         val JsString(uuid) = value("uuid")
         val JsString(secret) = value("key")

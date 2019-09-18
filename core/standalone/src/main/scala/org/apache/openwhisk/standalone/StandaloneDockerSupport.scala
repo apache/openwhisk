@@ -26,7 +26,12 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.docker.{DockerClient, DockerClientConfig, WindowsDockerClient}
+import org.apache.openwhisk.core.containerpool.docker.{
+  BrokenDockerContainer,
+  DockerClient,
+  DockerClientConfig,
+  WindowsDockerClient
+}
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import pureconfig.{loadConfig, loadConfigOrThrow}
 
@@ -164,13 +169,40 @@ object StandaloneDockerSupport {
   }
 }
 
-class StandaloneDockerClient(implicit log: Logging, as: ActorSystem, ec: ExecutionContext)
+class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: ActorSystem, ec: ExecutionContext)
     extends DockerClient()(ec)
     with WindowsDockerClient {
+
+  override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+    if (pullDisabled) Future.successful(Unit) else super.pull(image)
+  }
+
   override def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] =
     super.runCmd(args, timeout)
 
   val clientConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient)
+
+  def runDetached(image: String, args: Seq[String], shouldPull: Boolean)(
+    implicit tid: TransactionId): Future[StandaloneDockerContainer] = {
+    for {
+      _ <- if (shouldPull) pull(image) else Future.successful(())
+      id <- run(image, args).recoverWith {
+        case t @ BrokenDockerContainer(brokenId, _) =>
+          // Remove the broken container - but don't wait or check for the result.
+          // If the removal fails, there is nothing we could do to recover from the recovery.
+          rm(brokenId)
+          Future.failed(t)
+        case t => Future.failed(t)
+      }
+      ip <- inspectIPAddress(id, StandaloneDockerSupport.network).recoverWith {
+        // remove the container immediately if inspect failed as
+        // we cannot recover that case automatically
+        case e =>
+          rm(id)
+          Future.failed(e)
+      }
+    } yield StandaloneDockerContainer(id, ip)
+  }
 }
 
 case class StandaloneDockerContainer(id: ContainerId, addr: ContainerAddress)

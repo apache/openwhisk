@@ -121,7 +121,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   val systemId = Subject()
   val systemKey = BasicAuthenticationAuthKey(uuid, Secret())
   val systemIdentity =
-    Future.successful(Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, Privilege.ALL))
+    Future.successful(
+      Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, rights = Privilege.ALL))
   val namespace = EntityPath(systemId.asString)
   val proxyNamespace = namespace.addPath(EntityName("proxy"))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)

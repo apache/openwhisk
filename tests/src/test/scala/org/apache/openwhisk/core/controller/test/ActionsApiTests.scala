@@ -38,6 +38,7 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 import akka.http.scaladsl.model.headers.RawHeader
 import org.apache.commons.lang3.StringUtils
+import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.entity.Attachments.Inline
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.scalatest.{FlatSpec, Matchers}
@@ -1367,6 +1368,40 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "invoke an action with init arguments" in {
+    implicit val tid = transid()
+    val action =
+      WhiskAction(namespace, aname(), jsDefault("??"), Parameters("E", "e", init = true) ++ Parameters("a", "A"))
+    put(entityStore, action)
+
+    loadBalancer.activationMessageChecker = Some { msg: ActivationMessage =>
+      msg.initArgs shouldBe Set("E")
+      msg.content shouldBe Some {
+        JsObject("E" -> JsString("e"), "a" -> JsString("A"))
+      }
+    }
+
+    Post(s"$collectionPath/${action.name}", JsObject.empty) ~> Route.seal(routes(creds)) ~> check {
+      loadBalancer.activationMessageChecker = None
+      status should be(Accepted)
+    }
+
+    // overriding an init param is permitted
+    val args = JsObject("E" -> "E".toJson)
+
+    loadBalancer.activationMessageChecker = Some { msg: ActivationMessage =>
+      msg.initArgs shouldBe Set("E")
+      msg.content shouldBe Some {
+        JsObject("E" -> JsString("E"), "a" -> JsString("A"))
+      }
+    }
+
+    Post(s"$collectionPath/${action.name}", args) ~> Route.seal(routes(creds)) ~> check {
+      loadBalancer.activationMessageChecker = None
+      status should be(Accepted)
+    }
+  }
+
   it should "invoke an action, nonblocking" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault("??"))
@@ -1711,8 +1746,8 @@ class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
   import WhiskAction.execFieldName
 
   val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
-  val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsBoolean(true))
-  val keyFalsyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsString("")) // falsy other than JsFalse
+  val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsTrue)
+  val keyFalsyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsString.empty) // falsy other than JsFalse
   val execAnnotation = Parameters(execFieldName, JsString("foo"))
   val exec: Exec = jsDefault("??")
 

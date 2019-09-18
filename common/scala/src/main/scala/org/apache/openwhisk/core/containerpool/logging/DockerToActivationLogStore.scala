@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.logging
 
 import java.time.Instant
+
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -25,15 +26,13 @@ import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 
 import scala.concurrent.{ExecutionContext, Future}
-
 import spray.json._
 
 /**
@@ -75,8 +74,22 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   /**
    * Obtains the container's stdout and stderr output.
    *
-   * In case of a timed out activation do not wait for a sentinel to appear but instead
-   * collect the log as is and add a message to the log that data might be missing
+   * Managed action runtimes are expected to produce sentinels on developer errors during
+   * init and run. For certain developer errors like process abortion due to unhandled errors
+   * or memory limit exhaustion, the action runtime will likely not be able to produce sentinels.
+   *
+   * In addition, there are situations where user actions (un)intentionally cause a developer error
+   * in a managed action runtime and prevent the production of sentinels. In that case, log file
+   * reading may continue endlessly.
+   *
+   * For these reasons, do not wait for sentinels to appear in log output when activations end up
+   * in a developer error. It is expected that sentinels are filtered in container.logs() even
+   * if they are not waited for.
+   *
+   * In case of a developer error, append a warning message to the logs that data might be missing.
+   *
+   * TODO: instead of just appending a warning message when a developer error occurs, we should
+   *       have an out-of-band error handling that injects such messages later on.
    *
    * @param transid transaction id
    * @param container container to obtain the log from
@@ -87,18 +100,65 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
    */
   protected def logStream(transid: TransactionId,
                           container: Container,
-                          action: ExecutableWhiskAction,
-                          isTimedoutActivation: Boolean): Source[ByteString, Any] = {
+                          logLimit: LogLimit,
+                          sentinelledLogs: Boolean,
+                          isDeveloperError: Boolean): Source[ByteString, Any] = {
 
-    // wait for a sentinel only if no container (developer) error occurred to avoid
-    // that log collection continues if the action code still logs after timeout
-    val sentinel = action.exec.sentinelledLogs && !isTimedoutActivation
-    val logs = container.logs(action.limits.logs.asMegaBytes, sentinel)(transid)
-    val logsWithPossibleError = if (isTimedoutActivation) {
+    // Wait for a sentinel only if no container (developer) error occurred to avoid
+    // that log collection continues if the action code still logs after developer error.
+    val waitForSentinel = sentinelledLogs && !isDeveloperError
+    val logs = container.logs(logLimit.asMegaBytes, waitForSentinel)(transid)
+    val logsWithPossibleError = if (isDeveloperError) {
       logs.concat(
-        Source.single(ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)))
+        Source.single(
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logWarningDeveloperError).toJson.compactPrint)))
     } else logs
     logsWithPossibleError
+  }
+
+  /**
+   * Determine whether the passed activation log had a log collecting error or not.
+   * It is expected that the log collecting stream appends a message from a well known
+   * set of error messages if log collecting failed.
+   *
+   * If the activation failed due to a developer error, an additional error message is appended.
+   * In that case, the second last message indicates whether there was a log collecting error AND
+   * the last message MUST be the additional error message mentioned above.
+   *
+   * TODO: this function needs to deal with different combinations of error / warning messages that
+   *       were appended to / injected into the log collecting stream.
+   *       Instead, we should have an out-of-band error handling that does not use log messages to
+   *       detect error conditions but detects errors and appends error / warning messages in
+   *       a different way.
+   *
+   * @param actLogs the activation logs to check
+   * @param logLimit the log limit applying to the activation
+   * @param isDeveloperError did activation fail due to developer error?
+   * @return true if log collecting failed, false otherwise
+   */
+  protected def isLogCollectingError(actLogs: ActivationLogs,
+                                     logLimit: LogLimit,
+                                     isDeveloperError: Boolean): Boolean = {
+    val logs = actLogs.logs
+    val logCollectingErrorMessages = Set(Messages.logFailure, Messages.truncateLogs(logLimit.asMegaBytes))
+    val lastLine: Option[String] = logs.lastOption
+    val secondLastLine: Option[String] = logs.takeRight(2).dropRight(1).lastOption
+
+    if (isDeveloperError) {
+      // Developer error: the second last line indicates whether there was a log collecting error.
+      val secondLastLineContainsLogCollectingError =
+        secondLastLine.exists(line => logCollectingErrorMessages.exists(line.contains))
+
+      // If a developer error occurred when initializing or running an action,
+      // the last message in logs must be Messages.logWarningDeveloperError.
+      // If not, this is a log collecting error.
+      val lastLineContainsDeveloperError = lastLine.exists(line => line.contains(Messages.logWarningDeveloperError))
+
+      secondLastLineContainsLogCollectingError || !lastLineContainsDeveloperError
+    } else {
+      // The last line indicates whether there was a log collecting error.
+      lastLine.exists(line => logCollectingErrorMessages.exists(line.contains))
+    }
   }
 
   override def collectLogs(transid: TransactionId,
@@ -107,17 +167,16 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val isTimedoutActivation = activation.isTimedoutActivation
-    val logs = logStream(transid, container, action, isTimedoutActivation)
+    val logLimit = action.limits.logs
+    val isDeveloperError = activation.response.isContainerError // container error means developer error
+    val logs = logStream(transid, container, logLimit, action.exec.sentinelledLogs, isDeveloperError)
 
     logs
       .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
-        val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-        val errored = isTimedoutActivation || seq.lastOption.exists(last => possibleErrors.exists(last.contains))
         val logs = ActivationLogs(seq.toVector)
-        if (!errored) {
+        if (!isLogCollectingError(logs, logLimit, isDeveloperError)) {
           Future.successful(logs)
         } else {
           Future.failed(LogCollectingException(logs))

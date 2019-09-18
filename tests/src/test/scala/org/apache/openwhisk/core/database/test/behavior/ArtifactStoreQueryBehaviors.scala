@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.test.behavior
 
 import spray.json.{JsArray, JsNumber, JsObject, JsString}
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.{EntityPath, WhiskAction, WhiskActivation, WhiskEntity}
 
 trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {

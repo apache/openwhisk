@@ -202,7 +202,7 @@ object WhiskPackage
 
   override val cacheEnabled = true
 
-  lazy val publicPackagesView: View = WhiskEntityQueries.view(collection = s"$collectionName-public")
+  lazy val publicPackagesView: View = WhiskQueries.entitiesView(collection = s"$collectionName-public")
 }
 
 /**

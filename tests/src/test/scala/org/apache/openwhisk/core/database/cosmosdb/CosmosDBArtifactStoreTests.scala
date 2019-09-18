@@ -24,7 +24,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   DocumentReader,
