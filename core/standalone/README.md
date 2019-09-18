@@ -77,8 +77,10 @@ $ java -jar openwhisk-standalone.jar -h
 
       --api-gw                  Enable API Gateway support
       --api-gw-port  <arg>      Api Gateway Port
+      --clean                   Clean any existing state like database
   -c, --config-file  <arg>      application.conf which overrides the default
                                 standalone.conf
+      --couchdb                 Enable CouchDB support
   -d, --data-dir  <arg>         Directory used for storage
       --disable-color-logging   Disables colored logging
   -m, --manifest  <arg>         Manifest json defining the supported runtimes
@@ -169,7 +171,10 @@ You can then see the runtime config reflect in `http://localhost:3233`
 
 #### Using CouchDB
 
-If you need to connect to CouchDB or any other supported artifact store then you can pass the required config
+If you need to use CouchDB then you can launch the standalone server with `--couchdb` option. This would launch
+a CouchDB server which would configured to store files in user home directory under `.openwhisk/standalone` folder.
+
+If you need to connect to external CouchDB or any other supported artifact store then you can pass the required config
 
 ```hocon
 include classpath("standalone.conf")

@@ -82,7 +82,7 @@ class SplunkLogStoreTests
   val endTimePlusOffset = "2007-12-03T10:16:07Z" //queried end time range is endTime+22
   val uuid = UUID()
   val user =
-    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty)
+    Identity(Subject(), Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   val request = HttpRequest(
     method = POST,
     uri = "https://some.url",

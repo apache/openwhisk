@@ -17,13 +17,6 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: "pull the zookeeper:{{ zookeeper.version }} image"
-  shell: "docker pull zookeeper:{{ zookeeper.version }}"
-  register: result
-  until: (result.rc == 0)
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
-
 - name: (re)start zookeeper
   docker_container:
     name: zookeeper{{ groups['zookeepers'].index(inventory_hostname) }}
@@ -47,6 +40,7 @@
       - "{{ zookeeper.port + groups['zookeepers'].index(inventory_hostname) }}:2181"
       - "{{ 2888 + groups['zookeepers'].index(inventory_hostname) }}:2888"
       - "{{ 3888 + groups['zookeepers'].index(inventory_hostname) }}:3888"
+    pull: "{{ zookeeper.pull_zookeeper | default(true) }}"
 
 - name: wait until the Zookeeper in this host is up and running
   action: shell (echo ruok; sleep 1) | nc {{ ansible_host }} {{ zookeeper.port + groups['zookeepers'].index(inventory_hostname) }}

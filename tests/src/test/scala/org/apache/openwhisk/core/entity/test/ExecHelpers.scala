@@ -38,7 +38,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS10 = "nodejs:10"
   protected val SWIFT4 = "swift:4.2"
   protected val BLACKBOX = "blackbox"
-  protected val JAVA_DEFAULT = "java"
+  protected val JAVA_DEFAULT = "java:8"
 
   private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 

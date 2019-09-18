@@ -48,6 +48,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   private val whiskServerPreDefined = System.getProperty(WHISK_SERVER) != null
 
   protected def extraArgs: Seq[String] = Seq.empty
+  protected def extraVMArgs: Seq[String] = Seq.empty
 
   protected def waitForOtherThings(): Unit = {}
 
@@ -68,10 +69,10 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             //For tests let it bound on all ip to make it work on travis which uses linux
             "-Dwhisk.controller.interface=0.0.0.0",
             s"-Dwhisk.standalone.wsk=${Wsk.defaultCliPath}",
-            s"-D$disablePullConfig=false",
-            "-jar",
-            standaloneServerJar.getAbsolutePath,
-            "--disable-color-logging") ++ extraArgs,
+            s"-D$disablePullConfig=false")
+            ++ extraVMArgs
+            ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging")
+            ++ extraArgs,
           Seq("-p", serverPort.toString),
           manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
 

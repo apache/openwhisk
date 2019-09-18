@@ -1,5 +1,3 @@
-#!/bin/bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -17,10 +15,18 @@
 # limitations under the License.
 #
 
-# Start with a new VM
-if [ -d ".vagrant" ]; then
-  vagrant destroy
-fi
-
-vagrant plugin install vagrant-disksize
-vagrant up
+github:
+  description: "Apache OpenWhisk is an open source serverless cloud platform"
+  homepage: https://openwhisk.apache.org/
+  labels:
+  - openwhisk
+  - apache
+  - serverless
+  - faas
+  - functions-as-a-service
+  - cloud
+  - serverless-architectures
+  - serverless-functions
+  - docker
+  - kubernetes
+  - functions

@@ -99,7 +99,7 @@
       - "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
-    pull: true
+    pull: "{{ kafka.pull_kafka | default(true) }}"
 
 - name: wait until the kafka server started up
   shell:

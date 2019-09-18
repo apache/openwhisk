@@ -173,7 +173,8 @@ class DockerContainer(protected val id: ContainerId,
   /** The last read-position in the log file */
   private var logFileOffset = new AtomicLong(0)
 
-  protected val waitForLogs: FiniteDuration = 2.seconds
+  protected val logCollectingIdleTimeout: FiniteDuration = 2.seconds
+  protected val logCollectingTimeoutPerMBLogLimit: FiniteDuration = 2.seconds
   protected val waitForOomState: FiniteDuration = 2.seconds
   protected val filePollInterval: FiniteDuration = 5.milliseconds
 
@@ -257,17 +258,46 @@ class DockerContainer(protected val id: ContainerId,
    * previous activations that have to be skipped. For this reason, a starting position
    * is kept and updated upon each invocation.
    *
-   * If asked, check for sentinel markers - but exclude the identified markers from
-   * the result returned from this method.
+   * There are two possible modes controlled by parameter waitForSentinel:
    *
-   * Only parses and returns as much logs as fit in the passed log limit.
+   * 1. Wait for sentinel:
+   *    Tail container log file until two sentinel markers show up. Complete
+   *    once two sentinel markers have been identified, regardless whether more
+   *    data could be read from container log file.
+   *    A log file reading error is reported if sentinels cannot be found.
+   *    Managed action runtimes use the the sentinels to mark the end of
+   *    an individual activation.
+   *
+   * 2. Do not wait for sentinel:
+   *    Read container log file up to its end. Stop reading once the end
+   *    has been reached. Complete once two sentinel markers have been
+   *    identified, regardless whether more data could be read from
+   *    container log file.
+   *    No log file reading error is reported if sentinels cannot be found.
+   *    Blackbox actions do not necessarily produce marker sentinels properly,
+   *    so this mode is used for all blackbox actions.
+   *    In addition, this mode can / should be used in error situations with
+   *    managed action runtimes where sentinel markers may be missing or
+   *    arrive too late - Example: action exceeds time or memory limit during
+   *    init or run.
+   *
+   * The result returned from this method does never contain any log sentinel markers. These are always
+   * filtered - regardless of the specified waitForSentinel mode.
+   *
+   * Only parses and returns as much logs as fit in the passed log limit. Stops log collection with an error
+   * if processing takes too long or time gaps between processing individual log lines are too long.
    *
    * @param limit the limit to apply to the log size
    * @param waitForSentinel determines if the processor should wait for a sentinel to appear
-   *
    * @return a vector of Strings with log lines in our own JSON format
    */
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
+    // Define a time limit for collecting and processing the logs of a single activation.
+    // If this time limit is exceeded, log processing is stopped and declared unsuccessful.
+    // Calculate the timeout based on the maximum expected log size, i.e. the log limit.
+    // Use a lower bound of 5 MB log size to account for base overhead.
+    val logCollectingTimeout = limit.toMB.toInt.max(5) * logCollectingTimeoutPerMBLogLimit
+
     docker
       .rawContainerLogs(id, logFileOffset.get(), if (waitForSentinel) Some(filePollInterval) else None)
       // This stage only throws 'FramingException' so we cannot decide whether we got truncated due to a size
@@ -281,9 +311,11 @@ class DockerContainer(protected val id: ContainerId,
       }
       .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.byteStringSentinel), 2, waitForSentinel))
       // As we're reading the logs after the activation has finished the invariant is that all loglines are already
-      // written and we mostly await them being flushed by the docker daemon. Therefore we can timeout based on the time
+      // written and we mostly await them being flushed by the docker daemon. Therefore we can time out based on the time
       // between two loglines appear without relying on the log frequency in the action itself.
-      .idleTimeout(waitForLogs)
+      .idleTimeout(logCollectingIdleTimeout)
+      // Apply an overall time limit for this log collecting and processing stream.
+      .completionTimeout(logCollectingTimeout)
       .recover {
         case _: StreamLimitReachedException =>
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation

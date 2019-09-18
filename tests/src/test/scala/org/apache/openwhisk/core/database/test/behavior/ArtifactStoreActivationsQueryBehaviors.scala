@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.database.test.behavior
 
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.entity.WhiskEntityQueries.TOP
+import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.{EntityPath, WhiskActivation}
 
 trait ArtifactStoreActivationsQueryBehaviors extends ArtifactStoreBehaviorBase {

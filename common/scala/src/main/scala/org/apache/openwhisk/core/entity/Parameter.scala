@@ -75,9 +75,16 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.keySet filter (params(_).isDefined) map (_.name)
   }
 
+  /** Gets list all defined parameters. */
+  protected[core] def initParameters: Set[String] = {
+    params.keySet filter (params(_).init) map (_.name)
+  }
+
   protected[core] def toJsArray = {
     JsArray(params map { p =>
-      JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson)
+      if (p._2.init) {
+        JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson, "init" -> JsTrue)
+      } else JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson)
     } toSeq: _*)
   }
 
@@ -144,13 +151,13 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
  * be undefined, such as when an action is created but the parameter value is not bound yet.
  * In general, this is an opaque value.
  *
- * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param value the value of the parameter, may be null
+ * @param v the value of the parameter, may be null
+ * @param init if true, this parameter value is only offered to the action during initialization
  */
-protected[entity] class ParameterValue protected[entity] (private val v: JsValue) extends AnyVal {
+protected[entity] case class ParameterValue protected[entity] (private val v: JsValue, val init: Boolean) {
 
   /** @return JsValue if defined else JsNull. */
   protected[entity] def value = Option(v) getOrElse JsNull
@@ -178,14 +185,31 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
    *
    * @param p the parameter name
    * @param v the parameter value
+   * @param init the parameter is for initialization
    * @return (ParameterName, ParameterValue)
    * @throws IllegalArgumentException if key is not defined
    */
   @throws[IllegalArgumentException]
-  protected[core] def apply(p: String, v: String): Parameters = {
+  protected[core] def apply(p: String, v: String, init: Boolean = false): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    new ParameterValue(Option(v) map { _.trim.toJson } getOrElse JsNull))
+    ParameterValue(Option(v).map(_.trim.toJson).getOrElse(JsNull), init))
+  }
+
+  /**
+   * Creates a parameter tuple from a parameter name and JsValue.
+   *
+   * @param p the parameter name
+   * @param v the parameter value
+   * @param init the parameter is for initialization
+   * @return (ParameterName, ParameterValue)
+   * @throws IllegalArgumentException if key is not defined
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(p: String, v: JsValue, init: Boolean): Parameters = {
+    require(p != null && p.trim.nonEmpty, "key undefined")
+    Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
+    ParameterValue(Option(v).getOrElse(JsNull), init))
   }
 
   /**
@@ -200,7 +224,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: JsValue): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    new ParameterValue(Option(v) getOrElse JsNull))
+    ParameterValue(Option(v).getOrElse(JsNull), false))
   }
 
   override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {
@@ -230,10 +254,14 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      */
     def read(params: Vector[JsValue]) = Try {
       new Parameters(params map {
-        _.asJsObject.getFields("key", "value") match {
+        _.asJsObject.getFields("key", "value", "init") match {
           case Seq(JsString(k), v: JsValue) =>
             val key = new ParameterName(k)
-            val value = new ParameterValue(v)
+            val value = ParameterValue(v, false)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, i)
             (key, value)
         }
       } toMap)

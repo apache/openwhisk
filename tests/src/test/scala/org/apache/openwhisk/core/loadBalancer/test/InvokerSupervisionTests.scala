@@ -61,7 +61,6 @@ import org.apache.openwhisk.core.loadBalancer.InvokerState
 import org.apache.openwhisk.core.loadBalancer.InvokerHealth
 import org.apache.openwhisk.utils.retry
 import org.apache.openwhisk.core.connector.test.TestConnector
-import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 @RunWith(classOf[JUnitRunner])
@@ -191,12 +190,12 @@ class InvokerSupervisionTests
       user = Identity(
         Subject("unhealthyInvokerCheck"),
         Namespace(EntityName("unhealthyInvokerCheck"), uuid),
-        BasicAuthenticationAuthKey(uuid, Secret()),
-        Set[Privilege]()),
+        BasicAuthenticationAuthKey(uuid, Secret())),
       activationId = new ActivationIdGenerator {}.make(),
       rootControllerIndex = ControllerInstanceId("0"),
       blocking = false,
-      content = None)
+      content = None,
+      initArgs = Set.empty)
     val msg = ActivationRequest(activationMessage, invokerInstance)
 
     supervisor ! msg

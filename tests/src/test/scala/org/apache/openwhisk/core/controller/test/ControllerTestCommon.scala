@@ -243,12 +243,15 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
 
   // unit tests that need an activation via active ack/fast path should set this to value expected
   var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
+  var activationMessageChecker: Option[ActivationMessage => Unit] = None
 
   override def totalActiveActivations = Future.successful(0)
   override def activeActivationsFor(namespace: UUID) = Future.successful(0)
 
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
+    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
+    activationMessageChecker.foreach(_(msg))
+
     Future.successful {
       whiskActivationStub map {
         case (timeout, activation) =>
@@ -262,6 +265,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
           }
       } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
     }
+  }
 
   override def invokerHealth() = Future.successful(IndexedSeq.empty)
 }

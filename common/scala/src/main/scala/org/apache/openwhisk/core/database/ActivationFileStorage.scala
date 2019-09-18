@@ -91,9 +91,11 @@ class ActivationFileStorage(logFilePrefix: String,
       ByteString(s"${line.compactPrint}\n")
     }
 
-  private def transcribeActivation(activation: WhiskActivation, additionalFields: Map[String, JsValue]) = {
+  private def transcribeActivation(activation: WhiskActivation,
+                                   additionalFields: Map[String, JsValue],
+                                   includeResult: Boolean) = {
     val transactionType = Map("type" -> "activation_record".toJson)
-    val message = Map(if (writeResultToFile) {
+    val message = Map(if (includeResult) {
       "message" -> JsString(activation.response.result.getOrElse(JsNull).compactPrint)
     } else {
       "message" -> JsString(s"Activation record '${activation.activationId}' for entity '${activation.name}'")
@@ -106,13 +108,22 @@ class ActivationFileStorage(logFilePrefix: String,
     ByteString(s"${line.compactPrint}\n")
   }
 
-  def getLogFile = logFile
+  def getLogFile: Path = logFile
 
   def activationToFile(activation: WhiskActivation,
                        context: UserContext,
-                       additionalFields: Map[String, JsValue] = Map.empty) = {
-    val transcribedLogs = transcribeLogs(activation, additionalFields)
-    val transcribedActivation = transcribeActivation(activation, additionalFields)
+                       additionalFields: Map[String, JsValue] = Map.empty): Unit = {
+    activationToFileExtended(activation, context, additionalFields, additionalFields)
+  }
+
+  // used by external ArtifactActivationStore SPI implementation
+  def activationToFileExtended(activation: WhiskActivation,
+                               context: UserContext,
+                               additionalFieldsForLogs: Map[String, JsValue] = Map.empty,
+                               additionalFieldsForActivation: Map[String, JsValue] = Map.empty,
+                               includeResult: Boolean = writeResultToFile): Unit = {
+    val transcribedLogs = transcribeLogs(activation, additionalFieldsForLogs)
+    val transcribedActivation = transcribeActivation(activation, additionalFieldsForActivation, includeResult)
 
     // Write each log line to file and then write the activation metadata
     Source

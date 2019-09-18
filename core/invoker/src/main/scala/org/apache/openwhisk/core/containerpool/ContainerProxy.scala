@@ -137,7 +137,7 @@ case class WarmingData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warming"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a cold (not yet running) container that is being initialized (for a specific action + invocation namespace) */
@@ -148,7 +148,7 @@ case class WarmingColdData(invocationNamespace: EntityName,
     extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmingCold"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 /** type representing a warm container that has already been in use (for a specific action + invocation namespace) */
@@ -160,7 +160,7 @@ case class WarmedData(override val container: Container,
     extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmed"
-  override def nextRun(r: Run) = copy(activeActivationCount = activeActivationCount + 1)
+  override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
 }
 
 // Events received by the actor
@@ -214,7 +214,13 @@ case object RunCompleted
  * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
-  factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
+  factory: (TransactionId,
+            String,
+            ImageName,
+            Boolean,
+            ByteSize,
+            Int,
+            Option[ExecutableWhiskAction]) => Future[Container],
   sendActiveAck: ActiveAck,
   storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
@@ -242,7 +248,8 @@ class ContainerProxy(
         job.exec.image,
         job.exec.pull,
         job.memoryLimit,
-        poolConfig.cpuShare(job.memoryLimit))
+        poolConfig.cpuShare(job.memoryLimit),
+        None)
         .map(container => PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit)))
         .pipeTo(self)
 
@@ -259,7 +266,8 @@ class ContainerProxy(
         job.action.exec.image,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
-        poolConfig.cpuShare(job.action.limits.memory.megabytes.MB))
+        poolConfig.cpuShare(job.action.limits.memory.megabytes.MB),
+        Some(job.action))
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting
@@ -541,6 +549,7 @@ class ContainerProxy(
    */
   def initializeAndRun(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
     val actionTimeout = job.action.limits.timeout.duration
+    val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
@@ -548,7 +557,7 @@ class ContainerProxy(
         Future.successful(None)
       case _ =>
         container
-          .initialize(job.action.containerInitializer, actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .initialize(job.action.containerInitializer(env), actionTimeout, job.action.limits.concurrency.maxConcurrent)
           .map(Some(_))
     }
 
@@ -558,7 +567,6 @@ class ContainerProxy(
         if (initInterval.isDefined) {
           self ! InitCompleted(WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now, 1))
         }
-        val parameters = job.msg.content getOrElse JsObject.empty
 
         // if the action requests the api key to be injected into the action context, add it here;
         // treat a missing annotation as requesting the api key for backward compatibility
@@ -572,6 +580,7 @@ class ContainerProxy(
           "namespace" -> job.msg.user.namespace.name.toJson,
           "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
           "activation_id" -> job.msg.activationId.toString.toJson,
+          "transaction_id" -> job.msg.transid.id.toJson,
           // compute deadline on invoker side avoids discrepancies inside container
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
@@ -683,7 +692,13 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 
 object ContainerProxy {
   def props(
-    factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
+    factory: (TransactionId,
+              String,
+              ImageName,
+              Boolean,
+              ByteSize,
+              Int,
+              Option[ExecutableWhiskAction]) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any],
     store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
@@ -769,6 +784,24 @@ object ContainerProxy {
           Parameters(WhiskActivation.timeoutAnnotation, JsBoolean(isTimeout)) ++
           causedBy ++ initTime ++ binding
       })
+  }
+
+  /**
+   * Partitions the activation arguments into two JsObject instances. The first is exported as intended for export
+   * by the action runtime to the environment. The second is passed on as arguments to the action.
+   *
+   * @param content the activation arguments
+   * @param initArgs set of parameters to treat as initialization arguments
+   * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
+   */
+  def partitionArguments(content: Option[JsObject], initArgs: Set[String]): (Map[String, JsValue], JsObject) = {
+    content match {
+      case None                         => (Map.empty, JsObject.empty)
+      case Some(js) if initArgs.isEmpty => (Map.empty, js)
+      case Some(js) =>
+        val (env, args) = js.fields.partition(k => initArgs.contains(k._1))
+        (env, JsObject(args))
+    }
   }
 }
 
