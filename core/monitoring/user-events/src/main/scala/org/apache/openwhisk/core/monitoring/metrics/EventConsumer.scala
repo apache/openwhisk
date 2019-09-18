@@ -118,7 +118,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
       case ActivationResponse.statusApplicationError => statusApplicationError.increment()
       case ActivationResponse.statusDeveloperError   => statusDeveloperError.increment()
       case ActivationResponse.statusWhiskError       => statusInternalError.increment()
-      case _                                 => //Ignore for now
+      case _                                         => //Ignore for now
     }
 
     if (a.status != ActivationResponse.statusSuccess) statusFailure.increment()

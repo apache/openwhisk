@@ -76,7 +76,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   }
 
   protected[core] def messageForCode(code: Int) = {
-    statusForCode(code).replace("_"," ")
+    statusForCode(code).replace("_", " ")
   }
 
   private def error(code: Int, errorValue: JsValue) = {

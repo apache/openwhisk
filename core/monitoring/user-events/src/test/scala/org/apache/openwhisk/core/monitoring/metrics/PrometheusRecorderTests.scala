@@ -85,37 +85,37 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       UUID("test"),
       Activation.typeName)
 
-  private def gauge(name: String, action:String) =
+  private def gauge(name: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def counter(name: String, action:String) =
+  private def counter(name: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def counterTotal(name: String, action:String) =
+  private def counterTotal(name: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action", "kind", "memory"),
       Array(namespace, initiator, action, kind, memory))
 
-  private def counterStatus(name: String, action:String, status: String) =
+  private def counterStatus(name: String, action: String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       name,
       Array("namespace", "initiator", "action", "status"),
       Array(namespace, initiator, action, status))
 
-  private def histogramCount(name: String, action:String) =
+  private def histogramCount(name: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${name}_count",
       Array("namespace", "initiator", "action"),
       Array(namespace, initiator, action))
 
-  private def histogramSum(name: String, action:String) =
+  private def histogramSum(name: String, action: String) =
     CollectorRegistry.defaultRegistry
       .getSampleValue(s"${name}_sum", Array("namespace", "initiator", "action"), Array(namespace, initiator, action))
       .doubleValue()

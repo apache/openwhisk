@@ -26,7 +26,6 @@ import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig.loadConfigOrThrow
 
@@ -52,7 +51,6 @@ object OpenWhiskEvents extends SLF4JLogging {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "shutdownConsumer") { () =>
       eventConsumer.shutdown()
     }
-
     val port = metricConfig.port
     val api = new PrometheusEventsApi(eventConsumer, prometheusRecorder)
     val httpBinding = Http().bindAndHandle(api.routes, "0.0.0.0", port)
@@ -62,8 +60,6 @@ object OpenWhiskEvents extends SLF4JLogging {
 
   def eventConsumerSettings(config: Config): ConsumerSettings[String, String] =
     ConsumerSettings(config, new StringDeserializer, new StringDeserializer)
-      .withGroupId("kamon")
-      .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
   def defaultConsumerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.consumer")
 }

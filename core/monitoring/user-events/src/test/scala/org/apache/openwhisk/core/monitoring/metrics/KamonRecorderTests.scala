@@ -86,9 +86,18 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
 
       // Custom package
       TestReporter.counter(activationMetric, actionWithCustomPackage).size shouldBe 1
-      TestReporter.counter(activationMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionMemory).get == memory.toString).size shouldBe 1
-      TestReporter.counter(activationMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionKind).get == kind).size shouldBe 1
-      TestReporter.counter(statusMetric, actionWithCustomPackage).filter((t) => t.tags.get(actionStatus).get == ActivationResponse.statusDeveloperError).size shouldBe 1
+      TestReporter
+        .counter(activationMetric, actionWithCustomPackage)
+        .filter((t) => t.tags.get(actionMemory).get == memory.toString)
+        .size shouldBe 1
+      TestReporter
+        .counter(activationMetric, actionWithCustomPackage)
+        .filter((t) => t.tags.get(actionKind).get == kind)
+        .size shouldBe 1
+      TestReporter
+        .counter(statusMetric, actionWithCustomPackage)
+        .filter((t) => t.tags.get(actionStatus).get == ActivationResponse.statusDeveloperError)
+        .size shouldBe 1
       TestReporter.counter(coldStartMetric, actionWithCustomPackage).size shouldBe 1
       TestReporter.histogram(waitTimeMetric, actionWithCustomPackage).size shouldBe 1
       TestReporter.histogram(initTimeMetric, actionWithCustomPackage).size shouldBe 1
@@ -100,7 +109,8 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
   }
 
   private def newActivationEvent(name: String) =
-    EventMessage(namespace,
+    EventMessage(
+      namespace,
       Activation(name, 2, 3.millis, 5.millis, 11.millis, kind, false, memory, None),
       Subject("testuser"),
       initiator,
@@ -123,14 +133,22 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
 
     def counter(name: String, action: String) = {
       System.out.println()
-      snapshotAccumulator.peek().metrics.counters.filter(_.name == name)
+      snapshotAccumulator
+        .peek()
+        .metrics
+        .counters
+        .filter(_.name == name)
         .filter((t) => t.tags.get(actionNamespace).get == namespace)
         .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
         .filter((t) => t.tags.get(actionName).get == action)
     }
 
     def histogram(name: String, action: String) = {
-      snapshotAccumulator.peek().metrics.histograms.filter(_.name == name)
+      snapshotAccumulator
+        .peek()
+        .metrics
+        .histograms
+        .filter(_.name == name)
         .filter((t) => t.tags.get(actionNamespace).get == namespace)
         .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
         .filter((t) => t.tags.get(actionName).get == action)

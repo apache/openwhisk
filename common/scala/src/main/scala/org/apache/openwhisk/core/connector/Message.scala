@@ -229,7 +229,7 @@ object Activation extends DefaultJsonProtocol {
   private implicit val durationFormat = new RootJsonFormat[Duration] {
     override def write(obj: Duration): JsValue = obj match {
       case o if o.isFinite => JsNumber(o.toMillis)
-      case _                 => JsNumber.zero
+      case _               => JsNumber.zero
     }
 
     override def read(json: JsValue): Duration = json match {
@@ -243,7 +243,7 @@ object Activation extends DefaultJsonProtocol {
       Activation.apply _,
       "name",
       WhiskActivation.statusCodeAnnotation,
-      WhiskActivation.durationAnnotation ,
+      WhiskActivation.durationAnnotation,
       WhiskActivation.waitTimeAnnotation,
       WhiskActivation.initTimeAnnotation,
       WhiskActivation.kindAnnotation,

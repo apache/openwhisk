@@ -106,7 +106,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 
     private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
 
-    private val statusSuccess = statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusSuccess)
+    private val statusSuccess =
+      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusSuccess)
     private val statusApplicationError =
       statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusApplicationError)
     private val statusDeveloperError =
