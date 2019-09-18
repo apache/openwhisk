@@ -91,9 +91,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
               entityName.toDocId,
               overwrite,
               update(request) _,
-              () => {
-                create(request, entityName)
-              },
+              create(request, entityName),
               postProcess = Some { rule: WhiskRule =>
                 if (overwrite == true) {
                   val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>

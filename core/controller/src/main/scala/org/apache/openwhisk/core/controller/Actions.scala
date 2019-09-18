@@ -212,9 +212,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
-              make(user, entityName, request)
-            })
+            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, make(user, entityName, request))
           case Failure(f) =>
             super.handleEntitlementFailure(f)
         }

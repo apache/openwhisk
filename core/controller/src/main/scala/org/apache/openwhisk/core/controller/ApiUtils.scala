@@ -240,7 +240,7 @@ trait WriteOps extends Directives {
                                                                   docid: DocId,
                                                                   overwrite: Boolean,
                                                                   update: A => Future[A],
-                                                                  create: () => Future[A],
+                                                                  create: => Future[A],
                                                                   treatExistsAsConflict: Boolean = true,
                                                                   postProcess: Option[PostProcessEntity[A]] = None)(
     implicit transid: TransactionId,
@@ -263,7 +263,7 @@ trait WriteOps extends Directives {
     } recoverWith {
       case _: NoDocumentException =>
         logging.debug(this, s"[PUT] entity does not exist, will try to create it")
-        create().map(newDoc => (None, newDoc))
+        create.map(newDoc => (None, newDoc))
     } flatMap {
       case (old, a) =>
         logging.debug(this, s"[PUT] entity created/updated, writing back to datastore")

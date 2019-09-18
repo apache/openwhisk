@@ -88,7 +88,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 entityName.toDocId,
                 overwrite,
                 update(request) _,
-                () => create(request, entityName))
+                create(request, entityName))
             case Failure(f) =>
               rewriteEntitlementFailure(f)
           }

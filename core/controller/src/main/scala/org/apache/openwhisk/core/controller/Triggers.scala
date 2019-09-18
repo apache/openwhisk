@@ -115,9 +115,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskTriggerPut]) { content =>
-        putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite, update(content) _, () => {
-          create(content, entityName)
-        }, postProcess = Some { trigger =>
+        putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite, update(content) _, create(content, entityName),
+          postProcess = Some { trigger =>
           completeAsTriggerResponse(trigger)
         })
       }
