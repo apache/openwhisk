@@ -1752,6 +1752,12 @@
           "format": "int32",
           "description": "number of concurrent activations allowed",
           "default": 1
+        },
+        "cpu": {
+          "type": "number",
+          "format": "float",
+          "description": "cpu in threads",
+          "default": 0.2
         }
       }
     },
