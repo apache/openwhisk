@@ -27,7 +27,7 @@ import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
-import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, _}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{UserContext, _}
@@ -54,9 +54,10 @@ object InvokerReactive extends InvokerProvider {
    * @param Boolean is true iff the activation was a blocking request
    * @param ControllerInstanceId the originating controller/loadbalancer id
    * @param UUID is the UUID for the namespace owning the activation
-   * @param Boolean is true this is resource free message and false if this is a result forwarding message
+   * @param AcknowledegmentMessage the acknowledgement message to send
    */
-  type ActiveAck = (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any]
+  type ActiveAck =
+    (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage) => Future[Any]
 
   override def instance(
     config: WhiskConfig,
@@ -145,34 +146,24 @@ class InvokerReactive(
     new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
-  /** Sends an active-ack. */
   private val ack: InvokerReactive.ActiveAck = (tid: TransactionId,
                                                 activationResult: WhiskActivation,
                                                 blockingInvoke: Boolean,
                                                 controllerInstance: ControllerInstanceId,
                                                 userId: UUID,
-                                                isSlotFree: Boolean) => {
+                                                acknowledegment: AcknowledegmentMessage) => {
     implicit val transid: TransactionId = tid
 
-    def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-      val msg = if (isSlotFree) {
-        // the result is available and the slot has been released, send a combined message
-        // which includes the active ack for continuations
-        CompletionMessage(transid, res, result = true, instance)
-      } else {
-        // only the result is available, send an active ack for continuations
-        ResultMessage(transid, res)
-      }
-
+    def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
       producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
-          val msg = if (recovery) "recovery" else if (isSlotFree) "completion" else "result"
-          logging.info(this, s"posted $msg of activation ${activationResult.activationId}")
+          val info = if (recovery) s"recovery ${msg.name}" else msg.name
+          logging.info(this, s"posted $info of activation ${activationResult.activationId}")
       }
     }
 
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
-    if (UserEvents.enabled && isSlotFree) {
+    if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
       EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
         case Success(msg) => UserEvents.send(producer, msg)
         case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
@@ -180,9 +171,9 @@ class InvokerReactive(
     }
 
     // the active ack (containing the result) is only need for blocking invokes to further the continuation
-    send(if (blockingInvoke) Right(activationResult) else Left(activationResult.activationId)).recoverWith {
+    send(if (blockingInvoke) acknowledegment else acknowledegment.shrink).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
-        send(Left(activationResult.activationId), recovery = true)
+        send(acknowledegment.shrink, recovery = true)
     }
   }
 
@@ -263,20 +254,35 @@ class InvokerReactive(
                     ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
                 }
 
-                val context = UserContext(msg.user)
-                val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid, true)
-                store(msg.transid, activation, context)
+
+                val activation = generateFallbackActivation(msg, response)
+                ack(
+                  msg.transid,
+                  activation,
+                  msg.blocking,
+                  msg.rootControllerIndex,
+                  msg.user.namespace.uuid,
+                  CombinedCompletionAndResultMessage(transid, activation, instance))
+
+                store(msg.transid, activation, UserContext(msg.user))
                 Future.successful(())
             }
         } else {
           // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol
           // Due to the protective nature of the blacklist, a database entry is not written.
           activationFeed ! MessageFeed.Processed
+
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid, true)
+          ack(
+            msg.transid,
+            activation,
+            false,
+            msg.rootControllerIndex,
+            msg.user.namespace.uuid,
+            CombinedCompletionAndResultMessage(transid, activation, instance))
+
           logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }

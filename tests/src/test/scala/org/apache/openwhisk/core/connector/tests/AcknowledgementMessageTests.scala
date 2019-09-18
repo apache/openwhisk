@@ -22,7 +22,12 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 import spray.json._
 import org.apache.openwhisk.common.{TransactionId, WhiskInstants}
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CompletionMessage, ResultMessage}
+import org.apache.openwhisk.core.connector.{
+  AcknowledegmentMessage,
+  CombinedCompletionAndResultMessage,
+  CompletionMessage,
+  ResultMessage
+}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
 
@@ -74,46 +79,84 @@ class AcknowledgementMessageTests extends FlatSpec with Matchers with WhiskInsta
   it should "serialize a Completion message" in {
     val c = CompletionMessage(
       TransactionId.testing,
-      Left(ActivationId.generate()),
-      false,
+      ActivationId.generate(),
+      Some(false),
       InvokerInstanceId(0, userMemory = defaultUserMemory))
+    c.isSlotFree should not be empty
     c.serialize shouldBe c.toJson.compactPrint
-  }
-
-  it should "serialize a Completion message with result" in {
-    val c = CompletionMessage(
-      TransactionId.testing,
-      Right(activation),
-      true,
-      InvokerInstanceId(0, userMemory = defaultUserMemory))
-    c.serialize shouldBe c.toJson.compactPrint
-  }
-
-  it should "serialize a Result message" in {
-    val r = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
-    r.serialize shouldBe r.toJson.compactPrint
   }
 
   it should "deserialize a Completion message" in {
     val c = CompletionMessage(
       TransactionId.testing,
-      Left(ActivationId.generate()),
-      false,
+      ActivationId.generate(),
+      Some(false),
       InvokerInstanceId(0, userMemory = defaultUserMemory))
     AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
   }
 
-  it should "deserialize a Completion message with result" in {
-    val c = CompletionMessage(
-      TransactionId.testing,
-      Right(activation),
-      true,
-      InvokerInstanceId(0, userMemory = defaultUserMemory))
-    AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
+  it should "serialize a Result message" in {
+    val r = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
+    r.isSlotFree shouldBe empty
+    r.serialize shouldBe r.toJson.compactPrint
   }
 
   it should "deserialize a Result message" in {
     val r = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
     AcknowledegmentMessage.parse(r.serialize) shouldBe Success(r)
+  }
+
+  it should "serialize and deserialize a combined completion and result message" in {
+    withClue("system error false and right") {
+      val c = CombinedCompletionAndResultMessage(
+        TransactionId.testing,
+        activation,
+        InvokerInstanceId(0, userMemory = defaultUserMemory))
+
+      c.isSlotFree should not be empty
+      c.serialize shouldBe c.toJson.compactPrint
+      AcknowledegmentMessage.parse(c.serialize) shouldBe Success {
+        CombinedCompletionAndResultMessage(TransactionId.testing, Right(activation), Some(false), c.invoker)
+      }
+    }
+
+    withClue("system error true and right") {
+      val response = ActivationResponse.whiskError(JsString("error"))
+      val someActivation = activation.copy(response = response)
+      val c = CombinedCompletionAndResultMessage(
+        TransactionId.testing,
+        someActivation,
+        InvokerInstanceId(0, userMemory = defaultUserMemory))
+
+      c.isSlotFree should not be empty
+      c.serialize shouldBe c.toJson.compactPrint
+      AcknowledegmentMessage.parse(c.serialize) shouldBe Success {
+        CombinedCompletionAndResultMessage(TransactionId.testing, Right(someActivation), Some(true), c.invoker)
+      }
+    }
+
+    withClue("system error false and left") {
+      val c = CombinedCompletionAndResultMessage(
+        TransactionId.testing,
+        Left(activation.activationId),
+        Some(false),
+        InvokerInstanceId(0, userMemory = defaultUserMemory))
+
+      c.isSlotFree should not be empty
+      c.serialize shouldBe c.toJson.compactPrint
+      AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
+    }
+
+    withClue("system error true and left") {
+      val c = CombinedCompletionAndResultMessage(
+        TransactionId.testing,
+        Left(activation.activationId),
+        Some(true),
+        InvokerInstanceId(0, userMemory = defaultUserMemory))
+
+      c.isSlotFree should not be empty
+      c.serialize shouldBe c.toJson.compactPrint
+      AcknowledegmentMessage.parse(c.serialize) shouldBe Success(c)
+    }
   }
 }

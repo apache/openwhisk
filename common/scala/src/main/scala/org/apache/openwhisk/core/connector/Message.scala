@@ -71,56 +71,87 @@ case class ActivationMessage(override val transid: TransactionId,
 abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Message {
   override val transid: TransactionId = tid
   override def serialize: String = AcknowledegmentMessage.serdes.write(this).compactPrint
+
+  /** Pithy descriptor for logging. */
+  def name: String
+
+  /** Does message indicate slot is free? */
+  def isSlotFree: Option[InvokerInstanceId]
+
+  /** Does message contain a result? */
+  def result: Option[Either[ActivationId, WhiskActivation]]
+
+  /**
+   * Is the acknowledgement for an activation that failed internally?
+   * For some message, this is not relevant and the result is None.
+   */
+  def isSystemError: Option[Boolean]
+
+  def activationId: ActivationId
+
+  /** Serializes the message to JSON. */
   def toJson: JsValue
+
+  /**
+   * Converts the message to a more compact form if it cannot cross the message bus as is or some of its details are not necessary.
+   */
+  def shrink: AcknowledegmentMessage
+}
+
+/**
+ * This message is sent from an invoker to the controller in situtations when the resource slot and the action
+ * result are available at the same time, and so the split-phase notification is not necessary. Instead the message
+ * combines the `CompletionMessage` and `ResultMessage`. The `response` may be an `ActivationId` to allow for failures
+ * to send the activation result because of event-bus size limitations.
+ */
+case class CombinedCompletionAndResultMessage(override val transid: TransactionId,
+                                              response: Either[ActivationId, WhiskActivation],
+                                              override val isSystemError: Option[Boolean],
+                                              invoker: InvokerInstanceId)
+    extends AcknowledegmentMessage(transid) {
+  override def name = "combined"
+  override def result = Some(response)
+  override def isSlotFree = Some(invoker)
+  override def activationId = response.fold(identity, _.activationId)
+  override def toJson = CombinedCompletionAndResultMessage.serdes.write(this)
+  override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
+  override def toString = response.fold(identity, _.activationId).asString
 }
 
 /**
  * This message is sent from an invoker to the controller, once the resource slot in the invoker (used by the
- * corresponding activation) free again (i.e., after log collection). In some cases, the activation result is
- * ready and the slot is freed at the same time. In such cases, the completion message carries the result as well.
- * This is reflected by the presence of a Right() `response` and the param `result` is set to true.
- * In some cases the `result` is true but the response is Left() if the message was too large for the message bus.
- *
- * There are four possible combinations as described below.
- *
- * - `result` is false and `response` is
- *
- *    1. Left: this is a split phase notification (slot released, active ack sent separately).
- *
- *    2. Right: should not happen and treated the same as Left.
- *
- * - `result` is true and `response` is
- *
- *    3. Right: this combines the active ack and slot release and occurs during system generated
- *               activations for failure scenarios.
- *
- *    4. Left: like the previous case but occurs when the message is too large to cross the event
- *              bus and the sender converts a Right to a Left.
+ * corresponding activation) free again (i.e., after log collection). The `CompletionMessage` is part of a split
+ * phase notification to the load balancer where an invoker first sends a `ResultMessage` and later sends the
+ * `CompletionMessage`.
  */
 case class CompletionMessage(override val transid: TransactionId,
-                             response: Either[ActivationId, WhiskActivation],
-                             result: Boolean, // true iff the message is a combined active ack and slot released
+                             override val activationId: ActivationId,
+                             override val isSystemError: Option[Boolean],
                              invoker: InvokerInstanceId)
     extends AcknowledegmentMessage(transid) {
-
-  def activationId: ActivationId = response.fold(identity, _.activationId)
-  def isSystemError: Boolean = response.fold(_ => false, _.response.isWhiskError)
-
-  override def toJson: JsValue = CompletionMessage.serdes.write(this)
+  override def name = "completion"
+  override def result = None
+  override def isSlotFree = Some(invoker)
+  override def toJson = CompletionMessage.serdes.write(this)
+  override def shrink = this
   override def toString = activationId.asString
 }
 
 /**
- * That message will be sent from the invoker to the controller after action completion if the user wants to have
- * the result immediately (blocking activation).
- * When adding fields, the serdes of the companion object must be updated also.
- * The whisk activation field will have its logs stripped.
+ * This message is sent from an invoker to the load balancer once an action result is available for blocking actions.
+ * This is part of a split phase notification, and does not indicate that the slot is available, which is indicated with
+ * a `CompletionMessage`. Note that activation record will not contain any logs from the action execution, only the result.
  */
 case class ResultMessage(override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
     extends AcknowledegmentMessage(transid) {
-
-  override def toJson: JsValue = ResultMessage.serdes.write(this)
-  override def toString = response.fold(identity, _.activationId).asString
+  override def name = "result"
+  override def result = Some(response)
+  override def isSlotFree = None
+  override def isSystemError = response.fold(_ => None, a => Some(a.response.isWhiskError))
+  override def activationId = response.fold(identity, _.activationId)
+  override def toJson = ResultMessage.serdes.write(this)
+  override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
+  override def toString = activationId.asString
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
@@ -130,14 +161,31 @@ object ActivationMessage extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat11(ActivationMessage.apply)
 }
 
-object CompletionMessage extends DefaultJsonProtocol {
+object CombinedCompletionAndResultMessage extends DefaultJsonProtocol {
+  def apply(transid: TransactionId,
+            activation: WhiskActivation,
+            invoker: InvokerInstanceId): CombinedCompletionAndResultMessage = {
+    CombinedCompletionAndResultMessage(transid, Right(activation), Some(activation.response.isWhiskError), invoker)
+  }
   implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
-  implicit val serdes = jsonFormat4(CompletionMessage.apply)
+  implicit val serdes = jsonFormat4(
+    CombinedCompletionAndResultMessage
+      .apply(_: TransactionId, _: Either[ActivationId, WhiskActivation], _: Option[Boolean], _: InvokerInstanceId))
+}
+
+object CompletionMessage extends DefaultJsonProtocol {
+  def apply(transid: TransactionId, activation: WhiskActivation, invoker: InvokerInstanceId): CompletionMessage = {
+    CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
+  }
+  implicit val serdes = jsonFormat4(
+    CompletionMessage.apply(_: TransactionId, _: ActivationId, _: Option[Boolean], _: InvokerInstanceId))
 }
 
 object ResultMessage extends DefaultJsonProtocol {
+  def apply(transid: TransactionId, activation: WhiskActivation): ResultMessage =
+    ResultMessage(transid, Right(activation))
   implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
-  implicit val serdes = jsonFormat2(ResultMessage.apply)
+  implicit val serdes = jsonFormat2(ResultMessage.apply(_: TransactionId, _: Either[ActivationId, WhiskActivation]))
 }
 
 object AcknowledegmentMessage extends DefaultJsonProtocol {
@@ -159,14 +207,22 @@ object AcknowledegmentMessage extends DefaultJsonProtocol {
   implicit val serdes = new RootJsonFormat[AcknowledegmentMessage] {
     override def write(m: AcknowledegmentMessage): JsValue = m.toJson
 
-    // The field invoker is only part of the CompletionMessage. If this field is part of the JSON, we try to convert
-    // it to a CompletionMessage. Otherwise to a ResultMessage.
-    // If both conversions fail, an error will be thrown that needs to be handled.
+    // The field invoker is only part of CombinedCompletionAndResultMessage and CompletionMessage.
+    // If this field is part of the JSON, we try to deserialize into one of these two types,
+    // and otherwise to a ResultMessage. If all conversions fail, an error will be thrown that needs to be handled.
     override def read(json: JsValue): AcknowledegmentMessage = {
-      json.asJsObject
+      val obj = json.asJsObject
+
+      obj
         .getFields("invoker")
         .headOption
-        .map(_ => json.convertTo[CompletionMessage])
+        .map(_ => {
+          obj
+            .getFields("response")
+            .headOption
+            .map(_ => json.convertTo[CombinedCompletionAndResultMessage])
+            .getOrElse(json.convertTo[CompletionMessage])
+        })
         .getOrElse(json.convertTo[ResultMessage])
     }
   }
