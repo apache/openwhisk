@@ -35,14 +35,16 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.io.Directory
 import scala.util.Try
 
-class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: File, kafkaUi: Boolean)(
-  implicit logging: Logging,
-  ec: ExecutionContext,
-  actorSystem: ActorSystem,
-  materializer: ActorMaterializer,
-  tid: TransactionId) {
-  private val kafkaDockerPort = checkOrAllocatePort(kafkaPort - 1)
-  private val zkPort = checkOrAllocatePort(2181)
+class KafkaLauncher(docker: StandaloneDockerClient,
+                    kafkaPort: Int,
+                    kafkaDockerPort: Int,
+                    zkPort: Int,
+                    workDir: File,
+                    kafkaUi: Boolean)(implicit logging: Logging,
+                                      ec: ExecutionContext,
+                                      actorSystem: ActorSystem,
+                                      materializer: ActorMaterializer,
+                                      tid: TransactionId) {
 
   def run(): Future[Seq[ServiceContainer]] = {
     for {
@@ -77,7 +79,7 @@ class KafkaLauncher(docker: StandaloneDockerClient, kafkaPort: Int, workDir: Fil
           Seq(
             ServiceContainer(kafkaPort, s"localhost:$kafkaPort", "kafka"),
             ServiceContainer(
-              kafkaPort,
+              kafkaDockerPort,
               s"${StandaloneDockerSupport.getLocalHostIp()}:$kafkaDockerPort",
               "kafka-docker"),
             ServiceContainer(zkPort, "Zookeeper", "zookeeper")))

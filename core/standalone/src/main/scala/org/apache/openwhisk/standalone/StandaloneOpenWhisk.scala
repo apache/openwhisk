@@ -67,6 +67,22 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
   val kafkaUi = opt[Boolean](descr = "Enable Kafka UI", noshort = true)
 
+  val kafkaPort = opt[Int](
+    descr = "Kafka port. If not specified then 9092 or some random free port (if 9092 is busy) would be used",
+    noshort = true,
+    required = false)
+
+  val kafkaDockerPort = opt[Int](
+    descr = "Kafka port for use by docker based services. If not specified then 9091 or some random free port " +
+      "(if 9091 is busy) would be used",
+    noshort = true,
+    required = false)
+
+  val zkPort = opt[Int](
+    descr = "Zookeeper port. If not specified then 2181 or some random free port (if 2181 is busy) would be used",
+    noshort = true,
+    required = false)
+
   verify()
 
   val colorEnabled = !disableColorLogging()
@@ -406,9 +422,15 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     as: ActorSystem,
     ec: ExecutionContext,
     materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
-    val kafkaPort = checkOrAllocatePort(9092)
+    val kafkaPort = getPort(conf.kafkaPort.toOption, 9092)
     implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
-    val k = new KafkaLauncher(dockerClient, kafkaPort, workDir, kafkaUi)
+    val k = new KafkaLauncher(
+      dockerClient,
+      kafkaPort,
+      getPort(conf.kafkaDockerPort.toOption, kafkaPort - 1),
+      getPort(conf.zkPort.toOption, 2181),
+      workDir,
+      kafkaUi)
 
     val f = k.run()
     val g = f.andThen {
@@ -425,6 +447,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setSysProp("whisk.spi.MessagingProvider", "org.apache.openwhisk.connector.kafka.KafkaMessagingProvider")
     setSysProp("whisk.spi.LoadBalancerProvider", "org.apache.openwhisk.standalone.KafkaAwareLeanBalancer")
     (kafkaPort, services)
+  }
+
+  private def getPort(configured: Option[Int], preferred: Int): Int = {
+    configured.getOrElse(checkOrAllocatePort(preferred))
   }
 
   private def configureDevMode(): Unit = {
