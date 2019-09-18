@@ -75,21 +75,36 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-      --api-gw                  Enable API Gateway support
-      --api-gw-port  <arg>      Api Gateway Port
-      --clean                   Clean any existing state like database
-  -c, --config-file  <arg>      application.conf which overrides the default
-                                standalone.conf
-      --couchdb                 Enable CouchDB support
-  -d, --data-dir  <arg>         Directory used for storage
-      --disable-color-logging   Disables colored logging
-  -m, --manifest  <arg>         Manifest json defining the supported runtimes
-  -p, --port  <arg>             Server port
+      --api-gw                     Enable API Gateway support
+      --api-gw-port  <arg>         Api Gateway Port
+      --clean                      Clean any existing state like database
+  -c, --config-file  <arg>         application.conf which overrides the default
+                                   standalone.conf
+      --couchdb                    Enable CouchDB support
+  -d, --data-dir  <arg>            Directory used for storage
+      --dev-mode                   Developer mode speeds up the startup by
+                                   disabling preflight checks and avoiding
+                                   explicit pulls.
+      --disable-color-logging      Disables colored logging
+      --kafka                      Enable embedded Kafka support
+      --kafka-docker-port  <arg>   Kafka port for use by docker based services.
+                                   If not specified then 9091 or some random
+                                   free port (if 9091 is busy) would be used
+      --kafka-port  <arg>          Kafka port. If not specified then 9092 or
+                                   some random free port (if 9092 is busy) would
+                                   be used
+      --kafka-ui                   Enable Kafka UI
+  -m, --manifest  <arg>            Manifest json defining the supported runtimes
+  -p, --port  <arg>                Server port
   -v, --verbose
-  -h, --help                    Show help message
-      --version                 Show version of this program
+      --zk-port  <arg>             Zookeeper port. If not specified then 2181 or
+                                   some random free port (if 2181 is busy) would
+                                   be used
+  -h, --help                       Show help message
+      --version                    Show version of this program
 
 OpenWhisk standalone server
+
 
 ```
 
@@ -204,7 +219,25 @@ Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a 
 would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the
 [api gateway][4] support.
 
+#### Using Kafka
+
+Standalone OpenWhisk supports launching an [embedded kafka][5]. This mode is mostly useful for developers working on OpenWhisk
+implementation itself.
+
+```
+java -jar openwhisk-standalone.jar --kafka
+```
+
+It also supports launching a Kafka UI based on [Kafdrop 3][6] which enables seeing the topics created and structure of messages
+exchanged on those topics.
+
+```
+java -jar openwhisk-standalone.jar --kafka --kafka-ui
+```
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway
 [4]: https://github.com/apache/incubator-openwhisk/blob/master/docs/apigateway.md
+[5]: https://github.com/embeddedkafka/embedded-kafka
+[6]: https://github.com/obsidiandynamics/kafdrop
