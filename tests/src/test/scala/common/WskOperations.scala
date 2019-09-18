@@ -238,6 +238,7 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              annotationFile: Option[String] = None,
              timeout: Option[Duration] = None,
              memory: Option[ByteSize] = None,
+             cpu: Option[Float] = None,
              logsize: Option[ByteSize] = None,
              concurrency: Option[Int] = None,
              shared: Option[Boolean] = None,

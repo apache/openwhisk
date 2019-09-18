@@ -199,6 +199,7 @@ class CliActionOperations(override val wsk: RunCliCmd)
     annotationFile: Option[String] = None,
     timeout: Option[Duration] = None,
     memory: Option[ByteSize] = None,
+    cpu: Option[Float] = None,
     logsize: Option[ByteSize] = None,
     concurrency: Option[Int] = None,
     shared: Option[Boolean] = None,
@@ -244,6 +245,10 @@ class CliActionOperations(override val wsk: RunCliCmd)
     } ++ {
       memory map { m =>
         Seq("-m", m.toMB.toString)
+      } getOrElse Seq.empty
+    } ++ {
+      cpu map { c =>
+        Seq("--cpu", c.toString)
       } getOrElse Seq.empty
     } ++ {
       logsize map { l =>

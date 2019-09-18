@@ -267,6 +267,7 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     annotationFile: Option[String] = None,
     timeout: Option[Duration] = None,
     memory: Option[ByteSize] = None,
+    cpu: Option[Float] = None,
     logsize: Option[ByteSize] = None,
     concurrency: Option[Int] = None,
     shared: Option[Boolean] = None,
@@ -344,7 +345,8 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
       timeout.map(t => Map("timeout" -> t.toMillis.toJson)).getOrElse(Map.empty) ++
         logsize.map(log => Map("logs" -> log.toMB.toJson)).getOrElse(Map.empty) ++
         memory.map(m => Map("memory" -> m.toMB.toJson)).getOrElse(Map.empty) ++
-        concurrency.map(c => Map("concurrency" -> c.toJson)).getOrElse(Map.empty)
+        concurrency.map(c => Map("concurrency" -> c.toJson)).getOrElse(Map.empty) ++
+        cpu.map(c => Map("cpu" -> c.toJson)).getOrElse(Map.empty)
     }
 
     val body: Map[String, JsValue] = if (!update) {

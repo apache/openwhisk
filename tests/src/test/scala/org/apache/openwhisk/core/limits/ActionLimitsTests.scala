@@ -47,6 +47,7 @@ import org.apache.openwhisk.core.entity.{
   Exec,
   LogLimit,
   MemoryLimit,
+  CPULimit,
   TimeLimit
 }
 import org.apache.openwhisk.core.entity.size._
@@ -83,17 +84,19 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
    * Helper class for the integration test following below.
    * @param timeout the action timeout limit to be set in test
    * @param memory the action memory size limit to be set in test
+   * @param cpu the action cpu size limit to be set in test
    * @param logs the action log size limit to be set in test
    * @param concurrency the action concurrency limit to be set in test
    * @param ec the expected exit code when creating the action
    */
   sealed case class PermutationTestParameter(timeout: Option[Duration] = None,
                                              memory: Option[ByteSize] = None,
+                                             cpu: Option[Float] = None,
                                              logs: Option[ByteSize] = None,
                                              concurrency: Option[Int] = None,
                                              ec: Int = SUCCESS_EXIT) {
     override def toString: String =
-      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, logsize: ${toLogsString}, concurrency: ${toConcurrencyString}"
+      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, cpu: ${toCPUString}, logsize: ${toLogsString}, concurrency: ${toConcurrencyString}"
 
     val toTimeoutString = timeout match {
       case None                                    => "None"
@@ -113,6 +116,16 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       case Some(m) if (m < MemoryLimit.MIN_MEMORY) => s"${m.toMB.MB} (< min)"
       case Some(m) if (m > MemoryLimit.MAX_MEMORY) => s"${m.toMB.MB} (> max)"
       case Some(m)                                 => s"${m.toMB.MB} (allowed)"
+    }
+
+    val toCPUString = cpu match {
+      case None                              => "None"
+      case Some(CPULimit.MIN_CPU)            => s"${CPULimit.MIN_CPU} (= min)"
+      case Some(CPULimit.STD_CPU)            => s"${CPULimit.STD_CPU} (= std)"
+      case Some(CPULimit.MAX_CPU)            => s"${CPULimit.MAX_CPU} (= max)"
+      case Some(c) if (c < CPULimit.MIN_CPU) => s"${c} (< min)"
+      case Some(c) if (c > CPULimit.MAX_CPU) => s"${c} (> max)"
+      case Some(c)                           => s"${c} (allowed)"
     }
 
     val toLogsString = logs match {
@@ -142,28 +155,33 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     for {
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.MIN_MEMORY), Some(MemoryLimit.MAX_MEMORY))
+      cpu <- Seq(None, Some(CPULimit.MIN_CPU), Some(CPULimit.MAX_CPU))
       log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
       concurrency <- if (!concurrencyEnabled || (ConcurrencyLimit.MIN_CONCURRENT == ConcurrencyLimit.MAX_CONCURRENT)) {
         Seq(None, Some(ConcurrencyLimit.MIN_CONCURRENT))
       } else {
         Seq(None, Some(ConcurrencyLimit.MIN_CONCURRENT), Some(ConcurrencyLimit.MAX_CONCURRENT))
       }
-    } yield PermutationTestParameter(time, mem, log, concurrency)
+    } yield PermutationTestParameter(time, mem, cpu, log, concurrency)
   } ++
     // Add variations for negative tests
     Seq(
-      PermutationTestParameter(Some(0.milliseconds), None, None, None, BAD_REQUEST), // timeout that is lower than allowed
-      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
-      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, None, BAD_REQUEST), // timeout that is much higher than allowed
-      PermutationTestParameter(None, Some(0.MB), None, None, BAD_REQUEST), // memory limit that is lower than allowed
-      PermutationTestParameter(None, None, None, Some(0), BAD_REQUEST), // concurrency limit that is lower than allowed
-      PermutationTestParameter(None, Some(MemoryLimit.MAX_MEMORY + 1.MB), None, None, BAD_REQUEST), // memory limit that is slightly higher than allowed
-      PermutationTestParameter(None, Some((MemoryLimit.MAX_MEMORY.toMB * 5).MB), None, None, BAD_REQUEST), // memory limit that is much higher than allowed
-      PermutationTestParameter(None, None, Some((LogLimit.MAX_LOGSIZE.toMB * 5).MB), None, BAD_REQUEST), // log size limit that is much higher than allowed
-      PermutationTestParameter(None, None, None, Some(Int.MaxValue), BAD_REQUEST)) // concurrency limit that is much higher than allowed
+      PermutationTestParameter(Some(0.milliseconds), None, None, None, None, BAD_REQUEST), // timeout that is lower than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, None, None, BAD_REQUEST), // timeout that is much higher than allowed
+      PermutationTestParameter(None, Some(0.MB), None, None, None, BAD_REQUEST), // memory limit that is lower than allowed
+      PermutationTestParameter(None, None, Some(0.toFloat), None, None, BAD_REQUEST), // cpu limit that is lower than allowed
+      PermutationTestParameter(None, None, None, None, Some(0), BAD_REQUEST), // concurrency limit that is lower than allowed
+      PermutationTestParameter(None, Some(MemoryLimit.MAX_MEMORY + 1.MB), None, None, None, BAD_REQUEST), // memory limit that is slightly higher than allowed
+      PermutationTestParameter(None, Some((MemoryLimit.MAX_MEMORY.toMB * 5).MB), None, None, None, BAD_REQUEST), // memory limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some(CPULimit.MAX_CPU + 1.toFloat), None, None, BAD_REQUEST), // cpu limit that is slightly higher than allowed
+      PermutationTestParameter(None, None, Some(CPULimit.MAX_CPU * 5), None, None, BAD_REQUEST), // cpu limit that is slightly higher than allowed
+      PermutationTestParameter(None, None, None, Some((LogLimit.MAX_LOGSIZE.toMB * 5).MB), None, BAD_REQUEST), // log size limit that is much higher than allowed
+      PermutationTestParameter(None, None, None, None, Some(Int.MaxValue), BAD_REQUEST)
+    ) // concurrency limit that is much higher than allowed
 
   /**
-   * Integration test to verify that valid timeout, memory, log size, and concurrency limits are accepted
+   * Integration test to verify that valid timeout, memory, cpu, log size, and concurrency limits are accepted
    * when creating an action while any invalid limit is rejected.
    *
    * At the first sight, this test looks like a typical unit test that should not be performed
@@ -180,6 +198,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       val limits = JsObject(
         "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
         "memory" -> parm.memory.getOrElse(MemoryLimit.STD_MEMORY).toMB.toInt.toJson,
+        "cpu" -> parm.cpu.getOrElse(CPULimit.STD_CPU).toJson,
         "logs" -> parm.logs.getOrElse(LogLimit.STD_LOGSIZE).toMB.toInt.toJson,
         "concurrency" -> parm.concurrency.getOrElse(ConcurrencyLimit.STD_CONCURRENT).toJson)
 
@@ -191,6 +210,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
             file,
             logsize = parm.logs,
             memory = parm.memory,
+            cpu = parm.cpu,
             timeout = parm.timeout,
             concurrency = parm.concurrency,
             expectedExitCode = DONTCARE_EXIT)
