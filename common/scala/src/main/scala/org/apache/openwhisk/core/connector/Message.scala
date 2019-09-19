@@ -231,19 +231,16 @@ object AcknowledegmentMessage extends DefaultJsonProtocol {
     // If this field is part of the JSON, we try to deserialize into one of these two types,
     // and otherwise to a ResultMessage. If all conversions fail, an error will be thrown that needs to be handled.
     override def read(json: JsValue): AcknowledegmentMessage = {
-      val obj = json.asJsObject
-
-      obj
-        .getFields("invoker")
-        .headOption
-        .map(_ => {
-          obj
-            .getFields("response")
-            .headOption
-            .map(_ => json.convertTo[CombinedCompletionAndResultMessage])
-            .getOrElse(json.convertTo[CompletionMessage])
-        })
-        .getOrElse(json.convertTo[ResultMessage])
+      val JsObject(fields) = json
+      val completion = fields.contains("invoker")
+      val result = fields.contains("response")
+      if (completion && result) {
+        json.convertTo[CombinedCompletionAndResultMessage]
+      } else if (completion) {
+        json.convertTo[CompletionMessage]
+      } else {
+        json.convertTo[ResultMessage]
+      }
     }
   }
 }
