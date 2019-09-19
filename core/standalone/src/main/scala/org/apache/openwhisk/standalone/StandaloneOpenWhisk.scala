@@ -67,6 +67,13 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
   val kafkaUi = opt[Boolean](descr = "Enable Kafka UI", noshort = true)
 
+  //The port option below express following usage. Note that "preferred"" port values are not configured as default
+  // on purpose
+  // - no config - Attempt to use default port. For e.g. 9092 for Kafka
+  // - non config if default preferred port is busy then select a random port
+  // - port config provided - Then this port would be used. If port is already busy
+  //   then that service would not start. This is mostly meant to be used for test setups
+  //   where test logic would determine a port and needs the service to start on that port only
   val kafkaPort = opt[Int](
     descr = "Kafka port. If not specified then 9092 or some random free port (if 9092 is busy) would be used",
     noshort = true,
