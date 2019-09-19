@@ -49,7 +49,7 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class PersisterTests
+class ActivationPersisterServiceTests
     extends ScalatestKafkaSpec(FreePortFinder.freePort())
     with EmbeddedKafkaLike
     with FlatSpecLike
@@ -102,7 +102,7 @@ class PersisterTests
 
   protected override def beforeAll(): Unit = {
     super.beforeAll()
-    consumer = Persister.start(persisterConfig, activationStore)
+    consumer = ActivationPersisterService.start(persisterConfig, activationStore)
   }
 
   protected override def afterAll(): Unit = {
@@ -215,6 +215,6 @@ class PersisterTests
       |    kafka-hosts = "$kafkaHost"
       |  }
       |}""".stripMargin).withFallback(ConfigFactory.load())
-    loadConfigOrThrow[PersisterConfig](config.getConfig(Persister.configRoot))
+    loadConfigOrThrow[PersisterConfig](config.getConfig(ActivationPersisterService.configRoot))
   }
 }

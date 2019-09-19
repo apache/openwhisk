@@ -43,11 +43,11 @@ object Main extends SLF4JLogging {
     ConfigMXBean.register()
     Kamon.loadReportersFromConfig()
     val persisterConfig =
-      loadConfigOrThrow[PersisterConfig](system.settings.config.getConfig(Persister.configRoot))
+      loadConfigOrThrow[PersisterConfig](system.settings.config.getConfig(ActivationPersisterService.configRoot))
     val port = persisterConfig.port
     val activationStore =
       SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
-    val consumer = Persister.start(persisterConfig, activationStore)
+    val consumer = ActivationPersisterService.start(persisterConfig, activationStore)
     BasicHttpService.startHttpService(new PersisterService(consumer).route, port, None)
   }
 

@@ -33,7 +33,7 @@ case class PersisterConfig(port: Int,
                            topicIsPattern: Boolean,
                            retry: RetryConfig)
 
-object Persister {
+object ActivationPersisterService {
   val configRoot = "whisk.persister"
 
   def start(config: PersisterConfig, store: ActivationStore)(implicit system: ActorSystem,
