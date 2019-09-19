@@ -235,6 +235,16 @@ exchanged on those topics.
 java -jar openwhisk-standalone.jar --kafka --kafka-ui
 ```
 
+By default the ui server would be accessible at http://localhost:9000. In case 9000 port is busy then a random port would
+be selected. TO find out the port look for message in log like below (or grep for `whisk-kafka-drop-ui`)
+
+```
+[ 9092  ] localhost:9092 (kafka)
+[ 9092  ] 192.168.65.2:9091 (kafka-docker)
+[ 2181  ] Zookeeper (zookeeper)
+[ 9000  ] http://localhost:9000 (whisk-kafka-drop-ui)
+```
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway
