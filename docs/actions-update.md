@@ -51,7 +51,7 @@ Follow these steps to remove a particular runtime kind under the assumption that
 2. Ask owners of existing actions with runtime kind to be removed to update their actions to a different action kind.
 3. Create an automated process that identifies all actions with the runtime kind to be removed in the system's action artifact store. Either automatically remove these actions or change to a different runtime kind.
 4. Once the system's action artifact store does not contain actions with the runtime kind to be removed, remove the runtime kind from the [runtimes manifest](actions-new.md#the-runtimes-manifest).
-5. TODO - is this correct?: Remove the runtime kind from the list of known kinds in the `ActionExec` object of the [controller API's Swagger definition](../core/controller/src/main/resources/apiv1swagger.json).
+5. Remove the runtime kind from the list of known kinds in the `ActionExec` object of the [controller API's Swagger definition](../core/controller/src/main/resources/apiv1swagger.json).
 
 If you remove a runtime kind from the [runtimes manifest](actions-new.md#the-runtimes-manifest), all actions that still use the removed runtime kind can no more be read from the system's action artifact store and thus, can no longer be read, updated, deleted or invoked.
 
