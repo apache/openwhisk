@@ -242,7 +242,7 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
   protected[core] val SEQUENCE = "sequence"
   protected[core] val BLACKBOX = "blackbox"
 
-  // This is for error cases while cannot get the `kind` of Exec
+  // This is for error cases where the action `kind` may not be known.
   protected[core] val UNKNOWN = "unknown"
 
   private def execManifests = ExecManifest.runtimesManifest
