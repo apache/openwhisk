@@ -31,7 +31,6 @@ import spray.json._
 import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{
-  AcknowledegmentMessage,
   ActivationMessage,
   CombinedCompletionAndResultMessage,
   CompletionMessage,
@@ -715,7 +714,7 @@ object ContainerProxy {
               ByteSize,
               Int,
               Option[ExecutableWhiskAction]) => Future[Container],
-    ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage) => Future[Any],
+    ack: ActiveAck,
     store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InvokerInstanceId,
