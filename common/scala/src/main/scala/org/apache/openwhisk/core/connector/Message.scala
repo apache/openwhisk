@@ -73,7 +73,7 @@ abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Me
   override def serialize: String = AcknowledegmentMessage.serdes.write(this).compactPrint
 
   /** Pithy descriptor for logging. */
-  def name: String
+  def messageType: String
 
   /** Does message indicate slot is free? */
   def isSlotFree: Option[InvokerInstanceId]
@@ -99,23 +99,26 @@ abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Me
 }
 
 /**
- * This message is sent from an invoker to the controller in situtations when the resource slot and the action
+ * This message is sent from an invoker to the controller in situations when the resource slot and the action
  * result are available at the same time, and so the split-phase notification is not necessary. Instead the message
  * combines the `CompletionMessage` and `ResultMessage`. The `response` may be an `ActivationId` to allow for failures
  * to send the activation result because of event-bus size limitations.
+ *
+ * The constructor is private so that callers must use the more restrictive constructors which ensure the respose is always
+ * Right when this message is created.
  */
-case class CombinedCompletionAndResultMessage(override val transid: TransactionId,
-                                              response: Either[ActivationId, WhiskActivation],
-                                              override val isSystemError: Option[Boolean],
-                                              invoker: InvokerInstanceId)
+case class CombinedCompletionAndResultMessage private (override val transid: TransactionId,
+                                                       response: Either[ActivationId, WhiskActivation],
+                                                       override val isSystemError: Option[Boolean],
+                                                       invoker: InvokerInstanceId)
     extends AcknowledegmentMessage(transid) {
-  override def name = "combined"
+  override def messageType = "combined"
   override def result = Some(response)
   override def isSlotFree = Some(invoker)
   override def activationId = response.fold(identity, _.activationId)
   override def toJson = CombinedCompletionAndResultMessage.serdes.write(this)
   override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
-  override def toString = response.fold(identity, _.activationId).asString
+  override def toString = activationId.asString
 }
 
 /**
@@ -124,12 +127,12 @@ case class CombinedCompletionAndResultMessage(override val transid: TransactionI
  * phase notification to the load balancer where an invoker first sends a `ResultMessage` and later sends the
  * `CompletionMessage`.
  */
-case class CompletionMessage(override val transid: TransactionId,
-                             override val activationId: ActivationId,
-                             override val isSystemError: Option[Boolean],
-                             invoker: InvokerInstanceId)
+protected case class CompletionMessage(override val transid: TransactionId,
+                                       override val activationId: ActivationId,
+                                       override val isSystemError: Option[Boolean],
+                                       invoker: InvokerInstanceId)
     extends AcknowledegmentMessage(transid) {
-  override def name = "completion"
+  override def messageType = "completion"
   override def result = None
   override def isSlotFree = Some(invoker)
   override def toJson = CompletionMessage.serdes.write(this)
@@ -141,10 +144,14 @@ case class CompletionMessage(override val transid: TransactionId,
  * This message is sent from an invoker to the load balancer once an action result is available for blocking actions.
  * This is part of a split phase notification, and does not indicate that the slot is available, which is indicated with
  * a `CompletionMessage`. Note that activation record will not contain any logs from the action execution, only the result.
+ *
+ * The constructor is private so that callers must use the more restrictive constructors which ensure the respose is always
+ * Right when this message is created.
  */
-case class ResultMessage(override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
+protected case class ResultMessage private (override val transid: TransactionId,
+                                            response: Either[ActivationId, WhiskActivation])
     extends AcknowledegmentMessage(transid) {
-  override def name = "result"
+  override def messageType = "result"
   override def result = Some(response)
   override def isSlotFree = None
   override def isSystemError = response.fold(_ => None, a => Some(a.response.isWhiskError))
@@ -162,11 +169,18 @@ object ActivationMessage extends DefaultJsonProtocol {
 }
 
 object CombinedCompletionAndResultMessage extends DefaultJsonProtocol {
+  // this constructor is restricted to ensure the message is always created with certain invariants
+  private def apply(transid: TransactionId,
+                    activation: Either[ActivationId, WhiskActivation],
+                    isSystemError: Option[Boolean],
+                    invoker: InvokerInstanceId): CombinedCompletionAndResultMessage =
+    new CombinedCompletionAndResultMessage(transid, activation, isSystemError, invoker)
+
   def apply(transid: TransactionId,
             activation: WhiskActivation,
-            invoker: InvokerInstanceId): CombinedCompletionAndResultMessage = {
-    CombinedCompletionAndResultMessage(transid, Right(activation), Some(activation.response.isWhiskError), invoker)
-  }
+            invoker: InvokerInstanceId): CombinedCompletionAndResultMessage =
+    new CombinedCompletionAndResultMessage(transid, Right(activation), Some(activation.response.isWhiskError), invoker)
+
   implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
   implicit val serdes = jsonFormat4(
     CombinedCompletionAndResultMessage
@@ -177,13 +191,19 @@ object CompletionMessage extends DefaultJsonProtocol {
   def apply(transid: TransactionId, activation: WhiskActivation, invoker: InvokerInstanceId): CompletionMessage = {
     CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
   }
+
   implicit val serdes = jsonFormat4(
     CompletionMessage.apply(_: TransactionId, _: ActivationId, _: Option[Boolean], _: InvokerInstanceId))
 }
 
 object ResultMessage extends DefaultJsonProtocol {
+  // this constructor is restricted to ensure the message is always created with certain invariants
+  private def apply(transid: TransactionId, response: Either[ActivationId, WhiskActivation]): ResultMessage =
+    new ResultMessage(transid, response)
+
   def apply(transid: TransactionId, activation: WhiskActivation): ResultMessage =
-    ResultMessage(transid, Right(activation))
+    new ResultMessage(transid, Right(activation))
+
   implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
   implicit val serdes = jsonFormat2(ResultMessage.apply(_: TransactionId, _: Either[ActivationId, WhiskActivation]))
 }

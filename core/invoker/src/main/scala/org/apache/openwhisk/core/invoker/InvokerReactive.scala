@@ -157,7 +157,7 @@ class InvokerReactive(
     def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
       producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
-          val info = if (recovery) s"recovery ${msg.name}" else msg.name
+          val info = if (recovery) s"recovery ${msg.messageType}" else msg.messageType
           logging.info(this, s"posted $info of activation ${activationResult.activationId}")
       }
     }
