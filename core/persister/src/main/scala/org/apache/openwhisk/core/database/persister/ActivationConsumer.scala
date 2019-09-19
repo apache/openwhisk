@@ -70,6 +70,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
         maxBackoff = r.maxBackoff,
         randomFactor = r.randomFactor,
         maxRestarts = r.maxRestarts) { () =>
+        //TODO Metric - Restarts
         logging.info(this, "Starting the Kafka consumer source")
         Consumer
           .committableSource(consumerSettings(), createSubscription())
@@ -120,6 +121,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
   }
 
   private def parseActivation(data: Array[Byte]): Option[(TransactionId, WhiskActivation)] = {
+    //TODO Metric - message size
     //Avoid converting to string first and then to json. Instead directly parse to JSON
     val js = JsonParser(ParserInput(data))
     AcknowledegmentMessage.serdes.read(js) match {
@@ -135,6 +137,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
 
   private class RebalanceListener extends Actor with ActorLogging {
+    //TODO Metric - Topic reassignments
     def receive: Receive = {
       case TopicPartitionsAssigned(subscription, topicPartitions) =>
         logging.info(this, s"Assigned to ActivationConsumer [$consumerDesc]: $topicPartitions")

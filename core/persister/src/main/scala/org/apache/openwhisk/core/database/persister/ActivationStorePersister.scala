@@ -55,6 +55,7 @@ class ActivationStorePersister(store: ActivationStore)(implicit ec: ExecutionCon
     store
       .store(act, userContext)(tid, None)
       .recoverWith {
+        //TODO Metric - Conflict counts
         //Recover for conflict case as its possible in case of unclean shutdown persister need to process
         // same activation again
         //Checking the chain as exception may get wrapped
