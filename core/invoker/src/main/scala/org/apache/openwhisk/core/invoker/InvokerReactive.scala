@@ -164,13 +164,15 @@ class InvokerReactive(
 
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
     if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
-      acknowledegment.result.foreach {
-        case Right(activationResult) =>
+      acknowledegment.result match {
+        case Some(Right(activationResult: WhiskActivation)) =>
           EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
             case Success(msg) => UserEvents.send(producer, msg)
             case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
           }
-        case _ => // all acknowledegment messages should have a result
+        case _ =>
+          // all acknowledegment messages should have a result
+          logging.error(this, s"activation event was not sent because the result is missing")
       }
     }
 
