@@ -42,6 +42,8 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
 import scala.util.{Failure, Success, Try}
 
+import KafkaLauncher._
+
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   banner(StandaloneOpenWhisk.banner)
   footer("\nOpenWhisk standalone server")
@@ -75,18 +77,20 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   //   then that service would not start. This is mostly meant to be used for test setups
   //   where test logic would determine a port and needs the service to start on that port only
   val kafkaPort = opt[Int](
-    descr = "Kafka port. If not specified then 9092 or some random free port (if 9092 is busy) would be used",
+    descr =
+      s"Kafka port. If not specified then $preferredKafkaPort or some random free port (if $preferredKafkaPort is busy) would be used",
     noshort = true,
     required = false)
 
   val kafkaDockerPort = opt[Int](
-    descr = "Kafka port for use by docker based services. If not specified then 9091 or some random free port " +
-      "(if 9091 is busy) would be used",
+    descr = s"Kafka port for use by docker based services. If not specified then $preferredKafkaDockerPort or some random free port " +
+      s"(if $preferredKafkaDockerPort is busy) would be used",
     noshort = true,
     required = false)
 
   val zkPort = opt[Int](
-    descr = "Zookeeper port. If not specified then 2181 or some random free port (if 2181 is busy) would be used",
+    descr =
+      s"Zookeeper port. If not specified then $preferredZkPort or some random free port (if $preferredZkPort is busy) would be used",
     noshort = true,
     required = false)
 
@@ -429,13 +433,13 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     as: ActorSystem,
     ec: ExecutionContext,
     materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
-    val kafkaPort = getPort(conf.kafkaPort.toOption, 9092)
+    val kafkaPort = getPort(conf.kafkaPort.toOption, preferredKafkaPort)
     implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
     val k = new KafkaLauncher(
       dockerClient,
       kafkaPort,
-      getPort(conf.kafkaDockerPort.toOption, kafkaPort - 1),
-      getPort(conf.zkPort.toOption, 2181),
+      getPort(conf.kafkaDockerPort.toOption, preferredKafkaDockerPort),
+      getPort(conf.zkPort.toOption, preferredZkPort),
       workDir,
       kafkaUi)
 

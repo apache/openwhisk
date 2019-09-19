@@ -120,3 +120,9 @@ object KafkaAwareLeanBalancer extends LoadBalancerProvider {
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = LeanBalancer.instance(whiskConfig, instance)
 }
+
+object KafkaLauncher {
+  val preferredKafkaPort = 9092
+  val preferredKafkaDockerPort = preferredKafkaPort - 1
+  val preferredZkPort = 2181
+}
