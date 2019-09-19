@@ -43,7 +43,9 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.invoker.InvokerReactive
 
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -162,32 +164,65 @@ class ContainerProxyTests
     expectMsg(Transition(machine, Pausing, Paused))
   }
 
-  /** Creates an inspectable version of the ack method, which records all calls in a buffer */
-  def createAcker(a: ExecutableWhiskAction = action) = LoggedFunction {
-    (_: TransactionId,
-     activation: WhiskActivation,
-     _: Boolean,
-     _: ControllerInstanceId,
-     _: UUID,
-     _: AcknowledegmentMessage) =>
+  trait LoggedAcker extends InvokerReactive.ActiveAck {
+    def calls =
+      mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage)]()
+
+    def verifyAnnotations(activation: WhiskActivation, a: ExecutableWhiskAction) = {
       activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
       activation.annotations.get("path") shouldBe Some(a.fullyQualifiedName(false).toString.toJson)
       activation.annotations.get("kind") shouldBe Some(a.exec.kind.toJson)
-      Future.successful(())
+    }
+  }
+
+  /** Creates an inspectable version of the ack method, which records all calls in a buffer */
+  def createAcker(a: ExecutableWhiskAction = action) = new LoggedAcker {
+    val acker = LoggedFunction {
+      (_: TransactionId,
+       activation: WhiskActivation,
+       _: Boolean,
+       _: ControllerInstanceId,
+       _: UUID,
+       _: AcknowledegmentMessage) =>
+        Future.successful(())
+    }
+
+    override def calls = acker.calls
+
+    override def apply(tid: TransactionId,
+                       activation: WhiskActivation,
+                       blockingInvoke: Boolean,
+                       controllerInstance: ControllerInstanceId,
+                       userId: UUID,
+                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+      verifyAnnotations(activation, a)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+    }
   }
 
   /** Creates an synchronized inspectable version of the ack method, which records all calls in a buffer */
-  def createSyncAcker(a: ExecutableWhiskAction = action) = SynchronizedLoggedFunction {
-    (_: TransactionId,
-     activation: WhiskActivation,
-     _: Boolean,
-     _: ControllerInstanceId,
-     _: UUID,
-     _: AcknowledegmentMessage) =>
-      activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
-      activation.annotations.get("path") shouldBe Some(a.fullyQualifiedName(false).toString.toJson)
-      activation.annotations.get("kind") shouldBe Some(a.exec.kind.toJson)
-      Future.successful(())
+  def createSyncAcker(a: ExecutableWhiskAction = action) = new LoggedAcker {
+    val acker = SynchronizedLoggedFunction {
+      (_: TransactionId,
+       activation: WhiskActivation,
+       _: Boolean,
+       _: ControllerInstanceId,
+       _: UUID,
+       _: AcknowledegmentMessage) =>
+        Future.successful(())
+    }
+
+    override def calls = acker.calls
+
+    override def apply(tid: TransactionId,
+                       activation: WhiskActivation,
+                       blockingInvoke: Boolean,
+                       controllerInstance: ControllerInstanceId,
+                       userId: UUID,
+                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+      verifyAnnotations(activation, a)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+    }
   }
 
   /** Creates an inspectable factory */
