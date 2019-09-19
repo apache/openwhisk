@@ -25,7 +25,7 @@ import com.google.common.base.Stopwatch
 import common.WhiskProperties.WHISK_SERVER
 import common.{FreePortFinder, StreamLogging, WhiskProperties, Wsk}
 import io.restassured.RestAssured
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.utils.retry
 import org.scalatest.{BeforeAndAfterAll, Suite, TestSuite}
@@ -52,6 +52,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   protected def waitForOtherThings(): Unit = {}
 
+  protected val dataDirPath: String = FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone")
+
   override def beforeAll(): Unit = {
     val serverUrlViaSysProp = Option(System.getProperty(WHISK_SERVER))
     serverUrlViaSysProp match {
@@ -71,7 +73,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             s"-Dwhisk.standalone.wsk=${Wsk.defaultCliPath}",
             s"-D$disablePullConfig=false")
             ++ extraVMArgs
-            ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging")
+            ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging", "--data-dir", dataDirPath)
             ++ extraArgs,
           Seq("-p", serverPort.toString),
           manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
@@ -93,6 +95,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
       manifestFile.foreach(FileUtils.deleteQuietly)
       serverProcess.destroy()
     }
+    FileUtils.forceDelete(new File(dataDirPath))
   }
 
   override def withFixture(test: NoArgTest) = {

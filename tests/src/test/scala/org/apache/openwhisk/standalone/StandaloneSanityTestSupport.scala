@@ -17,22 +17,17 @@
 
 package org.apache.openwhisk.standalone
 
-import common.WskProps
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import system.basic.WskRestBasicTests
+import org.scalatest.{Canceled, Outcome, TestSuite}
 
-@RunWith(classOf[JUnitRunner])
-class StandaloneCouchTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
-  override implicit val wskprops = WskProps().copy(apihost = serverUrl)
+trait StandaloneSanityTestSupport extends TestSuite {
 
-  override protected def extraArgs: Seq[String] =
-    Seq("--couchdb")
+  protected def supportedTests: Set[String]
 
-  override protected def extraVMArgs: Seq[String] = Seq("-Dwhisk.standalone.couchdb.volumes-enabled=false")
-
-  //This is more of a sanity test. So just run one of the test which trigger interaction with couchdb
-  //and skip running all other tests
-  override protected def supportedTests: Set[String] =
-    Set("Wsk Action REST should create, update, get and list an action")
+  override def withFixture(test: NoArgTest): Outcome = {
+    if (supportedTests.contains(test.name)) {
+      super.withFixture(test)
+    } else {
+      Canceled()
+    }
+  }
 }

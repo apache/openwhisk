@@ -23,16 +23,10 @@ import org.scalatest.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])
-class StandaloneCouchTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
+class StandaloneKafkaTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
-  override protected def extraArgs: Seq[String] =
-    Seq("--couchdb")
+  override protected def supportedTests = Set("Wsk Action REST should invoke a blocking action and get only the result")
 
-  override protected def extraVMArgs: Seq[String] = Seq("-Dwhisk.standalone.couchdb.volumes-enabled=false")
-
-  //This is more of a sanity test. So just run one of the test which trigger interaction with couchdb
-  //and skip running all other tests
-  override protected def supportedTests: Set[String] =
-    Set("Wsk Action REST should create, update, get and list an action")
+  override protected def extraArgs: Seq[String] = Seq("--kafka")
 }
