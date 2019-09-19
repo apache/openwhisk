@@ -127,10 +127,10 @@ case class CombinedCompletionAndResultMessage private (override val transid: Tra
  * phase notification to the load balancer where an invoker first sends a `ResultMessage` and later sends the
  * `CompletionMessage`.
  */
-protected case class CompletionMessage(override val transid: TransactionId,
-                                       override val activationId: ActivationId,
-                                       override val isSystemError: Option[Boolean],
-                                       invoker: InvokerInstanceId)
+case class CompletionMessage private (override val transid: TransactionId,
+                                      override val activationId: ActivationId,
+                                      override val isSystemError: Option[Boolean],
+                                      invoker: InvokerInstanceId)
     extends AcknowledegmentMessage(transid) {
   override def messageType = "completion"
   override def result = None
@@ -148,8 +148,7 @@ protected case class CompletionMessage(override val transid: TransactionId,
  * The constructor is private so that callers must use the more restrictive constructors which ensure the respose is always
  * Right when this message is created.
  */
-protected case class ResultMessage private (override val transid: TransactionId,
-                                            response: Either[ActivationId, WhiskActivation])
+case class ResultMessage private (override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
     extends AcknowledegmentMessage(transid) {
   override def messageType = "result"
   override def result = Some(response)
@@ -188,8 +187,15 @@ object CombinedCompletionAndResultMessage extends DefaultJsonProtocol {
 }
 
 object CompletionMessage extends DefaultJsonProtocol {
+  // this constructor is restricted to ensure the message is always created with certain invariants
+  private def apply(transid: TransactionId,
+                    activation: WhiskActivation,
+                    isSystemError: Option[Boolean],
+                    invoker: InvokerInstanceId): CompletionMessage =
+    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
+
   def apply(transid: TransactionId, activation: WhiskActivation, invoker: InvokerInstanceId): CompletionMessage = {
-    CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
+    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
   }
 
   implicit val serdes = jsonFormat4(
