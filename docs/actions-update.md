@@ -26,7 +26,7 @@ Over time, you may have the need for change:
 * Update runtimes to address security issues - for example, the latest code level of Node.js 10.
 * Remove runtime versions that are no longer supported - for example, Node.js 6.
 * Add more languages due to user demand.
-* Remove languages that are no more needed.
+* Remove languages that are no longer needed.
 
 While adding and updating languages and runtimes is pretty straightforward, removing or renaming languages and runtimes
 requires some caution to prevent problems with preexisting actions.
