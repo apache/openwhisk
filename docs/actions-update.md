@@ -24,7 +24,7 @@ available for usage in an OpenWhisk deployment. This is done via the [runtimes m
 Over time, you may have the need for change:
 
 * Update runtimes to address security issues - for example, the latest code level of Node.js 10.
-* Remove runtime versions that are no more supported - for example, Node.js 6.
+* Remove runtime versions that are no longer supported - for example, Node.js 6.
 * Add more languages due to user demand.
 * Remove languages that are no more needed.
 
