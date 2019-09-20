@@ -84,8 +84,13 @@ whisk {
         enabled = {{ user_events }}
     }
 
-    container-factory.runtimes-registry {
-        url = "{{ runtimes_registry | default('') }}"
+    container-factory {
+        runtimes-registry {
+            url = "{{ runtimes_registry | default('') }}"
+        }
+        user-images-registry {
+            url = "{{ user_images_registry | default('') }}"
+        }
     }
 }
 

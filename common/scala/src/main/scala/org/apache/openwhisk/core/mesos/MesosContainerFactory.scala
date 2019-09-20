@@ -92,6 +92,8 @@ class MesosContainerFactory(config: WhiskConfig,
                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
                             runtimesRegistryConfig: RuntimesRegistryConfig =
                               loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.runtimesRegistry),
+                            userImagesRegistryConfig: RuntimesRegistryConfig =
+                              loadConfigOrThrow[RuntimesRegistryConfig](ConfigKeys.userImagesRegistry),
                             mesosConfig: MesosConfig = loadConfigOrThrow[MesosConfig](ConfigKeys.mesos),
                             clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
                             taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator _)
@@ -129,11 +131,8 @@ class MesosContainerFactory(config: WhiskConfig,
                                memory: ByteSize,
                                cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val transid = tid
-    val image = if (userProvidedImage) {
-      actionImage.publicImageName
-    } else {
-      actionImage.localImageName(runtimesRegistryConfig.url)
-    }
+    val image = actionImage.resolveImageName(Some(
+      ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig).url))
     val constraintStrings = if (userProvidedImage) {
       mesosConfig.blackboxConstraints
     } else {
@@ -145,7 +144,7 @@ class MesosContainerFactory(config: WhiskConfig,
       mesosConfig,
       taskIdGenerator,
       tid,
-      image = image,
+      image,
       userProvidedImage = userProvidedImage,
       memory = memory,
       cpuShares = cpuShares,

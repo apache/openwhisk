@@ -122,6 +122,12 @@ object ContainerFactory {
   /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
   def containerNamePrefix(instanceId: InvokerInstanceId): String =
     s"wsk${instanceId.uniqueName.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
+
+  def resolveRegistryConfig(userProvidedImage: Boolean,
+                            runtimesRegistryConfig: RuntimesRegistryConfig,
+                            userImagesRegistryConfig: RuntimesRegistryConfig): RuntimesRegistryConfig = {
+    if (userProvidedImage) userImagesRegistryConfig else runtimesRegistryConfig
+  }
 }
 
 /**

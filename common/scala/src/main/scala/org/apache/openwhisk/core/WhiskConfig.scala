@@ -229,6 +229,7 @@ object ConfigKeys {
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
   val runtimesRegistry = s"$containerFactory.runtimes-registry"
+  val userImagesRegistry = s"$containerFactory.user-images-registry"
   val containerPool = "whisk.container-pool"
   val blacklist = "whisk.blacklist"
 

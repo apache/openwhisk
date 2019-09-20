@@ -59,7 +59,8 @@ object DockerContainer {
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
   def create(transid: TransactionId,
-             image: Either[ImageName, String],
+             image: Either[ImageName, ImageName],
+             registryConfig: Option[RuntimesRegistryConfig] = None,
              memory: ByteSize = 256.MB,
              cpuShares: Int = 0,
              environment: Map[String, String] = Map.empty,
@@ -102,7 +103,8 @@ object DockerContainer {
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
       params
 
-    val imageToUse = image.fold(_.publicImageName, identity)
+    val registryConfigUrl = registryConfig.map(_.url).getOrElse("")
+    val imageToUse = image.merge.resolveImageName(Some(registryConfigUrl))
 
     val pulled = image match {
       case Left(userProvided) if userProvided.tag.map(_ == "latest").getOrElse(true) =>

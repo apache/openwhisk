@@ -193,7 +193,7 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
   override def codeAsJson = code.toJson
   override val sentinelledLogs = native
   override val pull = !native
-  override def size = super.size + image.publicImageName.sizeInBytes
+  override def size = super.size + image.resolveImageName().sizeInBytes
 
   override def inline(bytes: Array[Byte]): BlackBoxExec = {
     val encoded = new String(bytes, StandardCharsets.UTF_8)
@@ -268,7 +268,10 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
 
       case b: BlackBoxExec =>
         val base =
-          Map("kind" -> JsString(b.kind), "image" -> JsString(b.image.publicImageName), "binary" -> JsBoolean(b.binary))
+          Map(
+            "kind" -> JsString(b.kind),
+            "image" -> JsString(b.image.resolveImageName()),
+            "binary" -> JsBoolean(b.binary))
         val code = b.code.map("code" -> attFmt[String].write(_))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ code ++ main)
@@ -399,7 +402,10 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
 
       case b: BlackBoxExecMetaData =>
         val base =
-          Map("kind" -> JsString(b.kind), "image" -> JsString(b.image.publicImageName), "binary" -> JsBoolean(b.binary))
+          Map(
+            "kind" -> JsString(b.kind),
+            "image" -> JsString(b.image.resolveImageName()),
+            "binary" -> JsBoolean(b.binary))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ main)
     }

@@ -54,6 +54,7 @@ class YARNContainerFactoryTests
                                |        "deprecated": false,
                                |        "default": true,
                                |        "image": {
+                               |          "registry": "local-docker:8888",
                                |          "prefix": "openwhisk",
                                |          "name": "somekind",
                                |          "tag": "latest"
@@ -66,6 +67,7 @@ class YARNContainerFactoryTests
                                |        "deprecated": false,
                                |        "default": true,
                                |        "image": {
+                               |          "registry": "local-docker:8888",
                                |          "prefix": "openwhisk",
                                |          "name": "anotherkind",
                                |          "tag": "latest"
@@ -76,8 +78,8 @@ class YARNContainerFactoryTests
                                |}
                                |""".stripMargin)
   val images = Array(
-    ImageName("somekind", Option("openwhisk"), Some("latest")),
-    ImageName("anotherkind", Option("openwhisk"), Some("latest")))
+    ImageName("somekind", Option("local-docker:8888"), Option("openwhisk"), Some("latest")),
+    ImageName("anotherkind", Option("local-docker:8888"), Option("openwhisk"), Some("latest")))
   val containerArgsConfig =
     new ContainerArgsConfig(
       "net1",

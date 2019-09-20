@@ -70,7 +70,7 @@ class StandaloneDockerContainerFactory(instance: InvokerInstanceId, parameters: 
     //For standalone server usage we would also want to pull the OpenWhisk provided image so as to ensure if
     //local setup does not have the image then it pulls it down
     //For standard usage its expected that standard images have already been pulled in.
-    val imageName = actionImage.localImageName(runtimesRegistryConfig.url)
+    val imageName = actionImage.resolveImageName(Some(runtimesRegistryConfig.url))
     val pulled =
       if (!userProvidedImage
           && factoryConfig.pullStandardImages

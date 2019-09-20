@@ -79,7 +79,7 @@ protected[core] object ExecManifest {
       .map(_.convertTo[Map[String, Set[RuntimeManifest]]].map {
         case (name, versions) =>
           RuntimeFamily(name, versions.map { mf =>
-            val img = ImageName(mf.image.name, mf.image.prefix, mf.image.tag)
+            val img = ImageName(mf.image.name, mf.image.registry, mf.image.prefix, mf.image.tag)
             mf.copy(image = img)
           })
       }.toSet)
@@ -87,7 +87,7 @@ protected[core] object ExecManifest {
     val blackbox = config.fields
       .get("blackboxes")
       .map(_.convertTo[Set[ImageName]].map { image =>
-        ImageName(image.name, image.prefix, image.tag)
+        ImageName(image.name, image.registry, image.prefix, image.tag)
       })
 
     val bypassPullForLocalImages = runtimeManifestConfig.bypassPullForLocalImages
@@ -143,22 +143,16 @@ protected[core] object ExecManifest {
    * An image name for an action refers to the container image canonically as
    * "prefix/name[:tag]" e.g., "openwhisk/python3action:latest".
    */
-  protected[core] case class ImageName(name: String, prefix: Option[String] = None, tag: Option[String] = None) {
+  protected[core] case class ImageName(name: String,
+                                       registry: Option[String] = None,
+                                       prefix: Option[String] = None,
+                                       tag: Option[String] = None) {
 
     /**
-     * The name of the public image for an action kind.
+     * The actual name of the image for an action kind resolved by registry setting.
      */
-    def publicImageName: String = {
-      val p = prefix.filter(_.nonEmpty).map(_ + "/").getOrElse("")
-      val t = tag.filter(_.nonEmpty).map(":" + _).getOrElse("")
-      p + name + t
-    }
-
-    /**
-     * The internal name of the image for an action kind relative to a registry.
-     */
-    def localImageName(registry: String): String = {
-      val r = Option(registry)
+    def resolveImageName(systemRegistry: Option[String] = None): String = {
+      val r = Option(registry.getOrElse(systemRegistry.getOrElse((""))))
         .filter(_.nonEmpty)
         .map { reg =>
           if (reg.endsWith("/")) reg else reg + "/"
@@ -174,8 +168,8 @@ protected[core] object ExecManifest {
      * in this or that.
      */
     override def equals(that: Any) = that match {
-      case ImageName(n, p, t) =>
-        name == n && p == prefix && (t == tag || {
+      case ImageName(n, r, p, t) =>
+        name == n && registry == r && p == prefix && (t == tag || {
           val thisTag = tag.getOrElse(ImageName.defaultImageTag)
           val thatTag = t.getOrElse(ImageName.defaultImageTag)
           thisTag == thatTag
@@ -230,7 +224,9 @@ protected[core] object ExecManifest {
     private val portNumber = P(digits.rep(min = 1))
     // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
     private val domainComponent = P(alphaNumericWithUpper | "-").rep
-    private val domain = P(domainComponent.rep(min = 1, sep = ".") ~ (":" ~ portNumber).?)
+    private val domain = P(
+      (domainComponent
+        .rep(min = 2, sep = ".") ~ (":" ~ portNumber).?) | (domainComponent.rep(min = 1, sep = ".") ~ ":" ~ portNumber))
     private val name = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
 
     private val reference = P(Start ~ name ~ (":" ~ tag.!).? ~ ("@" ~ digest.!).? ~ End)
@@ -245,10 +241,10 @@ protected[core] object ExecManifest {
       reference.parse(s) match {
         case Parsed.Success((registry, imagePathParts, imageTag, _), _) =>
           // imagePathParts has at least one element per the parser above
-          val prefix = (registry ++ imagePathParts.dropRight(1)).mkString("/")
+          val prefix = (imagePathParts.dropRight(1)).mkString("/")
           val imageName = imagePathParts.last
 
-          Success(ImageName(imageName, if (prefix.nonEmpty) Some(prefix) else None, imageTag))
+          Success(ImageName(imageName, registry, if (prefix.nonEmpty) Some(prefix) else None, imageTag))
         case Parsed.Failure(_, _, _) =>
           Failure(DeserializationException("could not parse image name"))
       }
@@ -296,7 +292,7 @@ protected[core] object ExecManifest {
             case rt =>
               JsObject(
                 "kind" -> rt.kind.toJson,
-                "image" -> rt.image.publicImageName.toJson,
+                "image" -> rt.image.resolveImageName().toJson,
                 "deprecated" -> rt.deprecated.getOrElse(false).toJson,
                 "default" -> rt.default.getOrElse(false).toJson,
                 "attached" -> rt.attached.isDefined.toJson,
@@ -343,7 +339,7 @@ protected[core] object ExecManifest {
     private val defaultSplitter = "([a-z0-9]+):default".r
   }
 
-  protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat3(ImageName.apply)
+  protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat4(ImageName.apply)
 
   protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
     import org.apache.openwhisk.core.entity.size.serdes

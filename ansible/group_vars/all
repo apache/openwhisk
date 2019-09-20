@@ -55,7 +55,8 @@ whisk:
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).
 # briefly the parameters are:
 #
-#   runtimes_registry: optional registry (with trailing slack) where to pull docker images from for runtimes and backbox images
+#   runtimes_registry: optional registry (with trailing slash) where to pull docker images from for default runtimes (in manifest)
+#   user_images_registry: optional registry (with trailing slash) where to pull docker images from for blackbox images
 #
 #   skip_pull_runtimes: this will skip pulling the images to the invoker (images must exist there somehow)
 #

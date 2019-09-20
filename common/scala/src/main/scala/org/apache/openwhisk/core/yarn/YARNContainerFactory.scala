@@ -137,7 +137,7 @@ class YARNContainerFactory(actorSystem: ActorSystem,
     YARNContainerInfoActors foreach { case (k, v) => actorSystem.stop(v) }
   }
   def createService(): Unit = {
-    logging.info(this, "Creating Service with images: " + images.map(i => i.publicImageName).mkString(", "))
+    logging.info(this, "Creating Service with images: " + images.map(i => i.resolveImageName()).mkString(", "))
 
     val componentList = images
       .map(
@@ -147,7 +147,7 @@ class YARNContainerFactory(actorSystem: ActorSystem,
             Some(0), //start with zero containers
             Some(runCommand),
             Option.empty,
-            Some(ArtifactDefinition(i.publicImageName, "DOCKER")),
+            Some(ArtifactDefinition(i.resolveImageName(), "DOCKER")),
             Some(ResourceDefinition(yarnConfig.cpus, yarnConfig.memory)),
             Some(ConfigurationDefinition(Map(("YARN_CONTAINER_RUNTIME_DOCKER_RUN_OVERRIDE_DISABLE", "true")))),
             List[String]()))
