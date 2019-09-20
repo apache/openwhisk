@@ -21,7 +21,7 @@
 OpenWhisk supports [several languages and runtimes](actions.md#languages-and-runtimes) that can be made
 available for usage in an OpenWhisk deployment. This is done via the [runtimes manifest](actions-new.md#the-runtimes-manifest).
 
-Over time, you may have the need for change:
+Over time, you may need to do one or more of the following:
 
 * Update runtimes to address security issues - for example, the latest code level of Node.js 10.
 * Remove runtime versions that are no longer supported - for example, Node.js 6.
@@ -35,25 +35,25 @@ requires some caution to prevent problems with preexisting actions.
 
 Follow these steps to update a particular runtime kind:
 
-1. Update the runtimes' container image.
+1. Update the runtime's container image.
 2. Update the corresponding `image` property in the [runtimes manifest](actions-new.md#the-runtimes-manifest) to use the new container image.
 3. Restart / re-deploy controllers and invokers such that they pick up the changed runtimes manifest.
 
 Already existing actions of the changed runtime kind will immediately use the new container image when the invoker creates a new action container.
 
-Obviously, this approach should only be used if existing actions do not break with the new container image. If a new container image is supposed to break existing actions, introduce a new runtime kind.
+Obviously, this approach should only be used if existing actions do not break with the new container image. If a new container image may break existing actions, consider introducing a new runtime kind instead.
 
 ### Removing runtimes
 
 Follow these steps to remove a particular runtime kind under the assumption that actions with the runtime kind exist in the system. Clearly, the steps below should be spaced out in time to give action owners time to react.
 
-1. Deprecate the runtime kind by setting `"deprecated": true` in the [runtimes manifest](actions-new.md#the-runtimes-manifest). This setting prevents that new actions can be created with the deprecated action kind. In addition, existing actions cannot be changed to the deprecated action kind any more.
-2. Ask owners of existing actions with runtime kind to be removed to update their actions to a different action kind.
+1. Deprecate the runtime kind by setting `"deprecated": true` in the [runtimes manifest](actions-new.md#the-runtimes-manifest). This setting prevents new actions from being created with the deprecated action kind. In addition, existing actions cannot be changed to the deprecated action kind any more.
+2. Ask owners of existing actions affected by the runtime kind to remove or update their actions to a different action kind.
 3. Create an automated process that identifies all actions with the runtime kind to be removed in the system's action artifact store. Either automatically remove these actions or change to a different runtime kind.
 4. Once the system's action artifact store does not contain actions with the runtime kind to be removed, remove the runtime kind from the [runtimes manifest](actions-new.md#the-runtimes-manifest).
 5. Remove the runtime kind from the list of known kinds in the `ActionExec` object of the [controller API's Swagger definition](../core/controller/src/main/resources/apiv1swagger.json).
 
-If you remove a runtime kind from the [runtimes manifest](actions-new.md#the-runtimes-manifest), all actions that still use the removed runtime kind can no more be read from the system's action artifact store and thus, can no longer be read, updated, deleted or invoked.
+If you remove a runtime kind from the [runtimes manifest](actions-new.md#the-runtimes-manifest), all actions that still use the removed runtime kind can no longer be read, updated, deleted or invoked.
 
 If the system's action artifact store does not contain any action with the runtime kind to be removed, there is no need for the deprecation and migration steps.
 
