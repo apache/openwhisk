@@ -208,7 +208,7 @@ case class Activation(name: String,
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
-  def entityPath = EntityPath(name).toFullyQualifiedEntityName
+  def entityPath: FullyQualifiedEntityName = EntityPath(name).toFullyQualifiedEntityName
 
   def toJson = Activation.activationFormat.write(this)
 
@@ -243,14 +243,14 @@ object Activation extends DefaultJsonProtocol {
     jsonFormat(
       Activation.apply _,
       "name",
-      WhiskActivation.statusCodeAnnotation,
-      WhiskActivation.durationAnnotation,
-      WhiskActivation.waitTimeAnnotation,
-      WhiskActivation.initTimeAnnotation,
-      WhiskActivation.kindAnnotation,
-      WhiskActivation.conductorAnnotation,
-      WhiskActivation.memoryAnnotation,
-      WhiskActivation.causedByAnnotation)
+      "statusCode",
+      "duration",
+      "waitTime",
+      "initTime",
+      "kind",
+      "conductor",
+      "memory",
+      "causedBy")
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
