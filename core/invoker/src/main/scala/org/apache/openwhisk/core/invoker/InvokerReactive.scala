@@ -27,7 +27,7 @@ import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
-import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, _}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{UserContext, _}
@@ -49,14 +49,21 @@ object InvokerReactive extends InvokerProvider {
    * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
    * messages for continuations (e.g., sequences and conductor actions).
    *
-   * @param TransactionId the transaction id for the activation
-   * @param WhiskActivaiton is the activation result
-   * @param Boolean is true iff the activation was a blocking request
-   * @param ControllerInstanceId the originating controller/loadbalancer id
-   * @param UUID is the UUID for the namespace owning the activation
-   * @param Boolean is true this is resource free message and false if this is a result forwarding message
+   * @param tid the transaction id for the activation
+   * @param activaiton is the activation result
+   * @param blockingInvoke is true iff the activation was a blocking request
+   * @param controllerInstance the originating controller/loadbalancer id
+   * @param userId is the UUID for the namespace owning the activation
+   * @param acknowledegment the acknowledgement message to send
    */
-  type ActiveAck = (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any]
+  trait ActiveAck {
+    def apply(tid: TransactionId,
+              activation: WhiskActivation, // the activation property is used primarily for testing
+              blockingInvoke: Boolean,
+              controllerInstance: ControllerInstanceId,
+              userId: UUID,
+              acknowledegment: AcknowledegmentMessage): Future[Any]
+  }
 
   override def instance(
     config: WhiskConfig,
@@ -145,43 +152,45 @@ class InvokerReactive(
     new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
-  /** Sends an active-ack. */
-  private val ack: InvokerReactive.ActiveAck = (tid: TransactionId,
-                                                activationResult: WhiskActivation,
-                                                blockingInvoke: Boolean,
-                                                controllerInstance: ControllerInstanceId,
-                                                userId: UUID,
-                                                isSlotFree: Boolean) => {
-    implicit val transid: TransactionId = tid
+  private val ack = new InvokerReactive.ActiveAck {
+    override def apply(tid: TransactionId,
+                       activation: WhiskActivation,
+                       blockingInvoke: Boolean,
+                       controllerInstance: ControllerInstanceId,
+                       userId: UUID,
+                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+      implicit val transid: TransactionId = tid
 
-    def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-      val msg = if (isSlotFree) {
-        val aid = res.fold(identity, _.activationId)
-        val isWhiskSystemError = res.fold(_ => false, _.response.isWhiskError)
-        CompletionMessage(transid, aid, isWhiskSystemError, instance)
-      } else {
-        ResultMessage(transid, res)
+      def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
+        producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
+          case Success(_) =>
+            val info = if (recovery) s"recovery ${msg.messageType}" else msg.messageType
+            logging.info(this, s"posted $info of activation ${acknowledegment.activationId}")
+        }
       }
 
-      producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
-        case Success(_) =>
-          logging.info(
-            this,
-            s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
+      // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
+      if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
+        acknowledegment.result match {
+          case Some(Right(activationResult: WhiskActivation)) =>
+            EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
+              case Success(msg) => UserEvents.send(producer, msg)
+              case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
+            }
+          case _ =>
+            // all acknowledegment messages should have a result
+            logging.error(this, s"activation event was not sent because the result is missing")
+        }
       }
-    }
 
-    // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
-    if (UserEvents.enabled && isSlotFree) {
-      EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
-        case Success(msg) => UserEvents.send(producer, msg)
-        case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
+      // An acknowledgement containing the result is only needed for blocking invokes in order to further the
+      // continuation. A result message for a non-blocking activation is not actually registered in the load balancer
+      // and the container proxy should not send such an acknowlegement unless it's a blocking request. Here the code
+      // is defensive and will shrink all non-blocking acknowledegments.
+      send(if (blockingInvoke) acknowledegment else acknowledegment.shrink).recoverWith {
+        case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
+          send(acknowledegment.shrink, recovery = true)
       }
-    }
-
-    send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
-      case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
-        send(Left(activationResult.activationId), recovery = true)
     }
   }
 
@@ -262,20 +271,35 @@ class InvokerReactive(
                     ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
                 }
 
-                val context = UserContext(msg.user)
-                val activation = generateFallbackActivation(msg, response)
                 activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex, msg.user.namespace.uuid, true)
-                store(msg.transid, activation, context)
+
+                val activation = generateFallbackActivation(msg, response)
+                ack(
+                  msg.transid,
+                  activation,
+                  msg.blocking,
+                  msg.rootControllerIndex,
+                  msg.user.namespace.uuid,
+                  CombinedCompletionAndResultMessage(transid, activation, instance))
+
+                store(msg.transid, activation, UserContext(msg.user))
                 Future.successful(())
             }
         } else {
           // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol
           // Due to the protective nature of the blacklist, a database entry is not written.
           activationFeed ! MessageFeed.Processed
+
           val activation =
             generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(msg.transid, activation, false, msg.rootControllerIndex, msg.user.namespace.uuid, true)
+          ack(
+            msg.transid,
+            activation,
+            false,
+            msg.rootControllerIndex,
+            msg.user.namespace.uuid,
+            CombinedCompletionAndResultMessage(transid, activation, instance))
+
           logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
         }

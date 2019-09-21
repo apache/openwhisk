@@ -204,17 +204,20 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected[loadBalancer] def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = Future {
     val raw = new String(bytes, StandardCharsets.UTF_8)
     AcknowledegmentMessage.parse(raw) match {
-      case Success(m: CompletionMessage) =>
-        processCompletion(
-          m.activationId,
-          m.transid,
-          forced = false,
-          isSystemError = m.isSystemError,
-          invoker = m.invoker)
-        activationFeed ! MessageFeed.Processed
+      case Success(acknowledegment) =>
+        acknowledegment.isSlotFree.foreach { invoker =>
+          processCompletion(
+            acknowledegment.activationId,
+            acknowledegment.transid,
+            forced = false,
+            isSystemError = acknowledegment.isSystemError.getOrElse(false),
+            invoker)
+        }
 
-      case Success(m: ResultMessage) =>
-        processResult(m.response, m.transid)
+        acknowledegment.result.foreach { response =>
+          processResult(acknowledegment.activationId, acknowledegment.transid, response)
+        }
+
         activationFeed ! MessageFeed.Processed
 
       case Failure(t) =>
@@ -228,9 +231,9 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   }
 
   /** 5. Process the result ack and return it to the user */
-  protected def processResult(response: Either[ActivationId, WhiskActivation], tid: TransactionId): Unit = {
-    val aid = response.fold(l => l, r => r.activationId)
-
+  protected def processResult(aid: ActivationId,
+                              tid: TransactionId,
+                              response: Either[ActivationId, WhiskActivation]): Unit = {
     // Resolve the promise to send the result back to the user.
     // The activation will be removed from the activation slots later, when the completion message
     // is received (because the slot in the invoker is not yet free for new activations).

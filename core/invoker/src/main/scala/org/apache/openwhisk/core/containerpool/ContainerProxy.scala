@@ -18,17 +18,24 @@
 package org.apache.openwhisk.core.containerpool
 
 import java.time.Instant
+
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
+
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.connector.ActivationMessage
+import org.apache.openwhisk.core.connector.{
+  ActivationMessage,
+  CombinedCompletionAndResultMessage,
+  CompletionMessage,
+  ResultMessage
+}
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
@@ -36,6 +43,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
 import org.apache.openwhisk.http.Messages
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -300,7 +308,7 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
-              true)
+              CombinedCompletionAndResultMessage(transid, activation, instance))
             storeActivation(transid, activation, context)
         }
         .flatMap { container =>
@@ -628,8 +636,15 @@ class ContainerProxy(
     // completion message which frees a load balancer slot is sent after the active ack future
     // completes to ensure proper ordering.
     val sendResult = if (job.msg.blocking) {
-      activation.map(
-        sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, false))
+      activation.map { result =>
+        sendActiveAck(
+          tid,
+          result,
+          job.msg.blocking,
+          job.msg.rootControllerIndex,
+          job.msg.user.namespace.uuid,
+          ResultMessage(tid, result))
+      }
     } else {
       // For non-blocking request, do not forward the result.
       Future.successful(())
@@ -673,7 +688,7 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
-              true))
+              CompletionMessage(tid, activation, instance)))
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
@@ -699,7 +714,7 @@ object ContainerProxy {
               ByteSize,
               Int,
               Option[ExecutableWhiskAction]) => Future[Container],
-    ack: (TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, Boolean) => Future[Any],
+    ack: ActiveAck,
     store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InvokerInstanceId,
