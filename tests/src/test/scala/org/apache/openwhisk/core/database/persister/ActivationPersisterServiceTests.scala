@@ -21,7 +21,6 @@ import java.time.Instant
 
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigFactory
 import common.{FreePortFinder, StreamLogging}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.{
@@ -30,26 +29,22 @@ import org.apache.openwhisk.core.connector.{
   CompletionMessage,
   ResultMessage
 }
-import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
-import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, StaleParameter, UserContext}
+import org.apache.openwhisk.core.database.{ActivationStore, StaleParameter}
 import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   ActivationId,
-  DocumentReader,
   EntityName,
   EntityPath,
   InvokerInstanceId,
   Subject,
-  WhiskActivation,
-  WhiskDocumentReader
+  WhiskActivation
 }
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
-import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.duration._
 
@@ -62,33 +57,18 @@ class ActivationPersisterServiceTests
     with ScalaFutures
     with BeforeAndAfterAll
     with MockFactory
-    with StreamLogging {
+    with StreamLogging
+    with PersisterServiceFixture {
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
-  private val artifactStore = {
-    implicit val docReader: DocumentReader = WhiskDocumentReader
-    MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
-  }
 
-  private val activationStore = {
-    val store = mock[ActivationStore]
-    (store
-      .store(_: WhiskActivation, _: UserContext)(_: TransactionId, _: Option[CacheChangeNotification]))
-      .expects(*, *, *, *)
-      .anyNumberOfTimes()
-      .onCall { (act, _, tid, _) =>
-        artifactStore.put(act)(tid)
-      }
-    store
-  }
+  protected val (activationStore, artifactStore) = createMemoryActivationStore()
+
+  override protected def createActivationConsumer(persisterConfig: PersisterConfig, activationStore: ActivationStore) =
+    ActivationPersisterService.start(persisterConfig, activationStore)
 
   private val invokerId = InvokerInstanceId(1, userMemory = 1.MB)
-
-  private var consumer: ActivationConsumer = _
-
-  //We just need stubbing and not verification
-  autoVerify = false
 
   override def withFixture(test: NoArgTest) = {
     var testResultHandled = false
@@ -105,16 +85,6 @@ class ActivationPersisterServiceTests
       stream.reset()
     }
     outcome
-  }
-
-  protected override def beforeAll(): Unit = {
-    super.beforeAll()
-    consumer = ActivationPersisterService.start(persisterConfig, activationStore)
-  }
-
-  protected override def afterAll(): Unit = {
-    consumer.shutdown().futureValue
-    super.afterAll()
   }
 
   behavior of "ActivationPersister"
@@ -220,13 +190,4 @@ class ActivationPersisterServiceTests
     if (persisterConfig.topicIsPattern) "completed-foo" else "activations"
   }
 
-  private def persisterConfig: PersisterConfig = {
-    val kafkaHost = s"localhost:$kafkaPort"
-    val config = ConfigFactory.parseString(s"""whisk {
-      |  persister {
-      |    kafka-hosts = "$kafkaHost"
-      |  }
-      |}""".stripMargin).withFallback(ConfigFactory.load())
-    loadConfigOrThrow[PersisterConfig](config.getConfig(ActivationPersisterService.configRoot))
-  }
 }
