@@ -19,6 +19,7 @@ package org.apache.openwhisk.common
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
+
 import scala.annotation.tailrec
 
 /**

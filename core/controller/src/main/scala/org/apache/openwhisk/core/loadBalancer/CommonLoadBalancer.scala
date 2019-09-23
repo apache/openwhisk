@@ -41,13 +41,16 @@ import scala.util.{Failure, Success}
 /**
  * Abstract class which provides common logic for all LoadBalancer implementations.
  */
-abstract class CommonLoadBalancer(config: WhiskConfig,
-                                  feedFactory: FeedFactory,
-                                  controllerInstance: ControllerInstanceId)(implicit val actorSystem: ActorSystem,
-                                                                            logging: Logging,
-                                                                            materializer: ActorMaterializer,
-                                                                            messagingProvider: MessagingProvider)
-    extends LoadBalancer {
+abstract class CommonLoadBalancer(
+  config:             WhiskConfig,
+  feedFactory:        FeedFactory,
+  controllerInstance: ControllerInstanceId
+)(implicit
+  val actorSystem: ActorSystem,
+  logging:           Logging,
+  materializer:      ActorMaterializer,
+  messagingProvider: MessagingProvider)
+  extends LoadBalancer {
 
   protected implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -68,13 +71,16 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     MetricEmitter.emitGaugeMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
     MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""),
-      totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue)
+      totalBlackBoxActivationMemory.longValue + totalManagedActivationMemory.longValue
+    )
     MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Blackbox"),
-      totalBlackBoxActivationMemory.longValue)
+      totalBlackBoxActivationMemory.longValue
+    )
     MetricEmitter.emitGaugeMetric(
       LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, "Managed"),
-      totalManagedActivationMemory.longValue)
+      totalManagedActivationMemory.longValue
+    )
   }
 
   actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
@@ -112,9 +118,11 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
    * the DB poll which is also trying to do the same.
    * Once the completion ack arrives, activationSlots entry will be removed.
    */
-  protected def setupActivation(msg: ActivationMessage,
-                                action: ExecutableWhiskActionMetaData,
-                                instance: InvokerInstanceId): Future[Either[ActivationId, WhiskActivation]] = {
+  protected def setupActivation(
+    msg:      ActivationMessage,
+    action:   ExecutableWhiskActionMetaData,
+    instance: InvokerInstanceId
+  ): Future[Either[ActivationId, WhiskActivation]] = {
 
     // Needed for emitting metrics.
     totalActivations.increment()
@@ -146,23 +154,25 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     // invoker overloads so that activations need to wait until other activations complete.
     activationSlots.getOrElseUpdate(
       msg.activationId, {
-        val timeoutHandler = actorSystem.scheduler.scheduleOnce(completionAckTimeout) {
-          processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
-        }
+      val timeoutHandler = actorSystem.scheduler.scheduleOnce(completionAckTimeout) {
+        processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
+      }
 
-        // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
-        ActivationEntry(
-          msg.activationId,
-          msg.user.namespace.uuid,
-          instance,
-          action.limits.memory.megabytes.MB,
-          action.limits.timeout.duration,
-          action.limits.concurrency.maxConcurrent,
-          action.fullyQualifiedName(true),
-          timeoutHandler,
-          isBlackboxInvocation,
-          msg.blocking)
-      })
+      // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
+      ActivationEntry(
+        msg.activationId,
+        msg.user.namespace.uuid,
+        instance,
+        action.limits.memory.megabytes.MB,
+        action.limits.timeout.duration,
+        action.limits.concurrency.maxConcurrent,
+        action.fullyQualifiedName(true),
+        timeoutHandler,
+        isBlackboxInvocation,
+        msg.blocking
+      )
+    }
+    )
 
     resultPromise
   }
@@ -171,9 +181,11 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     messagingProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
 
   /** 3. Send the activation to the invoker */
-  protected def sendActivationToInvoker(producer: MessageProducer,
-                                        msg: ActivationMessage,
-                                        invoker: InvokerInstanceId): Future[RecordMetadata] = {
+  protected def sendActivationToInvoker(
+    producer: MessageProducer,
+    msg:      ActivationMessage,
+    invoker:  InvokerInstanceId
+  ): Future[RecordMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     val topic = s"invoker${invoker.toInt}"
@@ -183,7 +195,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
       s"posting topic '$topic' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+      logLevel = InfoLevel
+    )
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
@@ -191,7 +204,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           this,
           start,
           s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
-          logLevel = InfoLevel)
+          logLevel = InfoLevel
+        )
       case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
@@ -256,11 +270,13 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     LoggingMarkers.LOADBALANCER_COMPLETION_ACK(controllerInstance, ForcedAfterRegularCompletionAck)
 
   /** 6. Process the completion ack and update the state */
-  protected[loadBalancer] def processCompletion(aid: ActivationId,
-                                                tid: TransactionId,
-                                                forced: Boolean,
-                                                isSystemError: Boolean,
-                                                invoker: InvokerInstanceId): Unit = {
+  protected[loadBalancer] def processCompletion(
+    aid:           ActivationId,
+    tid:           TransactionId,
+    forced:        Boolean,
+    isSystemError: Boolean,
+    invoker:       InvokerInstanceId
+  ): Unit = {
 
     val invocationResult = if (forced) {
       InvocationFinishedResult.Timeout
@@ -304,8 +320,10 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           val completionAckTimeout = calculateCompletionAckTimeout(entry.timeLimit)
           logging.warn(
             this,
-            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker")(
-            tid)
+            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
+          )(
+              tid
+            )
 
           MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED)
         }
@@ -331,7 +349,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // message - but not in time.
         logging.warn(
           this,
-          s"received completion ack for '$aid' from $invoker which has no entry, system error=$isSystemError")(tid)
+          s"received completion ack for '$aid' from $invoker which has no entry, system error=$isSystemError"
+        )(tid)
 
         MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED)
       case None =>

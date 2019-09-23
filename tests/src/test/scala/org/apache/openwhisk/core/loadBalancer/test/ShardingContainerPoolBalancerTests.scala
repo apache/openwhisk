@@ -37,7 +37,7 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.common.NestedMemorySemaphore
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
@@ -78,11 +78,11 @@ import org.apache.openwhisk.core.loadBalancer._
  */
 @RunWith(classOf[JUnitRunner])
 class ShardingContainerPoolBalancerTests
-    extends FlatSpec
-    with Matchers
-    with StreamLogging
-    with ExecHelpers
-    with MockFactory {
+  extends FlatSpec
+  with Matchers
+  with StreamLogging
+  with ExecHelpers
+  with MockFactory {
   behavior of "ShardingContainerPoolBalancerState"
 
   val defaultUserMemory: ByteSize = 1024.MB
@@ -92,8 +92,8 @@ class ShardingContainerPoolBalancerTests
   def unhealthy(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Unhealthy)
   def offline(i: Int) = new InvokerHealth(InvokerInstanceId(i, userMemory = defaultUserMemory), Offline)
 
-  def semaphores(count: Int, max: Int): IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]] =
-    IndexedSeq.fill(count)(new NestedSemaphore[FullyQualifiedEntityName](max))
+  def semaphores(count: Int, max: Int): IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] =
+    IndexedSeq.fill(count)(new NestedMemorySemaphore[FullyQualifiedEntityName](max))
 
   def lbConfig(blackboxFraction: Double, managedFraction: Option[Double] = None) =
     ShardingContainerPoolBalancerConfig(managedFraction.getOrElse(1.0 - blackboxFraction), blackboxFraction, 1)
@@ -249,7 +249,8 @@ class ShardingContainerPoolBalancerTests
       IndexedSeq.empty,
       MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
-      step = 2) shouldBe None
+      step = 2
+    ) shouldBe None
   }
 
   it should "return None if no invokers are healthy" in {
@@ -264,7 +265,8 @@ class ShardingContainerPoolBalancerTests
       invokerSlots,
       MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
-      step = 2) shouldBe None
+      step = 2
+    ) shouldBe None
   }
 
   it should "choose the first available invoker, jumping in stepSize steps, falling back to randomized scheduling once all invokers are full" in {
@@ -418,7 +420,8 @@ class ShardingContainerPoolBalancerTests
       namespace,
       name,
       js10MetaData(Some("jsMain"), false),
-      limits = actionLimits(actionMem, concurrency))
+      limits = actionLimits(actionMem, concurrency)
+    )
   val maxContainers = invokerMem.toMB.toInt / actionMetaData.limits.memory.megabytes
   val numInvokers = 3
   val maxActivations = maxContainers * numInvokers * concurrency
@@ -469,11 +472,12 @@ class ShardingContainerPoolBalancerTests
     }
     val invokerPoolProbe = new InvokerPoolFactory {
       override def createInvokerPool(
-        actorRefFactory: ActorRefFactory,
-        messagingProvider: MessagingProvider,
-        messagingProducer: MessageProducer,
+        actorRefFactory:         ActorRefFactory,
+        messagingProvider:       MessagingProvider,
+        messagingProducer:       MessageProducer,
         sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-        monitor: Option[ActorRef]): ActorRef =
+        monitor:                 Option[ActorRef]
+      ): ActorRef =
         TestProbe().testActor
     }
     val balancer =
@@ -504,7 +508,8 @@ class ShardingContainerPoolBalancerTests
         ControllerInstanceId("0"),
         blocking = false,
         content = None,
-        initArgs = Set.empty)
+        initArgs = Set.empty
+      )
 
       //send activation to loadbalancer
       aid -> balancer.publish(actionMetaData.toExecutableWhiskAction.get, msg)

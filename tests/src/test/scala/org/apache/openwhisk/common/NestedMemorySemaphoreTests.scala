@@ -23,11 +23,11 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class NestedSemaphoreTests extends FlatSpec with Matchers {
-  behavior of "NestedSemaphore"
+class NestedMemorySemaphoreTests extends FlatSpec with Matchers {
+  behavior of "NestedMemorySemaphoreTests"
 
   it should "allow acquire of concurrency permits before acquire of memory permits" in {
-    val s = new NestedSemaphore[String](20)
+    val s = new NestedMemorySemaphore[String](20)
     s.availablePermits shouldBe 20
 
     val actionId = "action1"
@@ -53,7 +53,7 @@ class NestedSemaphoreTests extends FlatSpec with Matchers {
   it should "not give away more permits even under concurrent load" in {
     // 100 iterations of this test
     (0 until 100).foreach { _ =>
-      val s = new NestedSemaphore(32)
+      val s = new NestedMemorySemaphore(32)
       // try to acquire more permits than allowed in parallel
       val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
 

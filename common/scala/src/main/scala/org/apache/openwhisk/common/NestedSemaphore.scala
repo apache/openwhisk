@@ -20,21 +20,20 @@ package org.apache.openwhisk.common
 import scala.collection.concurrent.TrieMap
 
 /**
- * A Semaphore that coordinates the memory (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
+ * A Semaphore that coordinates the resources (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
  * - for invocations when maxConcurrent == 1, delegate to super
- * - for invocations that cause acquire on memory slots, also acquire concurrency slots, and do it atomically
- * @param memoryPermits
+ * - for invocations that cause acquire on resources slots, also acquire concurrency slots, and do it atomically
+ * @param permits (no matter what) permits count in Int
  * @tparam T
  */
-class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPermits) {
+class NestedSemaphore[T](permits: Int) extends ForcibleSemaphore(permits) {
   private val actionConcurrentSlotsMap = TrieMap.empty[T, ResizableSemaphore] //one key per action; resized per container
 
-  final def tryAcquireConcurrent(actionid: T, maxConcurrent: Int, memoryPermits: Int): Boolean = {
-
+  def tryAcquireConcurrent(actionid: T, maxConcurrent: Int, permits: Int): Boolean = {
     if (maxConcurrent == 1) {
-      super.tryAcquire(memoryPermits)
+      super.tryAcquire(permits)
     } else {
-      tryOrForceAcquireConcurrent(actionid, maxConcurrent, memoryPermits, false)
+      tryOrForceAcquireConcurrent(actionid, maxConcurrent, permits, false)
     }
   }
 
@@ -44,20 +43,22 @@ class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPer
    * - then try to acquire lock for this action
    * - within the lock:
    *     - try to acquire concurrency slot (double check)
-   *     - try to acquire memory slot
-   *     - if memory slot acquired, release concurrency slots
+   *     - try to acquire resources slot
+   *     - if resources slot acquired, release concurrency slots
    * - release the lock
-   * - if neither concurrency slot nor memory slot acquired, return false
+   * - if neither concurrency slot nor resources slot acquired, return false
    * @param actionid
    * @param maxConcurrent
-   * @param memoryPermits
+   * @param permits
    * @param force
    * @return
    */
-  private def tryOrForceAcquireConcurrent(actionid: T,
-                                          maxConcurrent: Int,
-                                          memoryPermits: Int,
-                                          force: Boolean): Boolean = {
+  private def tryOrForceAcquireConcurrent(
+    actionid:      T,
+    maxConcurrent: Int,
+    permits:       Int,
+    force:         Boolean
+  ): Boolean = {
     val concurrentSlots = actionConcurrentSlotsMap
       .getOrElseUpdate(actionid, new ResizableSemaphore(0, maxConcurrent))
     if (concurrentSlots.tryAcquire(1)) {
@@ -68,10 +69,10 @@ class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPer
         if (concurrentSlots.tryAcquire(1)) {
           true
         } else if (force) {
-          super.forceAcquire(memoryPermits)
+          super.forceAcquire(permits)
           concurrentSlots.release(maxConcurrent - 1, false)
           true
-        } else if (super.tryAcquire(memoryPermits)) {
+        } else if (super.tryAcquire(permits)) {
           concurrentSlots.release(maxConcurrent - 1, false)
           true
         } else {
@@ -81,12 +82,12 @@ class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPer
     }
   }
 
-  def forceAcquireConcurrent(actionid: T, maxConcurrent: Int, memoryPermits: Int): Unit = {
-    require(memoryPermits > 0, "cannot force acquire negative or no permits")
+  def forceAcquireConcurrent(actionid: T, maxConcurrent: Int, permits: Int): Unit = {
+    require(permits > 0, "cannot force acquire negative or no permits")
     if (maxConcurrent == 1) {
-      super.forceAcquire(memoryPermits)
+      super.forceAcquire(permits)
     } else {
-      tryOrForceAcquireConcurrent(actionid, maxConcurrent, memoryPermits, true)
+      tryOrForceAcquireConcurrent(actionid, maxConcurrent, permits, true)
     }
   }
 
@@ -95,16 +96,16 @@ class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPer
    *
    * @param acquires the number of permits to release
    */
-  def releaseConcurrent(actionid: T, maxConcurrent: Int, memoryPermits: Int): Unit = {
-    require(memoryPermits > 0, "cannot release negative or no permits")
+  def releaseConcurrent(actionid: T, maxConcurrent: Int, permits: Int): Unit = {
+    require(permits > 0, "cannot release negative or no permits")
     if (maxConcurrent == 1) {
-      super.release(memoryPermits)
+      super.release(permits)
     } else {
       val concurrentSlots = actionConcurrentSlotsMap(actionid)
-      val (memoryRelease, actionRelease) = concurrentSlots.release(1, true)
+      val (resourcesRelease, actionRelease) = concurrentSlots.release(1, true)
       //concurrent slots
-      if (memoryRelease) {
-        super.release(memoryPermits)
+      if (resourcesRelease) {
+        super.release(permits)
       }
       if (actionRelease) {
         actionConcurrentSlotsMap.remove(actionid)
