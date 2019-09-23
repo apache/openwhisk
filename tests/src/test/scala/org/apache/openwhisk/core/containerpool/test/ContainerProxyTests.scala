@@ -147,7 +147,7 @@ class ContainerProxyTests
 
   /** Expect a NeedWork message with prewarmed data */
   def expectPreWarmed(kind: String) = expectMsgPF() {
-    case NeedWork(PreWarmedData(_, kind, memoryLimit, cpuCoresLimit, _)) => true
+    case NeedWork(PreWarmedData(_, kind, memoryLimit, cpuThreadsLimit, _)) => true
   }
 
   /** Expect a NeedWork message with warmed data */
@@ -1182,11 +1182,11 @@ class ContainerProxyTests
       case WarmingColdData(message.user.namespace.name, action, _, 1) =>
     }
 
-    val memData = ResourcesData(action.limits.memory.megabytes.MB, action.limits.cpu.cores)
+    val memData = ResourcesData(action.limits.memory.megabytes.MB, action.limits.cpu.threads)
     memData.nextRun(Run(action, message)) should matchPattern {
       case WarmingColdData(message.user.namespace.name, action, _, 1) =>
     }
-    val pwData = PreWarmedData(new TestContainer(), action.exec.kind, action.limits.memory.megabytes.MB, action.limits.cpu.cores)
+    val pwData = PreWarmedData(new TestContainer(), action.exec.kind, action.limits.memory.megabytes.MB, action.limits.cpu.threads)
     pwData.nextRun(Run(action, message)) should matchPattern {
       case WarmingData(pwData.container, message.user.namespace.name, action, _, 1) =>
     }

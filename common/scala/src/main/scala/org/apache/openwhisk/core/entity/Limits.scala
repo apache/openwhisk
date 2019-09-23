@@ -18,10 +18,7 @@
 package org.apache.openwhisk.core.entity
 
 import scala.util.Try
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.DefaultJsonProtocol
+import spray.json.{DefaultJsonProtocol, JsNumber, JsValue, RootJsonFormat, deserializationError}
 
 /**
  * Abstract type for limits on triggers and actions. This may
@@ -77,7 +74,7 @@ protected[core] object ActionLimits extends ArgNormalizer[ActionLimits] with Def
       val memory = MemoryLimit.serdes.read(obj.get("memory") getOrElse deserializationError("'memory' is missing"))
       val logs = obj.get("logs") map { LogLimit.serdes.read(_) } getOrElse LogLimit()
       val concurrency = obj.get("concurrency") map { ConcurrencyLimit.serdes.read(_) } getOrElse ConcurrencyLimit()
-      val cpu = obj.get("cpu") map { CPULimit.serdes.read(_) } getOrElse CPULimit()
+      val cpu = CPULimit.serdes.read(obj.get("cpu") getOrElse JsNumber(CPULimit.STD_CPU))
 
       ActionLimits(time, memory, logs, concurrency, cpu)
     }

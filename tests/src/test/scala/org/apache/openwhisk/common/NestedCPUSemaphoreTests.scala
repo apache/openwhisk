@@ -32,7 +32,7 @@ class NestedCPUSemaphoreTests extends FlatSpec with Matchers {
 
     val actionId = "action1"
     val actionConcurrency = 5
-    val actionCPU = CPULimitUtils.coresToPermits(0.06)
+    val actionCPU = CPULimitUtils.threadsToPermits(0.06)
     //use all concurrency on a single slot
     (1 to 5).par.map { _ =>
       s.tryAcquireConcurrent(actionId, actionConcurrency, actionCPU) shouldBe true
