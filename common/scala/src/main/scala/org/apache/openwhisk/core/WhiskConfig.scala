@@ -269,4 +269,7 @@ object ConfigKeys {
   val apacheClientConfig = "whisk.apache-client"
 
   val parameterStorage = "whisk.parameter-storage"
+
+  val kafkaActivationStore = "whisk.kafka-activation-store"
+  val invokerActivations = "whisk.invoker.activations"
 }

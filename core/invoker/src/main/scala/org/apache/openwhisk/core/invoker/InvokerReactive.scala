@@ -56,14 +56,16 @@ object InvokerReactive extends InvokerProvider {
 
 }
 
+case class ActivationStorageConfig(activationStoreEnabled: Boolean, activationsTopic: String)
+
 class InvokerReactive(
   config: WhiskConfig,
   instance: InvokerInstanceId,
   producer: MessageProducer,
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
-  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
+  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit),
+  activationStorageConfig: ActivationStorageConfig = loadConfigOrThrow[ActivationStorageConfig](
+    ConfigKeys.invokerActivations))(implicit actorSystem: ActorSystem, logging: Logging)
     extends InvokerCore {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -141,9 +143,14 @@ class InvokerReactive(
   private val collectLogs = new LogStoreCollector(logsProvider)
 
   /** Stores an activation in the database. */
-  private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
-    implicit val transid: TransactionId = tid
-    activationStore.storeAfterCheck(activation, context)(tid, notifier = None)
+  private val store = if (activationStorageConfig.activationStoreEnabled) {
+    (tid: TransactionId, activation: WhiskActivation, context: UserContext) =>
+      {
+        implicit val transid: TransactionId = tid
+        activationStore.storeAfterCheck(activation, context)(tid, notifier = None)
+      }
+  } else { (_: TransactionId, _: WhiskActivation, _: UserContext) =>
+    Future.successful(Unit)
   }
 
   /** Creates a ContainerProxy Actor when being called. */
