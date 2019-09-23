@@ -429,7 +429,7 @@ class ShardingContainerPoolBalancerTests
   // - no concurrency room and no memory room to launch new containers
   //(1 until maxActivations).foreach { i =>
   (75 until maxActivations).foreach { i =>
-    it should s"reflect concurrent processing ${i} state in containerSlots" in {
+    it should s"reflect concurrent processing $i state in containerSlots" in {
       //each batch will:
       // - submit activations concurrently
       // - wait for activation submission to messaging system (mostly to detect which invoker was assiged
@@ -459,6 +459,7 @@ class ShardingContainerPoolBalancerTests
 
     messaging
   }
+
   def testActivationBatch(numActivations: Int): Unit = {
     //setup mock messaging
     val feedProbe = new FeedFactory {

@@ -242,7 +242,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
   import scala.concurrent.blocking
 
   // unit tests that need an activation via active ack/fast path should set this to value expected
-  var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
+  var whiskActivationStub: Option[(FiniteDuration, Either[ActivationId, WhiskActivation])] = None
   var activationMessageChecker: Option[ActivationMessage => Unit] = None
 
   override def totalActiveActivations = Future.successful(0)
@@ -261,7 +261,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
               Thread.sleep(timeout.toMillis)
               println(".... done waiting")
             }
-            Right(activation)
+            activation
           }
       } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
     }
