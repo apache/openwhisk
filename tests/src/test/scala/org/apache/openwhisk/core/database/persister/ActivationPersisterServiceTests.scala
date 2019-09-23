@@ -24,7 +24,12 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import common.{FreePortFinder, StreamLogging}
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CompletionMessage, ResultMessage}
+import org.apache.openwhisk.core.connector.{
+  AcknowledegmentMessage,
+  CombinedCompletionAndResultMessage,
+  CompletionMessage,
+  ResultMessage
+}
 import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, StaleParameter, UserContext}
 import org.apache.openwhisk.core.entity.WhiskQueries.TOP
@@ -78,6 +83,8 @@ class ActivationPersisterServiceTests
     store
   }
 
+  private val invokerId = InvokerInstanceId(1, userMemory = 1.MB)
+
   private var consumer: ActivationConsumer = _
 
   //We just need stubbing and not verification
@@ -129,17 +136,13 @@ class ActivationPersisterServiceTests
   }
 
   it should "handle mixed events" in {
-    val totalCount = 4
+    val totalCount = 5
     val ns = "testNSConflictMixed"
     val rm1 = newResultMessage(ns)
     val rm2 = newResultMessage(ns)
-    val irm1 = ResultMessage(TransactionId.testing, Left(ActivationId.generate()))
+    val irm1 = newCombinedMessage(ns)
     val irm2 =
-      CompletionMessage(
-        TransactionId.testing,
-        ActivationId.generate(),
-        isSystemError = false,
-        InvokerInstanceId(1, userMemory = 1.MB))
+      CompletionMessage(TransactionId.testing, newActivation("foo"), invokerId)
     val msgs = List(rm1, rm2, newResultMessage(ns), irm1, irm2, newResultMessage(ns))
     produceAndAssert(msgs.map(_.serialize), ns, _ == totalCount)
   }
@@ -185,6 +188,15 @@ class ActivationPersisterServiceTests
   }
 
   private def newResultMessage(namespace: String): AcknowledegmentMessage = {
+    val wa: WhiskActivation = newActivation(namespace)
+    ResultMessage(TransactionId.testing, wa)
+  }
+
+  private def newCombinedMessage(namespace: String): AcknowledegmentMessage = {
+    CombinedCompletionAndResultMessage(TransactionId.testing, newActivation(namespace), invokerId)
+  }
+
+  private def newActivation(namespace: String) = {
     val start = 1000
     val wa = WhiskActivation(
       EntityPath(namespace),
@@ -193,7 +205,7 @@ class ActivationPersisterServiceTests
       ActivationId.generate(),
       Instant.ofEpochMilli(start),
       Instant.ofEpochMilli(start + 1000))
-    ResultMessage(TransactionId.testing, Right(wa))
+    wa
   }
 
   private def countActivations(namespace: String): Int = {

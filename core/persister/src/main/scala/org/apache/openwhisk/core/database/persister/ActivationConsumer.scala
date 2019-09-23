@@ -30,7 +30,7 @@ import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ResultMessage}
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CombinedCompletionAndResultMessage, ResultMessage}
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 
@@ -125,8 +125,9 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
     //Avoid converting to string first and then to json. Instead directly parse to JSON
     val js = JsonParser(ParserInput(data))
     AcknowledegmentMessage.serdes.read(js) match {
-      case ResultMessage(tid, Right(wa)) => Some((tid, wa))
-      case _                             => None
+      case ResultMessage(tid, Right(wa))                            => Some((tid, wa))
+      case CombinedCompletionAndResultMessage(tid, Right(wa), _, _) => Some((tid, wa))
+      case _                                                        => None
     }
   }
 
