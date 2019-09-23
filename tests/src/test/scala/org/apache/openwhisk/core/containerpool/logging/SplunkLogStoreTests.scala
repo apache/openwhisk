@@ -46,12 +46,12 @@ import scala.util.{Failure, Success, Try}
 
 @RunWith(classOf[JUnitRunner])
 class SplunkLogStoreTests
-    extends TestKit(ActorSystem("SplunkLogStore"))
-    with FlatSpecLike
-    with Matchers
-    with BeforeAndAfterAll
-    with ScalaFutures
-    with StreamLogging {
+  extends TestKit(ActorSystem("SplunkLogStore"))
+  with FlatSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaFutures
+  with StreamLogging {
 
   def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
 
@@ -72,7 +72,8 @@ class SplunkLogStoreTests
     "activation_id",
     "somefield::somevalue",
     22,
-    disableSNI = false)
+    disableSNI = false
+  )
 
   behavior of "Splunk LogStore"
 
@@ -87,7 +88,8 @@ class SplunkLogStoreTests
     method = POST,
     uri = "https://some.url",
     headers = List(RawHeader("key", "value")),
-    entity = HttpEntity(MediaTypes.`application/json`, JsObject.empty.compactPrint))
+    entity = HttpEntity(MediaTypes.`application/json`, JsObject.empty.compactPrint)
+  )
 
   val activation = WhiskActivation(
     namespace = EntityPath("ns"),
@@ -97,8 +99,9 @@ class SplunkLogStoreTests
     start = ZonedDateTime.parse(startTime).toInstant,
     end = ZonedDateTime.parse(endTime).toInstant,
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
-    annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson),
-    duration = Some(123))
+    annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB), cpu = CPULimit(0.1)).toJson),
+    duration = Some(123)
+  )
 
   val context = UserContext(user, request)
 
@@ -126,7 +129,8 @@ class SplunkLogStoreTests
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.logMessageField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
+                s"""search index="${testConfig.index}"| spath ${testConfig.logMessageField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse"""
+              )
 
               (
                 Success(
@@ -134,8 +138,12 @@ class SplunkLogStoreTests
                     StatusCodes.OK,
                     entity = HttpEntity(
                       ContentTypes.`application/json`,
-                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_timestamp": "2007-12-03T10:15:30Z", "log_stream":"stdout", "log_message":"some log message"},{"log_timestamp": "2007-12-03T10:15:31Z", "log_stream":"stderr", "log_message":"some other log message"},{},{"log_timestamp": "2007-12-03T10:15:32Z", "log_stream":"stderr"}], "highlighted":{}}"""))),
-                userContext)
+                      """{"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_timestamp": "2007-12-03T10:15:30Z", "log_stream":"stdout", "log_message":"some log message"},{"log_timestamp": "2007-12-03T10:15:31Z", "log_stream":"stderr", "log_message":"some other log message"},{},{"log_timestamp": "2007-12-03T10:15:32Z", "log_stream":"stderr"}], "highlighted":{}}"""
+                    )
+                  )
+                ),
+                  userContext
+              )
             }
             .recover {
               case e =>
@@ -164,7 +172,9 @@ class SplunkLogStoreTests
         "2007-12-03T10:15:30Z           stdout: some log message",
         "2007-12-03T10:15:31Z           stderr: some other log message",
         "The log message can't be retrieved, key not found: log_timestamp",
-        "The log message can't be retrieved, key not found: log_message"))
+        "The log message can't be retrieved, key not found: log_message"
+      )
+    )
   }
 
   it should "fail to connect to bogus host" in {

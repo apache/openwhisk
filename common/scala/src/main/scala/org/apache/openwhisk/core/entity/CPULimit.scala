@@ -51,13 +51,12 @@ protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
   /** A singleton CPULimit with default value */
   protected[core] val standardCPULimit = CPULimit(STD_CPU)
 
-  /** Gets CPULimit with default value */
   protected[core] def apply(): CPULimit = standardCPULimit
 
   /**
    * Creates CPULimit for limit, iff limit is within permissible range.
    *
-   * @param  the limit in megabytes, must be within permissible range
+   * @param  the limit in cpu cores, must be within permissible range
    * @return CPULimit with limit set
    * @throws IllegalArgumentException if limit does not conform to requirements
    */
@@ -66,6 +65,18 @@ protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
     require(cores >= MIN_CPU, s"CPU $cores below allowed threshold of $MIN_CPU")
     require(cores <= MAX_CPU, s"CPU $cores exceeds allowed threshold of $MAX_CPU")
     new CPULimit(cores)
+  }
+
+  /**
+    * Creates CPULimit for limit, iff limit is within permissible range.
+    *
+    * @param  the limit in cpu cores, must be within permissible range
+    * @return CPULimit with limit set
+    * @throws IllegalArgumentException if limit does not conform to requirements
+    */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(cores: Double): CPULimit = {
+    apply(cores.toFloat)
   }
 
   override protected[core] implicit val serdes = new RootJsonFormat[CPULimit] {

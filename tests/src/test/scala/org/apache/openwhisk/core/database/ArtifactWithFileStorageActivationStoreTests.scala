@@ -155,7 +155,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             duration = Some(101L),
             annotations = Parameters("kind", "nodejs:6") ++ Parameters(
               "limits",
-              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
+              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB), cpu = CPULimit(0.2)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
               Parameters("initTime", 44.toJson))
           val docInfo = await(activationStore.store(activation, context))
@@ -206,7 +206,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             duration = Some(101L),
             annotations = Parameters("kind", "nodejs:6") ++ Parameters(
               "limits",
-              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
+              ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB), cpu = CPULimit(0.2)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
               Parameters("initTime", 44.toJson))
           val docInfo = await(activationStore.store(activation, context))

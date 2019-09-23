@@ -76,14 +76,15 @@ protected[actions] trait PrimitiveActions {
 
   /** A method that knows how to invoke a sequence of actions. */
   protected[actions] def invokeSequence(
-    user: Identity,
-    action: WhiskActionMetaData,
-    components: Vector[FullyQualifiedEntityName],
-    payload: Option[JsObject],
+    user:                     Identity,
+    action:                   WhiskActionMetaData,
+    components:               Vector[FullyQualifiedEntityName],
+    payload:                  Option[JsObject],
     waitForOutermostResponse: Option[FiniteDuration],
-    cause: Option[ActivationId],
-    topmost: Boolean,
-    atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)]
+    cause:                    Option[ActivationId],
+    topmost:                  Boolean,
+    atomicActionsCount:       Int
+  )(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)]
 
   /**
    * A method that knows how to invoke a single primitive action or a composition.
@@ -106,11 +107,12 @@ protected[actions] trait PrimitiveActions {
    * The activation record for a composition also includes a specific annotation "conductor" with value true.
    */
   protected[actions] def invokeSingleAction(
-    user: Identity,
-    action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    user:            Identity,
+    action:          ExecutableWhiskActionMetaData,
+    payload:         Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause:           Option[ActivationId]
+  )(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
       invokeComposition(user, action, payload, waitForResponse, cause)
@@ -149,11 +151,12 @@ protected[actions] trait PrimitiveActions {
    *            RequestEntityTooLarge if the message is too large to to post to the message bus
    */
   private def invokeSimpleAction(
-    user: Identity,
-    action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    user:            Identity,
+    action:          ExecutableWhiskActionMetaData,
+    payload:         Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause:           Option[ActivationId]
+  )(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
@@ -164,7 +167,8 @@ protected[actions] trait PrimitiveActions {
       waitForResponse
         .map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING)
         .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
-      logLevel = InfoLevel)
+      logLevel = InfoLevel
+    )
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
@@ -179,7 +183,8 @@ protected[actions] trait PrimitiveActions {
       args,
       action.parameters.initParameters,
       cause = cause,
-      WhiskTracerProvider.tracer.getTraceContext(transid))
+      WhiskTracerProvider.tracer.getTraceContext(transid)
+    )
 
     val postedFuture = loadBalancer.publish(action, message)
 
@@ -239,15 +244,17 @@ protected[actions] trait PrimitiveActions {
    * @param logs a mutable buffer that is appended with new activation ids as the composition unfolds
    *             (in contrast with sequences, the logs of a hierarchy of compositions is not flattened)
    */
-  private case class Session(activationId: ActivationId,
-                             start: Instant,
-                             action: ExecutableWhiskActionMetaData,
-                             cause: Option[ActivationId],
-                             var duration: Long,
-                             var maxMemory: ByteSize,
-                             var state: Option[JsObject],
-                             accounting: CompositionAccounting,
-                             logs: Buffer[ActivationId])
+  private case class Session(
+    activationId:  ActivationId,
+    start:         Instant,
+    action:        ExecutableWhiskActionMetaData,
+    cause:         Option[ActivationId],
+    var duration:  Long,
+    var maxMemory: ByteSize,
+    var state:     Option[JsObject],
+    accounting:    CompositionAccounting,
+    logs:          Buffer[ActivationId]
+  )
 
   /**
    * A method that knows how to invoke a composition.
@@ -267,13 +274,17 @@ protected[actions] trait PrimitiveActions {
    *            Right(WhiskActivation) if waiting for a response and response is ready within allowed duration,
    *            Left(ActivationId) if not waiting for a response, or allowed duration has elapsed without a result ready
    */
-  private def invokeComposition(user: Identity,
-                                action: ExecutableWhiskActionMetaData,
-                                payload: Option[JsObject],
-                                waitForResponse: Option[FiniteDuration],
-                                cause: Option[ActivationId],
-                                accounting: Option[CompositionAccounting] = None)(
-    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+  private def invokeComposition(
+    user:            Identity,
+    action:          ExecutableWhiskActionMetaData,
+    payload:         Option[JsObject],
+    waitForResponse: Option[FiniteDuration],
+    cause:           Option[ActivationId],
+    accounting:      Option[CompositionAccounting] = None
+  )(
+    implicit
+    transid: TransactionId
+  ): Future[Either[ActivationId, WhiskActivation]] = {
 
     val session = Session(
       activationId = activationIdFactory.make(),
@@ -284,7 +295,8 @@ protected[actions] trait PrimitiveActions {
       maxMemory = action.limits.memory.megabytes MB,
       state = None,
       accounting = accounting.getOrElse(CompositionAccounting()), // share accounting with caller
-      logs = Buffer.empty)
+      logs = Buffer.empty
+    )
 
     logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
 
@@ -296,10 +308,12 @@ protected[actions] trait PrimitiveActions {
       .map(_ => response) // ignore waitForResponse when not topmost
       .orElse(
         // blocking invoke, wait until timeout
-        waitForResponse.map(response.withAlternativeAfterTimeout(_, Future.successful(Left(session.activationId)))))
+        waitForResponse.map(response.withAlternativeAfterTimeout(_, Future.successful(Left(session.activationId))))
+      )
       .getOrElse(
         // no, return the session id
-        Future.successful(Left(session.activationId)))
+        Future.successful(Left(session.activationId))
+      )
   }
 
   /**
@@ -316,7 +330,9 @@ protected[actions] trait PrimitiveActions {
    * @param transid a transaction id for logging
    */
   private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+    implicit
+    transid: TransactionId
+  ): Future[ActivationResponse] = {
 
     if (session.accounting.conductors > 2 * actionSequenceLimit) {
       // composition is too long
@@ -335,7 +351,8 @@ protected[actions] trait PrimitiveActions {
           action = session.action,
           payload = params,
           waitForResponse = Some(session.action.limits.timeout.duration + 1.minute), // wait for result
-          cause = Some(session.activationId)) // cause is session id
+          cause = Some(session.activationId)
+        ) // cause is session id
 
       waitForActivation(user, session, activationResponse).flatMap {
         case Left(response) => // unsuccessful invocation, return error response
@@ -369,13 +386,15 @@ protected[actions] trait PrimitiveActions {
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionIsTooLong))),
-                    session = session)
+                    session = session
+                  )
 
                 case None => // parsing failure
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentInvalid(next)))),
-                    session = session)
+                    session = session
+                  )
 
               }
           }
@@ -394,7 +413,9 @@ protected[actions] trait PrimitiveActions {
    * @return promise for the eventual activation
    */
   private def tryInvokeNext(user: Identity, fqn: FullyQualifiedEntityName, params: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+    implicit
+    transid: TransactionId
+  ): Future[ActivationResponse] = {
     val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
     entitlementProvider
       .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
@@ -413,7 +434,8 @@ protected[actions] trait PrimitiveActions {
               invokeConductor(
                 user,
                 payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotFound(fqn.asString)))),
-                session = session)
+                session = session
+              )
           }
       }
       .recoverWith {
@@ -422,7 +444,8 @@ protected[actions] trait PrimitiveActions {
           invokeConductor(
             user,
             payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotAccessible(fqn.asString)))),
-            session = session)
+            session = session
+          )
       }
   }
 
@@ -439,7 +462,9 @@ protected[actions] trait PrimitiveActions {
    * @param transid a transaction id for logging
    */
   private def invokeComponent(user: Identity, action: WhiskActionMetaData, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+    implicit
+    transid: TransactionId
+  ): Future[ActivationResponse] = {
 
     val exec = action.toExecutableWhiskAction
     val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
@@ -451,7 +476,8 @@ protected[actions] trait PrimitiveActions {
           payload,
           waitForResponse = None, // not topmost, hence blocking, no need for timeout
           cause = Some(session.activationId),
-          accounting = Some(session.accounting))
+          accounting = Some(session.accounting)
+        )
       case Some(action) => // primitive action
         session.accounting.components += 1
         invokeSimpleAction(
@@ -459,7 +485,8 @@ protected[actions] trait PrimitiveActions {
           action,
           payload,
           waitForResponse = Some(action.limits.timeout.duration + 1.minute),
-          cause = Some(session.activationId))
+          cause = Some(session.activationId)
+        )
       case None => // sequence
         session.accounting.components += 1
         val SequenceExecMetaData(components) = action.exec
@@ -471,7 +498,8 @@ protected[actions] trait PrimitiveActions {
           waitForOutermostResponse = None,
           cause = Some(session.activationId),
           topmost = false,
-          atomicActionsCount = 0).map(r => r._1)
+          atomicActionsCount = 0
+        ).map(r => r._1)
     }
 
     waitForActivation(user, session, activationResponse).flatMap {
@@ -493,10 +521,14 @@ protected[actions] trait PrimitiveActions {
    * @param activationResponse the future activation to wait on
    * @param transid a transaction id for logging
    */
-  private def waitForActivation(user: Identity,
-                                session: Session,
-                                activationResponse: Future[Either[ActivationId, WhiskActivation]])(
-    implicit transid: TransactionId): Future[Either[ActivationResponse, WhiskActivation]] = {
+  private def waitForActivation(
+    user:               Identity,
+    session:            Session,
+    activationResponse: Future[Either[ActivationId, WhiskActivation]]
+  )(
+    implicit
+    transid: TransactionId
+  ): Future[Either[ActivationResponse, WhiskActivation]] = {
 
     activationResponse
       .map {
@@ -526,14 +558,19 @@ protected[actions] trait PrimitiveActions {
    * Returns the activation.
    */
   private def completeActivation(user: Identity, session: Session, response: ActivationResponse)(
-    implicit transid: TransactionId): WhiskActivation = {
+    implicit
+    transid: TransactionId
+  ): WhiskActivation = {
 
     val context = UserContext(user)
 
     // compute max memory
     val sequenceLimits = Parameters(
       WhiskActivation.limitsAnnotation,
-      ActionLimits(session.action.limits.timeout, MemoryLimit(session.maxMemory), session.action.limits.logs).toJson)
+      ActionLimits(session.action.limits.timeout, MemoryLimit(session.maxMemory), session.action.limits.logs,
+        cpu = session.action.limits.cpu)
+        .toJson
+    )
 
     // set causedBy if not topmost
     val causedBy = session.cause.map { _ =>
@@ -565,7 +602,8 @@ protected[actions] trait PrimitiveActions {
         Parameters(WhiskActivation.conductorAnnotation, JsTrue) ++
         causedBy ++ binding ++
         sequenceLimits,
-      duration = Some(session.duration))
+      duration = Some(session.duration)
+    )
 
     if (UserEvents.enabled) {
       EventMessage.from(activation, s"controller${activeAckTopicIndex.asString}", user.namespace.uuid) match {
@@ -588,11 +626,15 @@ protected[actions] trait PrimitiveActions {
    * which could happen if the connection from an invoker to the message bus is disrupted, or if the publishing of the response
    * fails because the message is too large.
    */
-  private def waitForActivationResponse(user: Identity,
-                                        activationId: ActivationId,
-                                        totalWaitTime: FiniteDuration,
-                                        activeAckResponse: Future[Either[ActivationId, WhiskActivation]])(
-    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+  private def waitForActivationResponse(
+    user:              Identity,
+    activationId:      ActivationId,
+    totalWaitTime:     FiniteDuration,
+    activeAckResponse: Future[Either[ActivationId, WhiskActivation]]
+  )(
+    implicit
+    transid: TransactionId
+  ): Future[Either[ActivationId, WhiskActivation]] = {
     val context = UserContext(user)
     val result = Promise[Either[ActivationId, WhiskActivation]]
     val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.name.toPath, activationId))
@@ -630,12 +672,14 @@ protected[actions] trait PrimitiveActions {
    * @param docid the docid to poll for
    * @param result promise to resolve on result. Is also used to abort polling once completed.
    */
-  private def pollActivation(docid: DocId,
-                             context: UserContext,
-                             result: Promise[Either[ActivationId, WhiskActivation]],
-                             wait: Int => FiniteDuration,
-                             retries: Int = 0,
-                             maxRetries: Int = Int.MaxValue)(implicit transid: TransactionId): Unit = {
+  private def pollActivation(
+    docid:      DocId,
+    context:    UserContext,
+    result:     Promise[Either[ActivationId, WhiskActivation]],
+    wait:       Int => FiniteDuration,
+    retries:    Int                                            = 0,
+    maxRetries: Int                                            = Int.MaxValue
+  )(implicit transid: TransactionId): Unit = {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
         activationStore.get(ActivationId(docid.asString), context).onComplete {
@@ -644,7 +688,8 @@ protected[actions] trait PrimitiveActions {
               this,
               LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING_DATABASE_RETRIEVAL,
               s"retrieved activation for blocking invocation via DB polling",
-              logLevel = InfoLevel)
+              logLevel = InfoLevel
+            )
             result.trySuccess(Right(activation.withoutLogs))
           case Failure(_: NoDocumentException) => pollActivation(docid, context, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)

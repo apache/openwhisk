@@ -163,6 +163,7 @@ abstract class CommonLoadBalancer(
         msg.activationId,
         msg.user.namespace.uuid,
         instance,
+        action.limits.cpu.cores,
         action.limits.memory.megabytes.MB,
         action.limits.timeout.duration,
         action.limits.concurrency.maxConcurrent,
@@ -290,6 +291,7 @@ abstract class CommonLoadBalancer(
       }
     }
 
+    // TODO: Need to do something when enabled CPU limits
     activationSlots.remove(aid) match {
       case Some(entry) =>
         totalActivations.decrement()
@@ -378,6 +380,7 @@ case class ContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction
  * @param id id of the activation
  * @param namespaceId namespace that invoked the action
  * @param invokerName invoker the action is scheduled to
+ * @param cpuLimit CPU limit of the invoked action
  * @param memoryLimit memory limit of the invoked action
  * @param timeLimit time limit of the invoked action
  * @param maxConcurrent concurrency limit of the invoked action
@@ -390,6 +393,7 @@ case class ActivationEntry(
   id:                       ActivationId,
   namespaceId:              UUID,
   invokerName:              InvokerInstanceId,
+  cpuLimit:                 Float,
   memoryLimit:              ByteSize,
   timeLimit:                FiniteDuration,
   maxConcurrent:            Int,

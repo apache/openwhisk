@@ -234,7 +234,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     parameter(
       'blocking ? false,
       'result ? false,
@@ -269,12 +271,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     }
   }
 
-  private def doInvoke(user: Identity,
-                       actionWithMergedParams: WhiskActionMetaData,
-                       payload: Option[JsObject],
-                       blocking: Boolean,
-                       waitOverride: FiniteDuration,
-                       result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+  private def doInvoke(
+    user:                   Identity,
+    actionWithMergedParams: WhiskActionMetaData,
+    payload:                Option[JsObject],
+    blocking:               Boolean,
+    waitOverride:           FiniteDuration,
+    result:                 Boolean
+  )(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
       case Success(Left(activationId)) =>
@@ -339,7 +343,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     parameter('code ? true) { code =>
       code match {
         case true =>
@@ -372,25 +378,28 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter(
       'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
       'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
-      'count ? false) { (skip, limit, count) =>
-      if (!count) {
-        listEntities {
-          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = false) map {
-            list =>
-              list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+      'count ? false
+    ) { (skip, limit, count) =>
+        if (!count) {
+          listEntities {
+            WhiskAction.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = false) map {
+              list =>
+                list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+            }
+          }
+        } else {
+          countEntities {
+            WhiskAction.countCollectionInNamespace(entityStore, namespace, skip.n)
           }
         }
-      } else {
-        countEntities {
-          WhiskAction.countCollectionInNamespace(entityStore, namespace, skip.n)
-        }
       }
-    }
   }
 
   /** Replaces default namespaces in a vector of components from a sequence with appropriate namespace. */
-  private def resolveDefaultNamespace(components: Vector[FullyQualifiedEntityName],
-                                      user: Identity): Vector[FullyQualifiedEntityName] = {
+  private def resolveDefaultNamespace(
+    components: Vector[FullyQualifiedEntityName],
+    user:       Identity
+  ): Vector[FullyQualifiedEntityName] = {
     // if components are part of the default namespace, they contain `_`; replace it!
     val resolvedComponents = components map { c =>
       FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name)
@@ -409,14 +418,18 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * Creates a WhiskAction instance from the PUT request.
    */
   private def makeWhiskAction(content: WhiskActionPut, entityName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     val exec = content.exec.get
     val limits = content.limits map { l =>
       ActionLimits(
         l.timeout getOrElse TimeLimit(),
         l.memory getOrElse MemoryLimit(),
         l.logs getOrElse LogLimit(),
-        l.concurrency getOrElse ConcurrencyLimit())
+        l.concurrency getOrElse ConcurrencyLimit(),
+        l.cpu getOrElse CPULimit()
+      )
     } getOrElse ActionLimits()
     // This is temporary while we are making sequencing directly supported in the controller.
     // The parameter override allows this to work with Pipecode.code. Any parameters other
@@ -437,12 +450,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse SemVer(),
       content.publish getOrElse false,
-      WhiskActionsApi.amendAnnotations(content.annotations getOrElse Parameters(), exec))
+      WhiskActionsApi.amendAnnotations(content.annotations getOrElse Parameters(), exec)
+    )
   }
 
   /** For a sequence action, gather referenced entities and authorize access. */
   private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     exec match {
       case Some(seq: SequenceExec) =>
         logging.debug(this, "checking if sequence components are accessible")
@@ -452,7 +468,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   }
 
   private def entitleReferencedEntitiesMetaData(user: Identity, right: Privilege, exec: Option[ExecMetaDataBase])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     exec match {
       case Some(seq: SequenceExecMetaData) =>
         logging.info(this, "checking if sequence components are accessible")
@@ -463,7 +481,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Creates a WhiskAction from PUT content, generating default values where necessary. */
   private def make(user: Identity, entityName: FullyQualifiedEntityName, content: WhiskActionPut)(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId
+  ) = {
     content.exec map {
       case seq: SequenceExec =>
         // check that the sequence conforms to max length and no recursion rules
@@ -508,7 +528,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.timeout getOrElse action.limits.timeout,
         l.memory getOrElse action.limits.memory,
         l.logs getOrElse action.limits.logs,
-        l.concurrency getOrElse action.limits.concurrency)
+        l.concurrency getOrElse action.limits.concurrency,
+        l.cpu getOrElse action.limits.cpu
+      )
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.
@@ -552,7 +574,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
-      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec, create = false))
+      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec, create = false)
+    )
       .revision[WhiskAction](action.docinfo.rev)
   }
 
@@ -592,7 +615,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   private def checkSequenceActionLimits(
     sequenceAction: FullyQualifiedEntityName,
-    components: Vector[FullyQualifiedEntityName])(implicit transid: TransactionId): Future[Unit] = {
+    components:     Vector[FullyQualifiedEntityName]
+  )(implicit transid: TransactionId): Future[Unit] = {
     // first checks that current sequence length is allowed
     // then traverses all actions in the sequence, inlining any that are sequences
     val future = if (components.size > actionSequenceLimit) {
@@ -632,7 +656,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   private def countAtomicActionsAndCheckCycle(
     origSequence: FullyQualifiedEntityName,
-    components: Vector[FullyQualifiedEntityName])(implicit transid: TransactionId): Future[Int] = {
+    components:   Vector[FullyQualifiedEntityName]
+  )(implicit transid: TransactionId): Future[Int] = {
     if (components.size > actionSequenceLimit) {
       Future.failed(TooManyActionsInSequence())
     } else {

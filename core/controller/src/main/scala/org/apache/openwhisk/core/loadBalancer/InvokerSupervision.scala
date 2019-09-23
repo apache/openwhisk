@@ -282,7 +282,7 @@ object InvokerPool {
         namespace = healthActionIdentity.namespace.name.toPath,
         name = EntityName(s"invokerHealthTestAction${i.asString}"),
         exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None),
-        limits = ActionLimits(memory = MemoryLimit(MemoryLimit.MIN_MEMORY))
+        limits = ActionLimits(memory = MemoryLimit(MemoryLimit.MIN_MEMORY), cpu = CPULimit(CPULimit.MIN_CPU))
       )
     }
 }
