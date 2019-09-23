@@ -59,7 +59,7 @@ class ArtifactWithFileStorageActivationStoreTests()
   private val uuid = UUID()
   private val subject = Subject()
   private val user =
-    Identity(subject, Namespace(EntityName("testSpace"), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
+    Identity(subject, Namespace(EntityName(subject.asString), uuid), BasicAuthenticationAuthKey(uuid, Secret()))
   private val context = UserContext(user, HttpRequest())
 
   override def afterAll(): Unit = {
@@ -282,7 +282,7 @@ class ArtifactWithFileStorageActivationStoreTests()
           activationFileStorage.activationToFileExtended(
             activation,
             context,
-            additionalFields ++ additionalFieldsForLogs,
+            additionalFields ++ additionalFieldsForLogs ++ Map("namespace" -> JsString(subject.asString)),
             additionalFields ++ additionalFieldsForActivation,
             shallResultBeIncluded)
 

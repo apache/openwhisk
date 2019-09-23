@@ -55,9 +55,10 @@ class ArtifactWithFileStorageActivationStore(
   override def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)
+    val additionalFieldsForLogs = Map(config.userIdField -> context.user.namespace.uuid.toJson, "namespace" -> context.user.namespace.name.toJson)
+    val additionalFieldsForActivation = Map(config.userIdField -> context.user.namespace.uuid.toJson)
 
-    activationFileStorage.activationToFile(activation, context, additionalFields)
+    activationFileStorage.activationToFileExtended(activation, context, additionalFieldsForLogs, additionalFieldsForActivation)
     super.store(activation, context)
   }
 

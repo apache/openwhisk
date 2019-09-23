@@ -87,8 +87,7 @@ class ActivationFileStorage(logFilePrefix: String,
       val line =
         JsObject(
           Map("type" -> "user_log".toJson) ++ Map("message" -> log.toJson) ++ Map(
-            "activationId" -> activation.activationId.toJson) ++ Map(
-            "namespace" -> activation.namespace.asString.toJson) ++ additionalFields)
+            "activationId" -> activation.activationId.toJson) ++ additionalFields)
 
       ByteString(s"${line.compactPrint}\n")
     }
