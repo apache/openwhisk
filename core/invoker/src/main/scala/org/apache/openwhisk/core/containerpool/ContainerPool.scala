@@ -22,6 +22,8 @@ import org.apache.openwhisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.ConfigKeys
+import pureconfig._
 
 import scala.annotation.tailrec
 import scala.collection.immutable
@@ -62,6 +64,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   import ContainerPool.memoryConsumptionOf
 
   implicit val logging = new AkkaLogging(context.system.log)
+
+  val cpuLimitConfig: CPULimitConfig = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
 
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
@@ -260,16 +264,16 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new container and updates state accordingly. */
-  def createContainer(memoryLimit: ByteSize): (ActorRef, ContainerData) = {
+  def createContainer(memoryLimit: ByteSize, cpuLimit: Float = CPULimit.STD_CPU): (ActorRef, ContainerData) = {
     val ref = childFactory(context)
-    val data = MemoryData(memoryLimit)
+    val data = ResourcesData(memoryLimit, cpuLimit)
     freePool = freePool + (ref -> data)
     ref -> data
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit =
-    childFactory(context) ! Start(exec, memoryLimit)
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize, cpuThreads: Float = CPULimit.STD_CPU): Unit =
+    childFactory(context) ! Start(exec, memoryLimit, cpuThreads)
 
   /**
    * Takes a prewarm container out of the prewarmed pool
@@ -281,10 +285,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
     val kind = action.exec.kind
     val memory = action.limits.memory.megabytes.MB
+    val cpu = action.limits.cpu.threads
     prewarmedPool
       .find {
-        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
-        case _                                          => false
+        case (_, PreWarmedData(_, `kind`, `memory`, `cpu`, _)) => true
+        case _ => false
       }
       .map {
         case (ref, data) =>
@@ -294,7 +299,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           // Create a new prewarm container
           // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the
           // factory
-          prewarmContainer(action.exec, memory)
+          prewarmContainer(action.exec, memory, cpu)
           (ref, data)
       }
   }
@@ -415,4 +420,4 @@ object ContainerPool {
 }
 
 /** Contains settings needed to perform container prewarming. */
-case class PrewarmingConfig(count: Int, exec: CodeExec[_], memoryLimit: ByteSize)
+case class PrewarmingConfig(count: Int, exec: CodeExec[_], memoryLimit: ByteSize, cpuLimit: Float = CPULimit.STD_CPU)

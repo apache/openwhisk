@@ -135,7 +135,7 @@ protected[core] object ExecManifest {
    * @param count  the number of stemcell containers to create
    * @param memory the max memory this stemcell will allocate
    */
-  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
+  protected[entity] case class StemCell(count: Int, memory: ByteSize, cpu: Float = CPULimit.STD_CPU) {
     require(count > 0, "count must be positive")
   }
 
@@ -343,7 +343,7 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
     import org.apache.openwhisk.core.entity.size.serdes
-    jsonFormat2(StemCell.apply)
+    jsonFormat3(StemCell.apply)
   }
 
   protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)

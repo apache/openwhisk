@@ -1182,7 +1182,7 @@ class ContainerProxyTests
       case WarmingColdData(message.user.namespace.name, action, _, 1) =>
     }
 
-    val memData = MemoryData(action.limits.memory.megabytes.MB)
+    val memData = ResourcesData(action.limits.memory.megabytes.MB)
     memData.nextRun(Run(action, message)) should matchPattern {
       case WarmingColdData(message.user.namespace.name, action, _, 1) =>
     }
