@@ -51,6 +51,9 @@ trait PersisterServiceFixture extends MockFactory with BeforeAndAfterAll with Sc
   }
 
   override def afterAll(): Unit = {
+    if (consumer != null) {
+      consumer.shutdown().futureValue
+    }
     super.afterAll()
   }
 
