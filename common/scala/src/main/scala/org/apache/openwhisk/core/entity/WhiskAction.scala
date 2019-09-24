@@ -101,7 +101,8 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       "limits" -> limits.toJson,
       "version" -> version.toJson,
       "publish" -> publish.toJson,
-      "annotations" -> annotations.toJson)
+      "annotations" -> annotations.toJson,
+      "updated" -> updated.getEpochSecond.toJson)
 }
 
 abstract class WhiskActionLikeMetaData(override val name: EntityName) extends WhiskActionLike(name) {
@@ -549,19 +550,24 @@ object WhiskActionMetaData
 
   override val collectionName = "actions"
 
-  override implicit val serdes = jsonFormat(
-    WhiskActionMetaData.apply,
-    "namespace",
-    "name",
-    "exec",
-    "parameters",
-    "limits",
-    "version",
-    "publish",
-    "annotations",
-    "binding")
-
   override val cacheEnabled = true
+
+  override implicit val serdes = new RootJsonFormat[WhiskActionMetaData] {
+    def write(result: WhiskActionMetaData) = result.toJson
+    def read(value: JsValue): WhiskActionMetaData = {
+      val fields = value.asJsObject.fields
+      WhiskActionMetaData(
+        fields("namespace").convertTo[EntityPath],
+        fields("name").convertTo[EntityName],
+        fields("exec").convertTo[ExecMetaDataBase],
+        fields("parameters").convertTo[Parameters],
+        fields("limits").convertTo[ActionLimits],
+        fields("version").convertTo[SemVer],
+        fields("publish").convertTo[Boolean],
+        fields("annotations").convertTo[Parameters],
+      )
+    }
+  }
 
   /**
    * Resolves an action name if it is contained in a package.
