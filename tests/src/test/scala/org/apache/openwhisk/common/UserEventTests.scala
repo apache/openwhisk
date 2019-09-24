@@ -41,7 +41,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
 
   val groupid = "kafkatest"
   val topic = "events"
-  val maxPollInterval = 10.seconds
+  val maxPollInterval = 20.seconds
 
   lazy val consumer = new KafkaConsumerConnector(kafkaHosts, groupid, topic)
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
