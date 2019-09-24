@@ -18,9 +18,7 @@
 package org.apache.openwhisk.standalone
 
 import common.WskProps
-import org.apache.commons.lang3.SystemUtils
 import org.junit.runner.RunWith
-import org.scalatest.Pending
 import org.scalatest.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
