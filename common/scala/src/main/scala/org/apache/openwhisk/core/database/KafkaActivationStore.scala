@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.database
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import com.google.common.base.Throwables
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider, ResultMessage}
@@ -28,7 +29,7 @@ import org.apache.openwhisk.core.entity.size._
 import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Future
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 case class KafkaActivationStoreConfig(activationsTopic: String, db: Boolean, maxRequestSize: Option[ByteSize])
 
@@ -58,6 +59,11 @@ class KafkaActivationStore(producer: MessageProducer,
           logging.info(
             this,
             s"posted activation to Kafka topic ${config.activationsTopic} - ${activation.activationId}")
+        case Failure(exception) =>
+          logging.warn(
+            this,
+            s"Failed to send activation to ${config.activationsTopic} - ${activation.activationId}" + Throwables
+              .getStackTraceAsString(exception))
       }
       // returned DocInfo is currently not consumed anyway. So returning an info without the revId
       .map(_ => DocInfo(activation.docid))
