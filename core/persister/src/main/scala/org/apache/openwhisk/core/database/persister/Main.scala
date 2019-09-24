@@ -52,7 +52,7 @@ object Main extends SLF4JLogging {
   }
 
   class PersisterService(consumer: ActivationConsumer) extends BasicRasService {
-    override def ping: Route = path("ping") {
+    override val ping: Route = path("ping") {
       if (consumer.isRunning) {
         complete("pong")
       } else {

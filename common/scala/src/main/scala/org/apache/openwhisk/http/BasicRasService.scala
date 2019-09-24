@@ -37,7 +37,7 @@ trait BasicRasService extends BasicHttpService {
     }
   }
 
-  def ping: Route = path("ping") {
+  val ping: Route = path("ping") {
     get { complete("pong") }
   }
 }
