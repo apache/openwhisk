@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.common
+package org.apache.openwhisk.standalone
 
 import akka.stream.ActorMaterializer
 import common.{FreePortFinder, WskProps}
-import org.apache.openwhisk.standalone.StandaloneServerFixture
+import org.apache.openwhisk.common.UserEventTests
 
-class UserEventsITTests extends UserEventTests with StandaloneServerFixture {
+class StandaloneUserEventTests extends UserEventTests with StandaloneServerFixture {
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val kafkaPort = sys.props.get("whisk.kafka.port").map(_.toInt).getOrElse(FreePortFinder.freePort())
 
