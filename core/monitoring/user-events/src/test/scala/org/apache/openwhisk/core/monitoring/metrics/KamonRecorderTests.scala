@@ -103,7 +103,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
       TestReporter.histogram(initTimeMetric, actionWithCustomPackage).size shouldBe 1
       TestReporter.histogram(durationMetric, actionWithCustomPackage).size shouldBe 1
 
-//      // Default package
+      // Default package
       TestReporter.histogram(durationMetric, actionWithDefaultPackage).size shouldBe 1
     }
   }
