@@ -69,20 +69,20 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   protected[core] def statusForCode(code: Int) = {
     require(code >= 0 && code <= 3)
     code match {
-      case 0 => statusSuccess
-      case 1 => statusApplicationError
-      case 2 => statusDeveloperError
-      case 3 => statusWhiskError
+      case Success => statusSuccess
+      case ApplicationError => statusApplicationError
+      case DeveloperError => statusDeveloperError
+      case WhiskError => statusWhiskError
     }
   }
 
   protected[core] def messageForCode(code: Int) = {
     require(code >= 0 && code <= 3)
     code match {
-      case 0 => "success"
-      case 1 => "application error"
-      case 2 => "action developer error"
-      case 3 => "whisk internal error"
+      case Success => "success"
+      case ApplicationError => "application error"
+      case DeveloperError => "action developer error"
+      case WhiskError => "whisk internal error"
     }
   }
 
