@@ -30,6 +30,7 @@ import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.utils.retry
 import org.scalatest.{BeforeAndAfterAll, Suite, TestSuite}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.sys.process._
 import scala.util.control.NonFatal
@@ -38,17 +39,18 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
   self: Suite =>
 
   private val jarPathProp = "whisk.server.jar"
-  private var manifestFile: Option[File] = None
   private var serverProcess: Process = _
   protected val serverPort: Int = FreePortFinder.freePort()
   protected var serverUrl: String = System.getProperty(WHISK_SERVER, s"http://localhost:$serverPort/")
   private val disablePullConfig = "whisk.docker.standalone.container-factory.pull-standard-images"
   private var serverStartedForTest = false
+  private val tempFiles = ListBuffer[File]()
 
   private val whiskServerPreDefined = System.getProperty(WHISK_SERVER) != null
 
   protected def extraArgs: Seq[String] = Seq.empty
   protected def extraVMArgs: Seq[String] = Seq.empty
+  protected def customConfig: Option[String] = None
 
   protected def waitForOtherThings(): Unit = {}
 
@@ -64,7 +66,6 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         System.setProperty(WHISK_SERVER, serverUrl)
         super.beforeAll()
         println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
-        manifestFile = getRuntimeManifest()
         val args = Seq(
           Seq(
             "java",
@@ -74,9 +75,10 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             s"-D$disablePullConfig=false")
             ++ extraVMArgs
             ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging", "--data-dir", dataDirPath)
+            ++ configFileOpts
+            ++ manifestFileOpts
             ++ extraArgs,
-          Seq("-p", serverPort.toString),
-          manifestFile.map(f => Seq("-m", f.getAbsolutePath)).getOrElse(Seq.empty)).flatten
+          Seq("-p", serverPort.toString)).flatten
 
         serverProcess = args.run(ProcessLogger(s => printstream.println(s)))
         val w = waitForServerToStart()
@@ -92,10 +94,10 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
       System.clearProperty(WHISK_SERVER)
     }
     if (serverStartedForTest) {
-      manifestFile.foreach(FileUtils.deleteQuietly)
       serverProcess.destroy()
+      FileUtils.forceDelete(new File(dataDirPath))
+      tempFiles.foreach(FileUtils.deleteQuietly)
     }
-    FileUtils.forceDelete(new File(dataDirPath))
   }
 
   override def withFixture(test: NoArgTest) = {
@@ -123,15 +125,24 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
     w
   }
 
-  private def getRuntimeManifest(): Option[File] = {
-    Option(WhiskProperties.getProperty(WhiskConfig.runtimesManifest)).map { json =>
-      val f = newFile()
-      FileUtils.write(f, json, UTF_8)
-      f
-    }
+  private def configFileOpts: Seq[String] = {
+    customConfig
+      .map(fileOpt("-c", _))
+      .getOrElse(Seq.empty)
   }
 
-  private def newFile(): File = File.createTempFile("whisktest", null, null)
+  private def manifestFileOpts: Seq[String] = {
+    Option(WhiskProperties.getProperty(WhiskConfig.runtimesManifest))
+      .map(fileOpt("-m", _))
+      .getOrElse(Seq.empty)
+  }
+
+  private def fileOpt(optName: String, content: String): Seq[String] = {
+    val f = File.createTempFile("whisktest", null, null)
+    tempFiles += f
+    FileUtils.write(f, content, UTF_8)
+    Seq(optName, f.getAbsolutePath)
+  }
 
   private def standaloneServerJar: File = {
     Option(System.getProperty(jarPathProp)) match {
