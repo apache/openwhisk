@@ -27,22 +27,4 @@ import system.basic.WskRestBasicTests
 @RunWith(classOf[JUnitRunner])
 class StandaloneServerTests extends WskRestBasicTests with StandaloneServerFixture {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
-
-  //Following tests always fail on Mac but pass when standalone server is running on Linux
-  //It looks related to how networking works on Mac for Docker container
-  //For now ignoring there failure
-  private val ignoredTestsOnMac = Set(
-    "Wsk Action REST should create, and invoke an action that utilizes a docker container",
-    "Wsk Action REST should create, and invoke an action that utilizes dockerskeleton with native zip",
-    "Wsk Action REST should create and invoke a blocking action resulting in an application error response",
-    "Wsk Action REST should create an action, and invoke an action that returns an empty JSON object")
-
-  override def withFixture(test: NoArgTest) = {
-    val outcome = super.withFixture(test)
-    val result = if (outcome.isFailed && SystemUtils.IS_OS_MAC && ignoredTestsOnMac.contains(test.name)) {
-      println(s"Ignoring known failed test for Mac [${test.name}]")
-      Pending
-    } else outcome
-    result
-  }
 }
