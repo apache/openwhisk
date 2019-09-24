@@ -88,17 +88,19 @@ class ActivationPersisterITTests
       .invoke(name, Map("payload" -> "one two three".toJson), blocking = true)
     val ar = runResult.stdout.parseJson.convertTo[ActivationResult]
     ar.response.result.get shouldBe JsObject("count" -> JsNumber(3))
-    val activationId = wsk.activation.extractActivationId(runResult)
-    withClue(s"did not find an activation id in '$runResult'") {
-      activationId shouldBe a[Some[_]]
-    }
 
-    val activation = wsk.activation.waitForActivation(activationId.get, totalWait = 5.seconds)
+    assertActivationState(ar.activationId)
+  }
+
+  private def assertActivationState(activationId: String): Unit = {
+    //Activations should not be present in standalone openwhisk ArtifactStore as it uses a different MemoryStore
+    //instance and by design we disable storing the activation locally
+    val activation = wsk.activation.waitForActivation(activationId, totalWait = 5.seconds)
     activation shouldBe 'Left
 
-    val psActivation = waitForActivationInPS(activationId.get)
-    psActivation.activationId.asString shouldBe activationId.get
-  //logAndReset
+    //Activation should eventually show up in the store used by Persister Service
+    val psActivation = waitForActivationInPS(activationId)
+    psActivation.activationId.asString shouldBe activationId
   }
 
   private def waitForActivationInPS(activationId: String) = {
