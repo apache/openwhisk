@@ -23,6 +23,7 @@ import org.rogach.scallop.throwError
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import org.apache.openwhisk.core.cli.{Conf, WhiskAdmin}
+import org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider
 import org.apache.openwhisk.core.database.test.DbUtils
 import org.apache.openwhisk.core.entity.WhiskAuthStore
 
@@ -45,6 +46,11 @@ trait WhiskAdminCliTestBase
 
   //Ensure scalaop does not exit upon validation failure
   throwError.value = true
+
+  override protected def beforeAll(): Unit = {
+    MemoryArtifactStoreProvider.purgeAll()
+    super.beforeAll()
+  }
 
   override def afterEach(): Unit = {
     cleanup()

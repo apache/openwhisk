@@ -46,6 +46,7 @@ trait PersisterServiceFixture extends MockFactory with BeforeAndAfterAll with Sc
   protected var consumer: ActivationConsumer = _
 
   override def beforeAll(): Unit = {
+    MemoryArtifactStoreProvider.purgeAll()
     super.beforeAll()
     consumer = createActivationConsumer(persisterConfig, activationStore)
   }
