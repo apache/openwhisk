@@ -18,6 +18,7 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'org.scoverage'
+apply plugin: 'maven'
 
 ext.dockerImageName = 'user-events'
 apply from: "../../../gradle/docker.gradle"
