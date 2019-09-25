@@ -29,7 +29,9 @@ import akka.http.scaladsl.server.Directives
 
 object TestLoadGenerator extends SLF4JLogging {
   val configRoot = "whisk.load-generator"
+
   def main(args: Array[String]): Unit = {
+    initConfig()
     implicit val system: ActorSystem = ActorSystem("test-actor-system")
     val decider: Supervision.Decider = { e =>
       log.error("Unhandled exception in stream", e)
@@ -45,6 +47,12 @@ object TestLoadGenerator extends SLF4JLogging {
       loadConfigOrThrow[LoadGeneratorConfig](system.settings.config.getConfig(configRoot))
     val port = loadConfig.port
     BasicHttpService.startHttpService(new LoadGenService(loadConfig).route, port, None)
+  }
+
+  private def initConfig() = {
+    if (!sys.props.contains("config.file")) {
+      sys.props.put("config.resource", "load-test.conf")
+    }
   }
 
   class LoadGenService(config: LoadGeneratorConfig)(implicit system: ActorSystem,
