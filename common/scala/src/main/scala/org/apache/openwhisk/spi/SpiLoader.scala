@@ -49,3 +49,11 @@ object TypesafeConfigClassResolver extends SpiClassResolver {
   override def getClassNameForType[T: Manifest]: String =
     config.getString("whisk.spi." + manifest[T].runtimeClass.getSimpleName)
 }
+
+/**
+ * Resolver which uses a predefined className. Used for cases where the actual SPI implementation
+ * is wrapped
+ */
+class SimpleResolver(value: String) extends SpiClassResolver {
+  override def getClassNameForType[T: Manifest]: String = value
+}

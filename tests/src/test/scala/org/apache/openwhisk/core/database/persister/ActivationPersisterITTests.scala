@@ -60,7 +60,7 @@ class ActivationPersisterITTests
      |  }
      |  kafka-activation-store {
      |    activations-topic = "completed-others"
-     |    db = false
+     |    store-in-primary = false
      |  }
      |}""".stripMargin)
 

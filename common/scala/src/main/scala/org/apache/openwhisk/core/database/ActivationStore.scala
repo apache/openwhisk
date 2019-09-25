@@ -159,3 +159,45 @@ trait ActivationStore {
 trait ActivationStoreProvider extends Spi {
   def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging): ActivationStore
 }
+
+class ActivationStoreWrapper(store: ActivationStore) extends ActivationStore {
+  override def store(activation: WhiskActivation, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] = store.store(activation, context)
+
+  override def get(activationId: ActivationId, context: UserContext)(
+    implicit transid: TransactionId): Future[WhiskActivation] = store.get(activationId, context)
+
+  override def delete(activationId: ActivationId, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean] = store.delete(activationId, context)
+
+  override def countActivationsInNamespace(namespace: EntityPath,
+                                           name: Option[EntityPath],
+                                           skip: Int,
+                                           since: Option[Instant],
+                                           upto: Option[Instant],
+                                           context: UserContext)(implicit transid: TransactionId): Future[JsObject] =
+    store.countActivationsInNamespace(namespace, name, skip, since, upto, context)
+
+  override def listActivationsMatchingName(
+    namespace: EntityPath,
+    name: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean,
+    since: Option[Instant],
+    upto: Option[Instant],
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] =
+    store.listActivationsMatchingName(namespace, name, skip, limit, includeDocs, since, upto, context)
+
+  override def listActivationsInNamespace(
+    namespace: EntityPath,
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean,
+    since: Option[Instant],
+    upto: Option[Instant],
+    context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] =
+    store.listActivationsInNamespace(namespace, skip, limit, includeDocs, since, upto, context)
+}

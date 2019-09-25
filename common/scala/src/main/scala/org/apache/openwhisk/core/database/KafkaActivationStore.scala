@@ -24,27 +24,32 @@ import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider, ResultMessage}
 import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize, DocInfo, WhiskActivation}
-import org.apache.openwhisk.spi.SpiLoader
+import org.apache.openwhisk.spi.{SimpleResolver, SpiClassResolver, SpiLoader}
 import org.apache.openwhisk.core.entity.size._
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-case class KafkaActivationStoreConfig(activationsTopic: String, db: Boolean, maxRequestSize: Option[ByteSize])
+case class KafkaActivationStoreConfig(activationsTopic: String,
+                                      primaryStoreProvider: String,
+                                      storeInPrimary: Boolean,
+                                      maxRequestSize: Option[ByteSize])
 
-class KafkaActivationStore(producer: MessageProducer,
+class KafkaActivationStore(primary: ActivationStore,
+                           producer: MessageProducer,
                            config: KafkaActivationStoreConfig,
                            actorSystem: ActorSystem,
                            actorMaterializer: ActorMaterializer,
                            logging: Logging)
-    extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
+    extends ActivationStoreWrapper(primary) {
+  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   override def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    if (config.db) {
-      sendToKafka(activation).flatMap(_ => super.store(activation, context))
+    if (config.storeInPrimary) {
+      sendToKafka(activation).flatMap(_ => primary.store(activation, context))
     } else {
       sendToKafka(activation)
     }
@@ -75,8 +80,12 @@ object KafkaActivationStoreProvider extends ActivationStoreProvider {
                         actorMaterializer: ActorMaterializer,
                         logging: Logging): ActivationStore = {
     val storeConfig = loadConfigOrThrow[KafkaActivationStoreConfig](ConfigKeys.kafkaActivationStore)
+    implicit val spiResolver: SpiClassResolver = new SimpleResolver(storeConfig.primaryStoreProvider)
+    val primaryStore = SpiLoader
+      .get[ActivationStoreProvider]
+      .instance(actorSystem, actorMaterializer, logging)
     val producer = createProducer(storeConfig.maxRequestSize)(logging, actorSystem)
-    new KafkaActivationStore(producer, storeConfig, actorSystem, actorMaterializer, logging)
+    new KafkaActivationStore(primaryStore, producer, storeConfig, actorSystem, actorMaterializer, logging)
   }
 
   def createProducer(maxRequestSize: Option[ByteSize])(implicit logging: Logging,
