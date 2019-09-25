@@ -116,8 +116,8 @@ trait ContainerFactory {
   /**
    * Create a new Container, using CPU limit
    *
-   * The created container has to satisfy following requirements:
-   * - The container's file system is based on the provided action image and may have a read/write layer on top.
+   * The created container has following requirements:
+   * - The container's file system is based on the provided action image, and may have a read/write layer on top.
    *   Some managed action runtimes may need the capability to write files.
    * - If the specified image is not available on the system, it is pulled from an image
    *   repository - for example, Docker Hub.
@@ -143,7 +143,7 @@ trait ContainerFactory {
     memory:            ByteSize,
     cpuPermits:        Int,
     action:            Option[ExecutableWhiskAction]
-  )(implicit config: WhiskConfig, logging: Logging): Future[Container] = Future.failed(new Exception("You should implement this function."))
+  )(implicit config: WhiskConfig, logging: Logging): Future[Container] = Future.failed(new Exception("Method not implemented."))
 
   /** perform any initialization */
   def init(): Unit

@@ -31,8 +31,8 @@ case class CPULimitConfig(controlEnabled: Boolean, min: Float, max: Float, std: 
  * CPULimit encapsulates allowed CPU for an action. The limit must be within a
  * permissible range (by default [0.1, 1.0]).
  *
- * It is a value type (hence == is .equals, immutable and cannot be assigned null).
- * The constructor is private so that argument requirements are checked and normalized
+ * A value type (hence == is .equals, immutable and cannot be null).
+ * The constructor is private, for checking and normalizing argument
  * before creating a new instance.
  *
  * @param threads the CPU utilisation limit in cpuThreads for the action
@@ -42,7 +42,7 @@ protected[entity] class CPULimit private (val threads: Float) extends AnyVal
 protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
   val config = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /** static value */
   protected[core] val CPU_LIMIT_ENABLED: Boolean = config.controlEnabled
   protected[core] val MIN_CPU: Float = config.min
   protected[core] val MAX_CPU: Float = config.max

@@ -26,11 +26,11 @@ import org.apache.openwhisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
  *
  * @param instance a numeric value used for the load balancing and Kafka topic creation
  * @param uniqueName an identifier required for dynamic instance assignment by Zookeeper
- * @param displayedName an identifier that is required for the health protocol to correlate Kafka topics with invoker container names
+ * @param displayedName an identifier required for the health protocol to correlate Kafka topics with invoker container names
  * @param userMemory an ByteSize value for user container pool memory limit. It would grep more CPU when you require
  *                   more userMemory, iff we not enable cpu limit.
- * @param cpuThreads a numeric value used for reporting the invoker instance's CPU threads. Default
-  *                        is `1.0`. Could not be modified once set, since it's solidified.
+ * @param cpuThreads a numeric value used for reporting the invoker instance's CPU (logical) threads. Default
+  *                        is `1.0`.
  */
 case class InvokerInstanceId(
   val instance:    Int,

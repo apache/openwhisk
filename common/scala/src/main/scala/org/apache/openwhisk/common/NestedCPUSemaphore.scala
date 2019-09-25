@@ -18,11 +18,10 @@
 package org.apache.openwhisk.common
 
 /**
-  * A singleton object which defines the properties that must be present in a configuration
-  * in order to implement the actions API.
+  * A singleton object which defines the action's CPU limit properties.
   */
 object CPULimitUtils {
-  // CPU threads would be transformed to CPU permits, and calculate by CPU permits.
+  // CPU threads transform to CPU permits, and calculate by CPU permits.
   private val unitScala = 100
 
   /**
@@ -47,7 +46,7 @@ object CPULimitUtils {
 /**
  * A Semaphore that coordinates the CPU threads (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
  * - for invocations when maxConcurrent == 1, delegate to super
- * - for invocations that cause acquire on cpu slots, also acquire concurrency slots, and do it atomically
+ * - for others, acquire cpu slots and concurrency slots, do it atomically
  * @param cpuThreads
  * @tparam T
  */

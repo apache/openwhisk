@@ -82,10 +82,10 @@ sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: Byte
 
 /** abstract type to indicate an unstarted container */
 sealed abstract class ContainerNotStarted(
-                                           override val lastUsed:              Instant,
-                                           override val memoryLimit:           ByteSize,
-                                           override val cpuThreadsLimit:         Float,
-                                           override val activeActivationCount: Int
+  override val lastUsed:              Instant,
+  override val memoryLimit:           ByteSize,
+  override val cpuThreadsLimit:       Float,
+  override val activeActivationCount: Int
 )
   extends ContainerData(lastUsed, memoryLimit, cpuThreadsLimit, activeActivationCount) {
   override def getContainer = None
@@ -94,11 +94,11 @@ sealed abstract class ContainerNotStarted(
 
 /** abstract type to indicate a started container */
 sealed abstract class ContainerStarted(
-                                        val container:                      Container,
-                                        override val lastUsed:              Instant,
-                                        override val memoryLimit:           ByteSize,
-                                        override val cpuThreadsLimit:         Float,
-                                        override val activeActivationCount: Int
+  val container:                      Container,
+  override val lastUsed:              Instant,
+  override val memoryLimit:           ByteSize,
+  override val cpuThreadsLimit:       Float,
+  override val activeActivationCount: Int
 )
   extends ContainerData(lastUsed, memoryLimit, cpuThreadsLimit, activeActivationCount) {
   override def getContainer = Some(container)
@@ -133,11 +133,11 @@ case class ResourcesData(override val memoryLimit: ByteSize, override val cpuThr
 
 /** type representing a prewarmed (running, but unused) container (with a specific memory allocation) */
 case class PreWarmedData(
-                          override val container:             Container,
-                          kind:                               String,
-                          override val memoryLimit:           ByteSize,
-                          override val cpuThreadsLimit:         Float,
-                          override val activeActivationCount: Int       = 0
+  override val container:             Container,
+  kind:                               String,
+  override val memoryLimit:           ByteSize,
+  override val cpuThreadsLimit:       Float,
+  override val activeActivationCount: Int       = 0
 )
   extends ContainerStarted(container, Instant.EPOCH, memoryLimit, cpuThreadsLimit, activeActivationCount)
   with ContainerNotInUse {
@@ -325,7 +325,8 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
-              CombinedCompletionAndResultMessage(transid, activation, instance))
+              CombinedCompletionAndResultMessage(transid, activation, instance)
+            )
             storeActivation(transid, activation, context)
         }
         .flatMap { container =>
@@ -663,7 +664,8 @@ class ContainerProxy(
           job.msg.blocking,
           job.msg.rootControllerIndex,
           job.msg.user.namespace.uuid,
-          ResultMessage(tid, result))
+          ResultMessage(tid, result)
+        )
       }
     } else {
       // For non-blocking request, do not forward the result.
@@ -708,7 +710,9 @@ class ContainerProxy(
               job.msg.blocking,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
-              CompletionMessage(tid, activation, instance)))
+              CompletionMessage(tid, activation, instance)
+            )
+        )
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
@@ -727,20 +731,15 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 
 object ContainerProxy {
   def props(
-    factory: (TransactionId,
-              String,
-              ImageName,
-              Boolean,
-              ByteSize,
-              Int,
-              Option[ExecutableWhiskAction]) => Future[Container],
-    ack: ActiveAck,
-    store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-    instance: InvokerInstanceId,
-    poolConfig: ContainerPoolConfig,
-    unusedTimeout: FiniteDuration = timeouts.idleContainer,
-    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+    factory:       (TransactionId, String, ImageName, Boolean, ByteSize, Int, Option[ExecutableWhiskAction]) => Future[Container],
+    ack:           ActiveAck,
+    store:         (TransactionId, WhiskActivation, UserContext) => Future[Any],
+    collectLogs:   (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
+    instance:      InvokerInstanceId,
+    poolConfig:    ContainerPoolConfig,
+    unusedTimeout: FiniteDuration                                                                                                 = timeouts.idleContainer,
+    pauseGrace:    FiniteDuration                                                                                                 = timeouts.pauseGrace
+  ) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.

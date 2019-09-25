@@ -303,7 +303,7 @@ class ShardingContainerPoolBalancer(
       .map { invoker =>
         // CPULimit() and MemoryLimit() and TimeLimit() return singletons - they should be fast enough to be used here
         val cpuLimit = action.limits.cpu
-        val cpuLimitInfo = if (cpuLimit == CPULimit()) "std" else "non=std"
+        val cpuLimitInfo = if (cpuLimit == CPULimit()) "std" else "non-std"
         val memoryLimit = action.limits.memory
         val memoryLimitInfo = if (memoryLimit == MemoryLimit()) "std" else "non-std"
         val timeLimit = action.limits.timeout

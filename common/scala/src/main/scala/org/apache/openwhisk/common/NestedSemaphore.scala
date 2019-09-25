@@ -20,9 +20,9 @@ package org.apache.openwhisk.common
 import scala.collection.concurrent.TrieMap
 
 /**
- * A Semaphore that coordinates the resources (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
+ * A Semaphore that coordinates the resource (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
  * - for invocations when maxConcurrent == 1, delegate to super
- * - for invocations that cause acquire on resources slots, also acquire concurrency slots, and do it atomically
+ * - for others, acquire resource slots and concurrency slots, do it atomically
  * @param permits (no matter what) permits count in Int
  * @tparam T
  */
