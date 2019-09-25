@@ -45,12 +45,15 @@ import scala.util.{Failure, Success}
 object InvokerReactive extends InvokerProvider {
 
   /**
-   * An method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
+   * A method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
    * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
    * messages for continuations (e.g., sequences and conductor actions).
    *
+   * The activation result is always provided because some acknowledegment messages may not carry the result of
+   * the activation and this is needed for sending user events.
+   *
    * @param tid the transaction id for the activation
-   * @param activaiton is the activation result
+   * @param activationResult is the activation result
    * @param blockingInvoke is true iff the activation was a blocking request
    * @param controllerInstance the originating controller/loadbalancer id
    * @param userId is the UUID for the namespace owning the activation
@@ -58,7 +61,7 @@ object InvokerReactive extends InvokerProvider {
    */
   trait ActiveAck {
     def apply(tid: TransactionId,
-              activation: WhiskActivation, // the activation property is used primarily for testing
+              activationResult: WhiskActivation,
               blockingInvoke: Boolean,
               controllerInstance: ControllerInstanceId,
               userId: UUID,
@@ -154,7 +157,7 @@ class InvokerReactive(
 
   private val ack = new InvokerReactive.ActiveAck {
     override def apply(tid: TransactionId,
-                       activation: WhiskActivation,
+                       activationResult: WhiskActivation,
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
@@ -171,15 +174,9 @@ class InvokerReactive(
 
       // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
       if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
-        acknowledegment.result match {
-          case Some(Right(activationResult: WhiskActivation)) =>
-            EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
-              case Success(msg) => UserEvents.send(producer, msg)
-              case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
-            }
-          case _ =>
-            // all acknowledegment messages should have a result
-            logging.error(this, s"activation event was not sent because the result is missing")
+        EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
+          case Success(msg) => UserEvents.send(producer, msg)
+          case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
         }
       }
 
