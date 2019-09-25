@@ -92,6 +92,38 @@ class ActivationPersisterITTests
     assertActivationState(ar.activationId)
   }
 
+  it should "receive response for conductor actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    //This test is meant to check the integration within controller where activation records for conductor/seq
+    // etc are saved
+    val conductor = "conductor" // conductor action
+    assetHelper.withCleaner(wsk.action, conductor) { (action, _) =>
+      action.create(
+        conductor,
+        Some(TestUtils.getTestActionFilename("conductor.js")),
+        annotations = Map("conductor" -> true.toJson))
+    }
+
+    val step = "step" // step action
+    assetHelper.withCleaner(wsk.action, step) { (action, _) =>
+      action.create(step, Some(TestUtils.getTestActionFilename("step.js")))
+    }
+
+    // invoke nested conductor with single step
+    // 1 - Invoke `conductor` -> Returns `step` to be invoked as action=step (secondary activation)
+    // 2 - Invoke `step` -> Returns the final result
+    // 3 - Invoke `conductor` -> Returns final result (secondary activation)
+    val run = wsk.action.invoke(conductor, Map("action" -> step.toJson, "n" -> 1.toJson), blocking = true)
+
+    val ar = run.stdout.parseJson.convertTo[ActivationResult]
+    ar.logs.get.size shouldBe 3
+
+    val activationIds = Seq(ar.activationId) ++ ar.logs.get
+
+    //Check all activationIds are received by persister service
+    //The primaryId `ar.activationId` is the synthetic activation record stored by Controller
+    activationIds.foreach(waitForActivationInPS)
+  }
+
   private def assertActivationState(activationId: String): Unit = {
     //Activations should not be present in standalone openwhisk ArtifactStore as it uses a different MemoryStore
     //instance and by design we disable storing the activation locally
