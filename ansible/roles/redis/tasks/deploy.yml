@@ -17,13 +17,6 @@
 ---
 # This role will install redis
 
-- name: "pull the redis:{{ redis.version }} image"
-  shell: "docker pull redis:{{ redis.version }}"
-  register: result
-  until: (result.rc == 0)
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
-
 - name: (re)start redis
   docker_container:
     name: redis
@@ -38,6 +31,7 @@
     command:
       /bin/sh -c
       "docker-entrypoint.sh --requirepass {{ redis.password }}"
+    pull: "{{ redis.pull_redis | default(true) }}"
 
 - name: wait until redis is up and running
   shell: "docker run --link redis:redis --rm redis:{{ redis.version }} redis-cli -h redis -p 6379 -a {{ redis.password }} ping"
