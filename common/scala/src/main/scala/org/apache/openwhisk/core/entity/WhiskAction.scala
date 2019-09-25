@@ -19,6 +19,8 @@ package org.apache.openwhisk.core.entity
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
+import java.time.temporal.ChronoUnit
+import java.time.{Clock, Instant}
 import java.util.Base64
 
 import akka.http.scaladsl.model.ContentTypes
@@ -134,7 +136,8 @@ case class WhiskAction(namespace: EntityPath,
                        limits: ActionLimits = ActionLimits(),
                        version: SemVer = SemVer(),
                        publish: Boolean = false,
-                       annotations: Parameters = Parameters())
+                       annotations: Parameters = Parameters(),
+                       override val updated: Instant = Instant.now(Clock.systemUTC()).truncatedTo(ChronoUnit.MILLIS))
     extends WhiskActionLike(name) {
 
   require(exec != null, "exec undefined")
@@ -201,6 +204,9 @@ case class WhiskActionMetaData(namespace: EntityPath,
                                version: SemVer = SemVer(),
                                publish: Boolean = false,
                                annotations: Parameters = Parameters(),
+                               override val updated: Instant = Instant
+                                 .now(Clock.systemUTC())
+                                 .truncatedTo(ChronoUnit.MILLIS),
                                binding: Option[EntityPath] = None)
     extends WhiskActionLikeMetaData(name) {
 
@@ -331,7 +337,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
   require(limits != null, "limits undefined")
 
   def toWhiskAction =
-    WhiskActionMetaData(namespace, name, exec, parameters, limits, version, publish, annotations)
+    WhiskActionMetaData(namespace, name, exec, parameters, limits, version, publish, annotations, updated)
       .revision[WhiskActionMetaData](rev)
 
   /**
@@ -343,11 +349,13 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 }
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
+  import WhiskActivation.instantSerdes
 
   val execFieldName = "exec"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 
   override val collectionName = "actions"
+  override val cacheEnabled = true
 
   override implicit val serdes = jsonFormat(
     WhiskAction.apply,
@@ -358,9 +366,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     "limits",
     "version",
     "publish",
-    "annotations")
-
-  override val cacheEnabled = true
+    "annotations",
+    "updated")
 
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
@@ -548,37 +555,23 @@ object WhiskActionMetaData
     with WhiskEntityQueries[WhiskActionMetaData]
     with DefaultJsonProtocol {
 
-  override val collectionName = "actions"
+  import WhiskActivation.instantSerdes
 
+  override val collectionName = "actions"
   override val cacheEnabled = true
 
-  override implicit val serdes = new RootJsonFormat[WhiskActionMetaData] {
-    def write(w: WhiskActionMetaData) = {
-      JsObject(
-        "namespace" -> w.namespace.toJson,
-        "name" -> w.name.toJson,
-        "exec" -> w.exec.toJson,
-        "parameters" -> w.parameters.toJson,
-        "limits" -> w.limits.toJson,
-        "version" -> w.version.toJson,
-        "publish" -> w.publish.toJson,
-        "annotations" -> w.annotations.toJson,
-        "updated" -> w.updated.getEpochSecond.toJson)
-    }
-    def read(value: JsValue): WhiskActionMetaData = {
-      val fields = value.asJsObject.fields
-      WhiskActionMetaData(
-        fields("namespace").convertTo[EntityPath],
-        fields("name").convertTo[EntityName],
-        fields("exec").convertTo[ExecMetaDataBase],
-        fields("parameters").convertTo[Parameters],
-        fields("limits").convertTo[ActionLimits],
-        fields("version").convertTo[SemVer],
-        fields("publish").convertTo[Boolean],
-        fields("annotations").convertTo[Parameters],
-      )
-    }
-  }
+  override implicit val serdes = jsonFormat(
+    WhiskActionMetaData.apply,
+    "namespace",
+    "name",
+    "exec",
+    "parameters",
+    "limits",
+    "version",
+    "publish",
+    "annotations",
+    "updated",
+    "binding")
 
   /**
    * Resolves an action name if it is contained in a package.
