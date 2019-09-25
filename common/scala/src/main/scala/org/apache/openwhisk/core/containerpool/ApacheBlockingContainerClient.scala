@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 import org.apache.commons.io.IOUtils
-import org.apache.http.HttpHeaders
+import org.apache.http.{HttpHeaders, NoHttpResponseException}
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.{HttpPost, HttpRequestBase}
 import org.apache.http.client.utils.{HttpClientUtils, URIBuilder}
@@ -34,9 +34,11 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.util.EntityUtils
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size.SizeLong
+import pureconfig.loadConfigOrThrow
 
 import scala.annotation.tailrec
 import scala.concurrent._
@@ -149,6 +151,11 @@ protected class ApacheBlockingContainerClient(hostname: String,
       //
       // NoRouteToHostException: route to target host is not known (yet).
       case t: NoRouteToHostException => Failure(RetryableConnectionError(t))
+
+      //In general with NoHttpResponseException it cannot be said if server has processed the request or not
+      //For some cases like in standalone mode setup it should be fine to retry
+      case t: NoHttpResponseException if ApacheBlockingContainerClient.clientConfig.retryNoHttpResponseException =>
+        Failure(RetryableConnectionError(t))
     } match {
       case Success(response) => response
       case Failure(t: RetryableConnectionError) if retry =>
@@ -201,7 +208,10 @@ protected class ApacheBlockingContainerClient(hostname: String,
     .build
 }
 
+case class ApacheClientConfig(retryNoHttpResponseException: Boolean)
+
 object ApacheBlockingContainerClient {
+  val clientConfig: ApacheClientConfig = loadConfigOrThrow[ApacheClientConfig](ConfigKeys.apacheClientConfig)
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue)(
