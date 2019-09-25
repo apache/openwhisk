@@ -331,3 +331,6 @@ Metric:
 ```
 {"body":{"metricName":"ConcurrentInvocations","metricValue":1},"eventType":"Metric","source":"controller0","subject":"guest","timestamp":1524476104419,"userId":"23bc46b1-71f6-4ed5-8c54-816aa4f8c502","namespace":"guest"}
 ```
+
+### User-events consumer service
+All user metrics can be consumed and published to various services such as Prometheus, Datadog etc via Kamon by using the [user-events service](https://github.com/apache/openwhisk/tree/master/core/monitoring/user-events/README.md).

@@ -61,8 +61,23 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   val DeveloperError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize
   val WhiskError = 3 // internal system error
 
+  val statusSuccess = "success"
+  val statusApplicationError = "application_error"
+  val statusDeveloperError = "action_developer_error"
+  val statusWhiskError = "whisk_internal_error"
+
+  protected[core] def statusForCode(code: Int) = {
+    require(code >= 0 && code <= 3)
+    code match {
+      case Success          => statusSuccess
+      case ApplicationError => statusApplicationError
+      case DeveloperError   => statusDeveloperError
+      case WhiskError       => statusWhiskError
+    }
+  }
+
   protected[core] def messageForCode(code: Int) = {
-    require(code >= Success && code <= WhiskError)
+    require(code >= 0 && code <= 3)
     code match {
       case Success          => "success"
       case ApplicationError => "application error"

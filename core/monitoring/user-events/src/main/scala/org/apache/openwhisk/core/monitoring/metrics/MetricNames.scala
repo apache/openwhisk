@@ -15,36 +15,23 @@
  * limitations under the License.
  */
 
-include 'common:scala'
+package org.apache.openwhisk.core.monitoring.metrics
 
-include 'core:controller'
-include 'core:invoker'
-include 'core:cosmosdb:cache-invalidator'
-include 'core:standalone'
-include 'core:monitoring:user-events'
+trait MetricNames {
+  val actionNamespace = "namespace"
+  val initiatorNamespace = "initiator"
+  val actionName = "action"
+  val actionStatus = "status"
+  val actionMemory = "memory"
+  val actionKind = "kind"
 
-include 'tests'
-include 'tests:performance:gatling_tests'
+  def activationMetric: String
+  def coldStartMetric: String
+  def waitTimeMetric: String
+  def initTimeMetric: String
+  def durationMetric: String
+  def statusMetric: String
 
-include 'tools:actionProxy'
-include 'tools:ow-utils'
-include 'tools:dev'
-
-include 'tools:admin'
-
-rootProject.name = 'openwhisk'
-
-gradle.ext.scala = [
-    version: '2.12.9',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
-
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
-
-gradle.ext.akka = [version : '2.5.22']
-gradle.ext.akka_http = [version : '10.1.8']
-
-gradle.ext.curator = [version:'4.0.0']
+  def concurrentLimitMetric: String
+  def timedLimitMetric: String
+}
