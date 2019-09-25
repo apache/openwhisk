@@ -92,7 +92,7 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       parameters.definedParameters
     } else Set.empty[String]
 
-  def toJson =
+  def toJson = {
     JsObject(
       "namespace" -> namespace.toJson,
       "name" -> name.toJson,
@@ -101,8 +101,8 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       "limits" -> limits.toJson,
       "version" -> version.toJson,
       "publish" -> publish.toJson,
-      "annotations" -> annotations.toJson,
-      "updated" -> updated.getEpochSecond.toJson)
+      "annotations" -> annotations.toJson)
+  }
 }
 
 abstract class WhiskActionLikeMetaData(override val name: EntityName) extends WhiskActionLike(name) {
@@ -553,7 +553,18 @@ object WhiskActionMetaData
   override val cacheEnabled = true
 
   override implicit val serdes = new RootJsonFormat[WhiskActionMetaData] {
-    def write(result: WhiskActionMetaData) = result.toJson
+    def write(w: WhiskActionMetaData) = {
+      JsObject(
+        "namespace" -> w.namespace.toJson,
+        "name" -> w.name.toJson,
+        "exec" -> w.exec.toJson,
+        "parameters" -> w.parameters.toJson,
+        "limits" -> w.limits.toJson,
+        "version" -> w.version.toJson,
+        "publish" -> w.publish.toJson,
+        "annotations" -> w.annotations.toJson,
+        "updated" -> w.updated.getEpochSecond.toJson)
+    }
     def read(value: JsValue): WhiskActionMetaData = {
       val fields = value.asJsObject.fields
       WhiskActionMetaData(
