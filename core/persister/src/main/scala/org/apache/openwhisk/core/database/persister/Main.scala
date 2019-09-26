@@ -48,6 +48,7 @@ object Main extends SLF4JLogging {
     val activationStore =
       SpiLoader.get[ActivationStoreProvider].instance(system, materializer, logging)
     val consumer = ActivationPersisterService.start(persisterConfig, activationStore)
+    log.info(s"Started the server at http://localhost:$port")
     BasicHttpService.startHttpService(new PersisterService(consumer).route, port, None)
   }
 
