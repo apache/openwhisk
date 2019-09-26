@@ -30,6 +30,7 @@ import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.connector.kafka.KamonMetricsReporter
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CombinedCompletionAndResultMessage, ResultMessage}
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
@@ -136,6 +137,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
       .withGroupId(config.groupId)
       .withBootstrapServers(config.kafkaHosts)
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
+      .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
 
   private class RebalanceListener extends Actor with ActorLogging {
     //TODO Metric - Topic reassignments
