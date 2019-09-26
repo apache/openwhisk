@@ -26,6 +26,11 @@ import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, Transact
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import pureconfig.loadConfigOrThrow
 import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.unmarshalling.Unmarshaller
+
+import scala.language.postfixOps
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.{Success, Try}
 
 object TestLoadGenerator extends SLF4JLogging {
   val configRoot = "whisk.load-generator"
@@ -62,14 +67,33 @@ object TestLoadGenerator extends SLF4JLogging {
       with Directives {
     override def routes(implicit transid: TransactionId): Route = super.routes ~ runRoute()
 
+    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] = {
+      Unmarshaller.strict[String, FiniteDuration] { value =>
+        Try { Duration(value) } match {
+          case Success(i) if i.isFinite() => i.asInstanceOf[FiniteDuration]
+          case _ =>
+            throw new IllegalArgumentException(s"Invalid duration $value")
+        }
+      }
+    }
+
     def runRoute()(implicit transid: TransactionId): Route =
       path("run") {
         get {
-          parameters('count.as[Int] ? 10, 'topic.as[String] ? "completed-others", 'size.as[Int] ? 100) {
-            (count, topic, size) =>
-              val msgGen = new WhiskActivationGenerator
-              val loadGen = LoadGenerator(config, count, topic, msgGen)
-              complete(s"Started run [${loadGen.id}] - Count $count, Topic $topic")
+          parameters(
+            'count.as[Int] ? 10,
+            'topic.as[String] ? "completed-others",
+            'size.as[Int] ? 100,
+            'telems.as[Int] ?,
+            'tper.as[FiniteDuration] ?) { (count, topic, size, telems, tper) =>
+            val throttle = for {
+              e <- telems
+              per <- tper
+            } yield ThrottleSettings(e, per)
+
+            val msgGen = new WhiskActivationGenerator
+            val loadGen = LoadGenerator(config, count, topic, msgGen, throttle)
+            complete(s"Started run [${loadGen.id}] - Count $count, Topic $topic, Throttle $throttle")
           }
         }
       } ~ path("status") {

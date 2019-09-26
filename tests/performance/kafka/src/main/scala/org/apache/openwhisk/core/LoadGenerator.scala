@@ -22,14 +22,16 @@ import akka.actor.ActorSystem
 import akka.kafka.ProducerSettings
 import akka.kafka.scaladsl.Producer
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Flow, Source}
 import com.google.common.base.{Stopwatch, Throwables}
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.openwhisk.common.{Counter, Logging, TransactionId}
+import org.apache.openwhisk.connector.kafka.KamonMetricsReporter
 import spray.json._
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -39,11 +41,16 @@ trait MessageGenerator {
   def next(index: Int)(implicit tid: TransactionId): JsObject
 }
 
-case class LoadGenerator(config: LoadGeneratorConfig, count: Int, topic: String, generator: MessageGenerator)(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer,
-  logging: Logging,
-  tid: TransactionId) {
+case class ThrottleSettings(elements: Int, per: FiniteDuration)
+
+case class LoadGenerator(config: LoadGeneratorConfig,
+                         count: Int,
+                         topic: String,
+                         generator: MessageGenerator,
+                         throttle: Option[ThrottleSettings])(implicit system: ActorSystem,
+                                                             materializer: ActorMaterializer,
+                                                             logging: Logging,
+                                                             tid: TransactionId) {
   import LoadGenerator._
 
   private implicit val ec: ExecutionContext = system.dispatcher
@@ -52,12 +59,13 @@ case class LoadGenerator(config: LoadGeneratorConfig, count: Int, topic: String,
   val id: Long = idCounter.next()
   val progressCounter: Counter = new Counter
 
-  def status: String = s"$id - Sent ${progressCounter.cur} messages to $topic since $w"
+  def status: String = s"$id - Sent ${progressCounter.cur} messages to $topic since $w ($throttle)"
 
-  logging.info(this, s"Starting producing $count messages for topic $topic")
+  logging.info(this, s"Starting producing $count messages for topic $topic ($throttle)")
   generators.put(id, this)
 
   val done: Future[Done] = Source(1 to count)
+    .via(throttleFlow)
     .map(i => generator.next(i).compactPrint)
     .wireTap(_ => progressCounter.next())
     .map(value => new ProducerRecord[String, String](topic, value))
@@ -70,8 +78,11 @@ case class LoadGenerator(config: LoadGeneratorConfig, count: Int, topic: String,
     case Failure(t) => logging.warn(this, "Failed to produce all the messages " + Throwables.getStackTraceAsString(t))
   }
 
+  private def throttleFlow = throttle.map(t => Flow[Int].throttle(t.elements, t.per)).getOrElse(Flow[Int])
+
   private def producerSettings(): ProducerSettings[String, String] = {
     ProducerSettings(system, new StringSerializer, new StringSerializer)
+      .withProperty(ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
   }
 }
 
