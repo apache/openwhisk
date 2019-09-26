@@ -586,7 +586,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(NODEJS10),
-          updated = response.updated)) // ignore updated field
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -608,7 +608,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(BLACKBOX),
-          updated = response.updated)) // ignore updated field
+          updated = response.updated)) // ignored `updated` field because another test covers it
       response.exec shouldBe an[BlackBoxExec]
       response.exec.asInstanceOf[BlackBoxExec].code shouldBe empty
     }
@@ -632,7 +632,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(BLACKBOX),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
       response.exec shouldBe an[BlackBoxExec]
       val bb = response.exec.asInstanceOf[BlackBoxExec]
       bb.code shouldBe Some(Inline("cc"))
@@ -680,7 +680,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version.upPatch.upPatch,
           action.publish,
           action.annotations ++ Parameters("a", "B") ++ Parameters(WhiskAction.execFieldName, action.exec.kind),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -752,7 +752,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(NODEJS10),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -793,7 +793,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(NODEJS10),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -830,7 +830,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include(s"caching ${CacheKey(action)}")
         stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -850,7 +850,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.reset()
@@ -869,7 +869,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version.upPatch,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated)
+              updated = response.updated) // ignored `updated` field because another test covers it
           }
         }
         stream.toString should include(s"entity exists, will try to update '$action'")
@@ -891,7 +891,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version.upPatch,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include(s"invalidating ${CacheKey(action)}")
         stream.reset()
@@ -946,7 +946,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
 
         stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -967,7 +967,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.toString should not include regex(notExpectedGetLog)
@@ -987,7 +987,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
 
         stream.toString should include(s"invalidating ${CacheKey(action)}")
@@ -1032,7 +1032,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(JAVA_DEFAULT),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
 
     stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
@@ -1053,7 +1053,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(JAVA_DEFAULT),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
 
     stream.toString should include(s"serving from cache: ${CacheKey(action)}")
@@ -1074,7 +1074,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.version,
           action.publish,
           action.annotations ++ systemAnnotations(JAVA_DEFAULT),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
     stream.toString should include(s"invalidating ${CacheKey(action)}")
     stream.reset()
@@ -1124,7 +1124,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
 
         stream.toString should include regex (expectedGetLog)
@@ -1232,7 +1232,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version.upPatch,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include regex (expectedPutLog)
         stream.reset()
@@ -1251,7 +1251,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.version.upPatch,
               action.publish,
               action.annotations ++ systemAnnotations(kind),
-              updated = response.updated))
+              updated = response.updated)) // ignored `updated` field because another test covers it
         }
         stream.toString should include(s"invalidating ${CacheKey(action)}")
         stream.reset()
@@ -1299,7 +1299,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
           actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1324,7 +1324,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
           actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false),
-          updated = response.updated))
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -1370,7 +1370,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
           annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false),
-          updated = response.updated)
+          updated = response.updated) // ignored `updated` field because another test covers it
       }
     }
   }
@@ -1392,7 +1392,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           content.parameters.get,
           version = action.version.upPatch,
           annotations = action.annotations ++ systemAnnotations(NODEJS10, false),
-          updated = response.updated)
+          updated = response.updated) // ignored `updated` field because another test covers it
       }
     }
   }

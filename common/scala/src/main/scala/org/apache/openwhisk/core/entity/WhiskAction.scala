@@ -94,7 +94,7 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       parameters.definedParameters
     } else Set.empty[String]
 
-  def toJson = {
+  def toJson =
     JsObject(
       "namespace" -> namespace.toJson,
       "name" -> name.toJson,
@@ -104,7 +104,6 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       "version" -> version.toJson,
       "publish" -> publish.toJson,
       "annotations" -> annotations.toJson)
-  }
 }
 
 abstract class WhiskActionLikeMetaData(override val name: EntityName) extends WhiskActionLike(name) {
@@ -125,7 +124,9 @@ abstract class WhiskActionLikeMetaData(override val name: EntityName) extends Wh
  * @param limits the limits to impose on the action
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the action
+ * @param annotations the set of annotations to attribute to the action
+ * @param updated the timestamp when the action is updated.
+ *                Since it's stored in milliseconds in the db, it's truncated.
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -271,7 +272,7 @@ case class WhiskActionMetaData(namespace: EntityPath,
  * @param limits the limits to impose on the action
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the action
+ * @param annotations the set of annotations to attribute to the action
  * @param binding the path of the package binding if any
  * @throws IllegalArgumentException if any argument is undefined
  */
