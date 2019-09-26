@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.database
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.google.common.base.Throwables
+import com.typesafe.config.Config
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider, ResultMessage}
@@ -84,15 +85,27 @@ object KafkaActivationStoreProvider extends ActivationStoreProvider {
     val primaryStore = SpiLoader
       .get[ActivationStoreProvider]
       .instance(actorSystem, actorMaterializer, logging)
-    val producer = createProducer(storeConfig.maxRequestSize)(logging, actorSystem)
+    val producer = createProducer(storeConfig)(logging, actorSystem)
     new KafkaActivationStore(primaryStore, producer, storeConfig, actorSystem, actorMaterializer, logging)
   }
 
-  def createProducer(maxRequestSize: Option[ByteSize])(implicit logging: Logging,
-                                                       system: ActorSystem): MessageProducer = {
+  def createProducer(config: KafkaActivationStoreConfig)(implicit logging: Logging,
+                                                         system: ActorSystem): MessageProducer = {
     val msgProvider = SpiLoader.get[MessagingProvider]
     val whiskConfig = new WhiskConfig(WhiskConfig.kafkaHosts)
-    val maxSize = maxRequestSize.getOrElse(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
+
+    val topic = config.activationsTopic
+    val topicConfig = getTopicConfigKey(topic, system.settings.config)
+    //For this completed topic we do not specify any limit
+    val ensureTopic = msgProvider.ensureTopic(whiskConfig, topic, topicConfig, maxMessageBytes = None)
+    require(ensureTopic.isSuccess, s"Unable to create topic $topic with config " + ensureTopic)
+
+    val maxSize = config.maxRequestSize.getOrElse(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     msgProvider.getProducer(whiskConfig, Some(maxSize))
+  }
+
+  def getTopicConfigKey(topic: String, config: Config): String = {
+    val key = ConfigKeys.kafkaTopics + "." + topic
+    if (config.hasPath(key)) topic else "completed"
   }
 }
