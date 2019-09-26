@@ -59,7 +59,7 @@ case class LoadGenerator(config: LoadGeneratorConfig,
   val id: Long = idCounter.next()
   val progressCounter: Counter = new Counter
 
-  def status: String = s"$id - Sent ${progressCounter.cur} messages to $topic since $w ($throttle)"
+  def status(): String = s"$id - Sent ${progressCounter.cur} messages to $topic since $w ($throttle)"
 
   logging.info(this, s"Starting producing $count messages for topic $topic ($throttle)")
   generators.put(id, this)
@@ -67,7 +67,7 @@ case class LoadGenerator(config: LoadGeneratorConfig,
   val done: Future[Done] = Source(1 to count)
     .via(throttleFlow)
     .map(i => generator.next(i).compactPrint)
-    .wireTap(_ => progressCounter.next())
+    .wireTap(_ => trackProgress())
     .map(value => new ProducerRecord[String, String](topic, value))
     .runWith(Producer.plainSink(producerSettings()))
 
@@ -76,6 +76,13 @@ case class LoadGenerator(config: LoadGeneratorConfig,
   done.onComplete {
     case Success(_) => logging.info(this, s"Successfully published $count messages to $topic in $w")
     case Failure(t) => logging.warn(this, "Failed to produce all the messages " + Throwables.getStackTraceAsString(t))
+  }
+
+  private def trackProgress() = {
+    val i = progressCounter.next()
+    if (i % 100 == 0) {
+      logging.info(this, status())
+    }
   }
 
   private def throttleFlow = throttle.map(t => Flow[Int].throttle(t.elements, t.per)).getOrElse(Flow[Int])

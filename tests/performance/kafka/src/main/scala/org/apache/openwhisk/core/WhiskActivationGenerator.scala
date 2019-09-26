@@ -22,16 +22,17 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, CombinedCompletionAndResultMessage}
 import org.apache.openwhisk.core.entity.{
   ActivationId,
+  ActivationResponse,
   EntityName,
   EntityPath,
   InvokerInstanceId,
   Subject,
   WhiskActivation
 }
-import spray.json.JsObject
+import spray.json.{JsObject, JsString}
 import org.apache.openwhisk.core.entity.size._
 
-class WhiskActivationGenerator extends MessageGenerator {
+class WhiskActivationGenerator(size: Int) extends MessageGenerator {
   private val invokerId = InvokerInstanceId(1, userMemory = 1.MB)
 
   override def next(index: Int)(implicit tid: TransactionId): JsObject = {
@@ -43,12 +44,16 @@ class WhiskActivationGenerator extends MessageGenerator {
   }
 
   private def newActivation(namespace: String) = {
+    //TODO For now result size is increased by repetition
+    //Later add support for random result string to check against
+    //possible compression
     WhiskActivation(
       EntityPath(namespace),
       EntityName("testAction"),
       Subject(),
       ActivationId.generate(),
       Instant.now().minusSeconds(4000),
-      Instant.now())
+      Instant.now(),
+      response = ActivationResponse.success(Some(JsString("a" * size))))
   }
 }

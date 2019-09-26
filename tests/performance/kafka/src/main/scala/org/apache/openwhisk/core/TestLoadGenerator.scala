@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
@@ -51,6 +51,7 @@ object TestLoadGenerator extends SLF4JLogging {
     val loadConfig =
       loadConfigOrThrow[LoadGeneratorConfig](system.settings.config.getConfig(configRoot))
     val port = loadConfig.port
+    CoordinatedShutdown(system)
     BasicHttpService.startHttpService(new LoadGenService(loadConfig).route, port, None)
   }
 
@@ -91,7 +92,7 @@ object TestLoadGenerator extends SLF4JLogging {
               per <- tper
             } yield ThrottleSettings(e, per)
 
-            val msgGen = new WhiskActivationGenerator
+            val msgGen = new WhiskActivationGenerator(size)
             val loadGen = LoadGenerator(config, count, topic, msgGen, throttle)
             complete(s"Started run [${loadGen.id}] - Count $count, Topic $topic, Throttle $throttle")
           }
@@ -109,7 +110,7 @@ object TestLoadGenerator extends SLF4JLogging {
       }
 
     private def loadGeneratorStatus = {
-      val statuses = LoadGenerator.generators.values.map(_.status)
+      val statuses = LoadGenerator.generators.values.map(_.status())
       if (statuses.isEmpty) "No Load generator runs in progress" else statuses.mkString("\n")
     }
   }
