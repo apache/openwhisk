@@ -41,4 +41,4 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-mainClassName = "org.apache.openwhisk.core.database.cosmosdb.cache.Main"
+mainClassName = "org.apache.openwhisk.core.database.persister.Main"

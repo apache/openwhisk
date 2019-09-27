@@ -17,8 +17,6 @@
 # limitations under the License.
 #
 
-./copyJMXFiles.sh
-
 export PERSISTER_OPTS
 PERSISTER_OPTS="$PERSISTER_OPTS $(./transformEnvironment.sh)"
 
