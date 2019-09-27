@@ -35,6 +35,7 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import common.WhiskProperties
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.{ConfigKeys}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity._
@@ -42,6 +43,7 @@ import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
+import pureconfig.loadConfigOrThrow
 
 /**
  * Behavior tests for the ContainerPool
@@ -68,6 +70,7 @@ class ContainerPoolTests
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
   val cpuLimit = (0.2).toFloat
+  val cpuLimitCfg = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
 
   /** Creates a `Run` message */
   def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
@@ -198,6 +201,8 @@ class ContainerPoolTests
 
   it should "remove several containers to make space in the pool if it is already full and a different large action arrives" in within(
     timeout) {
+    assume(!cpuLimitCfg.controlEnabled) // would only pass in memory limit mode
+
     val (containers, factory) = testContainers(3)
     val feed = TestProbe()
 
@@ -217,6 +222,75 @@ class ContainerPoolTests
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
     containers(2).expectMsg(runMessageLarge)
+  }
+
+  it should "remove several containers to make space in the pool if CPU consumed full and a different action arrives" in within(
+    timeout) {
+    assume(cpuLimitCfg.controlEnabled) // would only pass in cpu limit mode
+
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    // a pool with enough memory slots for maxContainerCount actions.
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(600.MB), feed.ref, cpuThreads = 1))
+    // maxContainerCount CPU taken -> full
+    for (i <- 0 until 2) {
+      val cpuAction = action.copy(name = EntityName(s"cpuActionName${i}"), limits = ActionLimits(cpu = CPULimit(0.5)))
+      val msg = createRunMessage(cpuAction, invocationNamespace)
+      pool ! msg
+      containers(i).expectMsg(msg)
+    }
+
+    containers(0).send(pool, NeedWork(warmedData())) // first action finished -> 1 * 0.5 CPU and 1 * stdMemory taken
+    feed.expectMsg(MessageFeed.Processed)
+    containers(1).send(pool, NeedWork(warmedData())) // second action finished -> 2 * 0.5 CPU and 2 * stdMemory taken
+    feed.expectMsg(MessageFeed.Processed)
+
+    // need to remove all smaller actions to make space for the maximum CPU consumed action
+    val aLargeCPUAction = action.copy(
+      name = EntityName("aLargeCPUAction"),
+      limits = ActionLimits(memory = MemoryLimit(300.MB), cpu = CPULimit(1)))
+    val aLargeCPUMsg = createRunMessage(aLargeCPUAction, invocationNamespace)
+    pool ! aLargeCPUMsg
+    containers(0).expectMsg(Remove)
+    containers(1).expectMsg(Remove)
+    containers(2).expectMsg(aLargeCPUMsg)
+  }
+
+  it should "count CPU and memory slots together to decide free space" in within(timeout) {
+    assume(cpuLimitCfg.controlEnabled) // would only pass in cpu limit mode and local environment
+
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val waitFeedTimeout = 500.millis
+
+    // a pool with enough memory slots for maxContainerCount actions.
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(512.MB), feed.ref, cpuThreads = 1))
+
+    val firstAction = action.copy(
+      name = EntityName("cpuActionName0"),
+      limits = ActionLimits(memory = MemoryLimit(300.MB), cpu = CPULimit(0.2)))
+    val firstMsg = createRunMessage(firstAction, invocationNamespace)
+    pool ! firstMsg
+    containers(0).expectMsg(firstMsg)
+
+    // cpu slots not full, but memory slots have no free space, remove the first one
+    val secondAction = action.copy(
+      name = EntityName("cpuActionName1"),
+      limits = ActionLimits(memory = MemoryLimit(300.MB), cpu = CPULimit(0.2)))
+    val secondMsg = createRunMessage(secondAction, invocationNamespace)
+    pool ! secondMsg
+    containers(0).expectNoMessage(waitFeedTimeout)
+    containers(1).expectNoMessage(waitFeedTimeout)
+
+    // the first one done, and the second one begin to run
+    containers(0).send(pool, NeedWork(warmedData()))
+    feed.expectMsg(MessageFeed.Processed)
+    containers(0).expectMsg(waitFeedTimeout, Remove)
+    // Since the secondMsg failed and resend, it won't be the same instance again. `==` would failed.
+    val obj = containers(1).receiveOne(waitFeedTimeout).asInstanceOf[Run]
+    obj.action.limits.cpu should equal(secondAction.limits.cpu)
+    obj.action.limits.memory should equal(secondAction.limits.memory)
   }
 
   it should "cache a container if there is still space in the pool" in within(timeout) {
