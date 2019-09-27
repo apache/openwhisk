@@ -228,7 +228,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
 
     val action = WhiskAction(namespace, aname(), jsDefault(""))
-    val dummyUpdated = 1569400000000L;
+    val dummyUpdated = WhiskEntity.currentMillis().toEpochMilli
+
     val content = JsObject(
       "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
       "updated" -> dummyUpdated.toJson)
@@ -236,7 +237,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.updated.toEpochMilli should not be (dummyUpdated)
+      response.updated.toEpochMilli should be > dummyUpdated
     }
   }
 
