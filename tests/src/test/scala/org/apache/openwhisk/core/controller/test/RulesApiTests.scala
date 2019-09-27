@@ -164,14 +164,14 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
 
     // it should "get trigger by name in explicit namespace owned by subject" in
     Get(s"/$namespace/${collection.path}/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
 
     // it should "reject get trigger by name in explicit namespace not owned by subject" in
@@ -207,7 +207,33 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
+    }
+  }
+
+  it should "get rule with updated field" in {
+    implicit val tid = transid()
+
+    val rule = WhiskRule(
+      namespace,
+      EntityName("get_active_rule"),
+      afullname(namespace, "get_active_rule trigger"),
+      afullname(namespace, "an action"))
+    val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name, rules = Some {
+      Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+    })
+
+    put(entityStore, trigger)
+    put(entityStore, rule)
+
+    // `updated` field should be compared with a document in DB
+    val r = get(entityStore, rule.docid, WhiskRule)
+
+    Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskRuleResponse]
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = r.updated))
     }
   }
 
@@ -227,7 +253,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -264,7 +291,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -292,7 +320,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe None
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -310,7 +339,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Delete(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -329,7 +359,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -356,7 +387,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -385,7 +417,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -436,7 +469,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -468,7 +502,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -599,7 +633,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -630,7 +665,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -661,7 +697,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -692,7 +729,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -720,7 +758,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -802,7 +841,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
           Status.ACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = response.updated)) // ignored `updated` field because another test covers it
     }
   }
 
@@ -948,7 +988,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.toWhiskRule.withStatus(Status.INACTIVE))
+      // ignored `updated` field because another test covers it
+      response should be(rule.toWhiskRule.withStatus(Status.INACTIVE) copy (updated = response.updated))
     }
   }
 
@@ -972,7 +1013,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+
+      // ignored `updated` field because another test covers it
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = response.updated))
     }
   }
 
