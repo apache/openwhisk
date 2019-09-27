@@ -202,7 +202,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-  it should "get action with `updated` field" in {
+  it should "get action with updated field" in {
     implicit val tid = transid()
 
     val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
@@ -224,7 +224,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-  it should "not update action `updated` field with a put" in {
+  it should "ignore updated field when updating action" in {
     implicit val tid = transid()
 
     val action = WhiskAction(namespace, aname(), jsDefault(""))
