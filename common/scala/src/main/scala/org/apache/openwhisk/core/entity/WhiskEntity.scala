@@ -36,7 +36,7 @@ import org.apache.openwhisk.http.Messages
  * @param namespace the namespace for the entity as an abstract field
  * @param version the semantic version as an abstract field
  * @param publish true to share the entity and false to keep it private as an abstract field
- * @param annotation the set of annotations to attribute to the entity
+ * @param annotations the set of annotations to attribute to the entity
  *
  * @throws IllegalArgumentException if any argument is undefined
  */
@@ -113,8 +113,8 @@ object WhiskEntity {
   }
 
   /**
-   * Get Instant with a millisecond precision
-   * because it's stored in milliseconds in the db
+   * Get Instant object with a millisecond precision
+   * timestamp of whisk entity is stored in milliseconds in the db
    */
   def currentMillis() = {
     Instant.now(Clock.systemUTC()).truncatedTo(ChronoUnit.MILLIS)
