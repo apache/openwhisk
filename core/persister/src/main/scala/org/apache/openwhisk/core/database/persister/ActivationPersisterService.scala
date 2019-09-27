@@ -24,6 +24,7 @@ import org.apache.openwhisk.core.database.ActivationStore
 
 import scala.concurrent.ExecutionContext
 
+//We log all the config. So do not capture any secret here
 case class PersisterConfig(port: Int,
                            clientId: String,
                            kafkaHosts: String,
