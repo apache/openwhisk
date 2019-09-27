@@ -28,6 +28,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{RestartSource, Sink}
 import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.{Metric, MetricName}
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.connector.kafka.KamonMetricsReporter
@@ -106,6 +107,8 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
 
   private val lagRecorder =
     system.scheduler.schedule(10.seconds, 10.seconds)(queueMetric.gauge.set(consumerLag))
+
+  def metrics(): Future[Map[MetricName, Metric]] = control.get().metrics
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()

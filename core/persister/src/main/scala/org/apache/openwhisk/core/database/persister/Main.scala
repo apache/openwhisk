@@ -21,13 +21,17 @@ import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import kamon.Kamon
-import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
+import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, TransactionId}
+import org.apache.openwhisk.connector.kafka.KafkaMetrics
 import org.apache.openwhisk.core.database.ActivationStoreProvider
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig.loadConfigOrThrow
+
+import scala.concurrent.ExecutionContext
 
 object Main extends SLF4JLogging {
   def main(args: Array[String]): Unit = {
@@ -52,13 +56,23 @@ object Main extends SLF4JLogging {
     BasicHttpService.startHttpService(new PersisterService(consumer).route, port, None)
   }
 
-  class PersisterService(consumer: ActivationConsumer) extends BasicRasService {
+  class PersisterService(consumer: ActivationConsumer)(implicit system: ActorSystem) extends BasicRasService {
+    private implicit val ec: ExecutionContext = system.dispatcher
+
     override val ping: Route = path("ping") {
       if (consumer.isRunning) {
         complete("pong")
       } else {
         complete(ServiceUnavailable -> "Consumer not running")
       }
+    }
+
+    override def routes(implicit transid: TransactionId): Route = super.routes ~ kafkaMetrics
+
+    def kafkaMetrics: Route = path("metrics" / "kafka") {
+      //Exposes Kafka consumer metrics at /metrics/kafka endpoint
+      val metrics = consumer.metrics().map(m => KafkaMetrics.toJson(m))
+      complete(metrics)
     }
   }
 }
