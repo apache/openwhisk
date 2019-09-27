@@ -194,7 +194,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger copy(updated = t.updated))
+      response should be(trigger copy (updated = t.updated))
     }
   }
 
