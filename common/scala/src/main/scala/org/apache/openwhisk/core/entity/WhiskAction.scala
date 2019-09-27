@@ -19,8 +19,7 @@ package org.apache.openwhisk.core.entity
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
-import java.time.temporal.ChronoUnit
-import java.time.{Clock, Instant}
+import java.time.Instant
 import java.util.Base64
 
 import akka.http.scaladsl.model.ContentTypes
@@ -125,8 +124,7 @@ abstract class WhiskActionLikeMetaData(override val name: EntityName) extends Wh
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
  * @param annotations the set of annotations to attribute to the action
- * @param updated the timestamp when the action is updated.
- *                Since it's stored in milliseconds in the db, it's truncated.
+ * @param updated the timestamp when the action is updated
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -138,7 +136,7 @@ case class WhiskAction(namespace: EntityPath,
                        version: SemVer = SemVer(),
                        publish: Boolean = false,
                        annotations: Parameters = Parameters(),
-                       override val updated: Instant = Instant.now(Clock.systemUTC()).truncatedTo(ChronoUnit.MILLIS))
+                       override val updated: Instant = WhiskEntity.currentMillis())
     extends WhiskActionLike(name) {
 
   require(exec != null, "exec undefined")
@@ -205,9 +203,7 @@ case class WhiskActionMetaData(namespace: EntityPath,
                                version: SemVer = SemVer(),
                                publish: Boolean = false,
                                annotations: Parameters = Parameters(),
-                               override val updated: Instant = Instant
-                                 .now(Clock.systemUTC())
-                                 .truncatedTo(ChronoUnit.MILLIS),
+                               override val updated: Instant = WhiskEntity.currentMillis(),
                                binding: Option[EntityPath] = None)
     extends WhiskActionLikeMetaData(name) {
 

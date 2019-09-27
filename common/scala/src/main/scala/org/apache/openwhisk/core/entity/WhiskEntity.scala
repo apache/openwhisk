@@ -19,10 +19,9 @@ package org.apache.openwhisk.core.entity
 
 import java.time.Clock
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
-import scala.Stream
 import scala.util.Try
-
 import spray.json._
 import org.apache.openwhisk.core.database.DocumentUnreadable
 import org.apache.openwhisk.core.database.DocumentTypeMismatchException
@@ -49,7 +48,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
   val version: SemVer
   val publish: Boolean
   val annotations: Parameters
-  val updated = Instant.now(Clock.systemUTC())
+  val updated = WhiskEntity.currentMillis()
 
   /**
    * The name of the entity qualified with its namespace and version for
@@ -112,6 +111,15 @@ object WhiskEntity {
   def qualifiedName(namespace: EntityPath, activationId: ActivationId) = {
     s"$namespace${EntityPath.PATHSEP}$activationId"
   }
+
+  /**
+   * Get Instant with a millisecond precision
+   * because it's stored in milliseconds in the db
+   */
+  def currentMillis() = {
+    Instant.now(Clock.systemUTC()).truncatedTo(ChronoUnit.MILLIS)
+  }
+
 }
 
 object WhiskDocumentReader extends DocumentReader {
