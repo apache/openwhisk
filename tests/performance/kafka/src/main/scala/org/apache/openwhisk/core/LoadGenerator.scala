@@ -96,7 +96,7 @@ case class LoadGenerator(config: LoadGeneratorConfig,
       .withProperty(ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
   }
 
-  private def watchStats = s"$w (${w.elapsed(TimeUnit.SECONDS)}s"
+  private def watchStats = s"$w (${w.elapsed(TimeUnit.SECONDS)}s)"
 }
 
 object LoadGenerator {
