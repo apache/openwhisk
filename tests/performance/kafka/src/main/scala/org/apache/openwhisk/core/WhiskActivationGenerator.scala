@@ -33,27 +33,45 @@ import spray.json.{JsObject, JsString}
 import org.apache.openwhisk.core.entity.size._
 
 class WhiskActivationGenerator(size: Int) extends MessageGenerator {
+  import WhiskActivationGenerator._
   private val invokerId = InvokerInstanceId(1, userMemory = 1.MB)
+  private val subject = Subject()
 
-  override def next(index: Int)(implicit tid: TransactionId): JsObject = {
-    newCombinedMessage("test").toJson.asJsObject
+  override def next(genId: Long, index: Int)(implicit tid: TransactionId): JsObject = {
+    newCombinedMessage("test", activationId(genId, index)).toJson.asJsObject
   }
 
-  private def newCombinedMessage(namespace: String): AcknowledegmentMessage = {
-    CombinedCompletionAndResultMessage(TransactionId.testing, newActivation(namespace), invokerId)
+  private def newCombinedMessage(namespace: String, activationId: ActivationId): AcknowledegmentMessage = {
+    CombinedCompletionAndResultMessage(TransactionId.testing, newActivation(namespace, activationId), invokerId)
   }
 
-  private def newActivation(namespace: String) = {
+  private def newActivation(namespace: String, activationId: ActivationId) = {
     //TODO For now result size is increased by repetition
     //Later add support for random result string to check against
     //possible compression
     WhiskActivation(
       EntityPath(namespace),
       EntityName("testAction"),
-      Subject(),
-      ActivationId.generate(),
+      subject,
+      activationId,
       Instant.now().minusSeconds(4000),
       Instant.now(),
       response = ActivationResponse.success(Some(JsString("a" * size))))
+  }
+}
+
+object WhiskActivationGenerator {
+  def activationId(genId: Long, index: Int): ActivationId = {
+    //Encode the genId and index in activation id
+    //As activation id is restricted to 32 chars and only hex values
+    //We chop required chars and add numbers with padding
+    //<genId>a<index>a<Rest of activationId>
+
+    //genId=3, index=100
+    //003a0000100a136721d8052b4a3ea721
+
+    val aidOrig = ActivationId.generate().asString.dropRight(12)
+    val id = f"${genId}%03da${index}%07da$aidOrig"
+    ActivationId(id)
   }
 }

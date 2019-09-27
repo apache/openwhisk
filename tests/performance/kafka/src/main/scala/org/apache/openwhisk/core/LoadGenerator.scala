@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core
 
+import java.util.concurrent.TimeUnit
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ProducerSettings
@@ -38,7 +40,7 @@ import scala.util.{Failure, Success}
 case class LoadGeneratorConfig(port: Int)
 
 trait MessageGenerator {
-  def next(index: Int)(implicit tid: TransactionId): JsObject
+  def next(genId: Long, index: Int)(implicit tid: TransactionId): JsObject
 }
 
 case class ThrottleSettings(elements: Int, per: FiniteDuration)
@@ -59,22 +61,24 @@ case class LoadGenerator(config: LoadGeneratorConfig,
   val id: Long = idCounter.next()
   val progressCounter: Counter = new Counter
 
-  def status(): String = s"$id - Sent ${progressCounter.cur} messages to $topic since $w ($throttle)"
+  def status(): String = {
+    val stage = if (done.isCompleted) "Completed" else "Sent"
+    s"$id - $stage ${progressCounter.cur} messages to $topic since $watchStats ($throttle)"
+  }
 
   logging.info(this, s"Starting producing $count messages for topic $topic ($throttle)")
   generators.put(id, this)
 
   val done: Future[Done] = Source(1 to count)
     .via(throttleFlow)
-    .map(i => generator.next(i).compactPrint)
+    .map(i => generator.next(id, i).compactPrint)
     .wireTap(_ => trackProgress())
     .map(value => new ProducerRecord[String, String](topic, value))
     .runWith(Producer.plainSink(producerSettings()))
 
-  done.onComplete(_ => generators.remove(id))
-
+  //Do not removed the completed stages for keeping track of history
   done.onComplete {
-    case Success(_) => logging.info(this, s"Successfully published $count messages to $topic in $w")
+    case Success(_) => logging.info(this, s"Successfully published $count messages to $topic in $watchStats")
     case Failure(t) => logging.warn(this, "Failed to produce all the messages " + Throwables.getStackTraceAsString(t))
   }
 
@@ -91,6 +95,8 @@ case class LoadGenerator(config: LoadGeneratorConfig,
     ProducerSettings(system, new StringSerializer, new StringSerializer)
       .withProperty(ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
   }
+
+  private def watchStats = s"$w (${w.elapsed(TimeUnit.SECONDS)}s"
 }
 
 object LoadGenerator {
