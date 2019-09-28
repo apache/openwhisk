@@ -33,7 +33,8 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{CPULimitUtils, Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage}
 import org.apache.openwhisk.core.containerpool.WarmingData
 import org.apache.openwhisk.core.containerpool._
@@ -44,6 +45,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.invoker.InvokerReactive
+import pureconfig.loadConfigOrThrow
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -65,6 +67,10 @@ class ContainerProxyTests
   val pauseGrace = timeout + 1.minute
   val log = logging
   val defaultUserMemory: ByteSize = 1024.MB
+  val defaultSystemCPU: Float = 1
+  val defaultInvokerInstanceId = InvokerInstanceId(0, userMemory = defaultUserMemory, cpuThreads = defaultSystemCPU)
+
+  val cpuLimitCfg = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
 
   // Common entities to pass to the tests. We don't really care what's inside
   // those for the behavior testing here, as none of the contents will really
@@ -72,6 +78,7 @@ class ContainerProxyTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
+  val cpuLimit = 0.2
 
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
@@ -283,17 +290,19 @@ class ContainerProxyTests
             createAcker(),
             store,
             createCollector(),
-            InvokerInstanceId(0, Some("myname"), userMemory = defaultUserMemory),
+            defaultInvokerInstanceId.copy(uniqueName = Some("myname")),
             poolConfig,
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
     factory.calls should have size 1
-    val (tid, name, _, _, memory, cpuShares, _) = factory.calls(0)
+    val (tid, name, _, _, memory, cpu, _) = factory.calls(0)
     tid shouldBe TransactionId.invokerWarmup
     name should fullyMatch regex """wskmyname\d+_\d+_prewarm_actionKind"""
     memory shouldBe memoryLimit
+    if (cpuLimitCfg.controlEnabled)
+      cpu shouldBe CPULimitUtils.threadsToPermits(cpuLimit)
   }
 
   it should "run a container which has been started before, write an active ack, write to the store, pause and remove the container" in within(
@@ -307,14 +316,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
 
     preWarm(machine)
@@ -351,14 +353,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
@@ -414,14 +409,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
 
@@ -464,14 +452,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
 
@@ -504,14 +485,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
 
     machine ! Run(noLogsAction, message)
@@ -556,14 +530,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine) //ends in Started state
 
@@ -669,14 +636,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = timeout))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -726,7 +686,6 @@ class ContainerProxyTests
         Interval(message.transid.meta.start, runInterval.start).duration.toMillis
       }
     }
-
   }
 
   /*
@@ -742,14 +701,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -786,14 +738,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -834,14 +779,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -872,14 +810,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -909,14 +840,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -948,16 +872,8 @@ class ContainerProxyTests
     val store = createStore
 
     val machine =
-      childActorOf(
-        ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            createCollector(),
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+      childActorOf(ContainerProxy
+        .props(factory, acker, store, createCollector(), defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
     timeout(machine) // times out Ready state so container suspends
@@ -991,16 +907,8 @@ class ContainerProxyTests
     val store = createStore
 
     val machine =
-      childActorOf(
-        ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            createCollector(),
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+      childActorOf(ContainerProxy
+        .props(factory, acker, store, createCollector(), defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine) // times out Ready state so container suspends
@@ -1038,14 +946,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
 
     // Start running the action
@@ -1097,14 +998,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine)
@@ -1145,14 +1039,7 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(
-            factory,
-            acker,
-            store,
-            collector,
-            InvokerInstanceId(0, userMemory = defaultUserMemory),
-            poolConfig,
-            pauseGrace = pauseGrace))
+          .props(factory, acker, store, collector, defaultInvokerInstanceId, poolConfig, pauseGrace = pauseGrace))
     registerCallback(machine)
 
     preWarm(machine)
