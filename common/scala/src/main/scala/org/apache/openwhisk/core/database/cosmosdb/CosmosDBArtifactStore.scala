@@ -72,6 +72,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private val getToken = createToken("get")
   private val queryToken = createToken("query")
   private val countToken = createToken("count")
+  private val docSizeToken = createDocSizeToken()
 
   private val documentsSizeToken = createUsageToken("documentsSize", MeasurementUnit.information.kilobytes)
   private val indexSizeToken = createUsageToken("indexSize", MeasurementUnit.information.kilobytes)
@@ -137,6 +138,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       }
       .transform(
         { r =>
+          docSizeToken.histogram.record(docSize)
           transid.finished(
             this,
             start,
@@ -562,6 +564,14 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def createUsageToken(name: String, unit: MeasurementUnit = MeasurementUnit.none): LogMarkerToken = {
     val tags = Map("collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "used", tags = tags)(unit)
+    else LogMarkerToken("cosmosdb", name, collName)(unit)
+  }
+
+  private def createDocSizeToken(): LogMarkerToken = {
+    val unit = MeasurementUnit.information.bytes
+    val name = "doc"
+    val tags = Map("collection" -> collName)
+    if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "size", tags = tags)(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }
 
