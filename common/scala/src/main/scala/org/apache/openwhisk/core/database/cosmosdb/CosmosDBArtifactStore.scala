@@ -140,7 +140,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           transid.finished(
             this,
             start,
-            s"[PUT] '$collName' completed document: '$docinfoStr', size=$docSize, ru=${r.getRequestCharge}",
+            s"[PUT] '$collName' completed document: '$docinfoStr', size=$docSize, ru=${r.getRequestCharge}${extraLogs(r)}",
             InfoLevel)
           collectMetrics(putToken, r.getRequestCharge)
           toDocInfo(r.getResource)
@@ -163,8 +163,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     }
     val g = f
       .transform(
-        { _ =>
-          transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'")
+        { r =>
+          transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'${extraLogs(r)}", InfoLevel)
           true
         }, {
           case e: DocumentClientException if isNotFound(e) =>
@@ -230,7 +230,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                 .finished(
                   this,
                   start,
-                  s"[GET] '$collName' completed: found document '$doc',size=$docSize, ru=${rr.getRequestCharge}",
+                  s"[GET] '$collName' completed: found document '$doc',size=$docSize, ru=${rr.getRequestCharge}${extraLogs(rr)}",
                   InfoLevel)
               deserialize[A, DocumentAbstraction](doc, js)
             }
@@ -570,4 +570,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def isSoftDeleted(js: JsObject) = js.fields.get(deleted).contains(JsTrue)
 
   private def isNewDocument(doc: Document) = doc.getETag == null
+
+  private def extraLogs(r: ResourceResponse[_])(implicit tid: TransactionId): String = {
+    if (tid.meta.extraLogging) {
+      " " + r.getRequestDiagnosticsString
+    } else ""
+  }
 }
