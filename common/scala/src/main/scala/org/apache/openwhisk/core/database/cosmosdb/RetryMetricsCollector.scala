@@ -79,7 +79,7 @@ object RetryMetricsCollector extends AppenderBase[ILoggingEvent] {
 
   private def getRetryAttempt(args: Array[AnyRef], index: Int) = {
     val t = Try {
-      if (args != null & args.length >= 2) {
+      if (args != null & args.length > index) {
         args(index) match {
           case n: Number => n.intValue()
           case _         => 0
