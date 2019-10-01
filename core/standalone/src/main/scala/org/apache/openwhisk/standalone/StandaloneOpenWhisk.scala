@@ -94,6 +94,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     noshort = true,
     required = false)
 
+  val userEvents = opt[Boolean](descr = "Enable User Events along with Prometheus and Grafana", noshort = true)
+
   verify()
 
   val colorEnabled = !disableColorLogging()
@@ -108,6 +110,7 @@ object StandaloneConfigKeys {
   val redisConfigKey = "whisk.standalone.redis"
   val apiGwConfigKey = "whisk.standalone.api-gateway"
   val couchDBConfigKey = "whisk.standalone.couchdb"
+  val userEventConfigKey = "whisk.standalone.user-events"
 }
 
 object StandaloneOpenWhisk extends SLF4JLogging {
@@ -179,12 +182,15 @@ object StandaloneOpenWhisk extends SLF4JLogging {
       startApiGateway(conf, dockerClient, dockerSupport)
     } else (-1, Seq.empty)
 
-    val (kafkaPort, kafkaSvcs) = if (conf.kafka()) {
+    val (kafkaDockerPort, kafkaSvcs) = if (conf.kafka() || conf.userEvents()) {
       startKafka(workDir, dockerClient, conf, conf.kafkaUi())
     } else (-1, Seq.empty)
 
     val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
-    val svcs = Seq(apiGwSvcs, couchSvcs.toList, kafkaSvcs).flatten
+    val userEventSvcs =
+      if (conf.userEvents()) startUserEvents(conf.port(), kafkaDockerPort, workDir, dataDir, dockerClient)
+      else Seq.empty
+    val svcs = Seq(apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs).flatten
     if (svcs.nonEmpty) {
       new ServiceInfoLogger(conf, svcs, dataDir).run()
     }
@@ -433,12 +439,13 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     as: ActorSystem,
     ec: ExecutionContext,
     materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
-    val kafkaPort = getPort(conf.kafkaPort.toOption, preferredKafkaPort)
     implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
+    val kafkaPort = getPort(conf.kafkaPort.toOption, preferredKafkaPort)
+    val kafkaDockerPort = getPort(conf.kafkaDockerPort.toOption, preferredKafkaDockerPort)
     val k = new KafkaLauncher(
       dockerClient,
       kafkaPort,
-      getPort(conf.kafkaDockerPort.toOption, preferredKafkaDockerPort),
+      kafkaDockerPort,
       getPort(conf.zkPort.toOption, preferredZkPort),
       workDir,
       kafkaUi)
@@ -457,7 +464,29 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setConfigProp(WhiskConfig.kafkaHostList, s"localhost:$kafkaPort")
     setSysProp("whisk.spi.MessagingProvider", "org.apache.openwhisk.connector.kafka.KafkaMessagingProvider")
     setSysProp("whisk.spi.LoadBalancerProvider", "org.apache.openwhisk.standalone.KafkaAwareLeanBalancer")
-    (kafkaPort, services)
+    (kafkaDockerPort, services)
+  }
+
+  private def startUserEvents(owPort: Int,
+                              kafkaDockerPort: Int,
+                              workDir: File,
+                              dataDir: File,
+                              dockerClient: StandaloneDockerClient)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext,
+    materializer: ActorMaterializer): Seq[ServiceContainer] = {
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "userevents")
+    val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, workDir, dataDir)
+
+    val f = k.run()
+    val g = f.andThen {
+      case Success(_) =>
+        logging.info(this, s"User events started successfully")
+      case Failure(t) =>
+        logging.error(this, "Error starting Kafka" + t)
+    }
+    Await.result(g, 5.minutes)
   }
 
   private def getPort(configured: Option[Int], preferred: Int): Int = {
