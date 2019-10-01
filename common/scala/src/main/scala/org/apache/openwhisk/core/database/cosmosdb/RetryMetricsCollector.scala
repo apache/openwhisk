@@ -22,6 +22,7 @@ import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase
 import com.microsoft.azure.cosmosdb.rx.internal.ResourceThrottleRetryPolicy
+import org.apache.openwhisk.common.{Counter => WhiskCounter}
 import kamon.metric.{Counter, MeasurementUnit}
 import org.apache.openwhisk.common.{LogMarkerToken, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
@@ -39,6 +40,7 @@ object RetryMetricsCollector extends AppenderBase[ILoggingEvent] with SLF4JLoggi
   private val tokens =
     Map(Create -> Token(Create), Query -> Token(Query), Get -> Token(Get), Others -> Token(Others))
 
+  val retryCounter = new WhiskCounter
   private[cosmosdb] def registerIfEnabled(): Unit = {
     val enabled = loadConfigOrThrow[Boolean](s"${ConfigKeys.cosmosdb}.retry-stats-enabled")
     if (enabled) {
@@ -71,6 +73,12 @@ object RetryMetricsCollector extends AppenderBase[ILoggingEvent] with SLF4JLoggi
         //Element 1 has the count
         val attemptCount = getRetryAttempt(e.getArgumentArray, 1)
         token.success.histogram.record(attemptCount)
+
+        //Used mostly for test mode where tags may be disabled
+        //and test need to determine if count is increased
+        if (!TransactionId.metricsKamonTags) {
+          retryCounter.next()
+        }
       } else {
         token.failed.counter.increment()
       }

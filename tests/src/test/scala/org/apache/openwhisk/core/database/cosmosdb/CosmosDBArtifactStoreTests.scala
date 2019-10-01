@@ -181,9 +181,16 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
   }
 
   private def retryCount: Int = {
-    RetryMetricsCollector.getCounter(CosmosDBAction.Create) match {
-      case Some(x: LongAdderCounter) => x.snapshot(false).value.toInt
-      case _                         => 0
+    //If KamonTags are disabled then Kamon uses CounterMetricImpl which does not provide
+    //any way of determining the current count. So in those cases the retry collector
+    //would increment a counter
+    if (TransactionId.metricsKamonTags) {
+      RetryMetricsCollector.getCounter(CosmosDBAction.Create) match {
+        case Some(x: LongAdderCounter) => x.snapshot(false).value.toInt
+        case _                         => 0
+      }
+    } else {
+      RetryMetricsCollector.retryCounter.cur.toInt
     }
   }
 }
