@@ -23,6 +23,7 @@ import akka.event.Logging.ErrorLevel
 import akka.stream.SinkShape
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, Sink}
 import akka.util.ByteString
+import com.google.common.base.Throwables
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsValue, RootJsonFormat}
 import org.apache.openwhisk.common.{Logging, StartMarker, TransactionId}
@@ -41,7 +42,11 @@ private[database] object StoreUtils {
     f.failed.foreach {
       case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
       case x =>
-        transid.failed(this, start, s"${failureMessage(x)} [${x.getClass.getSimpleName}]", ErrorLevel)
+        transid.failed(
+          this,
+          start,
+          s"${failureMessage(x)} [${x.getClass.getSimpleName}]\n" + Throwables.getStackTraceAsString(x),
+          ErrorLevel)
     }
     f
   }
