@@ -51,7 +51,12 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
     for {
       userEvent <- runUserEvents()
       (promContainer, promSvc) <- runPrometheus()
-    } yield Seq(userEvent, promSvc)
+      grafanaSvc <- runGrafana(promContainer)
+    } yield {
+      logging.info(this, "Enabled the user-event config")
+      System.setProperty("whisk.user-events.enabled", "true")
+      Seq(userEvent, promSvc, grafanaSvc)
+    }
   }
 
   def runUserEvents(): Future[ServiceContainer] = {
@@ -91,7 +96,8 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
     val grafanaConfigDir = newDir(workDir, "grafana")
     val grafanaDataDir = newDir(dataDir, "grafana")
 
-    unzipGrafanaConfig(grafanaConfigDir)
+    val promUrl = s"http://$hostIp:$prometheusPort"
+    unzipGrafanaConfig(grafanaConfigDir, promUrl)
 
     val env = Map(
       "GF_PATHS_PROVISIONING" -> "/etc/grafana/provisioning",
@@ -126,9 +132,13 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
   |    static_configs:
   |      - targets: ['$hostIp:$userEventPort', '$hostIp:$owPort']""".stripMargin
 
-  private def unzipGrafanaConfig(configDir: File): Unit = {
-    //TODO Update prometheus url in config
-    //TODO
+  private def unzipGrafanaConfig(configDir: File, promUrl: String): Unit = {
+    val is = getClass.getResourceAsStream("/grafana-config.zip")
+    Unzip(is, configDir)
+    val configFile = new File(configDir, "provisioning/datasources/datasource.yml")
+    val config = FileUtils.readFileToString(configFile, UTF_8)
+    val updatedConfig = config.replace("http://prometheus:9090", promUrl)
+    FileUtils.write(configFile, updatedConfig, UTF_8)
   }
 
   private def newDir(baseDir: File, name: String) = {
