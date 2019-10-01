@@ -36,3 +36,6 @@ TERM=dumb ./gradlew :core:monitoring:user-events:distDocker
 
 cd $ROOTDIR/tools/travis
 ./runTests.sh
+
+cd $ROOTDIR
+TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
