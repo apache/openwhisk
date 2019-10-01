@@ -29,6 +29,7 @@ import scala.util.{Failure, Success}
 class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId)(implicit logging: Logging,
                                                                                  ec: ExecutionContext)
     extends ActiveAck {
+  private val source = s"invoker${instance.instance}"
   override def apply(tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
@@ -47,7 +48,7 @@ class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId)
 
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
     if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
-      EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
+      EventMessage.from(activationResult, source, userId) match {
         case Success(msg) => UserEvents.send(producer, msg)
         case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
       }
