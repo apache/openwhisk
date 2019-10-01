@@ -19,7 +19,7 @@
 
 ./copyJMXFiles.sh
 
-export CACHE_INVALIDATOR_OPTS
-CACHE_INVALIDATOR_OPTS="$CACHE_INVALIDATOR_OPTS $(./transformEnvironment.sh)"
+export USER_EVENTS_OPTS
+USER_EVENTS_OPTS="$USER_EVENTS_OPTS $(./transformEnvironment.sh)"
 
 exec user-events/bin/user-events "$@"
