@@ -90,7 +90,7 @@ task copyGrafanaConfig() {
             ant.zip(destfile:zipFile){
                 fileset(dir:grafanaDir)
             }
-            logger.info("Create action zip $zipFileName")
+            logger.info("Created grafana config zip $zipFileName")
         }
     }
 }
