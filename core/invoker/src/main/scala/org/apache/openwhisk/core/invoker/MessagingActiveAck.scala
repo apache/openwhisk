@@ -26,8 +26,17 @@ import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId)(implicit logging: Logging,
-                                                                                 ec: ExecutionContext)
+trait EventSender {
+  def send(msg: => EventMessage): Unit
+}
+
+class UserEventSender(producer: MessageProducer) extends EventSender {
+  override def send(msg: => EventMessage): Unit = UserEvents.send(producer, msg)
+}
+
+class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId, eventSender: Option[EventSender])(
+  implicit logging: Logging,
+  ec: ExecutionContext)
     extends ActiveAck {
   private val source = s"invoker${instance.instance}"
   override def apply(tid: TransactionId,
@@ -47,10 +56,12 @@ class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId)
     }
 
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
-    if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
-      EventMessage.from(activationResult, source, userId) match {
-        case Success(msg) => UserEvents.send(producer, msg)
-        case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
+    if (acknowledegment.isSlotFree.nonEmpty) {
+      eventSender.foreach { s =>
+        EventMessage.from(activationResult, source, userId) match {
+          case Success(msg) => s.send(msg)
+          case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
+        }
       }
     }
 

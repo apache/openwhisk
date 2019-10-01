@@ -154,7 +154,10 @@ class InvokerReactive(
     new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
-  private val ack = new MessagingActiveAck(producer, instance)
+  private val ack = {
+    val sender = if (UserEvents.enabled) Some(new UserEventSender(producer)) else None
+    new MessagingActiveAck(producer, instance, sender)
+  }
 
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
