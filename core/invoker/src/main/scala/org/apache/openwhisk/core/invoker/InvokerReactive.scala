@@ -24,7 +24,6 @@ import akka.Done
 import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
-import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, _}
@@ -155,41 +154,7 @@ class InvokerReactive(
     new MessageFeed("activation", logging, consumer, maxPeek, 1.second, processActivationMessage)
   })
 
-  private val ack = new InvokerReactive.ActiveAck {
-    override def apply(tid: TransactionId,
-                       activationResult: WhiskActivation,
-                       blockingInvoke: Boolean,
-                       controllerInstance: ControllerInstanceId,
-                       userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
-      implicit val transid: TransactionId = tid
-
-      def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
-        producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
-          case Success(_) =>
-            val info = if (recovery) s"recovery ${msg.messageType}" else msg.messageType
-            logging.info(this, s"posted $info of activation ${acknowledegment.activationId}")
-        }
-      }
-
-      // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
-      if (UserEvents.enabled && acknowledegment.isSlotFree.nonEmpty) {
-        EventMessage.from(activationResult, s"invoker${instance.instance}", userId) match {
-          case Success(msg) => UserEvents.send(producer, msg)
-          case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
-        }
-      }
-
-      // An acknowledgement containing the result is only needed for blocking invokes in order to further the
-      // continuation. A result message for a non-blocking activation is not actually registered in the load balancer
-      // and the container proxy should not send such an acknowlegement unless it's a blocking request. Here the code
-      // is defensive and will shrink all non-blocking acknowledegments.
-      send(if (blockingInvoke) acknowledegment else acknowledegment.shrink).recoverWith {
-        case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
-          send(acknowledegment.shrink, recovery = true)
-      }
-    }
-  }
+  private val ack = new MessagingActiveAck(producer, instance)
 
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
