@@ -82,7 +82,6 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
 
     val volParams = Map(
       "-v" -> Set(s"${promDataDir.getAbsolutePath}:/prometheus", s"${promConfigDir.getAbsolutePath}:/etc/prometheus/"))
-    val cmd = Seq("--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus")
     val name = containerName("prometheus")
     val args = createRunCmd(name, Map.empty, baseParams ++ volParams)
     val f = docker.runDetached(userEventConfig.prometheusImage, args, shouldPull = true)
