@@ -295,12 +295,6 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       val response = responseAs[WhiskPackageWithActions]
       response should be(provider withActions ())
     }
-
-    Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskPackageWithActions]
-      response should be(provider withActions ())
-    }
   }
 
   it should "get package reference for private package in same namespace" in {
