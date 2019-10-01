@@ -489,7 +489,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val fieldsToRemove = Seq(_id, _rev)
     val mapped = transform(json, fieldsToAdd, fieldsToRemove)
     val jsonString = mapped.compactPrint
-    val doc = new Document(mapped.compactPrint)
+    val doc = new Document(jsonString)
     doc.set(selfLink, createSelfLink(doc.getId))
     doc.setTimeToLive(null) //Disable any TTL if in effect for earlier revision
     (doc, jsonString.length)
