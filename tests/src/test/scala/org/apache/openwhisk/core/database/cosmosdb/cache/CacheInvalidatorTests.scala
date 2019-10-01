@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 import akka.actor.CoordinatedShutdown
-import akka.kafka.testkit.internal.TestFrameworkInterface
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
@@ -44,7 +43,6 @@ import org.scalatest.{Matchers, TryValues}
 import scala.concurrent.duration._
 import scala.util.Random
 
-//TODO Make test port dynamic
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidatorTests
     extends ScalatestKafkaSpec(6061)
@@ -55,7 +53,6 @@ class CacheInvalidatorTests
     with ScalaFutures
     with IntegrationPatience
     with TryValues
-    with TestFrameworkInterface.Scalatest
     with StreamLogging {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
