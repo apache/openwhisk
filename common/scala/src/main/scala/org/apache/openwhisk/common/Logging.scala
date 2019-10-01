@@ -495,15 +495,15 @@ object LoggingMarkers {
   val CONTAINER_POOL_RUNBUFFER_COUNT =
     LogMarkerToken(containerPool, "runBufferCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_RUNBUFFER_SIZE =
-    LogMarkerToken(containerPool, "runBufferSize", counter)(MeasurementUnit.none)
+    LogMarkerToken(containerPool, "runBufferSize", counter)(MeasurementUnit.information.megabytes)
   val CONTAINER_POOL_ACTIVE_COUNT =
     LogMarkerToken(containerPool, "activeCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_ACTIVE_SIZE =
-    LogMarkerToken(containerPool, "activeSize", counter)(MeasurementUnit.none)
+    LogMarkerToken(containerPool, "activeSize", counter)(MeasurementUnit.information.megabytes)
   val CONTAINER_POOL_PREWARM_COUNT =
     LogMarkerToken(containerPool, "prewarmCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_PREWARM_SIZE =
-    LogMarkerToken(containerPool, "prewarmSize", counter)(MeasurementUnit.none)
+    LogMarkerToken(containerPool, "prewarmSize", counter)(MeasurementUnit.information.megabytes)
 
   val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", counter)(MeasurementUnit.none)
   val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", counter)(MeasurementUnit.none)

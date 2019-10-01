@@ -328,7 +328,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   /**
    * Log metrics about pool state (buffer size, buffer memory requirements, active number, active memory, prewarm number, prewarm memory)
    */
-  def emitMetrics() = {
+  private def emitMetrics() = {
     MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_RUNBUFFER_COUNT, runBuffer.size)
     MetricEmitter.emitGaugeMetric(
       LoggingMarkers.CONTAINER_POOL_RUNBUFFER_SIZE,
