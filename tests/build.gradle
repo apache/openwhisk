@@ -81,9 +81,7 @@ ext.testSets = [
         ]
     ],
     "REQUIRE_SYSTEM" : [
-        "includes" : systemIncludes + [
-            "org/apache/openwhisk/standalone/**"
-        ],
+        "includes" : systemIncludes,
         "excludes": [
             "system/basic/WskMultiRuntimeTests*",
             'invokerShoot/**'
@@ -112,6 +110,11 @@ ext.testSets = [
             "**/*KafkaConnectorTests*",
             "system/basic/WskMultiRuntimeTests*",
             "invokerShoot/**"
+        ]
+    ],
+    "REQUIRE_STANDALONE" : [
+        "includes" : [
+            "org/apache/openwhisk/standalone/**"
         ]
     ]
 ]
