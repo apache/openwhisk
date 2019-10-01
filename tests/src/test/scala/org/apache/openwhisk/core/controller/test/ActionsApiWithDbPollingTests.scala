@@ -24,7 +24,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskActionsApi
-import org.apache.openwhisk.core.controller.actions.ControllerActivationConfig
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity._
 import org.junit.runner.RunWith

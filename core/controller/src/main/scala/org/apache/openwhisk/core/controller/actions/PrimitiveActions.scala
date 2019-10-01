@@ -18,11 +18,9 @@
 package org.apache.openwhisk.core.controller.actions
 
 import java.time.{Clock, Instant}
-
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.json._
-
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
 import org.apache.openwhisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
@@ -81,6 +79,7 @@ protected[actions] trait PrimitiveActions {
     components: Vector[FullyQualifiedEntityName],
     payload: Option[JsObject],
     waitForOutermostResponse: Option[FiniteDuration],
+    debug: Boolean,
     cause: Option[ActivationId],
     topmost: Boolean,
     atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)]
@@ -110,12 +109,13 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    debug: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
-      invokeComposition(user, action, payload, waitForResponse, cause)
+      invokeComposition(user, action, payload, waitForResponse, debug, cause)
     } else {
-      invokeSimpleAction(user, action, payload, waitForResponse, cause)
+      invokeSimpleAction(user, action, payload, waitForResponse, debug, cause)
     }
   }
 
@@ -153,6 +153,7 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    debug: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
@@ -179,7 +180,8 @@ protected[actions] trait PrimitiveActions {
       args,
       action.parameters.initParameters,
       cause = cause,
-      WhiskTracerProvider.tracer.getTraceContext(transid))
+      WhiskTracerProvider.tracer.getTraceContext(transid),
+      debug)
 
     val postedFuture = loadBalancer.publish(action, message)
 
@@ -271,6 +273,7 @@ protected[actions] trait PrimitiveActions {
                                 action: ExecutableWhiskActionMetaData,
                                 payload: Option[JsObject],
                                 waitForResponse: Option[FiniteDuration],
+                                debug: Boolean,
                                 cause: Option[ActivationId],
                                 accounting: Option[CompositionAccounting] = None)(
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
@@ -289,7 +292,8 @@ protected[actions] trait PrimitiveActions {
     logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
 
     val response: Future[Either[ActivationId, WhiskActivation]] =
-      invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
+      invokeConductor(user, payload, session, debug).map(response =>
+        Right(completeActivation(user, session, response, waitForResponse.isDefined, debug)))
 
     // is caller waiting for the result of the activation?
     cause
@@ -315,7 +319,7 @@ protected[actions] trait PrimitiveActions {
    * @param session the session object for this composition
    * @param transid a transaction id for logging
    */
-  private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session)(
+  private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session, debug: Boolean)(
     implicit transid: TransactionId): Future[ActivationResponse] = {
 
     if (session.accounting.conductors > 2 * actionSequenceLimit) {
@@ -335,6 +339,7 @@ protected[actions] trait PrimitiveActions {
           action = session.action,
           payload = params,
           waitForResponse = Some(session.action.limits.timeout.duration + 1.minute), // wait for result
+          debug = debug,
           cause = Some(session.activationId)) // cause is session id
 
       waitForActivation(user, session, activationResponse).flatMap {
@@ -363,19 +368,21 @@ protected[actions] trait PrimitiveActions {
             case Some(next) =>
               FullyQualifiedEntityName.resolveName(next, user.namespace.name) match {
                 case Some(fqn) if session.accounting.components < actionSequenceLimit =>
-                  tryInvokeNext(user, fqn, params, session)
+                  tryInvokeNext(user, fqn, params, session, debug)
 
                 case Some(_) => // composition is too long
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionIsTooLong))),
-                    session = session)
+                    session = session,
+                    debug = debug)
 
                 case None => // parsing failure
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentInvalid(next)))),
-                    session = session)
+                    session = session,
+                    debug = debug)
 
               }
           }
@@ -393,8 +400,11 @@ protected[actions] trait PrimitiveActions {
    * @param session the session for the current activation
    * @return promise for the eventual activation
    */
-  private def tryInvokeNext(user: Identity, fqn: FullyQualifiedEntityName, params: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def tryInvokeNext(user: Identity,
+                            fqn: FullyQualifiedEntityName,
+                            params: Option[JsObject],
+                            session: Session,
+                            debug: Boolean)(implicit transid: TransactionId): Future[ActivationResponse] = {
     val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
     entitlementProvider
       .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
@@ -405,7 +415,7 @@ protected[actions] trait PrimitiveActions {
           .flatMap {
             case next =>
               // successful resolution
-              invokeComponent(user, action = next, payload = params, session)
+              invokeComponent(user, action = next, payload = params, session, debug = debug)
           }
           .recoverWith {
             case _ =>
@@ -413,7 +423,8 @@ protected[actions] trait PrimitiveActions {
               invokeConductor(
                 user,
                 payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotFound(fqn.asString)))),
-                session = session)
+                session = session,
+                debug = debug)
           }
       }
       .recoverWith {
@@ -422,7 +433,8 @@ protected[actions] trait PrimitiveActions {
           invokeConductor(
             user,
             payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotAccessible(fqn.asString)))),
-            session = session)
+            session = session,
+            debug = debug)
       }
   }
 
@@ -438,8 +450,11 @@ protected[actions] trait PrimitiveActions {
    * @param session the session object for this composition
    * @param transid a transaction id for logging
    */
-  private def invokeComponent(user: Identity, action: WhiskActionMetaData, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def invokeComponent(user: Identity,
+                              action: WhiskActionMetaData,
+                              payload: Option[JsObject],
+                              session: Session,
+                              debug: Boolean)(implicit transid: TransactionId): Future[ActivationResponse] = {
 
     val exec = action.toExecutableWhiskAction
     val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
@@ -451,7 +466,8 @@ protected[actions] trait PrimitiveActions {
           payload,
           waitForResponse = None, // not topmost, hence blocking, no need for timeout
           cause = Some(session.activationId),
-          accounting = Some(session.accounting))
+          accounting = Some(session.accounting),
+          debug = debug)
       case Some(action) => // primitive action
         session.accounting.components += 1
         invokeSimpleAction(
@@ -459,6 +475,7 @@ protected[actions] trait PrimitiveActions {
           action,
           payload,
           waitForResponse = Some(action.limits.timeout.duration + 1.minute),
+          debug = debug,
           cause = Some(session.activationId))
       case None => // sequence
         session.accounting.components += 1
@@ -469,6 +486,7 @@ protected[actions] trait PrimitiveActions {
           components,
           payload,
           waitForOutermostResponse = None,
+          debug = debug,
           cause = Some(session.activationId),
           topmost = false,
           atomicActionsCount = 0).map(r => r._1)
@@ -478,7 +496,7 @@ protected[actions] trait PrimitiveActions {
       case Left(response) => // unsuccessful invocation, return error response
         Future.successful(response)
       case Right(activation) => // reinvoke conductor on component result
-        invokeConductor(user, payload = Some(activation.resultAsJson), session = session)
+        invokeConductor(user, payload = Some(activation.resultAsJson), session = session, debug = debug)
     }
   }
 
@@ -525,8 +543,11 @@ protected[actions] trait PrimitiveActions {
    * Creates an activation for a composition and writes it back to the datastore.
    * Returns the activation.
    */
-  private def completeActivation(user: Identity, session: Session, response: ActivationResponse)(
-    implicit transid: TransactionId): WhiskActivation = {
+  private def completeActivation(user: Identity,
+                                 session: Session,
+                                 response: ActivationResponse,
+                                 blocking: Boolean,
+                                 debug: Boolean)(implicit transid: TransactionId): WhiskActivation = {
 
     val context = UserContext(user)
 
@@ -546,6 +567,8 @@ protected[actions] trait PrimitiveActions {
 
     val end = Instant.now(Clock.systemUTC())
 
+    val excludeResult = activationResponseConfig.excludeBlockingResult && session.duration < activationResponseConfig.blockingTimeout.toMillis && blocking && response.isSuccess && !debug
+
     // create the whisk activation
     val activation = WhiskActivation(
       namespace = user.namespace.name.toPath,
@@ -555,7 +578,7 @@ protected[actions] trait PrimitiveActions {
       start = session.start,
       end = end,
       cause = session.cause,
-      response = response,
+      response = if (excludeResult) response.withoutResult else response,
       logs = ActivationLogs(session.logs.map(_.asString).toVector),
       version = session.action.version,
       publish = false,
@@ -576,7 +599,7 @@ protected[actions] trait PrimitiveActions {
 
     activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
 
-    activation
+    activation.copy(response = response) //reset response in case it was not stored
   }
 
   /**
@@ -661,6 +684,6 @@ protected[actions] trait PrimitiveActions {
 
   protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
+  protected val activationResponseConfig =
+    loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)
 }
-
-case class ControllerActivationConfig(pollingFromDb: Boolean, maxWaitForBlockingActivation: FiniteDuration)

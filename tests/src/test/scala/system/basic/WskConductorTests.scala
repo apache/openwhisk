@@ -23,11 +23,14 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
+import org.apache.openwhisk.core.ConfigKeys
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.entity.ActivationResponseConfig
 import org.apache.openwhisk.http.Messages._
+import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
 class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers with StreamLogging with WskActorSystem {
@@ -43,6 +46,8 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
 
   val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> "50"))
   val limit = whiskConfig.actionSequenceLimit.toInt
+  val activationResponseConfig =
+    loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)
 
   behavior of "Whisk conductor actions"
 
@@ -158,7 +163,15 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       activation.response.result shouldBe Some(JsObject("n" -> 2.toJson))
       checkConductorLogsAndAnnotations(activation, 3) // conductor, step, conductor
     }
-
+    if (activationResponseConfig.excludeBlockingResult) {
+      //result stored in db for blocking + success + !debug should be empty
+      val a = wsk.parseJsonString(blockingrun.stdout).convertTo[ActivationResult]
+      withActivation(wsk.activation, a.activationId) { activation =>
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe None
+        checkConductorLogsAndAnnotations(activation, 3) // conductor, step, conductor
+      }
+    }
     // dynamically invoke step action, forwarding state
     val secondrun = wsk.action.invoke(
       conductor,
@@ -183,6 +196,70 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
       activation.response.status shouldBe "success"
       activation.response.result shouldBe Some(JsObject("n" -> 3.toJson))
       checkConductorLogsAndAnnotations(activation, 5) // conductor, step, conductor, step, conductor
+    }
+  }
+  it should "invoke a conductor action with a continuation and keep results in debug mode" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val conductor = "conductor" // conductor action
+      assetHelper.withCleaner(wsk.action, conductor) { (action, _) =>
+        action.create(
+          conductor,
+          Some(TestUtils.getTestActionFilename("conductor.js")),
+          annotations = Map("conductor" -> true.toJson))
+      }
+
+      val step = "step" // step action with higher memory limit than conductor to test max memory computation
+      assetHelper.withCleaner(wsk.action, step) { (action, _) =>
+        action.create(step, Some(TestUtils.getTestActionFilename("step.js")), memory = Some(257 MB))
+      }
+
+      // dynamically invoke step action, blocking invocation
+      val blockingrun =
+        wsk.action.invoke(conductor, Map("action" -> step.toJson, "n" -> 1.toJson), blocking = true, debug = true)
+      val activation = wsk.parseJsonString(blockingrun.stdout).convertTo[ActivationResult]
+
+      withClue(s"check failed for blocking conductor activation: $activation") {
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe Some(JsObject("n" -> 2.toJson))
+        checkConductorLogsAndAnnotations(activation, 3) // conductor, step, conductor
+      }
+      val a = wsk.parseJsonString(blockingrun.stdout).convertTo[ActivationResult]
+      withActivation(wsk.activation, a.activationId) { activation =>
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe Some(JsObject("n" -> 2.toJson))
+        checkConductorLogsAndAnnotations(activation, 3) // conductor, step, conductor
+      }
+  }
+
+  it should "invoke a conductor action with a continuation and keep results in case of blocking timeout" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    assume(activationResponseConfig.excludeBlockingResult)
+    val conductor = "conductor" // conductor action
+    assetHelper.withCleaner(wsk.action, conductor) { (action, _) =>
+      action.create(
+        conductor,
+        Some(TestUtils.getTestActionFilename("conductor.js")),
+        annotations = Map("conductor" -> true.toJson))
+    }
+
+    val step = "step" // step action with long  response time
+    val sleepTime = 90.seconds
+    assetHelper.withCleaner(wsk.action, step) { (action, _) =>
+      action.create(
+        step,
+        Some(TestUtils.getTestActionFilename("sleep.js")),
+        parameters = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson),
+        timeout = Some(2 * sleepTime))
+    }
+
+    // dynamically invoke step action, blocking invocation
+    val blockingrun = wsk.action.invoke(conductor, Map("action" -> step.toJson, "n" -> 1.toJson), blocking = true)
+    withActivation(wsk.activation, blockingrun, initialWait = 5 seconds, totalWait = 2 * allowedActionDuration) {
+      activation =>
+        activation.response.status shouldBe "success"
+        val result = activation.response.result.get
+        result.toString should include("""Terminated successfully after around""")
+        checkConductorLogsAndAnnotations(activation, 3) // conductor, step, conductor
     }
   }
 

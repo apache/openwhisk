@@ -235,7 +235,8 @@ class ContainerProxy(
   instance: InvokerInstanceId,
   poolConfig: ContainerPoolConfig,
   unusedTimeout: FiniteDuration,
-  pauseGrace: FiniteDuration)
+  pauseGrace: FiniteDuration,
+  activationExcludeResultConfig: ActivationResponseConfig)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -689,8 +690,16 @@ class ContainerProxy(
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
               CompletionMessage(tid, activation, instance)))
-        // Storing the record. Entirely asynchronous and not waited upon.
-        storeActivation(tid, activation, context)
+        // Storing the record. Entirely asynchronous and not waited upon. Exclude result if success=true, blocking=true, and debug=false
+        if (activationExcludeResultConfig.excludeBlockingResult &&
+            activation.duration.getOrElse(0l) < activationExcludeResultConfig.blockingTimeout.toMillis &&
+            activation.response.isSuccess &&
+            job.msg.blocking &&
+            !job.msg.debug) {
+          storeActivation(tid, activation.withoutResult, context)
+        } else {
+          storeActivation(tid, activation, context)
+        }
       }
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
@@ -720,8 +729,20 @@ object ContainerProxy {
     instance: InvokerInstanceId,
     poolConfig: ContainerPoolConfig,
     unusedTimeout: FiniteDuration = timeouts.idleContainer,
-    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
+    pauseGrace: FiniteDuration = timeouts.pauseGrace,
+    activationExcludeResultConfig: ActivationResponseConfig =
+      loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)) =
+    Props(
+      new ContainerProxy(
+        factory,
+        ack,
+        store,
+        collectLogs,
+        instance,
+        poolConfig,
+        unusedTimeout,
+        pauseGrace,
+        activationExcludeResultConfig))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter

@@ -380,8 +380,9 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
                       parameterFile: Option[String] = None,
                       blocking: Boolean = false,
                       result: Boolean = false,
+                      debug: Boolean = false,
                       expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
-    super.invokeAction(name, parameters, parameterFile, blocking, result, expectedExitCode = expectedExitCode)
+    super.invokeAction(name, parameters, parameterFile, blocking, result, debug, expectedExitCode = expectedExitCode)
   }
 
   private def readCodeFromFile(artifact: Option[String]): Option[String] = {
@@ -1329,6 +1330,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
                    parameterFile: Option[String] = None,
                    blocking: Boolean = false,
                    result: Boolean = false,
+                   debug: Boolean = false,
                    web: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, actName) = getNamespaceEntityName(name)
@@ -1337,7 +1339,9 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
 
-    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
+    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString) ++ {
+      if (debug) Map("debug" -> debug.toString) else Map.empty
+    }
 
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))

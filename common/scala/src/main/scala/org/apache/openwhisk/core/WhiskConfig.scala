@@ -264,5 +264,7 @@ object ConfigKeys {
   val whiskConfig = "whisk.config"
   val swaggerUi = "whisk.swagger-ui"
 
+  val activationResultConfig = s"$activation.activation-response"
+
   val apacheClientConfig = "whisk.apache-client"
 }

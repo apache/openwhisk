@@ -131,8 +131,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     val additionalMetadata = Map(
       "activationId" -> activation.activationId.asString.toJson,
-      "action" -> action.fullyQualifiedName(false).asString.toJson,
-      "namespace" -> user.namespace.name.asString.toJson) ++ userIdField
+      "action" -> action.fullyQualifiedName(false).asString.toJson) ++ userIdField
 
     val augmentedActivation = JsObject(activation.toJson.fields ++ userIdField)
 

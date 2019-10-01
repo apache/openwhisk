@@ -19,9 +19,7 @@ package system.basic
 
 import java.time.Instant
 import java.util.Date
-
 import io.restassured.RestAssured
-
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -30,11 +28,14 @@ import org.scalatest.junit.JUnitRunner
 import common._
 import common.TestUtils._
 import common.rest.WskRestOperations
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.entity.ActivationResponseConfig
 import org.apache.openwhisk.core.entity.WhiskActivation
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 import org.apache.openwhisk.http.Messages._
+import pureconfig.loadConfigOrThrow
 
 /**
  * Tests sequence execution
@@ -46,6 +47,8 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
   val wsk: WskOperations = new WskRestOperations
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
+  val activationResponseConfig =
+    loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)
 
   behavior of "Wsk Sequence"
 
@@ -453,8 +456,122 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
     withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) { activation =>
       checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
       activation.response.success shouldBe (true)
+      val result = activation.response.result.get //result stored since there was a timeout
+      result.toString should include("""Terminated successfully after around""")
+    }
+  }
+
+  /**
+   * s -> echo, sleep
+   * sleep sleeps for 5s
+   * exclude the result since debug is false and blocking is true
+   */
+  it should "execute a sequence in blocking fashion and exclude the result when debug is false" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    assume(activationResponseConfig.excludeBlockingResult)
+    val sName = "sSequence"
+    val sleep = "sleep"
+    val echo = "echo"
+
+    // create actions
+    val actions = Seq(echo, sleep)
+    for (actionName <- actions) {
+      val file = TestUtils.getTestActionFilename(s"$actionName.js")
+      assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      }
+    }
+    // create sequence s
+    assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
+      action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+    }
+    // run sequence s with sleep time
+    val sleepTime = 5 seconds
+    val run = wsk.action.invoke(
+      sName,
+      parameters = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson),
+      blocking = true, //debug false by default - so no result will be stored
+      expectedExitCode = ACCEPTED)
+    withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) { activation =>
+      checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
+      activation.response.success shouldBe (true)
+      activation.response.result shouldBe None
+    }
+  }
+
+  /**
+   * s -> echo, sleep
+   * sleep sleeps for 90s, timeout set at 120s
+   * keep the result since debug is true
+   */
+  it should "execute a sequence in blocking fashion and include the result when debug is true" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    assume(activationResponseConfig.excludeBlockingResult)
+    val sName = "sSequence"
+    val sleep = "sleep"
+    val echo = "echo"
+
+    // create actions
+    val actions = Seq(echo, sleep)
+    for (actionName <- actions) {
+      val file = TestUtils.getTestActionFilename(s"$actionName.js")
+      assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      }
+    }
+    // create sequence s
+    assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
+      action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+    }
+    // run sequence s with sleep time
+    val sleepTime = 90 seconds
+    val run = wsk.action.invoke(
+      sName,
+      parameters = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson),
+      blocking = true,
+      debug = true, //causes result to be stored
+      expectedExitCode = ACCEPTED)
+    withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) { activation =>
+      checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
+      activation.response.success shouldBe (true)
       val result = activation.response.result.get
       result.toString should include("""Terminated successfully after around""")
+    }
+  }
+
+  /**
+   * s -> apperror, echo
+   * only apperror should run
+   */
+  it should "include result with response if status is error" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val sName = "sSequence"
+    val apperror = "applicationError"
+    val echo = "echo"
+
+    // create actions
+    val actions = Seq(apperror, echo)
+    for (actionName <- actions) {
+      val file = TestUtils.getTestActionFilename(s"$actionName.js")
+      assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      }
+    }
+    // create sequence s
+    assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
+      action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+    }
+    // run sequence s with no payload
+    val run = wsk.action.invoke(sName, blocking = true, expectedExitCode = 502) //, blocking=true
+    val activation = wsk.parseJsonString(run.stdout).convertTo[ActivationResult]
+
+    withActivation(wsk.activation, activation.activationId) { activation =>
+      checkSequenceLogsAndAnnotations(activation, 1) // only the first action should have run
+      activation.response.success shouldBe (false)
+      // the status should be error
+      activation.response.status shouldBe ("application error")
+      val result = activation.response.result.get
+      // the result of the activation should be the application error
+      result shouldBe (JsObject("error" -> JsString("This error thrown on purpose by the action.")))
     }
   }
 

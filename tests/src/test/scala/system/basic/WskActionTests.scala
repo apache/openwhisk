@@ -19,14 +19,17 @@ package system.basic
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.entity.Annotations
 import org.apache.commons.io.FileUtils
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.FeatureFlags
+import org.apache.openwhisk.core.entity.ActivationResponseConfig
+import pureconfig.loadConfigOrThrow
+import scala.concurrent.duration.DurationInt
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -41,6 +44,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
   val guestNamespace = wskprops.namespace
+  protected val activationResponseConfig =
+    loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)
 
   behavior of "Whisk actions"
 
@@ -288,20 +293,70 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     }
   }
 
-  it should "blocking invoke an asynchronous action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "helloAsync"
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")))
-    }
+  it should "blocking invoke an asynchronous action with debug disabled" in withAssetCleaner(wskprops) {
+    assume(activationResponseConfig.excludeBlockingResult)
+    (wp, assetHelper) =>
+      val name = "helloAsync"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")))
+      }
 
-    val run = wsk.action.invoke(name, Map("payload" -> testString.toJson), blocking = true)
-    val activation = wsk.parseJsonString(run.stdout).convertTo[ActivationResult]
+      val run = wsk.action.invoke(name, Map("payload" -> testString.toJson), blocking = true)
+      val activation = wsk.parseJsonString(run.stdout).convertTo[ActivationResult]
 
-    withClue(s"check failed for activation: $activation") {
-      activation.response.status shouldBe "success"
-      activation.response.result shouldBe Some(testResult)
-      activation.logs shouldBe Some(List.empty)
-    }
+      withClue(s"check failed for activation: $activation") {
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe Some(testResult) //result should be included in blocking response
+        activation.logs shouldBe Some(List.empty)
+      }
+
+      withClue(s"result should be empty for activation: ${activation.activationId}") {
+        withActivation(wsk.activation, run) { activation =>
+          activation.response.status shouldBe "success"
+          activation.response.result shouldBe None //when fetching activation from db, result should not be there
+        }
+      }
+
+  }
+  it should "blocking invoke an asynchronous action with debug enabled" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "helloAsync"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")))
+      }
+
+      val run = wsk.action.invoke(name, Map("payload" -> testString.toJson), blocking = true, debug = true)
+      val activation = wsk.parseJsonString(run.stdout).convertTo[ActivationResult]
+
+      withClue(s"check failed for activation: $activation") {
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe Some(testResult)
+        activation.logs shouldBe Some(List.empty)
+      }
+
+      withClue(s"result should be empty for activation: ${activation.activationId}") {
+        withActivation(wsk.activation, run) { activation =>
+          activation.response.status shouldBe "success"
+          activation.response.result shouldBe Some(testResult)
+        }
+      }
+  }
+
+  it should "blocking invoke an long running action, and include result with Activation" in withAssetCleaner(wskprops) {
+    assume(activationResponseConfig.excludeBlockingResult)
+    (wp, assetHelper) =>
+      val sleepTime = 90.seconds //needs to be longer than 60s to cause blocking to become non-blocking
+      val name = "sleep"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("sleep.js")), timeout = Some(sleepTime * 2))
+      }
+
+      val run = wsk.action.invoke(name, parameters = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson), blocking = true)
+      withActivation(wsk.activation, run) { activation =>
+        activation.response.status shouldBe "success"
+        val result = activation.response.result.get //result stored since there was a timeout
+        result.toString should include("""Terminated successfully after around""")
+      }
   }
 
   it should "not be able to use 'ping' in an action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

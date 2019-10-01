@@ -18,14 +18,31 @@
 package org.apache.openwhisk.core.entity
 
 import scala.util.Try
-
 import akka.http.scaladsl.model.StatusCodes.OK
-
 import spray.json._
 import spray.json.DefaultJsonProtocol
-
 import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.http.Messages._
+import pureconfig.loadConfigOrThrow
+import scala.concurrent.duration.FiniteDuration
+
+case class ActivationResponseConfig(excludeBlockingResult: Boolean,
+                                    blockingTimeout: FiniteDuration,
+                                    controllerActivationConfig: ControllerActivationConfig =
+                                      loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)) {
+
+  if (excludeBlockingResult) {
+    require(
+      controllerActivationConfig.pollingFromDb == false,
+      "cannot exclude blocking result if polling-from-db is true")
+    require(
+      blockingTimeout < controllerActivationConfig.maxWaitForBlockingActivation,
+      "cannot use a lower timeout for excluding response result than maxWaitForBlockingActivation")
+  }
+}
+//This config remains separate for backward compatibility
+case class ControllerActivationConfig(pollingFromDb: Boolean, maxWaitForBlockingActivation: FiniteDuration)
 
 protected[core] case class ActivationResponse private (val statusCode: Int, val result: Option[JsValue]) {
 

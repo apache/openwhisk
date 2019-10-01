@@ -43,6 +43,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.entity.WhiskActivation
 import org.apache.openwhisk.core.invoker.InvokerReactive
 
 import scala.collection.mutable
@@ -117,6 +118,17 @@ class ContainerProxyTests
     content = Some(activationArguments),
     initArgs = Set("ENV_VAR"))
 
+  val blockingMessage = ActivationMessage(
+    messageTransId,
+    action.fullyQualifiedName(true),
+    action.rev,
+    Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret())),
+    ActivationId.generate(),
+    ControllerInstanceId("0"),
+    blocking = true,
+    content = Some(activationArguments),
+    initArgs = Set("ENV_VAR"))
+
   /*
    * Helpers for assertions and actor lifecycles
    */
@@ -138,8 +150,9 @@ class ContainerProxyTests
   }
 
   /** Run the common action on the state-machine, assumes good cases */
-  def run(machine: ActorRef, currentState: ContainerState) = {
-    machine ! Run(action, message)
+  def run(machine: ActorRef, currentState: ContainerState, blocking: Boolean = false) = {
+    val msg = if (blocking) blockingMessage else message
+    machine ! Run(action, msg)
     expectMsg(Transition(machine, currentState, Running))
     expectWarmed(invocationNamespace.name, action)
     expectMsg(Transition(machine, Running, Ready))
@@ -726,7 +739,69 @@ class ContainerProxyTests
         Interval(message.transid.meta.start, runInterval.start).duration.toMillis
       }
     }
+  }
+  it should "exclude the result from Activation for blocking+successful when config is enabled" in within(timeout) {
+    val container = new TestContainer(blocking = true)
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
 
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            pauseGrace = pauseGrace,
+            activationExcludeResultConfig =
+              ActivationResponseConfig(true, 45.seconds, ControllerActivationConfig(false, 60.seconds))))
+    registerCallback(machine)
+    preWarm(machine)
+
+    run(machine, Started, true)
+    awaitAssert {
+      responses(0).response.result shouldBe None
+    }
+  }
+  it should "include the result from Activation for blocking+successful when config is disabled" in within(timeout) {
+    val container = new TestContainer(blocking = true)
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            pauseGrace = pauseGrace,
+            activationExcludeResultConfig = ActivationResponseConfig(false, 45.seconds)))
+    registerCallback(machine)
+    preWarm(machine)
+
+    run(machine, Started, true)
+    awaitAssert {
+      responses(0).response.result should be(defined)
+    }
   }
 
   /*
@@ -893,7 +968,7 @@ class ContainerProxyTests
       collector.calls should have size 1
       container.destroyCount shouldBe 1
       acker.calls should have size 1
-      acker.calls(0)._2.response shouldBe ActivationResponse.success()
+      acker.calls(0)._2.response shouldBe ActivationResponse.success(Some("done".toJson))
       store.calls should have size 1
       store.calls(0)._2.logs shouldBe ActivationLogs(partialLogs)
     }
@@ -930,7 +1005,7 @@ class ContainerProxyTests
       collector.calls should have size 1
       container.destroyCount shouldBe 1
       acker.calls should have size 1
-      acker.calls(0)._2.response shouldBe ActivationResponse.success()
+      acker.calls(0)._2.response shouldBe ActivationResponse.success(Some("done".toJson))
       store.calls should have size 1
       store.calls(0)._2.logs shouldBe ActivationLogs(Vector(Messages.logFailure))
     }
@@ -1231,12 +1306,15 @@ class ContainerProxyTests
     warmedData.lastUsed.until(nextWarmedData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
   }
 
+  it should "exclude result for blocking + successful activations if enabled" in {}
+
   /**
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
   class TestContainer(initPromise: Option[Promise[Interval]] = None,
                       runPromises: Seq[Promise[(Interval, ActivationResponse)]] = Seq.empty,
-                      apiKeyMustBePresent: Boolean = true)
+                      apiKeyMustBePresent: Boolean = true,
+                      blocking: Boolean = false)
       extends Container {
     protected[core] val id = ContainerId("testcontainer")
     protected val addr = ContainerAddress("0.0.0.0")
@@ -1290,11 +1368,12 @@ class ContainerProxyTests
       val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
-      environment.fields("activation_id") shouldBe message.activationId.toJson
+      val msg = if (blocking) blockingMessage else message
+      environment.fields("activation_id") shouldBe msg.activationId.toJson
       environment.fields("transaction_id") shouldBe transid.id.toJson
-      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
+      val authEnvironment = environment.fields.filterKeys(msg.user.authkey.toEnvironment.fields.contains)
       if (apiKeyMustBePresent) {
-        message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
+        msg.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
       } else {
         authEnvironment shouldBe empty
       }
@@ -1310,7 +1389,9 @@ class ContainerProxyTests
       runPromises
         .lift(runCount - 1)
         .map(_.future)
-        .getOrElse(Future.successful((runInterval, ActivationResponse.success())))
+        .getOrElse {
+          Future.successful((runInterval, ActivationResponse.success(Some("done".toJson))))
+        }
     }
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
       atomicLogsCount.incrementAndGet()

@@ -553,7 +553,14 @@ trait WhiskWebActionsApi
                                              httpEntity: HttpEntity)(implicit transid: TransactionId) = {
 
     def process(body: Option[JsValue], isRawHttpAction: Boolean) = {
-      processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
+      processRequest(
+        actionOwnerIdentity,
+        action,
+        extension,
+        onBehalfOf,
+        context.withBody(body),
+        isRawHttpAction,
+        context.queryAsMap.contains("debug"))
     }
 
     provide(action.annotations.getAs[Boolean](Annotations.RawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
@@ -598,7 +605,8 @@ trait WhiskWebActionsApi
                              responseType: MediaExtension,
                              onBehalfOf: Option[Identity],
                              context: Context,
-                             isRawHttpAction: Boolean)(implicit transid: TransactionId) = {
+                             isRawHttpAction: Boolean,
+                             debug: Boolean)(implicit transid: TransactionId) = {
 
     def queuedActivation = {
       // checks (1) if any of the query or body parameters override final action parameters
@@ -611,7 +619,13 @@ trait WhiskWebActionsApi
       if (isRawHttpAction || context
             .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-        invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
+        invokeAction(
+          actionOwnerIdentity,
+          action,
+          Some(JsObject(content)),
+          maxWaitForWebActionResult,
+          debug,
+          cause = None)
       } else {
         Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
       }

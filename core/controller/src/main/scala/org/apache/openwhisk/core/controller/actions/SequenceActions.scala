@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorSystem
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{EventMessage, MessagingProvider}
 import org.apache.openwhisk.core.controller.WhiskServices
 import org.apache.openwhisk.core.database.{ActivationStore, NoDocumentException, UserContext}
@@ -32,7 +33,7 @@ import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
-
+import pureconfig.loadConfigOrThrow
 import scala.collection._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -70,6 +71,7 @@ protected[actions] trait SequenceActions {
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
+    debug: Boolean,
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
   /**
@@ -80,6 +82,7 @@ protected[actions] trait SequenceActions {
    * @param components the actions in the sequence
    * @param payload the dynamic arguments for the activation
    * @param waitForOutermostResponse some duration iff this is a blocking invoke
+   * @param debug force the response to be stored on Activation record
    * @param cause the id of the activation that caused this sequence (defined only for inner sequences and None for topmost sequences)
    * @param topmost true iff this is the topmost sequence invoked directly through the api (not indirectly through a sequence)
    * @param atomicActionsCount the dynamic atomic action count observed so far since the start of invocation of the topmost sequence(0 if topmost)
@@ -92,6 +95,7 @@ protected[actions] trait SequenceActions {
     components: Vector[FullyQualifiedEntityName],
     payload: Option[JsObject],
     waitForOutermostResponse: Option[FiniteDuration],
+    debug: Boolean,
     cause: Option[ActivationId],
     topmost: Boolean,
     atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)] = {
@@ -116,10 +120,13 @@ protected[actions] trait SequenceActions {
           payload,
           components,
           cause = Some(seqActivationId),
-          atomicActionsCount),
+          atomicActionsCount,
+          debug),
         user,
         action,
         topmost,
+        debug,
+        waitForOutermostResponse.isDefined,
         start,
         cause)
     }
@@ -152,6 +159,8 @@ protected[actions] trait SequenceActions {
                                          user: Identity,
                                          action: WhiskActionMetaData,
                                          topmost: Boolean,
+                                         debug: Boolean,
+                                         blocking: Boolean,
                                          start: Instant,
                                          cause: Option[ActivationId])(
     implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
@@ -164,7 +173,7 @@ protected[actions] trait SequenceActions {
         // sequence terminated, the result of the sequence is the result of the last completed activation
         val end = Instant.now(Clock.systemUTC())
         val seqActivation =
-          makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end)
+          makeSequenceActivation(user, action, seqActivationId, accounting, topmost, debug, blocking, cause, start, end)
         (Right(seqActivation), accounting.atomicActionCnt)
       }
       .andThen {
@@ -191,6 +200,8 @@ protected[actions] trait SequenceActions {
                                      activationId: ActivationId,
                                      accounting: SequenceAccounting,
                                      topmost: Boolean,
+                                     debug: Boolean,
+                                     blocking: Boolean,
                                      cause: Option[ActivationId],
                                      start: Instant,
                                      end: Instant): WhiskActivation = {
@@ -212,6 +223,13 @@ protected[actions] trait SequenceActions {
       Parameters(WhiskActivation.bindingAnnotation, JsString(path.asString))
     }
 
+    val resultResponse = accounting.previousResponse.getAndSet(null) // getAndSet(null) drops reference to the activation result
+    //exclude result for timeout=false + success=true + blocking=true + debug=false
+    val response =
+      if (sequenceActivationResponseConfig.excludeBlockingResult && accounting.duration < sequenceActivationResponseConfig.blockingTimeout.toMillis && resultResponse.isSuccess && blocking && !debug)
+        resultResponse.withoutResult
+      else resultResponse
+
     // create the whisk activation
     WhiskActivation(
       namespace = user.namespace.name.toPath,
@@ -221,7 +239,7 @@ protected[actions] trait SequenceActions {
       start = start,
       end = end,
       cause = if (topmost) None else cause, // propagate the cause for inner sequences, but undefined for topmost
-      response = accounting.previousResponse.getAndSet(null), // getAndSet(null) drops reference to the activation result
+      response = response,
       logs = accounting.finalLogs,
       version = action.version,
       publish = false,
@@ -246,16 +264,17 @@ protected[actions] trait SequenceActions {
    * @param components the components in the sequence
    * @param cause the activation id of the sequence that lead to invoking this sequence or None if this sequence is topmost
    * @param atomicActionCnt the dynamic atomic action count observed so far since the start of the execution of the topmost sequence
+   * @param debug force the Result to be stored with blocking Activation
    * @return a future which resolves with the accounting for a sequence, including the last result, duration, and activation ids
    */
-  private def invokeSequenceComponents(
-    user: Identity,
-    seqAction: WhiskActionMetaData,
-    seqActivationId: ActivationId,
-    inputPayload: Option[JsObject],
-    components: Vector[FullyQualifiedEntityName],
-    cause: Option[ActivationId],
-    atomicActionCnt: Int)(implicit transid: TransactionId): Future[SequenceAccounting] = {
+  private def invokeSequenceComponents(user: Identity,
+                                       seqAction: WhiskActionMetaData,
+                                       seqActivationId: ActivationId,
+                                       inputPayload: Option[JsObject],
+                                       components: Vector[FullyQualifiedEntityName],
+                                       cause: Option[ActivationId],
+                                       atomicActionCnt: Int,
+                                       debug: Boolean)(implicit transid: TransactionId): Future[SequenceAccounting] = {
 
     // For each action in the sequence, fetch any of its associated parameters (including package or binding).
     // We do this for all of the actions in the sequence even though it may be short circuited. This is to
@@ -279,7 +298,7 @@ protected[actions] trait SequenceActions {
       .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
-            invokeNextAction(user, futureAction, accounting, cause)
+            invokeNextAction(user, futureAction, accounting, cause, debug)
               .flatMap { accounting =>
                 if (!accounting.shortcircuit) {
                   Future.successful(accounting)
@@ -319,13 +338,14 @@ protected[actions] trait SequenceActions {
    * @param futureAction the future which fetches the action to be invoked from the db
    * @param accounting the state of the sequence activation, contains the dynamic activation count, logs and payload for the next action
    * @param cause the activation id of the first sequence containing this activations
+   * @param debug force the Result to be stored with Activation
    * @return a future which resolves with updated accounting for a sequence, including the last result, duration, and activation ids
    */
-  private def invokeNextAction(
-    user: Identity,
-    futureAction: Future[WhiskActionMetaData],
-    accounting: SequenceAccounting,
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[SequenceAccounting] = {
+  private def invokeNextAction(user: Identity,
+                               futureAction: Future[WhiskActionMetaData],
+                               accounting: SequenceAccounting,
+                               cause: Option[ActivationId],
+                               debug: Boolean)(implicit transid: TransactionId): Future[SequenceAccounting] = {
     futureAction.flatMap { action =>
       // the previous response becomes input for the next action in the sequence;
       // the accounting no longer needs to hold a reference to it once the action is
@@ -345,6 +365,7 @@ protected[actions] trait SequenceActions {
             components,
             inputPayload,
             None,
+            debug,
             cause,
             topmost = false,
             accounting.atomicActionCnt)
@@ -352,7 +373,7 @@ protected[actions] trait SequenceActions {
           // this is an invoke for an atomic action
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
-          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
+          invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), debug, cause) map {
             case res => (res, accounting.atomicActionCnt + 1)
           }
       }
@@ -388,6 +409,8 @@ protected[actions] trait SequenceActions {
 
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
+  protected val sequenceActivationResponseConfig =
+    loadConfigOrThrow[ActivationResponseConfig](ConfigKeys.activationResultConfig)
 }
 
 /**

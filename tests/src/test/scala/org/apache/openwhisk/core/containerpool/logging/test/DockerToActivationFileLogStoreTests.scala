@@ -47,12 +47,12 @@ class DockerToActivationFileLogStoreTests
   override def createStore() = new TestLogStoreTo(Sink.ignore)
 
   def toLoggedEvent(line: LogLine,
-                    namespace: Namespace,
+                    userId: UUID,
                     activationId: ActivationId,
                     actionName: FullyQualifiedEntityName): String = {
     val event = line.toJson.compactPrint
     val concatenated =
-      s""","activationId":"${activationId.asString}","action":"${actionName.asString}","namespace":"${namespace.name.asString}","namespaceId":"${namespace.uuid.asString}""""
+      s""","activationId":"${activationId.asString}","action":"${actionName.asString}","namespaceId":"${userId.asString}""""
 
     event.dropRight(1) ++ concatenated ++ "}\n"
   }
@@ -78,7 +78,7 @@ class DockerToActivationFileLogStoreTests
     await(collected) shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
     logs.foreach { line =>
       testActor.expectMsg(
-        toLoggedEvent(line, user.namespace, successfulActivation.activationId, action.fullyQualifiedName(false)))
+        toLoggedEvent(line, user.namespace.uuid, successfulActivation.activationId, action.fullyQualifiedName(false)))
     }
 
     // Last message should be the full activation
@@ -111,7 +111,11 @@ class DockerToActivationFileLogStoreTests
     withClue("Provided logs should be received by log store:") {
       logs.foreach { line =>
         testActor.expectMsg(
-          toLoggedEvent(line, user.namespace, developerErrorActivation.activationId, action.fullyQualifiedName(false)))
+          toLoggedEvent(
+            line,
+            user.namespace.uuid,
+            developerErrorActivation.activationId,
+            action.fullyQualifiedName(false)))
       }
     }
 
