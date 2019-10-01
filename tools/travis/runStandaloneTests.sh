@@ -25,12 +25,11 @@ ROOTDIR="$SCRIPTDIR/../.."
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_STANDALONE"
 export GRADLE_COVERAGE=true
 
-cd $ROOTDIR/ansible
-$ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.json"
-$ANSIBLE_CMD downloadcli-github.yml
-
-
 cd $ROOTDIR
+
+ansible-playbook -i ansible/environments/local ansible/properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.json"
+ansible-playbook -i ansible/environments/local ansible/downloadcli-github.yml
+
 TERM=dumb ./gradlew :core:standalone:build
 TERM=dumb ./gradlew :core:monitoring:user-events:distDocker
 
