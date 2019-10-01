@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import akka.event.slf4j.SLF4JLogging
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase
@@ -33,14 +34,17 @@ object CosmosDBAction extends Enumeration {
   val Create, Query, Get, Others = Value
 }
 
-object RetryMetricsCollector extends AppenderBase[ILoggingEvent] {
+object RetryMetricsCollector extends AppenderBase[ILoggingEvent] with SLF4JLogging {
   import CosmosDBAction._
   private val tokens =
     Map(Create -> Token(Create), Query -> Token(Query), Get -> Token(Get), Others -> Token(Others))
 
   private[cosmosdb] def registerIfEnabled(): Unit = {
     val enabled = loadConfigOrThrow[Boolean](s"${ConfigKeys.cosmosdb}.retry-stats-enabled")
-    if (enabled) register()
+    if (enabled) {
+      log.info("Enabling retry metrics collector")
+      register()
+    }
   }
 
   /**
