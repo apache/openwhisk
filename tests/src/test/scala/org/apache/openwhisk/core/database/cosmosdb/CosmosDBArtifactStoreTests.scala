@@ -17,9 +17,13 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
+import java.util.concurrent.CountDownLatch
+
+import akka.stream.scaladsl.Source
 import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
+import kamon.metric.LongAdderCounter
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
@@ -28,6 +32,7 @@ import org.apache.openwhisk.core.entity.WhiskQueries.TOP
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   DocumentReader,
+  Parameters,
   WhiskActivation,
   WhiskDocumentReader,
   WhiskEntity,
@@ -35,14 +40,11 @@ import org.apache.openwhisk.core.entity.{
   WhiskPackage
 }
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.FlatSpec
+import org.scalatest.junit.JUnitRunner
 import spray.json.JsString
-import org.apache.openwhisk.core.entity.size._
-import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
@@ -153,5 +155,42 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
       List(entityPath, TOP, TOP))(debugTid)
     stream.toString should include("[QueryMetricsEnabled]")
 
+  }
+
+  behavior of "CosmosDB retry metrics"
+
+  it should "capture success retries" in {
+    implicit val tid: TransactionId = TransactionId.testing
+    val bigPkg = WhiskPackage(newNS(), aname(), parameters = Parameters("foo", "x" * 1024 * 1024))
+    val latch = new CountDownLatch(1)
+    val f = Source(1 to 500)
+      .mapAsync(100) { i =>
+        latch.countDown()
+        if (i % 5 == 0) println(i)
+        require(retryCount == 0)
+        entityStore.put(bigPkg)
+      }
+      .runForeach { doc =>
+        docsToDelete += ((entityStore, doc))
+      }
+
+    //Wait for one save operation before checking for stats
+    latch.await()
+    retry(() => f, 500.millis)
+    retryCount should be > 0
+  }
+
+  private def retryCount: Int = {
+    //If KamonTags are disabled then Kamon uses CounterMetricImpl which does not provide
+    //any way of determining the current count. So in those cases the retry collector
+    //would increment a counter
+    if (TransactionId.metricsKamonTags) {
+      RetryMetricsCollector.getCounter(CosmosDBAction.Create) match {
+        case Some(x: LongAdderCounter) => x.snapshot(false).value.toInt
+        case _                         => 0
+      }
+    } else {
+      RetryMetricsCollector.retryCounter.cur.toInt
+    }
   }
 }

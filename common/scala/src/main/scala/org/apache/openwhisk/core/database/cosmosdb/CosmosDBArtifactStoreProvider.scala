@@ -41,6 +41,8 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference
   private val clients = collection.mutable.Map[CosmosDBConfig, ReferenceCounted[ClientHolder]]()
 
+  RetryMetricsCollector.registerIfEnabled()
+
   override def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
