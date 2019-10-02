@@ -46,6 +46,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         init.statusCode shouldBe DeveloperError
         init.result.get.asJsObject
           .fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
+        init.size.get should be > 0
       }
       {
         val response = ContainerResponse(okStatus = true, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
@@ -89,6 +90,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
     ar.statusCode shouldBe DeveloperError
     ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
     ar.result.get.toString should include(response.entity)
+    ar.size.get shouldBe "string".length
   }
 
   it should "interpret failed init that responds with JSON string not object" in {
