@@ -40,7 +40,7 @@ import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
 import scala.reflect.classTag
 
-package object types {
+object types {
   type AuthStore = ArtifactStore[WhiskAuth]
   type EntityStore = ArtifactStore[WhiskEntity]
 }

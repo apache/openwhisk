@@ -70,7 +70,7 @@ protected[core] object RejectRequest {
  * A convenient typedef for functions that post process an entity
  * on an operation and terminate the HTTP request.
  */
-package object PostProcess {
+object PostProcess {
   type PostProcessEntity[A] = A => RequestContext => Future[RouteResult]
 }
 
