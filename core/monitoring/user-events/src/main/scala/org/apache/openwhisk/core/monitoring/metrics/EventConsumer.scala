@@ -36,13 +36,14 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
 import org.apache.openwhisk.core.entity.ActivationResponse
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 trait MetricRecorder {
   def processActivation(activation: Activation, initiatorNamespace: String): Unit
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
-case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder])(
+case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder], metricConfig: MetricConfig)(
   implicit system: ActorSystem,
   materializer: ActorMaterializer) {
   import EventConsumer._
@@ -94,6 +95,9 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
   private def processEvent(value: String): Unit = {
     EventMessage
       .parse(value)
+      .filter { e =>
+        !metricConfig.ignoredNamespaces.contains(e.namespace)
+      }
       .map { e =>
         e.eventType match {
           case Activation.typeName => activationCounter.increment()
