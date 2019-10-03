@@ -17,40 +17,25 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.actor.ActorSystem
+import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
-import akka.testkit.TestKit
 import net.manub.embeddedkafka.EmbeddedKafka
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 abstract class KafkaSpecBase
-    extends TestKit(ActorSystem("test"))
-    with Suite
+    extends ScalatestKafkaSpec(6065)
     with Matchers
     with ScalaFutures
     with FlatSpecLike
     with EmbeddedKafka
+    with EmbeddedKafkaLike
     with IntegrationPatience
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
     with Eventually
     with EventsTestHelper { this: Suite =>
-  val log: Logger = LoggerFactory.getLogger(getClass)
-  implicit val timeoutConfig = PatienceConfig(1.minute)
-
-  implicit val materializer = ActorMaterializer()
-
-  def sleep(time: FiniteDuration, msg: String = ""): Unit = {
-    log.info(s"sleeping $time $msg")
-    Thread.sleep(time.toMillis)
-  }
-
-  override protected def afterAll(): Unit = {
-    super.afterAll()
-    shutdown()
-  }
+  implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.minute)
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  override val sleepAfterProduce: FiniteDuration = 10.seconds
 }

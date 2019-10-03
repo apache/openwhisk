@@ -22,11 +22,10 @@ import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
-import net.manub.embeddedkafka.EmbeddedKafkaConfig
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
@@ -34,12 +33,9 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
   behavior of "Server"
 
   it should "start working http server" in {
-    val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
-    withRunningKafkaOnFoundPort(kconfig) { implicit actualConfig =>
-      val kafkaPort = actualConfig.kafkaPort
-      val httpPort = freePort()
-      val globalConfig = system.settings.config
-      val config = ConfigFactory.parseString(s"""
+    val httpPort = freePort()
+    val globalConfig = system.settings.config
+    val config = ConfigFactory.parseString(s"""
            | akka.kafka.consumer.kafka-clients {
            |  bootstrap.servers = "localhost:$kafkaPort"
            | }
@@ -56,18 +52,17 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
            | }
          """.stripMargin).withFallback(globalConfig)
 
-      val binding = OpenWhiskEvents.start(config).futureValue
-      val res = get("localhost", httpPort, "/ping")
-      res shouldBe Some(StatusCodes.OK, "pong")
+    val binding = OpenWhiskEvents.start(config).futureValue
+    val res = get("localhost", httpPort, "/ping")
+    res shouldBe Some(StatusCodes.OK, "pong")
 
-      //Check if metrics using Kamon API gets included in consolidated Prometheus
-      Kamon.counter("fooTest").increment(42)
-      sleep(1.second)
-      val metricRes = get("localhost", httpPort, "/metrics")
-      metricRes.get._2 should include("fooTest")
+    //Check if metrics using Kamon API gets included in consolidated Prometheus
+    Kamon.counter("fooTest").increment(42)
+    sleep(1.second)
+    val metricRes = get("localhost", httpPort, "/metrics")
+    metricRes.get._2 should include("fooTest")
 
-      binding.unbind().futureValue
-    }
+    binding.unbind().futureValue
   }
 
   def get(host: String, port: Int, path: String = "/") = {

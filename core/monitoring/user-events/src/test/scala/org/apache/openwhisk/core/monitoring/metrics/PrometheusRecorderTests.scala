@@ -18,19 +18,16 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import io.prometheus.client.CollectorRegistry
-import net.manub.embeddedkafka.EmbeddedKafkaConfig
+import org.apache.openwhisk.core.connector.{Activation, EventMessage}
+import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.connector.{Activation, EventMessage}
-import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
 
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with PrometheusMetricNames {
-  val sleepAfterProduce: FiniteDuration = 4.seconds
-
   behavior of "PrometheusConsumer"
   val namespace = "whisk.system"
   val initiator = "testNS"
@@ -40,40 +37,37 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   val memory = "256"
 
   it should "push user events to kamon" in {
-    val kconfig = EmbeddedKafkaConfig(kafkaPort = 0, zooKeeperPort = 0)
-    withRunningKafkaOnFoundPort(kconfig) { implicit actualConfig =>
-      createCustomTopic(EventConsumer.userEventTopic)
+    createCustomTopic(EventConsumer.userEventTopic)
 
-      val consumer = createConsumer(actualConfig.kafkaPort, system.settings.config)
-      publishStringMessageToKafka(
-        EventConsumer.userEventTopic,
-        newActivationEvent(s"$namespace/$actionWithCustomPackage", kind, memory, initiator).serialize)
+    val consumer = createConsumer(kafkaPort, system.settings.config)
+    publishStringMessageToKafka(
+      EventConsumer.userEventTopic,
+      newActivationEvent(s"$namespace/$actionWithCustomPackage", kind, memory, initiator).serialize)
 
-      publishStringMessageToKafka(
-        EventConsumer.userEventTopic,
-        newActivationEvent(s"$namespace/$actionWithDefaultPackage", kind, memory, initiator).serialize)
+    publishStringMessageToKafka(
+      EventConsumer.userEventTopic,
+      newActivationEvent(s"$namespace/$actionWithDefaultPackage", kind, memory, initiator).serialize)
 
-      // Custom package
-      sleep(sleepAfterProduce, "sleeping post produce")
-      consumer.shutdown().futureValue
-      counterTotal(activationMetric, actionWithCustomPackage) shouldBe 1
-      counter(coldStartMetric, actionWithCustomPackage) shouldBe 1
-      counterStatus(statusMetric, actionWithCustomPackage, ActivationResponse.statusDeveloperError) shouldBe 1
+    // Custom package
+    sleep(sleepAfterProduce, "sleeping post produce")
+    consumer.shutdown().futureValue
+    counterTotal(activationMetric, actionWithCustomPackage) shouldBe 1
+    counter(coldStartMetric, actionWithCustomPackage) shouldBe 1
+    counterStatus(statusMetric, actionWithCustomPackage, ActivationResponse.statusDeveloperError) shouldBe 1
 
-      histogramCount(waitTimeMetric, actionWithCustomPackage) shouldBe 1
-      histogramSum(waitTimeMetric, actionWithCustomPackage) shouldBe (0.03 +- 0.001)
+    histogramCount(waitTimeMetric, actionWithCustomPackage) shouldBe 1
+    histogramSum(waitTimeMetric, actionWithCustomPackage) shouldBe (0.03 +- 0.001)
 
-      histogramCount(initTimeMetric, actionWithCustomPackage) shouldBe 1
-      histogramSum(initTimeMetric, actionWithCustomPackage) shouldBe (433.433 +- 0.01)
+    histogramCount(initTimeMetric, actionWithCustomPackage) shouldBe 1
+    histogramSum(initTimeMetric, actionWithCustomPackage) shouldBe (433.433 +- 0.01)
 
-      histogramCount(durationMetric, actionWithCustomPackage) shouldBe 1
-      histogramSum(durationMetric, actionWithCustomPackage) shouldBe (1.254 +- 0.01)
+    histogramCount(durationMetric, actionWithCustomPackage) shouldBe 1
+    histogramSum(durationMetric, actionWithCustomPackage) shouldBe (1.254 +- 0.01)
 
-      gauge(memoryMetric, actionWithCustomPackage) shouldBe 1
+    gauge(memoryMetric, actionWithCustomPackage) shouldBe 1
 
-      // Default package
-      counterTotal(activationMetric, actionWithDefaultPackage) shouldBe 1
-    }
+    // Default package
+    counterTotal(activationMetric, actionWithDefaultPackage) shouldBe 1
   }
 
   private def newActivationEvent(name: String, kind: String, memory: String, initiator: String) =

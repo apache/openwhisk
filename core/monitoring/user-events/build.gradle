@@ -34,17 +34,17 @@ dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 
-    compile 'com.typesafe.akka:akka-stream-kafka_2.12:0.22'
+    compile "com.typesafe.akka:akka-stream-kafka_2.12:${gradle.akka_kafka.version}"
 
     compile 'io.prometheus:simpleclient:0.6.0'
     compile 'io.prometheus:simpleclient_common:0.6.0'
 
     testCompile 'junit:junit:4.11'
     testCompile 'org.scalatest:scalatest_2.12:3.0.1'
-    testCompile 'net.manub:scalatest-embedded-kafka_2.12:2.0.0'
-    testCompile 'com.typesafe.akka:akka-testkit_2.12:2.5.17'
-    testCompile 'com.typesafe.akka:akka-stream-testkit_2.12:2.5.17'
-    testCompile 'com.typesafe.akka:akka-http-testkit_2.12:10.1.5'
+    compile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
+    testCompile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
+    testCompile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
+    testCompile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
 }
 
 tasks.withType(ScalaCompile) {
@@ -52,3 +52,13 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "org.apache.openwhisk.core.monitoring.metrics.Main"
+
+gradle.projectsEvaluated {
+    tasks.withType(Test) {
+        testLogging {
+            events "passed", "skipped", "failed"
+            showStandardStreams = true
+            exceptionFormat = 'full'
+        }
+    }
+}
