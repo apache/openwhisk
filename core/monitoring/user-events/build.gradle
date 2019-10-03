@@ -52,3 +52,13 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "org.apache.openwhisk.core.monitoring.metrics.Main"
+
+gradle.projectsEvaluated {
+    tasks.withType(Test) {
+        testLogging {
+            events "passed", "skipped", "failed"
+            showStandardStreams = true
+            exceptionFormat = 'full'
+        }
+    }
+}
