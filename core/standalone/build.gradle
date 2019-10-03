@@ -110,6 +110,9 @@ processResources {
     from(file("$buildDir/tmp/grafana/grafana-config.zip")){
         into(".")
     }
+    from(new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/prometheus/prometheus.yml")){
+        into(".")
+    }
     //Implement the logic present in controller Docker file
     from(project.swaggerUiDir) {
         include "index.html"

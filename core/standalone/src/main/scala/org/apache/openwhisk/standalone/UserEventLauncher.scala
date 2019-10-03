@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}
 import pureconfig.loadConfigOrThrow
@@ -117,19 +117,14 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
     f.map(_ => sc)
   }
 
-  private def prometheusConfig =
-    s"""global:
-  |  scrape_interval: 10s
-  |  evaluation_interval: 10s
-  |
-  |scrape_configs:
-  |  - job_name: 'prometheus-server'
-  |    static_configs:
-  |      - targets: ['localhost:9090']
-  |
-  |  - job_name: 'openwhisk-metrics'
-  |    static_configs:
-  |      - targets: ['$hostIp:$userEventPort', '$hostIp:$owPort']""".stripMargin
+  private def prometheusConfig = {
+    val config = IOUtils.resourceToString("/prometheus.yml", UTF_8)
+    val pattern = "'user-events:9095'"
+    require(config.contains(pattern), s"Did not found expected pattern $pattern in prometheus config $config")
+
+    val targets = s"'$hostIp:$userEventPort', '$hostIp:$owPort'"
+    config.replace(pattern, targets)
+  }
 
   private def unzipGrafanaConfig(configDir: File, promUrl: String): Unit = {
     val is = getClass.getResourceAsStream("/grafana-config.zip")
