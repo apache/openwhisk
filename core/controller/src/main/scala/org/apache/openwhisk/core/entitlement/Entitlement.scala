@@ -39,7 +39,7 @@ import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.spi.Spi
 
-package object types {
+object types {
   type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
 }
 
