@@ -31,11 +31,13 @@ $ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.j
 $ANSIBLE_CMD downloadcli-github.yml
 
 cd $ROOTDIR
-TERM=dumb ./gradlew :core:standalone:build
-TERM=dumb ./gradlew :core:monitoring:user-events:distDocker
+TERM=dumb ./gradlew :core:standalone:build \
+  :core:monitoring:user-events:distDocker
 
 cd $ROOTDIR/tools/travis
 ./runTests.sh
 
 cd $ROOTDIR
-TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
+TERM=dumb ./gradlew :core:standalone:cleanTest \
+  :core:standalone:test \
+  :core:monitoring:user-events:reportTestScoverage
