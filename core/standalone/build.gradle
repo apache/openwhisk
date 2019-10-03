@@ -80,8 +80,24 @@ task copyGWActions() {
     }
 }
 
+task copyGrafanaConfig() {
+    doLast {
+        def grafanaDir = new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/grafana")
+        def grafanaBuildDir = mkdir("$buildDir/tmp/grafana")
+        def zipFileName = "grafana-config.zip"
+        def zipFile = new File(grafanaBuildDir, zipFileName)
+        if (!zipFile.exists()) {
+            ant.zip(destfile:zipFile){
+                fileset(dir:grafanaDir)
+            }
+            logger.info("Created grafana config zip $zipFileName")
+        }
+    }
+}
+
 processResources.dependsOn copySwagger
 processResources.dependsOn copyGWActions
+processResources.dependsOn copyGrafanaConfig
 
 processResources {
     from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
@@ -90,6 +106,12 @@ processResources {
     from(new File(project.rootProject.projectDir, "ansible/files")) {
         include "*.json"
         into("couch")
+    }
+    from(file("$buildDir/tmp/grafana/grafana-config.zip")){
+        into(".")
+    }
+    from(new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/prometheus/prometheus.yml")){
+        into(".")
     }
     //Implement the logic present in controller Docker file
     from(project.swaggerUiDir) {

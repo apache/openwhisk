@@ -96,6 +96,8 @@ $ java -jar openwhisk-standalone.jar -h
       --kafka-ui                   Enable Kafka UI
   -m, --manifest  <arg>            Manifest json defining the supported runtimes
   -p, --port  <arg>                Server port
+      --user-events                Enable User Events along with Prometheus and
+                                   Grafana
   -v, --verbose
       --zk-port  <arg>             Zookeeper port. If not specified then 2181 or
                                    some random free port (if 2181 is busy) would
@@ -236,7 +238,7 @@ java -jar openwhisk-standalone.jar --kafka --kafka-ui
 ```
 
 By default the ui server would be accessible at http://localhost:9000. In case 9000 port is busy then a random port would
-be selected. TO find out the port look for message in log like below (or grep for `whisk-kafka-drop-ui`)
+be selected. To find out the port look for message in log like below (or grep for `whisk-kafka-drop-ui`)
 
 ```
 [ 9092  ] localhost:9092 (kafka)
@@ -245,9 +247,33 @@ be selected. TO find out the port look for message in log like below (or grep fo
 [ 9000  ] http://localhost:9000 (whisk-kafka-drop-ui)
 ```
 
+#### User Events
+
+Standalone OpenWhisk supports emitting [user events][7] and displaying them via Grafana Dashboard. The metrics are
+consumed by [User Event Service][8] which converts them into metrics consumed via Prometheus.
+
+```
+java -jar openwhisk-standalone.jar --user-events
+```
+
+This mode would launch an embedded Kafka, User Event service, Prometheus and Grafana with preconfigured dashboards.
+
+```
+Launched service details
+
+[ 9092  ] localhost:9092 (kafka)
+[ 9091  ] 192.168.65.2:9091 (kafka-docker)
+[ 2181  ] Zookeeper (zookeeper)
+[ 3235  ] http://localhost:3235 (whisk-user-events)
+[ 9090  ] http://localhost:9090 (whisk-prometheus)
+[ 3000  ] http://localhost:3000 (whisk-grafana)
+```
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway
 [4]: https://github.com/apache/incubator-openwhisk/blob/master/docs/apigateway.md
 [5]: https://github.com/embeddedkafka/embedded-kafka
 [6]: https://github.com/obsidiandynamics/kafdrop
+[7]: https://github.com/apache/openwhisk/blob/master/docs/metrics.md#user-specific-metrics
+[8]: https://github.com/apache/openwhisk/blob/master/core/monitoring/user-events/README.md
