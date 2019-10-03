@@ -34,10 +34,11 @@ cd $ROOTDIR
 TERM=dumb ./gradlew :core:standalone:build \
   :core:monitoring:user-events:distDocker
 
-cd $ROOTDIR/tools/travis
-./runTests.sh
-
 cd $ROOTDIR
 TERM=dumb ./gradlew :core:standalone:cleanTest \
   :core:standalone:test \
   :core:monitoring:user-events:reportTestScoverage
+
+# Run test in end as it publishes the coverage also
+cd $ROOTDIR/tools/travis
+./runTests.sh
