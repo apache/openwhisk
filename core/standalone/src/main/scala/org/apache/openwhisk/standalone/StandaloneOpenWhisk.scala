@@ -178,6 +178,12 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val (dataDir, workDir) = initializeDirs(conf)
     val (dockerClient, dockerSupport) = prepareDocker(conf)
 
+    val defaultSvcs = Seq(
+      ServiceContainer(
+        conf.port(),
+        s"http://${StandaloneDockerSupport.getLocalHostName()}:${conf.port()}",
+        "Controller"))
+
     val (apiGwApiPort, apiGwSvcs) = if (conf.apiGw()) {
       startApiGateway(conf, dockerClient, dockerSupport)
     } else (-1, Seq.empty)
@@ -190,10 +196,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     val userEventSvcs =
       if (conf.userEvents()) startUserEvents(conf.port(), kafkaDockerPort, workDir, dataDir, dockerClient)
       else Seq.empty
-    val svcs = Seq(apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs).flatten
-    if (svcs.nonEmpty) {
-      new ServiceInfoLogger(conf, svcs, dataDir).run()
-    }
+
+    val svcs = Seq(defaultSvcs, apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs).flatten
+    new ServiceInfoLogger(conf, svcs, dataDir).run()
 
     startServer(conf)
     new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()

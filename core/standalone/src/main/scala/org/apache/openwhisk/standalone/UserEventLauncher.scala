@@ -133,11 +133,17 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
 
   private def unzipGrafanaConfig(configDir: File, promUrl: String): Unit = {
     val is = getClass.getResourceAsStream("/grafana-config.zip")
-    Unzip(is, configDir)
-    val configFile = new File(configDir, "provisioning/datasources/datasource.yml")
-    val config = FileUtils.readFileToString(configFile, UTF_8)
-    val updatedConfig = config.replace("http://prometheus:9090", promUrl)
-    FileUtils.write(configFile, updatedConfig, UTF_8)
+    if (is != null) {
+      Unzip(is, configDir)
+      val configFile = new File(configDir, "provisioning/datasources/datasource.yml")
+      val config = FileUtils.readFileToString(configFile, UTF_8)
+      val updatedConfig = config.replace("http://prometheus:9090", promUrl)
+      FileUtils.write(configFile, updatedConfig, UTF_8)
+    } else {
+      logging.warn(
+        this,
+        "Did not found the grafana-config.zip in classpath. Make sure its packaged and present in classpath")
+    }
   }
 
   private def newDir(baseDir: File, name: String) = {
