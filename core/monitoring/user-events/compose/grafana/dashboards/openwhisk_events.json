@@ -59,7 +59,7 @@
   "gnetId": 9564,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1570055265559,
+  "iteration": 1570133426517,
   "links": [],
   "panels": [
     {
@@ -291,7 +291,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[$__range]))",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[$__range]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -1310,19 +1310,16 @@
     "list": [
       {
         "allValue": "",
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (region) > 0)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (region) > 0)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": false,
         "name": "region",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (region) > 0)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (region) > 0)",
         "refresh": 1,
         "regex": "/.*region=\"(.*)\".*/",
         "skipUrlSync": false,
@@ -1335,19 +1332,16 @@
       },
       {
         "allValue": "",
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (stack) > 0)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (stack) > 0)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": false,
         "name": "stack",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (stack) > 0)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (stack) > 0)",
         "refresh": 1,
         "regex": "/.*stack=\"(.*)\".*/",
         "skipUrlSync": false,
@@ -1360,19 +1354,16 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "14257_51772",
-          "value": "14257_51772"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (initiator) > 0)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$__range])) by (initiator) > 0)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": false,
         "name": "initiator",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (initiator) > 0)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$__range])) by (initiator) > 0)",
         "refresh": 1,
         "regex": "/.*initiator=\"(.*)\".*/",
         "skipUrlSync": false,
@@ -1385,19 +1376,16 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "14257_51772",
-          "value": "14257_51772"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace))",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (namespace))",
         "hide": 0,
         "includeAll": false,
         "label": null,
         "multi": false,
         "name": "namespace",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total[$interval])) by (namespace))",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total[$__range])) by (namespace))",
         "refresh": 1,
         "regex": "/.*namespace=\"(.*)\".*/",
         "skipUrlSync": false,
@@ -1410,19 +1398,16 @@
       },
       {
         "allValue": "",
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": "Prometheus",
-        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (action) > 0)",
+        "definition": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\",initiator=~\"$initiator\"}[$__range])) by (action) > 0)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": false,
         "name": "action",
         "options": [],
-        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\"}[$interval])) by (action) > 0)",
+        "query": "query_result(sum(increase(openwhisk_action_activations_total{namespace=~\"$namespace\",initiator=~\"$initiator\"}[$__range])) by (action) > 0)",
         "refresh": 1,
         "regex": "/.*action=\"(.*)\".*/",
         "skipUrlSync": false,
