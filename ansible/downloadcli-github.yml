@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,21 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+---
+# This playbook is used to download cli from Github and copy directly to bin
 
-set -e
-
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
-ROOTDIR="$SCRIPTDIR/../.."
-
-cd $ROOTDIR/tools/travis
-export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-
-./scan.sh
-
-./setupPrereq.sh
-
-cat "$ROOTDIR/tests/src/test/resources/application.conf"
-
-./distDocker.sh
-
-./runTests.sh
+- hosts: ansible
+  tasks:
+  - name: grab the local CLI from the Github
+    unarchive:
+      src: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-{{os}}-{{arch}}.{{ext}}"
+      dest: "{{ openwhisk_home }}/bin"
+      mode: "0755"
+      remote_src: yes
+    vars:
+      arch: "{{ ansible_machine | replace ('x86_64', 'amd64') }}"
+      os: "{{ ansible_system | lower | replace('darwin', 'mac') }}"
+      ext: "{{ ( ansible_system in ['Windows', 'Darwin']) | ternary('zip', 'tgz') }}"

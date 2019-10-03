@@ -22,15 +22,20 @@ set -e
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
+export ORG_GRADLE_PROJECT_testSetName="REQUIRE_STANDALONE"
+export GRADLE_COVERAGE=true
+
+cd $ROOTDIR/ansible
+$ANSIBLE_CMD setup.yml
+$ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.json"
+$ANSIBLE_CMD downloadcli-github.yml
+
+cd $ROOTDIR
+TERM=dumb ./gradlew :core:standalone:build
+TERM=dumb ./gradlew :core:monitoring:user-events:distDocker
+
 cd $ROOTDIR/tools/travis
-export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-
-./scan.sh
-
-./setupPrereq.sh
-
-cat "$ROOTDIR/tests/src/test/resources/application.conf"
-
-./distDocker.sh
-
 ./runTests.sh
+
+cd $ROOTDIR
+TERM=dumb ./gradlew :core:standalone:cleanTest :core:standalone:test
