@@ -52,7 +52,6 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
       EventConsumer.userEventTopic,
       newActivationEvent(s"$namespace/$actionWithDefaultPackage", kind, memory, initiatorGuest).serialize)
 
-
     // Custom package
     sleep(sleepAfterProduce, "sleeping post produce")
     consumer.shutdown().futureValue
