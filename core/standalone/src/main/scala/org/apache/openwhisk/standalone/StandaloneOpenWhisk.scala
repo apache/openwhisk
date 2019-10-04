@@ -99,6 +99,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
     descr = "Enables all the optional services supported by Standalone OpenWhisk like CouchDB, Kafka etc",
     noshort = true)
 
+  val devKcf = opt[Boolean](descr = "Enables KubernetesContainerFactory for local development")
+
   mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
 
   verify()
@@ -270,7 +272,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         require(f.exists(), s"Config file $f does not exist")
         System.setProperty("config.file", f.getAbsolutePath)
       case None =>
-        System.setProperty("config.resource", "standalone.conf")
+        val config = if (conf.devKcf()) {
+          "standalone-kcf.conf"
+        } else "standalone.conf"
+        System.setProperty("config.resource", config)
+
     }
   }
 
