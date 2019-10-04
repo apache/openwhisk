@@ -58,6 +58,8 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   protected def dumpStartupLogs: Boolean = false
 
+  protected def disablePlayGround: Boolean = true
+
   protected val dataDirPath: String = FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone")
 
   override def beforeAll(): Unit = {
@@ -70,6 +72,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         System.setProperty(WHISK_SERVER, serverUrl)
         super.beforeAll()
         println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
+        val pgArgs = if (disablePlayGround) Seq("--no-ui") else Seq.empty
         val args = Seq(
           Seq(
             "java",
@@ -81,6 +84,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging", "--data-dir", dataDirPath)
             ++ configFileOpts
             ++ manifestFileOpts
+            ++ pgArgs
             ++ extraArgs,
           Seq("-p", serverPort.toString)).flatten
 
