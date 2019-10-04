@@ -18,7 +18,7 @@
 $(document).ready(function(){
   // This is the location of the supporting API
   // The host value may get replaced in PlaygroundLauncher to a specific host
-  window.APIHOST=window.location ? window.location.origin : ''
+  window.APIHOST='http://localhost:3233'
 
   // To install in a different namespace, change this value
   window.PLAYGROUND='whisk.system'

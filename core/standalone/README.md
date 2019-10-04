@@ -26,8 +26,12 @@ executed as a normal java application from command line.
 java -jar openwhisk-standalone.jar
 ```
 
-This should start the OpenWhisk server on port 3233 by default. Once the server is started then [configure the cli][1]
-and then try out the [samples][2].
+This should start the OpenWhisk server on port 3233 by default and launch a Playground UI at port 3232.
+
+![Playground UI](../../docs/images/playground-ui.png)
+
+The Playground UI can be used to try out simple actions. To make use of all OpenWhisk features [configure the cli][1] and
+then try out the [samples][2].
 
 This server by default uses a memory based store and does not depend on any other external service like Kafka and CouchDB.
 It only needs Docker and Java to for running.
@@ -75,24 +79,25 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-  -m, --manifest  <arg>            Manifest json defining the supported runtimes
-  -c, --config-file  <arg>         application.conf which overrides the default
-                                   standalone.conf
-      --api-gw                     Enable API Gateway support
-      --couchdb                    Enable CouchDB support
-      --user-events                Enable User Events along with Prometheus and
-                                   Grafana
-      --kafka                      Enable embedded Kafka support
-      --kafka-ui                   Enable Kafka UI
+  -m, --manifest  <arg>               Manifest JSON defining the supported
+                                      runtimes
+  -c, --config-file  <arg>            application.conf which overrides the
+                                      default standalone.conf
+      --api-gw                        Enable API Gateway support
+      --couchdb                       Enable CouchDB support
+      --user-events                   Enable User Events along with Prometheus
+                                      and Grafana
+      --kafka                         Enable embedded Kafka support
+      --kafka-ui                      Enable Kafka UI
 
-      --all                        Enables all the optional services supported
-                                   by Standalone OpenWhisk like CouchDB, Kafka
-                                   etc
-      --api-gw-port  <arg>         API Gateway Port
-      --clean                      Clean any existing state like database
-  -d, --data-dir  <arg>            Directory used for storage
-      --dev-kcf                    Enables KubernetesContainerFactory for local
-                                   development
+      --all                           Enables all the optional services
+                                      supported by Standalone OpenWhisk like
+                                      CouchDB, Kafka etc
+      --api-gw-port  <arg>            API Gateway Port
+      --clean                         Clean any existing state like database
+  -d, --data-dir  <arg>               Directory used for storage
+      --dev-kcf                       Enables KubernetesContainerFactory for
+                                      local development
       --dev-mode                      Developer mode speeds up the startup by
                                       disabling preflight checks and avoiding
                                       explicit pulls.
@@ -102,6 +107,13 @@ $ java -jar openwhisk-standalone.jar -h
                                       configuring Prometheus to connect to
                                       existing running service instance
       --disable-color-logging         Disables colored logging
+      --enable-bootstrap              Enable bootstrap of default users and
+                                      actions like those needed for Api Gateway
+                                      or Playground UI. By default bootstrap is
+                                      done by default when using Memory store or
+                                      default CouchDB support. When using other
+                                      stores enable this flag to get bootstrap
+                                      done
       --kafka-docker-port  <arg>      Kafka port for use by docker based
                                       services. If not specified then 9091 or
                                       some random free port (if 9091 is busy)
@@ -109,14 +121,21 @@ $ java -jar openwhisk-standalone.jar -h
       --kafka-port  <arg>             Kafka port. If not specified then 9092 or
                                       some random free port (if 9092 is busy)
                                       would be used
+      --no-ui                         Disable Playground UI
+      --ui-port  <arg>                Playground UI server port. If not specified
+                                      then 3232 or some random free port (if
+                                      org.apache.openwhisk.standalone.StandaloneOpenWhisk$@75a1cd57
+                                      is busy) would be used
   -p, --port  <arg>                   Server port
   -v, --verbose
       --zk-port  <arg>                Zookeeper port. If not specified then 2181
                                       or some random free port (if 2181 is busy)
                                       would be used
   -h, --help                          Show help message
+      --version                       Show version of this program
 
 OpenWhisk standalone server
+
 ```
 
 Sections below would illustrate some of the supported options
@@ -224,11 +243,15 @@ whisk {
 
 Then pass this config file via `-c` option.
 
-#### Using Api Gateway
+Note that Standalone OpenWhisk will not bootstrap users and actions (e.g., API Gateway and Playground UI)
+when using an external database unless explicitly requested with `--enable-bootstrap`. This is to ensure
+that default users and actions are not added to your external artifact store.
 
-Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk Api gateway][3]
+#### Using API Gateway
+
+API Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk API gateway][3]
 would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the
-[api gateway][4] support.
+[API Gateway][4] support.
 
 #### Using Kafka
 
