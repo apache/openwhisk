@@ -41,10 +41,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
 import scala.util.{Failure, Success, Try}
-
 import KafkaLauncher._
 
-class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
+class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(arguments)) {
   banner(StandaloneOpenWhisk.banner)
   footer("\nOpenWhisk standalone server")
   StandaloneOpenWhisk.gitInfo.foreach(g => version(s"Git Commit - ${g.commitId}"))
@@ -96,11 +95,35 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val userEvents = opt[Boolean](descr = "Enable User Events along with Prometheus and Grafana", noshort = true)
 
+  val all = opt[Boolean](
+    descr = "Enables all the optional services supported by Standalone OpenWhisk like CouchDB, Kafka etc",
+    noshort = true)
+
+  mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
+
   verify()
 
   val colorEnabled = !disableColorLogging()
 
   def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getLocalHostName()}:${port()}")
+}
+
+object Conf {
+  def expandAllMode(args: Seq[String]): Seq[String] = {
+    if (args.contains("--all")) {
+      val svcs = Seq("api-gw", "couchdb", "user-events", "kafka", "kafka-ui")
+      val buf = args.toBuffer
+      svcs.foreach { s =>
+        val arg = "--" + s
+        if (!buf.contains(arg)) {
+          buf += arg
+        }
+      }
+      buf.toList
+    } else {
+      args
+    }
+  }
 }
 
 case class GitInfo(commitId: String, commitTime: String)

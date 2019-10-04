@@ -96,7 +96,7 @@ class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(
     val name = containerName("couch")
     val args = createRunCmd(name, env, params)
     val f = docker.runDetached(dbConfig.image, args, shouldPull = true)
-    val sc = ServiceContainer(port, "CouchDB", name)
+    val sc = ServiceContainer(port, s"http://localhost:$port", name)
     f.map(c => (c, sc))
   }
 

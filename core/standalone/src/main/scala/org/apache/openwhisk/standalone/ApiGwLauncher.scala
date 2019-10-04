@@ -57,7 +57,7 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     val name = containerName("redis")
     val args = createRunCmd(name, dockerRunParameters = params)
     val f = docker.runDetached(redisConfig.image, args, shouldPull = true)
-    val sc = ServiceContainer(redisPort, "Redis", name)
+    val sc = ServiceContainer(redisPort, s"http://localhost:$redisPort", name)
     f.map(c => (c, Seq(sc)))
   }
 
@@ -102,8 +102,8 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
     val pull = apiGwConfig.image.startsWith("openwhisk")
     val f = docker.runDetached(apiGwConfig.image, args, pull)
     val sc = Seq(
-      ServiceContainer(apiGwApiPort, "Api Gateway - Api Service", name),
-      ServiceContainer(apiGwMgmtPort, "Api Gateway - Management Service", name))
+      ServiceContainer(apiGwApiPort, s"http://localhost:$apiGwApiPort", s"$name, Api Gateway - Api Service "),
+      ServiceContainer(apiGwMgmtPort, s"http://localhost:$apiGwMgmtPort", s"$name, Api Gateway - Management Service"))
     f.map(c => (c, sc))
   }
 
