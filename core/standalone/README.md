@@ -75,29 +75,33 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-      --api-gw                     Enable API Gateway support
-      --api-gw-port  <arg>         Api Gateway Port
-      --clean                      Clean any existing state like database
+  -m, --manifest  <arg>            Manifest json defining the supported runtimes
   -c, --config-file  <arg>         application.conf which overrides the default
                                    standalone.conf
+      --api-gw                     Enable API Gateway support
       --couchdb                    Enable CouchDB support
+      --user-events                Enable User Events along with Prometheus and
+                                   Grafana
+      --kafka                      Enable embedded Kafka support
+      --kafka-ui                   Enable Kafka UI
+
+      --all                        Enables all the optional services supported
+                                   by Standalone OpenWhisk like CouchDB, Kafka
+                                   etc
+      --api-gw-port  <arg>         Api Gateway Port
+      --clean                      Clean any existing state like database
   -d, --data-dir  <arg>            Directory used for storage
       --dev-mode                   Developer mode speeds up the startup by
                                    disabling preflight checks and avoiding
                                    explicit pulls.
       --disable-color-logging      Disables colored logging
-      --kafka                      Enable embedded Kafka support
       --kafka-docker-port  <arg>   Kafka port for use by docker based services.
                                    If not specified then 9091 or some random
                                    free port (if 9091 is busy) would be used
       --kafka-port  <arg>          Kafka port. If not specified then 9092 or
                                    some random free port (if 9092 is busy) would
                                    be used
-      --kafka-ui                   Enable Kafka UI
-  -m, --manifest  <arg>            Manifest json defining the supported runtimes
   -p, --port  <arg>                Server port
-      --user-events                Enable User Events along with Prometheus and
-                                   Grafana
   -v, --verbose
       --zk-port  <arg>             Zookeeper port. If not specified then 2181 or
                                    some random free port (if 2181 is busy) would
@@ -106,8 +110,6 @@ $ java -jar openwhisk-standalone.jar -h
       --version                    Show version of this program
 
 OpenWhisk standalone server
-
-
 ```
 
 Sections below would illustrate some of the supported options
