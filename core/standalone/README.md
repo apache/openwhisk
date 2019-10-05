@@ -88,7 +88,7 @@ $ java -jar openwhisk-standalone.jar -h
       --all                        Enables all the optional services supported
                                    by Standalone OpenWhisk like CouchDB, Kafka
                                    etc
-      --api-gw-port  <arg>         Api Gateway Port
+      --api-gw-port  <arg>         API Gateway Port
       --clean                      Clean any existing state like database
   -d, --data-dir  <arg>            Directory used for storage
       --dev-mode                   Developer mode speeds up the startup by
