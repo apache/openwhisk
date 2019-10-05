@@ -75,7 +75,7 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-  -m, --manifest  <arg>            Manifest json defining the supported runtimes
+  -m, --manifest  <arg>            Manifest JSON defining the supported runtimes
   -c, --config-file  <arg>         application.conf which overrides the default
                                    standalone.conf
       --api-gw                     Enable API Gateway support
