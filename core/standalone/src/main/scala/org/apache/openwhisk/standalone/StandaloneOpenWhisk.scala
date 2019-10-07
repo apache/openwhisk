@@ -51,7 +51,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   this.printedName = "openwhisk"
   val configFile =
     opt[File](descr = "application.conf which overrides the default standalone.conf", validate = _.canRead)
-  val manifest = opt[File](descr = "Manifest json defining the supported runtimes", validate = _.canRead)
+  val manifest = opt[File](descr = "Manifest JSON defining the supported runtimes", validate = _.canRead)
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
   val verbose = tally()
@@ -62,7 +62,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   val devMode = opt[Boolean](
     descr = "Developer mode speeds up the startup by disabling preflight checks and avoiding explicit pulls.",
     noshort = true)
-  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
+  val apiGwPort = opt[Int](descr = "API Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
