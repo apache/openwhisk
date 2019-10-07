@@ -107,18 +107,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case r: Run =>
       // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
       val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
+
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
       if (runBuffer.isEmpty || isResentFromBuffer) {
-        // First grab a warm container if possible
-        val warmContainer = ContainerPool
-          .schedule(r.action, r.msg.user.namespace.name, freePool)
         val createdContainer =
-          // Is there an existing container, OR is there enough space on the invoker for this action to be executed.
-          if (warmContainer.isDefined || hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
+          // Is there enough space on the invoker for this action to be executed.
+          if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
             // Schedule a job to a warm container
-            warmContainer
+            ContainerPool
+              .schedule(r.action, r.msg.user.namespace.name, freePool)
               .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
               .orElse(
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
