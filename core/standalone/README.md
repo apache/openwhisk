@@ -276,9 +276,9 @@ Launched service details
 #### Using KubernetesContainerFactory
 
 Standalone OpenWhisk can be configured to use KubernetesContainerFactory (KCF) via `--dev-kcf` option. This mode can be used to
-simplify developing KubernetesContainerFactory. 
+simplify developing KubernetesContainerFactory.
 
-Below mentioned steps are based on [Kind][9] tool for running local Kubernetes clusters using Docker container "nodes". 
+Below mentioned steps are based on [Kind][9] tool for running local Kubernetes clusters using Docker container "nodes".
 However this mode should work against any Kubernetes cluster if the the `KUBECONFIG` is properly set.
 
 ##### 1. Install and configure Kind
