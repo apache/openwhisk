@@ -78,6 +78,7 @@ class KamonMetricsReporter extends MetricsReporter {
 }
 
 object KamonMetricsReporter {
+  val name = classOf[KamonMetricsReporter].getName
   private val excludedTopicAttributes = Set("records-lag-max", "records-consumed-total", "bytes-consumed-total")
 
   case class KafkaMetricConfig(names: Set[String], reportInterval: FiniteDuration)
