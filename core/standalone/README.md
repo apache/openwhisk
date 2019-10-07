@@ -75,7 +75,7 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-  -m, --manifest  <arg>            Manifest JSON defining the supported runtimes
+  -m, --manifest  <arg>            Manifest json defining the supported runtimes
   -c, --config-file  <arg>         application.conf which overrides the default
                                    standalone.conf
       --api-gw                     Enable API Gateway support
@@ -91,6 +91,8 @@ $ java -jar openwhisk-standalone.jar -h
       --api-gw-port  <arg>         API Gateway Port
       --clean                      Clean any existing state like database
   -d, --data-dir  <arg>            Directory used for storage
+      --dev-kcf                    Enables KubernetesContainerFactory for local
+                                   development
       --dev-mode                   Developer mode speeds up the startup by
                                    disabling preflight checks and avoiding
                                    explicit pulls.
@@ -271,6 +273,84 @@ Launched service details
 [ 3000  ] http://localhost:3000 (whisk-grafana)
 ```
 
+#### Using KubernetesContainerFactory
+
+Standalone OpenWhisk can be configured to use KubernetesContainerFactory (KCF) via `--dev-kcf` option. This mode can be used to
+simplify developing KubernetesContainerFactory.
+
+Below mentioned steps are based on [Kind][9] tool for running local Kubernetes clusters using Docker container "nodes".
+However this mode should work against any Kubernetes cluster if the the `KUBECONFIG` is properly set.
+
+##### 1. Install and configure Kind
+
+We would use Kind to setup a local k8s. Follow the steps [here][10] to create a simple cluster.
+
+```bash
+$ kind create cluster --wait 5m
+
+# Export the kind config for kubectl usage
+$ export KUBECONFIG="$(kind get kubeconfig-path)"
+
+# Configure the default namespace
+$ kubectl config set-context --current --namespace=default
+
+# See the config path
+$ kind get kubeconfig-path
+/Users/example/.kube/kind-config-kind
+```
+
+##### 2. Launch Standalone
+
+```bash
+# Launch it with `kubeconfig` system property set to kind config
+$ java  -Dkubeconfig="$(kind get kubeconfig-path)" -jar bin/openwhisk-standalone.jar --dev-kcf
+```
+
+Once started and required `.wskprops` configured to use the standalone server create a `hello.js` function
+
+```js
+function main(params) {
+    greeting = 'hello, world'
+    var hello = {payload: greeting}
+    var result = {...hello, ...process.env}
+    console.log(greeting);
+    return result
+}
+```
+
+```bash
+$ wsk action create hello hello.js
+$ wsk action invoke hello -br
+```
+
+This shows an output like below indicating that KubernetesContainerFactory based invocation is working properly.
+
+```
+{
+    "HOME": "/root",
+    "HOSTNAME": "wsk0-2-prewarm-nodejs10",
+    "KUBERNETES_PORT": "tcp://10.96.0.1:443",
+    "KUBERNETES_PORT_443_TCP": "tcp://10.96.0.1:443",
+    "KUBERNETES_PORT_443_TCP_ADDR": "10.96.0.1",
+    "KUBERNETES_PORT_443_TCP_PORT": "443",
+    "KUBERNETES_PORT_443_TCP_PROTO": "tcp",
+    "KUBERNETES_SERVICE_HOST": "10.96.0.1",
+    "KUBERNETES_SERVICE_PORT": "443",
+    "KUBERNETES_SERVICE_PORT_HTTPS": "443",
+    "NODE_VERSION": "10.15.3",
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "PWD": "/nodejsAction",
+    "YARN_VERSION": "1.13.0",
+    "__OW_ACTION_NAME": "/guest/hello",
+    "__OW_ACTIVATION_ID": "71e48d2d62e142eca48d2d62e192ec2d",
+    "__OW_API_HOST": "http://host.docker.internal:3233",
+    "__OW_DEADLINE": "1570223213407",
+    "__OW_NAMESPACE": "guest",
+    "__OW_TRANSACTION_ID": "iSOoNklk6V7l7eh8KJnvugidKEmaNJmv",
+    "payload": "hello, world"
+}
+```
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway
@@ -279,3 +359,5 @@ Launched service details
 [6]: https://github.com/obsidiandynamics/kafdrop
 [7]: https://github.com/apache/openwhisk/blob/master/docs/metrics.md#user-specific-metrics
 [8]: https://github.com/apache/openwhisk/blob/master/core/monitoring/user-events/README.md
+[9]: https://kind.sigs.k8s.io/
+[10]: https://kind.sigs.k8s.io/docs/user/quick-start/

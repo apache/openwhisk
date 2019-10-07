@@ -51,7 +51,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   this.printedName = "openwhisk"
   val configFile =
     opt[File](descr = "application.conf which overrides the default standalone.conf", validate = _.canRead)
-  val manifest = opt[File](descr = "Manifest json defining the supported runtimes", validate = _.canRead)
+  val manifest = opt[File](descr = "Manifest JSON defining the supported runtimes", validate = _.canRead)
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
   val verbose = tally()
@@ -62,7 +62,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   val devMode = opt[Boolean](
     descr = "Developer mode speeds up the startup by disabling preflight checks and avoiding explicit pulls.",
     noshort = true)
-  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
+  val apiGwPort = opt[Int](descr = "API Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
@@ -98,6 +98,8 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   val all = opt[Boolean](
     descr = "Enables all the optional services supported by Standalone OpenWhisk like CouchDB, Kafka etc",
     noshort = true)
+
+  val devKcf = opt[Boolean](descr = "Enables KubernetesContainerFactory for local development")
 
   mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
 
@@ -270,7 +272,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         require(f.exists(), s"Config file $f does not exist")
         System.setProperty("config.file", f.getAbsolutePath)
       case None =>
-        System.setProperty("config.resource", "standalone.conf")
+        val config = if (conf.devKcf()) {
+          "standalone-kcf.conf"
+        } else "standalone.conf"
+        System.setProperty("config.resource", config)
+
     }
   }
 

@@ -74,7 +74,8 @@ case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: S
  */
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   invokerAgent: KubernetesInvokerAgentConfig,
-                                  userPodNodeAffinity: KubernetesInvokerNodeAffinity)
+                                  userPodNodeAffinity: KubernetesInvokerNodeAffinity,
+                                  portForwardingEnabled: Boolean)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -219,13 +220,20 @@ class KubernetesClient(
 
   protected def toContainer(pod: Pod): KubernetesContainer = {
     val id = ContainerId(pod.getMetadata.getName)
-    val addr = ContainerAddress(pod.getStatus.getPodIP)
+
+    val portFwd = if (config.portForwardingEnabled) {
+      Some(kubeRestClient.pods().withName(pod.getMetadata.getName).portForward(8080))
+    } else None
+
+    val addr = portFwd
+      .map(fwd => ContainerAddress("localhost", fwd.getLocalPort))
+      .getOrElse(ContainerAddress(pod.getStatus.getPodIP))
     val workerIP = pod.getStatus.getHostIP
     // Extract the native (docker or containerd) containerId for the container
     // By convention, kubernetes adds a docker:// prefix when using docker as the low-level container engine
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
-    new KubernetesContainer(id, addr, workerIP, nativeContainerId)
+    new KubernetesContainer(id, addr, workerIP, nativeContainerId, portFwd)
   }
 }
 
