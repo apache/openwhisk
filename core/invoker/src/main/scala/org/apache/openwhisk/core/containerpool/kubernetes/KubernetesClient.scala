@@ -132,11 +132,17 @@ class KubernetesClient(
         .build()
       podBuilder.withAffinity(invokerNodeAffinity)
     }
+    val secContext = new SecurityContextBuilder()
+      .withNewCapabilities()
+      .addToDrop("NET_RAW", "NET_ADMIN")
+      .endCapabilities()
+      .build()
     val pod = podBuilder
       .addNewContainer()
       .withNewResources()
       .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
       .endResources()
+      .withSecurityContext(secContext)
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars.asJava)
