@@ -184,7 +184,7 @@ class InvokerReactive(
     ExecManifest.runtimesManifest.stemcells.flatMap {
       case (mf, cells) =>
         cells.map { cell =>
-          PrewarmingConfig(cell.count, new CodeExecAsString(mf, "", None), cell.memory, cell.cpu)
+          PrewarmingConfig(cell.count, new CodeExecAsString(mf, "", None), cell.memory)
         }
     }.toList
   }
