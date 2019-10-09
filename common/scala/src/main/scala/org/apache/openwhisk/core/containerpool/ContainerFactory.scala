@@ -26,12 +26,14 @@ import org.apache.openwhisk.spi.Spi
 import scala.concurrent.Future
 import scala.math.max
 
-case class ContainerArgsConfig(network: String,
-                               dnsServers: Seq[String] = Seq.empty,
-                               dnsSearch: Seq[String] = Seq.empty,
-                               dnsOptions: Seq[String] = Seq.empty,
-                               extraEnvVars: Seq[String] = Seq.empty,
-                               extraArgs: Map[String, Set[String]] = Map.empty) {
+case class ContainerArgsConfig(
+  network:      String,
+  dnsServers:   Seq[String]              = Seq.empty,
+  dnsSearch:    Seq[String]              = Seq.empty,
+  dnsOptions:   Seq[String]              = Seq.empty,
+  extraEnvVars: Seq[String]              = Seq.empty,
+  extraArgs:    Map[String, Set[String]] = Map.empty
+) {
 
   val extraEnvVarMap: Map[String, String] =
     extraEnvVars.flatMap {
@@ -46,7 +48,8 @@ case class ContainerArgsConfig(network: String,
 case class ContainerPoolConfig(userMemory: ByteSize, concurrentPeekFactor: Double, akkaClient: Boolean) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
-    s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
+    s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor"
+  )
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.
@@ -90,22 +93,57 @@ trait ContainerFactory {
    *   In particular, action memory limits rely on the underlying container technology.
    */
   def createContainer(
-    tid: TransactionId,
-    name: String,
-    actionImage: ExecManifest.ImageName,
+    tid:               TransactionId,
+    name:              String,
+    actionImage:       ExecManifest.ImageName,
     userProvidedImage: Boolean,
-    memory: ByteSize,
-    cpuShares: Int,
-    action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    memory:            ByteSize,
+    cpuShares:         Int,
+    action:            Option[ExecutableWhiskAction]
+  )(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
   }
 
-  def createContainer(tid: TransactionId,
-                      name: String,
-                      actionImage: ExecManifest.ImageName,
-                      userProvidedImage: Boolean,
-                      memory: ByteSize,
-                      cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container]
+  def createContainer(
+    tid:               TransactionId,
+    name:              String,
+    actionImage:       ExecManifest.ImageName,
+    userProvidedImage: Boolean,
+    memory:            ByteSize,
+    cpuShares:         Int
+  )(implicit config: WhiskConfig, logging: Logging): Future[Container]
+
+  /**
+   * Create a new Container, using CPU limit
+   *
+   * The created container has to satisfy following requirements:
+   * - The container's file system is based on the provided action image and may have a read/write layer on top.
+   *   Some managed action runtimes may need the capability to write files.
+   * - If the specified image is not available on the system, it is pulled from an image
+   *   repository - for example, Docker Hub.
+   * - The container needs a network setup - usually, a network interface - such that the invoker is able
+   *   to connect the action container. The container must be able to perform DNS resolution based
+   *   on the settings provided via ContainerArgsConfig. If needed by action authors,
+   *   the container should be able to connect to other systems or even the internet to consume services.
+   * - The IP address of said interface is stored in the created Container instance if you want to use
+   *   the standard init / run behaviour defined in the Container trait.
+   * - The default process specified in the action image is run.
+   * - It is desired that all stdout / stderr written by processes in the container is captured such
+   *   that it can be obtained using the logs() method of the Container trait.
+   * - It is desired that the container supports and enforces the specified memory and CPU limit.
+   *   In particular, action memory and CPU limits rely on the underlying container technology.
+   *
+   * @param cpuPermits count in CPU permits, should be transform to CPU threads when creating container
+   */
+  def createCPUContainer(
+    tid:               TransactionId,
+    name:              String,
+    actionImage:       ExecManifest.ImageName,
+    userProvidedImage: Boolean,
+    memory:            ByteSize,
+    cpuPermits:        Int,
+    action:            Option[ExecutableWhiskAction]
+  )(implicit config: WhiskConfig, logging: Logging): Future[Container] = Future.failed(new Exception("You should implement this function."))
 
   /** perform any initialization */
   def init(): Unit
@@ -135,9 +173,11 @@ object ContainerFactory {
  * All impls should use the parameters specified as additional args to "docker run" commands
  */
 trait ContainerFactoryProvider extends Spi {
-  def instance(actorSystem: ActorSystem,
-               logging: Logging,
-               config: WhiskConfig,
-               instance: InvokerInstanceId,
-               parameters: Map[String, Set[String]]): ContainerFactory
+  def instance(
+    actorSystem: ActorSystem,
+    logging:     Logging,
+    config:      WhiskConfig,
+    instance:    InvokerInstanceId,
+    parameters:  Map[String, Set[String]]
+  ): ContainerFactory
 }

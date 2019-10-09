@@ -280,7 +280,7 @@ class ShardingContainerPoolBalancer(
         action.fullyQualifiedName(true),
         invokersToUse,
         if (cpuLimitConfig.controlEnabled) schedulingState.invokerCPUSlots else schedulingState.invokerMemorySlots,
-        if (cpuLimitConfig.controlEnabled) CPULimitUtils.coresToPermits(action.limits.cpu.cores) else action.limits.memory.megabytes,
+        if (cpuLimitConfig.controlEnabled) CPULimitUtils.threadsToPermits(action.limits.cpu.threads) else action.limits.memory.megabytes,
         homeInvoker,
         stepSize
       )
@@ -314,7 +314,7 @@ class ShardingContainerPoolBalancer(
             s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${
               msg.user
                 .namespace.name.asString
-            }', " + s"cpu limit ${cpuLimit.cores} cores (${cpuLimitInfo}), mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
+            }', " + s"cpu limit ${cpuLimit.threads} cpuThreads (${cpuLimitInfo}), mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
           } else {
             s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
           }
@@ -352,7 +352,7 @@ class ShardingContainerPoolBalancer(
       .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, entry.memoryLimit.toMB.toInt))
     schedulingState.invokerCPUSlots
       .lift(invoker.toInt)
-      .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, CPULimitUtils.coresToPermits(entry.cpuLimit)))
+      .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, CPULimitUtils.threadsToPermits(entry.cpuLimit)))
   }
 }
 
@@ -421,7 +421,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    * @param maxConcurrent concurrency limit supported by this action
    * @param invokers a list of available invokers to search in, including their state
    * @param dispatched semaphores for each invoker to give the slots away from
-   * @param slots Number of slots, that need to be acquired (e.g. memory in MB, cpu in permits(might be cores * 100))
+   * @param slots Number of slots, that need to be acquired (e.g. memory in MB, cpu in permits(might be threads * 100))
    * @param index the index to start from (initially should be the "homeInvoker"
    * @param step stable identifier of the entity to be scheduled
    * @return an invoker to schedule to or None of no invoker is available
@@ -540,15 +540,15 @@ case class ShardingContainerPoolBalancerState(
   }
 
   /**
-   * @param cores
+   * @param cpuThreads
    * @return calculated invoker slot
    */
-  private def getInvokerSlotByCPU(cores: Float): Float = {
-    val invokerShardCPUSize = cores / _clusterSize
+  private def getInvokerSlotByCPU(cpuThreads: Float): Float = {
+    val invokerShardCPUSize = cpuThreads / _clusterSize
     val newTreshold = if (invokerShardCPUSize < CPULimit.MIN_CPU) {
       logging.error(
         this,
-        s"registered controllers: calculated controller's invoker shard CPU size falls below the min cores of one action. Setting to min CPU. Expect invoker overloads. Cluster size ${_clusterSize}, invoker CPU cores ${cores}, min action CPU cores ${CPULimit.MIN_CPU}, calculated shard size ${invokerShardCPUSize}."
+        s"registered controllers: calculated controller's invoker shard CPU size falls below the min CPU threads of one action. Setting to min CPU. Expect invoker overloads. Cluster size ${_clusterSize}, invoker CPU threads ${cpuThreads}, min action CPU threads ${CPULimit.MIN_CPU}, calculated shard size ${invokerShardCPUSize}."
       )(TransactionId.loadbalancer)
       CPULimit.MIN_CPU
     } else {
@@ -592,11 +592,11 @@ case class ShardingContainerPoolBalancerState(
           new NestedMemorySemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
         }
         _invokerCPUSlots = _invokerCPUSlots ++ onlyNewInvokers.map { invoker =>
-          new NestedCPUSemaphore[FullyQualifiedEntityName](getInvokerSlotByCPU(invoker.id.cpuCores))
+          new NestedCPUSemaphore[FullyQualifiedEntityName](getInvokerSlotByCPU(invoker.id.cpuThreads))
         }
         val newInvokerDetails = onlyNewInvokers
           .map(i =>
-            s"${i.id.toString}: ${i.status} / ${getInvokerSlot(i.id.userMemory).toMB.MB} of ${i.id.userMemory.toMB.MB} MB / ${getInvokerSlotByCPU(i.id.cpuCores)} of ${i.id.cpuCores} cores")
+            s"${i.id.toString}: ${i.status} / ${getInvokerSlot(i.id.userMemory).toMB.MB} of ${i.id.userMemory.toMB.MB} MB / ${getInvokerSlotByCPU(i.id.cpuThreads)} of ${i.id.cpuThreads} cpuThreads")
           .mkString(", ")
         s"number of known invokers increased: new = $newSize, old = $oldSize. details: $newInvokerDetails."
       } else {
@@ -631,7 +631,7 @@ case class ShardingContainerPoolBalancerState(
         new NestedMemorySemaphore[FullyQualifiedEntityName](getInvokerSlot(invoker.id.userMemory).toMB.toInt)
       }
       _invokerCPUSlots = _invokers.map { invoker =>
-        new NestedCPUSemaphore[FullyQualifiedEntityName](getInvokerSlotByCPU(invoker.id.cpuCores))
+        new NestedCPUSemaphore[FullyQualifiedEntityName](getInvokerSlotByCPU(invoker.id.cpuThreads))
       }
       // Directly after startup, no invokers have registered yet. This needs to be handled gracefully.
       val invokerCount = _invokers.size
@@ -642,7 +642,7 @@ case class ShardingContainerPoolBalancerState(
         } else {
           0.MB
         }
-      val totalInvokerCPU = _invokers.foldLeft(0.toFloat)((total, invoker) => total + getInvokerSlotByCPU(invoker.id.cpuCores))
+      val totalInvokerCPU = _invokers.foldLeft(0.toFloat)((total, invoker) => total + getInvokerSlotByCPU(invoker.id.cpuThreads))
       val averageInvokerCPU: Float =
         if (totalInvokerCPU > 0 && invokerCount > 0) {
           totalInvokerCPU / invokerCount
@@ -651,7 +651,7 @@ case class ShardingContainerPoolBalancerState(
         }
       logging.info(
         this,
-        s"loadbalancer cluster size changed from $oldSize to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}, and ${averageInvokerCPU} average CPU cores - total invoker CPU cores ${totalInvokerCPU}."
+        s"loadbalancer cluster size changed from $oldSize to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}, and ${averageInvokerCPU} average CPU threads - total invoker CPU threads ${totalInvokerCPU}."
       )(TransactionId.loadbalancer)
     }
   }

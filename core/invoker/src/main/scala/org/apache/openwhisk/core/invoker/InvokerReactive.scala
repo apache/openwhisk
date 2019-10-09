@@ -83,7 +83,8 @@ class InvokerReactive(
   producer: MessageProducer,
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
   limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
-  implicit actorSystem: ActorSystem,
+  implicit
+  actorSystem: ActorSystem,
   logging: Logging)
     extends InvokerCore {
 
@@ -165,11 +166,18 @@ class InvokerReactive(
     activationStore.storeAfterCheck(activation, context)(tid, notifier = None)
   }
 
+  private val cpuLimitConfig: CPULimitConfig = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
+
   /** Creates a ContainerProxy Actor when being called. */
   private val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(
-      ContainerProxy
-        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
+    if (!cpuLimitConfig.controlEnabled)
+      f.actorOf(
+        ContainerProxy
+          .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
+    else
+      f.actorOf(
+        ContainerProxy
+          .props(containerFactory.createCPUContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
     ExecManifest.runtimesManifest.stemcells.flatMap {

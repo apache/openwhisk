@@ -200,7 +200,7 @@ class InvokerPool(
       status,
       instanceId.toInt + 1,
       i => new InvokerHealth(
-        InvokerInstanceId(i, userMemory = instanceId.userMemory, cpuCores = instanceId.cpuCores),
+        InvokerInstanceId(i, userMemory = instanceId.userMemory, cpuThreads = instanceId.cpuThreads),
         Offline
       )
     )

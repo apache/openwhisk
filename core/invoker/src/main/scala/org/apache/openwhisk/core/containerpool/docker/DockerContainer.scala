@@ -50,6 +50,7 @@ object DockerContainer {
    * @param transid transaction creating the container
    * @param image either a user provided (Left) or OpenWhisk provided (Right) image
    * @param memory memorylimit of the container
+   * @param registryConfig config for user runtime images' registry
    * @param cpuShares sharefactor for the container
    * @param environment environment variables to set on the container
    * @param network network to launch the container in
@@ -58,32 +59,27 @@ object DockerContainer {
    * @param useRunc use docker-runc to pause/unpause container?
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
-  def create(transid: TransactionId,
-             image: Either[ImageName, ImageName],
-             registryConfig: Option[RuntimesRegistryConfig] = None,
-             memory: ByteSize = 256.MB,
-             cpuShares: Int = 0,
-             environment: Map[String, String] = Map.empty,
-             network: String = "bridge",
-             dnsServers: Seq[String] = Seq.empty,
-             dnsSearch: Seq[String] = Seq.empty,
-             dnsOptions: Seq[String] = Seq.empty,
-             name: Option[String] = None,
-             useRunc: Boolean = true,
-             dockerRunParameters: Map[String, Set[String]])(implicit docker: DockerApiWithFileAccess,
-                                                            runc: RuncApi,
-                                                            as: ActorSystem,
-                                                            ec: ExecutionContext,
-                                                            log: Logging): Future[DockerContainer] = {
-    implicit val tid: TransactionId = transid
-
-    val environmentArgs = environment.flatMap {
-      case (key, value) => Seq("-e", s"$key=$value")
-    }
-
-    val params = dockerRunParameters.flatMap {
-      case (key, valueList) => valueList.toList.flatMap(Seq(key, _))
-    }
+  def create(
+    transid:             TransactionId,
+    image:               Either[ImageName, ImageName],
+    registryConfig:      Option[RuntimesRegistryConfig] = None,
+    memory:              ByteSize                       = 256.MB,
+    cpuShares:           Int                            = 0,
+    environment:         Map[String, String]            = Map.empty,
+    network:             String                         = "bridge",
+    dnsServers:          Seq[String]                    = Seq.empty,
+    dnsSearch:           Seq[String]                    = Seq.empty,
+    dnsOptions:          Seq[String]                    = Seq.empty,
+    name:                Option[String]                 = None,
+    useRunc:             Boolean                        = true,
+    dockerRunParameters: Map[String, Set[String]]
+  )(implicit
+    docker: DockerApiWithFileAccess,
+    runc: RuncApi,
+    as:   ActorSystem,
+    ec:   ExecutionContext,
+    log:  Logging): Future[DockerContainer] = {
+    val params = genEnvParamsAndDockerParams(environment, dockerRunParameters)
 
     // NOTE: --dns-option on modern versions of docker, but is --dns-opt on docker 1.12
     val dnsOptString = if (docker.clientVersion.startsWith("1.12")) { "--dns-opt" } else { "--dns-option" }
@@ -95,13 +91,97 @@ object DockerContainer {
       "--memory-swap",
       s"${memory.toMB}m",
       "--network",
-      network) ++
-      environmentArgs ++
+      network
+    ) ++
+      params._1 ++
       dnsServers.flatMap(d => Seq("--dns", d)) ++
       dnsSearch.flatMap(d => Seq("--dns-search", d)) ++
       dnsOptions.flatMap(d => Seq(dnsOptString, d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
-      params
+      params._2
+
+    createContainerWithArgs(args, transid, registryConfig, image, network, useRunc)
+  }
+
+  /**
+   * Creates a container running on a docker daemon.
+   *
+   * @param transID transaction creating the container
+   * @param image either a user provided (Left) or OpenWhisk provided (Right) image
+   * @param memory memorylimit of the container
+   * @param cpu CPU threads limit for the container
+   * @param environment environment variables to set on the container
+   * @param network network to launch the container in
+   * @param dnsServers list of dns servers to use in the container
+   * @param name optional name for the container
+   * @param useRunc use docker-runc to pause/unpause container?
+   * @return a Future which either completes with a DockerContainer or one of two specific failures
+   */
+  def createByCPU(
+    transID:             TransactionId,
+    image:               Either[ImageName, ImageName],
+    registryConfig:      Option[RuntimesRegistryConfig] = None,
+    memory:              ByteSize                       = 256.MB,
+    cpu:                 Float                          = (0.2).toFloat,
+    environment:         Map[String, String]            = Map.empty,
+    network:             String                         = "bridge",
+    dnsServers:          Seq[String]                    = Seq.empty,
+    dnsSearch:           Seq[String]                    = Seq.empty,
+    dnsOptions:          Seq[String]                    = Seq.empty,
+    name:                Option[String]                 = None,
+    useRunc:             Boolean                        = true,
+    dockerRunParameters: Map[String, Set[String]]
+  )(implicit
+    docker: DockerApiWithFileAccess,
+    runc: RuncApi,
+    as:   ActorSystem,
+    ec:   ExecutionContext,
+    log:  Logging): Future[DockerContainer] = {
+
+    val params = genEnvParamsAndDockerParams(environment, dockerRunParameters)
+
+    // NOTE: --dns-option on modern versions of docker, but is --dns-opt on docker 1.12
+    val dnsOptString = if (docker.clientVersion.startsWith("1.12")) { "--dns-opt" } else { "--dns-option" }
+    val args = Seq(
+      "--cpus",
+      cpu.toString,
+      "--memory",
+      s"${memory.toMB}m",
+      "--memory-swap",
+      s"${memory.toMB}m",
+      "--network",
+      network
+    ) ++
+      params._1 ++
+      dnsServers.flatMap(d => Seq("--dns", d)) ++
+      dnsSearch.flatMap(d => Seq("--dns-search", d)) ++
+      dnsOptions.flatMap(d => Seq(dnsOptString, d)) ++
+      name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
+      params._2
+
+    createContainerWithArgs(args, transID, registryConfig, image, network, useRunc)
+  }
+
+  private def genEnvParamsAndDockerParams(environment: Map[String, String], dockerRunParameters: Map[String, Set[String]]): (Iterable[String], Iterable[String]) =
+    (
+      environment.flatMap { case (key, value) => Seq("-e", s"$key=$value") },
+      dockerRunParameters.flatMap { case (key, valueList) => valueList.toList.flatMap(Seq(key, _)) }
+    )
+
+  private def createContainerWithArgs(
+    args:           Seq[String],
+    transID:        TransactionId,
+    registryConfig: Option[RuntimesRegistryConfig] = None,
+    image:          Either[ImageName, ImageName],
+    network:        String,
+    useRunc:        Boolean
+  )(implicit
+    docker: DockerApiWithFileAccess,
+    runc: RuncApi,
+    as:   ActorSystem,
+    ec:   ExecutionContext,
+    log:  Logging): Future[DockerContainer] = {
+    implicit val tid: TransactionId = transID
 
     val registryConfigUrl = registryConfig.map(_.url).getOrElse("")
     val imageToUse = image.merge.resolveImageName(Some(registryConfigUrl))
@@ -163,14 +243,17 @@ object DockerContainer {
  * @param id the id of the container
  * @param addr the ip of the container
  */
-class DockerContainer(protected val id: ContainerId,
-                      protected val addr: ContainerAddress,
-                      protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
-                                                      runc: RuncApi,
-                                                      override protected val as: ActorSystem,
-                                                      protected val ec: ExecutionContext,
-                                                      protected val logging: Logging)
-    extends Container {
+class DockerContainer(
+  protected val id:      ContainerId,
+  protected val addr:    ContainerAddress,
+  protected val useRunc: Boolean
+)(implicit
+  docker: DockerApiWithFileAccess,
+  runc:                      RuncApi,
+  override protected val as: ActorSystem,
+  protected val ec:          ExecutionContext,
+  protected val logging:     Logging)
+  extends Container {
 
   /** The last read-position in the log file */
   private var logFileOffset = new AtomicLong(0)
@@ -202,7 +285,9 @@ class DockerContainer(protected val id: ContainerId,
    * @return a Future indicating a memory exhaustion situation
    */
   private def isOomKilled(retries: Int = (waitForOomState / filePollInterval).toInt)(
-    implicit transid: TransactionId): Future[Boolean] = {
+    implicit
+    transid: TransactionId
+  ): Future[Boolean] = {
     docker.isOomKilled(id)(TransactionId.invoker).flatMap { killed =>
       if (killed) Future.successful(true)
       else if (retries > 0) akka.pattern.after(filePollInterval, as.scheduler)(isOomKilled(retries - 1))
@@ -210,11 +295,13 @@ class DockerContainer(protected val id: ContainerId,
     }
   }
 
-  override protected def callContainer(path: String,
-                                       body: JsObject,
-                                       timeout: FiniteDuration,
-                                       maxConcurrent: Int,
-                                       retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
+  override protected def callContainer(
+    path:          String,
+    body:          JsObject,
+    timeout:       FiniteDuration,
+    maxConcurrent: Int,
+    retry:         Boolean        = false
+  )(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
@@ -224,7 +311,8 @@ class DockerContainer(protected val id: ContainerId,
           s"${addr.host}:${addr.port}",
           timeout,
           ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-          maxConcurrent)
+          maxConcurrent
+        )
       }
       httpConnection = Some(conn)
       conn
@@ -349,7 +437,7 @@ class DockerContainer(protected val id: ContainerId,
  * '''Errors when''' stream completes, not enough occurrences have been found and errorOnNotEnough is true
  */
 class CompleteAfterOccurrences[T](isInEvent: T => Boolean, neededOccurrences: Int, errorOnNotEnough: Boolean)
-    extends GraphStage[FlowShape[T, T]] {
+  extends GraphStage[FlowShape[T, T]] {
   val in: Inlet[T] = Inlet[T]("WaitForOccurrences.in")
   val out: Outlet[T] = Outlet[T]("WaitForOccurrences.out")
   override val shape: FlowShape[T, T] = FlowShape.of(in, out)
@@ -391,4 +479,4 @@ class CompleteAfterOccurrences[T](isInEvent: T => Boolean, neededOccurrences: In
 
 /** Indicates that Occurrences have not been found in the stream */
 case class OccurrencesNotFoundException(neededCount: Int, actualCount: Int)
-    extends RuntimeException(s"Only found $actualCount out of $neededCount occurrences.")
+  extends RuntimeException(s"Only found $actualCount out of $neededCount occurrences.")

@@ -22,36 +22,36 @@ package org.apache.openwhisk.common
   * in order to implement the actions API.
   */
 object CPULimitUtils {
-  // CPU cores would be transformed to CPU permits, and calculate by CPU permits.
+  // CPU threads would be transformed to CPU permits, and calculate by CPU permits.
   private val unitScala = 100
 
   /**
-    * transform CPU cores to CPU permits for counting slots.
-    * @param cores CPU cores, count in Float
+    * transform CPU threads to CPU permits for counting slots.
+    * @param cpuThreads CPU threads, count in Float
     */
-  def coresToPermits(cores: Float): Int = (cores * unitScala).toInt
+  def threadsToPermits(cpuThreads: Float): Int = (cpuThreads * unitScala).toInt
 
   /**
-    * transform CPU cores to CPU permits for counting slots.
-    * @param cores CPU cores, count in Float
+    * transform CPU threads to CPU permits for counting slots.
+    * @param cpuThreads CPU threads, count in Float
     */
-  def coresToPermits(cores: Double): Int = (cores * unitScala).toInt
+  def threadsToPermits(cpuThreads: Double): Int = (cpuThreads * unitScala).toInt
 
   /**
-    * transform CPU permits to CPU core for nice printing.
+    * transform CPU permits to CPU threads for nice printing.
     * @param permits CPU permits, count in Int
     */
-  def permitsToCores(permits: Int): Float = permits.toFloat / unitScala
+  def permitsToThreads(permits: Int): Float = permits.toFloat / unitScala
 }
 
 /**
- * A Semaphore that coordinates the CPU cores (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
+ * A Semaphore that coordinates the CPU threads (ForcibleSemaphore) and concurrency (ResizableSemaphore) where
  * - for invocations when maxConcurrent == 1, delegate to super
  * - for invocations that cause acquire on cpu slots, also acquire concurrency slots, and do it atomically
- * @param cpuCores
+ * @param cpuThreads
  * @tparam T
  */
-class NestedCPUSemaphore[T](cpuCores: Float) extends NestedSemaphore[T](CPULimitUtils.coresToPermits(cpuCores)) {
+class NestedCPUSemaphore[T](cpuThreads: Float) extends NestedSemaphore[T](CPULimitUtils.threadsToPermits(cpuThreads)) {
   final override def tryAcquireConcurrent(actionid: T, maxConcurrent: Int, permits: Int): Boolean = {
     super.tryAcquireConcurrent(actionid, maxConcurrent, permits)
   }

@@ -161,7 +161,7 @@ abstract class CommonLoadBalancer(
         msg.activationId,
         msg.user.namespace.uuid,
         instance,
-        action.limits.cpu.cores,
+        action.limits.cpu.threads,
         action.limits.memory.megabytes.MB,
         action.limits.timeout.duration,
         action.limits.concurrency.maxConcurrent,
@@ -317,7 +317,7 @@ abstract class CommonLoadBalancer(
           logging.warn(
             this,
             if (cpuLimitConfig.controlEnabled) {
-              s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, cpu limit ${entry.cpuLimit} cores, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
+              s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, cpu limit ${entry.cpuLimit} cpuThreads, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
             } else {
               s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker"
             }

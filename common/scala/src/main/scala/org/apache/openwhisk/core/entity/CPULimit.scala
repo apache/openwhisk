@@ -35,9 +35,9 @@ case class CPULimitConfig(controlEnabled: Boolean, min: Float, max: Float, std: 
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param cores the CPU utilisation limit in cores for the action
+ * @param threads the CPU utilisation limit in cpuThreads for the action
  */
-protected[entity] class CPULimit private (val cores: Float) extends AnyVal
+protected[entity] class CPULimit private (val threads: Float) extends AnyVal
 
 protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
   val config = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
@@ -56,37 +56,37 @@ protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
   /**
    * Creates CPULimit for limit, iff limit is within permissible range.
    *
-   * @param  the limit in cpu cores, must be within permissible range
+   * @param  the limit in CPU threads, must be within permissible range
    * @return CPULimit with limit set
    * @throws IllegalArgumentException if limit does not conform to requirements
    */
   @throws[IllegalArgumentException]
-  protected[core] def apply(cores: Float): CPULimit = {
-    require(cores >= MIN_CPU, s"CPU $cores below allowed threshold of $MIN_CPU")
-    require(cores <= MAX_CPU, s"CPU $cores exceeds allowed threshold of $MAX_CPU")
-    new CPULimit(cores)
+  protected[core] def apply(threads: Float): CPULimit = {
+    require(threads >= MIN_CPU, s"CPU $threads below allowed threshold of $MIN_CPU")
+    require(threads <= MAX_CPU, s"CPU $threads exceeds allowed threshold of $MAX_CPU")
+    new CPULimit(threads)
   }
 
   /**
     * Creates CPULimit for limit, iff limit is within permissible range.
     *
-    * @param  the limit in cpu cores, must be within permissible range
+    * @param  the limit in CPU threads, must be within permissible range
     * @return CPULimit with limit set
     * @throws IllegalArgumentException if limit does not conform to requirements
     */
   @throws[IllegalArgumentException]
-  protected[core] def apply(cores: Double): CPULimit = {
-    apply(cores.toFloat)
+  protected[core] def apply(cpuThreads: Double): CPULimit = {
+    apply(cpuThreads.toFloat)
   }
 
   override protected[core] implicit val serdes = new RootJsonFormat[CPULimit] {
-    def write(c: CPULimit) = JsNumber(c.cores)
+    def write(c: CPULimit) = JsNumber(c.threads)
 
     def read(value: JsValue) =
       Try {
-        val JsNumber(cores) = value
-        require(cores.isExactFloat, "CPU limit must be float number")
-        CPULimit(cores.floatValue)
+        val JsNumber(cpuThreads) = value
+        require(cpuThreads.isDecimalDouble || cpuThreads.isDecimalFloat, "CPU limit must be float number")
+        CPULimit(cpuThreads.floatValue)
       } match {
         case Success(limit)                       => limit
         case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
