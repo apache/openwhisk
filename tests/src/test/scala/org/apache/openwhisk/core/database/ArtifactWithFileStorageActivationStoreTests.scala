@@ -274,7 +274,8 @@ class ArtifactWithFileStorageActivationStoreTests()
         // other simple example for the flag: (includeResult && !activation.response.isSuccess)
 
         override def store(activation: WhiskActivation, context: UserContext)(
-          implicit transid: TransactionId,
+          implicit
+          transid: TransactionId,
           notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
           val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)

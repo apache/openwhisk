@@ -44,12 +44,12 @@ import scala.util.{Success, Try}
 
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchLogStoreTests
-  extends TestKit(ActorSystem("ElasticSearchLogStore"))
-  with FlatSpecLike
-  with Matchers
-  with BeforeAndAfterAll
-  with ScalaFutures
-  with StreamLogging {
+    extends TestKit(ActorSystem("ElasticSearchLogStore"))
+    with FlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with ScalaFutures
+    with StreamLogging {
 
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -70,38 +70,30 @@ class ElasticSearchLogStoreTests
       443,
       "/whisk_user_logs/_search",
       defaultLogSchema,
-      Seq("x-auth-token", "x-auth-project-id")
-    )
+      Seq("x-auth-token", "x-auth-project-id"))
 
   private val defaultHttpResponse = HttpResponse(
     StatusCodes.OK,
     entity = HttpEntity(
       ContentTypes.`application/json`,
-      s"""{"took":799,"timed_out":false,"_shards":{"total":204,"successful":204,"failed":0},"hits":{"total":2,"max_score":null,"hits":[{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196689522Z","accountId":null,"message":"some log stuff\\n","type":"user_logs","event_uuid":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"tenantId","logmet_cluster":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.687Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897687]},{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"14c2a5b7-8cad-4ec0-992e-70fab1996465","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196754258Z","accountId":null,"message":"more logs\\n","type":"user_logs","event_uuid":"14c2a5b7-8cad-4ec0-992e-70fab1996465","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"tenant","logmet_cluster":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.701Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897701]}]}}"""
-    )
-  )
+      s"""{"took":799,"timed_out":false,"_shards":{"total":204,"successful":204,"failed":0},"hits":{"total":2,"max_score":null,"hits":[{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196689522Z","accountId":null,"message":"some log stuff\\n","type":"user_logs","event_uuid":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"tenantId","logmet_cluster":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.687Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897687]},{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"14c2a5b7-8cad-4ec0-992e-70fab1996465","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196754258Z","accountId":null,"message":"more logs\\n","type":"user_logs","event_uuid":"14c2a5b7-8cad-4ec0-992e-70fab1996465","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"tenant","logmet_cluster":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.701Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897701]}]}}"""))
   private val defaultPayload = JsObject(
     "query" -> JsObject(
       "query_string" -> JsObject("query" -> JsString(
-        s"_type: ${defaultConfig.logSchema.userLogs} AND ${defaultConfig.logSchema.activationId}: $activationId"
-      ))
-    ),
+        s"_type: ${defaultConfig.logSchema.userLogs} AND ${defaultConfig.logSchema.activationId}: $activationId"))),
     "sort" -> JsArray(JsObject(defaultConfig.logSchema.time -> JsObject("order" -> JsString("asc")))),
-    "from" -> JsNumber(0)
-  ).compactPrint
+    "from" -> JsNumber(0)).compactPrint
   private val defaultHttpRequest = HttpRequest(
     POST,
     Uri(s"/whisk_user_logs/_search"),
     List(Accept(MediaTypes.`application/json`)),
-    HttpEntity(ContentTypes.`application/json`, defaultPayload)
-  )
+    HttpEntity(ContentTypes.`application/json`, defaultPayload))
   private val defaultLogStoreHttpRequest =
     HttpRequest(method = GET, uri = "https://some.url", entity = HttpEntity.Empty)
   private val defaultContext = UserContext(user, defaultLogStoreHttpRequest)
 
   private val expectedLogs = ActivationLogs(
-    Vector("2018-03-05T02:10:38.196689522Z stdout: some log stuff", "2018-03-05T02:10:38.196754258Z stdout: more logs")
-  )
+    Vector("2018-03-05T02:10:38.196689522Z stdout: some log stuff", "2018-03-05T02:10:38.196754258Z stdout: more logs"))
 
   private val activation = WhiskActivation(
     namespace = EntityPath("namespace"),
@@ -112,17 +104,17 @@ class ElasticSearchLogStoreTests
     end = ZonedDateTime.now.toInstant,
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
     logs = expectedLogs,
-    annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB), cpu =
-      CPULimit(0.1))
-      .toJson)
-  )
+    annotations = Parameters(
+      "limits",
+      ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB), cpu = CPULimit(0.1)).toJson))
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     super.afterAll()
   }
 
-  private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest()): Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
+  private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
+    : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
     Flow[(HttpRequest, Promise[HttpResponse])]
       .mapAsyncUnordered(1) {
         case (request, userContext) =>
@@ -143,8 +135,7 @@ class ElasticSearchLogStoreTests
       new ElasticSearchLogStore(
         system,
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
-        elasticSearchConfig = defaultConfig
-      )
+        elasticSearchConfig = defaultConfig)
 
     await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
   }
@@ -154,8 +145,7 @@ class ElasticSearchLogStoreTests
       new ElasticSearchLogStore(
         system,
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
-        elasticSearchConfig = defaultConfigRequiredHeaders
-      )
+        elasticSearchConfig = defaultConfigRequiredHeaders)
 
     await(esLogStore.fetchLogs(activation, defaultContext)) shouldBe expectedLogs
   }
@@ -169,21 +159,17 @@ class ElasticSearchLogStoreTests
       List(
         Accept(MediaTypes.`application/json`),
         RawHeader("x-auth-token", authToken),
-        RawHeader("x-auth-project-id", authProjectId)
-      ),
-      HttpEntity(ContentTypes.`application/json`, defaultPayload)
-    )
+        RawHeader("x-auth-project-id", authProjectId)),
+      HttpEntity(ContentTypes.`application/json`, defaultPayload))
     val esLogStore =
       new ElasticSearchLogStore(
         system,
         Some(testFlow(defaultHttpResponse, httpRequest)),
-        elasticSearchConfig = defaultConfigRequiredHeaders
-      )
+        elasticSearchConfig = defaultConfigRequiredHeaders)
     val requiredHeadersHttpRequest = HttpRequest(
       uri = "https://some.url",
       headers = List(RawHeader("x-auth-token", authToken), RawHeader("x-auth-project-id", authProjectId)),
-      entity = HttpEntity.Empty
-    )
+      entity = HttpEntity.Empty)
     val context = UserContext(user, requiredHeadersHttpRequest)
 
     await(esLogStore.fetchLogs(activation.withoutLogs, context)) shouldBe expectedLogs
@@ -196,13 +182,11 @@ class ElasticSearchLogStoreTests
       POST,
       Uri(s"/elasticsearch/logstash-${user.namespace.uuid.asString}*/_search"),
       List(Accept(MediaTypes.`application/json`)),
-      HttpEntity(ContentTypes.`application/json`, defaultPayload)
-    )
+      HttpEntity(ContentTypes.`application/json`, defaultPayload))
     val esLogStore = new ElasticSearchLogStore(
       system,
       Some(testFlow(defaultHttpResponse, httpRequest)),
-      elasticSearchConfig = dynamicPathConfig
-    )
+      elasticSearchConfig = dynamicPathConfig)
 
     await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
   }
@@ -219,8 +203,7 @@ class ElasticSearchLogStoreTests
       new ElasticSearchLogStore(
         system,
         Some(testFlow(httpResponse, defaultHttpRequest)),
-        elasticSearchConfig = defaultConfig
-      )
+        elasticSearchConfig = defaultConfig)
 
     a[RuntimeException] should be thrownBy await(esLogStore.fetchLogs(activation, defaultContext))
   }
@@ -231,8 +214,7 @@ class ElasticSearchLogStoreTests
 
     a[IllegalArgumentException] should be thrownBy new ElasticSearchLogStore(
       system,
-      elasticSearchConfig = invalidHostConfig
-    )
+      elasticSearchConfig = invalidHostConfig)
   }
 
 }

@@ -814,8 +814,8 @@ class RestNamespaceOperations(implicit val actorSystem: ActorSystem) extends Nam
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
-  override def list(expectedExitCode: Int = OK.intValue, nameSort: Option[Boolean] = None)(
-    implicit wp: WskProps): RestResult = {
+  override def list(expectedExitCode: Int = OK.intValue, nameSort: Option[Boolean] = None)(implicit
+                                                                                           wp: WskProps): RestResult = {
     val entPath = Path(s"$basePath/namespaces")
     val resp = requestEntity(GET, entPath)
     val result = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))

@@ -149,7 +149,12 @@ object Invoker {
     val cpuThreads = Runtime.getRuntime.availableProcessors.toFloat // get current node's CPU threads
     logger.info(this, s"CPU threads of id $assignedInvokerId: $cpuThreads")
     val invokerInstance =
-      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory, cpuThreads)
+      InvokerInstanceId(
+        assignedInvokerId,
+        cmdLineArgs.uniqueName,
+        cmdLineArgs.displayedName,
+        poolConfig.userMemory,
+        cpuThreads)
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val msgProvider = SpiLoader.get[MessagingProvider]

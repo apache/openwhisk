@@ -43,11 +43,11 @@ import org.apache.openwhisk.core.entity.{
   ActivationEntityLimit,
   ActivationResponse,
   ByteSize,
+  CPULimit,
   ConcurrencyLimit,
   Exec,
   LogLimit,
   MemoryLimit,
-  CPULimit,
   TimeLimit
 }
 import org.apache.openwhisk.core.entity.size._
@@ -177,8 +177,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       PermutationTestParameter(None, None, Some(CPULimit.MAX_CPU + 1.toFloat), None, None, BAD_REQUEST), // cpu limit that is slightly higher than allowed
       PermutationTestParameter(None, None, Some(CPULimit.MAX_CPU * 5), None, None, BAD_REQUEST), // cpu limit that is slightly higher than allowed
       PermutationTestParameter(None, None, None, Some((LogLimit.MAX_LOGSIZE.toMB * 5).MB), None, BAD_REQUEST), // log size limit that is much higher than allowed
-      PermutationTestParameter(None, None, None, None, Some(Int.MaxValue), BAD_REQUEST)
-    ) // concurrency limit that is much higher than allowed
+      PermutationTestParameter(None, None, None, None, Some(Int.MaxValue), BAD_REQUEST)) // concurrency limit that is much higher than allowed
 
   /**
    * Integration test to verify that valid timeout, memory, cpu, log size, and concurrency limits are accepted

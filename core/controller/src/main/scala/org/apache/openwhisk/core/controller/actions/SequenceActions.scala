@@ -154,7 +154,8 @@ protected[actions] trait SequenceActions {
                                          topmost: Boolean,
                                          start: Instant,
                                          cause: Option[ActivationId])(
-    implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
+    implicit
+    transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
     val context = UserContext(user)
 
     // not topmost, no need to worry about terminating incoming request
@@ -199,9 +200,11 @@ protected[actions] trait SequenceActions {
     val sequenceLimits = accounting.maxMemory map { maxMemoryAcrossActionsInSequence =>
       Parameters(
         WhiskActivation.limitsAnnotation,
-        ActionLimits(action.limits.timeout, MemoryLimit(maxMemoryAcrossActionsInSequence MB), action.limits.logs,
-          cpu = action.limits.cpu)
-          .toJson)
+        ActionLimits(
+          action.limits.timeout,
+          MemoryLimit(maxMemoryAcrossActionsInSequence MB),
+          action.limits.logs,
+          cpu = action.limits.cpu).toJson)
     }
 
     // set causedBy if not topmost sequence

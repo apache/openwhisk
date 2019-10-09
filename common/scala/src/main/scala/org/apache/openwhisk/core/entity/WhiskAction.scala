@@ -364,7 +364,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
-    implicit transid: TransactionId,
+    implicit
+    transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
     def putWithAttachment(code: String, binary: Boolean, exec: AttachedCode) = {
@@ -470,7 +471,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   }
 
   override def del[Wsuper >: WhiskAction](db: ArtifactStore[Wsuper], doc: DocInfo)(
-    implicit transid: TransactionId,
+    implicit
+    transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean] = {
     Try {
       require(db != null, "db undefined")
@@ -494,7 +496,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
    * If it's the actual package, use its name directly as the package path name.
    */
   def resolveAction(db: EntityStore, fullyQualifiedActionName: FullyQualifiedEntityName)(
-    implicit ec: ExecutionContext,
+    implicit
+    ec: ExecutionContext,
     transid: TransactionId): Future[FullyQualifiedEntityName] = {
     // first check that there is a package to be resolved
     val entityPath = fullyQualifiedActionName.path
@@ -519,7 +522,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
    * While traversing the package bindings, merge the parameters.
    */
   def resolveActionAndMergeParameters(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
-    implicit ec: ExecutionContext,
+    implicit
+    ec: ExecutionContext,
     transid: TransactionId): Future[WhiskAction] = {
     // first check that there is a package to be resolved
     val entityPath = fullyQualifiedName.path
@@ -571,7 +575,8 @@ object WhiskActionMetaData
    * If it's the actual package, use its name directly as the package path name.
    */
   def resolveAction(db: EntityStore, fullyQualifiedActionName: FullyQualifiedEntityName)(
-    implicit ec: ExecutionContext,
+    implicit
+    ec: ExecutionContext,
     transid: TransactionId): Future[FullyQualifiedEntityName] = {
     // first check that there is a package to be resolved
     val entityPath = fullyQualifiedActionName.path
@@ -596,7 +601,8 @@ object WhiskActionMetaData
    * While traversing the package bindings, merge the parameters.
    */
   def resolveActionAndMergeParameters(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
-    implicit ec: ExecutionContext,
+    implicit
+    ec: ExecutionContext,
     transid: TransactionId): Future[WhiskActionMetaData] = {
     // first check that there is a package to be resolved
     val entityPath = fullyQualifiedName.path

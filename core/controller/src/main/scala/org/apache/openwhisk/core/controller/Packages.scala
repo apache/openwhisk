@@ -106,7 +106,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 405 Not Allowed
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     logging.error(this, "activate is not permitted on packages")
     reject
   }
@@ -156,7 +157,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some { mergePackageWithBinding() _ })
   }
 
@@ -216,7 +218,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * If this is a binding, confirm the referenced package exists.
    */
   private def create(content: WhiskPackagePut, pkgName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskPackage] = {
+    implicit
+    transid: TransactionId): Future[WhiskPackage] = {
     val validateBinding = content.binding map { b =>
       checkBinding(b.fullyQualifiedName)
     } getOrElse Future.successful({})
@@ -237,8 +240,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   }
 
   /** Updates a WhiskPackage from PUT content, merging old package/binding where necessary. */
-  private def update(content: WhiskPackagePut)(wp: WhiskPackage)(
-    implicit transid: TransactionId): Future[WhiskPackage] = {
+  private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit
+                                                                 transid: TransactionId): Future[WhiskPackage] = {
     val validateBinding = content.binding map { binding =>
       wp.binding map {
         // pre-existing entity is a binding, check that new binding is valid
@@ -266,7 +269,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   }
 
   private def rewriteEntitlementFailure(failure: Throwable)(
-    implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+    implicit
+    transid: TransactionId): RequestContext => Future[RouteResult] = {
     logging.debug(this, s"rewriting failure $failure")
     failure match {
       case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
@@ -294,7 +298,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * Otherwise this is a package, emit it.
    */
   private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
-    implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+    implicit
+    transid: TransactionId): RequestContext => Future[RouteResult] = {
     wp.binding map {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId

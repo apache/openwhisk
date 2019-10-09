@@ -78,11 +78,11 @@ import org.apache.openwhisk.core.loadBalancer._
  */
 @RunWith(classOf[JUnitRunner])
 class ShardingContainerPoolBalancerTests
-  extends FlatSpec
-  with Matchers
-  with StreamLogging
-  with ExecHelpers
-  with MockFactory {
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with ExecHelpers
+    with MockFactory {
   behavior of "ShardingContainerPoolBalancerState"
 
   val defaultUserMemory: ByteSize = 1024.MB
@@ -249,8 +249,7 @@ class ShardingContainerPoolBalancerTests
       IndexedSeq.empty,
       MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
-      step = 2
-    ) shouldBe None
+      step = 2) shouldBe None
   }
 
   it should "return None if no invokers are healthy" in {
@@ -265,8 +264,7 @@ class ShardingContainerPoolBalancerTests
       invokerSlots,
       MemoryLimit.MIN_MEMORY.toMB.toInt,
       index = 0,
-      step = 2
-    ) shouldBe None
+      step = 2) shouldBe None
   }
 
   it should "choose the first available invoker, jumping in stepSize steps, falling back to randomized scheduling once all invokers are full" in {
@@ -420,8 +418,7 @@ class ShardingContainerPoolBalancerTests
       namespace,
       name,
       js10MetaData(Some("jsMain"), false),
-      limits = actionLimits(actionMem, concurrency)
-    )
+      limits = actionLimits(actionMem, concurrency))
   val maxContainers = invokerMem.toMB.toInt / actionMetaData.limits.memory.megabytes
   val numInvokers = 3
   val maxActivations = maxContainers * numInvokers * concurrency
@@ -472,12 +469,11 @@ class ShardingContainerPoolBalancerTests
     }
     val invokerPoolProbe = new InvokerPoolFactory {
       override def createInvokerPool(
-        actorRefFactory:         ActorRefFactory,
-        messagingProvider:       MessagingProvider,
-        messagingProducer:       MessageProducer,
+        actorRefFactory: ActorRefFactory,
+        messagingProvider: MessagingProvider,
+        messagingProducer: MessageProducer,
         sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-        monitor:                 Option[ActorRef]
-      ): ActorRef =
+        monitor: Option[ActorRef]): ActorRef =
         TestProbe().testActor
     }
     val balancer =
@@ -508,8 +504,7 @@ class ShardingContainerPoolBalancerTests
         ControllerInstanceId("0"),
         blocking = false,
         content = None,
-        initArgs = Set.empty
-      )
+        initArgs = Set.empty)
 
       //send activation to loadbalancer
       aid -> balancer.publish(actionMetaData.toExecutableWhiskAction.get, msg)

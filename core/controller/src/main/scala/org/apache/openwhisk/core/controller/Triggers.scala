@@ -115,10 +115,16 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskTriggerPut]) { content =>
-        putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite, update(content) _, create(content, entityName),
+        putEntity(
+          WhiskTrigger,
+          entityStore,
+          entityName.toDocId,
+          overwrite,
+          update(content) _,
+          create(content, entityName),
           postProcess = Some { trigger =>
-          completeAsTriggerResponse(trigger)
-        })
+            completeAsTriggerResponse(trigger)
+          })
       }
     }
   }
@@ -133,7 +139,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 500 Internal Server Error
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     extractRequest { request =>
       val context = UserContext(user, request)
 
@@ -214,7 +221,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 500 Internal Server Error
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some { trigger =>
       completeAsTriggerResponse(trigger)
     })
@@ -249,7 +257,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Creates a WhiskTrigger from PUT content, generating default values where necessary. */
   private def create(content: WhiskTriggerPut, triggerName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskTrigger] = {
+    implicit
+    transid: TransactionId): Future[WhiskTrigger] = {
     val newTrigger = WhiskTrigger(
       triggerName.path,
       triggerName.name,
@@ -262,8 +271,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   }
 
   /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
-  private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(
-    implicit transid: TransactionId): Future[WhiskTrigger] = {
+  private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(implicit
+                                                                      transid: TransactionId): Future[WhiskTrigger] = {
     val newTrigger = WhiskTrigger(
       trigger.namespace,
       trigger.name,
@@ -318,7 +327,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   private def activateRules(user: Identity,
                             args: JsObject,
                             rulesToActivate: Map[FullyQualifiedEntityName, ReducedRule])(
-    implicit transid: TransactionId): Future[Iterable[RuleActivationResult]] = {
+    implicit
+    transid: TransactionId): Future[Iterable[RuleActivationResult]] = {
     val ruleResults = rulesToActivate.map {
       case (ruleName, rule) if (rule.status != Status.ACTIVE) =>
         Future.successful {
@@ -387,7 +397,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * @return a future with the HTTP response from the action activation
    */
   private def postActivation(user: Identity, rule: ReducedRule, args: JsObject)(
-    implicit transid: TransactionId): Future[HttpResponse] = {
+    implicit
+    transid: TransactionId): Future[HttpResponse] = {
     // Build the url to invoke an action mapped to the rule
     val actionUrl = baseControllerPath / rule.action.path.root.asString / "actions"
 

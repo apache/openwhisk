@@ -18,28 +18,28 @@
 package org.apache.openwhisk.common
 
 /**
-  * A singleton object which defines the action's CPU limit properties.
-  */
+ * A singleton object which defines the action's CPU limit properties.
+ */
 object CPULimitUtils {
   // CPU threads transform to CPU permits, and calculate by CPU permits.
   private val unitScala = 100
 
   /**
-    * transform CPU threads to CPU permits for counting slots.
-    * @param cpuThreads CPU threads, count in Float
-    */
+   * transform CPU threads to CPU permits for counting slots.
+   * @param cpuThreads CPU threads, count in Float
+   */
   def threadsToPermits(cpuThreads: Float): Int = (cpuThreads * unitScala).toInt
 
   /**
-    * transform CPU threads to CPU permits for counting slots.
-    * @param cpuThreads CPU threads, count in Float
-    */
+   * transform CPU threads to CPU permits for counting slots.
+   * @param cpuThreads CPU threads, count in Float
+   */
   def threadsToPermits(cpuThreads: Double): Int = (cpuThreads * unitScala).toInt
 
   /**
-    * transform CPU permits to CPU threads for nice printing.
-    * @param permits CPU permits, count in Int
-    */
+   * transform CPU permits to CPU threads for nice printing.
+   * @param permits CPU permits, count in Int
+   */
   def permitsToThreads(permits: Int): Float = permits.toFloat / unitScala
 }
 

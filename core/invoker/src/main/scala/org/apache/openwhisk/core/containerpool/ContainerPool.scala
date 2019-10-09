@@ -56,15 +56,13 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * @param prewarmConfig optional settings for container prewarming
  * @param poolConfig config for the ContainerPool
  */
-class ContainerPool(
-  childFactory:  ActorRefFactory => ActorRef,
-  feed:          ActorRef,
-  prewarmConfig: List[PrewarmingConfig]      = List.empty,
-  poolConfig:    ContainerPoolConfig,
-  cpuThreads:    Float
-)
-  extends Actor {
-  import ContainerPool.{memoryConsumptionOf, cpuConsumptionOf}
+class ContainerPool(childFactory: ActorRefFactory => ActorRef,
+                    feed: ActorRef,
+                    prewarmConfig: List[PrewarmingConfig] = List.empty,
+                    poolConfig: ContainerPoolConfig,
+                    cpuThreads: Float)
+    extends Actor {
+  import ContainerPool.{cpuConsumptionOf, memoryConsumptionOf}
 
   implicit val logging = new AkkaLogging(context.system.log)
 
@@ -80,9 +78,10 @@ class ContainerPool(
   val logMessageInterval = 10.seconds
 
   prewarmConfig.foreach { config =>
-    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString} ${config.cpuLimit}")(
-      TransactionId.invokerWarmup
-    )
+    logging.info(
+      this,
+      s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString} ${config.cpuLimit}")(
+      TransactionId.invokerWarmup)
     (1 to config.count).foreach { _ =>
       prewarmContainer(config.exec, config.memoryLimit, config.cpuLimit)
     }
@@ -98,8 +97,7 @@ class ContainerPool(
       this,
       LoggingMarkers.INVOKER_CONTAINER_START(containerState),
       s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
-      akka.event.Logging.InfoLevel
-    )
+      akka.event.Logging.InfoLevel)
   }
 
   def receive: Receive = {
@@ -119,9 +117,9 @@ class ContainerPool(
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (if (!cpuLimitConfig.controlEnabled)
-            hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)
-          else
-            hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads)) {
+                hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)
+              else
+                hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads)) {
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
@@ -131,41 +129,52 @@ class ContainerPool(
 
                 // Is there enough space to create a new container or do other containers have to be removed?
                 if (if (!cpuLimitConfig.controlEnabled)
-                  hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)
-                else
-                  hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads)) {
+                      hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)
+                    else
+                      hasPoolSpaceFor(
+                        busyPool ++ freePool,
+                        r.action.limits.memory.megabytes.MB,
+                        r.action.limits.cpu.threads)) {
                   takePrewarmContainer(r.action)
                     .map(container => (container, "prewarmed"))
-                    .orElse(Some(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads), "cold"))
-                } else None
-              )
+                    .orElse(
+                      Some(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads), "cold"))
+                } else None)
               .orElse(
                 // Remove a container and create a new one for the given job
                 if (!cpuLimitConfig.controlEnabled)
                   ContainerPool
                   // Only free up the amount, that is really needed to free up
-                  .remove(freePool, Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
-                  .map(removeContainer)
-                  // If the list had at least one entry, enough containers were removed to start the new container. After
-                  // removing the containers, we are not interested anymore in the containers that have been removed.
-                  .headOption
-                  .map(_ =>
-                    takePrewarmContainer(r.action)
-                      .map(container => (container, "recreatedPrewarm"))
-                      .getOrElse(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads), "recreated"))
-                else
-                  ContainerPool
-                    // Only free up the amount, that is really needed to free up
-                    .removeByCPU(freePool, Math.min(r.action.limits.cpu.threads, cpuConsumptionOf(freePool)), Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
+                    .remove(freePool, Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
                     .map(removeContainer)
                     // If the list had at least one entry, enough containers were removed to start the new container. After
                     // removing the containers, we are not interested anymore in the containers that have been removed.
                     .headOption
-                    .map(_ =>
-                      takePrewarmContainer(r.action)
-                        .map(container => (container, "recreatedPrewarm"))
-                        .getOrElse(createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads), "recreated"))
-              )
+                    .map(
+                      _ =>
+                        takePrewarmContainer(r.action)
+                          .map(container => (container, "recreatedPrewarm"))
+                          .getOrElse(
+                            createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads),
+                            "recreated"))
+                else
+                  ContainerPool
+                  // Only free up the amount, that is really needed to free up
+                    .removeByCPU(
+                      freePool,
+                      Math.min(r.action.limits.cpu.threads, cpuConsumptionOf(freePool)),
+                      Math.min(r.action.limits.memory.megabytes, memoryConsumptionOf(freePool)).MB)
+                    .map(removeContainer)
+                    // If the list had at least one entry, enough containers were removed to start the new container. After
+                    // removing the containers, we are not interested anymore in the containers that have been removed.
+                    .headOption
+                    .map(
+                      _ =>
+                        takePrewarmContainer(r.action)
+                          .map(container => (container, "recreatedPrewarm"))
+                          .getOrElse(
+                            createContainer(r.action.limits.memory.megabytes.MB, r.action.limits.cpu.threads),
+                            "recreated")))
 
           } else None
 
@@ -184,8 +193,7 @@ class ContainerPool(
               if (r.action.limits.concurrency.maxConcurrent > 1) {
                 logging.info(
                   this,
-                  s"container ${container} is now busy with ${newData.activeActivationCount} activations"
-                )
+                  s"container ${container} is now busy with ${newData.activeActivationCount} activations")
               }
               busyPool = busyPool + (actor -> newData)
               freePool = freePool - actor
@@ -218,8 +226,7 @@ class ContainerPool(
                     s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
                     s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                     s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                    s"waiting messages: ${runBuffer.size}"
-                )(r.msg.transid)
+                    s"waiting messages: ${runBuffer.size}")(r.msg.transid)
               else
                 logging.error(
                   this,
@@ -231,8 +238,7 @@ class ContainerPool(
                     s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                     s"needed CPU: ${r.action.limits.cpu.threads} threads," +
                     s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                    s"waiting messages: ${runBuffer.size}"
-                )(r.msg.transid)
+                    s"waiting messages: ${runBuffer.size}")(r.msg.transid)
 
               Some(logMessageInterval.fromNow)
             } else {
@@ -268,8 +274,7 @@ class ContainerPool(
           if (newData.action.limits.concurrency.maxConcurrent > 1) {
             logging.info(
               this,
-              s"concurrent container ${newData.container} is no longer busy with ${newData.activeActivationCount} activations"
-            )
+              s"concurrent container ${newData.container} is no longer busy with ${newData.activeActivationCount} activations")
           }
         }
       } else {
@@ -333,7 +338,7 @@ class ContainerPool(
     prewarmedPool
       .find {
         case (_, PreWarmedData(_, `kind`, `memory`, `cpu`, _)) => true
-        case _ => false
+        case _                                                 => false
       }
       .map {
         case (ref, data) =>
@@ -415,26 +420,24 @@ object ContainerPool {
    * @param idles a map of idle containers, awaiting work
    * @return a container if one found
    */
-  protected[containerpool] def schedule[A](
-    action:              ExecutableWhiskAction,
-    invocationNamespace: EntityName,
-    idles:               Map[A, ContainerData]
-  ): Option[(A, ContainerData)] = {
+  protected[containerpool] def schedule[A](action: ExecutableWhiskAction,
+                                           invocationNamespace: EntityName,
+                                           idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles
       .find {
         case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
-        case _ => false
+        case _                                                                                => false
       }
       .orElse {
         idles.find {
           case (_, c @ WarmingData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
-          case _ => false
+          case _                                                                                 => false
         }
       }
       .orElse {
         idles.find {
           case (_, c @ WarmingColdData(`invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
-          case _ => false
+          case _                                                                                  => false
         }
       }
   }
@@ -451,11 +454,9 @@ object ContainerPool {
    * @return a list of containers to be removed iff found
    */
   @tailrec
-  protected[containerpool] def remove[A](
-    pool:     Map[A, ContainerData],
-    memory:   ByteSize,
-    toRemove: List[A]               = List.empty
-  ): List[A] = {
+  protected[containerpool] def remove[A](pool: Map[A, ContainerData],
+                                         memory: ByteSize,
+                                         toRemove: List[A] = List.empty): List[A] = {
     // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
     val freeContainers = pool.collect {
       // Only warm containers will be removed. Prewarmed containers will stay always.
@@ -494,12 +495,10 @@ object ContainerPool {
    * @return a list of containers to be removed iff found
    */
   @tailrec
-  protected[containerpool] def removeByCPU[A](
-    pool:     Map[A, ContainerData],
-    cpu:      Float,
-    memory:   ByteSize,
-    toRemove: List[A]               = List.empty
-  ): List[A] = {
+  protected[containerpool] def removeByCPU[A](pool: Map[A, ContainerData],
+                                              cpu: Float,
+                                              memory: ByteSize,
+                                              toRemove: List[A] = List.empty): List[A] = {
     // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
     val freeContainers = pool.collect {
       // Only warm containers will be removed. Prewarmed containers will stay always.
@@ -507,7 +506,8 @@ object ContainerPool {
         ref -> w
     }
 
-    if (cpu > 0.toFloat && memory > 0.B && freeContainers.nonEmpty && cpuConsumptionOf(freeContainers) >= cpu && memoryConsumptionOf(freeContainers) >= memory.toMB) {
+    if (cpu > 0.toFloat && memory > 0.B && freeContainers.nonEmpty && cpuConsumptionOf(freeContainers) >= cpu && memoryConsumptionOf(
+          freeContainers) >= memory.toMB) {
       // Remove the oldest container if:
       // - there is more CPU/memory required
       // - there are still containers that can be removed
@@ -526,13 +526,11 @@ object ContainerPool {
     }
   }
 
-  def props(
-    factory:       ActorRefFactory => ActorRef,
-    poolConfig:    ContainerPoolConfig,
-    feed:          ActorRef,
-    prewarmConfig: List[PrewarmingConfig]      = List.empty,
-    cpuThreads:    Float                       = CPULimit.MAX_CPU
-  ) =
+  def props(factory: ActorRefFactory => ActorRef,
+            poolConfig: ContainerPoolConfig,
+            feed: ActorRef,
+            prewarmConfig: List[PrewarmingConfig] = List.empty,
+            cpuThreads: Float = CPULimit.MAX_CPU) =
     Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig, cpuThreads))
 }
 

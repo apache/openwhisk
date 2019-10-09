@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.entity
 
 import scala.util.Try
-import spray.json.{DefaultJsonProtocol, JsNumber, JsValue, RootJsonFormat, deserializationError}
+import spray.json.{deserializationError, DefaultJsonProtocol, JsNumber, JsValue, RootJsonFormat}
 
 /**
  * Abstract type for limits on triggers and actions. This may

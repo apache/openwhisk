@@ -128,7 +128,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     extractStatusRequest { requestedState =>
       val docid = entityName.toDocId
 
@@ -226,7 +227,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
-    implicit transid: TransactionId) = {
+    implicit
+    transid: TransactionId) = {
     getEntity(
       WhiskRule.get(entityStore, entityName.toDocId),
       Some { rule: WhiskRule =>
@@ -271,7 +273,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Creates a WhiskRule from PUT content, generating default values where necessary. */
   private def create(content: WhiskRulePut, ruleName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[WhiskRule] = {
+    implicit
+    transid: TransactionId): Future[WhiskRule] = {
     if (content.trigger.isDefined && content.action.isDefined) {
       val triggerName = content.trigger.get
       val actionName = content.action.get
@@ -362,7 +365,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * @return Status of the rule
    */
   private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Status = {
+    implicit
+    transid: TransactionId): Status = {
     val statusFromTrigger = for {
       trigger <- triggerOpt
       rules <- trigger.rules
@@ -391,7 +395,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * @return future that completes with references trigger and action if they exist
    */
   private def checkTriggerAndActionExist(trigger: FullyQualifiedEntityName, action: FullyQualifiedEntityName)(
-    implicit transid: TransactionId): Future[(WhiskTrigger, WhiskActionMetaData)] = {
+    implicit
+    transid: TransactionId): Future[(WhiskTrigger, WhiskActionMetaData)] = {
 
     for {
       triggerExists <- WhiskTrigger.get(entityStore, trigger.toDocId) recoverWith {

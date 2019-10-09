@@ -696,8 +696,8 @@ class CliNamespaceOperations(override val wsk: RunCliCmd)
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
-  override def list(expectedExitCode: Int = SUCCESS_EXIT, nameSort: Option[Boolean] = None)(
-    implicit wp: WskProps): RunResult = {
+  override def list(expectedExitCode: Int = SUCCESS_EXIT, nameSort: Option[Boolean] = None)(implicit
+                                                                                            wp: WskProps): RunResult = {
     val params = Seq(noun, "list", "--auth", wp.authKey) ++ {
       nameSort map { n =>
         Seq("--name-sort")
@@ -727,7 +727,8 @@ class CliNamespaceOperations(override val wsk: RunCliCmd)
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   def get(namespace: Option[String] = None, expectedExitCode: Int, nameSort: Option[Boolean] = None)(
-    implicit wp: WskProps): RunResult = {
+    implicit
+    wp: WskProps): RunResult = {
     val params = {
       nameSort map { n =>
         Seq("--name-sort")

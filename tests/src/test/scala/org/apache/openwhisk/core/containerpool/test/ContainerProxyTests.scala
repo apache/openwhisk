@@ -618,7 +618,8 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-        implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+        implicit
+        transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         //every other run fails
         if (runCount % 2 == 0) {
@@ -766,7 +767,8 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-        implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+        implicit
+        transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
       }
@@ -1073,7 +1075,8 @@ class ContainerProxyTests
     memData.nextRun(Run(action, message)) should matchPattern {
       case WarmingColdData(message.user.namespace.name, action, _, 1) =>
     }
-    val pwData = PreWarmedData(new TestContainer(), action.exec.kind, action.limits.memory.megabytes.MB, action.limits.cpu.threads)
+    val pwData =
+      PreWarmedData(new TestContainer(), action.exec.kind, action.limits.memory.megabytes.MB, action.limits.cpu.threads)
     pwData.nextRun(Run(action, message)) should matchPattern {
       case WarmingData(pwData.container, message.user.namespace.name, action, _, 1) =>
     }
@@ -1159,7 +1162,8 @@ class ContainerProxyTests
       super.destroy()
     }
     override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
-      implicit transid: TransactionId): Future[Interval] = {
+      implicit
+      transid: TransactionId): Future[Interval] = {
       initializeCount += 1
       initializer shouldBe action.containerInitializer {
         activationArguments.fields.filter(k => filterEnvVar(k._1))
@@ -1169,7 +1173,8 @@ class ContainerProxyTests
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
     override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-      implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+      implicit
+      transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
       // the "init" arguments are not passed on run
       parameters shouldBe JsObject(activationArguments.fields.filter(k => !filterEnvVar(k._1)))

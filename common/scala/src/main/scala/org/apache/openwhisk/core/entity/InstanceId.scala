@@ -30,15 +30,13 @@ import org.apache.openwhisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
  * @param userMemory an ByteSize value for user container pool memory limit. It would grep more CPU when you require
  *                   more userMemory, iff we not enable cpu limit.
  * @param cpuThreads a numeric value used for reporting the invoker instance's CPU (logical) threads. Default
-  *                        is `1.0`.
+ *                        is `1.0`.
  */
-case class InvokerInstanceId(
-  val instance:    Int,
-  uniqueName:      Option[String] = None,
-  displayedName:   Option[String] = None,
-  val userMemory:  ByteSize,
-  val cpuThreads: Float = CPULimit.MAX_CPU
-) {
+case class InvokerInstanceId(val instance: Int,
+                             uniqueName: Option[String] = None,
+                             displayedName: Option[String] = None,
+                             val userMemory: ByteSize,
+                             val cpuThreads: Float = CPULimit.MAX_CPU) {
   def toInt: Int = instance
 
   override def toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
@@ -47,8 +45,7 @@ case class InvokerInstanceId(
 case class ControllerInstanceId(val asString: String) {
   require(
     asString.length <= MAX_NAME_LENGTH && asString.matches(LEGAL_CHARS),
-    "Controller instance id contains invalid characters"
-  )
+    "Controller instance id contains invalid characters")
 }
 
 object InvokerInstanceId extends DefaultJsonProtocol {

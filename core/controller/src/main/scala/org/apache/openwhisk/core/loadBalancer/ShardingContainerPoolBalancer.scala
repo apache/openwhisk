@@ -143,18 +143,15 @@ import scala.concurrent.Future
  *   some other loadbalancer.
  */
 class ShardingContainerPoolBalancer(
-  config:                         WhiskConfig,
-  controllerInstance:             ControllerInstanceId,
-  feedFactory:                    FeedFactory,
-  val invokerPoolFactory:         InvokerPoolFactory,
-  implicit val messagingProvider: MessagingProvider    = SpiLoader.get[MessagingProvider]
-)(
-  implicit
-  actorSystem:  ActorSystem,
-  logging:      Logging,
-  materializer: ActorMaterializer
-)
-  extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
+  config: WhiskConfig,
+  controllerInstance: ControllerInstanceId,
+  feedFactory: FeedFactory,
+  val invokerPoolFactory: InvokerPoolFactory,
+  implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(implicit
+                                                                                        actorSystem: ActorSystem,
+                                                                                        logging: Logging,
+                                                                                        materializer: ActorMaterializer)
+    extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
   private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
@@ -177,8 +174,7 @@ class ShardingContainerPoolBalancer(
         } else {
           total
         }
-      }
-    )
+      })
     MetricEmitter.emitGaugeMetric(
       INVOKER_TOTALMEM_MANAGED,
       schedulingState.managedInvokers.foldLeft(0L) { (total, curr) =>
@@ -187,27 +183,22 @@ class ShardingContainerPoolBalancer(
         } else {
           total
         }
-      }
-    )
+      })
     MetricEmitter.emitGaugeMetric(HEALTHY_INVOKER_MANAGED, schedulingState.managedInvokers.count(_.status == Healthy))
     MetricEmitter.emitGaugeMetric(
       UNHEALTHY_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status == Unhealthy)
-    )
+      schedulingState.managedInvokers.count(_.status == Unhealthy))
     MetricEmitter.emitGaugeMetric(
       UNRESPONSIVE_INVOKER_MANAGED,
-      schedulingState.managedInvokers.count(_.status == Unresponsive)
-    )
+      schedulingState.managedInvokers.count(_.status == Unresponsive))
     MetricEmitter.emitGaugeMetric(OFFLINE_INVOKER_MANAGED, schedulingState.managedInvokers.count(_.status == Offline))
     MetricEmitter.emitGaugeMetric(HEALTHY_INVOKER_BLACKBOX, schedulingState.blackboxInvokers.count(_.status == Healthy))
     MetricEmitter.emitGaugeMetric(
       UNHEALTHY_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status == Unhealthy)
-    )
+      schedulingState.blackboxInvokers.count(_.status == Unhealthy))
     MetricEmitter.emitGaugeMetric(
       UNRESPONSIVE_INVOKER_BLACKBOX,
-      schedulingState.blackboxInvokers.count(_.status == Unresponsive)
-    )
+      schedulingState.blackboxInvokers.count(_.status == Unresponsive))
     MetricEmitter.emitGaugeMetric(OFFLINE_INVOKER_BLACKBOX, schedulingState.blackboxInvokers.count(_.status == Offline))
   }
 
@@ -263,8 +254,7 @@ class ShardingContainerPoolBalancer(
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit
-    transid: TransactionId
-  ): Future[Future[Either[ActivationId, WhiskActivation]]] = {
+    transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
     val isBlackboxInvocation = action.exec.pull
     val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
@@ -280,10 +270,10 @@ class ShardingContainerPoolBalancer(
         action.fullyQualifiedName(true),
         invokersToUse,
         if (cpuLimitConfig.controlEnabled) schedulingState.invokerCPUSlots else schedulingState.invokerMemorySlots,
-        if (cpuLimitConfig.controlEnabled) CPULimitUtils.threadsToPermits(action.limits.cpu.threads) else action.limits.memory.megabytes,
+        if (cpuLimitConfig.controlEnabled) CPULimitUtils.threadsToPermits(action.limits.cpu.threads)
+        else action.limits.memory.megabytes,
         homeInvoker,
-        stepSize
-      )
+        stepSize)
       invoker.foreach {
         case (_, true) =>
           val metric =
@@ -311,14 +301,10 @@ class ShardingContainerPoolBalancer(
         logging.info(
           this,
           if (cpuLimitConfig.controlEnabled) {
-            s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${
-              msg.user
-                .namespace.name.asString
-            }', " + s"cpu limit ${cpuLimit.threads} cpuThreads (${cpuLimitInfo}), mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
+            s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', " + s"cpu limit ${cpuLimit.threads} cpuThreads (${cpuLimitInfo}), mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
           } else {
             s"scheduled activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}', mem limit ${memoryLimit.megabytes} MB (${memoryLimitInfo}), time limit ${timeLimit.duration.toMillis} ms (${timeLimitInfo}) to ${invoker}"
-          }
-        )
+          })
         val activationResult = setupActivation(msg, action, invoker)
         sendActivationToInvoker(messageProducer, msg, invoker).map(_ => activationResult)
       }
@@ -331,8 +317,7 @@ class ShardingContainerPoolBalancer(
 
         logging.error(
           this,
-          s"failed to schedule activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}' - invokers to use: $invokerStates"
-        )
+          s"failed to schedule activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}' - invokers to use: $invokerStates")
         Future.failed(LoadBalancerException("No invokers available"))
       }
   }
@@ -343,8 +328,7 @@ class ShardingContainerPoolBalancer(
       messagingProvider,
       messageProducer,
       sendActivationToInvoker,
-      Some(monitor)
-    )
+      Some(monitor))
 
   override protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry) = {
     schedulingState.invokerMemorySlots
@@ -352,7 +336,11 @@ class ShardingContainerPoolBalancer(
       .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, entry.memoryLimit.toMB.toInt))
     schedulingState.invokerCPUSlots
       .lift(invoker.toInt)
-      .foreach(_.releaseConcurrent(entry.fullyQualifiedEntityName, entry.maxConcurrent, CPULimitUtils.threadsToPermits(entry.cpuLimit)))
+      .foreach(
+        _.releaseConcurrent(
+          entry.fullyQualifiedEntityName,
+          entry.maxConcurrent,
+          CPULimitUtils.threadsToPermits(entry.cpuLimit)))
   }
 }
 
@@ -360,19 +348,17 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
   override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
     implicit
-    actorSystem:  ActorSystem,
-    logging:      Logging,
-    materializer: ActorMaterializer
-  ): LoadBalancer = {
+    actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer = {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(
-        actorRefFactory:         ActorRefFactory,
-        messagingProvider:       MessagingProvider,
-        messagingProducer:       MessageProducer,
+        actorRefFactory: ActorRefFactory,
+        messagingProvider: MessagingProvider,
+        messagingProducer: MessageProducer,
         sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-        monitor:                 Option[ActorRef]
-      ): ActorRef = {
+        monitor: Option[ActorRef]): ActorRef = {
 
         InvokerPool.prepare(instance, WhiskEntityStore.datastore())
 
@@ -381,9 +367,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
             (f, i) => f.actorOf(InvokerActor.props(i, instance)),
             (m, i) => sendActivationToInvoker(messagingProducer, m, i),
             messagingProvider.getConsumer(whiskConfig, s"health${instance.asString}", "health", maxPeek = 128),
-            monitor
-          )
-        )
+            monitor))
       }
 
     }
@@ -391,8 +375,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
       whiskConfig,
       instance,
       createFeedFactory(whiskConfig, instance),
-      invokerPoolFactory
-    )
+      invokerPoolFactory)
   }
 
   def requiredProperties: Map[String, String] = kafkaHosts
@@ -429,14 +412,13 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
   @tailrec
   def schedule(
     maxConcurrent: Int,
-    fqn:           FullyQualifiedEntityName,
-    invokers:      IndexedSeq[InvokerHealth],
-    dispatched:    IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
-    slots:         Int,
-    index:         Int,
-    step:          Int,
-    stepsDone:     Int                                                   = 0
-  )(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
+    fqn: FullyQualifiedEntityName,
+    invokers: IndexedSeq[InvokerHealth],
+    dispatched: IndexedSeq[NestedSemaphore[FullyQualifiedEntityName]],
+    slots: Int,
+    index: Int,
+    step: Int,
+    stepsDone: Int = 0)(implicit logging: Logging, transId: TransactionId): Option[(InvokerInstanceId, Boolean)] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -481,19 +463,18 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
  * @param _invokerCPUSlots state of accessible CPU slots of each invoker. Mainly schedule factor on CPU limit mode
  */
 case class ShardingContainerPoolBalancerState(
-  private var _invokers:          IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  private var _managedInvokers:   IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  private var _blackboxInvokers:  IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  private var _managedStepSizes:  Seq[Int]                  = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  private var _blackboxStepSizes: Seq[Int]                  = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  private var _clusterSize:       Int                       = 1,
-
-  protected[loadBalancer] var _invokerMemorySlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] = IndexedSeq.empty[NestedMemorySemaphore[FullyQualifiedEntityName]],
-  protected[loadBalancer] var _invokerCPUSlots:    IndexedSeq[NestedCPUSemaphore[FullyQualifiedEntityName]]    = IndexedSeq.empty[NestedCPUSemaphore[FullyQualifiedEntityName]]
-)(
-  lbConfig:       ContainerPoolBalancerConfig = loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer),
-  cpuLimitConfig: CPULimitConfig              = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
-)(implicit logging: Logging) {
+  private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _clusterSize: Int = 1,
+  protected[loadBalancer] var _invokerMemorySlots: IndexedSeq[NestedMemorySemaphore[FullyQualifiedEntityName]] =
+    IndexedSeq.empty[NestedMemorySemaphore[FullyQualifiedEntityName]],
+  protected[loadBalancer] var _invokerCPUSlots: IndexedSeq[NestedCPUSemaphore[FullyQualifiedEntityName]] =
+    IndexedSeq.empty[NestedCPUSemaphore[FullyQualifiedEntityName]])(
+  lbConfig: ContainerPoolBalancerConfig = loadConfigOrThrow[ContainerPoolBalancerConfig](ConfigKeys.loadbalancer),
+  cpuLimitConfig: CPULimitConfig = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu))(implicit logging: Logging) {
 
   // Managed fraction and blackbox fraction can be between 0.0 and 1.0. The sum of these two fractions has to be between
   // 1.0 and 2.0.
@@ -504,8 +485,7 @@ case class ShardingContainerPoolBalancerState(
   private val managedFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.managedFraction))
   private val blackboxFraction: Double = Math.max(1.0 - managedFraction, Math.min(1.0, lbConfig.blackboxFraction))
   logging.info(this, s"managedFraction = $managedFraction, blackboxFraction = $blackboxFraction")(
-    TransactionId.loadbalancer
-  )
+    TransactionId.loadbalancer)
 
   /** Getters for the variables, setting from the outside is only allowed through the update methods below */
   def invokers: IndexedSeq[InvokerHealth] = _invokers
@@ -528,10 +508,8 @@ case class ShardingContainerPoolBalancerState(
         this,
         s"registered controllers: calculated controller's invoker shard memory size falls below the min memory of one action. "
           + s"Setting to min memory. Expect invoker overloads. Cluster size ${_clusterSize}, invoker user memory size ${memory.toMB.MB}, "
-          + s"min action memory size ${MemoryLimit.MIN_MEMORY.toMB.MB}, calculated shard size ${invokerShardMemorySize.toMB.MB}."
-      )(
-          TransactionId.loadbalancer
-        )
+          + s"min action memory size ${MemoryLimit.MIN_MEMORY.toMB.MB}, calculated shard size ${invokerShardMemorySize.toMB.MB}.")(
+        TransactionId.loadbalancer)
       MemoryLimit.MIN_MEMORY
     } else {
       invokerShardMemorySize
@@ -548,8 +526,8 @@ case class ShardingContainerPoolBalancerState(
     val newTreshold = if (invokerShardCPUSize < CPULimit.MIN_CPU) {
       logging.error(
         this,
-        s"registered controllers: calculated controller's invoker shard CPU size falls below the min CPU threads of one action. Setting to min CPU. Expect invoker overloads. Cluster size ${_clusterSize}, invoker CPU threads ${cpuThreads}, min action CPU threads ${CPULimit.MIN_CPU}, calculated shard size ${invokerShardCPUSize}."
-      )(TransactionId.loadbalancer)
+        s"registered controllers: calculated controller's invoker shard CPU size falls below the min CPU threads of one action. Setting to min CPU. Expect invoker overloads. Cluster size ${_clusterSize}, invoker CPU threads ${cpuThreads}, min action CPU threads ${CPULimit.MIN_CPU}, calculated shard size ${invokerShardCPUSize}.")(
+        TransactionId.loadbalancer)
       CPULimit.MIN_CPU
     } else {
       invokerShardCPUSize
@@ -596,7 +574,8 @@ case class ShardingContainerPoolBalancerState(
         }
         val newInvokerDetails = onlyNewInvokers
           .map(i =>
-            s"${i.id.toString}: ${i.status} / ${getInvokerSlot(i.id.userMemory).toMB.MB} of ${i.id.userMemory.toMB.MB} MB / ${getInvokerSlotByCPU(i.id.cpuThreads)} of ${i.id.cpuThreads} cpuThreads")
+            s"${i.id.toString}: ${i.status} / ${getInvokerSlot(i.id.userMemory).toMB.MB} of ${i.id.userMemory.toMB.MB} MB / ${getInvokerSlotByCPU(
+              i.id.cpuThreads)} of ${i.id.cpuThreads} cpuThreads")
           .mkString(", ")
         s"number of known invokers increased: new = $newSize, old = $oldSize. details: $newInvokerDetails."
       } else {
@@ -608,10 +587,8 @@ case class ShardingContainerPoolBalancerState(
 
     logging.info(
       this,
-      s"loadbalancer invoker status updated. managedInvokers = $managed blackboxInvokers = $blackboxes. $logDetail"
-    )(
-        TransactionId.loadbalancer
-      )
+      s"loadbalancer invoker status updated. managedInvokers = $managed blackboxInvokers = $blackboxes. $logDetail")(
+      TransactionId.loadbalancer)
   }
 
   /**
@@ -635,14 +612,16 @@ case class ShardingContainerPoolBalancerState(
       }
       // Directly after startup, no invokers have registered yet. This needs to be handled gracefully.
       val invokerCount = _invokers.size
-      val totalInvokerMemory = _invokers.foldLeft(0L)((total, invoker) => total + getInvokerSlot(invoker.id.userMemory).toMB).MB
+      val totalInvokerMemory =
+        _invokers.foldLeft(0L)((total, invoker) => total + getInvokerSlot(invoker.id.userMemory).toMB).MB
       val averageInvokerMemory =
         if (totalInvokerMemory.toMB > 0 && invokerCount > 0) {
           (totalInvokerMemory / invokerCount).toMB.MB
         } else {
           0.MB
         }
-      val totalInvokerCPU = _invokers.foldLeft(0.toFloat)((total, invoker) => total + getInvokerSlotByCPU(invoker.id.cpuThreads))
+      val totalInvokerCPU =
+        _invokers.foldLeft(0.toFloat)((total, invoker) => total + getInvokerSlotByCPU(invoker.id.cpuThreads))
       val averageInvokerCPU: Float =
         if (totalInvokerCPU > 0 && invokerCount > 0) {
           totalInvokerCPU / invokerCount
@@ -651,8 +630,8 @@ case class ShardingContainerPoolBalancerState(
         }
       logging.info(
         this,
-        s"loadbalancer cluster size changed from $oldSize to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}, and ${averageInvokerCPU} average CPU threads - total invoker CPU threads ${totalInvokerCPU}."
-      )(TransactionId.loadbalancer)
+        s"loadbalancer cluster size changed from $oldSize to $actualSize active nodes. ${invokerCount} invokers with ${averageInvokerMemory} average memory size - total invoker memory ${totalInvokerMemory}, and ${averageInvokerCPU} average CPU threads - total invoker CPU threads ${totalInvokerCPU}.")(
+        TransactionId.loadbalancer)
     }
   }
 }

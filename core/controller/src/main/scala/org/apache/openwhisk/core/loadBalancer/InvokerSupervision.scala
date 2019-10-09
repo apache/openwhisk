@@ -97,13 +97,11 @@ final case class InvokerInfo(buffer: RingBuffer[InvocationFinishedResult])
  * Note: An Invoker that never sends an initial Ping will not be considered
  * by the InvokerPool and thus might not be caught by monitoring.
  */
-class InvokerPool(
-  childFactory:            (ActorRefFactory, InvokerInstanceId) => ActorRef,
-  sendActivationToInvoker: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-  pingConsumer:            MessageConsumer,
-  monitor:                 Option[ActorRef]
-)
-  extends Actor {
+class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef,
+                  sendActivationToInvoker: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+                  pingConsumer: MessageConsumer,
+                  monitor: Option[ActorRef])
+    extends Actor {
 
   import InvokerState._
 
@@ -170,8 +168,7 @@ class InvokerPool(
       pingConsumer.maxPeek,
       pingPollDuration,
       processInvokerPing,
-      logHandoff = false
-    )
+      logHandoff = false)
   })
 
   def processInvokerPing(bytes: Array[Byte]): Future[Unit] = Future {
@@ -199,11 +196,10 @@ class InvokerPool(
     status = padToIndexed(
       status,
       instanceId.toInt + 1,
-      i => new InvokerHealth(
-        InvokerInstanceId(i, userMemory = instanceId.userMemory, cpuThreads = instanceId.cpuThreads),
-        Offline
-      )
-    )
+      i =>
+        new InvokerHealth(
+          InvokerInstanceId(i, userMemory = instanceId.userMemory, cpuThreads = instanceId.cpuThreads),
+          Offline))
     status = status.updated(instanceId.toInt, new InvokerHealth(instanceId, Offline))
 
     val ref = childFactory(context, instanceId)
@@ -212,7 +208,6 @@ class InvokerPool(
 
     ref
   }
-
 }
 
 object InvokerPool {
@@ -254,17 +249,14 @@ object InvokerPool {
       }
       .orElse {
         throw new IllegalStateException(
-          "cannot create test action for invoker health because runtime manifest is not valid"
-        )
+          "cannot create test action for invoker health because runtime manifest is not valid")
       }
   }
 
-  def props(
-    f:  (ActorRefFactory, InvokerInstanceId) => ActorRef,
-    p:  (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
-    pc: MessageConsumer,
-    m:  Option[ActorRef]                                                 = None
-  ): Props = {
+  def props(f: (ActorRefFactory, InvokerInstanceId) => ActorRef,
+            p: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+            pc: MessageConsumer,
+            m: Option[ActorRef] = None): Props = {
     Props(new InvokerPool(f, p, pc, m))
   }
 
@@ -282,8 +274,7 @@ object InvokerPool {
         namespace = healthActionIdentity.namespace.name.toPath,
         name = EntityName(s"invokerHealthTestAction${i.asString}"),
         exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None),
-        limits = ActionLimits(memory = MemoryLimit(MemoryLimit.MIN_MEMORY), cpu = CPULimit(CPULimit.MIN_CPU))
-      )
+        limits = ActionLimits(memory = MemoryLimit(MemoryLimit.MIN_MEMORY), cpu = CPULimit(CPULimit.MIN_CPU)))
     }
 }
 
@@ -294,7 +285,7 @@ object InvokerPool {
  * states "Healthy" and "Offline".
  */
 class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: ControllerInstanceId)
-  extends FSM[InvokerState, InvokerInfo] {
+    extends FSM[InvokerState, InvokerInfo] {
 
   import InvokerState._
 
@@ -355,8 +346,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         this,
         LoggingMarkers.LOADBALANCER_INVOKER_STATUS_CHANGE(newState.asString),
         s"$name is ${newState.asString}",
-        akka.event.Logging.WarningLevel
-      )
+        akka.event.Logging.WarningLevel)
     case _ -> newState if newState.isUsable => logging.info(this, s"$name is ${newState.asString}")
   }
 
@@ -380,10 +370,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
    * @param result: result of Activation
    * @param buffer to be used
    */
-  private def handleCompletionMessage(
-    result: InvocationFinishedResult,
-    buffer: RingBuffer[InvocationFinishedResult]
-  ) = {
+  private def handleCompletionMessage(result: InvocationFinishedResult,
+                                      buffer: RingBuffer[InvocationFinishedResult]) = {
     buffer.add(result)
 
     // If the action is successful it seems like the Invoker is Healthy again. So we execute immediately
@@ -430,8 +418,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         rootControllerIndex = controllerInstance,
         blocking = false,
         content = None,
-        initArgs = Set.empty
-      )
+        initArgs = Set.empty)
 
       context.parent ! ActivationRequest(activationMessage, invokerInstance)
     }

@@ -43,22 +43,23 @@ import scala.util.{Failure, Success}
 
 object InvokerReactive extends InvokerProvider {
 
-  /**
-   * A method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
-   * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
-   * messages for continuations (e.g., sequences and conductor actions).
-   *
-   * The activation result is always provided because some acknowledegment messages may not carry the result of
-   * the activation and this is needed for sending user events.
-   *
-   * @param tid the transaction id for the activation
-   * @param activationResult is the activation result
-   * @param blockingInvoke is true iff the activation was a blocking request
-   * @param controllerInstance the originating controller/loadbalancer id
-   * @param userId is the UUID for the namespace owning the activation
-   * @param acknowledegment the acknowledgement message to send
-   */
   trait ActiveAck {
+
+    /**
+     * A method for sending Active Acknowledgements (aka "active ack") messages to the load balancer. These messages
+     * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
+     * messages for continuations (e.g., sequences and conductor actions).
+     *
+     * The activation result is always provided because some acknowledegment messages may not carry the result of
+     * the activation and this is needed for sending user events.
+     *
+     * @param tid the transaction id for the activation
+     * @param activationResult is the activation result
+     * @param blockingInvoke is true iff the activation was a blocking request
+     * @param controllerInstance the originating controller/loadbalancer id
+     * @param userId is the UUID for the namespace owning the activation
+     * @param acknowledegment the acknowledgement message to send
+     */
     def apply(tid: TransactionId,
               activationResult: WhiskActivation,
               blockingInvoke: Boolean,
@@ -188,8 +189,8 @@ class InvokerReactive(
     }.toList
   }
 
-  private val pool =
-    actorSystem.actorOf(ContainerPool.props(childFactory, poolConfig, activationFeed, prewarmingConfigs, instance.cpuThreads))
+  private val pool = actorSystem.actorOf(
+    ContainerPool.props(childFactory, poolConfig, activationFeed, prewarmingConfigs, instance.cpuThreads))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {

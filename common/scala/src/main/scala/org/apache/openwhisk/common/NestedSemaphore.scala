@@ -53,12 +53,7 @@ class NestedSemaphore[T](permits: Int) extends ForcibleSemaphore(permits) {
    * @param force
    * @return
    */
-  private def tryOrForceAcquireConcurrent(
-    actionid:      T,
-    maxConcurrent: Int,
-    permits:       Int,
-    force:         Boolean
-  ): Boolean = {
+  private def tryOrForceAcquireConcurrent(actionid: T, maxConcurrent: Int, permits: Int, force: Boolean): Boolean = {
     val concurrentSlots = actionConcurrentSlotsMap
       .getOrElseUpdate(actionid, new ResizableSemaphore(0, maxConcurrent))
     if (concurrentSlots.tryAcquire(1)) {

@@ -135,7 +135,8 @@ trait ReadOps extends Directives {
    */
   protected def getEntity[A <: DocumentRevisionProvider, Au >: A](entity: Future[A],
                                                                   postProcess: Option[PostProcessEntity[A]] = None)(
-    implicit transid: TransactionId,
+    implicit
+    transid: TransactionId,
     format: RootJsonFormat[A],
     ma: Manifest[A]) = {
     onComplete(entity) {
@@ -243,7 +244,8 @@ trait WriteOps extends Directives {
                                                                   create: => Future[A],
                                                                   treatExistsAsConflict: Boolean = true,
                                                                   postProcess: Option[PostProcessEntity[A]] = None)(
-    implicit transid: TransactionId,
+    implicit
+    transid: TransactionId,
     format: RootJsonFormat[A],
     notifier: Option[CacheChangeNotification],
     ma: Manifest[A]) = {
@@ -317,7 +319,8 @@ trait WriteOps extends Directives {
                                                           docid: DocId,
                                                           confirm: A => Future[Unit],
                                                           postProcess: Option[PostProcessEntity[A]] = None)(
-    implicit transid: TransactionId,
+    implicit
+    transid: TransactionId,
     format: RootJsonFormat[A],
     notifier: Option[CacheChangeNotification],
     ma: Manifest[A]) = {

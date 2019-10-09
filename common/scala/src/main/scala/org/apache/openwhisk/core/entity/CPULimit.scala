@@ -68,12 +68,12 @@ protected[core] object CPULimit extends ArgNormalizer[CPULimit] {
   }
 
   /**
-    * Creates CPULimit for limit, iff limit is within permissible range.
-    *
-    * @param  the limit in CPU threads, must be within permissible range
-    * @return CPULimit with limit set
-    * @throws IllegalArgumentException if limit does not conform to requirements
-    */
+   * Creates CPULimit for limit, iff limit is within permissible range.
+   *
+   * @param  the limit in CPU threads, must be within permissible range
+   * @return CPULimit with limit set
+   * @throws IllegalArgumentException if limit does not conform to requirements
+   */
   @throws[IllegalArgumentException]
   protected[core] def apply(cpuThreads: Double): CPULimit = {
     apply(cpuThreads.toFloat)
