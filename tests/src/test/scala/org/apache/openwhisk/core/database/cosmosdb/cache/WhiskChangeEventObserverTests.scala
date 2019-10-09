@@ -16,7 +16,7 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
-import com.microsoft.azure.documentdb.Document
+import com.azure.data.cosmos.CosmosItemProperties
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.junit.runner.RunWith
@@ -68,10 +68,10 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
       CacheInvalidationMessage(CacheKey("baz"), instanceId))
   }
 
-  private def createDoc(id: String, clusterId: Option[String] = None): Document = {
+  private def createDoc(id: String, clusterId: Option[String] = None): CosmosItemProperties = {
     val cdoc = CosmosDBDoc(id, clusterId)
     val json = CosmosDBDoc.seredes.write(cdoc).compactPrint
-    new Document(json)
+    new CosmosItemProperties(json)
   }
 
   case class CosmosDBDoc(id: String, _clusterId: Option[String], _lsn: Int = 42)

@@ -19,30 +19,34 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.Done
 import akka.event.slf4j.SLF4JLogging
-import com.microsoft.azure.documentdb.Document
-import com.microsoft.azure.documentdb.changefeedprocessor.ChangeFeedObserverContext
+import com.azure.data.cosmos.CosmosItemProperties
+import com.azure.data.cosmos.internal.changefeed.ChangeFeedObserverContext
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants
-import org.apache.openwhisk.core.entity.CacheKey
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
+import org.apache.openwhisk.core.entity.CacheKey
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Seq
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Success
 
-class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer) extends ChangeFeedObserver {
+class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer)(implicit ec: ExecutionContext)
+    extends ChangeFeedObserver {
   import WhiskChangeEventObserver._
 
-  override def process(context: ChangeFeedObserverContext, docs: Seq[Document]): Unit = {
+  override def process(context: ChangeFeedObserverContext, docs: Seq[CosmosItemProperties]): Future[Done] = {
     //Each observer is called from a pool managed by CosmosDB ChangeFeedProcessor
     //So its fine to have a blocking wait. If this fails then batch would be reread and
     //retried thus ensuring at-least-once semantics
     val f = eventProducer.send(processDocs(docs, config))
-    Await.result(f, config.feedPublishTimeout)
-    MetricEmitter.emitCounterMetric(feedCounter, docs.size)
-    recordLag(context, docs.last)
+    f.andThen {
+      case Success(_) =>
+        MetricEmitter.emitCounterMetric(feedCounter, docs.size)
+        recordLag(context, docs.last)
+    }
   }
 }
 
@@ -59,8 +63,8 @@ object WhiskChangeEventObserver extends SLF4JLogging {
   /**
    * Records the current lag on per partition basis. In ideal cases the lag should not continue to increase
    */
-  def recordLag(context: ChangeFeedObserverContext, lastDoc: Document): Unit = {
-    val sessionToken = context.getFeedResponde.getSessionToken
+  def recordLag(context: ChangeFeedObserverContext, lastDoc: CosmosItemProperties): Unit = {
+    val sessionToken = context.getFeedResponse.sessionToken()
     val lsnRef = lastDoc.get("_lsn")
     require(lsnRef != null, s"Non lsn defined in document $lastDoc")
 
@@ -87,7 +91,7 @@ object WhiskChangeEventObserver extends SLF4JLogging {
     lsn.toLong
   }
 
-  def processDocs(docs: Seq[Document], config: InvalidatorConfig): Seq[String] = {
+  def processDocs(docs: Seq[CosmosItemProperties], config: InvalidatorConfig): Seq[String] = {
     docs
       .filter { doc =>
         val cid = Option(doc.getString(CosmosDBConstants.clusterId))
@@ -100,8 +104,8 @@ object WhiskChangeEventObserver extends SLF4JLogging {
         }
       }
       .map { doc =>
-        val id = unescapeId(doc.getId)
-        log.debug("Changed doc [{}]", id)
+        val id = unescapeId(doc.id())
+        log.info("Changed doc [{}]", id)
         val event = CacheInvalidationMessage(CacheKey(id), instanceId)
         event.serialize
       }

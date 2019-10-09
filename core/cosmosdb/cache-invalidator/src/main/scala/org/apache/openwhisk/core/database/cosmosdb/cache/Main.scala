@@ -30,7 +30,6 @@ object Main {
     ConfigMXBean.register()
     Kamon.loadReportersFromConfig()
     val port = CacheInvalidatorConfig(system.settings.config).invalidatorConfig.port
-    //TODO HTTPS for ping/metric endpoint?
     BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
     CacheInvalidator.start(system.settings.config)
   }
