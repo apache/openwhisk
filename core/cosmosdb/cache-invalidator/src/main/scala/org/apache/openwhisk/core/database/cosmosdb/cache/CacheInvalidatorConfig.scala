@@ -22,8 +22,6 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigUtil.joinPath
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.duration.FiniteDuration
-
 case class ConnectionInfo(endpoint: String,
                           key: String,
                           db: String,
@@ -35,7 +33,7 @@ case class FeedConfig(hostname: String, leaseCollection: String)
 
 case class EventProducerConfig(bufferSize: Int)
 
-case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clusterId: Option[String])
+case class InvalidatorConfig(port: Int, clusterId: Option[String])
 
 case class CacheInvalidatorConfig(globalConfig: Config) {
   val configRoot = "whisk.cache-invalidator"
