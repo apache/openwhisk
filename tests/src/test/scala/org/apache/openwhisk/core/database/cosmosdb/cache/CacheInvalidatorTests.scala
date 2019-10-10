@@ -25,7 +25,7 @@ import common.StreamLogging
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.CacheInvalidationMessage
+import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
 import org.apache.openwhisk.core.entity.{
   DocumentReader,
@@ -88,7 +88,7 @@ class CacheInvalidatorTests
     log.info(s"Added document ${info.id}")
 
     //This should result in change feed trigger and event to kafka topic
-    val topic = "cacheInvalidation"
+    val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
       consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
         topic)

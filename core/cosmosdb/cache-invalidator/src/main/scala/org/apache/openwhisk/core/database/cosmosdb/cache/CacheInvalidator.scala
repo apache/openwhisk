@@ -23,13 +23,12 @@ import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.openwhisk.core.database.RemoteCacheInvalidation.cacheInvalidationTopic
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object CacheInvalidator extends SLF4JLogging {
-  //TODO Replace with constant from RemoteCacheInvalidation
-  val cacheInvalidationTopic = "cacheInvalidation"
 
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
