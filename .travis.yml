@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 
+dist: xenial
 sudo: required
-
-group: deprecated-2017Q3
 
 language: scala
 scala:
@@ -57,9 +56,9 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
-  - ./tools/travis/docker.sh
-  - pip install --upgrade pip setuptools six
-  - pip3 install --upgrade pip setuptools six
+# - ./tools/travis/docker.sh
+  - pip install --user --upgrade pip setuptools six
+  - pip3 install --user --upgrade pip setuptools six
 
 install:
   - ./tools/travis/setup.sh
