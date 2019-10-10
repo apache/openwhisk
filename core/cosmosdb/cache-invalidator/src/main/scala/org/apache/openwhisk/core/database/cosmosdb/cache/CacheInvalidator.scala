@@ -23,17 +23,11 @@ import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
-import org.slf4j.bridge.SLF4JBridgeHandler
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object CacheInvalidator extends SLF4JLogging {
-  //CosmosDB changefeed support uses Java Logging.
-  // Those needs to be routed to Slf4j
-  SLF4JBridgeHandler.removeHandlersForRootLogger()
-  SLF4JBridgeHandler.install()
-
   //TODO Replace with constant from RemoteCacheInvalidation
   val cacheInvalidationTopic = "cacheInvalidation"
 
