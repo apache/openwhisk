@@ -93,23 +93,28 @@ $ java -jar openwhisk-standalone.jar -h
   -d, --data-dir  <arg>            Directory used for storage
       --dev-kcf                    Enables KubernetesContainerFactory for local
                                    development
-      --dev-mode                   Developer mode speeds up the startup by
-                                   disabling preflight checks and avoiding
-                                   explicit pulls.
-      --disable-color-logging      Disables colored logging
-      --kafka-docker-port  <arg>   Kafka port for use by docker based services.
-                                   If not specified then 9091 or some random
-                                   free port (if 9091 is busy) would be used
-      --kafka-port  <arg>          Kafka port. If not specified then 9092 or
-                                   some random free port (if 9092 is busy) would
-                                   be used
-  -p, --port  <arg>                Server port
+      --dev-mode                      Developer mode speeds up the startup by
+                                      disabling preflight checks and avoiding
+                                      explicit pulls.
+      --dev-user-events-port  <arg>   Specify the port for the user-event
+                                      service. This mode can be used for local
+                                      development of user-event service by
+                                      configuring the Prometheus to connect to
+                                      existing running service instance
+      --disable-color-logging         Disables colored logging
+      --kafka-docker-port  <arg>      Kafka port for use by docker based
+                                      services. If not specified then 9091 or
+                                      some random free port (if 9091 is busy)
+                                      would be used
+      --kafka-port  <arg>             Kafka port. If not specified then 9092 or
+                                      some random free port (if 9092 is busy)
+                                      would be used
+  -p, --port  <arg>                   Server port
   -v, --verbose
-      --zk-port  <arg>             Zookeeper port. If not specified then 2181 or
-                                   some random free port (if 2181 is busy) would
-                                   be used
-  -h, --help                       Show help message
-      --version                    Show version of this program
+      --zk-port  <arg>                Zookeeper port. If not specified then 2181
+                                      or some random free port (if 2181 is busy)
+                                      would be used
+  -h, --help                          Show help message
 
 OpenWhisk standalone server
 ```

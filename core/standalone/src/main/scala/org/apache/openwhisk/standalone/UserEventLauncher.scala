@@ -29,15 +29,19 @@ import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDockerPort: Int, workDir: File, dataDir: File)(
-  implicit logging: Logging,
-  ec: ExecutionContext,
-  actorSystem: ActorSystem,
-  materializer: ActorMaterializer,
-  tid: TransactionId) {
+class UserEventLauncher(docker: StandaloneDockerClient,
+                        owPort: Int,
+                        kafkaDockerPort: Int,
+                        existingUserEventSvcPort: Option[Int],
+                        workDir: File,
+                        dataDir: File)(implicit logging: Logging,
+                                       ec: ExecutionContext,
+                                       actorSystem: ActorSystem,
+                                       materializer: ActorMaterializer,
+                                       tid: TransactionId) {
 
   //owPort+1 is used by Api Gateway
-  private val userEventPort = checkOrAllocatePort(owPort + 2)
+  private val userEventPort = existingUserEventSvcPort.getOrElse(checkOrAllocatePort(owPort + 2))
   private val prometheusPort = checkOrAllocatePort(9090)
   private val grafanaPort = checkOrAllocatePort(3000)
 
@@ -60,15 +64,21 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
   }
 
   def runUserEvents(): Future[ServiceContainer] = {
-    val env = Map("KAFKA_HOSTS" -> s"$hostIp:$kafkaDockerPort")
+    existingUserEventSvcPort match {
+      case Some(_) =>
+        logging.info(this, s"Connecting to pre existing user-event service at $userEventPort")
+        Future.successful(ServiceContainer(userEventPort, s"http://localhost:$userEventPort", "Existing user-event"))
+      case None =>
+        val env = Map("KAFKA_HOSTS" -> s"$hostIp:$kafkaDockerPort")
 
-    logging.info(this, s"Starting User Events: $userEventPort")
-    val name = containerName("user-events")
-    val params = Map("-p" -> Set(s"$userEventPort:9095"))
-    val args = createRunCmd(name, env, params)
+        logging.info(this, s"Starting User Events: $userEventPort")
+        val name = containerName("user-events")
+        val params = Map("-p" -> Set(s"$userEventPort:9095"))
+        val args = createRunCmd(name, env, params)
 
-    val f = docker.runDetached(userEventConfig.image, args, true)
-    f.map(_ => ServiceContainer(userEventPort, s"http://localhost:$userEventPort", name))
+        val f = docker.runDetached(userEventConfig.image, args, true)
+        f.map(_ => ServiceContainer(userEventPort, s"http://localhost:$userEventPort", name))
+    }
   }
 
   def runPrometheus(): Future[(StandaloneDockerContainer, ServiceContainer)] = {
@@ -107,7 +117,7 @@ class UserEventLauncher(docker: StandaloneDockerClient, owPort: Int, kafkaDocker
 
     val volParams = Map(
       "-v" -> Set(
-        s"${grafanaDataDir.getAbsolutePath}:/var/lib/grafanas",
+        s"${grafanaDataDir.getAbsolutePath}:/var/lib/grafana",
         s"${grafanaConfigDir.getAbsolutePath}/provisioning/:/etc/grafana/provisioning/",
         s"${grafanaConfigDir.getAbsolutePath}/dashboards/:/var/lib/grafana/dashboards/"))
     val name = containerName("grafana")
