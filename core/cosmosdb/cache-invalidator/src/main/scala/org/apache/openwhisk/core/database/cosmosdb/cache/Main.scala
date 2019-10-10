@@ -18,12 +18,13 @@
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.actor.ActorSystem
+import akka.event.slf4j.SLF4JLogging
 import akka.stream.ActorMaterializer
 import kamon.Kamon
 import org.apache.openwhisk.common.ConfigMXBean
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 
-object Main {
+object Main extends SLF4JLogging {
   def main(args: Array[String]): Unit = {
     implicit val system: ActorSystem = ActorSystem("cache-invalidator-actor-system")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -32,5 +33,6 @@ object Main {
     val port = CacheInvalidatorConfig(system.settings.config).invalidatorConfig.port
     BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
     CacheInvalidator.start(system.settings.config)
+    log.info(s"Started the server at http://localhost:$port")
   }
 }
