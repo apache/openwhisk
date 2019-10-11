@@ -26,8 +26,6 @@ Add docker daemon configuration options in /etc/docker/daemon.json
 
 from __future__ import print_function
 
-import os
-import sys
 import json
 import traceback
 
@@ -67,6 +65,7 @@ def write_to_daemon_conf(data):
             json.dump(data, fp)
     except Exception as e:
         print("Failed to write to daemon file")
+        print(e)
         traceback.print_exc()
 
 
@@ -77,4 +76,3 @@ if __name__ == "__main__":
     print(updated_data)
     write_to_daemon_conf(updated_data)
     print("Successfully Configured Docker daemon.json")
-

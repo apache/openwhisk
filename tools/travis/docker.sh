@@ -43,6 +43,7 @@ sudo mkdir -p /etc/systemd/system/docker.service.d
 sudo cp docker.conf /etc/systemd/system/docker.service.d/docker.conf
 # setup-docker will add configs to /etc/docker/daemon.json
 sudo python setup-docker.py
+sudo cat /etc/docker/daemon.json 
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 sudo systemctl status docker.service
@@ -50,4 +51,3 @@ echo "Docker Version:"
 docker version
 echo "Docker Info:"
 docker info
-
