@@ -58,7 +58,9 @@ cache:
 
 before_install:
   - ./tools/travis/docker.sh
+  - sudo apt-get install python3-pip
   - pip install --user setuptools six
+  - pip3 install --user setuptools six
 
 install:
   - ./tools/travis/setup.sh
