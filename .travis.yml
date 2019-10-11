@@ -19,7 +19,7 @@ sudo: required
 
 group: deprecated-2017Q3
 dist: xenial
-
+jdk: openjdk8
 language: scala
 scala:
    - 2.12.7
