@@ -73,6 +73,7 @@ public class TestUtils {
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");
     private static final File testApiGwDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/apigw");
+    private static final File vcapFile = WhiskProperties.getVCAPServicesFile();
     private static final String envServices = System.getenv("VCAP_SERVICES");
     private static final String loggerLevel = System.getProperty("LOG_LEVEL", Level.WARNING.toString());
 
@@ -109,6 +110,57 @@ public class TestUtils {
      */
     public static String getTestApiGwFilename(String name) {
         return new File(testApiGwDir, name).toString();
+    }
+
+    /**
+     * Gets the value of VCAP_SERVICES.
+     *
+     * @return VCAP_SERVICES as a JSON object
+     */
+    public static JsonObject getVCAPServices() {
+        try {
+            if (envServices != null) {
+                return new JsonParser().parse(envServices).getAsJsonObject();
+            } else {
+                return new JsonParser().parse(new FileReader(vcapFile)).getAsJsonObject();
+            }
+        } catch (Throwable t) {
+            System.out.println("failed to parse VCAP" + t);
+            return new JsonObject();
+        }
+    }
+
+    /**
+     * Gets a VCAP_SERVICES credentials.
+     *
+     * @return VCAP credentials as a <String, String> map for each
+     *         <property, value> pair in credentials
+     */
+    public static Map<String, String> getVCAPcredentials(String vcapService) {
+        try {
+            JsonObject credentials = getCredentials(vcapService);
+            Map<String, String> map = new HashMap<String, String>();
+            for (Map.Entry<String, JsonElement> entry : credentials.entrySet()) {
+                map.put(entry.getKey(), credentials.get(entry.getKey()).getAsString());
+            }
+
+            return map;
+        } catch (Throwable t) {
+            System.out.println("failed to parse VCAP" + t);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * Gets a VCAP_SERVICES credentials as the json objects.
+     *
+     * @return VCAP credentials as a json object.
+     */
+    public static JsonObject getCredentials(String vcapService) {
+        JsonArray vcapArray = getVCAPServices().get(vcapService).getAsJsonArray();
+        JsonObject vcapObject = vcapArray.get(0).getAsJsonObject();
+        JsonObject credentials = vcapObject.get("credentials").getAsJsonObject();
+        return credentials;
     }
 
     /**
