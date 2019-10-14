@@ -39,7 +39,10 @@ object LogbackConfigurator {
 
   def initLogging(conf: Conf): Unit = {
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
-    ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
+    //Only tweak the log level if verbose option is used
+    if (conf.verbose() != 0) {
+      ctx.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).setLevel(toLevel(conf.verbose()))
+    }
   }
 
   private def toLevel(v: Int) = {
