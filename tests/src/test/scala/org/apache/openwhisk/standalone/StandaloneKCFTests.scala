@@ -23,11 +23,25 @@ import org.scalatest.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])
-class StandaloneKafkaTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
+class StandaloneKCFTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
-  override protected def supportedTests: Set[String] =
-    Set("Wsk Action REST should invoke a blocking action and get only the result")
+  //Turn on to debug locally easily
+  override protected val dumpLogsAlways = false
 
-  override protected def extraArgs: Seq[String] = Seq("--dev-mode", "--kafka")
+  override protected val dumpStartupLogs = false
+
+  override protected def supportedTests = Set("Wsk Action REST should invoke a blocking action and get only the result")
+
+  override protected def extraArgs: Seq[String] = Seq("--dev-mode", "--dev-kcf")
+
+  override def beforeAll(): Unit = {
+    val kubeconfig = sys.env.get("KUBECONFIG")
+    require(kubeconfig.isDefined, "KUBECONFIG env must be defined")
+    println(s"Using kubeconfig from ${kubeconfig.get}")
+
+    //Note the context need to specify default namespace
+    //kubectl config set-context --current --namespace=default
+    super.beforeAll()
+  }
 }

@@ -54,6 +54,10 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   protected def waitForOtherThings(): Unit = {}
 
+  protected def dumpLogsAlways: Boolean = false
+
+  protected def dumpStartupLogs: Boolean = false
+
   protected val dataDirPath: String = FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone")
 
   override def beforeAll(): Unit = {
@@ -85,6 +89,9 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         serverStartedForTest = true
         println(s"Started test server at $serverUrl in [$w]")
         waitForOtherThings()
+        if (dumpStartupLogs) {
+          println(logLines.mkString("\n"))
+        }
     }
   }
 
@@ -102,7 +109,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   override def withFixture(test: NoArgTest) = {
     val outcome = super.withFixture(test)
-    if (outcome.isFailed) {
+    if (outcome.isFailed || (outcome.isSucceeded && dumpLogsAlways)) {
       println(logLines.mkString("\n"))
     }
     stream.reset()
