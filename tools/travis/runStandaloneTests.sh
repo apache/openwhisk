@@ -30,6 +30,21 @@ $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.json"
 $ANSIBLE_CMD downloadcli-github.yml
 
+# Install kubectl
+curl -Lo ./kubectl https://storage.googleapis.com/kubernetes-release/release/v1.16.1/bin/linux/amd64/kubectl
+chmod +x kubectl
+sudo cp kubectl /usr/local/bin/kubectl
+
+# Install kind
+curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.5.1/kind-linux-amd64
+chmod +x kind
+sudo cp kind /usr/local/bin/kind
+
+kind create cluster --wait 5m
+export KUBECONFIG="$(kind get kubeconfig-path)"
+kubectl config set-context --current --namespace=default
+
+
 cd $ROOTDIR
 TERM=dumb ./gradlew :core:standalone:build \
   :core:monitoring:user-events:distDocker
