@@ -82,6 +82,7 @@ class CacheInvalidatorTests
 
     //Start cache invalidator after the db for whisks is created
     startCacheInvalidator()
+    log.info("Cache Invalidator service started")
 
     //Store stuff in db
     val info = store.put(pkg).futureValue
@@ -90,8 +91,9 @@ class CacheInvalidatorTests
     //This should result in change feed trigger and event to kafka topic
     val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
-      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
-        topic)
+      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 180.seconds)(
+        createKafkaConfig,
+        new StringDeserializer())(topic)
 
     CacheInvalidationMessage.parse(msgs.head).get.key.mainId shouldBe pkg.docid.asString
 
