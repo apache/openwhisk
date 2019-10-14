@@ -25,7 +25,6 @@ import org.scalatest.{FlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol
 
 import scala.collection.immutable.Seq
-import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
@@ -48,7 +47,7 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
   behavior of "CosmosDB feed events"
 
   it should "generate cache events" in {
-    val config = InvalidatorConfig(8080, 60.seconds, None)
+    val config = InvalidatorConfig(8080, None)
     val docs = Seq(createDoc("foo"), createDoc("bar"))
     val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
@@ -58,7 +57,7 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
   }
 
   it should "filter clusterId" in {
-    val config = InvalidatorConfig(8080, 60.seconds, Some("cid1"))
+    val config = InvalidatorConfig(8080, Some("cid1"))
     val docs = Seq(createDoc("foo", Some("cid2")), createDoc("bar", Some("cid1")), createDoc("baz"))
     val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
