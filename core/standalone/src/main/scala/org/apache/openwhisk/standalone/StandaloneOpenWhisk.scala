@@ -103,7 +103,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
 
   val devUserEventsPort = opt[Int](
     descr = "Specify the port for the user-event service. This mode can be used for local " +
-      "development of user-event service by configuring the Prometheus to connect to existing running service instance")
+      "development of user-event service by configuring Prometheus to connect to existing running service instance")
 
   mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
 

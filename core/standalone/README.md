@@ -99,7 +99,7 @@ $ java -jar openwhisk-standalone.jar -h
       --dev-user-events-port  <arg>   Specify the port for the user-event
                                       service. This mode can be used for local
                                       development of user-event service by
-                                      configuring the Prometheus to connect to
+                                      configuring Prometheus to connect to
                                       existing running service instance
       --disable-color-logging         Disables colored logging
       --kafka-docker-port  <arg>      Kafka port for use by docker based
