@@ -30,6 +30,7 @@ import akka.stream.stage._
 import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
 import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
+import io.fabric8.kubernetes.client.utils.Serialization
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
@@ -107,7 +108,9 @@ class KubernetesClient(
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
     val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels)
-    //TODO Log pod spec if debug enabled
+    if (transid.meta.extraLogging) {
+      log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
+    }
     val namespace = kubeRestClient.getNamespace
     kubeRestClient.pods.inNamespace(namespace).create(pod)
 
