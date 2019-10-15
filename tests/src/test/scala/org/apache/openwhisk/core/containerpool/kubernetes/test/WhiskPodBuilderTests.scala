@@ -34,17 +34,16 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
   private val testImage = "nodejs"
   private val memLimit = 10.MB
   private val name = "whisk"
+  private val affinity = KubernetesInvokerNodeAffinity(enabled = true, "openwhisk-role", "invoker")
 
   behavior of "WhiskPodBuilder"
 
   it should "build a new pod" in {
-    val affinity = KubernetesInvokerNodeAffinity(enabled = true, "openwhisk-role", "invoker")
     val builder = new WhiskPodBuilder(kubeClient, affinity)
     assertPodSettings(builder)
   }
 
   it should "extend existing pod template" in {
-    val affinity = KubernetesInvokerNodeAffinity(enabled = false, "openwhisk-role", "invoker")
     val template = """
        |---
        |apiVersion: "v1"
@@ -67,7 +66,7 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
        |      image : "busybox"
        |""".stripMargin
 
-    val builder = new WhiskPodBuilder(kubeClient, affinity, Some(template))
+    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = false), Some(template))
     val pod = assertPodSettings(builder)
 
     val ac = getActionContainer(pod)
@@ -79,7 +78,29 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
     pod.getMetadata.getLabels.asScala.get("my-fool") shouldBe Some("my-barv")
     pod.getMetadata.getAnnotations.asScala.get("my-foo") shouldBe Some("my-bar")
     pod.getMetadata.getNamespace shouldBe "whiskns"
-    println(Serialization.asYaml(pod))
+  }
+
+  it should "extend existing pod template with affinity" in {
+    val template = """
+       |apiVersion: "v1"
+       |kind: "Pod"
+       |spec:
+       |  affinity:
+       |    nodeAffinity:
+       |      requiredDuringSchedulingIgnoredDuringExecution:
+       |        nodeSelectorTerms:
+       |        - matchExpressions:
+       |          - key: "nodelabel"
+       |            operator: "In"
+       |            values:
+       |            - "test"""".stripMargin
+
+    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = true), Some(template))
+    val pod = assertPodSettings(builder)
+
+    val terms =
+      pod.getSpec.getAffinity.getNodeAffinity.getRequiredDuringSchedulingIgnoredDuringExecution.getNodeSelectorTerms.asScala
+    terms.exists(_.getMatchExpressions.asScala.exists(_.getKey == "nodelabel")) shouldBe true
   }
 
   private def assertPodSettings(builder: WhiskPodBuilder): Pod = {
@@ -97,6 +118,12 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       pod.getMetadata.getLabels.asScala.get("fooL") shouldBe Some("barV")
       pod.getMetadata.getName shouldBe name
       pod.getSpec.getRestartPolicy shouldBe "Always"
+
+      if (builder.affinityEnabled) {
+        val terms =
+          pod.getSpec.getAffinity.getNodeAffinity.getRequiredDuringSchedulingIgnoredDuringExecution.getNodeSelectorTerms.asScala
+        terms.exists(_.getMatchExpressions.asScala.exists(_.getKey == affinity.key)) shouldBe true
+      }
     }
     pod
   }

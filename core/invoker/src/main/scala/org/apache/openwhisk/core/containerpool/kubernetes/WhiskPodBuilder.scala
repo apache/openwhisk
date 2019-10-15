@@ -21,7 +21,7 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
 import io.fabric8.kubernetes.api.builder.Predicate
-import io.fabric8.kubernetes.api.model.{AffinityBuilder, ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
+import io.fabric8.kubernetes.api.model.{ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.ByteSize
@@ -33,6 +33,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
                       podTemplate: Option[String] = None) {
   private val actionContainerName = "user-action"
   private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
+
+  def affinityEnabled: Boolean = userPodNodeAffinity.enabled
 
   def buildPodSpec(name: String,
                    image: String,
@@ -59,10 +61,11 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
     val specBuilder = pb1.editOrNewSpec().withRestartPolicy("Always")
 
     if (userPodNodeAffinity.enabled) {
-      //TODO enable updating affinity
-      val invokerNodeAffinity = new AffinityBuilder()
-        .withNewNodeAffinity()
-        .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+      val affinity = specBuilder
+        .editOrNewAffinity()
+        .editOrNewNodeAffinity()
+        .editOrNewRequiredDuringSchedulingIgnoredDuringExecution()
+      affinity
         .addNewNodeSelectorTerm()
         .addNewMatchExpression()
         .withKey(userPodNodeAffinity.key)
@@ -72,8 +75,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
         .endNodeSelectorTerm()
         .endRequiredDuringSchedulingIgnoredDuringExecution()
         .endNodeAffinity()
-        .build()
-      specBuilder.withAffinity(invokerNodeAffinity)
+        .endAffinity()
     }
 
     val containerBuilder = if (specBuilder.hasMatchingContainer(actionContainerPredicate)) {
@@ -110,6 +112,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
   }
 
   private def loadPodSpec(spec: String): Pod = {
+    //TODO Cache the byte representation
     val resources = client.load(new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8)))
     resources.get().get(0).asInstanceOf[Pod]
   }
