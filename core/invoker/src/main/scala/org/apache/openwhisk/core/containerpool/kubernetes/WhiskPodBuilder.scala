@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.containerpool.kubernetes
 
 import java.io.ByteArrayInputStream
-import java.nio.charset.StandardCharsets
+import java.nio.charset.StandardCharsets.UTF_8
 
 import io.fabric8.kubernetes.api.builder.Predicate
 import io.fabric8.kubernetes.api.model.{ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
@@ -31,6 +31,7 @@ import scala.collection.JavaConverters._
 class WhiskPodBuilder(client: NamespacedKubernetesClient,
                       userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                       podTemplate: Option[String] = None) {
+  private val template = podTemplate.map(_.getBytes(UTF_8))
   private val actionContainerName = "user-action"
   private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
 
@@ -45,9 +46,9 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq
 
-    val baseBuilder = podTemplate match {
-      case Some(template) =>
-        new PodBuilder(loadPodSpec(template))
+    val baseBuilder = template match {
+      case Some(bytes) =>
+        new PodBuilder(loadPodSpec(bytes))
       case None => new PodBuilder()
     }
 
@@ -111,9 +112,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
     pod
   }
 
-  private def loadPodSpec(spec: String): Pod = {
-    //TODO Cache the byte representation
-    val resources = client.load(new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8)))
+  private def loadPodSpec(bytes: Array[Byte]): Pod = {
+    val resources = client.load(new ByteArrayInputStream(bytes))
     resources.get().get(0).asInstanceOf[Pod]
   }
 }
