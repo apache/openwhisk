@@ -101,6 +101,10 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
 
   val devKcf = opt[Boolean](descr = "Enables KubernetesContainerFactory for local development")
 
+  val devUserEventsPort = opt[Int](
+    descr = "Specify the port for the user-event service. This mode can be used for local " +
+      "development of user-event service by configuring Prometheus to connect to existing running service instance")
+
   mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
 
   verify()
@@ -219,7 +223,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
     val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
     val userEventSvcs =
-      if (conf.userEvents()) startUserEvents(conf.port(), kafkaDockerPort, workDir, dataDir, dockerClient)
+      if (conf.userEvents() || conf.devUserEventsPort.isSupplied)
+        startUserEvents(conf.port(), kafkaDockerPort, conf.devUserEventsPort.toOption, workDir, dataDir, dockerClient)
       else Seq.empty
 
     val svcs = Seq(defaultSvcs, apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs).flatten
@@ -503,6 +508,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def startUserEvents(owPort: Int,
                               kafkaDockerPort: Int,
+                              existingUserEventSvcPort: Option[Int],
                               workDir: File,
                               dataDir: File,
                               dockerClient: StandaloneDockerClient)(
@@ -511,7 +517,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     ec: ExecutionContext,
     materializer: ActorMaterializer): Seq[ServiceContainer] = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "userevents")
-    val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, workDir, dataDir)
+    val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, existingUserEventSvcPort, workDir, dataDir)
 
     val f = k.run()
     val g = f.andThen {
