@@ -31,23 +31,61 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[JUnitRunner])
 class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport {
   implicit val tid: TransactionId = TransactionId.testing
-  private val testImage = "busybox"
+  private val testImage = "nodejs"
   private val memLimit = 10.MB
   private val name = "whisk"
 
   behavior of "WhiskPodBuilder"
 
-  it should "build a pod spec" in {
+  it should "build a new pod" in {
     val affinity = KubernetesInvokerNodeAffinity(enabled = true, "openwhisk-role", "invoker")
     val builder = new WhiskPodBuilder(kubeClient, affinity)
-
-    val pod = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), Map("fooL" -> "barV"))
-    assertPodSettings(pod)
+    assertPodSettings(builder)
   }
 
-  private def assertPodSettings(pod: Pod): Unit = {
+  it should "extend existing pod template" in {
+    val affinity = KubernetesInvokerNodeAffinity(enabled = false, "openwhisk-role", "invoker")
+    val template = """
+       |---
+       |apiVersion: "v1"
+       |kind: "Pod"
+       |metadata:
+       |  annotations:
+       |    my-foo : my-bar
+       |  labels:
+       |    my-fool : my-barv
+       |  name: "testpod"
+       |  namespace: whiskns
+       |spec:
+       |  containers:
+       |    - name: "user-action"
+       |      securityContext:
+       |        capabilities:
+       |          drop:
+       |          - "TEST_CAP"
+       |    - name: "sidecar"
+       |      image : "busybox"
+       |""".stripMargin
+
+    val builder = new WhiskPodBuilder(kubeClient, affinity, Some(template))
+    val pod = assertPodSettings(builder)
+
+    val ac = getActionContainer(pod)
+    ac.getSecurityContext.getCapabilities.getDrop.asScala should contain("TEST_CAP")
+
+    val sc = pod.getSpec.getContainers.asScala.find(_.getName == "sidecar").get
+    sc.getImage shouldBe "busybox"
+
+    pod.getMetadata.getLabels.asScala.get("my-fool") shouldBe Some("my-barv")
+    pod.getMetadata.getAnnotations.asScala.get("my-foo") shouldBe Some("my-bar")
+    pod.getMetadata.getNamespace shouldBe "whiskns"
+    println(Serialization.asYaml(pod))
+  }
+
+  private def assertPodSettings(builder: WhiskPodBuilder): Pod = {
+    val pod = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), Map("fooL" -> "barV"))
     withClue(Serialization.asYaml(pod)) {
-      val c = pod.getSpec.getContainers.asScala.find(_.getName == "user-action").get
+      val c = getActionContainer(pod)
       c.getEnv.asScala.exists(_.getName == "foo") shouldBe true
 
       c.getResources.getLimits.asScala.get("memory").map(_.getAmount) shouldBe Some("10Mi")
@@ -58,6 +96,12 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       pod.getMetadata.getLabels.asScala.get("name") shouldBe Some(name)
       pod.getMetadata.getLabels.asScala.get("fooL") shouldBe Some("barV")
       pod.getMetadata.getName shouldBe name
+      pod.getSpec.getRestartPolicy shouldBe "Always"
     }
+    pod
+  }
+
+  private def getActionContainer(pod: Pod) = {
+    pod.getSpec.getContainers.asScala.find(_.getName == "user-action").get
   }
 }

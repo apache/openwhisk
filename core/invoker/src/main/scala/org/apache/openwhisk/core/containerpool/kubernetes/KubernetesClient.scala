@@ -44,7 +44,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future}
@@ -108,7 +107,7 @@ class KubernetesClient(
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
     val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels)
-
+    //TODO Log pod spec if debug enabled
     val namespace = kubeRestClient.getNamespace
     kubeRestClient.pods.inNamespace(namespace).create(pod)
 

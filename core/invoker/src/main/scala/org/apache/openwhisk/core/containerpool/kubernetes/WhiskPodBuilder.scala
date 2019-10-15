@@ -20,14 +20,8 @@ package org.apache.openwhisk.core.containerpool.kubernetes
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
-import io.fabric8.kubernetes.api.model.{
-  AffinityBuilder,
-  EnvVarBuilder,
-  Pod,
-  PodBuilder,
-  Quantity,
-  SecurityContextBuilder
-}
+import io.fabric8.kubernetes.api.builder.Predicate
+import io.fabric8.kubernetes.api.model.{AffinityBuilder, ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.ByteSize
@@ -37,6 +31,8 @@ import scala.collection.JavaConverters._
 class WhiskPodBuilder(client: NamespacedKubernetesClient,
                       userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                       podTemplate: Option[String] = None) {
+  private val actionContainerName = "user-action"
+  private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
 
   def buildPodSpec(name: String,
                    image: String,
@@ -53,15 +49,17 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       case None => new PodBuilder()
     }
 
-    val podBuilder = baseBuilder
-      .withNewMetadata()
+    val pb1 = baseBuilder
+      .editOrNewMetadata()
       .withName(name)
       .addToLabels("name", name)
       .addToLabels(labels.asJava)
       .endMetadata()
-      .withNewSpec()
-      .withRestartPolicy("Always")
+
+    val specBuilder = pb1.editOrNewSpec().withRestartPolicy("Always")
+
     if (userPodNodeAffinity.enabled) {
+      //TODO enable updating affinity
       val invokerNodeAffinity = new AffinityBuilder()
         .withNewNodeAffinity()
         .withNewRequiredDuringSchedulingIgnoredDuringExecution()
@@ -75,19 +73,19 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
         .endRequiredDuringSchedulingIgnoredDuringExecution()
         .endNodeAffinity()
         .build()
-      podBuilder.withAffinity(invokerNodeAffinity)
+      specBuilder.withAffinity(invokerNodeAffinity)
     }
-    val secContext = new SecurityContextBuilder()
-      .withNewCapabilities()
-      .addToDrop("NET_RAW", "NET_ADMIN")
-      .endCapabilities()
-      .build()
-    val pod = podBuilder
-      .addNewContainer()
+
+    val containerBuilder = if (specBuilder.hasMatchingContainer(actionContainerPredicate)) {
+      specBuilder.editMatchingContainer(actionContainerPredicate)
+    } else specBuilder.addNewContainer()
+
+    //In container its assumed that env, port, resource limits are set explicitly
+    //Here if any value exist in template then that would be overridden
+    containerBuilder
       .withNewResources()
       .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
       .endResources()
-      .withSecurityContext(secContext)
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars.asJava)
@@ -95,6 +93,16 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .withContainerPort(8080)
       .withName("action")
       .endPort()
+
+    //If any existing context entry is present then "update" it else add new
+    containerBuilder
+      .editOrNewSecurityContext()
+      .editOrNewCapabilities()
+      .addToDrop("NET_RAW", "NET_ADMIN")
+      .endCapabilities()
+      .endSecurityContext()
+
+    val pod = containerBuilder
       .endContainer()
       .endSpec()
       .build()
