@@ -26,7 +26,7 @@ import common.StreamLogging
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.entity.{ExecManifest, LogLimit, MemoryLimit, TimeLimit}
+import org.apache.openwhisk.core.entity._
 import system.rest.RestUtil
 
 /**
@@ -46,26 +46,28 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
         WhiskConfig.actionSequenceMaxLimit -> null))
     ExecManifest.initialize(config) should be a 'success
 
-    val expectedJson = JsObject(
-      "support" -> JsObject(
-        "github" -> "https://github.com/apache/openwhisk/issues".toJson,
-        "slack" -> "http://slack.openwhisk.org".toJson),
-      "description" -> "OpenWhisk".toJson,
-      "api_paths" -> JsArray("/api/v1".toJson),
-      "runtimes" -> ExecManifest.runtimesManifest.toJson,
-      "limits" -> JsObject(
-        "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
-        "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
-        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
-        "sequence_length" -> config.actionSequenceLimit.toInt.toJson,
-        "min_action_duration" -> TimeLimit.config.min.toMillis.toJson,
-        "max_action_duration" -> TimeLimit.config.max.toMillis.toJson,
-        "min_action_memory" -> MemoryLimit.config.min.toBytes.toJson,
-        "max_action_memory" -> MemoryLimit.config.max.toBytes.toJson,
-        "min_action_logs" -> LogLimit.config.min.toBytes.toJson,
-        "max_action_logs" -> LogLimit.config.max.toBytes.toJson))
     response.statusCode should be(200)
-    response.body.asString.parseJson shouldBe (expectedJson)
+    val jObj = response.body.asString.parseJson.convertTo[JsObject]
+    jObj.fields("support") shouldBe JsObject(
+      "github" -> "https://github.com/apache/openwhisk/issues".toJson,
+      "slack" -> "http://slack.openwhisk.org".toJson)
+    jObj.fields("description") shouldBe "OpenWhisk".toJson
+    jObj.fields("api_paths") shouldBe JsArray("/api/v1".toJson)
+    jObj.fields("runtimes") shouldBe ExecManifest.runtimesManifest.toJson
+    val limits = jObj.fields("limits").convertTo[JsObject]
+    limits.fields("actions_per_minute") shouldBe config.actionInvokePerMinuteLimit.toInt.toJson
+    limits.fields("triggers_per_minute") shouldBe config.triggerFirePerMinuteLimit.toInt.toJson
+    limits.fields("concurrent_actions") shouldBe config.actionInvokeConcurrentLimit.toInt.toJson
+    limits.fields("sequence_length") shouldBe config.actionSequenceLimit.toInt.toJson
+    limits.fields("min_action_duration") shouldBe TimeLimit.config.min.toMillis.toJson
+    limits.fields("max_action_duration") shouldBe TimeLimit.config.max.toMillis.toJson
+    limits.fields("min_action_memory") shouldBe MemoryLimit.config.min.toBytes.toJson
+    limits.fields("max_action_memory") shouldBe MemoryLimit.config.max.toBytes.toJson
+    limits.fields("min_action_logs") shouldBe LogLimit.config.max.toBytes.toJson
+    limits.fields("max_action_logs") shouldBe LogLimit.config.max.toBytes.toJson
+    limits.fields("cpu_limit_enabled") shouldBe CPULimit.config.controlEnabled.toJson
+    // CPU was float number
+    limits.fields("min_action_cpu").toString() should startWith("0.1")
+    limits.fields("max_action_cpu").toString() should startWith("1.0")
   }
-
 }

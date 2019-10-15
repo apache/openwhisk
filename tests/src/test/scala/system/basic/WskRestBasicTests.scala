@@ -30,11 +30,13 @@ import org.scalatest.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
 import common.rest.RestResult
+import org.apache.openwhisk.core.ConfigKeys
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.Annotations
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
+import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSystem {
@@ -371,6 +373,8 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     val name = "actionFields"
     val paramInput = Map("payload" -> "test".toJson)
 
+    val cpuLimitCfg = loadConfigOrThrow[CPULimitConfig](ConfigKeys.cpu)
+
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
         action.create(name, defaultAction, parameters = paramInput, kind = Some(runtime))
@@ -409,11 +413,15 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
                           } else {
                             JsArray()
                           })
-      result.getFieldJsValue("limits") shouldBe JsObject(
-        "timeout" -> JsNumber(60000),
-        "memory" -> JsNumber(256),
-        "logs" -> JsNumber(10),
-        "concurrency" -> JsNumber(1))
+
+      val limits = result.getFieldJsValue("limits").convertTo[JsObject]
+      limits.fields("timeout") shouldBe JsNumber(60000)
+      limits.fields("memory") shouldBe JsNumber(256)
+      limits.fields("logs") shouldBe JsNumber(10)
+      limits.fields("concurrency") shouldBe JsNumber(1)
+      // CPU is float number, could not be compared by '=='
+      limits.fields("cpu").toString() should startWith("0.20")
+
       result.getField("invalid") shouldBe ""
   }
 
