@@ -50,6 +50,7 @@ import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.entity.ActivationId
 import org.apache.openwhisk.core.entity.BasicAuthenticationAuthKey
 import org.apache.openwhisk.core.entity.ControllerInstanceId
+import org.apache.openwhisk.core.entity.CPULimit
 import org.apache.openwhisk.core.entity.EntityName
 import org.apache.openwhisk.core.entity.EntityPath
 import org.apache.openwhisk.core.entity.ExecManifest
@@ -61,7 +62,6 @@ import org.apache.openwhisk.core.entity.Secret
 import org.apache.openwhisk.core.entity.Subject
 import org.apache.openwhisk.core.entity.UUID
 import org.apache.openwhisk.core.entity.WhiskActionMetaData
-import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
@@ -404,12 +404,12 @@ class ShardingContainerPoolBalancerTests
         }
       }
     }
-
   }
 
   implicit val am = ActorMaterializer()
   val config = new WhiskConfig(ExecManifest.requiredProperties)
   val invokerMem = 2000.MB
+  val invokerCPU = (4.0).toFloat // 2 core 4 threads, 2 GB memory
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
   val concurrency = if (concurrencyEnabled) 5 else 1
   val actionMem = 256.MB
@@ -430,6 +430,7 @@ class ShardingContainerPoolBalancerTests
   //(1 until maxActivations).foreach { i =>
   (75 until maxActivations).foreach { i =>
     it should s"reflect concurrent processing $i state in containerSlots" in {
+      assume(!CPULimit.config.controlEnabled) // this test was designed for memory limit mode
       //each batch will:
       // - submit activations concurrently
       // - wait for activation submission to messaging system (mostly to detect which invoker was assiged
@@ -480,7 +481,7 @@ class ShardingContainerPoolBalancerTests
       new ShardingContainerPoolBalancer(config, ControllerInstanceId("0"), feedProbe, invokerPoolProbe, mockMessaging)
 
     val invokers = IndexedSeq.tabulate(numInvokers) { i =>
-      new InvokerHealth(InvokerInstanceId(i, userMemory = invokerMem), Healthy)
+      new InvokerHealth(InvokerInstanceId(i, userMemory = invokerMem, cpuThreads = invokerCPU), Healthy)
     }
     balancer.schedulingState.updateInvokers(invokers)
     val invocationNamespace = EntityName("invocationSpace")
