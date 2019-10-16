@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.utils.Serialization
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
 import org.apache.openwhisk.core.containerpool.kubernetes.{KubernetesInvokerNodeAffinity, WhiskPodBuilder}
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
@@ -66,7 +66,7 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
        |      image : "busybox"
        |""".stripMargin
 
-    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = false), Some(template))
+    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = false), Some(ConfigMapValue(template)))
     val pod = assertPodSettings(builder)
 
     val ac = getActionContainer(pod)
@@ -95,7 +95,7 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
        |            values:
        |            - "test"""".stripMargin
 
-    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = true), Some(template))
+    val builder = new WhiskPodBuilder(kubeClient, affinity.copy(enabled = true), Some(ConfigMapValue(template)))
     val pod = assertPodSettings(builder)
 
     val terms =

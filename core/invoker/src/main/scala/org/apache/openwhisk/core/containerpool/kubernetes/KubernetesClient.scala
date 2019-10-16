@@ -34,7 +34,7 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{ConfigMapValue, Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
@@ -76,7 +76,7 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   invokerAgent: KubernetesInvokerAgentConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
-                                  podTemplate: Option[String] = None)
+                                  podTemplate: Option[ConfigMapValue] = None)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.

@@ -17,7 +17,11 @@
 
 package org.apache.openwhisk.standalone
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
+
 import common.WskProps
+import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.core.containerpool.kubernetes.test.KubeClientSupport
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -52,13 +56,18 @@ class StandaloneKCFTests
                               |  labels:
                               |     launcher: standalone""".stripMargin
 
-  override val customConfig = Some(s"""include classpath("standalone-kcf.conf")
-     |
-     |whisk {
-     |  kubernetes {
-     |    pod-template = $qt$podTemplate$qt
-     |  }
-     |}""".stripMargin)
+  private val podTemplateFile = Files.createTempFile("whisk", null).toFile
+
+  override val customConfig = {
+    FileUtils.write(podTemplateFile, podTemplate, UTF_8)
+    Some(s"""include classpath("standalone-kcf.conf")
+         |
+         |whisk {
+         |  kubernetes {
+         |    pod-template = "${podTemplateFile.toURI}"
+         |  }
+         |}""".stripMargin)
+  }
 
   override def beforeAll(): Unit = {
     val kubeconfig = sys.env.get("KUBECONFIG")
@@ -73,6 +82,7 @@ class StandaloneKCFTests
   override def afterAll(): Unit = {
     checkPodState()
     super.afterAll()
+    podTemplateFile.delete()
   }
 
   def checkPodState(): Unit = {

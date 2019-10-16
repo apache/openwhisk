@@ -23,15 +23,15 @@ import java.nio.charset.StandardCharsets.UTF_8
 import io.fabric8.kubernetes.api.builder.Predicate
 import io.fabric8.kubernetes.api.model.{ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
 
 import scala.collection.JavaConverters._
 
 class WhiskPodBuilder(client: NamespacedKubernetesClient,
                       userPodNodeAffinity: KubernetesInvokerNodeAffinity,
-                      podTemplate: Option[String] = None) {
-  private val template = podTemplate.map(_.getBytes(UTF_8))
+                      podTemplate: Option[ConfigMapValue] = None) {
+  private val template = podTemplate.map(_.value.getBytes(UTF_8))
   private val actionContainerName = "user-action"
   private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
 
