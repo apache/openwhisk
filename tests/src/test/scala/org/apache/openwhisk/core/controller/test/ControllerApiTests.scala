@@ -63,7 +63,7 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
     limits.fields("max_action_duration") shouldBe TimeLimit.config.max.toMillis.toJson
     limits.fields("min_action_memory") shouldBe MemoryLimit.config.min.toBytes.toJson
     limits.fields("max_action_memory") shouldBe MemoryLimit.config.max.toBytes.toJson
-    limits.fields("min_action_logs") shouldBe LogLimit.config.max.toBytes.toJson
+    limits.fields("min_action_logs") shouldBe LogLimit.config.min.toBytes.toJson
     limits.fields("max_action_logs") shouldBe LogLimit.config.max.toBytes.toJson
     limits.fields("cpu_limit_enabled") shouldBe CPULimit.config.controlEnabled.toJson
     // CPU was float number

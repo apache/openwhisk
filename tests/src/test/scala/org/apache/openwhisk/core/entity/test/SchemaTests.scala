@@ -771,29 +771,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "properly deserialize JSON" in {
     // would only pass in memory limit mode. CPU limit number is float, could not be compared by ==
-    assume(!CPULimit.config.controlEnabled)
-    val json = Seq[JsValue](
+    val json = Seq[JsObject](
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
+        "cpu" -> CPULimit.STD_CPU.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
         "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
+        "cpu" -> CPULimit.STD_CPU.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
         "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
-        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson))
+        "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
+        "cpu" -> CPULimit.STD_CPU.toJson))
     val limits = json.map(ActionLimits.serdes.read)
     assert(limits(0) == ActionLimits())
     assert(limits(1) == ActionLimits())
     assert(limits(2) == ActionLimits())
     assert(limits(0).toJson == json(0))
-    assert(limits(1).toJson == json(0)) // drops unknown prop "foo"
-    assert(limits(1).toJson != json(1)) // drops unknown prop "foo"
+    assert(limits(1).toJson == json(0))
+    assert(limits(1).toJson != json(1))
   }
 
   it should "reject malformed JSON" in {

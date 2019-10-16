@@ -142,7 +142,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   // ?docs disabled
-  ignore should "list action by default namespace with full docs" in {
+  it should "list action by default namespace with full docs" in {
     implicit val tid = transid()
     val actions = (1 to 2).map { i =>
       WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
@@ -1320,7 +1320,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.timeout.get,
             content.limits.get.memory.get,
             content.limits.get.logs.get,
-            content.limits.get.concurrency.get),
+            content.limits.get.concurrency.get,
+            content.limits.get.cpu.get),
           version = action.version.upPatch,
           annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false))
       }
