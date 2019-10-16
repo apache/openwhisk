@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-node('xenial&&!H21&&!H22&&!H11&&!ubuntu-eu3') {
+node('openwhisk1||openwhisk2||openwhisk3') {
   sh "env"
   sh "docker version"
   sh "docker info"
