@@ -35,7 +35,6 @@ class StandaloneKCFTests
     with KubeClientSupport {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
-  val qt = "\"\"\""
   //Turn on to debug locally easily
   override protected val dumpLogsAlways = false
 
