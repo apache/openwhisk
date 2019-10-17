@@ -68,16 +68,6 @@ class StandaloneKCFTests
          |}""".stripMargin)
   }
 
-  override def beforeAll(): Unit = {
-    val kubeconfig = sys.env.get("KUBECONFIG")
-    require(kubeconfig.isDefined, "KUBECONFIG env must be defined")
-    println(s"Using kubeconfig from ${kubeconfig.get}")
-
-    //Note the context need to specify default namespace
-    //kubectl config set-context --current --namespace=default
-    super.beforeAll()
-  }
-
   override def afterAll(): Unit = {
     checkPodState()
     super.afterAll()

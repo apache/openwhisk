@@ -48,6 +48,7 @@ trait KubeClientSupport extends TestSuite with BeforeAndAfterAll with StreamLogg
     if (!useMockServer) {
       val kubeconfig = sys.env.get("KUBECONFIG")
       assume(kubeconfig.isDefined, "KUBECONFIG env must be defined")
+      println(s"Using kubeconfig from ${kubeconfig.get}")
     }
     super.beforeAll()
   }
