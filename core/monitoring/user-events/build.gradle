@@ -41,7 +41,7 @@ dependencies {
 
     testCompile 'junit:junit:4.11'
     testCompile 'org.scalatest:scalatest_2.12:3.0.1'
-    compile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
+    testCompile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
     testCompile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
     testCompile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
     testCompile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
