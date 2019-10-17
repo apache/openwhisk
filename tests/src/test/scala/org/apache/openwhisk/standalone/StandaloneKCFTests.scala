@@ -17,13 +17,22 @@
 
 package org.apache.openwhisk.standalone
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
+
 import common.WskProps
+import org.apache.commons.io.FileUtils
+import org.apache.openwhisk.core.containerpool.kubernetes.test.KubeClientSupport
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])
-class StandaloneKCFTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
+class StandaloneKCFTests
+    extends WskRestBasicTests
+    with StandaloneServerFixture
+    with StandaloneSanityTestSupport
+    with KubeClientSupport {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
   //Turn on to debug locally easily
@@ -31,17 +40,42 @@ class StandaloneKCFTests extends WskRestBasicTests with StandaloneServerFixture 
 
   override protected val dumpStartupLogs = false
 
+  override protected def useMockServer = false
+
   override protected def supportedTests = Set("Wsk Action REST should invoke a blocking action and get only the result")
 
   override protected def extraArgs: Seq[String] = Seq("--dev-mode", "--dev-kcf")
 
-  override def beforeAll(): Unit = {
-    val kubeconfig = sys.env.get("KUBECONFIG")
-    require(kubeconfig.isDefined, "KUBECONFIG env must be defined")
-    println(s"Using kubeconfig from ${kubeconfig.get}")
+  private val podTemplate = """---
+                              |apiVersion: "v1"
+                              |kind: "Pod"
+                              |metadata:
+                              |  annotations:
+                              |    allow-outbound : "true"
+                              |  labels:
+                              |     launcher: standalone""".stripMargin
 
-    //Note the context need to specify default namespace
-    //kubectl config set-context --current --namespace=default
-    super.beforeAll()
+  private val podTemplateFile = Files.createTempFile("whisk", null).toFile
+
+  override val customConfig = {
+    FileUtils.write(podTemplateFile, podTemplate, UTF_8)
+    Some(s"""include classpath("standalone-kcf.conf")
+         |
+         |whisk {
+         |  kubernetes {
+         |    pod-template = "${podTemplateFile.toURI}"
+         |  }
+         |}""".stripMargin)
+  }
+
+  override def afterAll(): Unit = {
+    checkPodState()
+    super.afterAll()
+    podTemplateFile.delete()
+  }
+
+  def checkPodState(): Unit = {
+    val podList = kubeClient.pods().withLabel("launcher").list()
+    podList.getItems.isEmpty shouldBe false
   }
 }
