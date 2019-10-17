@@ -12,7 +12,7 @@
 
     <!-- Kafka -->
     <logger name="org.apache.kafka" level="ERROR" />
-    <logger name="kafka.server" level="ERROR" />
+    <logger name="kafka" level="ERROR" />
 
     <!-- Zookeeper -->
     <logger name="org.apache.zookeeper" level="ERROR" />
