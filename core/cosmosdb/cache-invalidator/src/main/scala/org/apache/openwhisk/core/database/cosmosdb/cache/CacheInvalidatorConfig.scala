@@ -29,7 +29,7 @@ case class ConnectionInfo(endpoint: String,
                           connectionMode: ConnectionMode,
                           consistencyLevel: ConsistencyLevel)
 
-case class FeedConfig(hostname: String, leaseCollection: String)
+case class FeedConfig(hostname: String, leaseCollection: String, startFromBeginning: Boolean)
 
 case class EventProducerConfig(bufferSize: Int)
 

@@ -58,6 +58,7 @@ class ChangeFeedConsumer(collName: String, config: CacheInvalidatorConfig, obser
 
     val feedOpts = new ChangeFeedProcessorOptions
     feedOpts.leasePrefix(prefix)
+    feedOpts.startFromBeginning(config.feedConfig.startFromBeginning)
 
     val builder = ChangeFeedProcessor.Builder
       .hostName(config.feedConfig.hostname)

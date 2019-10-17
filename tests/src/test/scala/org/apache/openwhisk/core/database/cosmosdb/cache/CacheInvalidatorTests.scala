@@ -91,9 +91,8 @@ class CacheInvalidatorTests
     //This should result in change feed trigger and event to kafka topic
     val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
-      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 180.seconds)(
-        createKafkaConfig,
-        new StringDeserializer())(topic)
+      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
+        topic)
 
     CacheInvalidationMessage.parse(msgs.head).get.key.mainId shouldBe pkg.docid.asString
 
@@ -113,6 +112,7 @@ class CacheInvalidatorTests
       |  cache-invalidator {
       |    cosmosdb {
       |      db = "$dbName"
+      |      start-from-beginning  = true
       |    }
       |  }
       |}
