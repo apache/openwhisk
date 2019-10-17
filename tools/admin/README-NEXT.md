@@ -73,11 +73,11 @@ $ wskadmin-next user create userA
 <prints key>
 
 # add user to a specific namespace
-$ wskadmin-next user create userA -ns space1
+$ wskadmin-next user create --namespace space1 userA
 <prints new key specific to userA and space1>
 
 # add second user to same space
-$ wskadmin-next user create userB -ns space1
+$ wskadmin-next user create --namespace space1 userB
 <prints new key specific to userB and space1>
 
 # force update a user with new uuid:key
@@ -89,12 +89,12 @@ $ wskadmin-next user create -r userA
 <prints old UUID and new key>
 
 # list all users sharing a space
-$ wskadmin-next user list space1 -a
+$ wskadmin-next user list -a space1
 <key for userA>   userA
 <key for userB>   userB
 
 # remove user access to a namespace
-$ wskadmin-next user delete userB -ns space1
+$ wskadmin-next user delete --namespace space1 userB
 Namespace deleted
 
 # get key for userA default namespaces
@@ -130,7 +130,7 @@ $ wskadmin-next limits set --allowedKinds nodejs:6 python space1
 Limits successfully set for "space1"
 
 # set limits to disable saving of activations in activationstore
-$ wskadmin-next limits set space1 --storeActivations false
+$ wskadmin-next limits set --storeActivations false space1
 Limits successfully set for "space1"
 ```
 
