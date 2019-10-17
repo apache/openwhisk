@@ -2539,6 +2539,10 @@
         "success": {
           "type": "boolean",
           "description": "Whether the activation was successful or not"
+        },
+        "size" : {
+          "type": "integer",
+          "description": "Size of response"
         }
       }
     },
