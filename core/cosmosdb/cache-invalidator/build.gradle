@@ -34,7 +34,7 @@ repositories {
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
-    compile "com.microsoft.azure:azure-cosmos:3.2.2"
+    compile "com.microsoft.azure:azure-cosmos:3.3.0"
     compile "com.typesafe.akka:akka-stream-kafka_2.12:${gradle.akka_kafka.version}"
 }
 
