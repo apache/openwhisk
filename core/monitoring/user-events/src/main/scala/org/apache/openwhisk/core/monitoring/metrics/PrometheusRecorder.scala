@@ -208,12 +208,7 @@ object PrometheusRecorder extends PrometheusMetricNames {
       initiatorNamespace,
       actionName)
   private val memoryGauge =
-    histogram(
-      memoryMetric,
-      "Memory consumption of the action containers",
-      actionNamespace,
-      initiatorNamespace,
-      actionName)
+    gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
 
   private val concurrentLimitCounter =
     counter(concurrentLimitMetric, "a user has exceeded its limit for concurrent invocations", actionNamespace)
