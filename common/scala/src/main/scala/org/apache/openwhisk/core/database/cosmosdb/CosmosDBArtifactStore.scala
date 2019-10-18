@@ -363,14 +363,20 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .map(l => if (limit > 0) l.take(limit) else l)
 
     val g = f.andThen {
-      case Success(out) =>
+      case Success(queryResult) =>
         if (queryMetrics.nonEmpty) {
           val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics: _*)
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
         }
-        transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}", InfoLevel)
+        val stats = viewMapper.recordQueryStats(ddoc, viewName, descending, querySpec.getParameters, queryResult)
+        val statsToLog = stats.map(s => " " + s).getOrElse("")
+        transid.finished(
+          this,
+          start,
+          s"[QUERY] '$collName' completed: matched ${queryResult.size}$statsToLog",
+          InfoLevel)
     }
     reportFailure(g, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
   }
