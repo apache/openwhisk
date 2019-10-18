@@ -86,9 +86,10 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 
     def record(m: Metric): Unit = {
       m.metricName match {
-        case "ConcurrentRateLimit" => concurrentLimit.inc()
-        case "TimedRateLimit"      => timedLimit.inc()
-        case x                     => log.warn(s"Unknown limit $x")
+        case "ConcurrentRateLimit"   => concurrentLimit.inc()
+        case "TimedRateLimit"        => timedLimit.inc()
+        case "ConcurrentInvocations" => //TODO Handle ConcurrentInvocations
+        case x                       => log.warn(s"Unknown limit $x")
       }
     }
   }

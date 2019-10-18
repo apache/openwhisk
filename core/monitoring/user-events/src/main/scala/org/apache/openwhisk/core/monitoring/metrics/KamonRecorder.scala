@@ -66,9 +66,10 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
 
     def record(m: Metric): Unit = {
       m.metricName match {
-        case "ConcurrentRateLimit" => concurrentLimit.increment()
-        case "TimedRateLimit"      => timedLimit.increment()
-        case x                     => log.warn(s"Unknown limit $x")
+        case "ConcurrentRateLimit"   => concurrentLimit.increment()
+        case "TimedRateLimit"        => timedLimit.increment()
+        case "ConcurrentInvocations" => //TODO Handle ConcurrentInvocations
+        case x                       => log.warn(s"Unknown limit $x")
       }
     }
   }
