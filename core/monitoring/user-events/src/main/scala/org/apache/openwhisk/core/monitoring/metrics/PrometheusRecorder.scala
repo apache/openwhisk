@@ -41,6 +41,7 @@ trait PrometheusMetricNames extends MetricNames {
   val waitTimeMetric = "openwhisk_action_waitTime_seconds"
   val initTimeMetric = "openwhisk_action_initTime_seconds"
   val durationMetric = "openwhisk_action_duration_seconds"
+  val responseSizeMetric = "openwhisk_action_response_size_bytes"
   val statusMetric = "openwhisk_action_status"
   val memoryMetric = "openwhisk_action_memory"
 
@@ -104,6 +105,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
     private val initTime = initTimeHisto.labels(namespace, initiatorNamespace, action)
     private val duration = durationHisto.labels(namespace, initiatorNamespace, action)
+    private val responseSize = responseSizeHisto.labels(namespace, initiatorNamespace, action)
 
     private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
 
@@ -137,6 +139,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
         case ActivationResponse.statusWhiskError       => statusInternalError.inc()
         case x                                         => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
       }
+
+      a.size.foreach(responseSize.observe(_))
     }
   }
 
@@ -208,6 +212,10 @@ object PrometheusRecorder extends PrometheusMetricNames {
       actionNamespace,
       initiatorNamespace,
       actionName)
+
+  //TODO Customize the buckets
+  private val responseSizeHisto =
+    histogram(responseSizeMetric, "Activation Response size", actionNamespace, initiatorNamespace, actionName)
   private val memoryGauge =
     gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
 
