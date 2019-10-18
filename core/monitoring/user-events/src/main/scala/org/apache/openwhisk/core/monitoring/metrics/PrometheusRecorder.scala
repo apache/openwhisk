@@ -117,7 +117,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
     def record(a: Activation): Unit = {
-      gauge.observe(a.memory)
+      gauge.set(a.memory)
 
       activations.inc()
 
