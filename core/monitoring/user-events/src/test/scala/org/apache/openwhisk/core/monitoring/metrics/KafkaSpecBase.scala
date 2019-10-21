@@ -38,4 +38,5 @@ abstract class KafkaSpecBase
   implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.minute)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   override val sleepAfterProduce: FiniteDuration = 10.seconds
+  override protected val topicCreationTimeout = 60.seconds
 }

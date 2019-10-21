@@ -86,9 +86,10 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 
     def record(m: Metric): Unit = {
       m.metricName match {
-        case "ConcurrentRateLimit" => concurrentLimit.inc()
-        case "TimedRateLimit"      => timedLimit.inc()
-        case x                     => log.warn(s"Unknown limit $x")
+        case "ConcurrentRateLimit"   => concurrentLimit.inc()
+        case "TimedRateLimit"        => timedLimit.inc()
+        case "ConcurrentInvocations" => //TODO Handle ConcurrentInvocations
+        case x                       => log.warn(s"Unknown limit $x")
       }
     }
   }
@@ -116,7 +117,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
     def record(a: Activation): Unit = {
-      gauge.observe(a.memory)
+      gauge.set(a.memory)
 
       activations.inc()
 
@@ -208,12 +209,7 @@ object PrometheusRecorder extends PrometheusMetricNames {
       initiatorNamespace,
       actionName)
   private val memoryGauge =
-    histogram(
-      memoryMetric,
-      "Memory consumption of the action containers",
-      actionNamespace,
-      initiatorNamespace,
-      actionName)
+    gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
 
   private val concurrentLimitCounter =
     counter(concurrentLimitMetric, "a user has exceeded its limit for concurrent invocations", actionNamespace)

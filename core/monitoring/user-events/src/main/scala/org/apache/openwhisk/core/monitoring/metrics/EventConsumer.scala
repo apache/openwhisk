@@ -141,7 +141,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
     settings
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
       .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
-
+      .withStopTimeout(Duration.Zero) // https://doc.akka.io/docs/alpakka-kafka/current/consumer.html#draining-control
 }
 
 object EventConsumer {

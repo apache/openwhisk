@@ -684,7 +684,7 @@
           "type": "string"
         },
         {
-          "alias": "Max memory",
+          "alias": "Memory",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -716,7 +716,7 @@
       ],
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_memory_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$__range])) by (action) / sum(increase(openwhisk_action_memory_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\"}[$__range])) by (action) > 0",
+          "expr": "openwhisk_action_memory{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
