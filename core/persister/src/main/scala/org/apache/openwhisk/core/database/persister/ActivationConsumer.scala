@@ -141,6 +141,7 @@ class ActivationConsumer(config: PersisterConfig, persister: ActivationPersister
       .withBootstrapServers(config.kafkaHosts)
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, config.clientId)
       .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
+      .withStopTimeout(Duration.Zero) // https://doc.akka.io/docs/alpakka-kafka/current/consumer.html#draining-control
 
   private class RebalanceListener extends Actor with ActorLogging {
     //TODO Metric - Topic reassignments
