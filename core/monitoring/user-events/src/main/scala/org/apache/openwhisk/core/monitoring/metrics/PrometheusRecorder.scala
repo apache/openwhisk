@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
-import org.apache.openwhisk.core.entity.ActivationResponse
+import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -212,10 +212,14 @@ object PrometheusRecorder extends PrometheusMetricNames {
       actionNamespace,
       initiatorNamespace,
       actionName)
-
-  //TODO Customize the buckets
   private val responseSizeHisto =
-    histogram(responseSizeMetric, "Activation Response size", actionNamespace, initiatorNamespace, actionName)
+    Histogram
+      .build()
+      .name(responseSizeMetric)
+      .help("Activation Response size")
+      .labelNames(actionNamespace, initiatorNamespace, actionName)
+      .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
+      .register()
   private val memoryGauge =
     gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
 
