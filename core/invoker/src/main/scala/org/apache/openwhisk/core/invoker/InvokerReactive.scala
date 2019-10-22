@@ -31,6 +31,7 @@ import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{UserContext, _}
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
@@ -81,6 +82,8 @@ object InvokerReactive extends InvokerProvider {
    * @return logs for the given activation
    */
   trait LogsCollector {
+    def logsToBeCollected(action: ExecutableWhiskAction): Boolean = action.limits.logs.asMegaBytes != 0.MB
+
     def apply(transid: TransactionId,
               user: Identity,
               activation: WhiskActivation,

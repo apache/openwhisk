@@ -630,23 +630,27 @@ class ContainerProxy(factory: (TransactionId,
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
+    val logsToBeCollected = collectLogs.logsToBeCollected(job.action)
+    val sendCompletionAfterLogsCollection = logsToBeCollected == true
     // Sending an active ack is an asynchronous operation. The result is forwarded as soon as
     // possible for blocking activations so that dependent activations can be scheduled. The
     // completion message which frees a load balancer slot is sent after the active ack future
     // completes to ensure proper ordering.
     val sendResult = if (job.msg.blocking) {
       activation.map { result =>
-        sendActiveAck(
-          tid,
-          result,
-          job.msg.blocking,
-          job.msg.rootControllerIndex,
-          job.msg.user.namespace.uuid,
-          ResultMessage(tid, result))
+        val msg =
+          if (logsToBeCollected) ResultMessage(tid, result)
+          else CombinedCompletionAndResultMessage(tid, result, instance)
+        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
       }
     } else {
       // For non-blocking request, do not forward the result.
-      Future.successful(())
+      if (logsToBeCollected) Future.successful(())
+      else
+        activation.map { result =>
+          val msg = CompletionMessage(tid, result, instance)
+          sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+        }
     }
 
     val context = UserContext(job.msg.user)
@@ -655,7 +659,7 @@ class ContainerProxy(factory: (TransactionId,
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
         // Skips log collection entirely, if the limit is set to 0
-        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+        if (!logsToBeCollected) {
           Future.successful(Right(activation))
         } else {
           val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
@@ -679,15 +683,17 @@ class ContainerProxy(factory: (TransactionId,
       .foreach { activation =>
         // Sending the completion message to the controller after the active ack ensures proper ordering
         // (result is received before the completion message for blocking invokes).
-        sendResult.onComplete(
-          _ =>
-            sendActiveAck(
-              tid,
-              activation,
-              job.msg.blocking,
-              job.msg.rootControllerIndex,
-              job.msg.user.namespace.uuid,
-              CompletionMessage(tid, activation, instance)))
+        if (sendCompletionAfterLogsCollection) {
+          sendResult.onComplete(
+            _ =>
+              sendActiveAck(
+                tid,
+                activation,
+                job.msg.blocking,
+                job.msg.rootControllerIndex,
+                job.msg.user.namespace.uuid,
+                CompletionMessage(tid, activation, instance)))
+        }
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
