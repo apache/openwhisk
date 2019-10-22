@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 import akka.Done
 import com.azure.data.cosmos.CosmosItemProperties
 import com.azure.data.cosmos.internal.changefeed.ChangeFeedObserverContext
+import com.google.common.base.Throwables
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
@@ -30,7 +31,7 @@ import org.apache.openwhisk.core.entity.CacheKey
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer)(implicit ec: ExecutionContext,
                                                                                         log: Logging)
@@ -46,6 +47,8 @@ class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventPr
       case Success(_) =>
         MetricEmitter.emitCounterMetric(feedCounter, docs.size)
         recordLag(context, docs.last)
+      case Failure(t) =>
+        log.warn(this, "Error occurred while sending cache invalidation message " + Throwables.getStackTraceAsString(t))
     }
   }
 }
