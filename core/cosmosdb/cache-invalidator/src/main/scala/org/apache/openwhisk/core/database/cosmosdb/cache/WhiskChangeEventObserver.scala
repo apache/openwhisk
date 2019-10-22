@@ -18,11 +18,10 @@
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.Done
-import akka.event.slf4j.SLF4JLogging
 import com.azure.data.cosmos.CosmosItemProperties
 import com.azure.data.cosmos.internal.changefeed.ChangeFeedObserverContext
 import kamon.metric.MeasurementUnit
-import org.apache.openwhisk.common.{LogMarkerToken, MetricEmitter}
+import org.apache.openwhisk.common.{LogMarkerToken, Logging, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBUtil.unescapeId
@@ -33,7 +32,8 @@ import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Success
 
-class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer)(implicit ec: ExecutionContext)
+class WhiskChangeEventObserver(config: InvalidatorConfig, eventProducer: EventProducer)(implicit ec: ExecutionContext,
+                                                                                        log: Logging)
     extends ChangeFeedObserver {
   import WhiskChangeEventObserver._
 
@@ -54,7 +54,7 @@ trait EventProducer {
   def send(msg: Seq[String]): Future[Done]
 }
 
-object WhiskChangeEventObserver extends SLF4JLogging {
+object WhiskChangeEventObserver {
   val instanceId = "cache-invalidator"
   private val feedCounter =
     LogMarkerToken("cosmosdb", "change_feed", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
@@ -91,7 +91,7 @@ object WhiskChangeEventObserver extends SLF4JLogging {
     lsn.toLong
   }
 
-  def processDocs(docs: Seq[CosmosItemProperties], config: InvalidatorConfig): Seq[String] = {
+  def processDocs(docs: Seq[CosmosItemProperties], config: InvalidatorConfig)(implicit log: Logging): Seq[String] = {
     docs
       .filter { doc =>
         val cid = Option(doc.getString(CosmosDBConstants.clusterId))
@@ -105,7 +105,7 @@ object WhiskChangeEventObserver extends SLF4JLogging {
       }
       .map { doc =>
         val id = unescapeId(doc.id())
-        log.info("Changed doc [{}]", id)
+        log.info(this, s"Changed doc [$id]")
         val event = CacheInvalidationMessage(CacheKey(id), instanceId)
         event.serialize
       }

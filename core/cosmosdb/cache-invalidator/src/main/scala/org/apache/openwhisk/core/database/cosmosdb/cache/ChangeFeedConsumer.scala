@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 import java.util
 
 import akka.Done
-import akka.event.slf4j.SLF4JLogging
 import com.azure.data.cosmos.internal.changefeed.implementation.ChangeFeedProcessorBuilderImpl
 import com.azure.data.cosmos.internal.changefeed.{ChangeFeedObserverCloseReason, ChangeFeedObserverContext}
 import com.azure.data.cosmos.{
@@ -31,6 +30,7 @@ import com.azure.data.cosmos.{
   CosmosContainer,
   CosmosItemProperties
 }
+import org.apache.openwhisk.common.Logging
 import reactor.core.publisher.Mono
 
 import scala.collection.JavaConverters._
@@ -43,11 +43,11 @@ trait ChangeFeedObserver {
 }
 
 class ChangeFeedConsumer(collName: String, config: CacheInvalidatorConfig, observer: ChangeFeedObserver)(
-  implicit ec: ExecutionContext)
-    extends SLF4JLogging {
+  implicit ec: ExecutionContext,
+  log: Logging) {
   import ChangeFeedConsumer._
 
-  log.info(s"Watching changes in $collName with lease managed in ${config.feedConfig.leaseCollection}")
+  log.info(this, s"Watching changes in $collName with lease managed in ${config.feedConfig.leaseCollection}")
 
   private val clients = scala.collection.mutable.Map[ConnectionInfo, CosmosClient]().withDefault(createCosmosClient)
   private val targetContainer = getContainer(collName)

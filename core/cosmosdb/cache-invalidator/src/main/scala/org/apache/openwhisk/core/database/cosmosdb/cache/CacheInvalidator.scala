@@ -18,22 +18,24 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.event.slf4j.SLF4JLogging
 import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
+import com.google.common.base.Throwables
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.RemoteCacheInvalidation.cacheInvalidationTopic
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-object CacheInvalidator extends SLF4JLogging {
+object CacheInvalidator {
 
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
 
-  def start(globalConfig: Config)(implicit system: ActorSystem, materializer: ActorMaterializer): Future[Done] = {
+  def start(
+    globalConfig: Config)(implicit system: ActorSystem, materializer: ActorMaterializer, log: Logging): Future[Done] = {
     implicit val ec: ExecutionContext = system.dispatcher
     val config = CacheInvalidatorConfig(globalConfig)
     val producer =
@@ -46,22 +48,22 @@ object CacheInvalidator extends SLF4JLogging {
     feedConsumer.isStarted.andThen {
       case Success(_) =>
         registerShutdownTasks(system, feedConsumer, producer)
-        log.info(s"Started the Cache invalidator service. ClusterId [${config.invalidatorConfig.clusterId}]")
+        log.info(this, s"Started the Cache invalidator service. ClusterId [${config.invalidatorConfig.clusterId}]")
       case Failure(t) =>
-        log.error("Error occurred while starting the Consumer", t)
+        log.error(this, "Error occurred while starting the Consumer" + Throwables.getStackTraceAsString(t))
     }
   }
 
   private def registerShutdownTasks(system: ActorSystem,
                                     feedConsumer: ChangeFeedConsumer,
-                                    producer: KafkaEventProducer)(implicit ec: ExecutionContext): Unit = {
+                                    producer: KafkaEventProducer)(implicit ec: ExecutionContext, log: Logging): Unit = {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeFeedListeners") { () =>
       feedConsumer
         .close()
         .flatMap { _ =>
           producer.close().andThen {
             case Success(_) =>
-              log.info("Kafka producer successfully shutdown")
+              log.info(this, "Kafka producer successfully shutdown")
           }
         }
     }
