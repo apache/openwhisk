@@ -50,7 +50,7 @@ class BlockingInvokeOneActionSimulation extends Simulation {
   val async = sys.env.getOrElse("ASYNC", "false").toBoolean
 
   val actionName = "testActionForBlockingInvokeOneAction"
-  val actionfile = if (async) "nodeJSAsyncAction.js" else "nodeJSAction.js"
+  val actionfile = if (async) "/data/nodeJSAsyncAction.js" else "/data/nodeJSAction.js"
 
   // Define scenario
   val test: ScenarioBuilder = scenario(s"Invoke one ${if (async) "async" else "sync"} action blocking")

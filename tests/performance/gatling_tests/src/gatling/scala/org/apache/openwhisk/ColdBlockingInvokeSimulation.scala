@@ -46,7 +46,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol: OpenWhiskProtocolBuilder = openWhisk.apiHost(host)
 
-  val feeder = csv("users.csv").queue
+  val feeder = csv("data/users.csv").queue
 
   // Define scenario
   val test: ScenarioBuilder = scenario("Invoke one action blocking")
@@ -83,7 +83,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
     }
 
   private def actionCode = {
-    val code = ClasspathPackagedResource("nodeJSAction.js", getClass.getResource("nodeJSAction.js"))
+    val code = ClasspathPackagedResource("nodeJSAction.js", getClass.getResource("/data/nodeJSAction.js"))
       .string(StandardCharsets.UTF_8)
     //Pad the code with empty space to increase the stored code size
     if (codeSize > 0) code + " " * codeSize else code

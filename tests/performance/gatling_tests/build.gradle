@@ -16,7 +16,7 @@
  */
 
 plugins {
-    id "com.github.lkishalmi.gatling" version "3.2.9"
+    id "com.github.lkishalmi.gatling" version "3.2.1"
 }
 
 apply plugin: 'eclipse'
@@ -29,7 +29,7 @@ repositories {
 sourceSets {
     gatling {
         scala.srcDirs = ["src/gatling/scala/"]
-        resources.srcDirs = ["src/gatling/resoruces/"]
+        resources.srcDirs = ["src/gatling/resources/"]
     }
 }
 
