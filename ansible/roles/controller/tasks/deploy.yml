@@ -253,6 +253,8 @@
         "{{ controller.blackboxFraction }}"
       "CONFIG_whisk_loadbalancer_timeoutFactor":
         "{{ controller.timeoutFactor }}"
+      "CONFIG_whisk_loadbalancer_timeoutAddon":
+        "{{ controller.timeoutAddon }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"

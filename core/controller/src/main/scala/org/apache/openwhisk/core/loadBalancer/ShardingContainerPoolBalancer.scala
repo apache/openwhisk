@@ -594,9 +594,13 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  * Configuration for the sharding container pool balancer.
  *
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
- * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + 1m)
+ * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + timeoutAddon)
+ * @param timeoutAddon extra time to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + timeoutAddon)
  */
-case class ShardingContainerPoolBalancerConfig(managedFraction: Double, blackboxFraction: Double, timeoutFactor: Int)
+case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
+                                               blackboxFraction: Double,
+                                               timeoutFactor: Int,
+                                               timeoutAddon: Int)
 
 /**
  * State kept for each activation slot until completion.
