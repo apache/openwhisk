@@ -67,6 +67,27 @@ object InvokerReactive extends InvokerProvider {
               acknowledegment: AcknowledegmentMessage): Future[Any]
   }
 
+  /**
+   * Collect logs after the activation has finished.
+   *
+   * This method is called after an activation has finished. The logs gathered here are stored along the activation
+   * record in the database.
+   *
+   * @param transid transaction the activation ran in
+   * @param user the user who ran the activation
+   * @param activation the activation record
+   * @param container container used by the activation
+   * @param action action that was activated
+   * @return logs for the given activation
+   */
+  trait LogsCollector {
+    def apply(transid: TransactionId,
+              user: Identity,
+              activation: WhiskActivation,
+              container: Container,
+              action: ExecutableWhiskAction): Future[ActivationLogs]
+  }
+
   override def instance(
     config: WhiskConfig,
     instance: InvokerInstanceId,
@@ -159,6 +180,8 @@ class InvokerReactive(
     new MessagingActiveAck(producer, instance, sender)
   }
 
+  private val collectLogs = new LogStoreCollector(logsProvider)
+
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
     implicit val transid: TransactionId = tid
@@ -169,7 +192,7 @@ class InvokerReactive(
   private val childFactory = (f: ActorRefFactory) =>
     f.actorOf(
       ContainerProxy
-        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
+        .props(containerFactory.createContainer, ack, store, collectLogs, instance, poolConfig))
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
     ExecManifest.runtimesManifest.stemcells.flatMap {

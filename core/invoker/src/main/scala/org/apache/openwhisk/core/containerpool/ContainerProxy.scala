@@ -41,7 +41,7 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
+import org.apache.openwhisk.core.invoker.InvokerReactive.{ActiveAck, LogsCollector}
 import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.Future
@@ -221,21 +221,20 @@ case object RunCompleted
  * @param unusedTimeout time after which the container is automatically thrown away
  * @param pauseGrace time to wait for new work before pausing the container
  */
-class ContainerProxy(
-  factory: (TransactionId,
-            String,
-            ImageName,
-            Boolean,
-            ByteSize,
-            Int,
-            Option[ExecutableWhiskAction]) => Future[Container],
-  sendActiveAck: ActiveAck,
-  storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-  collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-  instance: InvokerInstanceId,
-  poolConfig: ContainerPoolConfig,
-  unusedTimeout: FiniteDuration,
-  pauseGrace: FiniteDuration)
+class ContainerProxy(factory: (TransactionId,
+                               String,
+                               ImageName,
+                               Boolean,
+                               ByteSize,
+                               Int,
+                               Option[ExecutableWhiskAction]) => Future[Container],
+                     sendActiveAck: ActiveAck,
+                     storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+                     collectLogs: LogsCollector,
+                     instance: InvokerInstanceId,
+                     poolConfig: ContainerPoolConfig,
+                     unusedTimeout: FiniteDuration,
+                     pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -706,21 +705,20 @@ class ContainerProxy(
 final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
 
 object ContainerProxy {
-  def props(
-    factory: (TransactionId,
-              String,
-              ImageName,
-              Boolean,
-              ByteSize,
-              Int,
-              Option[ExecutableWhiskAction]) => Future[Container],
-    ack: ActiveAck,
-    store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-    instance: InvokerInstanceId,
-    poolConfig: ContainerPoolConfig,
-    unusedTimeout: FiniteDuration = timeouts.idleContainer,
-    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+  def props(factory: (TransactionId,
+                      String,
+                      ImageName,
+                      Boolean,
+                      ByteSize,
+                      Int,
+                      Option[ExecutableWhiskAction]) => Future[Container],
+            ack: ActiveAck,
+            store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+            collectLogs: LogsCollector,
+            instance: InvokerInstanceId,
+            poolConfig: ContainerPoolConfig,
+            unusedTimeout: FiniteDuration = timeouts.idleContainer,
+            pauseGrace: FiniteDuration = timeouts.pauseGrace) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.

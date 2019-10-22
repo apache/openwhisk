@@ -231,8 +231,9 @@ class ContainerProxyTests
       response
   }
 
-  def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs(Vector.empty))) =
-    LoggedFunction {
+  class LoggedCollector(response: Future[ActivationLogs], invokeCallback: () => Unit)
+      extends InvokerReactive.LogsCollector {
+    val collector = LoggedFunction {
       (transid: TransactionId,
        user: Identity,
        activation: WhiskActivation,
@@ -240,6 +241,22 @@ class ContainerProxyTests
        action: ExecutableWhiskAction) =>
         response
     }
+
+    def calls = collector.calls
+
+    override def apply(transid: TransactionId,
+                       user: Identity,
+                       activation: WhiskActivation,
+                       container: Container,
+                       action: ExecutableWhiskAction) = {
+      invokeCallback()
+      collector(transid, user, activation, container, action)
+    }
+  }
+
+  def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs()),
+                      invokeCallback: () => Unit = () => Unit) =
+    new LoggedCollector(response, invokeCallback)
 
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
     Future.successful(())
@@ -548,10 +565,7 @@ class ContainerProxyTests
     val acker = createSyncAcker(concurrentAction)
     val store = createSyncStore
     val collector =
-      (_: TransactionId, _: Identity, _: WhiskActivation, _: Container, _: ExecutableWhiskAction) => {
-        container.logs(0.MB, false)(TransactionId.testing)
-        Future.successful(ActivationLogs())
-      }
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
 
     val machine =
       childActorOf(
