@@ -143,6 +143,10 @@ def logTestSetInfo(){
 }
 
 test {
+    // Use command line option "-D testResultsDirName=<name>" to change the default test results directory ("test-results").
+    // Specify a path relative to the build directory or an absolute path.
+    testResultsDirName = System.getProperty('testResultsDirName', testResultsDirName)
+
     exclude 'invokerShoot/**'
 }
 
