@@ -600,7 +600,7 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
 case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
                                                blackboxFraction: Double,
                                                timeoutFactor: Int,
-                                               timeoutAddon: Int)
+                                               timeoutAddon: FiniteDuration)
 
 /**
  * State kept for each activation slot until completion.
