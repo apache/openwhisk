@@ -34,7 +34,13 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage}
+import org.apache.openwhisk.core.connector.{
+  AcknowledegmentMessage,
+  ActivationMessage,
+  CombinedCompletionAndResultMessage,
+  CompletionMessage,
+  ResultMessage
+}
 import org.apache.openwhisk.core.containerpool.WarmingData
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
@@ -543,7 +549,129 @@ class ContainerProxyTests
       collector.calls should have size 0
       acker.calls should have size 1
       store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CompletionMessage]
     }
+  }
+
+  it should "respond with CombinedCompletionAndResultMessage for blocking invocation with no logs" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val blockingMessage = message.copy(blocking = true)
+    val (factory, container, acker, store, collector, machine) = createServices(noLogsAction)
+
+    sendActivationMessage(machine, blockingMessage, noLogsAction)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+
+      //For no log case log collector call should be zero
+      collector.calls should have size 0
+
+      //There would be only 1 call
+      // First with CombinedCompletionAndResultMessage
+      acker.calls should have size 1
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CombinedCompletionAndResultMessage]
+    }
+  }
+
+  it should "respond with ResultMessage and CompletionMessage for blocking invocation with logs" in within(timeout) {
+    val blockingMessage = message.copy(blocking = true)
+    val (factory, container, acker, store, collector, machine) = createServices(action)
+
+    sendActivationMessage(machine, blockingMessage, action)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+
+      //State related checks
+      collector.calls should have size 1
+
+      //There would be 2 calls
+      // First with ResultMessage
+      // Second with CompletionMessage.
+      acker.calls should have size 2
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[ResultMessage]
+      acker.calls.last._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "respond with only CompletionMessage for non blocking invocation with logs" in within(timeout) {
+    val nonBlockingMessage = message.copy(blocking = false)
+    val (factory, container, acker, store, collector, machine) = createServices(action)
+
+    sendActivationMessage(machine, nonBlockingMessage, action)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+
+      //For log case log collector call should be one
+      collector.calls should have size 1
+
+      //There would only be 1 call
+      // First with CompletionMessage
+      acker.calls should have size 1
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "respond with only CompletionMessage for non blocking invocation with no logs" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val nonBlockingMessage = message.copy(blocking = false)
+    val (factory, container, acker, store, collector, machine) = createServices(noLogsAction)
+
+    sendActivationMessage(machine, nonBlockingMessage, noLogsAction)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+
+      //For no log case log collector call should be zero
+      collector.calls should have size 0
+
+      //There would only be 1 call
+      // First with CompletionMessage
+      acker.calls should have size 1
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  private def createServices(action: ExecutableWhiskAction) = {
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker(action)
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    (factory, container, acker, store, collector, machine)
+  }
+
+  private def sendActivationMessage(machine: ActorRef, message: ActivationMessage, action: ExecutableWhiskAction) = {
+    machine ! Run(action, message)
+    expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, action)
+    expectMsg(Transition(machine, Running, Ready))
   }
 
   //This tests concurrency from the ContainerPool perspective - where multiple Run messages may be sent to ContainerProxy
