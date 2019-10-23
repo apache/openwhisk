@@ -26,6 +26,10 @@ import org.apache.openwhisk.core.invoker.InvokerReactive.LogsCollector
 import scala.concurrent.Future
 
 class LogStoreCollector(store: LogStore) extends LogsCollector {
+
+  override def logsToBeCollected(action: ExecutableWhiskAction): Boolean =
+    super.logsToBeCollected(action) && !store.logCollectionOutOfBand
+
   override def apply(transid: TransactionId,
                      user: Identity,
                      activation: WhiskActivation,
