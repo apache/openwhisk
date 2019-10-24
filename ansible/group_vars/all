@@ -90,6 +90,7 @@ controller:
   managedFraction: "{{ controller_managed_fraction | default(1.0 - (controller_blackbox_fraction | default(__controller_blackbox_fraction))) }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(__controller_blackbox_fraction) }}"
   timeoutFactor: "{{ controller_timeout_factor | default(2) }}"
+  timeoutAddon: "{{ controller_timeout_addon | default('1 m') }}"
   instances: "{{ groups['controllers'] | length }}"
   akka:
     provider: cluster
