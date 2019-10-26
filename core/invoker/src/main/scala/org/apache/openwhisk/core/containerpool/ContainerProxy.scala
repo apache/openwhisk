@@ -476,10 +476,9 @@ class ContainerProxy(factory: (TransactionId,
   }
 
   when(Pausing) {
-    case Event(ContainerPaused, data: WarmedData) => goto(Paused)
-    case Event(_: FailureMessage, data: WarmedData) =>
-      destroyContainer(data.container)
-    case _ => delay
+    case Event(ContainerPaused, data: WarmedData)   => goto(Paused)
+    case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
+    case _                                          => delay
   }
 
   when(Paused, stateTimeout = unusedTimeout) {
@@ -498,9 +497,7 @@ class ContainerProxy(factory: (TransactionId,
             rescheduleJob = true
             self ! job
         }
-        .map { _ =>
-          initializeAndRun(data.container, job)
-        }
+        .flatMap(_ => initializeAndRun(data.container, job))
         .map(_ => RunCompleted)
         .pipeTo(self)
       goto(Running) using data

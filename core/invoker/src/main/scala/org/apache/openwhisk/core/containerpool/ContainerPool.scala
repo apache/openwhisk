@@ -257,7 +257,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         prewarmedPool = prewarmedPool - sender()
       }
 
+      //backfill prewarms on every ContainerRemoved, just in case
       backfillPrewarms(false) //in case a prewarm is removed due to health failure or crash
+
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
     // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
