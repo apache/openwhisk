@@ -116,8 +116,7 @@ object WhiskEntity {
 
 object WhiskDocumentReader extends DocumentReader {
   override def read[A](ma: Manifest[A], value: JsValue) = {
-    val entityType = value.asJsObject.fields("entityType").convertTo[String]
-    val e = ma.runtimeClass match {
+    val doc = ma.runtimeClass match {
       case x if x == classOf[WhiskAction]         => WhiskAction.serdes.read(value)
       case x if x == classOf[WhiskActionMetaData] => WhiskActionMetaData.serdes.read(value)
       case x if x == classOf[WhiskPackage]        => WhiskPackage.serdes.read(value)
@@ -126,10 +125,16 @@ object WhiskDocumentReader extends DocumentReader {
       case x if x == classOf[WhiskRule]           => WhiskRule.serdes.read(value)
       case _                                      => throw DocumentUnreadable(Messages.corruptedEntity)
     }
-    if (e.entityType != entityType) {
-      throw DocumentTypeMismatchException(
-        s"document type ${e.entityType} did not match expected type ${entityType}.")
-    } else e
+    value.asJsObject.fields.get("entityType") match {
+      case Some( entityType ) => {
+        if (doc.entityType != entityType.convertTo[String]) {
+          throw DocumentTypeMismatchException(
+            s"document type ${doc.entityType} did not match expected type ${entityType.convertTo[String]}.")
+        }
+      }
+      case _ =>
+    }
+    doc
   }
 }
 

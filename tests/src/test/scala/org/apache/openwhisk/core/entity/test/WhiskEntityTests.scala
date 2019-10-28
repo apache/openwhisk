@@ -21,26 +21,11 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.entity.EntityPath
-import org.apache.openwhisk.core.entity.EntityName
-import org.apache.openwhisk.core.entity.WhiskAction
-import org.apache.openwhisk.core.entity.DocRevision
-import org.apache.openwhisk.core.entity.Parameters
-import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
-import org.apache.openwhisk.core.entity.SequenceExec
-import org.apache.openwhisk.core.entity.WhiskPackage
-import org.apache.openwhisk.core.entity.WhiskActivation
-import org.apache.openwhisk.core.entity.Subject
-import org.apache.openwhisk.core.entity.ActivationId
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, DocRevision, EntityName, EntityPath, FullyQualifiedEntityName, Parameters, ReducedRule, SequenceExec, Status, Subject, WhiskAction, WhiskActivation, WhiskDocumentReader, WhiskEntity, WhiskPackage, WhiskRule, WhiskTrigger}
 import java.time.Instant
 
+import org.apache.openwhisk.core.database.DocumentTypeMismatchException
 import spray.json.JsString
-import org.apache.openwhisk.core.entity.ActivationLogs
-import org.apache.openwhisk.core.entity.WhiskTrigger
-import org.apache.openwhisk.core.entity.ReducedRule
-import org.apache.openwhisk.core.entity.Status
-import org.apache.openwhisk.core.entity.WhiskEntity
-import org.apache.openwhisk.core.entity.WhiskRule
 
 @RunWith(classOf[JUnitRunner])
 class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
@@ -161,5 +146,39 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
     val trigger = WhiskTrigger(namespace, name)
     assertType(trigger, "trigger")
+  }
+  
+  behavior of "WhiskDocumentReader"
+
+  it should "check entities when deserialize" in {
+    def assertType(d: WhiskEntity, entityType: String) = {
+      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
+    }
+    val actionJson = "{\"annotations\": [], \"entityType\": \"action\", \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
+    val oldJson = "{\"annotations\": [], \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
+
+    try {
+      val action = WhiskDocumentReader.read(manifest[WhiskAction], actionJson)
+      assertType(action.asInstanceOf[WhiskEntity], "action")
+    } catch {
+      case _: DocumentTypeMismatchException =>
+        assert(false)
+    }
+
+    try {
+      val _ = WhiskDocumentReader.read(manifest[WhiskTrigger], actionJson)
+      assert(false)
+    } catch {
+      case _: DocumentTypeMismatchException =>
+        assert(true)
+    }
+
+    try {
+      val action = WhiskDocumentReader.read(manifest[WhiskAction], oldJson)
+      assertType(action.asInstanceOf[WhiskEntity], "action")
+    } catch {
+      case _: DocumentTypeMismatchException =>
+        assert(true)
+    }
   }
 }
