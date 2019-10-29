@@ -325,8 +325,7 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
             case Some(k) => k
             case None =>
               throw new DeserializationException(
-                s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes
-                  .mkString("'", "', '", "'")}")
+                s"the specified runtime '$kind' is not supported by this platform. Valid values are: '$runtimes'")
           }
 
           manifest.attached
