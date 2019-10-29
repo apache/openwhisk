@@ -25,7 +25,7 @@ import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, DocRevisi
 import java.time.Instant
 
 import org.apache.openwhisk.core.database.DocumentTypeMismatchException
-import spray.json.JsString
+import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
