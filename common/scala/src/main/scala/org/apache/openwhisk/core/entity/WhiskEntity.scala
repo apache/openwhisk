@@ -125,13 +125,9 @@ object WhiskDocumentReader extends DocumentReader {
       case x if x == classOf[WhiskRule]           => WhiskRule.serdes.read(value)
       case _                                      => throw DocumentUnreadable(Messages.corruptedEntity)
     }
-    value.asJsObject.fields.get("entityType") match {
-      case Some(JsString(entityType)) => {
-        if (doc.entityType != entityType) {
-          throw DocumentTypeMismatchException(
-            s"document type ${doc.entityType} did not match expected type ${entityType}.")
-        }
-      }
+    value.asJsObject.fields.get("entityType").foreach {
+      case JsString(entityType) if (doc.entityType != entityType) =>
+        throw DocumentTypeMismatchException(s"document type ${doc.entityType} did not match expected type $entityType.")
       case _ =>
     }
     doc
