@@ -24,7 +24,6 @@ import scala.Stream
 import scala.util.Try
 
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.database.{DocumentTypeMismatchException, DocumentUnreadable}
 import org.apache.openwhisk.http.Messages
 
@@ -126,10 +125,10 @@ object WhiskDocumentReader extends DocumentReader {
       case _ => throw DocumentUnreadable(Messages.corruptedEntity)
     }
     value.asJsObject.fields.get("entityType") match {
-      case Some(entityType) => {
-        if (doc.entityType != entityType.convertTo[String]) {
+      case Some(JsString(entityType)) => {
+        if (doc.entityType != entityType) {
           throw DocumentTypeMismatchException(
-            s"document type ${doc.entityType} did not match expected type ${entityType.convertTo[String]}.")
+            s"document type ${doc.entityType} did not match expected type ${entityType}.")
         }
       }
       case _ =>
