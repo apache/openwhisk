@@ -150,16 +150,32 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
   behavior of "WhiskDocumentReader"
 
-  it should "check entities when deserialize" in {
+  it should "check entityType when deserialize" in {
     def assertType(d: WhiskEntity, entityType: String) = {
       d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
     }
 
-    val actionJson = "{\"annotations\": [], \"entityType\": \"action\", \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
-    val oldJson = "{\"annotations\": [], \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
+    val json = """{
+                 |	"name": "action_test",
+                 |	"publish": false,
+                 |	"annotations": [],
+                 |	"version": "0.0.2",
+                 |	"entityType": "action",
+                 |	"exec": {
+                 |		"kind": "nodejs:10",
+                 |		"code": "foo",
+                 |		"binary": false
+                 |	},
+                 |	"parameters": [],
+                 |	"limits": {
+                 |		"timeout": 60000,
+                 |		"memory": 256
+                 |	},
+                 |	"namespace": "namespace"
+                 |}""".stripMargin.parseJson
 
     try {
-      val action = WhiskDocumentReader.read(manifest[WhiskAction], actionJson)
+      val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
       assertType(action.asInstanceOf[WhiskEntity], "action")
     } catch {
       case _: DocumentTypeMismatchException =>
@@ -167,15 +183,38 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     }
 
     try {
-      val _ = WhiskDocumentReader.read(manifest[WhiskTrigger], actionJson)
+      val _ = WhiskDocumentReader.read(manifest[WhiskTrigger], json)
       assert(false)
     } catch {
       case _: DocumentTypeMismatchException =>
         assert(true)
     }
+  }
+
+  it should "deserialize without entityType" in {
+    def assertType(d: WhiskEntity, entityType: String) = {
+      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
+    }
+    val json = """{
+                 |  "name": "action_test",
+                 |  "publish": false,
+                 |  "annotations": [],
+                 |  "version": "0.0.1",
+                 |  "exec": {
+                 |	   "kind": "nodejs:10",
+                 |    "code": "foo",
+                 |    "binary": false
+                 |  },
+                 |  "parameters": [],
+                 |  "limits": {
+                 |    "timeout": 60000,
+                 |    "memory": 256
+                 |  },
+                 |  "namespace": "namespace"
+                 |}""".stripMargin.parseJson
 
     try {
-      val action = WhiskDocumentReader.read(manifest[WhiskAction], oldJson)
+      val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
       assertType(action.asInstanceOf[WhiskEntity], "action")
     } catch {
       case _: DocumentTypeMismatchException =>
