@@ -147,13 +147,14 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     val trigger = WhiskTrigger(namespace, name)
     assertType(trigger, "trigger")
   }
-  
+
   behavior of "WhiskDocumentReader"
 
   it should "check entities when deserialize" in {
     def assertType(d: WhiskEntity, entityType: String) = {
       d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
     }
+
     val actionJson = "{\"annotations\": [], \"entityType\": \"action\", \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
     val oldJson = "{\"annotations\": [], \"exec\": { \"binary\": false, \"code\": \"\", \"kind\": \"nodejs:10\" }, \"limits\": { \"memory\": 256, \"timeout\": 60000 }, \"name\": \"name\",  \"namespace\": \"namespace\",  \"parameters\": [],  \"publish\": false,  \"version\": \"0.0.2\"}".parseJson
 
