@@ -324,7 +324,9 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
           val manifest = execManifests.resolveDefaultRuntime(kind) match {
             case Some(k) => k
             case None =>
-              throw new DeserializationException(s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes.mkString("'", "', '", "'")}")
+              throw new DeserializationException(
+                s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes
+                  .mkString("'", "', '", "'")}")
           }
 
           manifest.attached
