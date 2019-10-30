@@ -41,7 +41,7 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
+import org.apache.openwhisk.core.invoker.InvokerReactive.{ActiveAck, LogsCollector}
 import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.Future
@@ -221,21 +221,20 @@ case object RunCompleted
  * @param unusedTimeout time after which the container is automatically thrown away
  * @param pauseGrace time to wait for new work before pausing the container
  */
-class ContainerProxy(
-  factory: (TransactionId,
-            String,
-            ImageName,
-            Boolean,
-            ByteSize,
-            Int,
-            Option[ExecutableWhiskAction]) => Future[Container],
-  sendActiveAck: ActiveAck,
-  storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-  collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-  instance: InvokerInstanceId,
-  poolConfig: ContainerPoolConfig,
-  unusedTimeout: FiniteDuration,
-  pauseGrace: FiniteDuration)
+class ContainerProxy(factory: (TransactionId,
+                               String,
+                               ImageName,
+                               Boolean,
+                               ByteSize,
+                               Int,
+                               Option[ExecutableWhiskAction]) => Future[Container],
+                     sendActiveAck: ActiveAck,
+                     storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+                     collectLogs: LogsCollector,
+                     instance: InvokerInstanceId,
+                     poolConfig: ContainerPoolConfig,
+                     unusedTimeout: FiniteDuration,
+                     pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -631,23 +630,26 @@ class ContainerProxy(
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
+    val splitAckMessagesPendingLogCollection = collectLogs.logsToBeCollected(job.action)
     // Sending an active ack is an asynchronous operation. The result is forwarded as soon as
     // possible for blocking activations so that dependent activations can be scheduled. The
     // completion message which frees a load balancer slot is sent after the active ack future
     // completes to ensure proper ordering.
     val sendResult = if (job.msg.blocking) {
       activation.map { result =>
-        sendActiveAck(
-          tid,
-          result,
-          job.msg.blocking,
-          job.msg.rootControllerIndex,
-          job.msg.user.namespace.uuid,
-          ResultMessage(tid, result))
+        val msg =
+          if (splitAckMessagesPendingLogCollection) ResultMessage(tid, result)
+          else CombinedCompletionAndResultMessage(tid, result, instance)
+        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
       }
     } else {
       // For non-blocking request, do not forward the result.
-      Future.successful(())
+      if (splitAckMessagesPendingLogCollection) Future.successful(())
+      else
+        activation.map { result =>
+          val msg = CompletionMessage(tid, result, instance)
+          sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+        }
     }
 
     val context = UserContext(job.msg.user)
@@ -656,7 +658,7 @@ class ContainerProxy(
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
         // Skips log collection entirely, if the limit is set to 0
-        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+        if (!splitAckMessagesPendingLogCollection) {
           Future.successful(Right(activation))
         } else {
           val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
@@ -680,15 +682,17 @@ class ContainerProxy(
       .foreach { activation =>
         // Sending the completion message to the controller after the active ack ensures proper ordering
         // (result is received before the completion message for blocking invokes).
-        sendResult.onComplete(
-          _ =>
-            sendActiveAck(
-              tid,
-              activation,
-              job.msg.blocking,
-              job.msg.rootControllerIndex,
-              job.msg.user.namespace.uuid,
-              CompletionMessage(tid, activation, instance)))
+        if (splitAckMessagesPendingLogCollection) {
+          sendResult.onComplete(
+            _ =>
+              sendActiveAck(
+                tid,
+                activation,
+                job.msg.blocking,
+                job.msg.rootControllerIndex,
+                job.msg.user.namespace.uuid,
+                CompletionMessage(tid, activation, instance)))
+        }
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
@@ -706,21 +710,20 @@ class ContainerProxy(
 final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
 
 object ContainerProxy {
-  def props(
-    factory: (TransactionId,
-              String,
-              ImageName,
-              Boolean,
-              ByteSize,
-              Int,
-              Option[ExecutableWhiskAction]) => Future[Container],
-    ack: ActiveAck,
-    store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-    instance: InvokerInstanceId,
-    poolConfig: ContainerPoolConfig,
-    unusedTimeout: FiniteDuration = timeouts.idleContainer,
-    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+  def props(factory: (TransactionId,
+                      String,
+                      ImageName,
+                      Boolean,
+                      ByteSize,
+                      Int,
+                      Option[ExecutableWhiskAction]) => Future[Container],
+            ack: ActiveAck,
+            store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+            collectLogs: LogsCollector,
+            instance: InvokerInstanceId,
+            poolConfig: ContainerPoolConfig,
+            unusedTimeout: FiniteDuration = timeouts.idleContainer,
+            pauseGrace: FiniteDuration = timeouts.pauseGrace) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.

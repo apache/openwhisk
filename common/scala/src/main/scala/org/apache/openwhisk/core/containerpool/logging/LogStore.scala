@@ -50,6 +50,12 @@ trait LogStore {
   def containerParameters: Map[String, Set[String]]
 
   /**
+   * Determines if log collection is actually done by the implementation or done out of band by the
+   * underlying container orchestrator
+   */
+  val logCollectionOutOfBand: Boolean = false
+
+  /**
    * Collect logs after the activation has finished.
    *
    * This method is called after an activation has finished. The logs gathered here are stored along the activation
