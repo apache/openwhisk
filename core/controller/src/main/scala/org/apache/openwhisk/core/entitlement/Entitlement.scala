@@ -23,7 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 import scala.util.Success
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.{Forbidden, InternalServerError}
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import org.apache.openwhisk.core.entitlement.Privilege.ACTIVATE
 import org.apache.openwhisk.core.entitlement.Privilege.REJECT
@@ -186,7 +186,7 @@ protected[core] abstract class EntitlementProvider(
    * @return a promise that completes with true iff the subject is permitted to access the request resource
    */
   protected def entitled(user: Identity, right: Privilege, resource: Resource)(
-    implicit transid: TransactionId): Future[Boolean]
+    implicit transid: TransactionId): Future[Option[Boolean]]
 
   /**
    * Checks action activation rate throttles for an identity.
@@ -265,6 +265,21 @@ protected[core] abstract class EntitlementProvider(
   }
 
   /**
+   * Constructs a RejectRequest containing the resources for which access authorization check failed..
+   *
+   * @param resources resources for which access authorization check failed
+   * @return a RejectRequest with the appropriate message
+   */
+  private def checkAuthorizationFailureOn(resources: Set[Resource])(implicit transid: TransactionId) = {
+    RejectRequest(
+      InternalServerError,
+      Some(
+        ErrorResponse(
+          Messages.failedToCheckAccessResourceAuthorization(resources.map(_.fqname).toSeq.sorted.toSet.mkString(", ")),
+          transid)))
+  }
+
+  /**
    * Checks if a subject has the right to access a set of resources. The entitlement may be implicit,
    * that is, inferred based on namespaces that a subject belongs to and the namespace of the
    * resource for example, or explicit. The implicit check is computed here. The explicit check
@@ -291,9 +306,14 @@ protected[core] abstract class EntitlementProvider(
         throttleCheck
           .flatMap(_ => checkPrivilege(user, right, resources))
           .flatMap(checkedResources => {
-            val failedResources = checkedResources.filterNot(_._2)
-            if (failedResources.isEmpty) Future.successful(())
-            else Future.failed(unauthorizedOn(failedResources.map(_._1)))
+            val failedResources = checkedResources.filter(_._2 == None)
+            if (!(failedResources.isEmpty)) {
+              Future.failed(checkAuthorizationFailureOn(failedResources.map(_._1)))
+            } else {
+              val notEntitledResources = checkedResources.filterNot(_._2.get)
+              if (!(notEntitledResources.isEmpty)) Future.failed(unauthorizedOn(notEntitledResources.map(_._1)))
+              else Future.successful(())
+            }
           })
       } else Future.successful(())
     } else if (right != REJECT) {
@@ -322,7 +342,7 @@ protected[core] abstract class EntitlementProvider(
    * and the referenced package.
    */
   protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
+    implicit transid: TransactionId): Future[Set[(Resource, Option[Boolean])]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.name.asString)
     implicit val es: EntitlementProvider = this
@@ -330,7 +350,7 @@ protected[core] abstract class EntitlementProvider(
     Future.sequence {
       resources.map { resource =>
         resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
-          case true => Future.successful(resource -> true)
+          case true => Future.successful(resource -> Some(true))
           case false =>
             logging.debug(this, "checking explicit grants")
             entitled(user, right, resource).flatMap(b => Future.successful(resource -> b))
