@@ -292,7 +292,8 @@ case class Activation(name: String,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
-                      causedBy: Option[String])
+                      causedBy: Option[String],
+                      size: Option[Int] = None)
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
@@ -338,7 +339,8 @@ object Activation extends DefaultJsonProtocol {
       "kind",
       "conductor",
       "memory",
-      "causedBy")
+      "causedBy",
+      "size")
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
@@ -360,7 +362,8 @@ object Activation extends DefaultJsonProtocol {
           .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
           .map(_.memory.megabytes)
           .getOrElse(0),
-        a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption)
+        a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption,
+        a.response.size)
     }
   }
 

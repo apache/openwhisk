@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
-import org.apache.openwhisk.core.entity.ActivationResponse
+import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -41,6 +41,7 @@ trait PrometheusMetricNames extends MetricNames {
   val waitTimeMetric = "openwhisk_action_waitTime_seconds"
   val initTimeMetric = "openwhisk_action_initTime_seconds"
   val durationMetric = "openwhisk_action_duration_seconds"
+  val responseSizeMetric = "openwhisk_action_response_size_bytes"
   val statusMetric = "openwhisk_action_status"
   val memoryMetric = "openwhisk_action_memory"
 
@@ -104,6 +105,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
     private val initTime = initTimeHisto.labels(namespace, initiatorNamespace, action)
     private val duration = durationHisto.labels(namespace, initiatorNamespace, action)
+    private val responseSize = responseSizeHisto.labels(namespace, initiatorNamespace, action)
 
     private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
 
@@ -137,6 +139,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
         case ActivationResponse.statusWhiskError       => statusInternalError.inc()
         case x                                         => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
       }
+
+      a.size.foreach(responseSize.observe(_))
     }
   }
 
@@ -208,6 +212,14 @@ object PrometheusRecorder extends PrometheusMetricNames {
       actionNamespace,
       initiatorNamespace,
       actionName)
+  private val responseSizeHisto =
+    Histogram
+      .build()
+      .name(responseSizeMetric)
+      .help("Activation Response size")
+      .labelNames(actionNamespace, initiatorNamespace, actionName)
+      .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
+      .register()
   private val memoryGauge =
     gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
 

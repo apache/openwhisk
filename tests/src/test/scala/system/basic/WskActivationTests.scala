@@ -71,7 +71,10 @@ class WskActivationTests extends TestHelpers with WskTestHelpers with WskActorSy
     }
 
     withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
-      wsk.activation.result(Some(activation.activationId)).stdout.parseJson.asJsObject shouldBe expectedResult
+      val result = wsk.activation.result(Some(activation.activationId)).stdout.parseJson.asJsObject
+      //Remove size from comparison as its exact value may vary
+      val resultWithoutSize = JsObject(result.fields - "size")
+      resultWithoutSize shouldBe expectedResult
     }
   }
 }

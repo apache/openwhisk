@@ -289,7 +289,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             r.fields.get("application_error").map { e =>
               ActivationResponse.applicationError(e)
             } orElse r.fields.get("developer_error").map { e =>
-              ActivationResponse.developerError(e)
+              ActivationResponse.developerError(e, None)
             } orElse r.fields.get("whisk_error").map { e =>
               ActivationResponse.whiskError(e)
             } orElse None // for clarity

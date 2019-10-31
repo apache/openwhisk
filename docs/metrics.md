@@ -314,6 +314,7 @@ kind - action flavor, e.g. Node.js
 conductor - true for conductor backed actions
 memory - maximum memory allowed for action container
 causedBy - contains the "causedBy" annotation (can be "sequence" or nothing at the moment)
+size - size (in bytes) of the invocation response
 ```
 Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```
@@ -324,12 +325,42 @@ ConcurrentInvocations - the number of in flight invocations per user.
 
 Example events that could be consumed from Kafka.
 Activation:
-```
-{"body":{"statusCode":0,"duration":3,"name":"whisk.system/invokerHealthTestAction0","waitTime":583915671,"conductor":false,"kind":"nodejs:6","initTime":0,"memory": 256, "causedBy": false},"eventType":"Activation","source":"invoker0","subject":"whisk.system","timestamp":1524476122676,"userId":"d0888ad5-5a92-435e-888a-d55a92935e54","namespace":"whisk.system"}
+```json
+{
+  "body": {
+    "statusCode": 0,
+    "duration": 3,
+    "name": "whisk.system/invokerHealthTestAction0",
+    "waitTime": 583915671,
+    "conductor": false,
+    "kind": "nodejs:6",
+    "initTime": 0,
+    "memory": 256,
+    "size": 463,
+    "causedBy": false
+  },
+  "eventType": "Activation",
+  "source": "invoker0",
+  "subject": "whisk.system",
+  "timestamp": 1524476122676,
+  "userId": "d0888ad5-5a92-435e-888a-d55a92935e54",
+  "namespace": "whisk.system"
+}
 ```
 Metric:
-```
-{"body":{"metricName":"ConcurrentInvocations","metricValue":1},"eventType":"Metric","source":"controller0","subject":"guest","timestamp":1524476104419,"userId":"23bc46b1-71f6-4ed5-8c54-816aa4f8c502","namespace":"guest"}
+```json
+{
+  "body": {
+    "metricName": "ConcurrentInvocations",
+    "metricValue": 1
+  },
+  "eventType": "Metric",
+  "source": "controller0",
+  "subject": "guest",
+  "timestamp": 1524476104419,
+  "userId": "23bc46b1-71f6-4ed5-8c54-816aa4f8c502",
+  "namespace": "guest"
+}
 ```
 
 ### User-events consumer service
