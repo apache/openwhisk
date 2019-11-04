@@ -30,6 +30,7 @@ import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.size.SizeString
 import pureconfig.loadConfigOrThrow
+import org.apache.openwhisk.http._
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -323,10 +324,7 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
           // map "default" virtual runtime versions to the currently blessed actual runtime version
           val manifest = execManifests.resolveDefaultRuntime(kind) match {
             case Some(k) => k
-            case None =>
-              throw new DeserializationException(
-                s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes
-                  .mkString("'", "', '", "'")}")
+            case None    => throw new DeserializationException(Messages.invalidRuntimeError(kind, runtimes))
           }
 
           manifest.attached

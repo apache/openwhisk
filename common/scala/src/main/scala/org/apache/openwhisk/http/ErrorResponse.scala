@@ -156,6 +156,11 @@ object Messages {
   def listLimitOutOfRange(collection: String, value: Int, max: Int) = {
     s"The value '$value' is not in the range of 0 to $max for $collection."
   }
+
+  def invalidRuntimeError(kind: String, runtimes: Set[String]) = {
+    s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes.mkString("'", "', '", "'")}."
+  }
+
   def listSkipOutOfRange(collection: String, value: Int) = {
     s"The value '$value' is not greater than or equal to 0 for $collection."
   }
