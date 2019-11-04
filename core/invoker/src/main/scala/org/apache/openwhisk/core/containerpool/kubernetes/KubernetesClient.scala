@@ -47,7 +47,7 @@ import spray.json._
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -99,7 +99,7 @@ class KubernetesClient(
     .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
   config.actionNamespace match {
     case Some(s) => configBuilder.withNamespace(s)
-    case _ =>
+    case _       =>
   }
   implicit protected val kubeRestClient = new DefaultKubernetesClient(
     configBuilder
@@ -447,7 +447,7 @@ protected[core] final case class TypedLogLine(time: Instant, stream: String, log
 
 protected[core] object TypedLogLine {
 
-  import KubernetesClient.{K8STimestampFormat, parseK8STimestamp}
+  import KubernetesClient.{parseK8STimestamp, K8STimestampFormat}
 
   def readInstant(json: JsValue): Instant = json match {
     case JsString(str) =>
