@@ -47,7 +47,7 @@ import spray.json._
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, blocking}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -76,6 +76,7 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   invokerAgent: KubernetesInvokerAgentConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
+                                  actionNamespace: Option[String] = None,
                                   podTemplate: Option[ConfigMapValue] = None)
 
 /**
@@ -93,10 +94,15 @@ class KubernetesClient(
     with ProcessRunner {
   implicit protected val ec = executionContext
   implicit protected val am = ActorMaterializer()
+  protected val configBuilder = new ConfigBuilder()
+    .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
+    .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
+  config.actionNamespace match {
+    case Some(s) => configBuilder.withNamespace(s)
+    case _ =>
+  }
   implicit protected val kubeRestClient = new DefaultKubernetesClient(
-    new ConfigBuilder()
-      .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
-      .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
+    configBuilder
       .build())
 
   private val podBuilder = new WhiskPodBuilder(kubeRestClient, config.userPodNodeAffinity, config.podTemplate)
@@ -441,7 +447,7 @@ protected[core] final case class TypedLogLine(time: Instant, stream: String, log
 
 protected[core] object TypedLogLine {
 
-  import KubernetesClient.{parseK8STimestamp, K8STimestampFormat}
+  import KubernetesClient.{K8STimestampFormat, parseK8STimestamp}
 
   def readInstant(json: JsValue): Instant = json match {
     case JsString(str) =>
