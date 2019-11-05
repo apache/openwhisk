@@ -186,7 +186,7 @@ protected[core] abstract class EntitlementProvider(
    * @return a promise that completes with true iff the subject is permitted to access the request resource
    */
   protected def entitled(user: Identity, right: Privilege, resource: Resource)(
-    implicit transid: TransactionId): Future[Option[Boolean]]
+    implicit transid: TransactionId): Future[Boolean]
 
   /**
    * Checks action activation rate throttles for an identity.
@@ -306,15 +306,16 @@ protected[core] abstract class EntitlementProvider(
         throttleCheck
           .flatMap(_ => checkPrivilege(user, right, resources))
           .flatMap(checkedResources => {
-            val failedResources = checkedResources.filter(_._2 == None)
-            if (!(failedResources.isEmpty)) {
-              Future.failed(checkAuthorizationFailureOn(failedResources.map(_._1)))
-            } else {
-              val notEntitledResources = checkedResources.filterNot(_._2.get)
-              if (!(notEntitledResources.isEmpty)) Future.failed(unauthorizedOn(notEntitledResources.map(_._1)))
-              else Future.successful(())
-            }
+            val failedResources = checkedResources.filterNot(_._2)
+            if (failedResources.isEmpty) Future.successful(())
+            else Future.failed(unauthorizedOn(failedResources.map(_._1)))
           })
+          .recoverWith {
+            case e =>
+              logging
+                .info(this, s"failed to check resources: ${e.getMessage}")
+              Future.failed(checkAuthorizationFailureOn(resources))
+          }
       } else Future.successful(())
     } else if (right != REJECT) {
       logging.debug(
@@ -342,7 +343,7 @@ protected[core] abstract class EntitlementProvider(
    * and the referenced package.
    */
   protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Future[Set[(Resource, Option[Boolean])]] = {
+    implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.name.asString)
     implicit val es: EntitlementProvider = this
@@ -350,7 +351,7 @@ protected[core] abstract class EntitlementProvider(
     Future.sequence {
       resources.map { resource =>
         resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
-          case true => Future.successful(resource -> Some(true))
+          case true => Future.successful(resource -> true)
           case false =>
             logging.debug(this, "checking explicit grants")
             entitled(user, right, resource).flatMap(b => Future.successful(resource -> b))

@@ -62,11 +62,11 @@ protected[core] class LocalEntitlementProvider(
 
   /** Checks if subject has explicit grant for a resource. */
   protected override def entitled(user: Identity, right: Privilege, resource: Resource)(
-    implicit transid: TransactionId): Future[Option[Boolean]] = Future.successful {
+    implicit transid: TransactionId) = Future.successful {
     val subject = user.subject
     lazy val one = matrix.get((subject, resource.id)) map { _ contains right } getOrElse false
     lazy val any = matrix.get((subject, resource.parent)) map { _ contains right } getOrElse false
-    Some(one || any)
+    one || any
   }
 }
 
