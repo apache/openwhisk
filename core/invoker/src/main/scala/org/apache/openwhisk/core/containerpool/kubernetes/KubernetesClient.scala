@@ -94,16 +94,13 @@ class KubernetesClient(
     with ProcessRunner {
   implicit protected val ec = executionContext
   implicit protected val am = ActorMaterializer()
-  protected val configBuilder = new ConfigBuilder()
-    .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
-    .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
-  config.actionNamespace match {
-    case Some(s) => configBuilder.withNamespace(s)
-    case _       =>
+  implicit protected val kubeRestClient = {
+    val configBuilder = new ConfigBuilder()
+      .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
+      .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
+    config.actionNamespace.foreach(configBuilder.withNamespace)
+    new DefaultKubernetesClient(configBuilder.build())
   }
-  implicit protected val kubeRestClient = new DefaultKubernetesClient(
-    configBuilder
-      .build())
 
   private val podBuilder = new WhiskPodBuilder(kubeRestClient, config.userPodNodeAffinity, config.podTemplate)
 
