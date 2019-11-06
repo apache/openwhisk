@@ -273,6 +273,7 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
+  def healthchecksConfig(enabled: Boolean = false) = ContainerProxyHealthCheckConfig(enabled, 100.milliseconds, 2)
   val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 
   behavior of "ContainerProxy"
@@ -309,6 +310,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, Some("myname"), userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -338,6 +340,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -382,6 +385,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -445,6 +449,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -495,6 +500,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -535,6 +541,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -663,6 +670,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     (factory, container, acker, store, collector, machine)
@@ -706,6 +714,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace)
           .withDispatcher(CallingThreadDispatcher.Id))
     registerCallback(machine)
@@ -827,6 +836,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
@@ -900,6 +910,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -944,6 +955,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -992,6 +1004,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1030,6 +1043,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1067,6 +1081,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1108,6 +1123,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
@@ -1129,7 +1145,81 @@ class ContainerProxyTests
       container.destroyCount shouldBe 1
     }
   }
+  it should "resend the job to the parent if a resumed container fails healthcheck" in within(timeout) {
+    //in this case the resume succeeds, but the health check fails
+    val container = new TestContainer {}
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
 
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            createCollector(),
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(true), //this will enable health check, which will fail on resume
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    run(machine, Uninitialized) // first run an activation
+    timeout(machine) // times out Ready state so container suspends
+    expectPause(machine)
+
+    val runMessage = Run(action, message)
+    machine ! runMessage
+    expectMsg(Transition(machine, Paused, Running))
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(runMessage)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.runCount shouldBe 1
+      container.suspendCount shouldBe 1
+      container.resumeCount shouldBe 1
+      container.destroyCount shouldBe 1
+    }
+  }
+  it should "remove and replace a prewarm container if it fails healthcheck after startup" in within(timeout) {
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(true),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    preWarm(machine)
+
+    //expect failure after healthchecks fail
+    expectMsg(ContainerRemoved)
+    expectMsg(Transition(machine, Started, Removing))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 0
+      container.runCount shouldBe 0
+      collector.calls should have size 0
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 0
+    }
+  }
   it should "remove the container if suspend fails" in within(timeout) {
     val container = new TestContainer {
       override def suspend()(implicit transid: TransactionId) = {
@@ -1151,6 +1241,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -1196,6 +1287,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -1255,6 +1347,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -1303,6 +1396,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -1390,7 +1484,7 @@ class ContainerProxyTests
                       apiKeyMustBePresent: Boolean = true)
       extends Container {
     protected[core] val id = ContainerId("testcontainer")
-    protected val addr = ContainerAddress("0.0.0.0")
+    protected[core] val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher
     override implicit protected val as: ActorSystem = system

@@ -79,13 +79,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   //periodically emit metrics (don't need to do this for each message!)
   context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
 
-  prewarmConfig.foreach { config =>
-    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
-      TransactionId.invokerWarmup)
-    (1 to config.count).foreach { _ =>
-      prewarmContainer(config.exec, config.memoryLimit)
-    }
-  }
+  backfillPrewarms(true)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -256,6 +250,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool - sender()
       }
       processBufferOrFeed()
+
+      //in case this was a prewarm
+      prewarmedPool.get(sender()).foreach { _ =>
+        logging.info(this, "failed prewarm removed")
+        prewarmedPool = prewarmedPool - sender()
+      }
+
+      backfillPrewarms(false) //in case a prewarm is removed due to health failure or crash
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
     // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
@@ -284,6 +286,27 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         }
       case None => //feed me!
         feed ! MessageFeed.Processed
+    }
+  }
+
+  /** Install prewarm containers up to the configured requirements for each kind/memory combination. */
+  def backfillPrewarms(init: Boolean) = {
+    prewarmConfig.foreach { config =>
+      val kind = config.exec.kind
+      val memory = config.memoryLimit
+      val currentCount = prewarmedPool.count {
+        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
+        case _                                          => false
+      }
+      if (currentCount < config.count) {
+        logging.info(
+          this,
+          s"found ${currentCount} ${if (init) "initing" else "backfilling"} pre-warms to count: ${config.count} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+        (currentCount until config.count).foreach { i =>
+          prewarmContainer(config.exec, config.memoryLimit)
+        }
+      }
     }
   }
 

@@ -48,6 +48,7 @@ case class ContainerId(asString: String) {
 }
 case class ContainerAddress(host: String, port: Int = 8080) {
   require(host.nonEmpty, "ContainerIp must not be empty")
+  def asString() = s"${host}:${port}"
 }
 
 object Container {
@@ -72,7 +73,7 @@ trait Container {
 
   implicit protected val as: ActorSystem
   protected val id: ContainerId
-  protected val addr: ContainerAddress
+  protected[core] val addr: ContainerAddress
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
 

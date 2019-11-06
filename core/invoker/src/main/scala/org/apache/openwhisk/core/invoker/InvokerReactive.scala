@@ -107,9 +107,9 @@ class InvokerReactive(
   instance: InvokerInstanceId,
   producer: MessageProducer,
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
-  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
+  limitsConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit),
+  healthchecksConfig: ContainerProxyHealthCheckConfig = loadConfigOrThrow[ContainerProxyHealthCheckConfig](
+    ConfigKeys.containerProxyHealth))(implicit actorSystem: ActorSystem, logging: Logging)
     extends InvokerCore {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -196,7 +196,7 @@ class InvokerReactive(
   private val childFactory = (f: ActorRefFactory) =>
     f.actorOf(
       ContainerProxy
-        .props(containerFactory.createContainer, ack, store, collectLogs, instance, poolConfig))
+        .props(containerFactory.createContainer, ack, store, collectLogs, instance, poolConfig, healthchecksConfig))
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
     ExecManifest.runtimesManifest.stemcells.flatMap {
