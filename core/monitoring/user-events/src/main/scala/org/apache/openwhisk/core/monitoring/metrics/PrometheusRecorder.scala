@@ -102,7 +102,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
                                    kind: String,
                                    memory: String,
                                    initiatorNamespace: String) {
-    private val namespaceActivations = namespaceActivationCounter.labels(namespace, initiatorNamespace, kind, memory)
+    private val namespaceActivations = namespaceActivationCounter.labels(namespace, initiatorNamespace)
     private val activations = activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
     private val coldStarts = coldStartCounter.labels(namespace, initiatorNamespace, action)
     private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
@@ -190,13 +190,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 
 object PrometheusRecorder extends PrometheusMetricNames {
   private val namespaceActivationCounter =
-    counter(
-      namespaceMetric,
-      "Namespace activations Count",
-      actionNamespace,
-      initiatorNamespace,
-      actionKind,
-      actionMemory)
+    counter(namespaceMetric, "Namespace activations Count", actionNamespace, initiatorNamespace)
   private val activationCounter =
     counter(
       activationMetric,

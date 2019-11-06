@@ -90,11 +90,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
         `actionKind` -> kind,
         `actionMemory` -> memory)
     private val namespaceActivationsTags =
-      Map(
-        `actionNamespace` -> namespace,
-        `initiatorNamespace` -> initiator,
-        `actionKind` -> kind,
-        `actionMemory` -> memory)
+      Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator)
     private val tags = Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action)
 
     private val namespaceActivations = Kamon.counter(namespaceActivationMetric).refine(namespaceActivationsTags)

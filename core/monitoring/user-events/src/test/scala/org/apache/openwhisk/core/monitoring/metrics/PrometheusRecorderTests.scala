@@ -110,8 +110,8 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   private def namespaceCounterTotal(metricName: String, namespace: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       metricName,
-      Array("namespace", "initiator", "kind", "memory"),
-      Array(namespace, initiator, kind, memory))
+      Array("namespace", "initiator"),
+      Array(namespace, initiator))
 
   private def counterStatus(metricName: String, namespace: String, action: String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
