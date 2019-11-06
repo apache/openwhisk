@@ -29,6 +29,7 @@ import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse}
 
 import scala.collection.JavaConverters._
@@ -36,6 +37,7 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 
 trait PrometheusMetricNames extends MetricNames {
+  val namespaceMetric = "openwhisk_namespace_activations_total"
   val activationMetric = "openwhisk_action_activations_total"
   val coldStartMetric = "openwhisk_action_coldStarts_total"
   val waitTimeMetric = "openwhisk_action_waitTime_seconds"
@@ -57,19 +59,19 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
   private val activationMetrics = new TrieMap[String, ActivationPromMetrics]
   private val limitMetrics = new TrieMap[String, LimitPromMetrics]
 
-  override def processActivation(activation: Activation, initiatorNamespace: String): Unit = {
-    lookup(activation, initiatorNamespace).record(activation)
+  override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
+    lookup(activation, initiator).record(activation, initiator, metricConfig)
   }
 
-  override def processMetric(metric: Metric, initiatorNamespace: String): Unit = {
-    val limitMetric = limitMetrics.getOrElseUpdate(initiatorNamespace, LimitPromMetrics(initiatorNamespace))
+  override def processMetric(metric: Metric, initiator: String): Unit = {
+    val limitMetric = limitMetrics.getOrElseUpdate(initiator, LimitPromMetrics(initiator))
     limitMetric.record(metric)
   }
 
   override def getReport(): MessageEntity =
     HttpEntity(PrometheusExporter.textV4, createSource())
 
-  private def lookup(activation: Activation, initiatorNamespace: String): ActivationPromMetrics = {
+  private def lookup(activation: Activation, initiator: String): ActivationPromMetrics = {
     //TODO Unregister unused actions
     val name = activation.name
     val kind = activation.kind
@@ -77,7 +79,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     val namespace = activation.namespace
     val action = activation.action
     activationMetrics.getOrElseUpdate(name, {
-      ActivationPromMetrics(namespace, action, kind, memory, initiatorNamespace)
+      ActivationPromMetrics(namespace, action, kind, memory, initiator)
     })
   }
 
@@ -100,6 +102,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
                                    kind: String,
                                    memory: String,
                                    initiatorNamespace: String) {
+    private val namespaceActivations = namespaceActivationCounter.labels(namespace, initiatorNamespace)
     private val activations = activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
     private val coldStarts = coldStartCounter.labels(namespace, initiatorNamespace, action)
     private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
@@ -118,7 +121,16 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
     private val statusInternalError =
       statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
-    def record(a: Activation): Unit = {
+    def record(a: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
+      namespaceActivations.inc()
+
+      // only record activation if not executed in an ignored namespace
+      if (!metricConfig.ignoredNamespaces.contains(a.namespace)) {
+        recordActivation(a, initiator)
+      }
+    }
+
+    def recordActivation(a: Activation, initiator: String): Unit = {
       gauge.set(a.memory)
 
       activations.inc()
@@ -137,7 +149,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
         case ActivationResponse.statusApplicationError => statusApplicationError.inc()
         case ActivationResponse.statusDeveloperError   => statusDeveloperError.inc()
         case ActivationResponse.statusWhiskError       => statusInternalError.inc()
-        case x                                         => statusCounter.labels(namespace, initiatorNamespace, action, x).inc()
+        case x                                         => statusCounter.labels(namespace, initiator, action, x).inc()
       }
 
       a.size.foreach(responseSize.observe(_))
@@ -177,6 +189,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
 }
 
 object PrometheusRecorder extends PrometheusMetricNames {
+  private val namespaceActivationCounter =
+    counter(namespaceMetric, "Namespace activations Count", actionNamespace, initiatorNamespace)
   private val activationCounter =
     counter(
       activationMetric,

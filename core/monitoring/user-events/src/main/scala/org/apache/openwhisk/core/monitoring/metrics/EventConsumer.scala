@@ -39,15 +39,16 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
 import org.apache.openwhisk.core.entity.ActivationResponse
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 trait MetricRecorder {
-  def processActivation(activation: Activation, initiatorNamespace: String): Unit
+  def processActivation(activation: Activation, initiatorNamespace: String, metricConfig: MetricConfig): Unit
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
-case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder])(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer)
+case class EventConsumer(settings: ConsumerSettings[String, String],
+                         recorders: Seq[MetricRecorder],
+                         metricConfig: MetricConfig)(implicit system: ActorSystem, materializer: ActorMaterializer)
     extends KafkaMetricsProvider {
   import EventConsumer._
 
@@ -110,7 +111,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
       .foreach { e =>
         e.body match {
           case a: Activation =>
-            recorders.foreach(_.processActivation(a, e.namespace))
+            recorders.foreach(_.processActivation(a, e.namespace, metricConfig))
             updateGlobalMetrics(a)
           case m: Metric =>
             recorders.foreach(_.processMetric(m, e.namespace))
