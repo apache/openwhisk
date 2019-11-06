@@ -332,7 +332,7 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
                            count: Boolean): SqlQuerySpec = {
     require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
     (ddoc, view) match {
-      case ("subjects", "identities") =>
+      case (s, "identities") if s.startsWith("subjects") =>
         queryForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey, count)
       case ("namespaceThrottlings", "blockedNamespaces") =>
         queryForBlacklistedNamespace(count)
