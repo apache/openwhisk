@@ -21,6 +21,9 @@ import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
 import akka.http.scaladsl.model.{ContentType, MessageEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import org.apache.openwhisk.connector.kafka.KafkaMetricRoute
+
+import scala.concurrent.ExecutionContext
 
 trait PrometheusExporter {
   def getReport(): MessageEntity
@@ -30,7 +33,7 @@ object PrometheusExporter {
   val textV4: ContentType = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
 }
 
-class PrometheusEventsApi(consumer: EventConsumer, prometheus: PrometheusExporter) {
+class PrometheusEventsApi(consumer: EventConsumer, prometheus: PrometheusExporter)(implicit ec: ExecutionContext) {
   val routes: Route = {
     get {
       path("ping") {
@@ -43,7 +46,7 @@ class PrometheusEventsApi(consumer: EventConsumer, prometheus: PrometheusExporte
         encodeResponse {
           complete(prometheus.getReport())
         }
-      }
+      } ~ KafkaMetricRoute(consumer)
     }
   }
 }

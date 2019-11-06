@@ -25,34 +25,49 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.Matcher
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
-class ApiTests extends FlatSpec with Matchers with ScalatestRouteTest with EventsTestHelper with ScalaFutures {
+class ApiTests
+    extends FlatSpec
+    with Matchers
+    with ScalatestRouteTest
+    with EventsTestHelper
+    with ScalaFutures
+    with BeforeAndAfterAll {
   implicit val timeoutConfig = PatienceConfig(1.minute)
+
+  private var api: PrometheusEventsApi = _
+  private var consumer: EventConsumer = _
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    consumer = createConsumer(56754, system.settings.config)
+    api = new PrometheusEventsApi(consumer, createExporter())
+  }
+
+  protected override def afterAll(): Unit = {
+    consumer.shutdown().futureValue
+    super.afterAll()
+  }
+
   behavior of "EventsApi"
 
   it should "respond ping request" in {
-    val consumer = createConsumer(56754, system.settings.config)
-    val api = new PrometheusEventsApi(consumer, createExporter())
     Get("/ping") ~> api.routes ~> check {
       //Due to retries using a random port does not immediately result in failure
       handled shouldBe true
     }
-    consumer.shutdown().futureValue
   }
 
   it should "respond metrics request" in {
-    val consumer = createConsumer(56754, system.settings.config)
-    val api = new PrometheusEventsApi(consumer, createExporter())
     Get("/metrics") ~> `Accept-Encoding`(gzip) ~> api.routes ~> check {
       contentType.charsetOption shouldBe Some(HttpCharsets.`UTF-8`)
       contentType.mediaType.params("version") shouldBe "0.0.4"
       response should haveContentEncoding(gzip)
     }
-    consumer.shutdown().futureValue
   }
 
   private def haveContentEncoding(encoding: HttpEncoding): Matcher[HttpResponse] =

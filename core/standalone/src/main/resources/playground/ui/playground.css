@@ -1,0 +1,228 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html, body {
+  height: 100%;
+  margin: 0px;
+}
+
+* {
+  box-sizing: border-box; /* include the border and padding in width / height calcuations */
+}
+
+#editor { 
+  flex: 1 1 auto;
+}
+
+.body-container {
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #26282C;
+}
+
+.navbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.nav-item {
+  display: flex;
+  flex: 0 0 auto;
+  border-right: 12px solid transparent;
+}
+
+.nav-item-center {
+  display: flex;
+  align-items: center;
+}
+
+.nav-item-last {
+  flex: 1 0 auto;
+  text-align:right;
+  margin-right: 4px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  margin-left: 8px;
+  margin-right: 6px;
+}
+
+.logo-text {
+  width: 195px;
+  height: 32px;
+}
+
+.nav-button {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 15px;
+  padding-right: 15px;
+  border: 2px solid #424446;
+  border-radius: 8px;
+  background-color: #26282C;
+  color: white;
+  text-align: center; 
+  text-decoration: none;
+  display: inline-block; 
+  font-size: 12pt; 
+  cursor: pointer;
+}
+
+.icon-size {
+  font-size:12pt !important;
+  position: relative;
+  top: 2px;
+  margin-right: 4px;
+}
+
+.icon-extra-margin {
+  margin-right: 8px;
+}
+
+.nav-select {
+  color: white;
+  border: 2px solid #424446;
+  border-radius: 8px;
+  background-color: #26282C;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 20px;
+  padding-right: 20px;
+  text-align: center; 
+  text-decoration: none;
+  display: inline-block; 
+  font-size: 10pt; 
+  cursor: pointer;
+}
+
+.nav-input {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  color: white;
+  background-color: black;
+  margin-left: 6px;
+  display: none;
+}
+
+.nav-right-spacer {
+  margin-right: 30px;
+}
+
+.nav-label {
+  color:#C0C0C0;
+}
+
+.central-container {
+  flex: 1 1 auto;
+  display: flex; /* make this a flex container */
+  /* by default flex-direction is row */
+  /* by default, elements will stretch vertically to the full height of the container */
+}
+
+.panel-left {
+  width: 65%;
+  flex: 0 1 auto;
+  min-height: 160px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.splitter-vertical {
+  flex: 0 0 auto;
+  width: 12px;
+  min-width: 12px;
+  cursor: col-resize;
+  background-color: #26282C;
+}
+
+.panel-right {
+  flex: 1 1 auto;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-right-box {
+  flex: 1 1 auto;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12pt;
+  padding: 4px;
+  color: white;
+  background-color: black;
+  margin: 0px;
+}
+
+.panel-right-input {
+  flex: 1 1 auto;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12pt;
+  padding: 4px;
+  color: white;
+  background-color: black;
+  border:solid 1px grey;
+  margin: 0px;
+  resize:none;
+}
+
+.panel-header {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 10pt; 
+  font-weight: bold;
+  background-color: #202020;
+  color: #9098A0;
+}
+
+.panel-right-top {
+  flex: 3 1 auto; /* grow(relative size) shrink basis */
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-right-mid {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-right-bottom {
+  flex: 3 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* for smaller screens - get rid of text logo and shrink button margins */
+@media screen and (min-width: 0px) and (max-width: 1000px) {
+  #logo-text {
+    display: none;
+  }
+  .nav-button {
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-left: 0px;
+    margin-right: 0px;
+  }
+}

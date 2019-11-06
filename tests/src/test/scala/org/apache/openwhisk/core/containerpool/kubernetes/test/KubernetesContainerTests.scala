@@ -264,7 +264,7 @@ class KubernetesContainerTests
     }
 
     val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1)
-    await(runResult) shouldBe (interval, ActivationResponse.success(Some(result)))
+    await(runResult) shouldBe (interval, ActivationResponse.success(Some(result), Some(2)))
 
     // assert the starting log is there
     val start = LogMarker.parse(logLines.head)

@@ -32,6 +32,7 @@ trait KamonMetricNames extends MetricNames {
   val waitTimeMetric = "openwhisk.action.waitTime"
   val initTimeMetric = "openwhisk.action.initTime"
   val durationMetric = "openwhisk.action.duration"
+  val responseSizeMetric = "openwhisk.action.responseSize"
   val statusMetric = "openwhisk.action.status"
 
   val concurrentLimitMetric = "openwhisk.action.limit.concurrent"
@@ -68,9 +69,10 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
 
     def record(m: Metric): Unit = {
       m.metricName match {
-        case "ConcurrentRateLimit" => concurrentLimit.increment()
-        case "TimedRateLimit"      => timedLimit.increment()
-        case x                     => log.warn(s"Unknown limit $x")
+        case "ConcurrentRateLimit"   => concurrentLimit.increment()
+        case "TimedRateLimit"        => timedLimit.increment()
+        case "ConcurrentInvocations" => //TODO Handle ConcurrentInvocations
+        case x                       => log.warn(s"Unknown limit $x")
       }
     }
   }
@@ -101,6 +103,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
     private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
     private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).refine(tags)
+    private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).refine(tags)
 
     def record(a: Activation, metricConfig: MetricConfig): Unit = {
       namespaceActivations.increment()
@@ -124,6 +127,8 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
       duration.record(a.duration.toMillis)
 
       Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
+
+      a.size.foreach(responseSize.record(_))
     }
   }
 }

@@ -54,6 +54,12 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   protected def waitForOtherThings(): Unit = {}
 
+  protected def dumpLogsAlways: Boolean = false
+
+  protected def dumpStartupLogs: Boolean = false
+
+  protected def disablePlayGround: Boolean = true
+
   protected val dataDirPath: String = FilenameUtils.concat(FileUtils.getTempDirectoryPath, "standalone")
 
   override def beforeAll(): Unit = {
@@ -66,6 +72,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         System.setProperty(WHISK_SERVER, serverUrl)
         super.beforeAll()
         println(s"Running standalone server from ${standaloneServerJar.getAbsolutePath}")
+        val pgArgs = if (disablePlayGround) Seq("--no-ui") else Seq.empty
         val args = Seq(
           Seq(
             "java",
@@ -77,6 +84,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
             ++ Seq("-jar", standaloneServerJar.getAbsolutePath, "--disable-color-logging", "--data-dir", dataDirPath)
             ++ configFileOpts
             ++ manifestFileOpts
+            ++ pgArgs
             ++ extraArgs,
           Seq("-p", serverPort.toString)).flatten
 
@@ -85,6 +93,9 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
         serverStartedForTest = true
         println(s"Started test server at $serverUrl in [$w]")
         waitForOtherThings()
+        if (dumpStartupLogs) {
+          println(logLines.mkString("\n"))
+        }
     }
   }
 
@@ -102,7 +113,7 @@ trait StandaloneServerFixture extends TestSuite with BeforeAndAfterAll with Stre
 
   override def withFixture(test: NoArgTest) = {
     val outcome = super.withFixture(test)
-    if (outcome.isFailed) {
+    if (outcome.isFailed || (outcome.isSucceeded && dumpLogsAlways)) {
       println(logLines.mkString("\n"))
     }
     stream.reset()

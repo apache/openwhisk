@@ -41,10 +41,10 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.io.AnsiColor
 import scala.util.{Failure, Success, Try}
-
 import KafkaLauncher._
 
-class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
+class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(arguments)) {
+  import StandaloneOpenWhisk.preferredPgPort
   banner(StandaloneOpenWhisk.banner)
   footer("\nOpenWhisk standalone server")
   StandaloneOpenWhisk.gitInfo.foreach(g => version(s"Git Commit - ${g.commitId}"))
@@ -52,7 +52,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   this.printedName = "openwhisk"
   val configFile =
     opt[File](descr = "application.conf which overrides the default standalone.conf", validate = _.canRead)
-  val manifest = opt[File](descr = "Manifest json defining the supported runtimes", validate = _.canRead)
+  val manifest = opt[File](descr = "Manifest JSON defining the supported runtimes", validate = _.canRead)
   val port = opt[Int](descr = "Server port", default = Some(3233))
 
   val verbose = tally()
@@ -63,7 +63,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val devMode = opt[Boolean](
     descr = "Developer mode speeds up the startup by disabling preflight checks and avoiding explicit pulls.",
     noshort = true)
-  val apiGwPort = opt[Int](descr = "Api Gateway Port", default = Some(3234), noshort = true)
+  val apiGwPort = opt[Int](descr = "API Gateway Port", default = Some(3234), noshort = true)
   val dataDir = opt[File](descr = "Directory used for storage", default = Some(StandaloneOpenWhisk.defaultWorkDir))
 
   val kafka = opt[Boolean](descr = "Enable embedded Kafka support", noshort = true)
@@ -96,11 +96,54 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
   val userEvents = opt[Boolean](descr = "Enable User Events along with Prometheus and Grafana", noshort = true)
 
+  val all = opt[Boolean](
+    descr = "Enables all the optional services supported by Standalone OpenWhisk like CouchDB, Kafka etc",
+    noshort = true)
+
+  val devKcf = opt[Boolean](descr = "Enables KubernetesContainerFactory for local development")
+
+  val noUi = opt[Boolean](descr = "Disable Playground UI", noshort = true)
+  val uiPort = opt[Int](
+    descr = s"Playground UI server port. If not specified then $preferredPgPort or some random free port " +
+      s"(if $StandaloneOpenWhisk is busy) would be used",
+    noshort = true)
+
+  val devUserEventsPort = opt[Int](
+    descr = "Specify the port for the user-event service. This mode can be used for local " +
+      "development of user-event service by configuring Prometheus to connect to existing running service instance")
+
+  val enableBootstrap = opt[Boolean](
+    descr =
+      "Enable bootstrap of default users and actions like those needed for Api Gateway or Playground UI. " +
+        "By default bootstrap is done by default when using Memory store or default CouchDB support. " +
+        "When using other stores enable this flag to get bootstrap done",
+    noshort = true)
+
+  mainOptions = Seq(manifest, configFile, apiGw, couchdb, userEvents, kafka, kafkaUi)
+
   verify()
 
   val colorEnabled = !disableColorLogging()
 
   def serverUrl: Uri = Uri(s"http://${StandaloneDockerSupport.getLocalHostName()}:${port()}")
+}
+
+object Conf {
+  def expandAllMode(args: Seq[String]): Seq[String] = {
+    if (args.contains("--all")) {
+      val svcs = Seq("api-gw", "couchdb", "user-events", "kafka", "kafka-ui")
+      val buf = args.toBuffer
+      svcs.foreach { s =>
+        val arg = "--" + s
+        if (!buf.contains(arg)) {
+          buf += arg
+        }
+      }
+      buf.toList
+    } else {
+      args
+    }
+  }
 }
 
 case class GitInfo(commitId: String, commitTime: String)
@@ -159,6 +202,10 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   val wskPath = System.getProperty("whisk.standalone.wsk", "wsk")
 
+  val preferredPgPort = 3232
+
+  private val systemUser = "whisk.system"
+
   def main(args: Array[String]): Unit = {
     val conf = new Conf(args)
 
@@ -175,14 +222,12 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     implicit val logger: Logging = createLogging(actorSystem, conf)
     implicit val ec: ExecutionContext = actorSystem.dispatcher
 
+    val owPort = conf.port()
     val (dataDir, workDir) = initializeDirs(conf)
     val (dockerClient, dockerSupport) = prepareDocker(conf)
 
     val defaultSvcs = Seq(
-      ServiceContainer(
-        conf.port(),
-        s"http://${StandaloneDockerSupport.getLocalHostName()}:${conf.port()}",
-        "Controller"))
+      ServiceContainer(owPort, s"http://${StandaloneDockerSupport.getLocalHostName()}:$owPort", "Controller"))
 
     val (apiGwApiPort, apiGwSvcs) = if (conf.apiGw()) {
       startApiGateway(conf, dockerClient, dockerSupport)
@@ -194,17 +239,24 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
     val couchSvcs = if (conf.couchdb()) Some(startCouchDb(dataDir, dockerClient)) else None
     val userEventSvcs =
-      if (conf.userEvents()) startUserEvents(conf.port(), kafkaDockerPort, workDir, dataDir, dockerClient)
+      if (conf.userEvents() || conf.devUserEventsPort.isSupplied)
+        startUserEvents(conf.port(), kafkaDockerPort, conf.devUserEventsPort.toOption, workDir, dataDir, dockerClient)
       else Seq.empty
 
-    val svcs = Seq(defaultSvcs, apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs).flatten
+    val pgLauncher = if (conf.noUi()) None else Some(createPgLauncher(owPort, conf))
+    val pgSvc = pgLauncher.map(pg => Seq(pg.run())).getOrElse(Seq.empty)
+
+    val svcs = Seq(defaultSvcs, apiGwSvcs, couchSvcs.toList, kafkaSvcs, userEventSvcs, pgSvc).flatten
     new ServiceInfoLogger(conf, svcs, dataDir).run()
 
     startServer(conf)
     new ServerStartupCheck(conf.serverUrl, "OpenWhisk").waitForServerToStart()
 
-    if (conf.apiGw()) {
-      installRouteMgmt(conf, workDir, apiGwApiPort)
+    if (canInstallUserAndActions(conf)) {
+      if (conf.apiGw()) {
+        installRouteMgmt(conf, workDir, apiGwApiPort)
+      }
+      pgLauncher.foreach(_.install())
     }
   }
 
@@ -223,7 +275,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   def startServer(
     conf: Conf)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
-    bootstrapUsers()
+    if (canInstallUserAndActions(conf)) {
+      bootstrapUsers()
+    }
     startController()
   }
 
@@ -247,7 +301,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
         require(f.exists(), s"Config file $f does not exist")
         System.setProperty("config.file", f.getAbsolutePath)
       case None =>
-        System.setProperty("config.resource", "standalone.conf")
+        val config = if (conf.devKcf()) {
+          "standalone-kcf.conf"
+        } else "standalone.conf"
+        System.setProperty("config.resource", config)
+
     }
   }
 
@@ -389,12 +447,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def installRouteMgmt(conf: Conf, workDir: File, apiGwApiPort: Int)(implicit logging: Logging): Unit = {
-    val user = "whisk.system"
     val apiGwHostv2 = s"http://${StandaloneDockerSupport.getLocalHostIp()}:$apiGwApiPort/v2"
-    val authKey = getUsers().getOrElse(
-      user,
-      throw new Exception(s"Did not found auth key for $user which is needed to install the api management package"))
-    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + user, Uri(apiGwHostv2), wskPath)
+    val authKey = systemAuthKey
+    val installer = InstallRouteMgmt(workDir, authKey, conf.serverUrl, "/" + systemUser, Uri(apiGwHostv2), wskPath)
     installer.run()
   }
 
@@ -474,6 +529,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def startUserEvents(owPort: Int,
                               kafkaDockerPort: Int,
+                              existingUserEventSvcPort: Option[Int],
                               workDir: File,
                               dataDir: File,
                               dockerClient: StandaloneDockerClient)(
@@ -482,7 +538,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     ec: ExecutionContext,
     materializer: ActorMaterializer): Seq[ServiceContainer] = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "userevents")
-    val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, workDir, dataDir)
+    val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, existingUserEventSvcPort, workDir, dataDir)
 
     val f = k.run()
     val g = f.andThen {
@@ -500,5 +556,34 @@ object StandaloneOpenWhisk extends SLF4JLogging {
 
   private def configureDevMode(): Unit = {
     setSysProp("whisk.docker.standalone.container-factory.pull-standard-images", "false")
+  }
+
+  private def createPgLauncher(
+    owPort: Int,
+    conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext, materializer: ActorMaterializer) = {
+    implicit val tid: TransactionId = TransactionId(systemPrefix + "playground")
+    val pgPort = getPort(conf.uiPort.toOption, preferredPgPort)
+    new PlaygroundLauncher(StandaloneDockerSupport.getLocalHostName(), owPort, pgPort, systemAuthKey, conf.devMode())
+  }
+
+  private def systemAuthKey: String = {
+    getUsers().getOrElse(systemUser, throw new Exception(s"Did not found auth key for $systemUser"))
+  }
+
+  private def canInstallUserAndActions(conf: Conf)(implicit logging: Logging, actorSystem: ActorSystem): Boolean = {
+    val config = actorSystem.settings.config
+    val artifactStore = config.getString("whisk.spi.ArtifactStoreProvider")
+    if (conf.couchdb() || artifactStore == "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider") {
+      true
+    } else if (conf.enableBootstrap()) {
+      logging.info(this, "Bootstrap is enabled for external ArtifactStore")
+      true
+    } else {
+      logging.info(
+        this,
+        s"Bootstrap is not enabled as connecting to external ArtifactStore. " +
+          s"Start with ${conf.enableBootstrap.name} to bootstrap default users and action")
+      false
+    }
   }
 }

@@ -29,7 +29,7 @@ import kamon.system.SystemMetrics
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object OpenWhiskEvents extends SLF4JLogging {
 
@@ -37,6 +37,7 @@ object OpenWhiskEvents extends SLF4JLogging {
 
   def start(config: Config)(implicit system: ActorSystem,
                             materializer: ActorMaterializer): Future[Http.ServerBinding] = {
+    implicit val ec: ExecutionContext = system.dispatcher
     Kamon.reconfigure(config)
     val prometheusReporter = new PrometheusReporter()
     Kamon.addReporter(prometheusReporter)

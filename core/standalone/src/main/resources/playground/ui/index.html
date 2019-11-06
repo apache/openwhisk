@@ -1,0 +1,139 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8"/>
+<title>Function Playground</title>
+
+<!-- for the ACE editor component -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.2/ace.js" type="text/javascript" charset="utf-8"></script>
+
+<!-- for the Google material UI icons -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+<!-- begin - to enable panel resize -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://rawgit.com/RickStrahl/jquery-resizable/master/src/jquery-resizable.js"></script>
+
+<script>
+$(document).ready(function() {
+ $("#panel-left").resizable({
+    handleSelector: ".splitter-vertical",
+    resizeHeight: false
+  });
+});
+</script>
+<!-- end - to enable panel resize -->
+
+<!-- The js needs to go after jquery is loaded because it uses jquery to run the init block after DOM loading.
+    The css is placed next to it to make the inlining easier.
+ -->
+<!--Start Inlining-->
+<link rel="stylesheet" type="text/css" href="playground.css">
+<script src="playgroundFunctions.js"></script>
+<!--End Inlining-->
+
+<!-- OpenWhisk and Function Playground icons (svgomg was used to compact) -->
+<svg aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="svg-logo-icon" viewBox="0 0 32 32">
+    <image xlink:href="https://openwhisk.apache.org/images/logo/apache-openwhisk-logo-only.png" height="32" width="32" />
+  </symbol>
+  <symbol id="svg-logo-text" viewBox="0 0 195 32">
+    <text x="0.259234" y="29.829633" fill="#808080" font-family="Helvetica, Arial, sans-serif" font-size="10.667px" font-weight="bold" stroke="#000000" stroke-width="0" xml:space="preserve">OpenWhisk</text>
+    <text transform="matrix(.89868 0 0 1 -.044817 0)" x="-0.480163" y="16.794799" fill="#cccccc" font-family="Helvetica, Arial, sans-serif" font-size="18.667px" font-weight="bold" stroke-width="1px" xml:space="preserve">
+     <tspan x="-0.480163" y="16.794799" fill="#cccccc" font-family="Helvetica, Arial, sans-serif" font-size="18.667px" font-weight="bold">Function Playground</tspan>
+    </text>
+   </symbol>
+</svg>
+
+</head>
+
+<body id="body" class="body-container">
+  <div class="navbar">
+    <div class="nav-item">
+      <svg aria-hidden="true" focusable="false" class="logo-icon"><use xlink:href="#svg-logo-icon"/></svg>
+      <svg id="logo-text" aria-hidden="true" focusable="false" class="logo-text nav-right-spacer"><use xlink:href="#svg-logo-text"/></svg>
+    </div>
+    <div class="nav-item">
+       <button id="run" class="nav-button" type="button" onclick="runClicked()">
+         <i style="font-size:12pt !important;" class="material-icons icon-size">play_arrow</i>Run
+       </button>
+    </div>
+    <div class="nav-item">
+       <button id="publish" class="nav-button nav-right-spacer" type="button" onclick="publishClicked()">
+         <i class="material-icons icon-size icon-extra-margin">cloud_upload</i>Publish
+       </button>
+    </div>
+    <div class="nav-item">
+      <select id="languageSelector" class="nav-select" onchange="languageChanged()">
+        <option value="JavaScript" selected="selected">JavaScript</option>
+        <option value="Python">Python</option>
+      </select>
+    </div>
+    <div class="nav-item">
+      <select id="actionSelector" class="nav-select" onchange="actionChanged()" select="">
+        <option value="sampleJavaScript" selected="selected">sampleJavaScript</option>
+        <option value="--New Action--">--New Action--</option>
+        <option value="--Rename--">--Rename--</option>
+      </select>
+      <input id="nameInput" class="nav-input" onchange="processNewName()" type="text">
+    </div>
+    <div class="nav-item-last">
+      <button id="theme" class="nav-button" type="button" onclick="themeClicked()">
+        <i class="material-icons icon-size icon-extra-margin">web</i>
+        <span id="themeName">Light</span>
+      </button>
+      </div>
+  </div>
+  <div class="central-container">
+    <div id="panel-left" class="panel-left">
+      <div class="panel-header">
+        <i style="margin-left: 4px;" class="material-icons icon-size icon-extra-margin">cloud_queue</i>
+        URL: <span id="urlText">[editable, private]</span>
+      </div>
+      <div id="editor" ace-editor [(text)]="text"></div>
+   </div>
+    <div class="splitter-vertical"></div>
+    <div class="panel-right">
+      <div class="panel-header">
+        <i class="material-icons icon-size icon-extra-margin">input</i>INPUT PARAMETERS
+      </div>
+      <div class="panel-right-top">
+        <textarea id="input" spellcheck="false" class="panel-right-input">{ "name" : "openwhisk" }</textarea>
+      </div>
+      <div class="panel-header">
+        <i class="material-icons icon-size icon-extra-margin">access_time</i>EXECUTION TIME
+      </div>
+      <div class="panel-right-mid">
+        <div id="timingText" class="panel-right-box"></div>
+      </div>
+      <div class="panel-header">
+        <i class="material-icons icon-size icon-extra-margin">done</i>OUTPUT
+      </div>
+      <div class="panel-right-bottom">
+        <div id="resultText" class="panel-right-box"></div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

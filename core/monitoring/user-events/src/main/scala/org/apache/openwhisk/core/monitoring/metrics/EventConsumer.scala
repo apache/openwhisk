@@ -31,6 +31,9 @@ import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
+import org.apache.kafka.common
+import org.apache.kafka.common.MetricName
+import org.apache.openwhisk.connector.kafka.{KafkaMetricsProvider, KamonMetricsReporter}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -43,9 +46,10 @@ trait MetricRecorder {
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
-case class EventConsumer(settings: ConsumerSettings[String, String],
-                         recorders: Seq[MetricRecorder],
-                         metricConfig: MetricConfig)(implicit system: ActorSystem, materializer: ActorMaterializer) {
+case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder], metricConfig: MetricConfig)(
+  implicit system: ActorSystem,
+  materializer: ActorMaterializer)
+    extends KafkaMetricsProvider {
   import EventConsumer._
 
   private implicit val ec: ExecutionContext = system.dispatcher
@@ -75,6 +79,8 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   }
 
   def isRunning: Boolean = !control.isShutdown.isCompleted
+
+  override def metrics(): Future[Map[MetricName, common.Metric]] = control.metrics
 
   //TODO Use RestartSource
   private val control: DrainingControl[Done] = Consumer
@@ -132,7 +138,11 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
     duration.record(a.duration.toMillis)
   }
 
-  private def updatedSettings = settings.withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
+  private def updatedSettings =
+    settings
+      .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
+      .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
+      .withStopTimeout(Duration.Zero) // https://doc.akka.io/docs/alpakka-kafka/current/consumer.html#draining-control
 }
 
 object EventConsumer {

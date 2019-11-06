@@ -143,6 +143,10 @@ def logTestSetInfo(){
 }
 
 test {
+    // Use command line option "-D testResultsDirName=<name>" to change the default test results directory ("test-results").
+    // Specify a path relative to the build directory or an absolute path.
+    testResultsDirName = System.getProperty('testResultsDirName', testResultsDirName)
+
     exclude 'invokerShoot/**'
 }
 
@@ -201,6 +205,8 @@ dependencies {
     compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
     compile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
     compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
+    compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
 

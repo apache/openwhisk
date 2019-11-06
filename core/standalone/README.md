@@ -26,8 +26,12 @@ executed as a normal java application from command line.
 java -jar openwhisk-standalone.jar
 ```
 
-This should start the OpenWhisk server on port 3233 by default. Once the server is started then [configure the cli][1]
-and then try out the [samples][2].
+This should start the OpenWhisk server on port 3233 by default and launch a Playground UI at port 3232.
+
+![Playground UI](../../docs/images/playground-ui.png)
+
+The Playground UI can be used to try out simple actions. To make use of all OpenWhisk features [configure the cli][1] and
+then try out the [samples][2].
 
 This server by default uses a memory based store and does not depend on any other external service like Kafka and CouchDB.
 It only needs Docker and Java to for running.
@@ -75,38 +79,62 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-      --api-gw                     Enable API Gateway support
-      --api-gw-port  <arg>         Api Gateway Port
-      --clean                      Clean any existing state like database
-  -c, --config-file  <arg>         application.conf which overrides the default
-                                   standalone.conf
-      --couchdb                    Enable CouchDB support
-  -d, --data-dir  <arg>            Directory used for storage
-      --dev-mode                   Developer mode speeds up the startup by
-                                   disabling preflight checks and avoiding
-                                   explicit pulls.
-      --disable-color-logging      Disables colored logging
-      --kafka                      Enable embedded Kafka support
-      --kafka-docker-port  <arg>   Kafka port for use by docker based services.
-                                   If not specified then 9091 or some random
-                                   free port (if 9091 is busy) would be used
-      --kafka-port  <arg>          Kafka port. If not specified then 9092 or
-                                   some random free port (if 9092 is busy) would
-                                   be used
-      --kafka-ui                   Enable Kafka UI
-  -m, --manifest  <arg>            Manifest json defining the supported runtimes
-  -p, --port  <arg>                Server port
-      --user-events                Enable User Events along with Prometheus and
-                                   Grafana
+  -m, --manifest  <arg>               Manifest JSON defining the supported
+                                      runtimes
+  -c, --config-file  <arg>            application.conf which overrides the
+                                      default standalone.conf
+      --api-gw                        Enable API Gateway support
+      --couchdb                       Enable CouchDB support
+      --user-events                   Enable User Events along with Prometheus
+                                      and Grafana
+      --kafka                         Enable embedded Kafka support
+      --kafka-ui                      Enable Kafka UI
+
+      --all                           Enables all the optional services
+                                      supported by Standalone OpenWhisk like
+                                      CouchDB, Kafka etc
+      --api-gw-port  <arg>            API Gateway Port
+      --clean                         Clean any existing state like database
+  -d, --data-dir  <arg>               Directory used for storage
+      --dev-kcf                       Enables KubernetesContainerFactory for
+                                      local development
+      --dev-mode                      Developer mode speeds up the startup by
+                                      disabling preflight checks and avoiding
+                                      explicit pulls.
+      --dev-user-events-port  <arg>   Specify the port for the user-event
+                                      service. This mode can be used for local
+                                      development of user-event service by
+                                      configuring Prometheus to connect to
+                                      existing running service instance
+      --disable-color-logging         Disables colored logging
+      --enable-bootstrap              Enable bootstrap of default users and
+                                      actions like those needed for Api Gateway
+                                      or Playground UI. By default bootstrap is
+                                      done by default when using Memory store or
+                                      default CouchDB support. When using other
+                                      stores enable this flag to get bootstrap
+                                      done
+      --kafka-docker-port  <arg>      Kafka port for use by docker based
+                                      services. If not specified then 9091 or
+                                      some random free port (if 9091 is busy)
+                                      would be used
+      --kafka-port  <arg>             Kafka port. If not specified then 9092 or
+                                      some random free port (if 9092 is busy)
+                                      would be used
+      --no-ui                         Disable Playground UI
+      --ui-port  <arg>                Playground UI server port. If not specified
+                                      then 3232 or some random free port (if
+                                      org.apache.openwhisk.standalone.StandaloneOpenWhisk$@75a1cd57
+                                      is busy) would be used
+  -p, --port  <arg>                   Server port
   -v, --verbose
-      --zk-port  <arg>             Zookeeper port. If not specified then 2181 or
-                                   some random free port (if 2181 is busy) would
-                                   be used
-  -h, --help                       Show help message
-      --version                    Show version of this program
+      --zk-port  <arg>                Zookeeper port. If not specified then 2181
+                                      or some random free port (if 2181 is busy)
+                                      would be used
+  -h, --help                          Show help message
+      --version                       Show version of this program
 
 OpenWhisk standalone server
-
 
 ```
 
@@ -215,11 +243,15 @@ whisk {
 
 Then pass this config file via `-c` option.
 
-#### Using Api Gateway
+Note that Standalone OpenWhisk will not bootstrap users and actions (e.g., API Gateway and Playground UI)
+when using an external database unless explicitly requested with `--enable-bootstrap`. This is to ensure
+that default users and actions are not added to your external artifact store.
 
-Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk Api gateway][3]
+#### Using API Gateway
+
+API Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk API gateway][3]
 would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the
-[api gateway][4] support.
+[API Gateway][4] support.
 
 #### Using Kafka
 
@@ -269,6 +301,84 @@ Launched service details
 [ 3000  ] http://localhost:3000 (whisk-grafana)
 ```
 
+#### Using KubernetesContainerFactory
+
+Standalone OpenWhisk can be configured to use KubernetesContainerFactory (KCF) via `--dev-kcf` option. This mode can be used to
+simplify developing KubernetesContainerFactory.
+
+Below mentioned steps are based on [Kind][9] tool for running local Kubernetes clusters using Docker container "nodes".
+However this mode should work against any Kubernetes cluster if the the `KUBECONFIG` is properly set.
+
+##### 1. Install and configure Kind
+
+We would use Kind to setup a local k8s. Follow the steps [here][10] to create a simple cluster.
+
+```bash
+$ kind create cluster --wait 5m
+
+# Export the kind config for kubectl usage
+$ export KUBECONFIG="$(kind get kubeconfig-path)"
+
+# Configure the default namespace
+$ kubectl config set-context --current --namespace=default
+
+# See the config path
+$ kind get kubeconfig-path
+/Users/example/.kube/kind-config-kind
+```
+
+##### 2. Launch Standalone
+
+```bash
+# Launch it with `kubeconfig` system property set to kind config
+$ java  -Dkubeconfig="$(kind get kubeconfig-path)" -jar bin/openwhisk-standalone.jar --dev-kcf
+```
+
+Once started and required `.wskprops` configured to use the standalone server create a `hello.js` function
+
+```js
+function main(params) {
+    greeting = 'hello, world'
+    var hello = {payload: greeting}
+    var result = {...hello, ...process.env}
+    console.log(greeting);
+    return result
+}
+```
+
+```bash
+$ wsk action create hello hello.js
+$ wsk action invoke hello -br
+```
+
+This shows an output like below indicating that KubernetesContainerFactory based invocation is working properly.
+
+```
+{
+    "HOME": "/root",
+    "HOSTNAME": "wsk0-2-prewarm-nodejs10",
+    "KUBERNETES_PORT": "tcp://10.96.0.1:443",
+    "KUBERNETES_PORT_443_TCP": "tcp://10.96.0.1:443",
+    "KUBERNETES_PORT_443_TCP_ADDR": "10.96.0.1",
+    "KUBERNETES_PORT_443_TCP_PORT": "443",
+    "KUBERNETES_PORT_443_TCP_PROTO": "tcp",
+    "KUBERNETES_SERVICE_HOST": "10.96.0.1",
+    "KUBERNETES_SERVICE_PORT": "443",
+    "KUBERNETES_SERVICE_PORT_HTTPS": "443",
+    "NODE_VERSION": "10.15.3",
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "PWD": "/nodejsAction",
+    "YARN_VERSION": "1.13.0",
+    "__OW_ACTION_NAME": "/guest/hello",
+    "__OW_ACTIVATION_ID": "71e48d2d62e142eca48d2d62e192ec2d",
+    "__OW_API_HOST": "http://host.docker.internal:3233",
+    "__OW_DEADLINE": "1570223213407",
+    "__OW_NAMESPACE": "guest",
+    "__OW_TRANSACTION_ID": "iSOoNklk6V7l7eh8KJnvugidKEmaNJmv",
+    "payload": "hello, world"
+}
+```
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway
@@ -277,3 +387,5 @@ Launched service details
 [6]: https://github.com/obsidiandynamics/kafdrop
 [7]: https://github.com/apache/openwhisk/blob/master/docs/metrics.md#user-specific-metrics
 [8]: https://github.com/apache/openwhisk/blob/master/core/monitoring/user-events/README.md
+[9]: https://kind.sigs.k8s.io/
+[10]: https://kind.sigs.k8s.io/docs/user/quick-start/

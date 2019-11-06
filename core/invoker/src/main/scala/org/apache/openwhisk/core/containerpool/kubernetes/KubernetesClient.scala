@@ -30,10 +30,11 @@ import akka.stream.stage._
 import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
 import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
+import io.fabric8.kubernetes.client.utils.Serialization
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{ConfigMapValue, Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
@@ -44,7 +45,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future}
@@ -74,7 +74,9 @@ case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: S
  */
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   invokerAgent: KubernetesInvokerAgentConfig,
-                                  userPodNodeAffinity: KubernetesInvokerNodeAffinity)
+                                  userPodNodeAffinity: KubernetesInvokerNodeAffinity,
+                                  portForwardingEnabled: Boolean,
+                                  podTemplate: Option[ConfigMapValue] = None)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -97,56 +99,18 @@ class KubernetesClient(
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
       .build())
 
+  private val podBuilder = new WhiskPodBuilder(kubeRestClient, config.userPodNodeAffinity, config.podTemplate)
+
   def run(name: String,
           image: String,
           memory: ByteSize = 256.MB,
           environment: Map[String, String] = Map.empty,
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
-    val envVars = environment.map {
-      case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
-    }.toSeq
-
-    val podBuilder = new PodBuilder()
-      .withNewMetadata()
-      .withName(name)
-      .addToLabels("name", name)
-      .addToLabels(labels.asJava)
-      .endMetadata()
-      .withNewSpec()
-      .withRestartPolicy("Always")
-    if (config.userPodNodeAffinity.enabled) {
-      val invokerNodeAffinity = new AffinityBuilder()
-        .withNewNodeAffinity()
-        .withNewRequiredDuringSchedulingIgnoredDuringExecution()
-        .addNewNodeSelectorTerm()
-        .addNewMatchExpression()
-        .withKey(config.userPodNodeAffinity.key)
-        .withOperator("In")
-        .withValues(config.userPodNodeAffinity.value)
-        .endMatchExpression()
-        .endNodeSelectorTerm()
-        .endRequiredDuringSchedulingIgnoredDuringExecution()
-        .endNodeAffinity()
-        .build()
-      podBuilder.withAffinity(invokerNodeAffinity)
+    val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels)
+    if (transid.meta.extraLogging) {
+      log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
-    val pod = podBuilder
-      .addNewContainer()
-      .withNewResources()
-      .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
-      .endResources()
-      .withName("user-action")
-      .withImage(image)
-      .withEnv(envVars.asJava)
-      .addNewPort()
-      .withContainerPort(8080)
-      .withName("action")
-      .endPort()
-      .endContainer()
-      .endSpec()
-      .build()
-
     val namespace = kubeRestClient.getNamespace
     kubeRestClient.pods.inNamespace(namespace).create(pod)
 
@@ -219,13 +183,20 @@ class KubernetesClient(
 
   protected def toContainer(pod: Pod): KubernetesContainer = {
     val id = ContainerId(pod.getMetadata.getName)
-    val addr = ContainerAddress(pod.getStatus.getPodIP)
+
+    val portFwd = if (config.portForwardingEnabled) {
+      Some(kubeRestClient.pods().withName(pod.getMetadata.getName).portForward(8080))
+    } else None
+
+    val addr = portFwd
+      .map(fwd => ContainerAddress("localhost", fwd.getLocalPort))
+      .getOrElse(ContainerAddress(pod.getStatus.getPodIP))
     val workerIP = pod.getStatus.getHostIP
     // Extract the native (docker or containerd) containerId for the container
     // By convention, kubernetes adds a docker:// prefix when using docker as the low-level container engine
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
-    new KubernetesContainer(id, addr, workerIP, nativeContainerId)
+    new KubernetesContainer(id, addr, workerIP, nativeContainerId, portFwd)
   }
 }
 

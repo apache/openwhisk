@@ -26,7 +26,8 @@ import system.basic.WskRestBasicTests
 class StandaloneKafkaTests extends WskRestBasicTests with StandaloneServerFixture with StandaloneSanityTestSupport {
   override implicit val wskprops = WskProps().copy(apihost = serverUrl)
 
-  override protected def supportedTests = Set("Wsk Action REST should invoke a blocking action and get only the result")
+  override protected def supportedTests: Set[String] =
+    Set("Wsk Action REST should invoke a blocking action and get only the result")
 
-  override protected def extraArgs: Seq[String] = Seq("--kafka")
+  override protected def extraArgs: Seq[String] = Seq("--dev-mode", "--kafka")
 }

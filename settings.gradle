@@ -35,7 +35,7 @@ include 'tools:admin'
 rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
-    version: '2.12.9',
+    version: '2.12.10',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
 
@@ -45,7 +45,8 @@ gradle.ext.scalafmt = [
 ]
 
 gradle.ext.akka = [version : '2.5.22']
-gradle.ext.akka_kafka = [version : '1.0.5']
+gradle.ext.akka_kafka = [version : '1.1.0']
 gradle.ext.akka_http = [version : '10.1.8']
 
-gradle.ext.curator = [version:'4.0.0']
+gradle.ext.curator = [version : '4.0.0']
+gradle.ext.kube_client = [version: '4.4.2']

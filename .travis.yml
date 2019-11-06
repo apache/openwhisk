@@ -17,8 +17,8 @@
 
 sudo: required
 
-group: deprecated-2017Q3
-
+dist: xenial
+jdk: openjdk8
 language: scala
 scala:
    - 2.12.7
@@ -58,8 +58,9 @@ cache:
 
 before_install:
   - ./tools/travis/docker.sh
-  - pip install --upgrade pip setuptools six
-  - pip3 install --upgrade pip setuptools six
+  - sudo apt-get install -y python3-pip
+  - pip install --user --upgrade pip setuptools six
+  - pip3 install --user setuptools six
 
 install:
   - ./tools/travis/setup.sh

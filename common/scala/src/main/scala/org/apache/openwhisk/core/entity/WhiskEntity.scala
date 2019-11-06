@@ -25,6 +25,7 @@ import scala.util.Try
 
 import spray.json._
 import org.apache.openwhisk.core.database.DocumentUnreadable
+import org.apache.openwhisk.core.database.DocumentTypeMismatchException
 import org.apache.openwhisk.http.Messages
 
 /**
@@ -115,7 +116,7 @@ object WhiskEntity {
 
 object WhiskDocumentReader extends DocumentReader {
   override def read[A](ma: Manifest[A], value: JsValue) = {
-    ma.runtimeClass match {
+    val doc = ma.runtimeClass match {
       case x if x == classOf[WhiskAction]         => WhiskAction.serdes.read(value)
       case x if x == classOf[WhiskActionMetaData] => WhiskActionMetaData.serdes.read(value)
       case x if x == classOf[WhiskPackage]        => WhiskPackage.serdes.read(value)
@@ -124,6 +125,12 @@ object WhiskDocumentReader extends DocumentReader {
       case x if x == classOf[WhiskRule]           => WhiskRule.serdes.read(value)
       case _                                      => throw DocumentUnreadable(Messages.corruptedEntity)
     }
+    value.asJsObject.fields.get("entityType").foreach {
+      case JsString(entityType) if (doc.entityType != entityType) =>
+        throw DocumentTypeMismatchException(s"document type ${doc.entityType} did not match expected type $entityType.")
+      case _ =>
+    }
+    doc
   }
 }
 
