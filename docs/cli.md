@@ -64,8 +64,6 @@ To verify your CLI setup, try [creating and running an action](./samples.md).
 
 Some OpenWhisk providers make use of optional properties that can be added to the `.wskprops` file.  The following keys are optional:
 
-- **NAMESPACE** - Optional, provider-relative identifier for a namespace to be used when managing OpenWhisk entities (e.g. Actions, Triggers, Rules, etc.) with the CLI.
-
 - **APIGW_ACCESS_TOKEN** - Optional, provider-specific authorization token for an independently hosted API Gateway service used for managing OpenWhisk API endpoints.
 
 - **APIGW_TENANT_ID** - Optional, provider-relative identifier of the tenant (owner for access control purposes) of any API endpoints that are created by the CLI.
