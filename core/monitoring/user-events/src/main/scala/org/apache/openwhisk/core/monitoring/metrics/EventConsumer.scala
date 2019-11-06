@@ -46,9 +46,9 @@ trait MetricRecorder {
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
-case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder], metricConfig: MetricConfig)(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer)
+case class EventConsumer(settings: ConsumerSettings[String, String],
+                         recorders: Seq[MetricRecorder],
+                         metricConfig: MetricConfig)(implicit system: ActorSystem, materializer: ActorMaterializer)
     extends KafkaMetricsProvider {
   import EventConsumer._
 
