@@ -39,7 +39,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 trait MetricRecorder {
-  def processActivation(activation: Activation, initiatorNamespace: String): Unit
+  def processActivation(activation: Activation, initiatorNamespace: String, metricConfig: MetricConfig): Unit
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
@@ -95,9 +95,6 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   private def processEvent(value: String): Unit = {
     EventMessage
       .parse(value)
-      .filter { e =>
-        !metricConfig.ignoredNamespaces.contains(e.namespace)
-      }
       .map { e =>
         e.eventType match {
           case Activation.typeName => activationCounter.increment()
@@ -108,7 +105,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
       .foreach { e =>
         e.body match {
           case a: Activation =>
-            recorders.foreach(_.processActivation(a, e.namespace))
+            recorders.foreach(_.processActivation(a, e.namespace, metricConfig))
             updateGlobalMetrics(a)
           case m: Metric =>
             recorders.foreach(_.processMetric(m, e.namespace))
