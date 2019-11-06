@@ -488,6 +488,12 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "containerStart", counter, Some(containerState), Map("containerState" -> containerState))(
       MeasurementUnit.none)
   val INVOKER_CONTAINER_HEALTH = LogMarkerToken(invoker, "containerHealth", start)(MeasurementUnit.time.milliseconds)
+  val INVOKER_CONTAINER_HEALTH_FAILED_WARM =
+    LogMarkerToken(invoker, "containerHealthFailed", counter, Some("warm"), Map("containerState" -> "warm"))(
+      MeasurementUnit.none)
+  val INVOKER_CONTAINER_HEALTH_FAILED_PREWARM =
+    LogMarkerToken(invoker, "containerHealthFailed", counter, Some("prewarm"), Map("containerState" -> "prewarm"))(
+      MeasurementUnit.none)
   val CONTAINER_CLIENT_RETRIES =
     LogMarkerToken(containerClient, "retries", counter)(MeasurementUnit.none)
 

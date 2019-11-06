@@ -40,6 +40,7 @@ import pureconfig.generic.auto._
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
+import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.common.StartMarker
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import scala.collection.immutable
@@ -372,6 +373,7 @@ class ContainerProxy(factory: (TransactionId,
 
     // prewarm container failed
     case Event(_: FailureMessage, data: PreWarmedData) =>
+      MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_PREWARM)
       destroyContainer(data.container)
   }
 
@@ -434,6 +436,7 @@ class ContainerProxy(factory: (TransactionId,
 
     //ContainerHealthError should cause rescheduling of the job
     case Event(FailureMessage(c: ContainerHealthError), data: WarmedData) =>
+      MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_WARM)
       resumeRun.foreach(context.parent ! _)
       resumeRun = None
       rescheduleJob = true
