@@ -87,9 +87,10 @@ protected class AkkaContainerClient(
    * @param endpoint the path the api call relative to hostname
    * @param body the JSON value to post (this is usually a JSON objecT)
    * @param retry whether or not to retry on connection failure
+   * @param reschedule whether or not to throw ContainerHealthError (triggers reschedule) on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean)(
+  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
 
     //create the request
@@ -98,7 +99,7 @@ protected class AkkaContainerClient(
         .withHeaders(Accept(MediaTypes.`application/json`))
     }
 
-    retryingRequest(req, timeout, retry)
+    retryingRequest(req, timeout, retry, reschedule, endpoint)
       .flatMap {
         case (response, retries) => {
           if (retries > 0) {
@@ -135,17 +136,21 @@ protected class AkkaContainerClient(
   private def retryingRequest(req: Future[HttpRequest],
                               timeout: FiniteDuration,
                               retry: Boolean,
+                              reschedule: Boolean,
+                              endpoint: String,
                               retryCount: Int = 0): Future[(HttpResponse, Int)] = {
     val start = Instant.now
 
     request(req)
       .map((_, retryCount))
       .recoverWith {
+        case _: StreamTcpException if reschedule =>
+          Future.failed(ContainerHealthError(endpoint))
         case t: StreamTcpException if retry =>
           if (timeout > Duration.Zero) {
             akka.pattern.after(retryInterval, as.scheduler)({
               val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
-              retryingRequest(req, newTimeout, retry, retryCount + 1)
+              retryingRequest(req, newTimeout, retry, reschedule, endpoint, retryCount + 1)
             })
           } else {
             logging.warn(
