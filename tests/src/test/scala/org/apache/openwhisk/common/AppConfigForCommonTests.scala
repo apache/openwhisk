@@ -63,7 +63,8 @@ trait Helpers {
 @RunWith(classOf[JUnitRunner])
 class MetricsConfigTests extends FlatSpec with BeforeAndAfterAll with Matchers with Helpers {
 
-  // Checks that default settings hold when KAMON_STATSD_METRIC_KEY_GENERATOR and METRICS_KAMON_REPORTER are not defíned
+  // Checks that default settings hold when KAMON_STATSD_METRIC_KEY_GENERATOR and
+  // METRICS_KAMON_REPORTER are not defíned
   it should "use defaults for key generator and reporters" in {
     configKamon(None, None)
     getKeyGenerator shouldBe "org.apache.openwhisk.common.WhiskStatsDMetricKeyGenerator"
