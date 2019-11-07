@@ -603,11 +603,8 @@ class ContainerProxy(factory: (TransactionId,
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
 
         container
-          .run(
-            parameters,
-            env.toJson.asJsObject,
-            actionTimeout,
-            job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
+          .run(parameters, env.toJson.asJsObject, actionTimeout, job.action.limits.concurrency.maxConcurrent)(
+            job.msg.transid)
           .map {
             case (runInterval, response) =>
               val initRunInterval = initInterval
