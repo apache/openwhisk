@@ -1153,9 +1153,23 @@ class ContainerProxyTests
       container.destroyCount shouldBe 1
     }
   }
-  it should "resend the job to the parent if a resumed container fails healthcheck" in within(timeout) {
-    //in this case the resume succeeds, but the health check fails
-    val container = new TestContainer {}
+
+  it should "resend the job to the parent if /run fails connection after resume" in within(timeout) {
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+        println(s"/run reschedule ${reschedule}")
+        if (reschedule) {
+          throw ContainerHealthError("reconnect failed to xyz")
+        }
+        super.run(parameters, environment, timeout, concurrent, reschedule)
+      }
+    }
     val factory = createFactory(Future.successful(container))
     val acker = createAcker()
     val store = createStore
@@ -1170,7 +1184,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            healthchecksConfig(true), //this will enable health check, which will fail on resume
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
@@ -1192,6 +1206,7 @@ class ContainerProxyTests
       container.destroyCount shouldBe 1
     }
   }
+
   it should "remove and replace a prewarm container if it fails healthcheck after startup" in within(timeout) {
     val container = new TestContainer
     val factory = createFactory(Future.successful(container))

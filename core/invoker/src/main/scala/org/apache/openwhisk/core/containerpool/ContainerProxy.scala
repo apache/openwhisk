@@ -435,9 +435,10 @@ class ContainerProxy(factory: (TransactionId,
       stay() using data
 
     //ContainerHealthError should cause rescheduling of the job
-    case Event(FailureMessage(c: ContainerHealthError), data: WarmedData) =>
+    case Event(FailureMessage(_: ContainerHealthError), data: WarmedData) =>
       MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_WARM)
-      resumeRun.foreach(context.parent ! _)
+      //resend to self will send to parent once we get to Removing state
+      resumeRun.foreach(self ! _)
       resumeRun = None
       rescheduleJob = true
       rejectBuffered()
@@ -630,6 +631,7 @@ class ContainerProxy(factory: (TransactionId,
       .map(_ => ContainerRemoved)
       .pipeTo(self)
 
+    println("on to removing")
     goto(Removing)
   }
 

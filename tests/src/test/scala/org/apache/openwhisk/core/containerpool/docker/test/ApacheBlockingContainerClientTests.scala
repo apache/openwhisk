@@ -39,6 +39,7 @@ import org.apache.http.conn.HttpHostConnectException
 import scala.concurrent.Await
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.ApacheBlockingContainerClient
+import org.apache.openwhisk.core.containerpool.ContainerHealthError
 import org.apache.openwhisk.core.containerpool.RetryableConnectionError
 import org.apache.openwhisk.core.entity.ActivationResponse.Timeout
 import org.apache.openwhisk.core.entity.size._
@@ -136,6 +137,15 @@ class ApacheBlockingContainerClientTests
 
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
+  }
+
+  it should "throw ContainerHealthError on HttpHostConnectException if reschedule==true" in {
+    val timeout = 5.seconds
+    val badHostAndPort = "0.0.0.0:12345"
+    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
+    assertThrows[ContainerHealthError] {
+      Await.result(connection.post("/run", JsObject.empty, retry = false, reschedule = true), 10.seconds)
+    }
   }
 
   it should "not truncate responses within limit" in {

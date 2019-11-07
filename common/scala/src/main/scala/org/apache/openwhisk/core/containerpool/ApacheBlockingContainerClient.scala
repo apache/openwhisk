@@ -162,8 +162,9 @@ protected class ApacheBlockingContainerClient(hostname: String,
       case t: NoHttpResponseException if ApacheBlockingContainerClient.clientConfig.retryNoHttpResponseException =>
         Failure(RetryableConnectionError(t))
     } match {
-      case Success(response) => response
+      case Success(response)                                  => response
       case Failure(_: RetryableConnectionError) if reschedule =>
+        //propagate as a failed future; clients can retry at a different container
         throw ContainerHealthError(request.getURI.toString)
       case Failure(t: RetryableConnectionError) if retry =>
         if (timeout > Duration.Zero) {

@@ -127,9 +127,14 @@ protected class AkkaContainerClient(
           }
         }
       }
-      .recover {
-        case t: TimeoutException => Left(Timeout(t))
-        case NonFatal(t)         => Left(ConnectionError(t))
+      .recoverWith {
+        case t: TimeoutException =>
+          Future.successful(Left(Timeout(t)))
+        case t: ContainerHealthError =>
+          //propagate as a failed future; clients can retry at a different container
+          Future.failed(t)
+        case NonFatal(t) =>
+          Future.successful(Left(ConnectionError(t)))
       }
   }
   //returns a Future HttpResponse -> Int (where Int is the retryCount)
