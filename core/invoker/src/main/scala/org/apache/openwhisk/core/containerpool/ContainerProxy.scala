@@ -564,14 +564,23 @@ class ContainerProxy(factory: (TransactionId,
       "activation_id" -> job.msg.activationId.toString.toJson,
       "transaction_id" -> job.msg.transid.id.toJson)
 
+    // if the action requests the api key to be injected into the action context, add it here;
+    // treat a missing annotation as requesting the api key for backward compatibility
+    val authEnvironment = {
+      if (job.action.annotations.isTruthy(Annotations.ProvideApiKeyAnnotationName, valueForNonExistent = true)) {
+        job.msg.user.authkey.toEnvironment.fields
+      } else Map.empty
+    }
+
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
       case data: WarmedData =>
         Future.successful(None)
       case _ =>
-        val envWithDeadline = environment ++ Map(
-          "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
-        val owEnv = envWithDeadline.map { case (key, value) => "__OW_" + key.toUpperCase -> value }
+        val owEnv = (environment ++ authEnvironment ++ Map(
+          "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)) map {
+          case (key, value) => "__OW_" + key.toUpperCase -> value
+        }
 
         container
           .initialize(
@@ -588,15 +597,7 @@ class ContainerProxy(factory: (TransactionId,
           self ! InitCompleted(WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now, 1))
         }
 
-        // if the action requests the api key to be injected into the action context, add it here;
-        // treat a missing annotation as requesting the api key for backward compatibility
-        val authEnvironment = {
-          if (job.action.annotations.isTruthy(Annotations.ProvideApiKeyAnnotationName, valueForNonExistent = true)) {
-            job.msg.user.authkey.toEnvironment
-          } else JsObject.empty
-        }
-
-        val envWithDeadline = environment ++ Map(
+        val env = authEnvironment ++ environment ++ Map(
           // compute deadline on invoker side avoids discrepancies inside container
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
@@ -604,7 +605,7 @@ class ContainerProxy(factory: (TransactionId,
         container
           .run(
             parameters,
-            JsObject(authEnvironment.fields ++ envWithDeadline.toJson.asJsObject.fields),
+            env.toJson.asJsObject,
             actionTimeout,
             job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
           .map {
