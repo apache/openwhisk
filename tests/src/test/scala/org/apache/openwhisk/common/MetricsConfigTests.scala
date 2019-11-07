@@ -52,7 +52,7 @@ class MetricsConfigTests extends FlatSpec with Matchers with Helpers {
 
 @RunWith(classOf[JUnitRunner])
 class MetricsConfigChangeReporterAndKeyGeneratorTests extends FlatSpec with Matchers with Helpers {
-  // another junit runner instance to handle environment variables correctly
+  // another junit runner instance to handle environment variables correctly,
   // setting/unsetting system environment vars only works once for kamon (re)configuration
   it should "use values from environment variables for key generator and reporters" in {
     System.setProperty("KAMON_STATSD_METRIC_KEY_GENERATOR", "my.new.generator")
