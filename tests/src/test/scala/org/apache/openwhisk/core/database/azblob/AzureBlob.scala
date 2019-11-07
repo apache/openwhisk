@@ -51,10 +51,10 @@ trait AzureBlob extends FlatSpec {
     super.withFixture(test)
   }
 
-  val endpoint = sys.env("AZ_ENDPOINT")
-  val accountName = sys.env("AZ_ACCOUNT_NAME")
+  val endpoint = System.getenv("AZ_ENDPOINT")
+  val accountName = System.getenv("AZ_ACCOUNT_NAME")
   val containerName = sys.env.getOrElse("AZ_CONTAINER_NAME", "test-ow-travis")
-  val accountKey = sys.env("AZ_ACCOUNT_KEY")
+  val accountKey = System.getenv("AZ_ACCOUNT_KEY")
 
   def prefix: String
 }
