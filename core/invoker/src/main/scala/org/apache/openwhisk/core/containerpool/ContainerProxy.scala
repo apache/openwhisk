@@ -558,13 +558,26 @@ class ContainerProxy(factory: (TransactionId,
     val actionTimeout = job.action.limits.timeout.duration
     val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 
+    val environment = Map(
+      "namespace" -> job.msg.user.namespace.name.toJson,
+      "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
+      "activation_id" -> job.msg.activationId.toString.toJson,
+      "transaction_id" -> job.msg.transid.id.toJson)
+
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
       case data: WarmedData =>
         Future.successful(None)
       case _ =>
+        val envWithDeadline = environment ++ Map(
+          "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
+        val owEnv = envWithDeadline.map { case (key, value) => "__OW_" + key.toUpperCase -> value }
+
         container
-          .initialize(job.action.containerInitializer(env), actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .initialize(
+            job.action.containerInitializer(env ++ owEnv),
+            actionTimeout,
+            job.action.limits.concurrency.maxConcurrent)
           .map(Some(_))
     }
 
@@ -583,11 +596,7 @@ class ContainerProxy(factory: (TransactionId,
           } else JsObject.empty
         }
 
-        val environment = JsObject(
-          "namespace" -> job.msg.user.namespace.name.toJson,
-          "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
-          "activation_id" -> job.msg.activationId.toString.toJson,
-          "transaction_id" -> job.msg.transid.id.toJson,
+        val envWithDeadline = environment ++ Map(
           // compute deadline on invoker side avoids discrepancies inside container
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
@@ -595,7 +604,7 @@ class ContainerProxy(factory: (TransactionId,
         container
           .run(
             parameters,
-            JsObject(authEnvironment.fields ++ environment.fields),
+            JsObject(authEnvironment.fields ++ envWithDeadline.toJson.asJsObject.fields),
             actionTimeout,
             job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
           .map {
