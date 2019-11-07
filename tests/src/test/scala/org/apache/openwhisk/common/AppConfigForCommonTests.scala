@@ -48,7 +48,7 @@ trait Helpers {
       content = subst match {
         case (name, Some(value)) =>
           // substitute ${name} and ${?name} occurrences with the value
-          val pattern = ("\\$\\{\\?*" + name + "\\}").r
+          val pattern = ("\\$\\{\\??" + name + "\\}").r
           pattern.replaceAllIn(content, value)
         case _ => content // no changes
       }
@@ -63,14 +63,14 @@ trait Helpers {
 @RunWith(classOf[JUnitRunner])
 class MetricsConfigTests extends FlatSpec with BeforeAndAfterAll with Matchers with Helpers {
 
-  // checks that default settings work
+  // Checks that default settings hold when KAMON_STATSD_METRIC_KEY_GENERATOR and METRICS_KAMON_REPORTER are not defíned
   it should "use defaults for key generator and reporters" in {
     configKamon(None, None)
     getKeyGenerator shouldBe "org.apache.openwhisk.common.WhiskStatsDMetricKeyGenerator"
     getReporters shouldBe Array("kamon.statsd.StatsDReporter")
   }
 
-  // checks that settings for environment variables work
+  // Checks that settings for KAMON_STATSD_METRIC_KEY_GENERATOR and METRICS_KAMON_REPORTER work
   it should "use updated values for key generator and reporters" in {
     val generator = "my.new.generator"
     val reporter = "my.new.reporter"
