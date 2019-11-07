@@ -19,7 +19,7 @@ import org.scoverage.ScoverageReport
 import static groovy.json.JsonOutput.*
 
 plugins {
-    id 'org.hidetake.swagger.generator' version '2.12.0'
+    id 'org.hidetake.swagger.generator' version '2.18.1'
 }
 
 apply plugin: 'scala'
@@ -217,7 +217,7 @@ dependencies {
     compile project(':core:monitoring:user-events')
     compile project(':tools:admin')
 
-    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.3.1'
+    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
 }
 
 tasks.withType(ScalaCompile) {
