@@ -55,6 +55,14 @@ There are four configurations options available:
 
   Port number of the StatsD server
 
+- **metrics_kamon_reporter** [kamon reporter (default: kamon.statsd.StatsDReporter)]
+
+  Kamon reporter for sending metrics
+
+- **metrics_kamon_statsd_key_generator** [kamon reporter (default: org.apache.openwhisk.common.WhiskStatsDMetricKeyGenerator)]
+
+  StatsD key generator for metric names and tags
+
 Example configuration:
 
 ```

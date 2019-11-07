@@ -387,5 +387,7 @@ metrics:
     tags: "{{ metrics_kamon_tags | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
+    reporter: "{{ metrics_kamon_reporter | default('kamon.statsd.StatsDReporter') }}"
+    generator: "{{ metrics_kamon_statsd_key_generator | default('org.apache.openwhisk.common.WhiskStatsDMetricKeyGenerator') }}"
 
 user_events: "{{ user_events_enabled | default(false) }}"

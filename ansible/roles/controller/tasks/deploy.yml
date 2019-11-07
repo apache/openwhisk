@@ -236,8 +236,11 @@
         "{{ runtimes_local_image_prefix | default() }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | string }}"
+      "METRICS_KAMON_REPORTER": "{{ metrics.kamon.reporter | default() | string }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | string }}"
       "METRICS_LOG": "{{ metrics.log.enabled | default(false) | string }}"
+      "KAMON_STATSD_METRIC_KEY_GENERATOR": "{{ metrics.kamon.generator | default() | string }}"
+
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
       "CONFIG_whisk_controller_https_keystorePath":
         "/conf/{{ controller.ssl.keystore.name }}"
