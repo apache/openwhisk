@@ -51,9 +51,22 @@ you can run the following command from your `openwhisk` directory:
 ./bin/wsk property set --auth `cat ansible/files/auth.guest`
 ```
 
-**Tip:** The OpenWhisk CLI stores the properties set in `~/.wskprops` by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
+**Tip:** The OpenWhisk CLI stores properties in the `~/.wskprops` configuration file by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
+
+The required properties described above have the following keys in the `.wskprops` file:
+
+- **APIHOST** - Required key for the API host value.
+- **AUTH** - Required key for the Authorization key.
 
 To verify your CLI setup, try [creating and running an action](./samples.md).
+
+### Optional Whisk Properties
+
+Some OpenWhisk providers make use of optional properties that can be added to the `.wskprops` file.  The following keys are optional:
+
+- **APIGW_ACCESS_TOKEN** - Optional, provider-specific authorization token for an independently hosted API Gateway service used for managing OpenWhisk API endpoints.
+
+- **APIGW_TENANT_ID** - Optional, provider-relative identifier of the tenant (owner for access control purposes) of any API endpoints that are created by the CLI.
 
 ### Configure command completion for Openwhisk CLI
 
