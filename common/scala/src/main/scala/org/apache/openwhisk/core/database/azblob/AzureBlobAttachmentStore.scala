@@ -55,6 +55,7 @@ case class AzBlobConfig(endpoint: String,
                         accountKey: String,
                         containerName: String,
                         accountName: String,
+                        connectionString: Option[String],
                         prefix: Option[String]) {
   def prefixFor[D](implicit tag: ClassTag[D]): String = {
     val className = tag.runtimeClass.getSimpleName.toLowerCase
@@ -77,9 +78,19 @@ object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
   }
 
   def createClient(config: AzBlobConfig): BlobContainerAsyncClient = {
-    new BlobContainerClientBuilder()
-      .endpoint(config.endpoint)
-      .credential(new StorageSharedKeyCredential(config.accountName, config.accountKey))
+    val builder = new BlobContainerClientBuilder()
+
+    //If connection string is specified then it would have all needed info
+    //Mostly used for testing using Azurite
+    config.connectionString match {
+      case Some(s) => builder.connectionString(s)
+      case _ =>
+        builder
+          .endpoint(config.endpoint)
+          .credential(new StorageSharedKeyCredential(config.accountName, config.accountKey))
+    }
+
+    builder
       .containerName(config.containerName)
       .buildAsyncClient()
   }
