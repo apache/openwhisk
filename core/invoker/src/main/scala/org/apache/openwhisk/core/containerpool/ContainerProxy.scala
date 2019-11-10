@@ -241,6 +241,8 @@ class ContainerProxy(factory: (TransactionId,
   implicit val logging = new AkkaLogging(context.system.log)
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
+  //track buffer processing state to avoid extra transitions near end of buffer - this provides a pseudo-state between Running and Ready
+  var bufferProcessing = false
 
   //keep a separate count to avoid confusion with ContainerState.activeActivationCount that is tracked/modified only in ContainerPool
   var activeCount = 0;
@@ -351,13 +353,16 @@ class ContainerProxy(factory: (TransactionId,
     // and we keep it in case we need to destroy it.
     case Event(completed: PreWarmCompleted, _) => stay using completed.data
 
-    // Init still in progress
-    case Event(job: Run, _: PreWarmedData) =>
+    // Run during init (for concurrenct > 1)
+    case Event(job: Run, data: PreWarmedData) =>
+      implicit val transid = job.msg.transid
+      logging.info(this, s"buffering for warming container ${data.container}; ${activeCount} activations in flight")
       runBuffer = runBuffer.enqueue(job)
       stay()
 
     // Init was successful
     case Event(completed: InitCompleted, _: PreWarmedData) =>
+      processBuffer(completed.data.action, completed.data)
       stay using completed.data
 
     // Init was successful
@@ -378,14 +383,15 @@ class ContainerProxy(factory: (TransactionId,
       }
     case Event(job: Run, data: WarmedData)
         if activeCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
-      logging.warn(this, s"buffering for container ${data.container}; buffer: ${runBuffer}  active: ${activeCount}")
+      implicit val transid = job.msg.transid
+      logging.warn(this, s"buffering for maxed warm container ${data.container}; ${activeCount} activations in flight")
       runBuffer = runBuffer.enqueue(job)
       stay()
     case Event(job: Run, data: WarmedData)
         if activeCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
       activeCount += 1
       implicit val transid = job.msg.transid
-
+      bufferProcessing = false //reset buffer processing state
       initializeAndRun(data.container, job)
         .map(_ => RunCompleted)
         .pipeTo(self)
@@ -486,20 +492,32 @@ class ContainerProxy(factory: (TransactionId,
   def requestWork(newData: WarmedData): Boolean = {
     //if there is concurrency capacity, process runbuffer, signal NeedWork, or both
     if (activeCount < newData.action.limits.concurrency.maxConcurrent) {
-      runBuffer.dequeueOption match {
-        case Some((run, q)) =>
-          runBuffer = q
-          self ! run
-          if (activeCount + 1 < newData.action.limits.concurrency.maxConcurrent) {
-            context.parent ! NeedWork(newData.copy(activeActivationCount = activeCount + 1))
-          }
-          true
-        case _ =>
-          context.parent ! NeedWork(newData.copy(activeActivationCount = activeCount))
-          false
+      if (runBuffer.length > 0) {
+        processBuffer(newData.action, newData)
+        true
+      } else {
+        context.parent ! NeedWork(newData)
+        bufferProcessing //true in case buffer is still in process
       }
     } else {
       false
+    }
+  }
+
+  /** Process buffered items up to the capacity of action concurrency config */
+  def processBuffer(action: ExecutableWhiskAction, newData: ContainerData) = {
+    //send as many buffered as possible
+    var available = action.limits.concurrency.maxConcurrent - activeCount
+    logging.info(this, s"resending up to ${available} from ${runBuffer.length} buffered jobs")
+    while (available > 0 && runBuffer.length > 0) {
+      val (run, q) = runBuffer.dequeue
+      self ! run
+      bufferProcessing = true
+      runBuffer = q
+      available -= 1
+    }
+    if (available > 0) {
+      context.parent ! NeedWork(newData)
     }
   }
 

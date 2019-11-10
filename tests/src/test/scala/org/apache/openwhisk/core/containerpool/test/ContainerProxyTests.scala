@@ -165,14 +165,6 @@ class ContainerProxyTests
     }
   }
 
-  /** Expect a NeedWork message with warmed data */
-  def expectWarmed(namespace: String, action: ExecutableWhiskAction, activationCount: Int) = {
-    val test = EntityName(namespace)
-    expectMsgPF() {
-      case a @ NeedWork(WarmedData(_, `test`, `action`, _, `activationCount`)) => //matched, otherwise will fail
-    }
-  }
-
   /** Expect the container to pause successfully */
   def expectPause(machine: ActorRef) = {
     expectMsg(Transition(machine, Ready, Pausing))
@@ -722,7 +714,7 @@ class ContainerProxyTests
     machine ! Run(concurrentAction, message) //first in Started state
     machine ! Run(concurrentAction, message) //second in Started or Running state
 
-    //first message go from Started -> Running -> Ready, with 1 NeedWork messages (after buffered messages are completed below concurrent max)
+    //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
     //second message will be delayed until we get to Running state with WarmedData
     //   (and will produce 1 NeedWork message after run)
     expectMsg(Transition(machine, Started, Running))
@@ -732,11 +724,16 @@ class ContainerProxyTests
 
     //complete the first run
     runPromises(0).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when first completes
+
+    //room for 1 more, so expect NeedWork msg
+    expectWarmed(invocationNamespace.name, concurrentAction) //when first completes
+
     //complete the second run
     runPromises(1).success(runInterval, ActivationResponse.success())
-    //request new work since buffer is empty AND activationCount < max concurrent
-    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when second completes
+
+    //room for 1 more, so expect NeedWork msg
+    expectWarmed(invocationNamespace.name, concurrentAction) //when second completes
+
     //go back to ready after first and second runs are complete
     expectMsg(Transition(machine, Running, Ready))
 
@@ -760,14 +757,15 @@ class ContainerProxyTests
 
     //complete the fifth run (request new work, 1 active remain)
     runPromises(4).success(runInterval, ActivationResponse.success())
+
+    //request new work since buffer is now empty AND activationCount < concurrent max
+    expectWarmed(invocationNamespace.name, concurrentAction) //when fifth completes
+
     //complete the sixth run (request new work 0 active remain)
     runPromises(5).success(runInterval, ActivationResponse.success())
 
-    //request new work since buffer is now empty AND activationCount < concurrent max
-    expectWarmed(invocationNamespace.name, concurrentAction, 1) //when fifth completes
-    expectWarmed(invocationNamespace.name, concurrentAction, 0) //when sixth completes
-
     // back to ready
+    expectWarmed(invocationNamespace.name, concurrentAction) //when sixth completes
     expectMsg(Transition(machine, Running, Ready))
 
     //timeout + pause after getting back to Ready
