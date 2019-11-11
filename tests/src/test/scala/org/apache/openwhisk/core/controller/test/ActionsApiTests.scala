@@ -469,7 +469,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
         status should be(BadRequest)
         responseAs[String] should include {
-          s"kind '$kind' not in Set"
+          Messages.invalidRuntimeError(kind, Set.empty).dropRight(3)
         }
       }
     }
