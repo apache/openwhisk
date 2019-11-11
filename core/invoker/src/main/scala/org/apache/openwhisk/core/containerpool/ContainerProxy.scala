@@ -353,10 +353,17 @@ class ContainerProxy(factory: (TransactionId,
     // and we keep it in case we need to destroy it.
     case Event(completed: PreWarmCompleted, _) => stay using completed.data
 
-    // Run during init (for concurrenct > 1)
+    // Run during prewarm init (for concurrent > 1)
     case Event(job: Run, data: PreWarmedData) =>
       implicit val transid = job.msg.transid
       logging.info(this, s"buffering for warming container ${data.container}; ${activeCount} activations in flight")
+      runBuffer = runBuffer.enqueue(job)
+      stay()
+
+    // Run during cold init (for concurrent > 1)
+    case Event(job: Run, _: NoData) =>
+      implicit val transid = job.msg.transid
+      logging.info(this, s"buffering for cold warming container ${activeCount} activations in flight")
       runBuffer = runBuffer.enqueue(job)
       stay()
 
