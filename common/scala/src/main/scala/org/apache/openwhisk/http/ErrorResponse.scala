@@ -158,7 +158,7 @@ object Messages {
   }
 
   def invalidRuntimeError(kind: String, runtimes: Set[String]) = {
-    s"the specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes.mkString("'", "', '", "'")}."
+    s"The specified runtime '$kind' is not supported by this platform. Valid values are: ${runtimes.mkString("'", "', '", "'")}."
   }
 
   def listSkipOutOfRange(collection: String, value: Int) = {

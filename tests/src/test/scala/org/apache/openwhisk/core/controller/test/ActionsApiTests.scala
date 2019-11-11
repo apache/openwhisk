@@ -469,7 +469,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
         status should be(BadRequest)
         responseAs[String] should include {
-          s"the specified runtime $kind is not supported by this platform. Valid values are:"
+          Messages.invalidRuntimeError(kind, Set.empty).dropRight(3)
         }
       }
     }
