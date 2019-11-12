@@ -17,13 +17,12 @@
 
 package org.apache.openwhisk.core.entity
 
-import scala.util.{Failure, Success, Try}
+import org.apache.openwhisk.core.entity.size.{SizeInt, SizeString}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.language.postfixOps
-import org.apache.openwhisk.core.entity.size.SizeInt
-import org.apache.openwhisk.core.entity.size.SizeString
+import scala.util.{Failure, Success, Try}
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a
@@ -47,6 +46,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   }
 
   protected[entity] def +(p: (ParameterName, ParameterValue)) = {
+
     Option(p) map { p =>
       new Parameters(params + (p._1 -> p._2))
     } getOrElse this
@@ -80,15 +80,32 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.keySet filter (params(_).init) map (_.name)
   }
 
+  protected[core] def getMap = {
+    params
+  }
   protected[core] def toJsArray = {
     JsArray(params map { p =>
-      if (p._2.init) {
-        JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson, "init" -> JsTrue)
-      } else JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson)
+      val init = p._2.init match {
+        case true => Some("init" -> p._2.init.toJson)
+        case _    => None
+      }
+      val encrypt = p._2.encryption match {
+        case (JsNull) => None
+        case _        => Some("encryption" -> p._2.encryption.toJson)
+      }
+      JsObject(Map("key" -> p._1.name.toJson, "value" -> p._2.value.toJson) ++ init ++ encrypt)
     } toSeq: _*)
   }
 
-  protected[core] def toJsObject = JsObject(params.map(p => (p._1.name -> p._2.value.toJson)))
+  protected[core] def toJsObject =
+    JsObject(params.map(p => {
+      val newValue =
+        if (p._2.encryption == JsNull)
+          p._2.value.toJson
+        else
+          JsObject("value" -> p._2.value.toJson, "encryption" -> p._2.encryption.toJson, "init" -> p._2.init.toJson)
+      (p._1.name, newValue)
+    }))
 
   override def toString = toJsArray.compactPrint
 
@@ -157,13 +174,18 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
  * @param v the value of the parameter, may be null
  * @param init if true, this parameter value is only offered to the action during initialization
  */
-protected[entity] case class ParameterValue protected[entity] (private val v: JsValue, val init: Boolean) {
+protected[entity] case class ParameterValue protected[entity] (private val v: JsValue,
+                                                               val init: Boolean,
+                                                               val e: JsValue = JsNull) {
 
   /** @return JsValue if defined else JsNull. */
   protected[entity] def value = Option(v) getOrElse JsNull
 
   /** @return true iff value is not JsNull. */
   protected[entity] def isDefined = value != JsNull
+
+  /** @return JsValue if defined else JsNull. */
+  protected[entity] def encryption = Option(e).getOrElse(JsNull)
 
   /**
    * The size of the ParameterValue entity as ByteSize.
@@ -243,7 +265,27 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
         params
       } flatMap {
         read(_)
-      } getOrElse deserializationError("parameters malformed!")
+      } getOrElse {
+        // Used when the container proxy is reading back a merged version of the params.
+        Try {
+          var converted = Map[ParameterName, ParameterValue]()
+          new Parameters(value.asJsObject.fields.map { item: (String, JsValue) =>
+            {
+              item._2 match {
+                case JsString(s) => (new ParameterName(item._1), new ParameterValue(JsString(s), false))
+                case _ => {
+                  item._2.asJsObject.getFields("value", "init", "encryption") match {
+                    case Seq(v: JsValue, JsBoolean(i), e: JsValue) =>
+                      (new ParameterName(item._1), new ParameterValue(v, i, e))
+                  }
+                }
+              }
+            }
+          })
+        } getOrElse {
+          deserializationError("parameters malformed!")
+        }
+      }
 
     /**
      * Gets parameters as a Parameters instances.
@@ -254,10 +296,18 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      */
     def read(params: Vector[JsValue]) = Try {
       new Parameters(params map {
-        _.asJsObject.getFields("key", "value", "init") match {
+        _.asJsObject.getFields("key", "value", "init", "encryption") match {
           case Seq(JsString(k), v: JsValue) =>
             val key = new ParameterName(k)
             val value = ParameterValue(v, false)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsBoolean(i), e: JsValue) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, i, e)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, e: JsValue) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, false, e)
             (key, value)
           case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
             val key = new ParameterName(k)

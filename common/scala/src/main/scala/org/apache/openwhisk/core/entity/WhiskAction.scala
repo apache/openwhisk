@@ -347,7 +347,6 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
   import WhiskActivation.instantSerdes
-
   val execFieldName = "exec"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 
@@ -382,9 +381,16 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         (code.getBytes(UTF_8), ContentTypes.`text/plain(UTF-8)`)
       }
       val stream = new ByteArrayInputStream(bytes)
-      super.putAndAttach(db, doc, attachmentUpdater, attachmentType, stream, oldAttachment, Some { a: WhiskAction =>
-        a.copy(exec = exec.inline(code.getBytes(UTF_8)))
-      })
+      super.putAndAttach(
+        db,
+        doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
+        attachmentUpdater,
+        attachmentType,
+        stream,
+        oldAttachment,
+        Some { a: WhiskAction =>
+          a.copy(exec = exec.inline(code.getBytes(UTF_8)))
+        })
     }
 
     Try {
@@ -397,7 +403,10 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         case exec @ BlackBoxExec(_, Some(Inline(code)), _, _, binary) =>
           putWithAttachment(code, binary, exec)
         case _ =>
-          super.put(db, doc, old)
+          super.put(
+            db,
+            doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
+            old)
       }
     } match {
       case Success(f) => f

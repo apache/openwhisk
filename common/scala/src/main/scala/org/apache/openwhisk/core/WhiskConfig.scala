@@ -265,4 +265,6 @@ object ConfigKeys {
   val swaggerUi = "whisk.swagger-ui"
 
   val apacheClientConfig = "whisk.apache-client"
+
+  val parameterStorage = "whisk.parameter-storage"
 }
