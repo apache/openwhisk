@@ -516,15 +516,15 @@ class ContainerProxy(factory: (TransactionId,
     //send as many buffered as possible
     var available = action.limits.concurrency.maxConcurrent - activeCount
     logging.info(this, s"resending up to ${available} from ${runBuffer.length} buffered jobs")
-    while (available > 0 && runBuffer.length > 0) {
-      val (run, q) = runBuffer.dequeue
-      self ! run
-      bufferProcessing = true
-      runBuffer = q
-      available -= 1
-    }
-    if (available > 0) {
-      context.parent ! NeedWork(newData)
+    1 to available foreach { _ =>
+      runBuffer.dequeueOption match {
+        case Some((run, q)) =>
+          self ! run
+          bufferProcessing = true
+          runBuffer = q
+        case _ =>
+          context.parent ! NeedWork(newData)
+      }
     }
   }
 
@@ -588,7 +588,6 @@ class ContainerProxy(factory: (TransactionId,
    *         added to the WhiskActivation
    */
   def initializeAndRun(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
-
     val actionTimeout = job.action.limits.timeout.duration
     val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 

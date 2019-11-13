@@ -202,8 +202,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               // Add this request to the buffer, as it is not there yet.
               runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
             }
-          // As this request is the first one in the buffer, try again to execute it.
-          //self ! Run(r.action, r.msg, retryLogDeadline)
+          //buffered items will be processed via processBufferOrFeed()
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
