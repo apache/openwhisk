@@ -54,6 +54,10 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
   def aname() = MakeName.next("packages_tests")
   val parametersLimit = Parameters.sizeLimit
 
+  def checkResponse(response: WhiskPackage, expected: WhiskPackage) =
+    // ignore `updated` field because another test covers it
+    response should be(expected copy (updated = response.updated))
+
   private def bindingAnnotation(binding: Binding) = {
     Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(binding))
   }
@@ -437,7 +441,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(provider.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be(provider copy (updated = response.updated)) // ignored `updated` field because another test covers it
+      checkResponse(response, provider)
     }
   }
 
@@ -507,7 +511,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be(reference copy (updated = response.updated)) // ignored `updated` field because another test covers it
+      checkResponse(response, reference)
     }
   }
 
@@ -537,14 +541,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be {
+      checkResponse(
+        response,
         WhiskPackage(
           reference.namespace,
           reference.name,
           provider.bind,
-          annotations = bindingAnnotation(provider.bind.get),
-          updated = response.updated) // ignored `updated` field because another test covers it
-      }
+          annotations = bindingAnnotation(provider.bind.get)))
     }
   }
 
@@ -648,14 +651,9 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(provider.docid)
       val response = responseAs[WhiskPackage]
-      response should be(
-        WhiskPackage(
-          namespace,
-          provider.name,
-          None,
-          version = provider.version.upPatch,
-          publish = true,
-          updated = response.updated)) // ignored `updated` field because another test covers it
+      checkResponse(
+        response,
+        WhiskPackage(namespace, provider.name, None, version = provider.version.upPatch, publish = true))
     }
   }
 
@@ -679,16 +677,15 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be {
+      checkResponse(
+        response,
         WhiskPackage(
           reference.namespace,
           reference.name,
           reference.binding,
           version = reference.version.upPatch,
           publish = true,
-          annotations = reference.annotations ++ Parameters("a", "b"),
-          updated = response.updated) // ignored `updated` field because another test covers it
-      }
+          annotations = reference.annotations ++ Parameters("a", "b")))
     }
   }
 

@@ -67,6 +67,11 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   def aname() = MakeName.next("triggers_tests")
   def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
   val parametersLimit = Parameters.sizeLimit
+  val dummyInstant = Instant.now()
+
+  def checkResponse(response: WhiskTrigger, expected: WhiskTrigger) =
+    // ignore `updated` field because another test covers it
+    response should be(expected copy (updated = response.updated))
 
   //// GET /triggers
   it should "list triggers by default/explicit namespace" in {
@@ -232,7 +237,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules copy (updated = response.updated)) // ignored `updated` field because another test covers it
+      checkResponse(response, trigger.withoutRules)
     }
   }
 
@@ -244,7 +249,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules copy (updated = response.updated))
+      checkResponse(response, trigger.withoutRules)
     }
   }
 
@@ -338,14 +343,14 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(
+      checkResponse(
+        response,
         WhiskTrigger(
           trigger.namespace,
           trigger.name,
           trigger.parameters,
           version = trigger.version.upPatch,
-          // ignored `updated` field because another test covers it
-          updated = response.updated).withoutRules)
+          updated = dummyInstant).withoutRules)
     }
   }
 
@@ -450,9 +455,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[WhiskTrigger]
       status should be(OK)
-
-      // ignored `updated` field because another test covers it
-      response should be(trigger.toWhiskTrigger copy (updated = response.updated))
+      checkResponse(response, trigger.toWhiskTrigger)
     }
   }
 
