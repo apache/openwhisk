@@ -373,6 +373,8 @@ task testSwaggerCodegen(type: GradleBuild) {
     tasks = ['build']
 }
 
+tasks.withType(Test) { maxParallelForks = 2 }
+
 def getStandaloneJarFilePath(){
     project(":core:standalone").jar.archivePath
 }
