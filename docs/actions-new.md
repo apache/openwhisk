@@ -156,7 +156,7 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
 * `main` is the name of the function to execute.
 * `code` is either plain text or a base64 encoded string for binary functions (i.e., a compiled executable).
 * `binary` is false if `code` is in plain text, and true if `code` is base64 encoded.
-* `env` is a map of key-value pairs of properties to export to the environment. And contains several properties starting with the `__OW_` prefix that are specific to the running action. 
+* `env` is a map of key-value pairs of properties to export to the environment. And contains several properties starting with the `__OW_` prefix that are specific to the running action.
   * `__OW_API_KEY` the API key for the subject invoking the action, this key may be a restricted API key. This property is absent unless explicitly [requested](./annotations.md#annotations-for-all-actions).
   * `__OW_NAMESPACE` the namespace for the _activation_ (this may not be the same as the namespace for the action).
   * `__OW_ACTION_NAME` the fully qualified name of the running action.
