@@ -1,0 +1,10 @@
+{
+  "_id": "_design/subjects.v2.0.0",
+  "views": {
+    "identities": {
+      "map": "function (doc) {\n  if (doc.namespaces && !doc.blocked) {\n    doc.namespaces.forEach(function(namespace) {\n      var v = {_id: namespace.name + '/limits', namespace: namespace.name, uuid: namespace.uuid, key: namespace.key};\n      emit([namespace.name], v);\n      emit([namespace.uuid, namespace.key], v);\n    });\n  }\n}"
+    }
+  },
+  "language": "javascript",
+  "indexes": {}
+}

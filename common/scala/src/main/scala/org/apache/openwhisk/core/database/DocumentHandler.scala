@@ -292,11 +292,12 @@ object WhisksHandler extends SimpleHandler {
 
 object SubjectHandler extends DocumentHandler {
 
-  protected val supportedTables = Set("subjects/identities", "namespaceThrottlings/blockedNamespaces")
+  protected val supportedTables =
+    Set("subjects/identities", "subjects.v2.0.0/identities", "namespaceThrottlings/blockedNamespaces")
 
   override def shouldAlwaysIncludeDocs(ddoc: String, view: String): Boolean = {
     (ddoc, view) match {
-      case ("subjects", "identities")                    => true
+      case (s, "identities") if s.startsWith("subjects") => true
       case ("namespaceThrottlings", "blockedNamespaces") => true
       case _                                             => throw UnsupportedView(s"$ddoc/$view")
     }
@@ -312,7 +313,7 @@ object SubjectHandler extends DocumentHandler {
     provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]] = {
 
     val result = (ddoc, view) match {
-      case ("subjects", "identities") =>
+      case (s, "identities") if s.startsWith("subjects") =>
         require(includeDocs) //For subject/identities includeDocs is always true
         computeSubjectView(startKey, js, provider)
       case ("namespaceThrottlings", "blockedNamespaces") =>
