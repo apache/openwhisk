@@ -282,7 +282,7 @@ db:
     dir:
       become: "{{ elastic_dir_become | default(false) }}"
     base_volume: "{{ elastic_base_volume | default('esdata') }}"
-    cluster_name: "{{ elastic_cluster_name | default('lambda') }}"
+    cluster_name: "{{ elastic_cluster_name | default('openwhisk') }}"
     java_opts: "{{ elastic_java_opts | default('-Xms1g -Xmx1g') }}"
     loglevel: "{{ elastic_loglevel | default('INFO') }}"
     # the user id of elasticsearch process, default is 1000, if you have enabled user namespace
