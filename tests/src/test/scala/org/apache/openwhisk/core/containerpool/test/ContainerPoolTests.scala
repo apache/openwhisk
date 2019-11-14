@@ -522,6 +522,90 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
   }
 
+  it should "process runbuffer instead of requesting new messages" in {
+
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref))
+
+    val run1 = createRunMessage(action, invocationNamespace)
+    val run2 = createRunMessage(action, invocationNamespace)
+    val run3 = createRunMessage(action, invocationNamespace)
+
+    pool ! run1
+    pool ! run2 //will be buffered since the pool can only fit 1
+    pool ! run3 //will be buffered since the pool can only fit 1
+
+    //start first run
+    containers(0).expectMsg(run1)
+
+    //cannot launch more containers, so make sure additional containers are not created
+    containers(1).expectNoMessage(100.milliseconds)
+
+    //complete processing of first run
+    containers(0).send(pool, NeedWork(warmedData(run1)))
+
+    //don't feed till runBuffer is emptied
+    feed.expectNoMessage(100.milliseconds)
+
+    //start second run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run2.action, run2.msg, Some(_)) => true
+    }
+
+    //complete processing of second run
+    containers(0).send(pool, NeedWork(warmedData(run2)))
+
+    //feed as part of last buffer item processing
+    feed.expectMsg(MessageFeed.Processed)
+
+    //start third run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run3.action, run3.msg, None) => true
+    }
+
+    //complete processing of third run
+    containers(0).send(pool, NeedWork(warmedData(run3)))
+
+    //now we expect feed to send a new message (1 per completion = 2 new messages)
+    feed.expectMsg(MessageFeed.Processed)
+
+    //make sure only one though
+    feed.expectNoMessage(100.milliseconds)
+  }
+
+  it should "process runbuffer when container is removed" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val run1 = createRunMessage(action, invocationNamespace)
+    val run2 = createRunMessage(action, invocationNamespace)
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref))
+
+    //these will get buffered since allowLaunch is false
+    pool ! run1
+    pool ! run2
+
+    //start first run
+    containers(0).expectMsg(run1)
+
+    //trigger removal of the container ref, but don't start processing
+    containers(0).send(pool, RescheduleJob)
+
+    //trigger buffer processing by ContainerRemoved message
+    pool ! ContainerRemoved
+
+    //start second run
+    containers(1).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run2.action, run2.msg, Some(_)) => true
+    }
+  }
+
   it should "increase activation counts when scheduling to containers whose actions support concurrency" in {
     assume(concurrencyEnabled)
     val (containers, factory) = testContainers(2)
