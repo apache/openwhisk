@@ -32,5 +32,13 @@ $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
 
+# deploy es for unittest
+$ANSIBLE_CMD elasticsearch.yml
+export ELASTIC_PROTOCOL="http"
+export ELASTIC_HOSTS="localhost:9200"
+export ELASTIC_INDEX_PATTERN="unittest-%s"
+export ELASTIC_USERNAME="admin"
+export ELASTIC_PASSWORD="admin"
+
 $ANSIBLE_CMD properties.yml -e manifest_file="$RUNTIMES_MANIFEST"
 echo "Time taken for ${0##*/} is $SECONDS secs"

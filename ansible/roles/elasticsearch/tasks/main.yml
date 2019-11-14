@@ -1,0 +1,12 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This role will deploy a database server. Use the role if you want to use CouchCB locally.
+# In deploy mode it will start the ElasticSearch container.
+# In clean mode it will remove the ElasticSearch container.
+
+- import_tasks: deploy.yml
+  when: mode == "deploy"
+
+- import_tasks: clean.yml
+  when: mode == "clean"

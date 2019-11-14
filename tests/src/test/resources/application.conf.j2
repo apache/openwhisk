@@ -92,6 +92,16 @@ whisk {
             url = "{{ user_images_registry | default('') }}"
         }
     }
+
+    activation-store {
+        elasticsearch {
+            protocol      = ${?ELASTIC_PROTOCOL}
+            hosts         = ${?ELASTIC_HOSTS}
+            index-pattern = ${?ELASTIC_INDEX_PATTERN}
+            username      = ${?ELASTIC_USERNAME}
+            password      = ${?ELASTIC_PASSWORD}
+        }
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)

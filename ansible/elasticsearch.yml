@@ -1,0 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This playbook deploys a ElasticSearch cluster
+
+- hosts: elasticsearch
+  vars:
+    #
+    # host_group - usually "{{ groups['...'] }}" where '...' is what was used
+    #   for 'hosts' above.  The hostname of each host will be looked up in this
+    #   group to assign a zero-based index.  That index will be used in concert
+    #   with 'name_prefix' below to assign a host/container name.
+    host_group: "{{ groups['elasticsearch'] }}"
+    #
+    # name_prefix - a unique prefix for this set of elasticsearches.  The prefix
+    # will be used in combination with an index (determined using
+    # 'host_group' above) to name host/elasticsearcher.
+    name_prefix: "elasticsearch"
+  roles:
+  - elasticsearch

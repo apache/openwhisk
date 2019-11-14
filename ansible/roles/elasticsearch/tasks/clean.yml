@@ -1,0 +1,25 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# Remove ElasticSearch server
+
+- name: set elasticsearch container name and volume
+  set_fact:
+    elasticsearch_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
+    volume_name: "{{ db.elasticsearch.base_volume ~ host_group.index(inventory_hostname) }}"
+
+- name: remove ElasticSearch
+  vars:
+    elasticsearch_image: "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
+  docker_container:
+    name: "{{ elasticsearch_name }}"
+    image: "{{ elasticsearch_image }}"
+    keep_volumes: False
+    state: absent
+  ignore_errors: True
+
+- name: remove ElasticSearch conf dir
+  file:
+    path: "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}"
+    state: absent
+  become: "{{ db.elasticsearch.dir.become }}"
