@@ -187,7 +187,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         |		"memory": 256
         |	},
         |	"namespace": "namespace",
-        | "updated": 1546268400000
+        |	"updated": 1546268400000
         |}""".stripMargin.parseJson
 
     val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
