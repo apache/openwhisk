@@ -21,9 +21,11 @@ import scala.util.Try
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
+
 import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
-import org.apache.openwhisk.core.entity.ActivationResponse.statusForCode
+
+import org.apache.openwhisk.core.entity.ActivationResponse.{ERROR_FIELD, statusForCode}
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -293,7 +295,9 @@ case class Activation(name: String,
                       conductor: Boolean,
                       memory: Int,
                       causedBy: Option[String],
-                      size: Option[Int] = None)
+                      size: Option[Int] = None,
+                      actionStatusCode: Option[Int] = None
+                     )
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
@@ -340,7 +344,23 @@ object Activation extends DefaultJsonProtocol {
       "conductor",
       "memory",
       "causedBy",
-      "size")
+      "size",
+      "actionStatusCode"
+    )
+
+  /** Get "StatusCode" from "error" field from result response **/
+  def getActivationErrorCode(result: Option[JsValue]):Option[Int] = {
+    val errorOpts = result.get.asJsObject.fields.get(ERROR_FIELD)
+
+    /* We are only interested in `statusCode` field in error response if set by developer*/
+    errorOpts match {
+      case Some(value) => value.asJsObject.fields.get("statusCode") match {
+        case Some(statusCode) => Some(statusCode.convertTo[Int])
+        case None => None
+      }
+      case None => None
+    }
+  }
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
@@ -363,7 +383,9 @@ object Activation extends DefaultJsonProtocol {
           .map(_.memory.megabytes)
           .getOrElse(0),
         a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption,
-        a.response.size)
+        a.response.size,
+        getActivationErrorCode(a.response.result)
+      )
     }
   }
 
