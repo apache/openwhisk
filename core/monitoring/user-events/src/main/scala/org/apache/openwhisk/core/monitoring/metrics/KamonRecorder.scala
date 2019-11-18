@@ -127,8 +127,12 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
       Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
 
       a.size.foreach(responseSize.record(_))
-      a.actionStatusCode.foreach(value=> Kamon.counter(actionStatusCodeMetric)
-        .refine(tags + ("actionStatusCode" -> value.toString)).increment())
+      a.actionStatusCode.foreach(
+        value =>
+          Kamon
+            .counter(actionStatusCodeMetric)
+            .refine(tags + ("actionStatusCode" -> value.toString))
+            .increment())
     }
   }
 }

@@ -154,7 +154,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       }
 
       a.size.foreach(responseSize.observe(_))
-      a.actionStatusCode.foreach(value => actionStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
+      a.actionStatusCode.foreach(value =>
+        actionStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
     }
   }
 

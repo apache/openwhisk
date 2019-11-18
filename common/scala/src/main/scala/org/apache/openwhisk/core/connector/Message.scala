@@ -25,7 +25,7 @@ import org.apache.openwhisk.core.entity._
 import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
 
-import org.apache.openwhisk.core.entity.ActivationResponse.{ERROR_FIELD, statusForCode}
+import org.apache.openwhisk.core.entity.ActivationResponse.{statusForCode, ERROR_FIELD}
 import org.apache.openwhisk.utils.JsHelpers
 
 /** Basic trait for messages that are sent on a message bus connector. */
@@ -297,8 +297,7 @@ case class Activation(name: String,
                       memory: Int,
                       causedBy: Option[String],
                       size: Option[Int] = None,
-                      actionStatusCode: Option[Int] = None
-                     )
+                      actionStatusCode: Option[Int] = None)
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
@@ -325,12 +324,12 @@ object Activation extends DefaultJsonProtocol {
   private implicit val durationFormat = new RootJsonFormat[Duration] {
     override def write(obj: Duration): JsValue = obj match {
       case o if o.isFinite => JsNumber(o.toMillis)
-      case _ => JsNumber.zero
+      case _               => JsNumber.zero
     }
 
     override def read(json: JsValue): Duration = json match {
       case JsNumber(n) if n <= 0 => Duration.Zero
-      case JsNumber(n) => toDuration(n.longValue)
+      case JsNumber(n)           => toDuration(n.longValue)
     }
   }
 
@@ -347,8 +346,7 @@ object Activation extends DefaultJsonProtocol {
       "memory",
       "causedBy",
       "size",
-      "actionStatusCode"
-    )
+      "actionStatusCode")
 
   /** Get "StatusCode" from result response **/
   def getActivationStatusCode(result: Option[JsValue]): Option[Int] = {
@@ -356,10 +354,11 @@ object Activation extends DefaultJsonProtocol {
 
     statusCode match {
       case Some(value) => Some(value.convertTo[Int])
-      case None => JsHelpers.getFieldPath(result.get.asJsObject, "statusCode") match {
-        case Some(value) => Some(value.convertTo[Int])
-        case None => None
-      }
+      case None =>
+        JsHelpers.getFieldPath(result.get.asJsObject, "statusCode") match {
+          case Some(value) => Some(value.convertTo[Int])
+          case None        => None
+        }
     }
   }
 
@@ -385,8 +384,7 @@ object Activation extends DefaultJsonProtocol {
           .getOrElse(0),
         a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption,
         a.response.size,
-        getActivationStatusCode(a.response.result)
-      )
+        getActivationStatusCode(a.response.result))
     }
   }
 
