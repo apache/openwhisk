@@ -158,7 +158,7 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
   val activationWithActionStatusCodeJs =
     """
       |{
-      |  "actionStatusCode": 404
+      |  "actionStatusCode": 404,
       |  "causedBy": "sequence",
       |  "conductor": false,
       |  "duration": 123,
