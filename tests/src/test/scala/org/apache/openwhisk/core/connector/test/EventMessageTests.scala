@@ -104,7 +104,7 @@ class EventMessageTests extends FlatSpec with Matchers {
     Activation.from(a) shouldBe Success(
       Activation(
         "ns2/a",
-        0,
+        1,
         toDuration(123),
         toDuration(5),
         toDuration(10),

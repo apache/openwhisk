@@ -132,7 +132,7 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
     |    "result": {
     |      "error": {
     |         "statusCode": 404,
-    |         "body: "Requested resource not found"
+    |         "body": "Requested resource not found"
     |      }
     |    },
     |    "statusCode": 0
