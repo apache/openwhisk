@@ -27,7 +27,7 @@ import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorB
 import scala.util.Try
 
 trait ElasticSearchActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
-  override def storeType = "ElasticSeach"
+  override def storeType = "ElasticSearch"
 
   override lazy val storeAvailableCheck: Try[Any] = storeConfigTry
 
