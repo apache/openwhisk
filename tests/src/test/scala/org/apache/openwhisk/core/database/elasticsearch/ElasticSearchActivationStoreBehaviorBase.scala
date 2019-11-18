@@ -18,29 +18,31 @@
 package org.apache.openwhisk.core.database.elasticsearch
 
 import org.scalatest.FlatSpec
-import pureconfig.loadConfigOrThrow
-import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorBase
+import org.testcontainers.elasticsearch.ElasticsearchContainer
 
-import scala.util.Try
+import pureconfig.loadConfigOrThrow
 
 trait ElasticSearchActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
-  override def storeType = "ElasticSearch"
+  val imageName = loadConfigOrThrow[String]("whisk.elasticsearch.docker-image")
+  val container = new ElasticsearchContainer(imageName)
+  container.start()
 
-  override lazy val storeAvailableCheck: Try[Any] = storeConfigTry
+  override def afterAll = {
+    container.close()
+    super.afterAll()
+  }
+
+  override def storeType = "ElasticSearch"
 
   val creds = WhiskAuthHelpers.newIdentity()
   override val context = UserContext(creds)
 
-  lazy val storeConfigTry = Try {
-    loadConfigOrThrow[ElasticSearchActivationStoreConfig](ConfigKeys.elasticSearchActivationStore)
-  }
-
-  def storeConfig = storeConfigTry.get
-
   override lazy val activationStore = {
+    val storeConfig =
+      ElasticSearchActivationStoreConfig("http", container.getHttpHostAddress, "unittest-%s", "fake", "fake")
     new ElasticSearchActivationStore(None, storeConfig, true)
   }
 }

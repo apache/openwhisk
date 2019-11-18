@@ -93,14 +93,8 @@ whisk {
         }
     }
 
-    activation-store {
-        elasticsearch {
-            protocol      = ${?ELASTIC_PROTOCOL}
-            hosts         = ${?ELASTIC_HOSTS}
-            index-pattern = ${?ELASTIC_INDEX_PATTERN}
-            username      = ${?ELASTIC_USERNAME}
-            password      = ${?ELASTIC_PASSWORD}
-        }
+    elasticsearch {
+        docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
     }
 }
 
