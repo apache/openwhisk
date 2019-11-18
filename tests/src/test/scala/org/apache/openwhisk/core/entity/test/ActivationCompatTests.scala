@@ -155,7 +155,8 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
      |  "waitTime": 5
      |}""".stripMargin.parseJson
 
-  val activationWithActionStatusCodeJs ="""
+  val activationWithActionStatusCodeJs =
+    """
       |{
       |  "actionStatusCode": 404
       |  "causedBy": "sequence",
@@ -168,7 +169,6 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
       |  "statusCode": 0,
       |  "waitTime": 5
       |}""".stripMargin.parseJson
-
 
   it should "deserialize without error" in {
     val activationResponse = ActivationResponse.serdes.read(activationResponseJs)

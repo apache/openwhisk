@@ -100,8 +100,7 @@ class EventMessageTests extends FlatSpec with Matchers {
         |""".stripMargin
     val a =
       fullActivation
-      .copy(
-        response = ActivationResponse.applicationError(resultWithError.parseJson, Some(42)))
+        .copy(response = ActivationResponse.applicationError(resultWithError.parseJson, Some(42)))
     Activation.from(a) shouldBe Success(
       Activation(
         "ns2/a",
@@ -114,9 +113,7 @@ class EventMessageTests extends FlatSpec with Matchers {
         128,
         Some("sequence"),
         Some(42),
-        Some(404)
-      )
-    )
+        Some(404)))
   }
 
   def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)
