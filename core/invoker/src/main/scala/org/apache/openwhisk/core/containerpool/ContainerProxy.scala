@@ -499,8 +499,15 @@ class ContainerProxy(factory: (TransactionId,
   def requestWork(newData: WarmedData): Boolean = {
     //if there is concurrency capacity, process runbuffer, signal NeedWork, or both
     if (activeCount < newData.action.limits.concurrency.maxConcurrent) {
-      if (runBuffer.length > 0) {
+      if (runBuffer.nonEmpty) {
+        //only request work once, if available larger than runbuffer
+        val available = newData.action.limits.concurrency.maxConcurrent - activeCount
+        val needWork: Boolean = available > runBuffer.size
         processBuffer(newData.action, newData)
+        if (needWork) {
+          //after buffer processing, then send NeedWork
+          context.parent ! NeedWork(newData)
+        }
         true
       } else {
         context.parent ! NeedWork(newData)
@@ -514,7 +521,7 @@ class ContainerProxy(factory: (TransactionId,
   /** Process buffered items up to the capacity of action concurrency config */
   def processBuffer(action: ExecutableWhiskAction, newData: ContainerData) = {
     //send as many buffered as possible
-    var available = action.limits.concurrency.maxConcurrent - activeCount
+    val available = action.limits.concurrency.maxConcurrent - activeCount
     logging.info(this, s"resending up to ${available} from ${runBuffer.length} buffered jobs")
     1 to available foreach { _ =>
       runBuffer.dequeueOption match {
@@ -523,7 +530,6 @@ class ContainerProxy(factory: (TransactionId,
           bufferProcessing = true
           runBuffer = q
         case _ =>
-          context.parent ! NeedWork(newData)
       }
     }
   }
