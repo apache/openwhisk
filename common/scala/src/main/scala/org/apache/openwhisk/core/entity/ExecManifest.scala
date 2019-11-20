@@ -25,7 +25,7 @@ import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.Attachments.Attached._
-import fastparse.all._
+import fastparse._, NoWhitespace._
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -202,34 +202,34 @@ protected[core] object ExecManifest {
     // digest-algorithm-separator      := /[+.-_]/
     // digest-algorithm-component      := /[A-Za-z][A-Za-z0-9]*/
     // digest-hex                      := /[0-9a-fA-F]{32,}/ ; At least 128 bit digest value
-    private val lowercaseLetters = P(CharIn('a' to 'z'))
-    private val uppercaseLetters = P(CharIn('A' to 'Z'))
-    private val letters = P(lowercaseLetters | uppercaseLetters)
-    private val digits = P(CharIn('0' to '9'))
+    private def lowercaseLetters[_: P] = P(CharIn("a-z"))
+    private def uppercaseLetters[_: P] = P(CharIn("a-Z"))
+    private def letters[_: P] = P(lowercaseLetters | uppercaseLetters)
+    private def digits[_: P] = P(CharIn("0-9"))
 
-    private val alphaNumeric = P(lowercaseLetters | digits)
-    private val alphaNumericWithUpper = P(letters | digits)
-    private val word = P(alphaNumericWithUpper | "_")
+    private def alphaNumeric[_: P] = P(lowercaseLetters | digits)
+    private def alphaNumericWithUpper[_: P] = P(letters | digits)
+    private def word[_: P] = P(alphaNumericWithUpper | "_")
 
-    private val digestHex = P(digits | CharIn(('a' to 'f') ++ ('A' to 'F'))).rep(min = 32)
-    private val digestAlgorithmComponent = P(letters ~ alphaNumericWithUpper.rep)
-    private val digestAlgorithmSeperator = P("+" | "." | "-" | "_")
-    private val digestAlgorithm = P(digestAlgorithmComponent.rep(min = 1, sep = digestAlgorithmSeperator))
-    private val digest = P(digestAlgorithm ~ ":" ~ digestHex)
+    private def digestHex[_: P] = P(digits | CharIn("a-fA-F")).rep(32)
+    private def digestAlgorithmComponent[_: P] = P(letters ~ alphaNumericWithUpper.rep)
+    private def digestAlgorithmSeperator[_: P] = P("+" | "." | "-" | "_")
+    private def digestAlgorithm[_: P] = P(digestAlgorithmComponent.rep(min = 1, sep = digestAlgorithmSeperator))
+    private def digest[_: P] = P(digestAlgorithm ~ ":" ~ digestHex)
 
-    private val tag = P(word ~ (word | "." | "-").rep(max = 127))
+    private def tag[_: P] = P(word ~ (word | "." | "-").rep(max = 127))
 
-    private val separator = P("_" | "." | "__" | "-".rep)
-    private val pathComponent = P(alphaNumeric.rep(min = 1, sep = separator))
-    private val portNumber = P(digits.rep(min = 1))
+    private def separator[_: P] = P("_" | "." | "__" | "-".rep)
+    private def pathComponent[_: P] = P(alphaNumeric.rep(min = 1, sep = separator))
+    private def portNumber[_: P] = P(digits.rep(1))
     // FIXME: this is not correct yet. It accepts "-" as the beginning and end of a domain
-    private val domainComponent = P(alphaNumericWithUpper | "-").rep
-    private val domain = P(
-      (domainComponent
+    private def domainComponent[_: P] = P(alphaNumericWithUpper | "-").rep
+    private def domain[_: P] =
+      P((domainComponent
         .rep(min = 2, sep = ".") ~ (":" ~ portNumber).?) | (domainComponent.rep(min = 1, sep = ".") ~ ":" ~ portNumber))
-    private val name = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
+    private def name[_: P] = P((domain.! ~ "/").? ~ pathComponent.!.rep(min = 1, sep = "/"))
 
-    private val reference = P(Start ~ name ~ (":" ~ tag.!).? ~ ("@" ~ digest.!).? ~ End)
+    private def reference[_: P] = P(Start ~ name ~ (":" ~ tag.!).? ~ ("@" ~ digest.!).? ~ End)
 
     /**
      * Constructs an ImageName from a string. This method checks that the image name conforms
@@ -238,7 +238,7 @@ protected[core] object ExecManifest {
      * Internal container names use the proper constructor directly.
      */
     def fromString(s: String): Try[ImageName] = {
-      reference.parse(s) match {
+      parse(s, reference(_)) match {
         case Parsed.Success((registry, imagePathParts, imageTag, _), _) =>
           // imagePathParts has at least one element per the parser above
           val prefix = (imagePathParts.dropRight(1)).mkString("/")
