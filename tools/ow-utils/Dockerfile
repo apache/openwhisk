@@ -18,6 +18,7 @@
 FROM adoptopenjdk/openjdk8:jdk8u191-b12
 
 ENV DOCKER_VERSION 1.12.0
+ENV KUBECTL_VERSION v1.16.3
 ENV WHISK_CLI_VERSION latest
 ENV WHISKDEPLOY_CLI_VERSION latest
 
@@ -45,11 +46,20 @@ RUN wget --no-verbose https://get.docker.com/builds/Linux/x86_64/docker-${DOCKER
   rm -f docker-${DOCKER_VERSION}.tgz && \
   chmod +x /usr/bin/docker
 
-# # Install `wsk` cli in /usr/local/bin
+# Install kubectl in /usr/local/bin
+RUN curl -Lo ./kubectl https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && mv kubectl /usr/local/bin/kubectl
+
+# Install `wsk` cli in /usr/local/bin
 RUN wget -q https://github.com/apache/openwhisk-cli/releases/download/$WHISK_CLI_VERSION/OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz && \
   tar xzf OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz -C /usr/local/bin wsk && \
   rm OpenWhisk_CLI-$WHISK_CLI_VERSION-linux-amd64.tgz
 
+# Install wskadmin in /bin
 COPY wskutil.py /bin
 COPY wskprop.py /bin
 COPY wskadmin /bin
+
+# Setup tools/data for certificate generation (used by openwhisk-deploy-kube)
+RUN mkdir /cert-gen
+COPY openwhisk-server-key.pem /cert-gen
+COPY genssl.sh /usr/local/bin/
