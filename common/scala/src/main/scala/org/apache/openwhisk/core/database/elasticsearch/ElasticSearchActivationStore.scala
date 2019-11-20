@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.database.elasticsearch
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 import scala.language.postfixOps
 import akka.actor.ActorSystem
@@ -25,8 +26,10 @@ import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.Flow
 import akka.stream._
+import com.sksamuel.elastic4s.http.search.SearchHit
 import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
 import com.sksamuel.elastic4s.indexes.IndexRequest
+import com.sksamuel.elastic4s.searches.queries.RangeQuery
 import com.sksamuel.elastic4s.searches.queries.matches.MatchPhrase
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
 import org.apache.http.impl.client.BasicCredentialsProvider
@@ -88,7 +91,7 @@ class ElasticSearchActivationStore(
     new Batcher(500, maxOpenDbRequests)(doStore(_)(TransactionId.dbBatcher))
 
   private val minStart = 0L
-  private val maxStart = Instant.now.toEpochMilli + 100L * 365 * 24 * 60 * 60 * 1000 //100 years from now
+  private val maxStart = Instant.now.toEpochMilli + TimeUnit.DAYS.toMillis(365 * 100) //100 years from now
 
   override def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
@@ -107,9 +110,10 @@ class ElasticSearchActivationStore(
       .getOrElse(s"${activation.namespace}/${activation.name}")
     // Escape `_id` field as it's not permitted in ElasticSearch, add `path` field for search, and
     // convert annotations to JsObject as ElasticSearch doesn't support array with mixed types
+    // response.result can be any type ElasticSearch also doesn't support that, so convert it to a string
     val response = JsObject(
-      "statusCode" -> JsNumber(activation.response.statusCode),
-      "result" -> JsString(activation.response.result.toJson.compactPrint))
+      activation.response.toJsonObject.fields
+        .updated("result", JsString(activation.response.result.toJson.compactPrint)))
     val payload = JsObject(
       activation.toDocumentRecord.fields - "_id" ++ Map(
         "path" -> JsString(path),
@@ -207,7 +211,7 @@ class ElasticSearchActivationStore(
     val start =
       transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] 'activations' finding activation: '$activationId'")
 
-    val index = generateIndex(activationId.toString.split("/")(0))
+    val index = generateIndex(extractNamespace(activationId))
     val res = client
       .execute {
         search(index) query { termQuery("_id", activationId.asString) }
@@ -219,8 +223,7 @@ class ElasticSearchActivationStore(
             throw NoDocumentException("not found on 'get'")
           } else {
             transid.finished(this, start, s"[GET] 'activations' completed: found activation '$activationId'")
-            restoreAnnotations(restoreResponse(res.result.hits.hits(0).sourceAsString.parseJson.asJsObject))
-              .convertTo[WhiskActivation]
+            deserializeHitToWhiskActivation(res.result.hits.hits(0))
           }
         } else if (res.status == StatusCodes.NotFound.intValue) {
           transid.finished(this, start, s"[GET] 'activations', document: '$activationId'; not found.")
@@ -260,7 +263,7 @@ class ElasticSearchActivationStore(
     val start =
       transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] 'activations' deleting document: '$activationId'")
 
-    val index = generateIndex(activationId.toString.split("/")(0))
+    val index = generateIndex(extractNamespace(activationId))
 
     val res = client
       .execute {
@@ -323,9 +326,7 @@ class ElasticSearchActivationStore(
       .getOrElse {
         matchPhraseQuery("namespace", namespace.asString)
       }
-    val startRange = rangeQuery("start")
-      .gte(since.map(_.toEpochMilli).getOrElse(minStart))
-      .lte(upto.map(_.toEpochMilli).getOrElse(maxStart))
+    val startRange = generateRangeQuery("start", since, upto)
 
     val index = generateIndex(namespace.namespace)
 
@@ -392,9 +393,7 @@ class ElasticSearchActivationStore(
     require(limit >= 0, "limit should be non negative")
 
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] 'activations'")
-    val startRange = rangeQuery("start")
-      .gte(since.map(_.toEpochMilli).getOrElse(minStart))
-      .lte(upto.map(_.toEpochMilli).getOrElse(maxStart))
+    val startRange = generateRangeQuery("start", since, upto)
     val index = generateIndex(namespace.namespace)
 
     val res = client
@@ -405,15 +404,9 @@ class ElasticSearchActivationStore(
         if (res.status == StatusCodes.OK.intValue) {
           val out =
             if (includeDocs)
-              Right(res.result.hits.hits.map { hit =>
-                restoreAnnotations(restoreResponse(hit.sourceAsString.parseJson.asJsObject)).convertTo[WhiskActivation]
-              }.toList)
+              Right(res.result.hits.hits.map(deserializeHitToWhiskActivation).toList)
             else
-              Left(res.result.hits.hits.map { hit =>
-                restoreAnnotations(restoreResponse(hit.sourceAsString.parseJson.asJsObject))
-                  .convertTo[WhiskActivation]
-                  .summaryAsJson
-              }.toList)
+              Left(res.result.hits.hits.map(deserializeHitToWhiskActivation(_).summaryAsJson).toList)
           transid.finished(this, start, s"[QUERY] 'activations' completed: matched ${res.result.hits.total}")
           out
 
@@ -427,6 +420,10 @@ class ElasticSearchActivationStore(
       res,
       failure =>
         transid.failed(this, start, s"failed to query activation with error ${failure.getMessage}", ErrorLevel))
+  }
+
+  private def deserializeHitToWhiskActivation(hit: SearchHit): WhiskActivation = {
+    restoreAnnotations(restoreResponse(hit.sourceAsString.parseJson.asJsObject)).convertTo[WhiskActivation]
   }
 
   private def restoreAnnotations(js: JsObject): JsObject = {
@@ -463,8 +460,18 @@ class ElasticSearchActivationStore(
     JsObject(js.fields.updated("response", response))
   }
 
+  private def extractNamespace(activationId: ActivationId): String = {
+    activationId.toString.split("/")(0)
+  }
+
   private def generateIndex(namespace: String): String = {
     elasticSearchConfig.indexPattern.dropWhile(_ == '/') format namespace.toLowerCase
+  }
+
+  private def generateRangeQuery(key: String, since: Option[Instant], upto: Option[Instant]): RangeQuery = {
+    rangeQuery(key)
+      .gte(since.map(_.toEpochMilli).getOrElse(minStart))
+      .lte(upto.map(_.toEpochMilli).getOrElse(maxStart))
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
