@@ -19,9 +19,7 @@ sudo: required
 
 dist: xenial
 jdk: openjdk8
-language: scala
-scala:
-   - 2.12.7
+language: java
 
 services:
   - docker
