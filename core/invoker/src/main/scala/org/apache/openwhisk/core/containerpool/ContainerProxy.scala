@@ -860,7 +860,8 @@ object ContainerProxy {
             collectLogs: LogsCollector,
             instance: InvokerInstanceId,
             poolConfig: ContainerPoolConfig,
-            healthCheckConfig: ContainerProxyHealthCheckConfig,
+            healthCheckConfig: ContainerProxyHealthCheckConfig =
+              loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
             unusedTimeout: FiniteDuration = timeouts.idleContainer,
             pauseGrace: FiniteDuration = timeouts.pauseGrace) =
     Props(
