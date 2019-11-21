@@ -151,15 +151,15 @@ install.dependsOn(bootJar)
 dependencies {
     compile project(':core:controller')
     compile project(':tools:admin')
-    compile 'org.rogach:scallop_2.12:3.3.1'
+    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.1"
 
     //Tried with 0.16.0 has support for Kafka 0.11.0 https://github.com/embeddedkafka/embedded-kafka/tree/v0.16.0
     //But that causes class compatability issue die to use of newer client version
-    compile ("io.github.embeddedkafka:embedded-kafka_2.12:2.1.1")
-    compile ("org.scala-lang:scala-reflect:${gradle.scala.version}")
+    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.1.1"
+    compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
 
-    testCompile 'junit:junit:4.11'
-    testCompile 'org.scalatest:scalatest_2.12:3.0.5'
+    testCompile "junit:junit:4.11"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
 }
 
 gradle.projectsEvaluated {

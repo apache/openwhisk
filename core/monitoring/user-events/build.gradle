@@ -34,17 +34,17 @@ dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 
-    compile "com.typesafe.akka:akka-stream-kafka_2.12:${gradle.akka_kafka.version}"
+    compile "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
 
-    compile 'io.prometheus:simpleclient:0.6.0'
-    compile 'io.prometheus:simpleclient_common:0.6.0'
+    compile "io.prometheus:simpleclient:0.6.0"
+    compile "io.prometheus:simpleclient_common:0.6.0"
 
-    testCompile 'junit:junit:4.11'
-    testCompile 'org.scalatest:scalatest_2.12:3.0.1'
-    testCompile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
-    testCompile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
-    testCompile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
-    testCompile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
+    testCompile "junit:junit:4.11"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.1"
+    testCompile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    testCompile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    testCompile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    testCompile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
 }
 
 tasks.withType(ScalaCompile) {

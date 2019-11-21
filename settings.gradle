@@ -36,6 +36,7 @@ rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
     version: '2.12.10',
+    depVersion: '2.12',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
 

@@ -43,7 +43,7 @@ dependencies {
     compile ("org.apache.curator:curator-recipes:${gradle.curator.version}") {
         exclude group: 'org.apache.zookeeper', module:'zookeeper'
     }
-    compile ('org.apache.zookeeper:zookeeper:3.4.11') {
+    compile ("org.apache.zookeeper:zookeeper:3.4.11") {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
         exclude group: 'jline'
