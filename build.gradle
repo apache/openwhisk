@@ -44,11 +44,20 @@ subprojects {
     version '1.0.0-SNAPSHOT'
 
     afterEvaluate {
-        if (project.plugins.hasPlugin('application')
-                && project.plugins.hasPlugin('scala')) {
-            startScripts {
-                doLast {
-                    unixScript.text = configureUnixClasspath(unixScript)
+        if (project.plugins.hasPlugin('scala')) {
+            repositories {
+                mavenCentral()
+            }
+
+            tasks.withType(ScalaCompile) {
+                scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+            }
+
+            if (project.plugins.hasPlugin('application')) {
+                startScripts {
+                    doLast {
+                        unixScript.text = configureUnixClasspath(unixScript)
+                    }
                 }
             }
         }

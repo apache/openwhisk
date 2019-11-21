@@ -26,10 +26,6 @@ apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-standalone"
 
-repositories {
-    mavenCentral()
-}
-
 task copySwagger(type: Copy) {
     def version = "3.6.0"
     mkdir("$buildDir/tmp/swagger")

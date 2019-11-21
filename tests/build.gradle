@@ -28,10 +28,6 @@ apply plugin: 'maven'
 apply plugin: 'org.scoverage'
 compileTestScala.options.encoding = 'UTF-8'
 
-repositories {
-    mavenCentral()
-}
-
 install.dependsOn ':tools:admin:install'
 
 project.archivesBaseName = "openwhisk-tests"
@@ -218,10 +214,6 @@ dependencies {
     compile project(':tools:admin')
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')

@@ -25,10 +25,6 @@ apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-admin-tools"
 
-repositories {
-    mavenCentral()
-}
-
 jar {
     enabled = true
 }
