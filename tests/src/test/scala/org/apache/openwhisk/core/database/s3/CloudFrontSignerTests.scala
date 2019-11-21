@@ -24,7 +24,8 @@ import org.apache.openwhisk.core.database.s3.S3AttachmentStoreProvider.S3Config
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers, OptionValues}
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
 class CloudFrontSignerTests extends FlatSpec with Matchers with OptionValues {

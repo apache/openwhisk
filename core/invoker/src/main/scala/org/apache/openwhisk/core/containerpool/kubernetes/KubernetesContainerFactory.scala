@@ -18,7 +18,8 @@
 package org.apache.openwhisk.core.containerpool.kubernetes
 
 import akka.actor.ActorSystem
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext

@@ -70,6 +70,7 @@ subprojects {
 
             tasks.withType(ScalaCompile) {
                 scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+                scalaCompileOptions.forkOptions.jvmArgs = ["-Xss2m"]
             }
 
             if (project.plugins.hasPlugin('application')) {

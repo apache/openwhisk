@@ -26,6 +26,7 @@ import spray.json._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
+import pureconfig.generic.auto._
 
 case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 

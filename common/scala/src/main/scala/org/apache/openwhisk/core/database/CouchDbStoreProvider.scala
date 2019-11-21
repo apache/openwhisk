@@ -25,6 +25,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.DocumentReader
 import org.apache.openwhisk.core.entity.size._
 import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.reflect.ClassTag
 
