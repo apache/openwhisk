@@ -91,8 +91,10 @@ protected[core] object ExecManifest {
       })
 
     val bypassPullForLocalImages = runtimeManifestConfig.bypassPullForLocalImages
-      .filter(identity)
-      .flatMap(_ => runtimeManifestConfig.localImagePrefix)
+      .flatMap {
+        case true  => runtimeManifestConfig.localImagePrefix
+        case false => None
+      }
 
     Runtimes(runtimes.getOrElse(Set.empty), blackbox.getOrElse(Set.empty), bypassPullForLocalImages)
   }
