@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.standalone
 
-import java.net.{HttpURLConnection, URI, URL}
+import java.net.{HttpURLConnection, URL}
 
 import akka.http.scaladsl.model.Uri
 import com.google.common.base.Stopwatch

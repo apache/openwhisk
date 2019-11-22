@@ -162,6 +162,10 @@ dependencies {
     testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
 }
 
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
+
 gradle.projectsEvaluated {
     tasks.withType(Test) {
         testLogging {

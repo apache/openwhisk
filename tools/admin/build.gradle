@@ -50,3 +50,7 @@ dependencies {
     compile project(':common:scala')
     compile "org.rogach:scallop_${gradle.scala.depVersion}:3.1.2"
 }
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
