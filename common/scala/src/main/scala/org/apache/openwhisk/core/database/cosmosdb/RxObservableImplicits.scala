@@ -34,9 +34,7 @@ private[cosmosdb] trait RxObservableImplicits {
      * @return the head result of the [[Observable]].
      */
     def head(): Future[T] = {
-      def toHandler[T](f: (T) => Unit): Action1[T] = new Action1[T] {
-        def call(t: T) = f(t)
-      }
+      def toHandler[P](f: (P) => Unit): Action1[P] = (t: P) => f(t)
 
       val promise = Promise[T]()
       observable.single.subscribe(toHandler(promise.success), toHandler(promise.failure))
