@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
-apply plugin: 'application'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
+plugins {
+    id 'application'
+    id 'eclipse'
+    id 'maven'
+    id 'org.scoverage'
+    id 'scala'
+}
 
 ext.dockerImageName = 'invoker'
 apply from: '../../gradle/docker.gradle'

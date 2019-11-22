@@ -16,11 +16,10 @@
  */
 
 plugins {
-    id "com.github.lkishalmi.gatling" version "0.7.2"
+    id 'com.github.lkishalmi.gatling' version '0.7.2'
+    id 'eclipse'
+    id 'scala'
 }
-
-apply plugin: 'eclipse'
-apply plugin: 'scala'
 
 dependencies {
     gatling "io.spray:spray-json_${gradle.scala.depVersion}:1.3.4"

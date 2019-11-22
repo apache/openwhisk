@@ -18,10 +18,9 @@
 plugins {
     id 'org.springframework.boot' version '2.0.2.RELEASE'
     id 'scala'
+    id 'maven'
+    id 'org.scoverage'
 }
-
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-admin-tools"
 

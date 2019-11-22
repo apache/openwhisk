@@ -45,6 +45,7 @@ subprojects {
 
     afterEvaluate {
         if (project.plugins.hasPlugin('scala')) {
+
             repositories {
                 mavenCentral()
             }

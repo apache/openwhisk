@@ -19,13 +19,13 @@ import org.scoverage.ScoverageReport
 import static groovy.json.JsonOutput.*
 
 plugins {
+    id 'eclipse'
+    id 'maven'
     id 'org.hidetake.swagger.generator' version '2.18.1'
+    id 'org.scoverage'
+    id 'scala'
 }
 
-apply plugin: 'scala'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
 compileTestScala.options.encoding = 'UTF-8'
 
 install.dependsOn ':tools:admin:install'

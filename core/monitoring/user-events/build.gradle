@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
-apply plugin: 'application'
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
+plugins {
+    id 'application'
+    id 'eclipse'
+    id 'maven'
+    id 'org.scoverage'
+    id 'scala'
+}
 
 ext.dockerImageName = 'user-events'
 apply from: "../../../gradle/docker.gradle"
