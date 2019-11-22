@@ -49,6 +49,7 @@ protected[core] case class ActivationResponse private (statusCode: Int,
   def isContainerError = statusCode == ActivationResponse.DeveloperError
   def isWhiskError = statusCode == ActivationResponse.WhiskError
   def withoutResult = ActivationResponse(statusCode, None)
+  def isTruncated = statusCode == ActivationResponse.Truncated
 
   override def toString = toJsonObject.compactPrint
 }
@@ -62,39 +63,46 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   val ApplicationError = 1 // action ran but there was an error and it was handled
   val DeveloperError = 2 // action ran but failed to handle an error, or action did not run and failed to initialize
   val WhiskError = 3 // internal system error
+  val Truncated = 4 // action ran correctly, but returned a response that was too large
 
   val statusSuccess = "success"
   val statusApplicationError = "application_error"
   val statusDeveloperError = "action_developer_error"
   val statusWhiskError = "whisk_internal_error"
+  val truncatedError = "success_but_truncated"
 
   protected[core] def statusForCode(code: Int) = {
-    require(code >= 0 && code <= 3)
+    require(code >= 0 && code <= 4)
     code match {
       case Success          => statusSuccess
       case ApplicationError => statusApplicationError
       case DeveloperError   => statusDeveloperError
+      case Truncated        => truncatedError
       case WhiskError       => statusWhiskError
     }
   }
 
   protected[core] def messageForCode(code: Int) = {
-    require(code >= 0 && code <= 3)
+    require(code >= 0 && code <= 4)
     code match {
       case Success          => "success"
       case ApplicationError => "application error"
       case DeveloperError   => "action developer error"
+      case Truncated        => "success but response was truncated"
       case WhiskError       => "whisk internal error"
     }
   }
 
   private def error(code: Int, errorValue: JsValue, size: Option[Int]) = {
-    require(code == ApplicationError || code == DeveloperError || code == WhiskError)
+    require(code == ApplicationError || code == DeveloperError || code == WhiskError || code == Truncated)
     ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)), size)
   }
 
   protected[core] def success(result: Option[JsValue] = None, size: Option[Int] = None) =
     ActivationResponse(Success, result, size)
+
+  protected[core] def truncatedError(body: String, size: Option[Int] = None) =
+    error(Truncated, JsString(body), size)
 
   protected[core] def applicationError(errorValue: JsValue, size: Option[Int] = None) =
     error(ApplicationError, errorValue, size)
@@ -234,7 +242,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             }
 
           case Some((length, maxlength)) =>
-            developerError(truncatedResponse(str, length, maxlength), Some(length.toBytes.toInt))
+            truncatedError(truncatedResponse(str, length, maxlength), Some(length.toBytes.toInt))
         }
 
       case Left(_: MemoryExhausted) =>

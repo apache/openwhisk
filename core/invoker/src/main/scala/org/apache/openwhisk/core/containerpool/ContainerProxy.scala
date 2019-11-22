@@ -391,10 +391,21 @@ class ContainerProxy(factory: (TransactionId,
       activeCount -= 1
       destroyContainer(data.container)
 
-    // Failed for a subsequent /run
-    case Event(_: FailureMessage, data: WarmedData) =>
+    case Event(failed: FailureMessage, data: WarmedData) =>
       activeCount -= 1
-      destroyContainer(data.container)
+      failed.cause match {
+        case ActivationUnsuccessfulError(a) if a.response.isTruncated => {
+          logging.info(this, s"Container produced a response that was truncated, leaving running.")()
+          if (requestWork(data) || activeCount > 0) {
+            stay using data
+          } else {
+            goto(Ready) using data
+          }
+        }
+        case _ => {
+          destroyContainer(data.container)
+        }
+      }
 
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
@@ -550,7 +561,7 @@ class ContainerProxy(factory: (TransactionId,
    * 4. recording the result to the data store
    *
    * @param container the container to run the job on
-   * @param job the job to run
+   * @param job       the job to run
    * @return a future completing after logs have been collected and
    *         added to the WhiskActivation
    */
