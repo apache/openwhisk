@@ -46,7 +46,7 @@ dependencies {
     compile "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
 
-    compile "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:0.15"
+    compile "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
 
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "org.slf4j:jcl-over-slf4j:1.7.25"
