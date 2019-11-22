@@ -94,8 +94,8 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
     compile "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
-
-    compile ("com.azure:azure-storage-blob:12.0.0") {
+    
+    compile ("com.azure:azure-storage-blob:12.0.1") {
         exclude group: "com.azure", module: "azure-core-test"
     }
 }
