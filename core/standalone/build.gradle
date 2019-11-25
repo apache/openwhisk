@@ -16,19 +16,14 @@
  */
 
 plugins {
+    id 'maven'
+    id 'org.scoverage'
     id 'org.springframework.boot' version '2.1.6.RELEASE'
-    id "com.gorylenko.gradle-git-properties" version "2.0.0"
     id 'scala'
+    id 'com.gorylenko.gradle-git-properties' version '2.0.0'
 }
-
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
 
 project.archivesBaseName = "openwhisk-standalone"
-
-repositories {
-    mavenCentral()
-}
 
 task copySwagger(type: Copy) {
     def version = "3.6.0"

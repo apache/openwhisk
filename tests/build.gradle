@@ -19,18 +19,14 @@ import org.scoverage.ScoverageReport
 import static groovy.json.JsonOutput.*
 
 plugins {
+    id 'eclipse'
+    id 'maven'
     id 'org.hidetake.swagger.generator' version '2.18.1'
+    id 'org.scoverage'
+    id 'scala'
 }
 
-apply plugin: 'scala'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
 compileTestScala.options.encoding = 'UTF-8'
-
-repositories {
-    mavenCentral()
-}
 
 install.dependsOn ':tools:admin:install'
 
@@ -218,10 +214,6 @@ dependencies {
     compile project(':tools:admin')
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')

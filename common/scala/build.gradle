@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
+plugins {
+    id 'eclipse'
+    id 'maven'
+    id 'org.scoverage'
+    id 'scala'
+}
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
@@ -98,8 +96,4 @@ configurations {
         exclude group: 'commons-logging'
         exclude group: 'log4j'
     }
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
