@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb.{FeedResponse, Resource, ResourceResponse}
-import rx.lang.scala.JavaConverters._
 import rx.Observable
+import rx.functions.Action1
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
@@ -34,8 +34,10 @@ private[cosmosdb] trait RxObservableImplicits {
      * @return the head result of the [[Observable]].
      */
     def head(): Future[T] = {
+      def toHandler[P](f: (P) => Unit): Action1[P] = (t: P) => f(t)
+
       val promise = Promise[T]()
-      observable.asScala.single.subscribe(x => promise.success(x), e => promise.failure(e))
+      observable.single.subscribe(toHandler(promise.success), toHandler(promise.failure))
       promise.future
     }
   }
@@ -46,8 +48,8 @@ private[cosmosdb] trait RxObservableImplicits {
 
   implicit class RxScalaFeedObservable[T <: Resource](observable: Observable[FeedResponse[T]]) {
     def blockingOnlyResult(): Option[T] = {
-      val value = observable.asScala.toList.toBlocking.single
-      val results = value.head.getResults.asScala
+      val value = observable.toBlocking.single
+      val results = value.getResults.asScala
       require(results.isEmpty || results.size == 1, s"More than one result found $results")
       results.headOption
     }

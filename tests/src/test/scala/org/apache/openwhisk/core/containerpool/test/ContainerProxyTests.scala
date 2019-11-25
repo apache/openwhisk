@@ -1416,10 +1416,35 @@ class ContainerProxyTests
     override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
-      initializer shouldBe action.containerInitializer {
+
+      val envField = "env"
+
+      (initializer.fields - envField) shouldBe (action.containerInitializer {
         activationArguments.fields.filter(k => filterEnvVar(k._1))
-      }
+      }.fields - envField)
       timeout shouldBe action.limits.timeout.duration
+
+      val initializeEnv = initializer.fields(envField).asJsObject
+
+      initializeEnv.fields("__OW_NAMESPACE") shouldBe invocationNamespace.name.toJson
+      initializeEnv.fields("__OW_ACTION_NAME") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
+      initializeEnv.fields("__OW_ACTIVATION_ID") shouldBe message.activationId.toJson
+      initializeEnv.fields("__OW_TRANSACTION_ID") shouldBe transid.id.toJson
+
+      val convertedAuthKey = message.user.authkey.toEnvironment.fields.map(f => ("__OW_" + f._1.toUpperCase(), f._2))
+      val authEnvironment = initializeEnv.fields.filterKeys(convertedAuthKey.contains)
+      if (apiKeyMustBePresent) {
+        convertedAuthKey shouldBe authEnvironment
+      } else {
+        authEnvironment shouldBe empty
+      }
+
+      val deadline = Instant.ofEpochMilli(initializeEnv.fields("__OW_DEADLINE").convertTo[String].toLong)
+      val maxDeadline = Instant.now.plusMillis(timeout.toMillis)
+
+      // The deadline should be in the future but must be smaller than or equal
+      // a freshly computed deadline, as they get computed slightly after each other
+      deadline should (be <= maxDeadline and be >= Instant.now)
 
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }

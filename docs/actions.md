@@ -624,7 +624,7 @@ Notice that the list is now sorted alphabetically by namespace, then package nam
 As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](packages.md). To filter your list of actions to just those within a specific package, you can use:
 
 ```
-wsk action list action list /whisk.system/utils
+wsk action list /whisk.system/utils
 ```
 ```
 actions

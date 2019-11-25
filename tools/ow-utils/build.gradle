@@ -18,7 +18,7 @@
 ext.dockerImageName = 'ow-utils'
 apply from: '../../gradle/docker.gradle'
 
-distDocker.dependsOn 'copyWskadmin'
+distDocker.dependsOn 'copyWskadmin', 'copyGenssl'
 distDocker.finalizedBy('cleanup')
 
 task copyWskadmin(type: Copy) {
@@ -26,9 +26,16 @@ task copyWskadmin(type: Copy) {
     into '.'
 }
 
+task copyGenssl(type: Copy) {
+    from '../../ansible/files/genssl.sh', '../../ansible/roles/nginx/files/openwhisk-server-key.pem'
+    into '.'
+}
+
 task cleanup(type: Delete) {
     delete 'wskadmin'
     delete 'wskprop.py'
     delete 'wskutil.py'
+    delete 'genssl.sh'
+    delete 'openwhisk-server-key.pem'
 }
 
