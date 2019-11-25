@@ -61,7 +61,7 @@ before_install:
   - pip3 install --user setuptools six
 
 install:
-  - ./tools/travis/setup.sh
+  - travis_wait ./tools/travis/setup.sh
 
 jobs:
   include:
