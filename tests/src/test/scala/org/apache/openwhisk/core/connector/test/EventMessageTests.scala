@@ -90,30 +90,51 @@ class EventMessageTests extends FlatSpec with Matchers {
       Activation("ns2/a", 0, toDuration(0), toDuration(0), toDuration(0), "testkind", false, 0, None, Some(42)))
   }
 
-  it should "Transform a activation with error status code" in {
+  it should "Transform a activation with status code" in {
     val resultWithError =
       """
         |{
         | "statusCode" : 404,
         | "body": "Requested resource not found"
         |}
-        |""".stripMargin
+        |""".stripMargin.parseJson
     val a =
       fullActivation
-        .copy(response = ActivationResponse.applicationError(resultWithError.parseJson, Some(42)))
-    Activation.from(a) shouldBe Success(
-      Activation(
-        "ns2/a",
-        1,
-        toDuration(123),
-        toDuration(5),
-        toDuration(10),
-        "testkind",
-        false,
-        128,
-        Some("sequence"),
-        Some(42),
-        Some(404)))
+        .copy(response = ActivationResponse.applicationError(resultWithError, Some(42)))
+    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(404))
+  }
+
+  it should "Transform a activation with error status code" in {
+    val resultWithError =
+      """
+        |{
+        | "error": {
+        |   "statusCode" : "404",
+        |   "body": "Requested resource not found"
+        | }
+        |}
+        |""".stripMargin.parseJson
+    // If error field is set in result json, other fields are ignored when creating
+    // activation response.
+    val errorOpts = resultWithError.asJsObject.fields.get("error").get
+    val a =
+      fullActivation
+        .copy(response = ActivationResponse.applicationError(errorOpts, Some(42)))
+    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(404))
+  }
+
+  it should "Transform a activation with error status code with invalid error code" in {
+    val resultWithInvalidError =
+      """
+        |{
+        |   "statusCode" : "i404",
+        |   "body": "Requested resource not found"
+        |}
+        |""".stripMargin.parseJson
+    val a =
+      fullActivation
+        .copy(response = ActivationResponse.applicationError(resultWithInvalidError, Some(42)))
+    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(400))
   }
 
   def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)

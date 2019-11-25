@@ -46,7 +46,7 @@ trait PrometheusMetricNames extends MetricNames {
   val responseSizeMetric = "openwhisk_action_response_size_bytes"
   val statusMetric = "openwhisk_action_status"
   val memoryMetric = "openwhisk_action_memory"
-  val actionStatusCodeMetric = "openwhisk_action_errorcode"
+  val userDefinedStatusCodeMetric = "openwhisk_action_status_code"
 
   val concurrentLimitMetric = "openwhisk_action_limit_concurrent_total"
   val timedLimitMetric = "openwhisk_action_limit_timed_total"
@@ -154,8 +154,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       }
 
       a.size.foreach(responseSize.observe(_))
-      a.actionStatusCode.foreach(value =>
-        actionStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
+      a.userDefinedStatusCode.foreach(value =>
+        userDefinedStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
     }
   }
 
@@ -213,14 +213,14 @@ object PrometheusRecorder extends PrometheusMetricNames {
       initiatorNamespace,
       actionName,
       actionStatus)
-  private val actionStatusCodeCounter =
+  private val userDefinedStatusCodeCounter =
     counter(
-      actionStatusCodeMetric,
-      "Error status code returned in action result response",
+      userDefinedStatusCodeMetric,
+      "status code returned in action result response set by developer",
       actionNamespace,
       initiatorNamespace,
       actionName,
-      actionStatusCode)
+      userDefinedStatusCode)
   private val waitTimeHisto =
     histogram(waitTimeMetric, "Internal system hold time", actionNamespace, initiatorNamespace, actionName)
   private val initTimeHisto =

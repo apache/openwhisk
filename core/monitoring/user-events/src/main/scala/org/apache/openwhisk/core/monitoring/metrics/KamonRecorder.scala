@@ -34,7 +34,7 @@ trait KamonMetricNames extends MetricNames {
   val durationMetric = "openwhisk.action.duration"
   val responseSizeMetric = "openwhisk.action.responseSize"
   val statusMetric = "openwhisk.action.status"
-  val actionStatusCodeMetric = "openwhisk.action.errorCode"
+  val userDefinedStatusCodeMetric = "openwhisk.action.statusCode"
 
   val concurrentLimitMetric = "openwhisk.action.limit.concurrent"
   val timedLimitMetric = "openwhisk.action.limit.timed"
@@ -101,7 +101,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
     private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).refine(tags)
     private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).refine(tags)
-    private val actionStatusCode = Kamon.counter(actionStatusCodeMetric).refine(tags)
+    private val userDefinedStatusCode = Kamon.counter(userDefinedStatusCodeMetric).refine(tags)
 
     def record(a: Activation, metricConfig: MetricConfig): Unit = {
       namespaceActivations.increment()
@@ -127,11 +127,11 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
       Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
 
       a.size.foreach(responseSize.record(_))
-      a.actionStatusCode.foreach(
+      a.userDefinedStatusCode.foreach(
         value =>
           Kamon
-            .counter(actionStatusCodeMetric)
-            .refine(tags + ("actionStatusCode" -> value.toString))
+            .counter(userDefinedStatusCodeMetric)
+            .refine(tags + ("userDefinedStatusCode" -> value.toString))
             .increment())
     }
   }
