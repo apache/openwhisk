@@ -26,7 +26,7 @@ buildscript {
 
 plugins {
     id "com.gradle.build-scan" version "2.3"
-    id "org.scoverage" version "3.1.5" apply false
+    id "org.scoverage" version "4.0.1" apply false
 }
 
 
