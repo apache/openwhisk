@@ -114,13 +114,7 @@ class EventMessageTests extends FlatSpec with Matchers {
         | }
         |}
         |""".stripMargin.parseJson
-    // If error field is set in result json, other fields are ignored when creating
-    // activation response.
-    val errorOpts = resultWithError.asJsObject.fields.get("error").get
-    val a =
-      fullActivation
-        .copy(response = ActivationResponse.applicationError(errorOpts, Some(42)))
-    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(404))
+    Activation.userDefinedStatusCode(Some(resultWithError)) shouldBe Some(404)
   }
 
   it should "Transform a activation with error status code with invalid error code" in {
@@ -131,10 +125,7 @@ class EventMessageTests extends FlatSpec with Matchers {
         |   "body": "Requested resource not found"
         |}
         |""".stripMargin.parseJson
-    val a =
-      fullActivation
-        .copy(response = ActivationResponse.applicationError(resultWithInvalidError, Some(42)))
-    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(400))
+    Activation.userDefinedStatusCode(Some(resultWithInvalidError)) shouldBe Some(400)
   }
 
   def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)
