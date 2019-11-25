@@ -296,7 +296,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             // and instead clients must check if 'error' is in the JSON
             // PRESERVING OLD BEHAVIOR and will address defect in separate change
             complete(BadGateway, response)
-          } else if (activation.response.isContainerError || activation.response.isTruncated) {
+          } else if (activation.response.isContainerError) {
             complete(BadGateway, response)
           } else {
             complete(InternalServerError, response)

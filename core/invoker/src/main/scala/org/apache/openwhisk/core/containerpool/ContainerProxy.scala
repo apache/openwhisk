@@ -391,21 +391,10 @@ class ContainerProxy(factory: (TransactionId,
       activeCount -= 1
       destroyContainer(data.container)
 
-    case Event(failed: FailureMessage, data: WarmedData) =>
+    // Failed for a subsequent /run
+    case Event(_: FailureMessage, data: WarmedData) =>
       activeCount -= 1
-      failed.cause match {
-        case ActivationUnsuccessfulError(a) if a.response.isTruncated => {
-          logging.info(this, s"Container produced a response that was truncated, leaving running.")()
-          if (requestWork(data) || activeCount > 0) {
-            stay using data
-          } else {
-            goto(Ready) using data
-          }
-        }
-        case _ => {
-          destroyContainer(data.container)
-        }
-      }
+      destroyContainer(data.container)
 
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
