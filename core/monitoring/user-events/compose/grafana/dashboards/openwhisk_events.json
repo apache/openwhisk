@@ -59,7 +59,7 @@
   "gnetId": 9564,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1570133426517,
+  "iteration": 1574127067913,
   "links": [],
   "panels": [
     {
@@ -84,7 +84,7 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 6,
+        "w": 5,
         "x": 0,
         "y": 0
       },
@@ -166,8 +166,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 6,
-        "x": 6,
+        "w": 5,
+        "x": 5,
         "y": 0
       },
       "id": 32,
@@ -234,12 +234,12 @@
       "colorValue": false,
       "colors": [
         "rgba(41, 156, 70, 0)",
-        "#e24d42",
-        "#e24d42"
+        "#FA6400",
+        "#FA6400"
       ],
       "datasource": "Prometheus",
       "decimals": 0,
-      "description": "Total number of error activations in the selected time interval",
+      "description": "Total number of application and developer errors: \n\n[application_error] =  action ran but there was an error and it was handled\n\n[action_developer_error] = action ran but failed to handle an error, or action did not run and failed to initialize",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -250,11 +250,95 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 10,
         "y": 0
       },
       "id": 34,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "#FF780A",
+        "full": false,
+        "lineColor": "#FFB357",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=~\"application_error|action_developer_error\",initiator=~\"$initiator\"}[$__range]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": "1",
+      "title": "Development errors",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": true,
+      "colorPostfix": false,
+      "colorPrefix": false,
+      "colorValue": false,
+      "colors": [
+        "rgba(41, 156, 70, 0)",
+        "#e24d42",
+        "#e24d42"
+      ],
+      "datasource": "Prometheus",
+      "decimals": 0,
+      "description": "Total number of system activation errors: \n\n[whisk_internal_error] = internal system error",
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "id": 39,
       "interval": null,
       "links": [],
       "mappingType": 1,
@@ -291,14 +375,14 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[$__range]))",
+          "expr": "sum(increase(openwhisk_action_status{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status=~\"whisk_internal_error\",initiator=~\"$initiator\"}[$__range]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
         }
       ],
       "thresholds": "1",
-      "title": "Error activations",
+      "title": "System errors",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -332,8 +416,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 6,
-        "x": 18,
+        "w": 5,
+        "x": 19,
         "y": 0
       },
       "id": 30,
@@ -748,7 +832,7 @@
       "fill": 0,
       "gridPos": {
         "h": 9,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 10
       },
@@ -835,8 +919,8 @@
       "fill": 1,
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 10
       },
       "id": 18,
@@ -923,11 +1007,12 @@
       "dashes": false,
       "datasource": "Prometheus",
       "decimals": 1,
+      "description": "Number of application, developer and internal errors: \n\n[application_error] =  action ran but there was an error and it was handled\n\n[action_developer_error] = action ran but failed to handle an error, or action did not run and failed to initialize\n\n[whisk_internal_error] = internal system error",
       "fill": 1,
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 12,
         "y": 10
       },
       "id": 20,
@@ -1005,19 +1090,6 @@
       }
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 19
-      },
-      "id": 12,
-      "panels": [],
-      "title": "Duration graph",
-      "type": "row"
-    },
-    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
@@ -1025,10 +1097,10 @@
       "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 20
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 10
       },
       "id": 22,
       "legend": {
@@ -1054,6 +1126,112 @@
       "points": false,
       "renderer": "flot",
       "repeat": null,
+      "repeatDirection": "h",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(openwhisk_action_response_size_bytes_sum{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$interval]) / rate(openwhisk_action_response_size_bytes_count{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$interval]) ",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "{{action}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Response size [$interval]",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 0,
+          "format": "decbytes",
+          "label": "",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": null,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 12,
+      "panels": [],
+      "title": "Duration graph",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fill": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 38,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "hideEmpty": true,
+        "hideZero": true,
+        "max": false,
+        "min": false,
+        "rightSide": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "maxPerRow": 4,
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
       "repeatDirection": "h",
       "seriesOverrides": [],
       "spaceLength": 10,
@@ -1530,5 +1708,5 @@
   "timezone": "",
   "title": "Openwhisk - Action Performance Metrics",
   "uid": "Oew1lvymk",
-  "version": 1
+  "version": 2
 }
