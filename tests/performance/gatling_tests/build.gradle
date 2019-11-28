@@ -16,21 +16,12 @@
  */
 
 plugins {
-    id "com.github.lkishalmi.gatling" version "0.7.2"
-}
-
-apply plugin: 'eclipse'
-apply plugin: 'scala'
-
-repositories {
-    mavenCentral()
+    id 'com.github.lkishalmi.gatling' version '0.7.2'
+    id 'eclipse'
+    id 'scala'
 }
 
 dependencies {
     gatling "io.spray:spray-json_${gradle.scala.depVersion}:1.3.4"
     gatling "commons-io:commons-io:2.6"
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }

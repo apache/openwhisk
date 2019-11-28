@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
+plugins {
+    id 'eclipse'
+    id 'maven'
+    id 'org.scoverage'
+    id 'scala'
+}
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
@@ -87,24 +85,12 @@ dependencies {
 
     compile "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.4.0"
 
-    compile ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.0.1") {
+    compile ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
     compile "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
-    //Following constraints ensure that akka related transitive dependencies match the
-    //current version used
-    constraints {
-        //akka cluster dependencies being pulled by mesos-actor
-        compile "com.typesafe.akka:akka-remote_${gradle.scala.depVersion}:${gradle.akka.version}"
-        compile "com.typesafe.akka:akka-cluster_${gradle.scala.depVersion}:${gradle.akka.version}"
-        compile "com.typesafe.akka:akka-cluster-metrics_${gradle.scala.depVersion}:${gradle.akka.version}"
-        compile "com.typesafe.akka:akka-cluster-tools_${gradle.scala.depVersion}:${gradle.akka.version}"
-        compile "com.typesafe.akka:akka-distributed-data_${gradle.scala.depVersion}:${gradle.akka.version}"
-
-        compile "com.typesafe.akka:akka-http-xml_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-    }
 }
 
 configurations {
@@ -112,8 +98,4 @@ configurations {
         exclude group: 'commons-logging'
         exclude group: 'log4j'
     }
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
