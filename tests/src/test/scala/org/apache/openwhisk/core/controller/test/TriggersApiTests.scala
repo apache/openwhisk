@@ -69,10 +69,6 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   val parametersLimit = Parameters.sizeLimit
   val dummyInstant = Instant.now()
 
-  def checkResponse(response: WhiskTrigger, expected: WhiskTrigger) =
-    // ignore `updated` field because another test covers it
-    response should be(expected copy (updated = response.updated))
-
   //// GET /triggers
   it should "list triggers by default/explicit namespace" in {
     implicit val tid = transid()
@@ -237,7 +233,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      checkResponse(response, trigger.withoutRules)
+      checkWhiskEntityResponse(response, trigger.withoutRules)
     }
   }
 
@@ -249,7 +245,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      checkResponse(response, trigger.withoutRules)
+      checkWhiskEntityResponse(response, trigger.withoutRules)
     }
   }
 
@@ -343,7 +339,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      checkResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskTrigger(
           trigger.namespace,
@@ -455,7 +451,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[WhiskTrigger]
       status should be(OK)
-      checkResponse(response, trigger.toWhiskTrigger)
+      checkWhiskEntityResponse(response, trigger.toWhiskTrigger)
     }
   }
 

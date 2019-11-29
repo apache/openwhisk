@@ -71,14 +71,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
 
-  def checkWhiskActionResponse(response: WhiskAction, expected: WhiskAction) =
-    // ignore `updated` field because another test covers it
-    response should be(expected copy (updated = response.updated))
-
-  def checkWhiskActionMetadataResponse(response: WhiskActionMetaData, expected: WhiskActionMetaData) =
-    // ignore `updated` field because another test covers it
-    response should be(expected copy (updated = response.updated))
-
   //// GET /actions
   it should "return empty list when no actions exist" in {
     implicit val tid = transid()
@@ -355,7 +347,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(response, expectedWhiskAction)
+          checkWhiskEntityResponse(response, expectedWhiskAction)
         }
 
         Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
@@ -363,21 +355,21 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           val responseJson = responseAs[JsObject]
           responseJson.fields("exec").asJsObject.fields should not(contain key "code")
           val response = responseAs[WhiskActionMetaData]
-          checkWhiskActionMetadataResponse(response, expectedWhiskActionMetaData)
+          checkWhiskEntityResponse(response, expectedWhiskActionMetaData)
         }
 
         Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
           Get(path) ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
-            checkWhiskActionResponse(response, expectedWhiskAction)
+            checkWhiskEntityResponse(response, expectedWhiskAction)
           }
         }
 
         Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(response, expectedWhiskAction)
+          checkWhiskEntityResponse(response, expectedWhiskAction)
         }
     }
   }
@@ -576,7 +568,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -598,7 +590,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -622,7 +614,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -651,7 +643,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -670,7 +662,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -742,7 +734,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -783,7 +775,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -820,7 +812,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -840,7 +832,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -859,7 +851,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -880,7 +872,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -935,7 +927,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -956,7 +948,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -976,7 +968,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -1021,7 +1013,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -1042,7 +1034,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -1063,7 +1055,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -1113,7 +1105,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -1173,7 +1165,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
         status should be(OK)
         val response = responseAs[WhiskAction]
-        checkWhiskActionResponse(response, expectedAction)
+        checkWhiskEntityResponse(response, expectedAction)
       }
     }
 
@@ -1221,7 +1213,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/$name?overwrite=true", content) ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -1240,7 +1232,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
-          checkWhiskActionResponse(
+          checkWhiskEntityResponse(
             response,
             WhiskAction(
               action.namespace,
@@ -1288,7 +1280,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     Put(s"$collectionPath/${actionOldSchema.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           actionOldSchema.namespace,
@@ -1313,7 +1305,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Delete(s"$collectionPath/${actionOldSchema.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           actionOldSchema.namespace,
@@ -1356,7 +1348,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[WhiskAction]
 
       response.updated should not be action.updated
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
@@ -1382,7 +1374,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      checkWhiskActionResponse(
+      checkWhiskEntityResponse(
         response,
         WhiskAction(
           action.namespace,
