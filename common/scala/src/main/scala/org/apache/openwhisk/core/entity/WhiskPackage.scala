@@ -17,11 +17,12 @@
 
 package org.apache.openwhisk.core.entity
 
+import java.time.Instant
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
-
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -60,7 +61,8 @@ case class WhiskPackagePut(binding: Option[Binding] = None,
  * @param parameters the set of parameters to bind to the action environment
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the package
+ * @param annotations the set of annotations to attribute to the package
+ * @param updated the timestamp when the package is updated
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -70,7 +72,8 @@ case class WhiskPackage(namespace: EntityPath,
                         parameters: Parameters = Parameters(),
                         version: SemVer = SemVer(),
                         publish: Boolean = false,
-                        annotations: Parameters = Parameters())
+                        annotations: Parameters = Parameters(),
+                        override val updated: Instant = WhiskEntity.currentMillis())
     extends WhiskEntity(name, "package") {
 
   require(binding != null || (binding map { _ != null } getOrElse true), "binding undefined")
@@ -159,6 +162,8 @@ object WhiskPackage
     with WhiskEntityQueries[WhiskPackage]
     with DefaultJsonProtocol {
 
+  import WhiskActivation.instantSerdes
+
   val bindingFieldName = "binding"
   override val collectionName = "packages"
 
@@ -197,7 +202,7 @@ object WhiskPackage
       override def write(b: Option[Binding]) = Binding.optionalBindingSerializer.write(b)
       override def read(js: JsValue) = Binding.optionalBindingDeserializer.read(js)
     }
-    jsonFormat7(WhiskPackage.apply)
+    jsonFormat8(WhiskPackage.apply)
   }
 
   override val cacheEnabled = true

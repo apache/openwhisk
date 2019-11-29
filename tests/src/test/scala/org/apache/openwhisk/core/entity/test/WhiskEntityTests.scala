@@ -186,7 +186,8 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         |		"timeout": 60000,
         |		"memory": 256
         |	},
-        |	"namespace": "namespace"
+        |	"namespace": "namespace",
+        |	"updated": 1546268400000
         |}""".stripMargin.parseJson
 
     val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
@@ -213,7 +214,8 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         |    "timeout": 60000,
         |    "memory": 256
         |  },
-        |  "namespace": "namespace"
+        |  "namespace": "namespace",
+        |  "updated": 1546268400000
         |}""".stripMargin.parseJson
     val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
     assertType(action.asInstanceOf[WhiskEntity], "action")

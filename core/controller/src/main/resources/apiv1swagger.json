@@ -1998,6 +1998,10 @@
             "deactivating"
           ]
         },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the rule was updated"
+        },
         "trigger": {
           "$ref": "#/definitions/PathName"
         },

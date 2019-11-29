@@ -17,10 +17,11 @@
 
 package org.apache.openwhisk.core.entity
 
+import java.time.Instant
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.json.DefaultJsonProtocol
 import spray.json.DeserializationException
 import spray.json.JsObject
@@ -65,7 +66,8 @@ case class WhiskRulePut(trigger: Option[FullyQualifiedEntityName] = None,
  * @param action the action name to invoke invoke when trigger is fired
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the rule
+ * @param annotations the set of annotations to attribute to the rule
+ * @param updated the timestamp when the rule is updated
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -75,10 +77,12 @@ case class WhiskRule(namespace: EntityPath,
                      action: FullyQualifiedEntityName,
                      version: SemVer = SemVer(),
                      publish: Boolean = false,
-                     annotations: Parameters = Parameters())
+                     annotations: Parameters = Parameters(),
+                     override val updated: Instant = WhiskEntity.currentMillis())
     extends WhiskEntity(name, "rule") {
 
-  def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
+  def withStatus(s: Status) =
+    WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations, updated)
 
   def toJson = WhiskRule.serdes.write(this).asJsObject
 }
@@ -95,7 +99,7 @@ case class WhiskRule(namespace: EntityPath,
  * @param action the action name to invoke invoke when trigger is fired
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the rule
+ * @param annotations the set of annotations to attribute to the rule
  */
 case class WhiskRuleResponse(namespace: EntityPath,
                              name: EntityName,
@@ -104,7 +108,8 @@ case class WhiskRuleResponse(namespace: EntityPath,
                              action: FullyQualifiedEntityName,
                              version: SemVer = SemVer(),
                              publish: Boolean = false,
-                             annotations: Parameters = Parameters()) {
+                             annotations: Parameters = Parameters(),
+                             updated: Instant) {
 
   def toWhiskRule = WhiskRule(namespace, name, trigger, action, version, publish, annotations)
 }
@@ -195,11 +200,12 @@ protected[core] object Status extends ArgNormalizer[Status] {
 }
 
 object WhiskRule extends DocumentFactory[WhiskRule] with WhiskEntityQueries[WhiskRule] with DefaultJsonProtocol {
+  import WhiskActivation.instantSerdes
 
   override val collectionName = "rules"
 
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  private val caseClassSerdes = jsonFormat7(WhiskRule.apply)
+  private val caseClassSerdes = jsonFormat8(WhiskRule.apply)
 
   override implicit val serdes = new RootJsonFormat[WhiskRule] {
     def write(r: WhiskRule) = caseClassSerdes.write(r)
@@ -233,8 +239,9 @@ object WhiskRule extends DocumentFactory[WhiskRule] with WhiskEntityQueries[Whis
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {
+  import WhiskActivation.instantSerdes
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  implicit val serdes = jsonFormat8(WhiskRuleResponse.apply)
+  implicit val serdes = jsonFormat9(WhiskRuleResponse.apply)
 }
 
 object WhiskRulePut extends DefaultJsonProtocol {
