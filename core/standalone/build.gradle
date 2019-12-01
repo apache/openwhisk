@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
     id 'maven'
     id 'org.scoverage'
@@ -52,8 +54,9 @@ task copyGWActions() {
             def zipFileName = actionName + ".zip"
             def actionDir = new File(routeMgmtDir, actionName)
             def zipFile = new File(routeBuildDir, zipFileName)
+            def npmCommand = (Os.isFamily(Os.FAMILY_WINDOWS)) ? "npm.cmd" : "npm"
             if (!zipFile.exists()) {
-                ant.exec(dir:actionDir, executable:"npm", failonerror:true){
+                ant.exec(dir:actionDir, executable:npmCommand, failonerror:true){
                     arg(line:"install")
                 }
                 ant.zip(destfile:zipFile){
