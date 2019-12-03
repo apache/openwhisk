@@ -561,6 +561,7 @@ class ContainerProxy(factory: (TransactionId,
     val environment = Map(
       "namespace" -> job.msg.user.namespace.name.toJson,
       "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
+      "action_version" -> job.msg.action.version.toJson,
       "activation_id" -> job.msg.activationId.toString.toJson,
       "transaction_id" -> job.msg.transid.id.toJson)
 

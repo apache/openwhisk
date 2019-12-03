@@ -21,6 +21,7 @@ function main(args) {
        "api_key": process.env['__OW_API_KEY'],
        "namespace": process.env['__OW_NAMESPACE'],
        "action_name": process.env['__OW_ACTION_NAME'],
+       "action_version": process.env['__OW_ACTION_VERSION'],
        "activation_id": process.env['__OW_ACTIVATION_ID'],
        "deadline": process.env['__OW_DEADLINE']
     }
