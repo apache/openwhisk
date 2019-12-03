@@ -1497,7 +1497,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
         val content = s"""{"a":"$largeEntity"}"""
         Post(s"$testRoutePath/$path", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
-          status should be(RequestEntityTooLarge)
+          status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
             SizeError(fieldDescriptionForSizeError, (largeEntity.length + 8).B, allowedActivationEntitySize.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
@@ -1505,7 +1505,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
         val form = FormData(Map("a" -> largeEntity))
         Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
-          status should be(RequestEntityTooLarge)
+          status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
             SizeError(fieldDescriptionForSizeError, (largeEntity.length + 2).B, allowedActivationEntitySize.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
