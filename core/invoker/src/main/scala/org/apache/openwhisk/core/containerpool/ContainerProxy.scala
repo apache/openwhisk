@@ -23,10 +23,7 @@ import akka.actor.Cancellable
 import java.time.Instant
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
-import akka.event.Logging.DebugLevel
-import akka.event.Logging.ErrorLevel
 import akka.event.Logging.InfoLevel
-import akka.event.Logging.WarningLevel
 import akka.io.IO
 import akka.io.Tcp
 import akka.io.Tcp.Close
@@ -41,7 +38,6 @@ import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
 import org.apache.openwhisk.common.MetricEmitter
-import org.apache.openwhisk.common.StartMarker
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
@@ -988,7 +984,6 @@ class TCPPingClient(remote: InetSocketAddress, listener: ActorRef, config: Conta
 
   var scheduledPing: Option[Cancellable] = None
   var failedCount = 0
-  var pingMarker: StartMarker = null
   val tcp = IO(Tcp)
   val addressString = s"${remote.getHostString}:${remote.getPort}"
   restartPing()
@@ -1010,43 +1005,30 @@ class TCPPingClient(remote: InetSocketAddress, listener: ActorRef, config: Conta
       }
     case HealthPingSend =>
       healthPingTx = TransactionId(systemPrefix + "actionHealth") //reset the tx id each iteration
-      pingMarker = healthPingTx.started(
-        this,
-        LoggingMarkers.INVOKER_CONTAINER_HEALTH,
-        s"Initiating health connection to ${addressString}",
-        logLevel = DebugLevel)
       tcp ! Connect(remote)
     case CommandFailed(_: Connect) =>
       failedCount += 1
-      healthPingTx.failed(
-        this,
-        pingMarker,
-        s"Failed health connection to ${addressString} ${failedCount} times",
-        logLevel = if (failedCount == config.maxFails) ErrorLevel else WarningLevel)
       if (failedCount == config.maxFails) {
+        logging.error(
+          this,
+          s"Failed health connection to ${addressString} ${failedCount} times - exceeded max ${config.maxFails} failures")
         //destroy this container since we cannot communicae with it
         listener ! FailureMessage(
           new SocketException(s"Health connection to ${addressString} failed ${failedCount} times"))
         cancelPing()
         context.stop(self)
+      } else {
+        logging.warn(this, s"Failed health connection to ${addressString} ${failedCount} times")
       }
 
     case Connected(_, _) =>
       sender() ! Close
       if (failedCount > 0) {
         //reset in case of temp failure
-        healthPingTx.finished(
-          this,
-          pingMarker,
-          s"Succeeded health connection to ${addressString} after ${failedCount} previous failures",
-          logLevel = InfoLevel)
+        logging.info(this, s"Succeeded health connection to ${addressString} after ${failedCount} previous failures")
         failedCount = 0
       } else {
-        healthPingTx.finished(
-          this,
-          pingMarker,
-          s"Succeeded health connection to ${addressString}",
-          logLevel = DebugLevel)
+        logging.debug(this, s"Succeeded health connection to ${addressString}")
       }
 
   }
