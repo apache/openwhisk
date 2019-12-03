@@ -73,6 +73,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
   var runBuffer = immutable.Queue.empty[Run]
+  // Track the resent buffer head - so that we don't resend buffer head multiple times
+  var resent: Option[Run] = None
   val logMessageInterval = 10.seconds
   //periodically emit metrics (don't need to do this for each message!)
   context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
@@ -112,6 +114,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
       if (runBuffer.isEmpty || isResentFromBuffer) {
+        if (isResentFromBuffer) {
+          //remove from resent tracking - it may get resent again, or get processed
+          resent = None
+        }
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
@@ -184,7 +190,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // (and a new container would over commit the pool)
             val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
             val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
+              logging.warn(
                 this,
                 s"Rescheduling Run message, too many message in the pool, " +
                   s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
@@ -264,10 +270,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   /** Resend next item in the buffer, or trigger next item in the feed, if no items in the buffer. */
   def processBufferOrFeed() = {
-    // If buffer has more items, send next one, otherwise get next from feed.
+    // If buffer has more items, and head has not already been resent, send next one, otherwise get next from feed.
     runBuffer.dequeueOption match {
       case Some((run, _)) => //run the first from buffer
-        self ! run
+        implicit val tid = run.msg.transid
+        //avoid sending dupes
+        if (resent.isEmpty) {
+          logging.info(this, s"re-processing from buffer (${runBuffer.length} items in buffer)")
+          resent = Some(run)
+          self ! run
+        } else {
+          //do not resend the buffer head multiple times (may reach this point from multiple messages, before the buffer head is re-processed)
+        }
       case None => //feed me!
         feed ! MessageFeed.Processed
     }
