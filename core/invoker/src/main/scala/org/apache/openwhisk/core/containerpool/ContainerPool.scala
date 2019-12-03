@@ -173,7 +173,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               //update freePool to track counts
               freePool = freePool + (actor -> newData)
             }
-            // Remove the action that get's executed now from the buffer and execute the next one afterwards.
+            // Remove the action that was just executed from the buffer and execute the next one in the queue.
             if (isResentFromBuffer) {
               // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
               // from the buffer
