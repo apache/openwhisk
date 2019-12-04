@@ -233,10 +233,17 @@ task createKeystore(dependsOn: deleteKeystore) {
     }
 }
 
+task buildArtifacts(type:Exec) {
+  workingDir 'dat/actions'
+  commandLine './build.sh'
+}
+
 tasks.withType(Test) {
     dependsOn createKeystore
+    dependsOn buildArtifacts
 }
 createKeystore.mustRunAfter(testClasses)
+buildArtifacts.mustRunAfter(testClasses)
 
 gradle.projectsEvaluated {
     task testCoverageLean(type: Test) {
