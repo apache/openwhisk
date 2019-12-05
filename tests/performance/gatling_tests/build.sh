@@ -27,16 +27,9 @@ fi
 jv=$(java -version 2>&1 | head -1 | awk -F'"' '{print $2}')
 if [[ $jv == 1.8.* ]]; then
   echo "java version is $jv (ok)"
-  (cd unicode.tests/src/java/unicode && ../../../../../../../gradlew build && cp build/libs/unicode-1.0.jar ../../../java-8.bin)
-  (cd src/java/sleep && ../../../../../../gradlew build && cp build/libs/sleep-1.0.jar ../../../sleep.jar)
+  (cd src/gatling/resources/data/src/java && ../../../../../../../../../gradlew build && cp build/libs/gatling-1.0.jar ../../javaAction.jar)
+  touch .built
 else
   echo "java version is $jv (not ok)"
   echo "skipping java actions"
 fi
-
-(cd blackbox && zip ../blackbox.zip exec)
-(cd python-zip && zip ../python.zip -r .)
-(cd zippedaction && npm install && zip ../zippedaction.zip -r .)
-(cd python_virtualenv && ./build.sh && zip ../python2_virtualenv.zip -r .)
-
-touch .built

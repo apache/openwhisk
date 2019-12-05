@@ -83,6 +83,7 @@ tests/dat/actions/python_virtualenv/virtualenv
 tests/dat/actions/.built
 tests/dat/actions/unicode.tests/java-8.bin
 tests/performance/gatling_tests/src/gatling/resources/data/javaAction.jar
+tests/performance/gatling_tests/.built
 
 # dev
 intellij-run-config.groovy
