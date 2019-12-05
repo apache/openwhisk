@@ -73,6 +73,7 @@ ansible/roles/invoker/files/*
 # .zip files must be explicited whitelisted
 *.zip
 tests/dat/actions/zippedaction/node_modules
+tests/dat/actions/sleep.jar
 tests/dat/actions/blackbox.zip
 tests/dat/actions/python.zip
 tests/dat/actions/zippedaction.zip
