@@ -19,12 +19,23 @@
 set -e
 
 if [ -f ".built" ]; then
-    echo "Test zip artifacts already built, skipping"
-    exit 0
+  echo "Test zip artifacts already built, skipping"
+  exit 0
+fi
+
+# need java 8 to build java actions since that's the version of the runtime currently
+jv=$(java -version 2>&1 | head -1 | awk -F'"' '{print $2}')
+if [[ $jv == 1.8.* ]]; then
+  echo "java version is $jv (ok)"
+  (cd unicode.tests/src/java/unicode && ../../../../../../../gradlew build && cp build/libs/unicode-1.0.jar ../../../java-8.bin)
+else
+  echo "java version is $jv (not ok)"
+  echo "skipping java actions"
 fi
 
 (cd blackbox && zip ../blackbox.zip exec)
 (cd python-zip && zip ../python.zip -r .)
 (cd zippedaction && npm install && zip ../zippedaction.zip -r .)
 (cd python_virtualenv && ./build.sh && zip ../python2_virtualenv.zip -r .)
+
 touch .built

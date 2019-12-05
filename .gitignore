@@ -80,6 +80,7 @@ tests/dat/actions/zippedaction/node_modules
 tests/dat/actions/python2_virtualenv.zip
 tests/dat/actions/python_virtualenv/virtualenv
 tests/dat/actions/.built
+tests/dat/actions/unicode.tests/java-8.bin
 
 # dev
 intellij-run-config.groovy
