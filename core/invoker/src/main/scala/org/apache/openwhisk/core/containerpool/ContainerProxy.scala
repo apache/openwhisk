@@ -627,7 +627,6 @@ class ContainerProxy(factory: (TransactionId,
       .map(_ => ContainerRemoved)
       .pipeTo(self)
 
-    println("on to removing")
     goto(Removing)
   }
 
