@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.entity.ExecManifest._
 import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.size.SizeString
-import pureconfig.loadConfigOrThrow
+import pureconfig._
 import org.apache.openwhisk.http._
 
 /**

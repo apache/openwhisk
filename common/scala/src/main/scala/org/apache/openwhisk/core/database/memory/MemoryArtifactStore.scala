@@ -32,7 +32,8 @@ import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 
 import scala.collection.concurrent.TrieMap

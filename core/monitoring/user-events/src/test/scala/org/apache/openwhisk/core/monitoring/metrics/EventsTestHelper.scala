@@ -24,7 +24,8 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 trait EventsTestHelper {
 

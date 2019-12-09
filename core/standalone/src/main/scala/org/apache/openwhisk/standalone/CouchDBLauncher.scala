@@ -34,7 +34,8 @@ import org.apache.openwhisk.core.database.CouchDbRestClient
 import org.apache.openwhisk.http.PoolingRestClient
 import org.apache.openwhisk.http.PoolingRestClient._
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

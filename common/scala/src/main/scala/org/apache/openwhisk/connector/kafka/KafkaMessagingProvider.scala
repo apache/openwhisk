@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
 import org.apache.kafka.common.errors.{RetriableException, TopicExistsException}
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{CausedBy, Logging}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{MessageConsumer, MessageProducer, MessagingProvider}

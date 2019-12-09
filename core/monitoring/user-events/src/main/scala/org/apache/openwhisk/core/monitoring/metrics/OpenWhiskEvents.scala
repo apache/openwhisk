@@ -27,7 +27,8 @@ import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import org.apache.kafka.common.serialization.StringDeserializer
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 

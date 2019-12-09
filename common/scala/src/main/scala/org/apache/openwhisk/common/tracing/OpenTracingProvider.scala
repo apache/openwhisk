@@ -27,6 +27,7 @@ import io.opentracing.propagation.{Format, TextMapExtractAdapter, TextMapInjectA
 import io.opentracing.util.GlobalTracer
 import io.opentracing.{Span, SpanContext, Tracer}
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{LogMarkerToken, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import zipkin2.reporter.okhttp3.OkHttpSender

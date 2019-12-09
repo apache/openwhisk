@@ -36,7 +36,8 @@ import org.apache.openwhisk.common.{Logging, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._

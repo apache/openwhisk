@@ -251,6 +251,13 @@ gradle.projectsEvaluated {
     task testCoverage(type: Test) {
         classpath = getScoverageClasspath(project, projectsWithCoverage)
     }
+
+    tasks.withType(ScalaCompile) {
+        configure(scalaCompileOptions.forkOptions) {
+            memoryMaximumSize = '1g'
+        }
+    }
+
     tasks.withType(Test) {
         systemProperties(System.getProperties())
         systemProperty("whisk.server.jar", getStandaloneJarFilePath())

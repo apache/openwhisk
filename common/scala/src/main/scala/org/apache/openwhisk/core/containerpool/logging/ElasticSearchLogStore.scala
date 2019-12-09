@@ -34,6 +34,7 @@ import scala.util.Try
 import spray.json._
 
 import pureconfig._
+import pureconfig.generic.auto._
 
 case class ElasticSearchLogFieldConfig(userLogs: String,
                                        message: String,
