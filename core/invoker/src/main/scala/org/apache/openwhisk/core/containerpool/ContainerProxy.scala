@@ -431,11 +431,15 @@ class ContainerProxy(factory: (TransactionId,
       stay() using data
 
     //ContainerHealthError should cause rescheduling of the job
-    case Event(FailureMessage(_: ContainerHealthError), data: WarmedData) =>
+    case Event(FailureMessage(e: ContainerHealthError), data: WarmedData) =>
+      implicit val tid = e.tid
       MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_WARM)
       //resend to self will send to parent once we get to Removing state
-      resumeRun.foreach(self ! _)
-      resumeRun = None
+      if (resumeRun.isDefined) {
+        logging.warn(this, "Ready/Paused warm container unhealthy, will retry activation.")
+        resumeRun.foreach(self ! _)
+        resumeRun = None
+      }
       rescheduleJob = true
       rejectBuffered()
       destroyContainer(data.container)
@@ -464,8 +468,8 @@ class ContainerProxy(factory: (TransactionId,
     case Event(job: Run, data: WarmedData) =>
       implicit val transid = job.msg.transid
       activeCount += 1
-
-      initializeAndRun(data.container, job)
+      resumeRun = Some(job)
+      initializeAndRun(data.container, job, true)
         .map(_ => RunCompleted)
         .pipeTo(self)
 
@@ -528,25 +532,24 @@ class ContainerProxy(factory: (TransactionId,
   onTransition {
     case _ -> Started =>
       if (healtCheckConfig.enabled) {
-        logging.info(this, "enabling health ping on Started")
+        logging.debug(this, "enabling health ping on Started")
         enableHealthPing(nextStateData.getContainer)
       }
       unstashAll()
     case _ -> Running =>
       if (healtCheckConfig.enabled && healthPingActor.isDefined) {
-        logging.info(this, "disabling health ping on Running")
+        logging.debug(this, "disabling health ping on Running")
         disableHealthPing()
       }
     case _ -> Ready =>
       if (healtCheckConfig.enabled) {
-
-        logging.info(this, "enabling health ping on Ready")
+        logging.debug(this, "enabling health ping on Ready")
         enableHealthPing(nextStateData.getContainer)
       }
       unstashAll()
     case _ -> Pausing =>
       if (healtCheckConfig.enabled && healthPingActor.isDefined) {
-        logging.info(this, "disabling health ping on Pausing")
+        logging.debug(this, "disabling health ping on Pausing")
         disableHealthPing()
       }
     case _ -> Paused =>

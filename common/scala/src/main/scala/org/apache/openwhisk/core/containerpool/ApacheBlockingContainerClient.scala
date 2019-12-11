@@ -165,7 +165,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
       case Success(response)                                  => response
       case Failure(_: RetryableConnectionError) if reschedule =>
         //propagate as a failed future; clients can retry at a different container
-        throw ContainerHealthError(request.getURI.toString)
+        throw ContainerHealthError(tid, request.getURI.toString)
       case Failure(t: RetryableConnectionError) if retry =>
         if (timeout > Duration.Zero) {
           Thread.sleep(50) // Sleep for 50 milliseconds

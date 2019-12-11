@@ -1154,7 +1154,7 @@ class ContainerProxyTests
     }
   }
 
-  it should "resend the job to the parent if /run fails connection after resume" in within(timeout) {
+  it should "resend the job to the parent if /run fails connection after Paused -> Running" in within(timeout) {
     val container = new TestContainer {
       override def run(
         parameters: JsObject,
@@ -1163,9 +1163,8 @@ class ContainerProxyTests
         concurrent: Int,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
-        println(s"/run reschedule ${reschedule}")
         if (reschedule) {
-          throw ContainerHealthError("reconnect failed to xyz")
+          throw ContainerHealthError(transid, "reconnect failed to xyz")
         }
         super.run(parameters, environment, timeout, concurrent, reschedule)
       }
@@ -1203,6 +1202,57 @@ class ContainerProxyTests
       container.runCount shouldBe 1
       container.suspendCount shouldBe 1
       container.resumeCount shouldBe 1
+      container.destroyCount shouldBe 1
+    }
+  }
+
+  it should "resend the job to the parent if /run fails connection after Ready -> Running" in within(timeout) {
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+        if (reschedule) {
+          throw ContainerHealthError(transid, "reconnect failed to xyz")
+        }
+        super.run(parameters, environment, timeout, concurrent, reschedule)
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            createCollector(),
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    run(machine, Uninitialized) // first run an activation
+    //will be in Ready state now
+
+    val runMessage = Run(action, message)
+    machine ! runMessage
+    expectMsg(Transition(machine, Ready, Running))
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(runMessage)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.runCount shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
       container.destroyCount shouldBe 1
     }
   }

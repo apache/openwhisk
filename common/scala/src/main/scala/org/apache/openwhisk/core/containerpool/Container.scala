@@ -254,7 +254,7 @@ case class BlackboxStartupError(msg: String) extends ContainerStartupError(msg)
 case class InitializationError(interval: Interval, response: ActivationResponse) extends Exception(response.toString)
 
 /** Indicates a connection error after resuming a container */
-case class ContainerHealthError(msg: String) extends Exception(msg)
+case class ContainerHealthError(tid: TransactionId, msg: String) extends Exception(msg)
 
 case class Interval(start: Instant, end: Instant) {
   def duration = Duration.create(end.toEpochMilli() - start.toEpochMilli(), MILLISECONDS)

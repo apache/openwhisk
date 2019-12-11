@@ -143,14 +143,14 @@ protected class AkkaContainerClient(
                               retry: Boolean,
                               reschedule: Boolean,
                               endpoint: String,
-                              retryCount: Int = 0): Future[(HttpResponse, Int)] = {
+                              retryCount: Int = 0)(implicit tid: TransactionId): Future[(HttpResponse, Int)] = {
     val start = Instant.now
 
     request(req)
       .map((_, retryCount))
       .recoverWith {
         case _: StreamTcpException if reschedule =>
-          Future.failed(ContainerHealthError(endpoint))
+          Future.failed(ContainerHealthError(tid, endpoint))
         case t: StreamTcpException if retry =>
           if (timeout > Duration.Zero) {
             akka.pattern.after(retryInterval, as.scheduler)({
