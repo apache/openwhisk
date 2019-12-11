@@ -34,19 +34,28 @@ private trait encrypter {
   val name: String
 }
 
-case class ParameterStorageConfig(key: String = "")
-
-object ParameterEncryption {
-
-  private val storageConfigLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
-  var storageConfig = storageConfigLoader.getOrElse(ParameterStorageConfig.apply())
-  private val enc: encrypter = storageConfig.key.length match {
-    case 16 => new Aes128(storageConfig.key)
-    case 32 => new Aes256(storageConfig.key)
-    case 0  => new NoopCrypt
-    case _  => throw new IllegalArgumentException("Only 0, 16 and 32 characters support for key size.")
+case class ParameterStorageConfig(key: String = "") {
+  def getKeyBytes(): Array[Byte] = {
+    if (key.length == 0) {
+      Array[Byte]()
+    } else {
+      Base64.getDecoder().decode(key)
+    }
   }
 
+}
+
+object ParameterEncryption {
+  private val storageConfigLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
+  var storageConfig = storageConfigLoader.getOrElse(ParameterStorageConfig.apply())
+  private def enc = storageConfig.getKeyBytes().length match {
+    case 16 => new Aes128(storageConfig.getKeyBytes())
+    case 32 => new Aes256(storageConfig.getKeyBytes())
+    case 0  => new NoopCrypt
+    case _ =>
+      throw new IllegalArgumentException(
+        s"Only 0, 16 and 32 characters support for key size but instead got ${storageConfig.getKeyBytes().length}")
+  }
   def lock(params: Parameters): Parameters = {
     new Parameters(
       params.getMap
@@ -69,11 +78,11 @@ object ParameterEncryption {
 }
 
 private trait AesEncryption extends encrypter {
-  val key: String
+  val key: Array[Byte]
   val ivLen: Int
   val name: String
   private val tLen = key.length * 8
-  private val secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES")
+  private val secretKey = new SecretKeySpec(key, "AES")
 
   private val secureRandom = new SecureRandom()
 
@@ -117,11 +126,11 @@ private trait AesEncryption extends encrypter {
 
 }
 
-private case class Aes128(val key: String, val ivLen: Int = 12, val name: String = "aes128")
+private case class Aes128(val key: Array[Byte], val ivLen: Int = 12, val name: String = "aes128")
     extends AesEncryption
     with encrypter
 
-private case class Aes256(val key: String, val ivLen: Int = 128, val name: String = "aes256")
+private case class Aes256(val key: Array[Byte], val ivLen: Int = 128, val name: String = "aes256")
     extends AesEncryption
     with encrypter
 

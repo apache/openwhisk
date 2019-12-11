@@ -21,6 +21,7 @@ import org.apache.openwhisk.core.entity.size.{SizeInt, SizeString}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import scala.collection.immutable.ListMap
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -93,7 +94,8 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
         case (JsNull) => None
         case _        => Some("encryption" -> p._2.encryption.toJson)
       }
-      JsObject(Map("key" -> p._1.name.toJson, "value" -> p._2.value.toJson) ++ init ++ encrypt)
+      // Have do use this slightly strange construction to get the json object order identical.
+      JsObject(ListMap() ++ encrypt ++ init ++ Map("key" -> p._1.name.toJson, "value" -> p._2.value.toJson))
     } toSeq: _*)
   }
 
@@ -146,7 +148,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
 
 /**
  * A ParameterName is a parameter name for an action or trigger to bind to its environment.
- * It wraps a normalized string as a value type.
+ * It wraps a normalized string as a valueread type.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -215,7 +217,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: String, init: Boolean = false): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    ParameterValue(Option(v).map(_.trim.toJson).getOrElse(JsNull), init))
+    ParameterValue(Option(v).map(_.trim.toJson).getOrElse(JsNull), init, JsNull))
   }
 
   /**
@@ -231,7 +233,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: JsValue, init: Boolean): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    ParameterValue(Option(v).getOrElse(JsNull), init))
+    ParameterValue(Option(v).getOrElse(JsNull), init, JsNull))
   }
 
   /**
@@ -246,8 +248,30 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] def apply(p: String, v: JsValue): Parameters = {
     require(p != null && p.trim.nonEmpty, "key undefined")
     Parameters() + (new ParameterName(ArgNormalizer.trim(p)),
-    ParameterValue(Option(v).getOrElse(JsNull), false))
+    ParameterValue(Option(v).getOrElse(JsNull), false, JsNull))
   }
+
+  def readMergedList(value: JsValue): Parameters =
+    Try {
+      val JsObject(obj) = value
+      new Parameters(
+        obj
+          .map((tuple: (String, JsValue)) => {
+            val key = new ParameterName(tuple._1)
+            val paramVal: ParameterValue = tuple._2 match {
+              case o: JsObject =>
+                o.getFields("value", "init", "encryption") match {
+                  case Seq(v: JsValue, JsBoolean(i), e: JsValue) =>
+                    ParameterValue(v, i, e)
+                  case _ => ParameterValue(o, false, JsNull)
+                }
+              case v: JsValue => ParameterValue(v, false, JsNull)
+            }
+            (key, paramVal)
+          })
+          .toMap)
+    } getOrElse deserializationError(
+      "parameters malformed, could not get a JsObject from: " + (if (value != null) value.toString() else ""))
 
   override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {
     def write(p: Parameters) = p.toJsArray
@@ -266,25 +290,23 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
       } flatMap {
         read(_)
       } getOrElse {
-        // Used when the container proxy is reading back a merged version of the params.
         Try {
-          var converted = Map[ParameterName, ParameterValue]()
-          new Parameters(value.asJsObject.fields.map { item: (String, JsValue) =>
-            {
-              item._2 match {
-                case JsString(s) => (new ParameterName(item._1), new ParameterValue(JsString(s), false))
-                case _ => {
-                  item._2.asJsObject.getFields("value", "init", "encryption") match {
-                    case Seq(v: JsValue, JsBoolean(i), e: JsValue) =>
-                      (new ParameterName(item._1), new ParameterValue(v, i, e))
-                  }
-                }
-              }
-            }
+          var converted = new ListMap[ParameterName, ParameterValue]()
+          val JsObject(o) = value
+          o.foreach(i =>
+            i._2.asJsObject.getFields("value", "init", "encryption") match {
+              case Seq(v: JsValue, JsBoolean(init), e: JsValue) =>
+                val key = new ParameterName(i._1)
+                val value = ParameterValue(v, init, e)
+                converted = converted + (key -> value)
           })
-        } getOrElse {
-          deserializationError("parameters malformed!")
-        }
+          if (converted.size == 0) {
+            deserializationError("parameters malformed no parameters available: " + value.toString())
+          } else {
+            new Parameters(converted)
+          }
+        } getOrElse deserializationError(
+          "parameters malformed could not read directly: " + (if (value != null) value.toString() else ""))
       }
 
     /**
@@ -295,26 +317,29 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      * @return Parameters instance if parameters conforms to schema
      */
     def read(params: Vector[JsValue]) = Try {
-      new Parameters(params map {
-        _.asJsObject.getFields("key", "value", "init", "encryption") match {
-          case Seq(JsString(k), v: JsValue) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, false)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsBoolean(i), e: JsValue) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, i, e)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, e: JsValue) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, false, e)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, i)
-            (key, value)
-        }
-      } toMap)
+      new Parameters(
+        params
+          .map(i => {
+            i.asJsObject.getFields("key", "value", "init", "encryption") match {
+              case Seq(JsString(k), v: JsValue) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, false)
+                (key, value)
+              case Seq(JsString(k), v: JsValue, JsBoolean(i), e: JsValue) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, i, e)
+                (key, value)
+              case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, i)
+                (key, value)
+              case Seq(JsString(k), v: JsValue, e: JsValue) if (i.asJsObject.fields.contains("encryption")) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, false, e)
+                (key, value)
+            }
+          })
+          .toMap)
     }
   }
 }

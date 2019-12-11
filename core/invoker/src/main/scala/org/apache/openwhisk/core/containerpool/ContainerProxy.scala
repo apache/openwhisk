@@ -598,7 +598,7 @@ class ContainerProxy(factory: (TransactionId,
     val actionTimeout = job.action.limits.timeout.duration
     val unlockedContent = job.msg.content match {
       case Some(js) => {
-        Some(ParameterEncryption.unlock(Parameters.serdes.read(js)).toJsObject)
+        Some(ParameterEncryption.unlock(Parameters.readMergedList(js)).toJsObject)
       }
       case _ => job.msg.content
     }
