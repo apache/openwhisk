@@ -313,7 +313,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       def checkResponse(activation: ActivationResult) = {
         val response = activation.response
         response.success shouldBe false
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
         val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
         val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
         withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {

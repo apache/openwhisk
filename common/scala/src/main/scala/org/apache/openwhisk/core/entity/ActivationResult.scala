@@ -234,7 +234,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             }
 
           case Some((length, maxlength)) =>
-            developerError(truncatedResponse(str, length, maxlength), Some(length.toBytes.toInt))
+            applicationError(JsString(truncatedResponse(str, length, maxlength)), Some(length.toBytes.toInt))
         }
 
       case Left(_: MemoryExhausted) =>

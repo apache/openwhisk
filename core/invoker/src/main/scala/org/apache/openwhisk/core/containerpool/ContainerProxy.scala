@@ -551,7 +551,7 @@ class ContainerProxy(factory: (TransactionId,
    * 4. recording the result to the data store
    *
    * @param container the container to run the job on
-   * @param job the job to run
+   * @param job       the job to run
    * @return a future completing after logs have been collected and
    *         added to the WhiskActivation
    */
