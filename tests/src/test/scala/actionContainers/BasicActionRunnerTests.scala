@@ -102,6 +102,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
    *               "api_key": process.env__OW_API_KEY,
    *               "namespace": process.env.__OW_NAMESPACE,
    *               "action_name": process.env.__OW_ACTION_NAME,
+   *               "action_version": process.env.__OW_ACTION_VERSION,
    *               "activation_id": process.env.__OW_ACTIVATION_ID,
    *               "deadline": process.env.__OW_DEADLINE
    *             }
@@ -309,6 +310,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       "api_key" -> "abc",
       "namespace" -> "zzz",
       "action_name" -> "xxx",
+      "action_version" -> "0.0.1",
       "activation_id" -> "iii",
       "deadline" -> "123")
 

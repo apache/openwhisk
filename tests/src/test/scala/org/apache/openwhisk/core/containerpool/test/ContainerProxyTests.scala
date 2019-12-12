@@ -1428,6 +1428,7 @@ class ContainerProxyTests
 
       initializeEnv.fields("__OW_NAMESPACE") shouldBe invocationNamespace.name.toJson
       initializeEnv.fields("__OW_ACTION_NAME") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
+      initializeEnv.fields("__OW_ACTION_VERSION") shouldBe message.action.version.toJson
       initializeEnv.fields("__OW_ACTIVATION_ID") shouldBe message.activationId.toJson
       initializeEnv.fields("__OW_TRANSACTION_ID") shouldBe transid.id.toJson
 
@@ -1457,6 +1458,7 @@ class ContainerProxyTests
       val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
       environment.fields("action_name") shouldBe message.action.qualifiedNameWithLeadingSlash.toJson
+      environment.fields("action_version") shouldBe message.action.version.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       environment.fields("transaction_id") shouldBe transid.id.toJson
       val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)

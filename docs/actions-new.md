@@ -160,6 +160,7 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
   * `__OW_API_KEY` the API key for the subject invoking the action, this key may be a restricted API key. This property is absent unless explicitly [requested](./annotations.md#annotations-for-all-actions).
   * `__OW_NAMESPACE` the namespace for the _activation_ (this may not be the same as the namespace for the action).
   * `__OW_ACTION_NAME` the fully qualified name of the running action.
+  * `__OW_ACTION_VERSION` the internal version number of the running action.
   * `__OW_ACTIVATION_ID` the activation id for this running action instance.
   * `__OW_DEADLINE` the approximate time when this initializer will have consumed its entire duration quota (measured in epoch milliseconds).
 
