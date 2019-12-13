@@ -27,6 +27,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import pureconfig.loadConfig
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsNull, JsString}
+import pureconfig.generic.auto._
 
 private trait encrypter {
   def encrypt(p: ParameterValue): ParameterValue

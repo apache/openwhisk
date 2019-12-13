@@ -92,6 +92,10 @@ whisk {
             url = "{{ user_images_registry | default('') }}"
         }
     }
+
+    parameter-storage {
+        key = ""
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
