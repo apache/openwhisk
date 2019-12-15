@@ -143,11 +143,25 @@
         "php": [
             {
                 "kind": "php:7.3",
-                "default": true,
+                "default": false,
                 "deprecated": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v7.3",
+                    "tag": "nightly"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "php:7.4",
+                "default": true,
+                "deprecated": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-php-v7.4",
                     "tag": "nightly"
                 },
                 "attached": {
