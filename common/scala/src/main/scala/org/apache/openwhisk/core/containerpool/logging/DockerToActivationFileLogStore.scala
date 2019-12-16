@@ -172,7 +172,7 @@ object OwSink {
    * values of either sink. Code basically copied from {@code Sink.combine}
    */
   def combine[T, U, M1, M2](first: Sink[U, M1], second: Sink[U, M2])(
-    strategy: Int ⇒ Graph[UniformFanOutShape[T, U], NotUsed]): Sink[T, (M1, M2)] = {
+    strategy: Int => Graph[UniformFanOutShape[T, U], NotUsed]): Sink[T, (M1, M2)] = {
     Sink.fromGraph(GraphDSL.create(first, second)((_, _)) { implicit b => (s1, s2) =>
       import GraphDSL.Implicits._
       val d = b.add(strategy(2))
