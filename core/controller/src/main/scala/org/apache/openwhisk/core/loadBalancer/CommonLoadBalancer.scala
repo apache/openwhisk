@@ -81,8 +81,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
-    Future.successful(activationsPerNamespace.get(namespace).map(_.intValue()).getOrElse(0))
-  override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
+    Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))
+  override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue)
 
   /**
    * Calculate the duration within which a completion ack must be received for an activation.
