@@ -189,7 +189,7 @@ dependencies {
     compile "org.apache.httpcomponents:httpmime:4.3.6"
     compile "junit:junit:4.11"
     compile "io.rest-assured:rest-assured:4.0.0"
-    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
+    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
     compile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.google.code.gson:gson:2.3.1"
     compile "org.scalamock:scalamock-scalatest-support_${gradle.scala.depVersion}:3.6.0"

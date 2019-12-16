@@ -39,7 +39,7 @@ dependencies {
     compile "io.prometheus:simpleclient_common:0.6.0"
 
     testCompile "junit:junit:4.11"
-    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.1"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
     testCompile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
     testCompile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     testCompile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
