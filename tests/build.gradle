@@ -192,7 +192,7 @@ dependencies {
     compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
     compile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.google.code.gson:gson:2.3.1"
-    compile "org.scalamock:scalamock-scalatest-support_${gradle.scala.depVersion}:3.6.0"
+    compile "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
     compile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     compile "com.github.java-json-tools:json-schema-validator:2.2.8"
     compile "org.mockito:mockito-core:2.27.0"
