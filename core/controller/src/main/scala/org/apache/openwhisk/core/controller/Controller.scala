@@ -215,12 +215,12 @@ object Controller {
 
   def start(args: Array[String])(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
     ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
+    Kamon.init()
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
-      Kamon.stopAllReporters().map(_ => Done)(Implicits.global)
+      Kamon.stopModules().map(_ => Done)(Implicits.global)
     }
 
     // extract configuration data from the environment

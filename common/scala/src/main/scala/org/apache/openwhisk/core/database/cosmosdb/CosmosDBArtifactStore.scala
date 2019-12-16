@@ -28,6 +28,7 @@ import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
+import kamon.tag.TagSet
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
@@ -464,9 +465,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def recordResourceUsage() = {
     getResourceUsage().map { o =>
       o.foreach { u =>
-        u.documentsCount.foreach(documentCountToken.gauge.set(_))
-        u.documentsSize.foreach(ds => documentsSizeToken.gauge.set(ds.toKB))
-        u.indexSize.foreach(is => indexSizeToken.gauge.set(is.toKB))
+        u.documentsCount.foreach(documentCountToken.gauge.update(_))
+        u.documentsSize.foreach(ds => documentsSizeToken.gauge.update(ds.toKB))
+        u.indexSize.foreach(is => indexSizeToken.gauge.update(is.toKB))
         logging.info(this, s"Collection usage stats for [$collName] are ${u.asString}")
         u.indexingProgress.foreach { i =>
           if (i < 100) logging.info(this, s"Indexing for collection [$collName] is at $i%")
@@ -562,13 +563,13 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private def createToken(action: String, read: Boolean = true): LogMarkerToken = {
     val mode = if (read) "read" else "write"
-    val tags = Map("action" -> action, "mode" -> mode, "collection" -> collName)
+    val tags = TagSet.from(Map("action" -> action, "mode" -> mode, "collection" -> collName))
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)(MeasurementUnit.none)
     else LogMarkerToken("cosmosdb", "ru", collName, Some(action))(MeasurementUnit.none)
   }
 
   private def createUsageToken(name: String, unit: MeasurementUnit = MeasurementUnit.none): LogMarkerToken = {
-    val tags = Map("collection" -> collName)
+    val tags = TagSet.of("collection", collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "used", tags = tags)(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }
@@ -576,7 +577,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def createDocSizeToken(): LogMarkerToken = {
     val unit = MeasurementUnit.information.bytes
     val name = "doc"
-    val tags = Map("collection" -> collName)
+    val tags = TagSet.of("collection", collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "size", tags = tags)(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }

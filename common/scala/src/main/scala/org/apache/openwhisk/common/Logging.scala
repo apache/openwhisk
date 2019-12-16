@@ -24,9 +24,9 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import kamon.metric.{MeasurementUnit, Counter => KCounter, Histogram => KHistogram, Gauge => KGauge}
+import kamon.metric.{MeasurementUnit, Counter => KCounter, Gauge => KGauge, Histogram => KHistogram}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
-import kamon.system.SystemMetrics
+import kamon.tag.TagSet
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 trait Logging {
@@ -183,12 +183,11 @@ private object Emitter {
  * @param subAction more specific identifier for "action", like `runc.resume`
  * @param tags tags can be used for whatever granularity you might need.
  */
-case class LogMarkerToken(
-  component: String,
-  action: String,
-  state: String,
-  subAction: Option[String] = None,
-  tags: Map[String, String] = Map.empty)(measurementUnit: MeasurementUnit = MeasurementUnit.none) {
+case class LogMarkerToken(component: String,
+                          action: String,
+                          state: String,
+                          subAction: Option[String] = None,
+                          tags: TagSet = TagSet.Empty)(measurementUnit: MeasurementUnit = MeasurementUnit.none) {
   private var finishToken: LogMarkerToken = _
   private var errorToken: LogMarkerToken = _
 
@@ -239,31 +238,25 @@ case class LogMarkerToken(
 
   private def createCounter() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .counter(createName(toString, "counter"))
-        .refine(tags)
+      Kamon.counter(createName(toString, "counter")).withTags(tags)
     } else {
-      Kamon.counter(createName(toStringWithSubAction, "counter"))
+      Kamon.counter(createName(toStringWithSubAction, "counter")).withoutTags()
     }
   }
 
   private def createHistogram() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .histogram(createName(toString, "histogram"), measurementUnit)
-        .refine(tags)
+      Kamon.histogram(createName(toString, "histogram"), measurementUnit).withTags(tags)
     } else {
-      Kamon.histogram(createName(toStringWithSubAction, "histogram"), measurementUnit)
+      Kamon.histogram(createName(toStringWithSubAction, "histogram"), measurementUnit).withoutTags()
     }
   }
 
   private def createGauge() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .gauge(createName(toString, "gauge"), measurementUnit)
-        .refine(tags)
+      Kamon.gauge(createName(toString, "gauge"), measurementUnit).withTags(tags)
     } else {
-      Kamon.gauge(createName(toStringWithSubAction, "gauge"), measurementUnit)
+      Kamon.gauge(createName(toStringWithSubAction, "gauge"), measurementUnit).withoutTags()
     }
   }
 
@@ -296,10 +289,6 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
-  if (TransactionId.metricsKamon) {
-    SystemMetrics.startCollecting()
-  }
-
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       token.counter.increment(times)
@@ -314,7 +303,7 @@ object MetricEmitter {
 
   def emitGaugeMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      token.gauge.set(value)
+      token.gauge.update(value)
     }
   }
 }
@@ -327,7 +316,7 @@ object MetricEmitter {
  */
 class WhiskStatsDMetricKeyGenerator(config: com.typesafe.config.Config) extends MetricKeyGenerator {
   val simpleGen = new SimpleMetricKeyGenerator(config)
-  override def generateKey(name: String, tags: Map[String, String]): String = {
+  override def generateKey(name: String, tags: TagSet): String = {
     val key = simpleGen.generateKey(name, tags)
     if (key.contains(".counter_")) key.replace(".counter_", ".counter.")
     else if (key.contains(".histogram_")) key.replace(".histogram_", ".histogram.")
@@ -377,7 +366,7 @@ object LoggingMarkers {
    */
   def CONTROLLER_STARTUP(id: String) =
     if (TransactionId.metricsKamonTags)
-      LogMarkerToken(controller, s"startup", counter, None, Map("controller_id" -> id))(MeasurementUnit.none)
+      LogMarkerToken(controller, s"startup", counter, None, TagSet.of("controller_id", id))(MeasurementUnit.none)
     else LogMarkerToken(controller, s"startup$id", counter)(MeasurementUnit.none)
 
   // Time of the activation in controller until it is delivered to Kafka
@@ -404,12 +393,12 @@ object LoggingMarkers {
    */
   def INVOKER_STARTUP(i: Int) =
     if (TransactionId.metricsKamonTags)
-      LogMarkerToken(invoker, s"startup", counter, None, Map("invoker_id" -> i.toString))(MeasurementUnit.none)
+      LogMarkerToken(invoker, s"startup", counter, None, TagSet.of("invoker_id", i.toString))(MeasurementUnit.none)
     else LogMarkerToken(invoker, s"startup$i", counter)(MeasurementUnit.none)
 
   // Check invoker healthy state from loadbalancer
   def LOADBALANCER_INVOKER_STATUS_CHANGE(state: String) =
-    LogMarkerToken(loadbalancer, "invokerState", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
+    LogMarkerToken(loadbalancer, "invokerState", counter, Some(state), TagSet.of("state", state))(MeasurementUnit.none)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", counter)(MeasurementUnit.none)
 
   def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: ControllerInstanceId) = {
@@ -419,7 +408,7 @@ object LoggingMarkers {
         "activationsInflight",
         counter,
         None,
-        Map("controller_id" -> controllerInstance.asString))(MeasurementUnit.none)
+        TagSet.of("controller_id", controllerInstance.asString))(MeasurementUnit.none)
     else
       LogMarkerToken(loadbalancer + controllerInstance.asString, "activationsInflight", counter)(MeasurementUnit.none)
   }
@@ -430,7 +419,7 @@ object LoggingMarkers {
         s"memory${actionType}Inflight",
         counter,
         None,
-        Map("controller_id" -> controllerInstance.asString))(MeasurementUnit.none)
+        TagSet.of("controller_id", controllerInstance.asString))(MeasurementUnit.none)
     else
       LogMarkerToken(loadbalancer + controllerInstance.asString, s"memory${actionType}Inflight", counter)(
         MeasurementUnit.none)
@@ -451,7 +440,8 @@ object LoggingMarkers {
         "completionAck",
         counter,
         None,
-        Map("controller_id" -> controllerInstance.asString, "type" -> completionAckType.asString))(MeasurementUnit.none)
+        TagSet.from(Map("controller_id" -> controllerInstance.asString, "type" -> completionAckType.asString)))(
+        MeasurementUnit.none)
     else
       LogMarkerToken(
         loadbalancer + controllerInstance.asString,
@@ -473,20 +463,24 @@ object LoggingMarkers {
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)(MeasurementUnit.none)
   def INVOKER_DOCKER_CMD(cmd: String) =
-    LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "docker", start, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
+    LogMarkerToken(invoker, "docker", timeout, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.none)
   def INVOKER_RUNC_CMD(cmd: String) =
-    LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "runc", start, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_KUBECTL_CMD(cmd: String) =
-    LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
+    LogMarkerToken(invoker, "kubectl", start, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.none)
   def INVOKER_MESOS_CMD(cmd: String) =
-    LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
+    LogMarkerToken(invoker, "mesos", start, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_MESOS_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
+    LogMarkerToken(invoker, "mesos", timeout, Some(cmd), TagSet.of("cmd", cmd))(MeasurementUnit.none)
   def INVOKER_CONTAINER_START(containerState: String) =
-    LogMarkerToken(invoker, "containerStart", counter, Some(containerState), Map("containerState" -> containerState))(
-      MeasurementUnit.none)
+    LogMarkerToken(
+      invoker,
+      "containerStart",
+      counter,
+      Some(containerState),
+      TagSet.of("containerState", containerState))(MeasurementUnit.none)
   val CONTAINER_CLIENT_RETRIES =
     LogMarkerToken(containerClient, "retries", counter)(MeasurementUnit.none)
 
@@ -529,11 +523,11 @@ object LoggingMarkers {
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) =
     if (TransactionId.metricsKamonTags)
-      LogMarkerToken(kafka, "topic", counter, None, Map("topic" -> topic))(MeasurementUnit.none)
+      LogMarkerToken(kafka, "topic", counter, None, TagSet.of("topic", topic))(MeasurementUnit.none)
     else LogMarkerToken(kafka, topic, counter)(MeasurementUnit.none)
   def KAFKA_MESSAGE_DELAY(topic: String) =
     if (TransactionId.metricsKamonTags)
-      LogMarkerToken(kafka, "topic", start, Some("delay"), Map("topic" -> topic))(MeasurementUnit.time.milliseconds)
+      LogMarkerToken(kafka, "topic", start, Some("delay"), TagSet.of("topic", topic))(MeasurementUnit.time.milliseconds)
     else LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
 
   /*

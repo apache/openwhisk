@@ -23,7 +23,7 @@ import akka.stream.scaladsl.Source
 import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
-import kamon.metric.LongAdderCounter
+import kamon.metric.Counter.LongAdder
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
@@ -186,8 +186,8 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     //would increment a counter
     if (TransactionId.metricsKamonTags) {
       RetryMetricsCollector.getCounter(CosmosDBAction.Create) match {
-        case Some(x: LongAdderCounter) => x.snapshot(false).value.toInt
-        case _                         => 0
+        case Some(x: LongAdder) => x.snapshot(false).intValue()
+        case _                  => 0
       }
     } else {
       RetryMetricsCollector.retryCounter.cur.toInt
