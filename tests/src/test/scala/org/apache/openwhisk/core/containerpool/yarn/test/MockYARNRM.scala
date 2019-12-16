@@ -184,7 +184,7 @@ class MockYARNRM(port: Int, delayMS: Int) {
       })
   this.server.setExecutor(null) // creates a default executor
 
-  def start() {
+  def start(): Unit = {
     this.server.start()
   }
   def stop(): Unit = {

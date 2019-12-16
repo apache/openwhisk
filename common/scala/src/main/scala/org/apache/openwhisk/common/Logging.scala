@@ -83,7 +83,7 @@ trait Logging {
    * @param from Reference, where the method was called from.
    * @param message Message to write to the log if not empty
    */
-  protected[common] def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String)
+  protected[common] def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String): Unit
 }
 
 /**

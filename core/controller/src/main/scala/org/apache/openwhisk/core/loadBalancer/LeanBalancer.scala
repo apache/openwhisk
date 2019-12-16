@@ -68,7 +68,7 @@ class LeanBalancer(config: WhiskConfig,
   }
 
   /** Creates an invoker for executing user actions. There is only one invoker in the lean model. */
-  private def makeALocalThreadedInvoker() {
+  private def makeALocalThreadedInvoker(): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
     SpiLoader.get[InvokerProvider].instance(config, invokerName, messageProducer, poolConfig, limitConfig)
