@@ -43,7 +43,7 @@ cd openwhisk/tools/vagrant
 
 ```
 # Configure with couchdb docker container running inside the VM
-./hello
+./hello.sh
 ```
 #### Option B - Using a remote Database
 
@@ -53,7 +53,7 @@ configure the remote DB for OpenWhisk.
 ##### Option B.1 - Setting a remote Cloudant DB
 ```
 # Provide credentials for cloudant database with admin permissions
-OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
+OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello.sh
 ```
 
 ##### Option B.2 - Setting a remote CouchDB
@@ -65,7 +65,7 @@ export OW_DB_USERNAME=<username>
 export OW_DB_PASSWORD=<password>
 export OW_DB_PROTOCOL=http
 export OW_DB_HOST=<ip_address>
-export OW_DB_PORT=5984 ./hello
+export OW_DB_PORT=5984 ./hello.sh
 ```
 
 **Note:**
@@ -292,7 +292,7 @@ Don't use `vagrant resume`. See
 ## Override Vagrant Box
 By default the Vagrant VM will use `ubuntu/xenial64` if you want to use `ubuntu/trusty64` you can override with an environment variable `BOX_OS`.
 ```
-BOX_OS="ubuntu/trusty64" ./hello
+BOX_OS="ubuntu/trusty64" ./hello.sh
 ```
 
 ## Using Vagrant VM in GUI mode (Optional)
@@ -300,7 +300,7 @@ Create VM with Desktop GUI. The `username` and `password` are both set to
 `vagrant` by default.
 
 ```
-  gui=true ./hello
+  gui=true ./hello.sh
   gui=true vagrant reload
 ```
 

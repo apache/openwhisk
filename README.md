@@ -72,7 +72,7 @@ git clone --depth=1 https://github.com/apache/openwhisk.git openwhisk
 cd openwhisk/tools/vagrant
 
 # Run script to create vm and run hello action
-./hello
+./hello.sh
 ```
 
 Wait for hello action output:
