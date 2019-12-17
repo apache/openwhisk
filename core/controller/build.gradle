@@ -37,9 +37,9 @@ distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:0.11.0"
-    compile "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:0.11.0"
-    compile "com.lightbend.akka.discovery:akka-discovery-marathon-api_${gradle.scala.depVersion}:0.11.0"
+    compile "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    compile "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    compile "com.lightbend.akka.discovery:akka-discovery-marathon-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
     compile project(':common:scala')
     compile project(':core:invoker')
 }
