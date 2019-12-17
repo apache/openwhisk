@@ -157,7 +157,7 @@ dependencies {
     compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
 
     testCompile "junit:junit:4.11"
-    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
 }
 
 tasks.withType(ScalaCompile) {
