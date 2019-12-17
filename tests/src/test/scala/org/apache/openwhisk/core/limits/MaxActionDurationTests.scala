@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
+import java.io.File
 import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
@@ -64,35 +65,41 @@ class MaxActionDurationTests extends TestHelpers with WskTestHelpers with WskAct
   "node-, python, and java-action" should s"run up to the max allowed duration (${TimeLimit.MAX_DURATION})" taggedAs (Slow) in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     // When you add more runtimes, keep in mind, how many actions can be processed in parallel by the Invokers!
-    Map("node" -> "helloDeadline.js", "python" -> "sleep.py", "java" -> "sleep.jar").par.map {
-      case (k, name) =>
-        println(s"Testing action kind '${k}' with action '${name}'")
-        assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-          val main = if (k == "java") Some("Sleep") else None
-          action.create(
-            name,
-            Some(TestUtils.getTestActionFilename(name)),
-            timeout = Some(TimeLimit.MAX_DURATION),
-            main = main)
-        }
-
-        val run = wsk.action.invoke(
-          name,
-          Map("forceHang" -> true.toJson, "sleepTimeInMs" -> (TimeLimit.MAX_DURATION + 30.seconds).toMillis.toJson))
-        withActivation(
-          wsk.activation,
-          run,
-          initialWait = 1.minute,
-          pollPeriod = 1.minute,
-          totalWait = TimeLimit.MAX_DURATION + 2.minutes) { activation =>
-          withClue("Activation result not as expected:") {
-            activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-            activation.response.result shouldBe Some(
-              JsObject("error" -> Messages.timedoutActivation(TimeLimit.MAX_DURATION, init = false).toJson))
-            activation.duration.toInt should be >= TimeLimit.MAX_DURATION.toMillis.toInt
+    Map("node" -> "helloDeadline.js", "python" -> "sleep.py", "java" -> "sleep.jar")
+      .filter {
+        case (_, name) =>
+          new File(TestUtils.getTestActionFilename(name)).exists()
+      }
+      .par
+      .map {
+        case (k, name) =>
+          println(s"Testing action kind '${k}' with action '${name}'")
+          assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+            val main = if (k == "java") Some("Sleep") else None
+            action.create(
+              name,
+              Some(TestUtils.getTestActionFilename(name)),
+              timeout = Some(TimeLimit.MAX_DURATION),
+              main = main)
           }
-        }
-        () // explicitly map to Unit
-    }
+
+          val run = wsk.action.invoke(
+            name,
+            Map("forceHang" -> true.toJson, "sleepTimeInMs" -> (TimeLimit.MAX_DURATION + 30.seconds).toMillis.toJson))
+          withActivation(
+            wsk.activation,
+            run,
+            initialWait = 1.minute,
+            pollPeriod = 1.minute,
+            totalWait = TimeLimit.MAX_DURATION + 2.minutes) { activation =>
+            withClue("Activation result not as expected:") {
+              activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
+              activation.response.result shouldBe Some(
+                JsObject("error" -> Messages.timedoutActivation(TimeLimit.MAX_DURATION, init = false).toJson))
+              activation.duration.toInt should be >= TimeLimit.MAX_DURATION.toMillis.toInt
+            }
+          }
+          () // explicitly map to Unit
+      }
   }
 }

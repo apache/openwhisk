@@ -15,19 +15,10 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'com.github.lkishalmi.gatling' version '0.7.2'
-    id 'eclipse'
-    id 'scala'
+function entryPoint(args) {
+    var pq = require("prog-quote")();
+
+    return pq.next().value;
 }
 
-dependencies {
-    gatling "io.spray:spray-json_${gradle.scala.depVersion}:1.3.4"
-    gatling "commons-io:commons-io:2.6"
-}
-
-task buildArtifacts(type:Exec) {
-  commandLine './build.sh'
-}
-
-tasks.matching {it != buildArtifacts}.all {it.dependsOn buildArtifacts}
+exports.main = entryPoint;

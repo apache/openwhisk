@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Python Hello virtualenv test.
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -14,20 +17,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+"""
 
-plugins {
-    id 'com.github.lkishalmi.gatling' version '0.7.2'
-    id 'eclipse'
-    id 'scala'
-}
+import netifaces
 
-dependencies {
-    gatling "io.spray:spray-json_${gradle.scala.depVersion}:1.3.4"
-    gatling "commons-io:commons-io:2.6"
-}
+def main(dict):
+    networkif = netifaces.interfaces()
+    print ("Networkinterfaces: \n %s" %networkif )
+    networkinfo = netifaces.ifaddresses('eth0')[netifaces.AF_INET]
+    print ("Networkinfo eth0: \n %s" %networkinfo )
+    return {"Networkinfo: ": networkinfo}
 
-task buildArtifacts(type:Exec) {
-  commandLine './build.sh'
-}
-
-tasks.matching {it != buildArtifacts}.all {it.dependsOn buildArtifacts}
+def naim(dict):
+    return main(dict)
