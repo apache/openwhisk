@@ -22,13 +22,16 @@ import java.net.ServerSocket
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
+import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import pureconfig._
 import pureconfig.generic.auto._
 
 trait EventsTestHelper {
 
-  protected def createConsumer(kport: Int, globalConfig: Config, recorder: MetricRecorder = PrometheusRecorder())(
+  protected def createConsumer(kport: Int,
+                               globalConfig: Config,
+                               recorder: MetricRecorder = PrometheusRecorder(new PrometheusReporter))(
     implicit system: ActorSystem,
     materializer: ActorMaterializer) = {
     val settings = OpenWhiskEvents

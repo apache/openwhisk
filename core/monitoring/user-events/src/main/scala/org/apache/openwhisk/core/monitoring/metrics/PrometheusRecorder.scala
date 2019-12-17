@@ -23,11 +23,12 @@ import java.util.concurrent.TimeUnit
 
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.{HttpEntity, MessageEntity}
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Concat, Source}
 import akka.util.ByteString
 import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
+import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse}
 
@@ -50,7 +51,10 @@ trait PrometheusMetricNames extends MetricNames {
   val timedLimitMetric = "openwhisk_action_limit_timed_total"
 }
 
-case class PrometheusRecorder() extends MetricRecorder with PrometheusExporter with SLF4JLogging {
+case class PrometheusRecorder(kamon: PrometheusReporter)
+    extends MetricRecorder
+    with PrometheusExporter
+    with SLF4JLogging {
   import PrometheusRecorder._
   private val activationMetrics = new TrieMap[String, ActivationPromMetrics]
   private val limitMetrics = new TrieMap[String, LimitPromMetrics]
@@ -155,7 +159,8 @@ case class PrometheusRecorder() extends MetricRecorder with PrometheusExporter w
   //Returns a floating point number
   private def seconds(time: Duration): Double = time.toUnit(TimeUnit.SECONDS)
 
-  private def createSource() = createJavaClientSource().map(ByteString(_))
+  private def createSource() =
+    Source.combine(createJavaClientSource(), createKamonSource())(Concat(_)).map(ByteString(_))
 
   /**
    * Enables streaming the prometheus metric data without building the whole report in memory
@@ -169,6 +174,8 @@ case class PrometheusRecorder() extends MetricRecorder with PrometheusExporter w
         TextFormat.write004(writer, singletonEnumeration(sample))
         writer.toString
       }
+
+  private def createKamonSource() = Source.single(kamon.scrapeData())
 
   private def singletonEnumeration[A](value: A) = new util.Enumeration[A] {
     private var done = false

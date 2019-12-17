@@ -18,7 +18,7 @@
 package org.apache.openwhisk.http
 
 import akka.event.Logging
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{MetricsRoute, TransactionId}
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which
@@ -26,10 +26,10 @@ import org.apache.openwhisk.common.TransactionId
  */
 trait BasicRasService extends BasicHttpService {
 
-  override def routes(implicit transid: TransactionId) = ping
+  override def routes(implicit transid: TransactionId) = ping ~ MetricsRoute()
 
   override def loglevelForRoute(route: String): Logging.LogLevel = {
-    if (route == "/ping") {
+    if (route == "/ping" || route == "/metrics") {
       Logging.DebugLevel
     } else {
       super.loglevelForRoute(route)
