@@ -94,7 +94,7 @@ object RetryMetricsCollector extends AppenderBase[ILoggingEvent] with SLF4JLoggi
     val t = Try {
       if (args != null & args.length > index) {
         args(index) match {
-          case n: Number => n.intValue()
+          case n: Number => n.intValue
           case _         => 0
         }
       } else 0

@@ -316,7 +316,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       result.getFields("stdout", "code") match {
         case Seq(JsString(stdout), JsNumber(code)) =>
           stdout should not include "bytes from"
-          code.intValue() should not be 0
+          code.intValue should not be 0
         case _ => fail(s"fields 'stdout' or 'code' where not of the expected format, was $result")
       }
     }

@@ -54,13 +54,13 @@ trait MemoryViewMapper {
 
   protected def gte(js: JsObject, name: String, value: Number): Boolean =
     JsHelpers.getFieldPath(js, name) match {
-      case Some(JsNumber(n)) => n.longValue() >= value.longValue()
+      case Some(JsNumber(n)) => n.longValue >= value.longValue
       case _                 => false
     }
 
   protected def lte(js: JsObject, name: String, value: Number): Boolean =
     JsHelpers.getFieldPath(js, name) match {
-      case Some(JsNumber(n)) => n.longValue() <= value.longValue()
+      case Some(JsNumber(n)) => n.longValue <= value.longValue
       case _                 => false
     }
 
@@ -68,7 +68,7 @@ trait MemoryViewMapper {
     val f =
       (js: JsObject) =>
         JsHelpers.getFieldPath(js, name) match {
-          case Some(JsNumber(n)) => n.longValue()
+          case Some(JsNumber(n)) => n.longValue
           case _                 => 0L
       }
     val order = implicitly[Ordering[Long]]

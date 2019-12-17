@@ -76,7 +76,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
     def read(value: JsValue) =
       Try {
         val JsNumber(mb) = value
-        require(mb.isWhole(), "memory limit must be whole number")
+        require(mb.isWhole, "memory limit must be whole number")
         MemoryLimit(mb.intValue MB)
       } match {
         case Success(limit)                       => limit

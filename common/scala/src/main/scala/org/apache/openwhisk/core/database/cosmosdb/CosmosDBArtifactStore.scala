@@ -397,7 +397,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .queryDocuments(collection.getSelfLink, querySpec, newFeedOptions())
       .head()
       .map { r =>
-        val count = r.getResults.asScala.head.getLong(aggregate).longValue()
+        val count = r.getResults.asScala.head.getLong(aggregate).longValue
         transid.finished(this, start, s"[COUNT] '$collName' completed: count $count")
         collectMetrics(countToken, r.getRequestCharge)
         if (count > skip) count - skip else 0L

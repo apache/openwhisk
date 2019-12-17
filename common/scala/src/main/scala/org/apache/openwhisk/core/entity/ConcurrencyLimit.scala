@@ -78,7 +78,7 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
     def read(value: JsValue) = {
       Try {
         val JsNumber(c) = value
-        require(c.isWhole(), "concurrency limit must be whole number")
+        require(c.isWhole, "concurrency limit must be whole number")
 
         ConcurrencyLimit(c.toInt)
       } match {
