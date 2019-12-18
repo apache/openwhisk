@@ -37,6 +37,5 @@ fi
 (cd blackbox && zip ../blackbox.zip exec)
 (cd python-zip && zip ../python.zip -r .)
 (cd zippedaction && npm install && zip ../zippedaction.zip -r .)
-(cd python_virtualenv && ./build.sh && zip ../python2_virtualenv.zip -r .)
 
 touch .built
