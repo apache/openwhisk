@@ -99,7 +99,7 @@ def init(args):
     if artifact and (args.binary or artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
         with open(artifact, 'rb') as fp:
             contents = fp.read()
-        contents = base64.b64encode(contents)
+        contents = str(base64.b64encode(contents), 'utf-8')
         binary = True
     elif artifact is not '':
         with(codecs.open(artifact, 'r', 'utf-8')) as fp:
