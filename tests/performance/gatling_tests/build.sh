@@ -18,6 +18,8 @@
 
 set -e
 
+GRADLEW_PATH=${OPENWHISK_HOME:-../../../../../../../../..}
+
 if [ -f ".built" ]; then
   echo "Test zip artifacts already built, skipping"
   exit 0
@@ -27,7 +29,7 @@ fi
 jv=$(java -version 2>&1 | head -1 | awk -F'"' '{print $2}')
 if [[ $jv == 1.8.* ]]; then
   echo "java version is $jv (ok)"
-  (cd src/gatling/resources/data/src/java && ../../../../../../../../../gradlew build && cp build/libs/gatling-1.0.jar ../../javaAction.jar)
+  (cd src/gatling/resources/data/src/java && "$GRADLEW_PATH/gradlew" build && cp build/libs/gatling-1.0.jar ../../javaAction.jar)
   touch .built
 else
   echo "java version is $jv (not ok)"
