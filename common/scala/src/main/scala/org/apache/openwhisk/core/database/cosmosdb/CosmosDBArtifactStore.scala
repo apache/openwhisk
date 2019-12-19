@@ -28,7 +28,6 @@ import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
-import kamon.tag.TagSet
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.database._
@@ -563,13 +562,13 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private def createToken(action: String, read: Boolean = true): LogMarkerToken = {
     val mode = if (read) "read" else "write"
-    val tags = TagSet.from(Map("action" -> action, "mode" -> mode, "collection" -> collName))
+    val tags = Map("action" -> action, "mode" -> mode, "collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "ru", "used", tags = tags)(MeasurementUnit.none)
     else LogMarkerToken("cosmosdb", "ru", collName, Some(action))(MeasurementUnit.none)
   }
 
   private def createUsageToken(name: String, unit: MeasurementUnit = MeasurementUnit.none): LogMarkerToken = {
-    val tags = TagSet.of("collection", collName)
+    val tags = Map("collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "used", tags = tags)(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }
@@ -577,7 +576,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def createDocSizeToken(): LogMarkerToken = {
     val unit = MeasurementUnit.information.bytes
     val name = "doc"
-    val tags = TagSet.of("collection", collName)
+    val tags = Map("collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", name, "size", tags = tags)(unit)
     else LogMarkerToken("cosmosdb", name, collName)(unit)
   }

@@ -28,7 +28,6 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import kamon.metric.MeasurementUnit
-import kamon.tag.TagSet
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
@@ -147,7 +146,7 @@ trait BasicHttpService extends Directives {
           m.toLowerCase,
           LoggingMarkers.counter,
           Some(res.status.intValue.toString),
-          TagSet.of("statusCode", res.status.intValue.toString))(MeasurementUnit.time.milliseconds)
+          Map("statusCode" -> res.status.intValue.toString))(MeasurementUnit.time.milliseconds)
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
       MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)

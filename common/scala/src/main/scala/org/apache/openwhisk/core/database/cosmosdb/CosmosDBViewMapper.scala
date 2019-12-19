@@ -23,7 +23,6 @@ import com.microsoft.azure.cosmosdb.DataType.{Number, String}
 import com.microsoft.azure.cosmosdb.IndexKind.Range
 import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import kamon.metric.MeasurementUnit
-import kamon.tag.TagSet
 import org.apache.openwhisk.common.{LogMarkerToken, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.ActivationHandler.NS_PATH
 import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
@@ -382,7 +381,7 @@ object CosmosDBViewMapper {
 
   def createStatsToken(viewName: String, statName: String, collName: String): LogMarkerToken = {
     val unit = MeasurementUnit.time.milliseconds
-    val tags = TagSet.from(Map("view" -> viewName, "collection" -> collName))
+    val tags = Map("view" -> viewName, "collection" -> collName)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "query", statName, tags = tags)(unit)
     else LogMarkerToken("cosmosdb", "query", collName, Some(statName))(unit)
   }

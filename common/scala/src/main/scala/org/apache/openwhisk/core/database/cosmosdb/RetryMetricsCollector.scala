@@ -24,7 +24,6 @@ import ch.qos.logback.core.AppenderBase
 import com.microsoft.azure.cosmosdb.rx.internal.ResourceThrottleRetryPolicy
 import org.apache.openwhisk.common.{Counter => WhiskCounter}
 import kamon.metric.{Counter, MeasurementUnit}
-import kamon.tag.TagSet
 import org.apache.openwhisk.common.{LogMarkerToken, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.slf4j.LoggerFactory
@@ -125,7 +124,7 @@ object RetryMetricsCollector extends AppenderBase[ILoggingEvent] with SLF4JLoggi
 
   private def createToken(opType: String, retryPassed: Boolean): LogMarkerToken = {
     val action = if (retryPassed) "success" else "failed"
-    val tags = TagSet.of("type", opType)
+    val tags = Map("type" -> opType)
     if (TransactionId.metricsKamonTags) LogMarkerToken("cosmosdb", "retry", action, tags = tags)(MeasurementUnit.none)
     else LogMarkerToken("cosmosdb", "retry", action, Some(opType))(MeasurementUnit.none)
   }

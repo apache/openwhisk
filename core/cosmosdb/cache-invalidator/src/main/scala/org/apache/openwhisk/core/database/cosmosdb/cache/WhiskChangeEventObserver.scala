@@ -22,7 +22,6 @@ import com.azure.data.cosmos.CosmosItemProperties
 import com.azure.data.cosmos.internal.changefeed.ChangeFeedObserverContext
 import com.google.common.base.Throwables
 import kamon.metric.MeasurementUnit
-import kamon.tag.TagSet
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, MetricEmitter}
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants
@@ -61,7 +60,7 @@ trait EventProducer {
 object WhiskChangeEventObserver {
   val instanceId = "cache-invalidator"
   private val feedCounter =
-    LogMarkerToken("cosmosdb", "change_feed", "count", tags = TagSet.of("collection", "whisks"))(MeasurementUnit.none)
+    LogMarkerToken("cosmosdb", "change_feed", "count", tags = Map("collection" -> "whisks"))(MeasurementUnit.none)
   private val lags = new TrieMap[String, LogMarkerToken]
 
   /**
@@ -81,11 +80,8 @@ object WhiskChangeEventObserver {
   }
 
   private def createLagToken(partitionKey: String) = {
-    LogMarkerToken(
-      "cosmosdb",
-      "change_feed",
-      "lag",
-      tags = TagSet.from(Map("collection" -> "whisks", "pk" -> partitionKey)))(MeasurementUnit.none)
+    LogMarkerToken("cosmosdb", "change_feed", "lag", tags = Map("collection" -> "whisks", "pk" -> partitionKey))(
+      MeasurementUnit.none)
   }
 
   def getSessionLsn(token: String): Long = {
