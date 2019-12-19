@@ -22,7 +22,7 @@
                     "name": "nodejs6action",
                     "tag": "nightly"
                 },
-                "deprecated": false,
+                "deprecated": true,
                 "attached": {
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
