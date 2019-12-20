@@ -163,6 +163,14 @@ task testSystemBasic(type: Test) {
     include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
 }
 
+task testSystemKCF(type: Test) {
+    exclude getPattern("REQUIRE_SYSTEM_BASIC", "excludes")
+    include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
+
+    // KubernetesContainerFactory's logs API is not reliable and mixes stdout/stderr into a single stream
+    exclude "**/*ActivationLogsTests*"
+}
+
 task testUnit(type: Test) {
     systemProperty("whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider")
     exclude getPattern("REQUIRE_ONLY_DB", "excludes")
