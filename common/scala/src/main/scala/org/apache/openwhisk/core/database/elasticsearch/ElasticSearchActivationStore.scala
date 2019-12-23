@@ -45,7 +45,6 @@ import org.apache.openwhisk.http.Messages
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback
 
 import scala.concurrent.{ExecutionContextExecutor, Future, Promise}
-import scala.concurrent.duration._
 import scala.util.Try
 
 case class ElasticSearchActivationStoreConfig(protocol: String,
@@ -61,8 +60,7 @@ class ElasticSearchActivationStore(
   useBatching: Boolean = false)(implicit actorSystem: ActorSystem,
                                 actorMaterializer: ActorMaterializer,
                                 logging: Logging)
-    extends ActivationStore
-    with MultipleReadersSingleWriterCache[WhiskActivation, DocInfo] {
+    extends ActivationStore {
 
   import com.sksamuel.elastic4s.http.ElasticDsl._
 
@@ -97,11 +95,6 @@ class ElasticSearchActivationStore(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
-    val key = CacheKey(activation)
-    cacheUpdate(activation, key, doStore(activation))
-  }
-
-  private def doStore(activation: WhiskActivation)(implicit transid: TransactionId): Future[DocInfo] = {
     val start =
       transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] 'activations' document: '${activation.docid}'")
 
@@ -203,11 +196,6 @@ class ElasticSearchActivationStore(
   override def get(activationId: ActivationId, context: UserContext)(
     implicit transid: TransactionId): Future[WhiskActivation] = {
 
-    cacheLookup(CacheKey(activationId.asString), doGet(activationId))
-  }
-
-  private def doGet(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation] = {
-
     val start =
       transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] 'activations' finding activation: '$activationId'")
 
@@ -254,12 +242,6 @@ class ElasticSearchActivationStore(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean] = {
 
-    cacheInvalidate(CacheKey(activationId.asString), doDelete(activationId))
-  }
-
-  private def doDelete(activationId: ActivationId, retry: Boolean = true)(
-    implicit transid: TransactionId): Future[Boolean] = {
-
     val start =
       transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] 'activations' deleting document: '$activationId'")
 
@@ -295,19 +277,14 @@ class ElasticSearchActivationStore(
         }
       }
 
-    res.failed.foreach {
-      case _: NoDocumentException if retry =>
-        actorSystem.scheduler.scheduleOnce(5.second)(doDelete(activationId, retry = false))
-      case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
-      case x =>
+    reportFailure(
+      res,
+      failure =>
         transid.failed(
           this,
           start,
-          s"[DEL] 'activations' internal error, doc: '$activationId', failure: '${x.getMessage}'",
-          ErrorLevel)
-    }
-
-    res
+          s"[DEL] 'activations' internal error, doc: '$activationId', failure: '${failure.getMessage}'",
+          ErrorLevel))
   }
 
   override def countActivationsInNamespace(namespace: EntityPath,
