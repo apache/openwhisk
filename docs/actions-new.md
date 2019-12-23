@@ -61,7 +61,7 @@ Further, you should automate and pass the following test suites:
 Actions when created specify the desired runtime for the function via a property called "kind".
 When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is typically
 a string describing the language (e.g., `nodejs`) followed by a colon and the version for the runtime
-as in `nodejs:8` or `php:7.3`.
+as in `nodejs:8` or `php:7.4`.
 
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
 schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).
@@ -160,6 +160,7 @@ The initialization route is `/init`. It must accept a `POST` request with a JSON
   * `__OW_API_KEY` the API key for the subject invoking the action, this key may be a restricted API key. This property is absent unless explicitly [requested](./annotations.md#annotations-for-all-actions).
   * `__OW_NAMESPACE` the namespace for the _activation_ (this may not be the same as the namespace for the action).
   * `__OW_ACTION_NAME` the fully qualified name of the running action.
+  * `__OW_ACTION_VERSION` the internal version number of the running action.
   * `__OW_ACTIVATION_ID` the activation id for this running action instance.
   * `__OW_DEADLINE` the approximate time when this initializer will have consumed its entire duration quota (measured in epoch milliseconds).
 

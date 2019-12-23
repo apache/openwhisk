@@ -297,6 +297,21 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
+  it should "get package with updated field" in {
+    implicit val tid = transid()
+    val provider = WhiskPackage(namespace, aname(), None)
+    put(entityStore, provider)
+
+    // `updated` field should be compared with a document in DB
+    val pkg = get(entityStore, provider.docid, WhiskPackage)
+
+    Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskPackageWithActions]
+      response should be(provider copy (updated = pkg.updated) withActions ())
+    }
+  }
+
   it should "get package reference for private package in same namespace" in {
     implicit val tid = transid()
     val provider = WhiskPackage(namespace, aname(), None, Parameters("a", "A") ++ Parameters("b", "B"))
@@ -422,7 +437,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(provider.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be(provider)
+      checkWhiskEntityResponse(response, provider)
     }
   }
 
@@ -492,7 +507,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be(reference)
+      checkWhiskEntityResponse(response, reference)
     }
   }
 
@@ -522,13 +537,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be {
+      checkWhiskEntityResponse(
+        response,
         WhiskPackage(
           reference.namespace,
           reference.name,
           provider.bind,
-          annotations = bindingAnnotation(provider.bind.get))
-      }
+          annotations = bindingAnnotation(provider.bind.get)))
     }
   }
 
@@ -576,7 +591,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     } reduce (_ ++ _)
     val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -592,7 +607,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     } reduce (_ ++ _)
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -610,7 +625,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     put(entityStore, provider)
     Put(s"$collectionPath/${aname()}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -632,7 +647,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(provider.docid)
       val response = responseAs[WhiskPackage]
-      response should be(
+      checkWhiskEntityResponse(
+        response,
         WhiskPackage(namespace, provider.name, None, version = provider.version.upPatch, publish = true))
     }
   }
@@ -657,15 +673,15 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       deletePackage(reference.docid)
       status should be(OK)
       val response = responseAs[WhiskPackage]
-      response should be {
+      checkWhiskEntityResponse(
+        response,
         WhiskPackage(
           reference.namespace,
           reference.name,
           reference.binding,
           version = reference.version.upPatch,
           publish = true,
-          annotations = reference.annotations ++ Parameters("a", "b"))
-      }
+          annotations = reference.annotations ++ Parameters("a", "b")))
     }
   }
 

@@ -30,7 +30,7 @@ import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ExecManifestSupport
 import org.apache.openwhisk.http.BasicHttpService
-import pureconfig.loadConfigOrThrow
+import pureconfig._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}

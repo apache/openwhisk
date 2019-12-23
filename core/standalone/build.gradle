@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
     id 'maven'
     id 'org.scoverage'
@@ -52,8 +54,9 @@ task copyGWActions() {
             def zipFileName = actionName + ".zip"
             def actionDir = new File(routeMgmtDir, actionName)
             def zipFile = new File(routeBuildDir, zipFileName)
+            def npmCommand = (Os.isFamily(Os.FAMILY_WINDOWS)) ? "npm.cmd" : "npm"
             if (!zipFile.exists()) {
-                ant.exec(dir:actionDir, executable:"npm", failonerror:true){
+                ant.exec(dir:actionDir, executable:npmCommand, failonerror:true){
                     arg(line:"install")
                 }
                 ant.zip(destfile:zipFile){
@@ -146,15 +149,13 @@ install.dependsOn(bootJar)
 dependencies {
     compile project(':core:controller')
     compile project(':tools:admin')
-    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.1"
+    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    //Tried with 0.16.0 has support for Kafka 0.11.0 https://github.com/embeddedkafka/embedded-kafka/tree/v0.16.0
-    //But that causes class compatability issue die to use of newer client version
-    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.1.1"
+    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
 
     testCompile "junit:junit:4.11"
-    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
 }
 
 tasks.withType(ScalaCompile) {

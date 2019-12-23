@@ -19,10 +19,9 @@ package org.apache.openwhisk.core.entity
 
 import java.time.Clock
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
-import scala.Stream
 import scala.util.Try
-
 import spray.json._
 import org.apache.openwhisk.core.database.DocumentUnreadable
 import org.apache.openwhisk.core.database.DocumentTypeMismatchException
@@ -37,7 +36,7 @@ import org.apache.openwhisk.http.Messages
  * @param namespace the namespace for the entity as an abstract field
  * @param version the semantic version as an abstract field
  * @param publish true to share the entity and false to keep it private as an abstract field
- * @param annotation the set of annotations to attribute to the entity
+ * @param annotations the set of annotations to attribute to the entity
  *
  * @throws IllegalArgumentException if any argument is undefined
  */
@@ -49,7 +48,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
   val version: SemVer
   val publish: Boolean
   val annotations: Parameters
-  val updated = Instant.now(Clock.systemUTC())
+  val updated = WhiskEntity.currentMillis()
 
   /**
    * The name of the entity qualified with its namespace and version for
@@ -112,6 +111,15 @@ object WhiskEntity {
   def qualifiedName(namespace: EntityPath, activationId: ActivationId) = {
     s"$namespace${EntityPath.PATHSEP}$activationId"
   }
+
+  /**
+   * Get Instant object with a millisecond precision
+   * timestamp of whisk entity is stored in milliseconds in the db
+   */
+  def currentMillis() = {
+    Instant.now(Clock.systemUTC()).truncatedTo(ChronoUnit.MILLIS)
+  }
+
 }
 
 object WhiskDocumentReader extends DocumentReader {

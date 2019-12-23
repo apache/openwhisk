@@ -1897,6 +1897,7 @@
             "nodejs:12",
             "nodejs:default",
             "php:7.3",
+            "php:7.4",
             "php:default",
             "python:2",
             "python:3",
@@ -1997,6 +1998,10 @@
             "activating",
             "deactivating"
           ]
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the rule was updated"
         },
         "trigger": {
           "$ref": "#/definitions/PathName"

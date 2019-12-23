@@ -43,7 +43,7 @@ bootJar {
 
 dependencies {
     compile project(':common:scala')
-    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.1.2"
+    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 }
 
 tasks.withType(ScalaCompile) {

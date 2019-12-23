@@ -201,7 +201,7 @@
       "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
       "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
-      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | string }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | lower }}"
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
@@ -220,7 +220,7 @@
       "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
       "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
 
-      "CONFIG_whisk_featureFlags_requireApiKeyAnnotation": "{{ whisk.feature_flags.require_api_key_annotation | default(true) | string }}"
+      "CONFIG_whisk_featureFlags_requireApiKeyAnnotation": "{{ whisk.feature_flags.require_api_key_annotation | default(true) | lower }}"
 
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
@@ -231,13 +231,13 @@
       "CONFIG_whisk_runtimes_defaultImageTag":
         "{{ runtimes_default_image_tag | default() }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages":
-        "{{ runtimes_bypass_pull_for_local_images | default() | string }}"
+        "{{ runtimes_bypass_pull_for_local_images | default() | lower }}"
       "CONFIG_whisk_runtimes_localImagePrefix":
         "{{ runtimes_local_image_prefix | default() }}"
 
-      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | string }}"
-      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | string }}"
-      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | string }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | lower }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | lower }}"
+      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | lower }}"
       "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
       "CONFIG_whisk_controller_https_keystorePath":
         "/conf/{{ controller.ssl.keystore.name }}"
@@ -269,7 +269,7 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) | string }}"
+      "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) | lower }}"
 
 - name: merge extra env variables
   set_fact:

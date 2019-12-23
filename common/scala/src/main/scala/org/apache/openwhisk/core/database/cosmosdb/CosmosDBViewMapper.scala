@@ -276,8 +276,8 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper with WhiskIns
         //Go for case which does not specify upto as that would be the case with poll based query
         case (None, Some(startFromQuery), Some(JsNumber(start))) =>
           val now = nowInMillis().toEpochMilli
-          val resultStartDelta = (now - start.longValue()).max(0)
-          val queryStartDelta = (now - startFromQuery.longValue()).max(0)
+          val resultStartDelta = (now - start.longValue).max(0)
+          val queryStartDelta = (now - startFromQuery.longValue).max(0)
           resultDeltaToken.histogram.record(resultStartDelta)
           sinceDeltaToken.histogram.record(queryStartDelta)
           Some(s"resultDelta=$resultStartDelta, sinceDelta=$queryStartDelta")

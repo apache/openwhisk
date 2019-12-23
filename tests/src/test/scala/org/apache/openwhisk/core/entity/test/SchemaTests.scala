@@ -431,7 +431,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       "parameters" -> Parameters().toJson,
       "version" -> SemVer().toJson,
       "publish" -> JsFalse,
-      "annotations" -> Parameters().toJson)
+      "annotations" -> Parameters().toJson,
+      "updated" -> pkg.updated.toEpochMilli.toJson)
   }
 
   it should "serialize and deserialize package binding" in {
@@ -443,7 +444,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       "parameters" -> Parameters().toJson,
       "version" -> SemVer().toJson,
       "publish" -> JsFalse,
-      "annotations" -> Parameters().toJson)
+      "annotations" -> Parameters().toJson,
+      "updated" -> pkg.updated.toEpochMilli.toJson)
     //val legacyPkgAsJson = JsObject(pkgAsJson.fields + ("binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson)))
     WhiskPackage.serdes.write(pkg) shouldBe pkgAsJson
     WhiskPackage.serdes.read(pkgAsJson) shouldBe pkg

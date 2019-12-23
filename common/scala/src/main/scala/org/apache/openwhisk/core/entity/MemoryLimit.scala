@@ -26,6 +26,7 @@ import spray.json._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
+import pureconfig.generic.auto._
 
 case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 
@@ -75,7 +76,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
     def read(value: JsValue) =
       Try {
         val JsNumber(mb) = value
-        require(mb.isWhole(), "memory limit must be whole number")
+        require(mb.isWhole, "memory limit must be whole number")
         MemoryLimit(mb.intValue MB)
       } match {
         case Success(limit)                       => limit

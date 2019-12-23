@@ -85,6 +85,18 @@ protected trait ControllerTestCommon
     }
   }
 
+  def checkWhiskEntityResponse(response: WhiskEntity, expected: WhiskEntity): Unit = {
+    // Used to ignore `updated` field because timestamp is not known before inserting into the DB
+    // If you use this method, test case that checks timestamp must be added
+    val r = response match {
+      case whiskAction: WhiskAction                 => whiskAction.copy(updated = expected.updated)
+      case whiskActionMetaData: WhiskActionMetaData => whiskActionMetaData.copy(updated = expected.updated)
+      case whiskTrigger: WhiskTrigger               => whiskTrigger.copy(updated = expected.updated)
+      case whiskPackage: WhiskPackage               => whiskPackage.copy(updated = expected.updated)
+    }
+    r should be(expected)
+  }
+
   def systemAnnotations(kind: String, create: Boolean = true): Parameters = {
     val base = if (create && FeatureFlags.requireApiKeyAnnotation) {
       Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)

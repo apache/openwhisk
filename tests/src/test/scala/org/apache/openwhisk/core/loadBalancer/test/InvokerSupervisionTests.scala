@@ -78,7 +78,7 @@ class InvokerSupervisionTests
 
   ExecManifest.initialize(config)
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

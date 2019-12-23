@@ -370,6 +370,7 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "PWD": "/nodejsAction",
     "YARN_VERSION": "1.13.0",
     "__OW_ACTION_NAME": "/guest/hello",
+    "__OW_ACTION_VERSION": "0.0.1",
     "__OW_ACTIVATION_ID": "71e48d2d62e142eca48d2d62e192ec2d",
     "__OW_API_HOST": "http://host.docker.internal:3233",
     "__OW_DEADLINE": "1570223213407",

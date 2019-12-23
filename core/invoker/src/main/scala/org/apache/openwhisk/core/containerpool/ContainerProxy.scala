@@ -23,7 +23,8 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
@@ -550,7 +551,7 @@ class ContainerProxy(factory: (TransactionId,
    * 4. recording the result to the data store
    *
    * @param container the container to run the job on
-   * @param job the job to run
+   * @param job       the job to run
    * @return a future completing after logs have been collected and
    *         added to the WhiskActivation
    */
@@ -561,6 +562,7 @@ class ContainerProxy(factory: (TransactionId,
     val environment = Map(
       "namespace" -> job.msg.user.namespace.name.toJson,
       "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
+      "action_version" -> job.msg.action.version.toJson,
       "activation_id" -> job.msg.activationId.toString.toJson,
       "transaction_id" -> job.msg.transid.id.toJson)
 

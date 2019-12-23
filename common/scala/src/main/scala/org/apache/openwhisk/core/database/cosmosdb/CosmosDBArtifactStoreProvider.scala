@@ -29,6 +29,7 @@ import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json.RootJsonFormat
 
 import scala.reflect.ClassTag

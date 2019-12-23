@@ -30,7 +30,8 @@ import com.adobe.api.platform.runtime.mesos.Teardown
 import com.adobe.api.platform.runtime.mesos.UNLIKE
 import java.time.Instant
 
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext

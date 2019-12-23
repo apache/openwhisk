@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.entity.ExecManifest._
 import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.size.SizeString
-import pureconfig.loadConfigOrThrow
+import pureconfig._
 import org.apache.openwhisk.http._
 
 /**
@@ -64,7 +64,7 @@ sealed abstract class ExecMetaDataBase extends Exec {
  * A common super class for all action exec types that contain their executable
  * code explicitly (i.e., any action other than a sequence).
  */
-sealed abstract class CodeExec[+T <% SizeConversion] extends Exec {
+sealed abstract class CodeExec[+T](implicit ev: T => SizeConversion) extends Exec {
 
   /** An entrypoint (typically name of 'main' function). 'None' means a default value will be used. */
   val entryPoint: Option[String]

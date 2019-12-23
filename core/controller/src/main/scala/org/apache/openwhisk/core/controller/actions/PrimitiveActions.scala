@@ -44,7 +44,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 protected[actions] trait PrimitiveActions {
   /** The core collections require backend services to be injected in this trait. */

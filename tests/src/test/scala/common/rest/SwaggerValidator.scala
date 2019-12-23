@@ -88,7 +88,7 @@ trait SwaggerValidator {
 
     val specResponse = {
       val builder = SimpleResponse.Builder
-        .status(response.status.intValue())
+        .status(response.status.intValue)
       val body = strictEntityBodyAsString(response.entity)
       val withBody =
         if (body.isEmpty) builder

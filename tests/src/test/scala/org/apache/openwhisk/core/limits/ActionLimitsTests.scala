@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
+import akka.http.scaladsl.model.StatusCodes.PayloadTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
@@ -313,7 +313,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       def checkResponse(activation: ActivationResult) = {
         val response = activation.response
         response.success shouldBe false
-        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
+        response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
         val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
         val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
         withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
@@ -366,7 +366,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     pw.close
 
     assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = RequestEntityTooLarge.intValue)
+      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = PayloadTooLarge.intValue)
     }
 
     actionCode.delete

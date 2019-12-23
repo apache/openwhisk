@@ -26,7 +26,6 @@ import org.scalatest.junit.JUnitRunner
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.WhiskInstants
-import org.scalatest.mockito.MockitoSugar
 import org.mockito.Mockito._
 import org.apache.openwhisk.core.database.DocumentConflictException
 import org.apache.openwhisk.core.database.CacheChangeNotification
@@ -42,7 +41,6 @@ class DatastoreTests
     with WskActorSystem
     with DbUtils
     with ExecHelpers
-    with MockitoSugar
     with StreamLogging
     with WhiskInstants {
 

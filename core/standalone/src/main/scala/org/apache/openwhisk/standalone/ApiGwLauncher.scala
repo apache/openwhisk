@@ -22,7 +22,8 @@ import akka.http.scaladsl.model.Uri
 import akka.pattern.RetrySupport
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

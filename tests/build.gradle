@@ -163,6 +163,14 @@ task testSystemBasic(type: Test) {
     include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
 }
 
+task testSystemKCF(type: Test) {
+    exclude getPattern("REQUIRE_SYSTEM_BASIC", "excludes")
+    include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
+
+    // KubernetesContainerFactory's logs API is not reliable and mixes stdout/stderr into a single stream
+    exclude "**/*ActivationLogsTests*"
+}
+
 task testUnit(type: Test) {
     systemProperty("whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider")
     exclude getPattern("REQUIRE_ONLY_DB", "excludes")
@@ -189,10 +197,10 @@ dependencies {
     compile "org.apache.httpcomponents:httpmime:4.3.6"
     compile "junit:junit:4.11"
     compile "io.rest-assured:rest-assured:4.0.0"
-    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.5"
+    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
     compile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.google.code.gson:gson:2.3.1"
-    compile "org.scalamock:scalamock-scalatest-support_${gradle.scala.depVersion}:3.6.0"
+    compile "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
     compile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     compile "com.github.java-json-tools:json-schema-validator:2.2.8"
     compile "org.mockito:mockito-core:2.27.0"
@@ -234,10 +242,17 @@ task createKeystore(dependsOn: deleteKeystore) {
     }
 }
 
+task buildArtifacts(type:Exec) {
+  workingDir 'dat/actions'
+  commandLine './build.sh'
+}
+
 tasks.withType(Test) {
     dependsOn createKeystore
+    dependsOn buildArtifacts
 }
 createKeystore.mustRunAfter(testClasses)
+buildArtifacts.mustRunAfter(testClasses)
 
 gradle.projectsEvaluated {
     task testCoverageLean(type: Test) {
@@ -252,6 +267,13 @@ gradle.projectsEvaluated {
     task testCoverage(type: Test) {
         classpath = getScoverageClasspath(project, projectsWithCoverage)
     }
+
+    tasks.withType(ScalaCompile) {
+        configure(scalaCompileOptions.forkOptions) {
+            memoryMaximumSize = '1g'
+        }
+    }
+
     tasks.withType(Test) {
         systemProperties(System.getProperties())
         systemProperty("whisk.server.jar", getStandaloneJarFilePath())
