@@ -67,7 +67,7 @@ dependencies {
     compile ("io.kamon:kamon-system-metrics_${gradle.scala.depVersion}:2.0.1") {
         exclude group: 'io.kamon', module: 'sigar-loader'
     }
-    compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.0.0"
+    compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.0.1"
     compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.0.1"
 
     //for mesos
