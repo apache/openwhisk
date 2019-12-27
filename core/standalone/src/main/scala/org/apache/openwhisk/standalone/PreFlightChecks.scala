@@ -116,6 +116,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     val apihost = "wsk property get --apihost".!!.trim
 
     val requiredHostValue = s"http://${StandaloneDockerSupport.getLocalHostName()}:${conf.port()}"
+    val externalHostValue = s"http://${StandaloneDockerSupport.getExternalHostName()}:${conf.port()}"
 
     //We can use -o option to get raw value. However as its a recent addition
     //using a lazy approach where we check if output ends with one of the configured auth keys or
@@ -133,7 +134,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
         case Some((ns, guestAuth)) =>
           println(s"$warn Configure wsk via below command to connect to this server as [$ns]")
           println()
-          println(clr(s"wsk property set --apihost '$requiredHostValue' --auth '$guestAuth'", MAGENTA, clrEnabled))
+          println(clr(s"wsk property set --apihost '$externalHostValue' --auth '$guestAuth'", MAGENTA, clrEnabled))
         case None =>
       }
     }

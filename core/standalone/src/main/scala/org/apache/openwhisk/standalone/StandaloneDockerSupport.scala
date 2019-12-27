@@ -106,6 +106,16 @@ object StandaloneDockerSupport {
   }
 
   /**
+    * Returns the hostname to access the playground.
+    * It defaults to localhost but it can be overriden
+    * and it is useful when the standalone is run in a container.
+    */
+  def getExternalHostName(): String = {
+    sys.props.get("whisk.standalone.host.external").getOrElse(
+      getLocalHostName())
+  }
+
+  /**
     * Returns the address to be used by code running outside of container to connect to
     * server. On non linux setups its 'localhost'. However for Linux setups its the ip used
     * by docker for docker0 network to refer to host system

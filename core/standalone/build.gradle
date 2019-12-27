@@ -25,6 +25,11 @@ plugins {
     id 'com.gorylenko.gradle-git-properties' version '2.0.0'
 }
 
+ext.dockerImageName = 'standalone'
+ext.dockerBuildArgs = [ "OPENWHISK_JAR=build/libs/openwhisk-standalone-${version}.jar"]
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'bootJar'
+
 project.archivesBaseName = "openwhisk-standalone"
 
 task copySwagger(type: Copy) {

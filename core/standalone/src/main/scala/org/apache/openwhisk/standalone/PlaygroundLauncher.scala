@@ -63,7 +63,7 @@ class PlaygroundLauncher(host: String, controllerPort: Int, pgPort: Int, authKey
   }
 
   private val pg = "playground"
-  private val pgUrl = s"http://${StandaloneDockerSupport.getLocalHostName()}:$pgPort/$pg"
+  private val pgUrl = s"http://${StandaloneDockerSupport.getExternalHostName()}:$pgPort/$pg"
 
   private val wsk = new Wsk(host, controllerPort, authKey)
 
