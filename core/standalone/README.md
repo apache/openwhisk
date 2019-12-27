@@ -65,6 +65,12 @@ To pass argument to the run command use
 $ ./gradlew :core:standalone:bootRun --args='-m runtimes.json'
 ```
 
+You can also build a standalone docker image with:
+
+```bash
+$ ./gradlew :core:standalone:distDocker
+```
+
 ###  Usage
 
 OpenWhisk standalone server support various launch options
@@ -379,6 +385,25 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "payload": "hello, world"
 }
 ```
+
+#### Launching OpenWhisk standalone from Docker:
+
+You can launch the standalone openwhisk from the docker image with:
+
+```bash
+docker run --rm -d \
+  -h openwhisk --name openwhisk \
+  -p 3233:3233 -p 3232:3232 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+ whisk/standalone
+```
+
+With this command, the playground is avalable at `http://localhost:3232`.
+
+You can then install [wsk cli](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+
+`docker logs openwhisk | grep 'wsk property'`
+
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md

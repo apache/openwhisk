@@ -1,6 +1,6 @@
 #!/bin/bash
 if ! test -e /var/run/docker.sock
-then echo "Please launch this image with the opption -v /var/run/docker.sock:/var/run/docker.sock"
+then echo "Please launch this image with the option -v /var/run/docker.sock:/var/run/docker.sock"
      exit 1
 fi
 java \

@@ -37,7 +37,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import scala.sys.process._
 
-class PlaygroundLauncher(host: String, controllerPort: Int, pgPort: Int, authKey: String, devMode: Boolean)(
+class PlaygroundLauncher(host: String, extHost: String, controllerPort: Int, pgPort: Int, authKey: String, devMode: Boolean)(
   implicit logging: Logging,
   ec: ExecutionContext,
   actorSystem: ActorSystem,
@@ -58,12 +58,12 @@ class PlaygroundLauncher(host: String, controllerPort: Int, pgPort: Int, authKey
 
   private val jsFileContent = {
     val js = resourceToString(jsFileName, "ui")
-    val content = js.replace("window.APIHOST='http://localhost:3233'", s"window.APIHOST='http://$host:$controllerPort'")
+    val content = js.replace("window.APIHOST='http://localhost:3233'", s"window.APIHOST='http://$extHost:$controllerPort'")
     content.getBytes(UTF_8)
   }
 
   private val pg = "playground"
-  private val pgUrl = s"http://${StandaloneDockerSupport.getExternalHostName()}:$pgPort/$pg"
+  private val pgUrl = s"http://${StandaloneDockerSupport.getLocalHostName()}:$pgPort/$pg"
 
   private val wsk = new Wsk(host, controllerPort, authKey)
 
