@@ -106,41 +106,45 @@ object StandaloneDockerSupport {
   }
 
   /**
-    * Returns the hostname to access the playground.
-    * It defaults to localhost but it can be overriden
-    * and it is useful when the standalone is run in a container.
-    */
+   * Returns the hostname to access the playground.
+   * It defaults to localhost but it can be overriden
+   * and it is useful when the standalone is run in a container.
+   */
   def getExternalHostName(): String = {
-    sys.props.get("whisk.standalone.host.external").getOrElse(
-      getLocalHostName())
+    sys.props.get("whisk.standalone.host.external").getOrElse(getLocalHostName())
   }
 
   /**
-    * Returns the address to be used by code running outside of container to connect to
-    * server. On non linux setups its 'localhost'. However for Linux setups its the ip used
-    * by docker for docker0 network to refer to host system
-    */
+   * Returns the address to be used by code running outside of container to connect to
+   * server. On non linux setups its 'localhost'. However for Linux setups its the ip used
+   * by docker for docker0 network to refer to host system
+   */
   def getLocalHostName(): String = {
-    sys.props.get("whisk.standalone.host.name").getOrElse(
-      if (SystemUtils.IS_OS_LINUX) hostIpLinux
+    sys.props
+      .get("whisk.standalone.host.name")
+      .getOrElse(if (SystemUtils.IS_OS_LINUX) hostIpLinux
       else "localhost")
   }
 
   def getLocalHostIp(): String = {
-    sys.props.get("whisk.standalone.host.ip").getOrElse(
-      if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-        hostIpNonLinux
-      else hostIpLinux)
+    sys.props
+      .get("whisk.standalone.host.ip")
+      .getOrElse(
+        if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+          hostIpNonLinux
+        else hostIpLinux)
   }
 
   /**
-    * Determines the name/ip which code running within container can use to connect back to Controller
-    */
+   * Determines the name/ip which code running within container can use to connect back to Controller
+   */
   def getLocalHostInternalName(): String = {
-    sys.props.get("whisk.standalone.host.internal").getOrElse(
-      if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
-        "host.docker.internal"
-      else hostIpLinux)
+    sys.props
+      .get("whisk.standalone.host.internal")
+      .getOrElse(
+        if (SystemUtils.IS_OS_MAC || SystemUtils.IS_OS_WINDOWS)
+          "host.docker.internal"
+        else hostIpLinux)
   }
 
   def prePullImage(imageName: String)(implicit logging: Logging): Unit = {
@@ -196,7 +200,7 @@ object StandaloneDockerSupport {
 }
 
 class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: ActorSystem, ec: ExecutionContext)
-  extends DockerClient()(ec)
+    extends DockerClient()(ec)
     with WindowsDockerClient {
 
   override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
@@ -213,7 +217,7 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     for {
       _ <- if (shouldPull) pull(image) else Future.successful(())
       id <- run(image, args).recoverWith {
-        case t@BrokenDockerContainer(brokenId, _) =>
+        case t @ BrokenDockerContainer(brokenId, _) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           rm(brokenId)

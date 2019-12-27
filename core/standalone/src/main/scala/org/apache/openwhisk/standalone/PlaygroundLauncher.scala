@@ -37,12 +37,16 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 import scala.sys.process._
 
-class PlaygroundLauncher(host: String, extHost: String, controllerPort: Int, pgPort: Int, authKey: String, devMode: Boolean)(
-  implicit logging: Logging,
-  ec: ExecutionContext,
-  actorSystem: ActorSystem,
-  materializer: ActorMaterializer,
-  tid: TransactionId) {
+class PlaygroundLauncher(host: String,
+                         extHost: String,
+                         controllerPort: Int,
+                         pgPort: Int,
+                         authKey: String,
+                         devMode: Boolean)(implicit logging: Logging,
+                                           ec: ExecutionContext,
+                                           actorSystem: ActorSystem,
+                                           materializer: ActorMaterializer,
+                                           tid: TransactionId) {
   private val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   private val jsFileName = "playgroundFunctions.js"
   private val jsContentType = ContentType(MediaTypes.`application/javascript`, HttpCharsets.`UTF-8`)
@@ -58,7 +62,8 @@ class PlaygroundLauncher(host: String, extHost: String, controllerPort: Int, pgP
 
   private val jsFileContent = {
     val js = resourceToString(jsFileName, "ui")
-    val content = js.replace("window.APIHOST='http://localhost:3233'", s"window.APIHOST='http://$extHost:$controllerPort'")
+    val content =
+      js.replace("window.APIHOST='http://localhost:3233'", s"window.APIHOST='http://$extHost:$controllerPort'")
     content.getBytes(UTF_8)
   }
 
