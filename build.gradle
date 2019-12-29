@@ -66,11 +66,13 @@ subprojects {
         if (project.plugins.hasPlugin('scala')) {
             repositories {
                 mavenCentral()
+                mavenLocal()
             }
 
             tasks.withType(ScalaCompile) {
                 scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
                 scalaCompileOptions.forkOptions.jvmArgs = ["-Xss2m"]
+                scalaCompileOptions.forkOptions.memoryMaximumSize = "1g"
             }
 
             if (project.plugins.hasPlugin('application')) {

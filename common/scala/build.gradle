@@ -34,6 +34,10 @@ dependencies {
         exclude group: 'org.scala-lang', module: 'scala-compiler'
         exclude group: 'org.scala-lang', module: 'scala-reflect'
     }
+    compile ("com.github.pureconfig:pureconfig-reflect_${gradle.scala.depVersion}:0.12.3-SNAPSHOT") {
+        exclude group: 'com.github.pureconfig', module: "pureconfig-core_${gradle.scala.depVersion}"
+    }
+
     compile "io.spray:spray-json_${gradle.scala.depVersion}:1.3.5"
     compile "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.1.3"
 
