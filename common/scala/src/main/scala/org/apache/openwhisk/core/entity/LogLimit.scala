@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.entity
 
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.language.postfixOps
 import scala.util.Failure

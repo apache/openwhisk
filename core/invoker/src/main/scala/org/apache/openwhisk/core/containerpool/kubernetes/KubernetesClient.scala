@@ -41,7 +41,6 @@ import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

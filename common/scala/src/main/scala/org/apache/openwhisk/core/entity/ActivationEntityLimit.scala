@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.entity
 
 import pureconfig._
-import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.size.SizeLong
 

@@ -38,7 +38,6 @@ import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.StaleParameter
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
-import pureconfig.generic.auto._
 import scala.reflect.classTag
 
 object types {

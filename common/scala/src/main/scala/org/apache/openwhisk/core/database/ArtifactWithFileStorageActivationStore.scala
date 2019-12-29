@@ -25,7 +25,6 @@ import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.{DocInfo, _}
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json._
 
 import scala.concurrent.Future

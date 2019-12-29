@@ -28,7 +28,6 @@ import org.apache.openwhisk.common.{LogMarkerToken, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.slf4j.LoggerFactory
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.util.Try
 

@@ -25,7 +25,6 @@ import akka.http.scaladsl.server.directives.AuthenticationDirective
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.ActorMaterializer
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -50,6 +49,7 @@ import scala.util.{Failure, Success, Try}
 protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit actorSystem: ActorSystem)
     extends Directives {
   case class SwaggerConfig(fileSystem: Boolean, dirPath: String)
+  implicit val swaggerConfigReader: ConfigReader[SwaggerConfig] = configReader2(SwaggerConfig)
 
   /** Swagger end points. */
   protected val swaggeruipath = "docs"

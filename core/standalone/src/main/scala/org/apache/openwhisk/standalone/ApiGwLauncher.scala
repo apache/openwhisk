@@ -23,10 +23,12 @@ import akka.pattern.RetrySupport
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+
+case class RedisConfig(image: String)
+case class ApiGwConfig(image: String)
 
 class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmtPort: Int, serverPort: Int)(
   implicit logging: Logging,
@@ -35,8 +37,6 @@ class ApiGwLauncher(docker: StandaloneDockerClient, apiGwApiPort: Int, apiGwMgmt
   tid: TransactionId)
     extends RetrySupport {
   private implicit val scd: Scheduler = actorSystem.scheduler
-  case class RedisConfig(image: String)
-  case class ApiGwConfig(image: String)
   private val redisConfig = loadConfigOrThrow[RedisConfig](StandaloneConfigKeys.redisConfigKey)
   private val apiGwConfig = loadConfigOrThrow[ApiGwConfig](StandaloneConfigKeys.apiGwConfigKey)
 

@@ -25,7 +25,6 @@ import scala.concurrent.Future
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.apache.openwhisk.core.entity.InvokerInstanceId
@@ -34,8 +33,14 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 
 import pureconfig._
-import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.containerpool.{
+  Container,
+  ContainerArgsConfig,
+  ContainerFactory,
+  ContainerFactoryProvider,
+  RuntimesRegistryConfig
+}
 
 case class DockerContainerFactoryConfig(useRunc: Boolean)
 

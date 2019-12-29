@@ -24,7 +24,6 @@ import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
@@ -716,6 +715,11 @@ class ContainerProxy(factory: (TransactionId,
 }
 
 final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+
+object ContainerProxyTimeoutConfig {
+  implicit val configReader: ConfigReader[ContainerProxyTimeoutConfig] = configReader2(
+    ContainerProxyTimeoutConfig.apply)
+}
 
 object ContainerProxy {
   def props(factory: (TransactionId,

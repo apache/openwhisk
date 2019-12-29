@@ -30,8 +30,6 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig._
-import pureconfig.generic.auto._
-import org.apache.openwhisk.core.entity.size._
 
 import scala.concurrent.Future
 

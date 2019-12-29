@@ -26,9 +26,10 @@ import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
+
+case class UserEventConfig(image: String, prometheusImage: String, grafanaImage: String)
 
 class UserEventLauncher(docker: StandaloneDockerClient,
                         owPort: Int,
@@ -45,8 +46,6 @@ class UserEventLauncher(docker: StandaloneDockerClient,
   private val userEventPort = existingUserEventSvcPort.getOrElse(checkOrAllocatePort(owPort + 2))
   private val prometheusPort = checkOrAllocatePort(9090)
   private val grafanaPort = checkOrAllocatePort(3000)
-
-  case class UserEventConfig(image: String, prometheusImage: String, grafanaImage: String)
 
   private val userEventConfig = loadConfigOrThrow[UserEventConfig](StandaloneConfigKeys.userEventConfigKey)
 

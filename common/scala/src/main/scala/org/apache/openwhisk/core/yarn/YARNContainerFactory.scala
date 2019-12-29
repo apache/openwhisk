@@ -28,7 +28,6 @@ import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstance
 import org.apache.openwhisk.core.yarn.YARNComponentActor.CreateContainerAsync
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json._
 
 import scala.collection.immutable.HashMap

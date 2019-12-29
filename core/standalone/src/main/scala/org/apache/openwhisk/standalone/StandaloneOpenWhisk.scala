@@ -35,7 +35,6 @@ import org.apache.openwhisk.standalone.ColorOutput.clr
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.checkOrAllocatePort
 import org.rogach.scallop.ScallopConf
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

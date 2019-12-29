@@ -17,10 +17,11 @@
 
 package org.apache.openwhisk.core
 import pureconfig._
-import pureconfig.generic.auto._
+import pureconfig.module.reflect.ReflectConfigReaders.configReader1
 
 object FeatureFlags {
   private case class FeatureFlagConfig(requireApiKeyAnnotation: Boolean)
+  private implicit val featureFlagConfigReader: ConfigReader[FeatureFlagConfig] = configReader1(FeatureFlagConfig)
   private val config = loadConfigOrThrow[FeatureFlagConfig](ConfigKeys.featureFlags)
 
   val requireApiKeyAnnotation: Boolean = config.requireApiKeyAnnotation

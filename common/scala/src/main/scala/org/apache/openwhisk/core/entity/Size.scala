@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets
 
 import com.typesafe.config.ConfigValue
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json._
 import ByteSize.formatError
 

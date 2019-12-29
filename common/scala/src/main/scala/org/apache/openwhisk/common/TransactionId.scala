@@ -24,7 +24,6 @@ import akka.http.scaladsl.model.headers.RawHeader
 import spray.json._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
-import pureconfig.generic.auto._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.WhiskInstants._
 

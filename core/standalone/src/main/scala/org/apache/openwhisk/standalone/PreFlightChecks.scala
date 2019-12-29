@@ -21,7 +21,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.isPortFree
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.io.AnsiColor
 import scala.sys.process._

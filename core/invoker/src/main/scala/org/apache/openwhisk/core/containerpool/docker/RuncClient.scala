@@ -29,7 +29,6 @@ import org.apache.openwhisk.common.LoggingMarkers
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
-import pureconfig.generic.auto._
 import akka.event.Logging.{ErrorLevel, InfoLevel}
 import org.apache.openwhisk.core.containerpool.ContainerId
 

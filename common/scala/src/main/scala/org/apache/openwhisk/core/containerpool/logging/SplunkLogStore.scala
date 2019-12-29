@@ -40,7 +40,6 @@ import akka.stream.scaladsl.Source
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.concurrent.Future
 import scala.concurrent.Promise

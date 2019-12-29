@@ -29,6 +29,7 @@ import akka.http.scaladsl.model.HttpMethods.PUT
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.controller.configReader2
 import org.apache.openwhisk.core.entity.Identity
 import org.apache.openwhisk.core.entity.WhiskAction
 import org.apache.openwhisk.core.entity.WhiskActivation
@@ -37,7 +38,6 @@ import org.apache.openwhisk.core.entity.WhiskRule
 import org.apache.openwhisk.core.entity.WhiskTrigger
 import org.apache.openwhisk.core.entity.types.EntityStore
 import pureconfig._
-import pureconfig.generic.auto._
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject
@@ -110,6 +110,7 @@ protected[core] case class Collection protected (val path: String,
 protected[core] object Collection {
 
   private case class QueryLimit(maxListLimit: Int, defaultListLimit: Int)
+  private implicit val controllerConfigReader: ConfigReader[QueryLimit] = configReader2(QueryLimit)
   private val queryLimit = loadConfigOrThrow[QueryLimit](ConfigKeys.query)
 
   /** Number of records allowed per query. */

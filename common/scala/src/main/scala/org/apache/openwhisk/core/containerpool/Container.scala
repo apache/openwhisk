@@ -24,14 +24,12 @@ import akka.event.Logging.InfoLevel
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse.{ContainerConnectionError, ContainerResponse}
 import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize}
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.{ExecutionContext, Future}

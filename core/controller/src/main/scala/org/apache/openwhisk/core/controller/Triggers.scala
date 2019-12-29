@@ -36,7 +36,6 @@ import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol._
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common.{Https, TransactionId}

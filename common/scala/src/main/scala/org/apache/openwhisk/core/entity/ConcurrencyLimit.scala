@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.entity
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
-import pureconfig.generic.auto._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try

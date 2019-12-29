@@ -25,7 +25,6 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse, MessageEntity, Uri}
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.ConfigKeys

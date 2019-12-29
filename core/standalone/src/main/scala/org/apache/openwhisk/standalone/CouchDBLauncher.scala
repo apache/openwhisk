@@ -35,25 +35,25 @@ import org.apache.openwhisk.http.PoolingRestClient
 import org.apache.openwhisk.http.PoolingRestClient._
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
 import pureconfig._
-import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
+
+case class CouchDBConfig(image: String,
+                         user: String,
+                         password: String,
+                         prefix: String,
+                         volumesEnabled: Boolean,
+                         subjectViews: List[String],
+                         whiskViews: List[String],
+                         activationViews: List[String])
 
 class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(implicit logging: Logging,
                                                                                 ec: ExecutionContext,
                                                                                 actorSystem: ActorSystem,
                                                                                 materializer: ActorMaterializer,
                                                                                 tid: TransactionId) {
-  case class CouchDBConfig(image: String,
-                           user: String,
-                           password: String,
-                           prefix: String,
-                           volumesEnabled: Boolean,
-                           subjectViews: List[String],
-                           whiskViews: List[String],
-                           activationViews: List[String])
   private val dbConfig = loadConfigOrThrow[CouchDBConfig](StandaloneConfigKeys.couchDBConfigKey)
   private val couchClient = new PoolingRestClient("http", StandaloneDockerSupport.getLocalHostName(), port, 100)
   private val baseHeaders: List[HttpHeader] =

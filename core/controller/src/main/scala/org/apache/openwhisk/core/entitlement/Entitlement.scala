@@ -30,7 +30,7 @@ import org.apache.openwhisk.core.entitlement.Privilege.REJECT
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.{EventMessage, Metric}
-import org.apache.openwhisk.core.controller.RejectRequest
+import org.apache.openwhisk.core.controller.{configReader1, RejectRequest}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.loadBalancer.{LoadBalancer, ShardingContainerPoolBalancer}
 import org.apache.openwhisk.http.ErrorResponse
@@ -203,9 +203,9 @@ protected[core] abstract class EntitlementProvider(
 
   private val kindRestrictor = {
     import pureconfig._
-    import pureconfig.generic.auto._
     import org.apache.openwhisk.core.ConfigKeys
     case class AllowedKinds(whitelist: Option[Set[String]] = None)
+    implicit val httpsConfigReader: ConfigReader[AllowedKinds] = configReader1(AllowedKinds)
     val allowedKinds = loadConfigOrThrow[AllowedKinds](ConfigKeys.runtimes)
     KindRestrictor(allowedKinds.whitelist)
   }

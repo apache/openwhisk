@@ -34,7 +34,6 @@ import org.apache.openwhisk.core.containerpool.docker.{
 }
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
