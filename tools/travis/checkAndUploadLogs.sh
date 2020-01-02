@@ -31,6 +31,13 @@ LOG_NAME=$1
 TAGS=${2-""}
 LOG_TAR_NAME="${LOG_NAME}_${TRAVIS_BUILD_ID}-$TRAVIS_BRANCH.tar.gz"
 
+# Perf logs are typically about 20MB and thus rapidly fill our box account.
+# Disable upload to reduce the interval at which we need to manually clean logs from box.
+if [ "$LOG_NAME" == "perf" ]; then
+    echo "Skipping upload of perf logs to conserve space"
+    exit 0
+fi
+
 ansible-playbook -i ansible/environments/local ansible/logs.yml
 
 ./tools/build/checkLogs.py logs "$TAGS"
