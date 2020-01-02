@@ -22,6 +22,7 @@ import java.time.Instant
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
+import akka.testkit.CallingThreadDispatcher
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
@@ -705,7 +706,8 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
-            pauseGrace = pauseGrace))
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
     registerCallback(machine)
     preWarm(machine) //ends in Started state
 
@@ -722,12 +724,14 @@ class ContainerProxyTests
 
     //complete the first run
     runPromises(0).success(runInterval, ActivationResponse.success())
-    expectWarmed(invocationNamespace.name, concurrentAction) //when first completes (count is 0 since stashed not counted)
-    expectMsg(Transition(machine, Running, Ready)) //wait for first to complete to skip the delay step that can only reliably be tested in single threaded
-    expectMsg(Transition(machine, Ready, Running)) //when second starts (after delay...)
+
+    //room for 1 more, so expect NeedWork msg
+    expectWarmed(invocationNamespace.name, concurrentAction) //when first completes
 
     //complete the second run
     runPromises(1).success(runInterval, ActivationResponse.success())
+
+    //room for 1 more, so expect NeedWork msg
     expectWarmed(invocationNamespace.name, concurrentAction) //when second completes
 
     //go back to ready after first and second runs are complete
@@ -740,23 +744,28 @@ class ContainerProxyTests
 
     //third message will go from Ready -> Running -> Ready (after fourth run)
     expectMsg(Transition(machine, Ready, Running))
+    //expect no NeedWork since there are still running and queued messages
+    expectNoMessage(500.milliseconds)
 
     //complete the third run (do not request new work yet)
     runPromises(2).success(runInterval, ActivationResponse.success())
+    //expect no NeedWork since there are still queued messages
+    expectNoMessage(500.milliseconds)
 
     //complete the fourth run -> dequeue the fifth run (do not request new work yet)
     runPromises(3).success(runInterval, ActivationResponse.success())
 
     //complete the fifth run (request new work, 1 active remain)
     runPromises(4).success(runInterval, ActivationResponse.success())
+
+    //request new work since buffer is now empty AND activationCount < concurrent max
     expectWarmed(invocationNamespace.name, concurrentAction) //when fifth completes
 
     //complete the sixth run (request new work 0 active remain)
     runPromises(5).success(runInterval, ActivationResponse.success())
 
-    expectWarmed(invocationNamespace.name, concurrentAction) //when sixth completes
-
     // back to ready
+    expectWarmed(invocationNamespace.name, concurrentAction) //when sixth completes
     expectMsg(Transition(machine, Running, Ready))
 
     //timeout + pause after getting back to Ready
