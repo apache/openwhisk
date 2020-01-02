@@ -53,11 +53,7 @@ class KubernetesContainerFactory(
 
   private def initializeKubeClient(): KubernetesClient = {
     val config = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes)
-    if (config.invokerAgent.enabled) {
-      new KubernetesClientWithInvokerAgent(config)(ec)
-    } else {
-      new KubernetesClient(config)(ec)
-    }
+    new KubernetesClient(config)(ec)
   }
 
   /** Perform cleanup on init */
