@@ -542,16 +542,7 @@ class ContainerProxy(factory: (TransactionId,
         disableHealthPing()
       }
     case _ -> Ready =>
-      if (healtCheckConfig.enabled) {
-        logging.debug(this, "enabling health ping on Ready")
-        enableHealthPing(nextStateData.getContainer)
-      }
       unstashAll()
-    case _ -> Pausing =>
-      if (healtCheckConfig.enabled && healthPingActor.isDefined) {
-        logging.debug(this, "disabling health ping on Pausing")
-        disableHealthPing()
-      }
     case _ -> Paused =>
       unstashAll()
     case _ -> Removing =>
