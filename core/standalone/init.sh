@@ -21,7 +21,6 @@ then echo "Please launch this image with the option -v /var/run/docker.sock:/var
 fi
 java \
   -Dwhisk.standalone.host.name="$(hostname)"\
-  -Dwhisk.standalone.host.internal="$(hostname -I)"\
+  -Dwhisk.standalone.host.internal="$(hostname -i)"\
   -Dwhisk.standalone.host.external=localhost\
-  -jar openwhisk-standalone.jar "$@"
-
+  -jar openwhisk-standalone.jar --no-browser "$@"

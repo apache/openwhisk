@@ -42,7 +42,8 @@ class PlaygroundLauncher(host: String,
                          controllerPort: Int,
                          pgPort: Int,
                          authKey: String,
-                         devMode: Boolean)(implicit logging: Logging,
+                         devMode: Boolean,
+                         noBrowser: Boolean)(implicit logging: Logging,
                                            ec: ExecutionContext,
                                            actorSystem: ActorSystem,
                                            materializer: ActorMaterializer,
@@ -93,8 +94,10 @@ class PlaygroundLauncher(host: String,
       if (!devMode) {
         prePullDefaultImages()
       }
-      launchBrowser(pgUrl)
-      logging.info(this, s"Launched browser $pgUrl")
+      if(!noBrowser) {
+        launchBrowser(pgUrl)
+        logging.info(this, s"Launched browser $pgUrl")
+      }
     }.failed.foreach(t => logging.warn(this, "Failed to launch browser " + t))
   }
 
