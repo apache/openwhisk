@@ -58,11 +58,6 @@ import scala.util.{Failure, Success, Try}
 case class KubernetesClientTimeoutConfig(run: Duration, logs: Duration)
 
 /**
- * Configuration for kubernetes invoker-agent
- */
-case class KubernetesInvokerAgentConfig(enabled: Boolean, port: Int)
-
-/**
  * Configuration for node affinity for the pods that execute user action containers
  * The key,value pair should match the <key,value> pair with which the invoker worker nodes
  * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
@@ -74,7 +69,6 @@ case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: S
  * General configuration for kubernetes client
  */
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
-                                  invokerAgent: KubernetesInvokerAgentConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
                                   actionNamespace: Option[String] = None,
