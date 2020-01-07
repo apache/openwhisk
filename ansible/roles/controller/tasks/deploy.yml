@@ -203,6 +203,9 @@
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
       "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | lower }}"
 
+      "CONFIG_whisk_controller_username": "{{ controller.username }}"
+      "CONFIG_whisk_controller_password": "{{ controller.password }}"
+
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"

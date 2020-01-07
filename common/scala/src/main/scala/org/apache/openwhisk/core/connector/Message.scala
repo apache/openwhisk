@@ -457,3 +457,30 @@ object StatusData extends DefaultJsonProtocol {
   implicit val serdes =
     jsonFormat(StatusData.apply _, "invocationNamespace", "fqn", "waitingActivation", "status", "data")
 }
+
+case class RuntimeMessage(runtime: String) extends Message {
+  override def serialize = RuntimeMessage.serdes.write(this).compactPrint
+}
+
+object RuntimeMessage extends DefaultJsonProtocol {
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat(RuntimeMessage.apply _, "runtime")
+}
+
+case class PrewarmContainerData(kind: String, memory: Long, var number: Int) extends Message {
+  override def serialize: String = PrewarmContainerData.serdes.write(this).compactPrint
+}
+
+object PrewarmContainerData extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat(PrewarmContainerData.apply _, "kind", "memory", "number")
+}
+
+case class PrewarmContainerDataList(items: List[PrewarmContainerData])
+
+object PrewarmContainerDataProtocol extends DefaultJsonProtocol {
+  implicit val prewarmContainerDataFormat = jsonFormat(PrewarmContainerData.apply _, "kind", "memory", "number")
+  implicit object prewarmContainerDataListJsonFormat extends RootJsonFormat[PrewarmContainerDataList] {
+    def read(value: JsValue) = PrewarmContainerDataList(value.convertTo[List[PrewarmContainerData]])
+    def write(f: PrewarmContainerDataList) = ???
+  }
+}

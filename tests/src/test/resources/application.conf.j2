@@ -64,6 +64,8 @@ whisk {
     }
 
     controller {
+      username = "{{ controller.username }}"
+      password = "{{ controller.password }}"
       protocol = {{ controller.protocol }}
       https {
         keystore-flavor = "{{ controller.ssl.storeFlavor }}"
@@ -73,6 +75,8 @@ whisk {
       }
     }
     invoker {
+      username = "{{ invoker.username }}"
+      password = "{{ invoker.password }}"
       protocol = {{ invoker.protocol }}
       https {
         keystore-flavor = "{{ invoker.ssl.storeFlavor }}"
