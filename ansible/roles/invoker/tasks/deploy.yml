@@ -346,6 +346,11 @@
     volumes: "{{ volumes|default('') }},{{ coverage_logs_dir }}/invoker:/coverage"
   when: coverage_enabled
 
+- name: set invoker docker volumes
+  set_fact:
+    volumes: "{{ volumes|default('') }},{{ invoker.docker.volumes | join(',') }}"
+  when: invoker.docker.volumes|length > 0
+
 - name: start invoker
   docker_container:
     userns_mode: "host"
