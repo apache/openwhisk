@@ -23,7 +23,7 @@ Before you can build and deploy OpenWhisk, you must configure a backing data sto
 
 ## Using CouchDB
 
-If you are using your own installation of CouchDB, make a note of the host, port, username and password. Then provision a [custom Vagrant box](../vagrant/README.md) by following the instructions for a persistent CouchDB. In case you already have a Vagrant box, maybe using default settings you can simply adjust the existing db settings. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate. If you do not find `db_local.ini`, refer to [Setup](../../ansible/README.md#setup) to create it. Note that:
+If you are using your own installation of CouchDB, make a note of the host, port, username and password, and adjust the properties in `openwhisk/ansible/db_local.ini` accordingly. If you do not find `db_local.ini`, refer to [Setup](../../ansible/README.md#setup) to create it. Note that:
 
    * the username must have administrative rights
    * the CouchDB instance must be accessible over `http` or `https` (the latter requires a valid certificate)
@@ -62,9 +62,7 @@ Make note of the Cloudant `username` and `password` from the last `cf` command s
 
 ### Setting the Cloudant credentials
 
-Provision a [custom Vagrant box](../vagrant/README.md) by following the instructions for Cloudant.
-
-If you already have an existing box, you can simply modify the settings in the VM. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate.
+Edit the file `openwhisk/ansible/db_local.ini` to provide the required database properties.
 
 Note that:
 

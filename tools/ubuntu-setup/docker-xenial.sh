@@ -52,7 +52,3 @@ sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/
 sudo gpasswd -a "$(whoami)" docker
 
 sudo service docker restart
-
-# do not run this command without a vagrant reload during provisioning
-# it gives an error that docker is not up (which the reload fixes).
-# sudo docker version
