@@ -43,7 +43,7 @@ Detailed instructions are found in the [Ansible README](../../ansible/README.md)
 As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service.
 
 ### Create a Cloudant account via IBM Cloud
-Sign up for an account via [IBM Cloud](https://bluemix.net). IBM Cloud offers trial accounts and its signup process is straightforward so it is not described here in detail. Using IBM Cloud, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your IBM Cloud account.
+Sign up for an account via [IBM Cloud](https://cloud.ibm.com). IBM Cloud offers trial accounts and its signup process is straightforward so it is not described here in detail. Using IBM Cloud, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://cloud.ibm.com/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your IBM Cloud account.
 
 When `cf` is set up, issue the following commands to create a Cloudant database.
 
