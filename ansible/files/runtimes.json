@@ -217,6 +217,21 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
+            },
+            {
+                "kind": "dotnet:3.1",
+                "default": false,
+                "deprecated": false,
+                "requireMain": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-dotnet-v3.1",
+                    "tag": "nightly"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "ballerina": [
