@@ -392,25 +392,17 @@ Provided you have docker and bash installed, you can launch the standalone openw
 
 `bash <(curl -sL https://s.apache.org/openwhisk.sh)`
 
-or with the following command line:
+or just download [this script](start.sh) and run it.
 
-```bash
-docker run --rm -d\
-  -h openwhisk --name openwhisk \
-  -p 3233:3233 -p 3232:3232 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
- whisk/standalone
-```
+After started, the playground is available at `http://localhost:3232`.
 
-With this command, the playground is avalable at `http://localhost:3232`.
-
-You can then install [wsk cli](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+You can then install the [wsk cli](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
 
 `docker logs openwhisk | grep 'wsk property'`
 
 To shut down properly openwhisk and the other containers it creates, use:
 
-`docker exec openwhisk shutdown`
+`docker exec openwhisk stop`
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md

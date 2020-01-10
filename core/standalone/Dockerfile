@@ -18,8 +18,8 @@ FROM scala
 ARG OPENWHISK_JAR
 ENV DOCKER_VERSION=18.06.3-ce
 ENV WSK_VERSION=1.0.0
-ADD init.sh /
-ADD stop.sh /bin/stop
+ADD init /
+ADD stop /bin/stop
 RUN chmod +x /bin/stop ;\
   curl -sL \
   https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz \
@@ -30,4 +30,4 @@ RUN chmod +x /bin/stop ;\
 ADD ${OPENWHISK_JAR} /openwhisk-standalone.jar
 WORKDIR /
 EXPOSE 8080
-ENTRYPOINT  ["/init.sh"]
+ENTRYPOINT  ["/init"]

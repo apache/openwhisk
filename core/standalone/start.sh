@@ -20,3 +20,12 @@ docker run --rm -d \
   -p 3233:3233 -p 3232:3232 \
   -v /var/run/docker.sock:/var/run/docker.sock \
  ${1:-openwhisk}/standalone
+sleep 5
+if which open >/dev/null
+then open http://localhost:3232
+elif which xdg-open >/dev/null
+then xdg-open http://localhost:3232
+elif which start >/dev/null
+then start http://localhost:3232
+else echo Open http://localhost:3232 for playground
+fi

@@ -20,11 +20,12 @@ package org.apache.openwhisk.standalone
 import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{ContentType, HttpCharsets, HttpEntity, MediaTypes, StatusCodes}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.FileAndResourceDirectives.ResourceFile
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -34,8 +35,8 @@ import pureconfig._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
-import scala.util.{Failure, Success, Try}
 import scala.sys.process._
+import scala.util.{Failure, Success, Try}
 
 class PlaygroundLauncher(host: String,
                          extHost: String,
@@ -44,10 +45,10 @@ class PlaygroundLauncher(host: String,
                          authKey: String,
                          devMode: Boolean,
                          noBrowser: Boolean)(implicit logging: Logging,
-                                           ec: ExecutionContext,
-                                           actorSystem: ActorSystem,
-                                           materializer: ActorMaterializer,
-                                           tid: TransactionId) {
+                                             ec: ExecutionContext,
+                                             actorSystem: ActorSystem,
+                                             materializer: ActorMaterializer,
+                                             tid: TransactionId) {
   private val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   private val jsFileName = "playgroundFunctions.js"
   private val jsContentType = ContentType(MediaTypes.`application/javascript`, HttpCharsets.`UTF-8`)
@@ -94,7 +95,7 @@ class PlaygroundLauncher(host: String,
       if (!devMode) {
         prePullDefaultImages()
       }
-      if(!noBrowser) {
+      if (!noBrowser) {
         launchBrowser(pgUrl)
         logging.info(this, s"Launched browser $pgUrl")
       }
@@ -120,12 +121,14 @@ class PlaygroundLauncher(host: String,
   object PlaygroundService extends BasicHttpService {
     override def routes(implicit transid: TransactionId): Route =
       path(PathEnd | Slash | pg) { redirect(s"/$pg/ui/index.html", StatusCodes.Found) } ~
-        pathPrefix(pg / "ui" / Segment) { fileName =>
-          get {
-            if (fileName == jsFileName) {
-              complete(HttpEntity(jsContentType, jsFileContent))
-            } else {
-              getFromResource(s"$uiPath/$fileName")
+        cors() {
+          pathPrefix(pg / "ui" / Segment) { fileName =>
+            get {
+              if (fileName == jsFileName) {
+                complete(HttpEntity(jsContentType, jsFileContent))
+              } else {
+                getFromResource(s"$uiPath/$fileName")
+              }
             }
           }
         }
