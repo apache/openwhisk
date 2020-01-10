@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,15 +15,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-docker run --rm -d \
-  -h openwhisk --name openwhisk \
-  -p 3233:3233 -p 3232:3232 \
-  -v //var/run/docker.sock:/var/run/docker.sock \
- ${1:-openwhisk}/standalone
-sleep 5
-case "$(uname)" in
- (Linux) xdg-open http://localhost:3232 ;;
- (Darwin) open http://localhost:3232 ;;
- (MINGW*) start http://localhost:3232 ;;
- (*) echo Please use http://localhost:3232 for playground ;;
-esac
+ps -o comm,pid ax | awk '/^java/ { print $2 }' | xargs kill

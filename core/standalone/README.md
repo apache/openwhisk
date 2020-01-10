@@ -386,23 +386,23 @@ This shows an output like below indicating that KubernetesContainerFactory based
 }
 ```
 
-#### Launching OpenWhisk standalone from Docker
+## Launching OpenWhisk standalone with Docker
 
-Provided you have docker and bash installed, you can launch the standalone openwhisk from the docker image with:
+If you have docker and bash installed, you can launch the standalone openwhisk from the docker image with just:
 
 `bash <(curl -sL https://s.apache.org/openwhisk.sh)`
 
-or just download [this script](start.sh) and run it.
+If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
 
-After started, the playground is available at `http://localhost:3232`.
+The script will start the standalone docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with  Git Bash. If a browser does not open with playground, access it with `http://localhost:3232`.
 
 You can then install the [wsk cli](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
 
 `docker logs openwhisk | grep 'wsk property'`
 
-To shut down properly openwhisk and the other containers it creates, use:
+To shut down properly openwhisk and the other containers it creates, use [this script](stop.sh) or the command:
 
-`docker exec openwhisk stop`
+`docker exec openwhisk stop` 
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
