@@ -402,7 +402,7 @@ You can then install the [wsk cli](https://github.com/apache/openwhisk-cli/relea
 
 To shut down properly openwhisk and the other containers it creates, use [this script](stop.sh) or the command:
 
-`docker exec openwhisk stop` 
+`docker exec openwhisk stop`
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
