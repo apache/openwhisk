@@ -18,7 +18,7 @@
 # This playbook deploys Openwhisk Edge servers.
 # The edge is usually populated with NGINX serving as proxy.
 # The CLI also gets built and published for downloading from NGINX.
-# SDKs for blackbox and iOS get published to NGINX also.
+# SDKs for blackbox get published to NGINX also.
 
 - hosts: edge
   roles:
