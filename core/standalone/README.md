@@ -404,6 +404,16 @@ To shut down properly openwhisk and the other containers it creates, use [this s
 
 `docker exec openwhisk stop`
 
+### Extra Args for the Standalone OpenWhisk Docker Image
+
+When running OpenWhisk Standalone using the docker image,  you can set environment variables to pass extra args with the `-e` flag.
+
+Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
+
+You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with feature.
+
+You can also set additional environment variables for each container running actions invoked by OpenWhisk setting `CONTAINER_EXTRA_ENV`. For example setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for images supporting a debugger, like the typescript runtime.
+
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
 [3]: https://github.com/apache/incubator-openwhisk-apigateway

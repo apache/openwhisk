@@ -19,8 +19,9 @@ if ! test -e /var/run/docker.sock
 then echo "Please launch this image with the option -v /var/run/docker.sock:/var/run/docker.sock"
      exit 1
 fi
-java \
-  -Dwhisk.standalone.host.name="$(hostname)"\
-  -Dwhisk.standalone.host.internal="$(hostname -i)"\
-  -Dwhisk.standalone.host.external=localhost\
-  -jar openwhisk-standalone.jar --no-browser "$@"
+JVM_ARGS="$JVM_EXTRA_ARGS\
+ -Dwhisk.standalone.host.name=$(hostname)\
+ -Dwhisk.standalone.host.internal=$(hostname -i)\
+ -Dwhisk.standalone.host.external=localhost"
+set -x
+java $JVM_ARGS -jar openwhisk-standalone.jar --no-browser "$@"
