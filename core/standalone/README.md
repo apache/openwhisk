@@ -396,7 +396,7 @@ If you do not want to execute arbitrary code straight from the net, you can look
 
 The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not open with playground, access it at `http://localhost:3232`.
 
-You can then install the [wsk cli](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+You can then install the [wsk CLI](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
 
 `docker logs openwhisk | grep 'wsk property'`
 
