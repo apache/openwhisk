@@ -400,7 +400,7 @@ You can then install the [wsk cli](https://github.com/apache/openwhisk-cli/relea
 
 `docker logs openwhisk | grep 'wsk property'`
 
-To shut down properly openwhisk and the other containers it creates, use [this script](stop.sh) or the command:
+To properly shut down OpenWhisk and containers it creates, use [this script](stop.sh) or run the command:
 
 `docker exec openwhisk stop`
 
