@@ -65,6 +65,12 @@ To pass argument to the run command use
 $ ./gradlew :core:standalone:bootRun --args='-m runtimes.json'
 ```
 
+You can also build a standalone docker image with:
+
+```bash
+$ ./gradlew :core:standalone:distDocker
+```
+
 ###  Usage
 
 OpenWhisk standalone server support various launch options
@@ -379,6 +385,35 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "payload": "hello, world"
 }
 ```
+
+## Launching OpenWhisk standalone with Docker
+
+If you have docker and bash installed, you can launch the standalone openwhisk from the docker image with just:
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh)`
+
+If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
+
+The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not open with playground, access it at `http://localhost:3232`.
+
+You can then install the [wsk CLI](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+
+`docker logs openwhisk | grep 'wsk property'`
+
+To properly shut down OpenWhisk and containers it creates, use [this script](stop.sh) or run the command:
+
+`docker exec openwhisk stop`
+
+### Extra Args for the Standalone OpenWhisk Docker Image
+
+When running OpenWhisk Standalone using the docker image,  you can set environment variables to pass extra args with the `-e` flag.
+
+Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
+
+You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with feature.
+
+You can also set additional environment variables for each container running actions invoked by OpenWhisk by setting `CONTAINER_EXTRA_ENV`. For example, setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for those images supporting starting the action under a debugger, like the typescript runtime.
+
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
