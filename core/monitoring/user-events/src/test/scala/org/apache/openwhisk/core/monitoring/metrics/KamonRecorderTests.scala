@@ -20,9 +20,10 @@ package org.apache.openwhisk.core.monitoring.metrics
 import java.time.Duration
 
 import com.typesafe.config.{Config, ConfigFactory}
-import kamon.metric.{PeriodSnapshot, PeriodSnapshotAccumulator}
-import kamon.util.Registration
-import kamon.{Kamon, MetricReporter}
+import kamon.metric.PeriodSnapshot
+import kamon.module.MetricReporter
+import kamon.Kamon
+import kamon.tag.Lookups
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
 import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
@@ -33,7 +34,7 @@ import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with KamonMetricNames {
-  var reporterReg: Registration = _
+  var reporter: MetricReporter = _
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -44,12 +45,13 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
         |    optimistic-tick-alignment = no
         |  }
         |}""".stripMargin).withFallback(ConfigFactory.load())
+    Kamon.registerModule("test", TestReporter)
     Kamon.reconfigure(newConfig)
-    reporterReg = Kamon.addReporter(TestReporter)
+    reporter = TestReporter
   }
 
   override protected def afterEach(): Unit = {
-    reporterReg.cancel()
+    reporter.stop()
     Kamon.reconfigure(ConfigFactory.load())
     super.afterEach()
   }
@@ -88,15 +90,15 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
     TestReporter.counter(activationMetric, namespaceDemo, actionWithCustomPackage)(0).value shouldBe 1
     TestReporter
       .counter(activationMetric, namespaceDemo, actionWithCustomPackage)
-      .filter((t) => t.tags.get(actionMemory).get == memory.toString)(0)
+      .filter((t) => t.tags.get(Lookups.plain(actionMemory)) == memory.toString)(0)
       .value shouldBe 1
     TestReporter
       .counter(activationMetric, namespaceDemo, actionWithCustomPackage)
-      .filter((t) => t.tags.get(actionKind).get == kind)(0)
+      .filter((t) => t.tags.get(Lookups.plain(actionKind)) == kind)(0)
       .value shouldBe 1
     TestReporter
       .counter(statusMetric, namespaceDemo, actionWithCustomPackage)
-      .filter((t) => t.tags.get(actionStatus).get == ActivationResponse.statusDeveloperError)(0)
+      .filter((t) => t.tags.get(Lookups.plain(actionStatus)) == ActivationResponse.statusDeveloperError)(0)
       .value shouldBe 1
     TestReporter.counter(coldStartMetric, namespaceDemo, actionWithCustomPackage)(0).value shouldBe 1
     TestReporter.histogram(waitTimeMetric, namespaceDemo, actionWithCustomPackage).size shouldBe 1
@@ -123,51 +125,48 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
       Activation.typeName)
 
   private object TestReporter extends MetricReporter {
-    var snapshotAccumulator = new PeriodSnapshotAccumulator(Duration.ofDays(1), Duration.ZERO)
+    var snapshotAccumulator = PeriodSnapshot.accumulator(Duration.ofDays(1), Duration.ZERO)
     override def reportPeriodSnapshot(snapshot: PeriodSnapshot): Unit = {
       snapshotAccumulator.add(snapshot)
     }
 
-    override def start(): Unit = {}
     override def stop(): Unit = {}
     override def reconfigure(config: Config): Unit = {}
 
     def reset(): Unit = {
-      snapshotAccumulator = new PeriodSnapshotAccumulator(Duration.ofDays(1), Duration.ZERO)
+      snapshotAccumulator = PeriodSnapshot.accumulator(Duration.ofDays(1), Duration.ZERO)
     }
 
     def counter(metricName: String, namespace: String, action: String) = {
-      System.out.println()
       snapshotAccumulator
         .peek()
-        .metrics
         .counters
         .filter(_.name == metricName)
-        .filter((t) => t.tags.get(actionNamespace).get == namespace)
-        .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
-        .filter((t) => t.tags.get(actionName).get == action)
+        .flatMap(_.instruments)
+        .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
+        .filter(_.tags.get(Lookups.plain(actionName)) == action)
     }
 
     def namespaceCounter(metricName: String, namespace: String) = {
-      System.out.println()
       snapshotAccumulator
         .peek()
-        .metrics
         .counters
         .filter(_.name == metricName)
-        .filter((t) => t.tags.get(actionNamespace).get == namespace)
-        .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
+        .flatMap(_.instruments)
+        .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
     }
 
     def histogram(metricName: String, namespace: String, action: String) = {
       snapshotAccumulator
         .peek()
-        .metrics
         .histograms
         .filter(_.name == metricName)
-        .filter((t) => t.tags.get(actionNamespace).get == namespace)
-        .filter((t) => t.tags.get(initiatorNamespace).get == initiator)
-        .filter((t) => t.tags.get(actionName).get == action)
+        .flatMap(_.instruments)
+        .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
+        .filter(_.tags.get(Lookups.plain(actionName)) == action)
     }
   }
 }

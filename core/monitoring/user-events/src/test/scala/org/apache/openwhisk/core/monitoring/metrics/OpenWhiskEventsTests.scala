@@ -57,7 +57,7 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
     res shouldBe Some(StatusCodes.OK, "pong")
 
     //Check if metrics using Kamon API gets included in consolidated Prometheus
-    Kamon.counter("fooTest").increment(42)
+    Kamon.counter("fooTest").withoutTags().increment(42)
     sleep(1.second)
     val metricRes = get("localhost", httpPort, "/metrics")
     metricRes.get._2 should include("fooTest")

@@ -24,9 +24,9 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import kamon.metric.{MeasurementUnit, Counter => KCounter, Histogram => KHistogram, Gauge => KGauge}
+import kamon.metric.{MeasurementUnit, Counter => KCounter, Gauge => KGauge, Histogram => KHistogram}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
-import kamon.system.SystemMetrics
+import kamon.tag.TagSet
 import org.apache.openwhisk.core.entity.ControllerInstanceId
 
 trait Logging {
@@ -239,31 +239,25 @@ case class LogMarkerToken(
 
   private def createCounter() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .counter(createName(toString, "counter"))
-        .refine(tags)
+      Kamon.counter(createName(toString, "counter")).withTags(TagSet.from(tags))
     } else {
-      Kamon.counter(createName(toStringWithSubAction, "counter"))
+      Kamon.counter(createName(toStringWithSubAction, "counter")).withoutTags()
     }
   }
 
   private def createHistogram() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .histogram(createName(toString, "histogram"), measurementUnit)
-        .refine(tags)
+      Kamon.histogram(createName(toString, "histogram"), measurementUnit).withTags(TagSet.from(tags))
     } else {
-      Kamon.histogram(createName(toStringWithSubAction, "histogram"), measurementUnit)
+      Kamon.histogram(createName(toStringWithSubAction, "histogram"), measurementUnit).withoutTags()
     }
   }
 
   private def createGauge() = {
     if (TransactionId.metricsKamonTags) {
-      Kamon
-        .gauge(createName(toString, "gauge"), measurementUnit)
-        .refine(tags)
+      Kamon.gauge(createName(toString, "gauge"), measurementUnit).withTags(TagSet.from(tags))
     } else {
-      Kamon.gauge(createName(toStringWithSubAction, "gauge"), measurementUnit)
+      Kamon.gauge(createName(toStringWithSubAction, "gauge"), measurementUnit).withoutTags()
     }
   }
 
@@ -296,10 +290,6 @@ object LogMarkerToken {
 }
 
 object MetricEmitter {
-  if (TransactionId.metricsKamon) {
-    SystemMetrics.startCollecting()
-  }
-
   def emitCounterMetric(token: LogMarkerToken, times: Long = 1): Unit = {
     if (TransactionId.metricsKamon) {
       token.counter.increment(times)
@@ -314,7 +304,7 @@ object MetricEmitter {
 
   def emitGaugeMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      token.gauge.set(value)
+      token.gauge.update(value)
     }
   }
 }
@@ -327,7 +317,7 @@ object MetricEmitter {
  */
 class WhiskStatsDMetricKeyGenerator(config: com.typesafe.config.Config) extends MetricKeyGenerator {
   val simpleGen = new SimpleMetricKeyGenerator(config)
-  override def generateKey(name: String, tags: Map[String, String]): String = {
+  override def generateKey(name: String, tags: TagSet): String = {
     val key = simpleGen.generateKey(name, tags)
     if (key.contains(".counter_")) key.replace(".counter_", ".counter.")
     else if (key.contains(".histogram_")) key.replace(".histogram_", ".histogram.")

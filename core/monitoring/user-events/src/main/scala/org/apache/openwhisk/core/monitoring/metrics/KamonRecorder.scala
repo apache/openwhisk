@@ -21,6 +21,7 @@ import akka.event.slf4j.SLF4JLogging
 import org.apache.openwhisk.core.connector.{Activation, Metric}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
+import kamon.tag.TagSet
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.concurrent.TrieMap
@@ -64,8 +65,8 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
   }
 
   case class LimitKamonMetrics(namespace: String) {
-    private val concurrentLimit = Kamon.counter(concurrentLimitMetric).refine(`actionNamespace` -> namespace)
-    private val timedLimit = Kamon.counter(timedLimitMetric).refine(`actionNamespace` -> namespace)
+    private val concurrentLimit = Kamon.counter(concurrentLimitMetric).withTag(`actionNamespace`, namespace)
+    private val timedLimit = Kamon.counter(timedLimitMetric).withTag(`actionNamespace`, namespace)
 
     def record(m: Metric): Unit = {
       m.metricName match {
@@ -83,23 +84,25 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
                                     memory: String,
                                     initiator: String) {
     private val activationTags =
-      Map(
-        `actionNamespace` -> namespace,
-        `initiatorNamespace` -> initiator,
-        `actionName` -> action,
-        `actionKind` -> kind,
-        `actionMemory` -> memory)
+      TagSet.from(
+        Map(
+          `actionNamespace` -> namespace,
+          `initiatorNamespace` -> initiator,
+          `actionName` -> action,
+          `actionKind` -> kind,
+          `actionMemory` -> memory))
     private val namespaceActivationsTags =
-      Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator)
-    private val tags = Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action)
+      TagSet.from(Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator))
+    private val tags =
+      TagSet.from(Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action))
 
-    private val namespaceActivations = Kamon.counter(namespaceActivationMetric).refine(namespaceActivationsTags)
-    private val activations = Kamon.counter(activationMetric).refine(activationTags)
-    private val coldStarts = Kamon.counter(coldStartMetric).refine(tags)
-    private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
-    private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
-    private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).refine(tags)
-    private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).refine(tags)
+    private val namespaceActivations = Kamon.counter(namespaceActivationMetric).withTags(namespaceActivationsTags)
+    private val activations = Kamon.counter(activationMetric).withTags(activationTags)
+    private val coldStarts = Kamon.counter(coldStartMetric).withTags(tags)
+    private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).withTags(tags)
 
     def record(a: Activation, metricConfig: MetricConfig): Unit = {
       namespaceActivations.increment()
@@ -122,7 +125,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
       waitTime.record(a.waitTime.toMillis)
       duration.record(a.duration.toMillis)
 
-      Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
+      Kamon.counter(statusMetric).withTags(tags.withTag("status", a.status)).increment()
 
       a.size.foreach(responseSize.record(_))
     }

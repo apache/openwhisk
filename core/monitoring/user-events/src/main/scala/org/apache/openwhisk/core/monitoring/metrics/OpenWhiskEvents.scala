@@ -25,7 +25,6 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
-import kamon.system.SystemMetrics
 import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig._
 import pureconfig.generic.auto._
@@ -39,10 +38,10 @@ object OpenWhiskEvents extends SLF4JLogging {
   def start(config: Config)(implicit system: ActorSystem,
                             materializer: ActorMaterializer): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
-    Kamon.reconfigure(config)
+
     val prometheusReporter = new PrometheusReporter()
-    Kamon.addReporter(prometheusReporter)
-    SystemMetrics.startCollecting()
+    Kamon.registerModule("prometheus", prometheusReporter)
+    Kamon.init(config)
 
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "whisk.user-events")
 
