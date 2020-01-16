@@ -199,6 +199,7 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
     runcdir: "{{ invoker_runcdir | default('/run/docker/runtime-runc/moby') }}"
+    volumes: "{{ invoker_docker_volumes | default([]) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
   jmxremote:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
