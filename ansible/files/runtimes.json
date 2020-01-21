@@ -121,6 +121,20 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
+            },
+            {
+                "kind": "swift:5.1",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v5.1",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "java": [
