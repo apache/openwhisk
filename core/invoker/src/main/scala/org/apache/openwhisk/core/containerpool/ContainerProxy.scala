@@ -642,7 +642,7 @@ class ContainerProxy(factory: (TransactionId,
         logging.info(this, s"creating health ping actor for ${c.addr.asString()}")
         val hp = context.actorOf(
           TCPPingClient
-            .props(healtCheckConfig, new InetSocketAddress(c.addr.host, c.addr.port), self))
+            .props(c.toString(), healtCheckConfig, new InetSocketAddress(c.addr.host, c.addr.port), self))
         healthPingActor = Some(hp)
         hp
       }
@@ -963,11 +963,11 @@ object ContainerProxy {
 }
 
 object TCPPingClient {
-  def props(config: ContainerProxyHealthCheckConfig, remote: InetSocketAddress, replies: ActorRef) =
-    Props(new TCPPingClient(remote, replies, config))
+  def props(containerId:String, config: ContainerProxyHealthCheckConfig, remote: InetSocketAddress, replies: ActorRef) =
+    Props(new TCPPingClient(containerId, remote, replies, config))
 }
 
-class TCPPingClient(remote: InetSocketAddress, listener: ActorRef, config: ContainerProxyHealthCheckConfig)
+class TCPPingClient(containerId:String, remote: InetSocketAddress, listener: ActorRef, config: ContainerProxyHealthCheckConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
   import context.system
@@ -1004,24 +1004,24 @@ class TCPPingClient(remote: InetSocketAddress, listener: ActorRef, config: Conta
       if (failedCount == config.maxFails) {
         logging.error(
           this,
-          s"Failed health connection to ${addressString} ${failedCount} times - exceeded max ${config.maxFails} failures")
+          s"Failed health connection to $containerId ($addressString) $failedCount times - exceeded max ${config.maxFails} failures")
         //destroy this container since we cannot communicae with it
         listener ! FailureMessage(
-          new SocketException(s"Health connection to ${addressString} failed ${failedCount} times"))
+          new SocketException(s"Health connection to $containerId ($addressString) failed $failedCount times"))
         cancelPing()
         context.stop(self)
       } else {
-        logging.warn(this, s"Failed health connection to ${addressString} ${failedCount} times")
+        logging.warn(this, s"Failed health connection to $containerId ($addressString) $failedCount times")
       }
 
     case Connected(_, _) =>
       sender() ! Close
       if (failedCount > 0) {
         //reset in case of temp failure
-        logging.info(this, s"Succeeded health connection to ${addressString} after ${failedCount} previous failures")
+        logging.info(this, s"Succeeded health connection to $containerId ($addressString) after $failedCount previous failures")
         failedCount = 0
       } else {
-        logging.debug(this, s"Succeeded health connection to ${addressString}")
+        logging.debug(this, s"Succeeded health connection to $containerId ($addressString)")
       }
 
   }
