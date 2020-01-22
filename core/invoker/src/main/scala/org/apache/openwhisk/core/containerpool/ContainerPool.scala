@@ -69,6 +69,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
   // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
@@ -236,6 +237,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       processBufferOrFeed()
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
+      prewarmStartingPool = prewarmStartingPool - sender()
       prewarmedPool = prewarmedPool + (sender() -> data)
 
     // Container got removed
@@ -255,6 +257,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       prewarmedPool.get(sender()).foreach { _ =>
         logging.info(this, "failed prewarm removed")
         prewarmedPool = prewarmedPool - sender()
+      }
+      //in case this was a starting prewarm
+      prewarmStartingPool.get(sender()).foreach { _ =>
+        logging.info(this, "failed starting prewarm removed")
+        prewarmStartingPool = prewarmStartingPool - sender()
       }
 
       //backfill prewarms on every ContainerRemoved, just in case
@@ -297,15 +304,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       val kind = config.exec.kind
       val memory = config.memoryLimit
       val currentCount = prewarmedPool.count {
-        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
-        case _                                          => false
+        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true //done starting
+        case _                                          => false //started but not finished starting
       }
-      if (currentCount < config.count) {
+      val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
+      val containerCount = currentCount + startingCount
+      if (containerCount < config.count) {
         logging.info(
           this,
-          s"found ${currentCount} ${if (init) "initing" else "backfilling"} pre-warms to count: ${config.count} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${config.count - containerCount} pre-warms to desired count: ${config.count} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
           TransactionId.invokerWarmup)
-        (currentCount until config.count).foreach { i =>
+        (containerCount until config.count).foreach { _ =>
           prewarmContainer(config.exec, config.memoryLimit)
         }
       }
@@ -321,8 +330,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit =
-    childFactory(context) ! Start(exec, memoryLimit)
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit = {
+    val newContainer = childFactory(context)
+    prewarmStartingPool = prewarmStartingPool + (newContainer -> (exec.kind, memoryLimit))
+    newContainer ! Start(exec, memoryLimit)
+  }
 
   /**
    * Takes a prewarm container out of the prewarmed pool
