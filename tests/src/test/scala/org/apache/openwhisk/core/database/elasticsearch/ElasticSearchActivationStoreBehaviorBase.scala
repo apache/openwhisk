@@ -21,9 +21,10 @@ import org.scalatest.FlatSpec
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorBase
+import org.apache.openwhisk.core.entity.{ActivationResponse, Parameters, WhiskActivation}
 import org.testcontainers.elasticsearch.ElasticsearchContainer
-
 import pureconfig.loadConfigOrThrow
+import spray.json.{JsObject, JsString}
 
 trait ElasticSearchActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
   val imageName = loadConfigOrThrow[String]("whisk.elasticsearch.docker-image")
@@ -44,5 +45,14 @@ trait ElasticSearchActivationStoreBehaviorBase extends FlatSpec with ActivationS
     val storeConfig =
       ElasticSearchActivationStoreConfig("http", container.getHttpHostAddress, "unittest-%s", "fake", "fake")
     new ElasticSearchActivationStore(None, storeConfig, true)
+  }
+
+  // add result and annotations
+  override def newActivation(ns: String, actionName: String, start: Long): WhiskActivation = {
+    super
+      .newActivation(ns, actionName, start)
+      .copy(
+        response = ActivationResponse.success(Some(JsObject("name" -> JsString("whisker")))),
+        annotations = Parameters("database", "elasticsearch") ++ Parameters("type", "test"))
   }
 }
