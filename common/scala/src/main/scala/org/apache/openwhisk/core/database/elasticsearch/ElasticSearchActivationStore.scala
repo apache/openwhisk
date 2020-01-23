@@ -41,6 +41,7 @@ import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import org.apache.openwhisk.core.database._
+import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback
@@ -118,46 +119,22 @@ class ElasticSearchActivationStore(
     val index = generateIndex(activation.namespace.namespace)
     val op = indexInto(index, esType).doc(payload.toString).id(activation.docid.asString)
 
-    val res = if (useBatching) {
-      batcher.put(op).map {
-        case Right(docInfo) =>
-          transid.finished(
-            this,
-            start,
-            s"[PUT] 'activations' completed document: '${activation.docid}', response: '$docInfo'")
-          docInfo
-        case Left(e: ArtifactStoreException) =>
-          transid.failed(
-            this,
-            start,
-            s"[PUT] 'activations' failed to put document: '${activation.docid}'; ${e.getMessage}.",
-            ErrorLevel)
-          throw PutException("error on 'put'")
-      }
-    } else {
-      client.execute(op).map { res =>
-        if (res.status == StatusCodes.OK.intValue || res.status == StatusCodes.Created.intValue) {
-          transid.finished(
-            this,
-            start,
-            s"[PUT] 'activations' completed activation: '${res.result.id}', response: '${activation.docinfo}'")
-          DocInfo(res.result.id)
-        } else {
-          transid.failed(
-            this,
-            start,
-            s"[PUT] 'activations' failed to put document: '${activation.docid}'; http status: '${res.status}'",
-            ErrorLevel)
-          throw new Exception("Unexpected http response code: " + res.status)
-        }
-      }
+    // always use batching
+    val res = batcher.put(op).map {
+      case Right(docInfo) =>
+        transid
+          .finished(this, start, s"[PUT] 'activations' completed document: '${activation.docid}', response: '$docInfo'")
+        docInfo
+      case Left(e: ArtifactStoreException) =>
+        transid.failed(
+          this,
+          start,
+          s"[PUT] 'activations' failed to put document: '${activation.docid}'; ${e.getMessage}.",
+          ErrorLevel)
+        throw PutException("error on 'put'")
     }
 
-    reportFailure(
-      res,
-      failure =>
-        transid
-          .failed(this, start, s"[PUT] 'activations' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+    reportFailure(res, start, failure => s"[PUT] 'activations' internal error, failure: '${failure.getMessage}'")
   }
 
   private def doStore(ops: Seq[IndexRequest])(
@@ -183,15 +160,11 @@ class ElasticSearchActivationStore(
             start,
             s"'activations' failed to put documents, http status: '${res.status}'",
             ErrorLevel)
-          throw new Exception("Unexpected http response code: " + res.status)
+          throw PutException("Unexpected http response code: " + res.status)
         }
       }
 
-    reportFailure(
-      res,
-      failure =>
-        transid
-          .failed(this, start, s"[PUT] 'activations' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+    reportFailure(res, start, failure => s"[PUT] 'activations' internal error, failure: '${failure.getMessage}'")
   }
 
   override def get(activationId: ActivationId, context: UserContext)(
@@ -223,7 +196,7 @@ class ElasticSearchActivationStore(
               this,
               start,
               s"[GET] 'activations' failed to get document: '$activationId'; http status: '${res.status}'")
-          throw new Exception("Unexpected http response code: " + res.status)
+          throw GetException("Unexpected http response code: " + res.status)
         }
       } recoverWith {
       case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
@@ -231,12 +204,8 @@ class ElasticSearchActivationStore(
 
     reportFailure(
       res,
-      failure =>
-        transid.failed(
-          this,
-          start,
-          s"[GET] 'activations' internal error, doc: '$activationId', failure: '${failure.getMessage}'",
-          ErrorLevel))
+      start,
+      failure => s"[GET] 'activations' internal error, doc: '$activationId', failure: '${failure.getMessage}'")
   }
 
   override def delete(activationId: ActivationId, context: UserContext)(
@@ -274,18 +243,14 @@ class ElasticSearchActivationStore(
             start,
             s"[DEL] 'activations' failed to delete document: '$activationId'; http status: '${res.status}'",
             ErrorLevel)
-          throw new Exception("Unexpected http response code: " + res.status)
+          throw DeleteException("Unexpected http response code: " + res.status)
         }
       }
 
     reportFailure(
       res,
-      failure =>
-        transid.failed(
-          this,
-          start,
-          s"[DEL] 'activations' internal error, doc: '$activationId', failure: '${failure.getMessage}'",
-          ErrorLevel))
+      start,
+      failure => s"[DEL] 'activations' internal error, doc: '$activationId', failure: '${failure.getMessage}'")
   }
 
   override def countActivationsInNamespace(namespace: EntityPath,
@@ -319,15 +284,11 @@ class ElasticSearchActivationStore(
           JsObject(WhiskActivation.collectionName -> JsNumber(out))
         } else {
           transid.failed(this, start, s"Unexpected http response code: ${res.status}", ErrorLevel)
-          throw new Exception("Unexpected http response code: " + res.status)
+          throw QueryException("Unexpected http response code: " + res.status)
         }
       }
 
-    reportFailure(
-      res,
-      failure =>
-        transid
-          .failed(this, start, s"[COUNT] 'activations' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+    reportFailure(res, start, failure => s"[COUNT] 'activations' internal error, failure: '${failure.getMessage}'")
   }
 
   override def listActivationsMatchingName(
@@ -390,14 +351,11 @@ class ElasticSearchActivationStore(
 
         } else {
           transid.failed(this, start, s"Unexpected http response code: ${res.status}", ErrorLevel)
-          throw new Exception("Unexpected http response code: " + res.status)
+          throw QueryException("Unexpected http response code: " + res.status)
         }
       }
 
-    reportFailure(
-      res,
-      failure =>
-        transid.failed(this, start, s"failed to query activation with error ${failure.getMessage}", ErrorLevel))
+    reportFailure(res, start, failure => s"failed to query activation with error ${failure.getMessage}")
   }
 
   private def deserializeHitToWhiskActivation(hit: SearchHit): WhiskActivation = {
@@ -450,14 +408,6 @@ class ElasticSearchActivationStore(
     rangeQuery(key)
       .gte(since.map(_.toEpochMilli).getOrElse(minStart))
       .lte(upto.map(_.toEpochMilli).getOrElse(maxStart))
-  }
-
-  private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
-    f.failed.foreach({
-      case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
-      case x                         => onFailure(x)
-    })
-    f
   }
 }
 
