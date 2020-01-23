@@ -26,6 +26,7 @@ import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
@@ -80,8 +81,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
-    Future.successful(activationsPerNamespace.get(namespace).map(_.intValue()).getOrElse(0))
-  override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
+    Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))
+  override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue)
 
   /**
    * Calculate the duration within which a completion ack must be received for an activation.
@@ -94,13 +95,13 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
    * on invoker behavior that a cold invocation's init duration may be as long as its run duration. Higher factors
    * may account for additional wait times.
    *
-   * Finally, a constant duration is added to the diluted timeout to be lenient towards general delays / wait times.
+   * Finally, a configurable duration is added to the diluted timeout to be lenient towards general delays / wait times.
    *
    * @param actionTimeLimit the action's time limit
    * @return the calculated time duration within which a completion ack must be received
    */
   private def calculateCompletionAckTimeout(actionTimeLimit: FiniteDuration): FiniteDuration = {
-    (actionTimeLimit.max(TimeLimit.STD_DURATION) * lbConfig.timeoutFactor) + 1.minute
+    (actionTimeLimit.max(TimeLimit.STD_DURATION) * lbConfig.timeoutFactor) + lbConfig.timeoutAddon
   }
 
   /**
@@ -241,7 +242,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     logging.info(this, s"received result ack for '$aid'")(tid)
   }
 
-  protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry)
+  protected def releaseInvoker(invoker: InvokerInstanceId, entry: ActivationEntry): Unit
 
   // Singletons for counter metrics related to completion acks
   protected val LOADBALANCER_COMPLETION_ACK_REGULAR =

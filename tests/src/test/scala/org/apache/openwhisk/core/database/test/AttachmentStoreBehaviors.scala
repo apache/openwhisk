@@ -144,7 +144,7 @@ trait AttachmentStoreBehaviors
     val docId = newDocId()
     val error = new Error("boom!")
     val faultySource = Source(1 to 10)
-      .map { n ⇒
+      .map { n =>
         if (n == 7) throw error
         n
       }

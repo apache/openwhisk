@@ -44,7 +44,6 @@ This programming model is a perfect match for microservices, mobile, IoT and man
 
 ## Implementation guide
 - [Setting up and using OpenWhisk CLI](./cli.md)
-- [Using OpenWhisk from an iOS app](./mobile_sdk.md).
 - [Using REST APIs with OpenWhisk](./rest_api.md)
 
 <!-- TODO - need to add the following items and pages in the future:

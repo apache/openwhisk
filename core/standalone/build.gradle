@@ -15,20 +15,22 @@
  * limitations under the License.
  */
 
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
+    id 'maven'
+    id 'org.scoverage'
     id 'org.springframework.boot' version '2.1.6.RELEASE'
-    id "com.gorylenko.gradle-git-properties" version "2.0.0"
     id 'scala'
+    id 'com.gorylenko.gradle-git-properties' version '2.0.0'
 }
 
-apply plugin: 'org.scoverage'
-apply plugin: 'maven'
+ext.dockerImageName = 'standalone'
+ext.dockerBuildArgs = [ "OPENWHISK_JAR=build/libs/openwhisk-standalone-${version}.jar"]
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'bootJar'
 
 project.archivesBaseName = "openwhisk-standalone"
-
-repositories {
-    mavenCentral()
-}
 
 task copySwagger(type: Copy) {
     def version = "3.6.0"
@@ -50,15 +52,16 @@ def apiGwActions = ['createApi', "deleteApi", "getApi"]
 
 task copyGWActions() {
     doLast {
-        def routeMgmtDir = new File(project.projectDir.getParentFile(), "routemgmt")
+        def routeMgmtDir = new File(project.projectDir, "../routemgmt")
         def commonDir = new File(routeMgmtDir, "common")
         def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
         apiGwActions.each { actionName ->
             def zipFileName = actionName + ".zip"
             def actionDir = new File(routeMgmtDir, actionName)
             def zipFile = new File(routeBuildDir, zipFileName)
+            def npmCommand = (Os.isFamily(Os.FAMILY_WINDOWS)) ? "npm.cmd" : "npm"
             if (!zipFile.exists()) {
-                ant.exec(dir:actionDir, executable:"npm", failonerror:true){
+                ant.exec(dir:actionDir, executable:npmCommand, failonerror:true){
                     arg(line:"install")
                 }
                 ant.zip(destfile:zipFile){
@@ -82,7 +85,7 @@ task copyGWActions() {
 
 task copyGrafanaConfig() {
     doLast {
-        def grafanaDir = new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/grafana")
+        def grafanaDir = new File(project(':core:monitoring:user-events').projectDir, "compose/grafana")
         def grafanaBuildDir = mkdir("$buildDir/tmp/grafana")
         def zipFileName = "grafana-config.zip"
         def zipFile = new File(grafanaBuildDir, zipFileName)
@@ -100,17 +103,17 @@ processResources.dependsOn copyGWActions
 processResources.dependsOn copyGrafanaConfig
 
 processResources {
-    from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
+    from(new File(project.projectDir, "../../ansible/files/runtimes.json")) {
         into(".")
     }
-    from(new File(project.rootProject.projectDir, "ansible/files")) {
+    from(new File(project.projectDir, "../../ansible/files")) {
         include "*.json"
         into("couch")
     }
     from(file("$buildDir/tmp/grafana/grafana-config.zip")){
         into(".")
     }
-    from(new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/prometheus/prometheus.yml")){
+    from(new File(project(':core:monitoring:user-events').projectDir, "compose/prometheus/prometheus.yml")){
         into(".")
     }
     //Implement the logic present in controller Docker file
@@ -151,15 +154,18 @@ install.dependsOn(bootJar)
 dependencies {
     compile project(':core:controller')
     compile project(':tools:admin')
-    compile 'org.rogach:scallop_2.12:3.3.1'
+    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    //Tried with 0.16.0 has support for Kafka 0.11.0 https://github.com/embeddedkafka/embedded-kafka/tree/v0.16.0
-    //But that causes class compatability issue die to use of newer client version
-    compile ("io.github.embeddedkafka:embedded-kafka_2.12:2.1.1")
-    compile ("org.scala-lang:scala-reflect:${gradle.scala.version}")
+    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
+    compile "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
 
-    testCompile 'junit:junit:4.11'
-    testCompile 'org.scalatest:scalatest_2.12:3.0.5'
+    testCompile "junit:junit:4.11"
+    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 gradle.projectsEvaluated {

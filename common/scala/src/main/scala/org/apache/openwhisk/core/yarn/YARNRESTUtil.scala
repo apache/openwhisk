@@ -195,6 +195,6 @@ object YARNRESTUtil {
 
     case httpresponse(code, content) =>
       logging.error(this, "Unknown response from YARN")
-      throw new Exception(s"Unknown response from YARN. Code: ${code.intValue()}, content: $content")
+      throw new Exception(s"Unknown response from YARN. Code: ${code.intValue}, content: $content")
   }
 }

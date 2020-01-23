@@ -27,7 +27,9 @@ import spray.json.DefaultJsonProtocol
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.http.Messages._
 
-protected[core] case class ActivationResponse private (val statusCode: Int, val result: Option[JsValue]) {
+protected[core] case class ActivationResponse private (statusCode: Int,
+                                                       result: Option[JsValue],
+                                                       size: Option[Int] = None) {
 
   def toJsonObject = ActivationResponse.serdes.write(this).asJsObject
 
@@ -86,19 +88,25 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     }
   }
 
-  private def error(code: Int, errorValue: JsValue) = {
+  private def error(code: Int, errorValue: JsValue, size: Option[Int]) = {
     require(code == ApplicationError || code == DeveloperError || code == WhiskError)
-    ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)))
+    ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)), size)
   }
 
-  protected[core] def success(result: Option[JsValue] = None) = ActivationResponse(Success, result)
+  protected[core] def success(result: Option[JsValue] = None, size: Option[Int] = None) =
+    ActivationResponse(Success, result, size)
 
-  protected[core] def applicationError(errorValue: JsValue) = error(ApplicationError, errorValue)
-  protected[core] def applicationError(errorMsg: String) = error(ApplicationError, JsString(errorMsg))
-  protected[core] def developerError(errorValue: JsValue) = error(DeveloperError, errorValue)
-  protected[core] def developerError(errorMsg: String) = error(DeveloperError, JsString(errorMsg))
-  protected[core] def whiskError(errorValue: JsValue) = error(WhiskError, errorValue)
-  protected[core] def whiskError(errorMsg: String) = error(WhiskError, JsString(errorMsg))
+  protected[core] def applicationError(errorValue: JsValue, size: Option[Int] = None) =
+    error(ApplicationError, errorValue, size)
+  protected[core] def applicationError(errorMsg: String) =
+    error(ApplicationError, JsString(errorMsg), None)
+  protected[core] def developerError(errorValue: JsValue, size: Option[Int]) =
+    error(DeveloperError, errorValue, size)
+  protected[core] def developerError(errorMsg: String, size: Option[Int] = None) =
+    error(DeveloperError, JsString(errorMsg), size)
+  protected[core] def whiskError(errorValue: JsValue) = error(WhiskError, errorValue, None)
+  protected[core] def whiskError(errorMsg: String) =
+    error(WhiskError, JsString(errorMsg), None)
 
   /**
    * Returns an ActivationResponse that is used as a placeholder for payload
@@ -157,6 +165,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
       s"should not interpret init response when status code is OK")
     response match {
       case Right(ContainerResponse(code, str, truncated)) =>
+        val sizeOpt = Option(str).map(_.length)
         truncated match {
           case None =>
             Try { str.parseJson.asJsObject } match {
@@ -164,13 +173,13 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                 // If the response is a JSON object container an error field, accept it as the response error.
                 val errorOpt = fields.get(ERROR_FIELD)
                 val errorContent = errorOpt getOrElse invalidInitResponse(str).toJson
-                developerError(errorContent)
+                developerError(errorContent, sizeOpt)
               case _ =>
-                developerError(invalidInitResponse(str))
+                developerError(invalidInitResponse(str), sizeOpt)
             }
 
           case Some((length, maxlength)) =>
-            developerError(truncatedResponse(str, length, maxlength))
+            developerError(truncatedResponse(str, length, maxlength), Some(length.toBytes.toInt))
         }
 
       case Left(_: MemoryExhausted) =>
@@ -194,6 +203,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
       case Right(res @ ContainerResponse(_, str, truncated)) =>
         truncated match {
           case None =>
+            val sizeOpt = Option(str).map(_.length)
             Try { str.parseJson.asJsObject } match {
               case scala.util.Success(result @ JsObject(fields)) =>
                 // If the response is a JSON object container an error field, accept it as the response error.
@@ -201,30 +211,30 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
 
                 if (res.okStatus) {
                   errorOpt map { error =>
-                    applicationError(error)
+                    applicationError(error, sizeOpt)
                   } getOrElse {
                     // The happy path.
-                    success(Some(result))
+                    success(Some(result), sizeOpt)
                   }
                 } else {
                   // Any non-200 code is treated as a container failure. We still need to check whether
                   // there was a useful error message in there.
                   val errorContent = errorOpt getOrElse invalidRunResponse(str).toJson
-                  developerError(errorContent)
+                  developerError(errorContent, sizeOpt)
                 }
 
               case scala.util.Success(notAnObj) =>
                 // This should affect only blackbox containers, since our own containers should already test for that.
-                developerError(invalidRunResponse(str))
+                developerError(invalidRunResponse(str), sizeOpt)
 
               case scala.util.Failure(t) =>
                 // This should affect only blackbox containers, since our own containers should already test for that.
                 logger.warn(this, s"response did not json parse: '$str' led to $t")
-                developerError(invalidRunResponse(str))
+                developerError(invalidRunResponse(str), sizeOpt)
             }
 
           case Some((length, maxlength)) =>
-            developerError(truncatedResponse(str, length, maxlength))
+            applicationError(JsString(truncatedResponse(str, length, maxlength)), Some(length.toBytes.toInt))
         }
 
       case Left(_: MemoryExhausted) =>
@@ -236,5 +246,5 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     }
   }
 
-  protected[core] implicit val serdes = jsonFormat2(ActivationResponse.apply)
+  protected[core] implicit val serdes = jsonFormat3(ActivationResponse.apply)
 }

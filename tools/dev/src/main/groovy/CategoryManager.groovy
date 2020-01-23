@@ -19,23 +19,24 @@ import java.util.function.Predicate
 
 class CategoryManager {
     def categories = process([
-        [name: "Main", travis: true, suffixes: ['openwhisk', 'apigateway', 'catalog', 'cli', 'wskdeploy', 'composer']],
-        [name: "Clients", travis: true, contains: ['-client-']],
-        [name: "Runtimes", travis: true, contains: ['-runtime-']],
-        [name: "Deployments", travis: true, contains: ['-deploy-']],
-        [name: "Packages", travis: true, contains: ['-package-']],
-        [name: "Samples and Examples", travis: false, suffixes: ['workshop', 'slackinvite', 'sample-slackbot', 'sample-matos', 'tutorial', 'GitHubSlackBot']],
-        [name: "Development Tools", travis: false, suffixes: ['devtools', 'xcode', 'vscode', 'playground', 'debugger']],
-        [name: "Utilities", travis: false, suffixes: ['utilities', 'release']],
-        [name: "Others", travis: false]
+        [name: "Main", travis: true, archived: false, suffixes: ['openwhisk', 'apigateway', 'catalog', 'cli', 'wskdeploy', 'composer', 'composer-python']],
+        [name: "Clients", travis: true, archived: false, contains: ['-client-']],
+        [name: "Runtimes", travis: true, archived: false, contains: ['-runtime-']],
+        [name: "Deployments", travis: true, archived: false, contains: ['-deploy-']],
+        [name: "Packages", travis: true, archived: false, contains: ['-package-', '-provider']],
+        [name: "Samples and Examples", travis: false, archived: false, suffixes: ['workshop', 'slackinvite', 'sample-slackbot', 'sample-matos', 'tutorial', 'GitHubSlackBot']],
+        [name: "Development Tools", travis: false, archived: false, suffixes: ['devtools', 'xcode', 'vscode', 'playground', 'debugger']],
+        [name: "Utilities", travis: false, archived: false, suffixes: ['utilities', 'release']],
+        [name: "Others", travis: false, archived: false],
+        [name: "Archived", travis: false, archived: true]
     ])
 
     private def suffixMatcher(List<String> suffixes) {
-        return {name -> suffixes.any {name.endsWith("-"+it)}} as Predicate<String>
+        return {name -> suffixes.any {name.endsWith(it)}} as Predicate<String>
     }
 
-    private def containsMatcher(String marker) {
-        return {name -> name.contains(marker)} as Predicate<String>
+    private def containsMatcher(List<String> marker) {
+        return {name -> marker.any {name.contains(it)}} as Predicate<String>
     }
 
     private def createMatcher(Map m){
@@ -45,11 +46,11 @@ class CategoryManager {
     }
 
     private def process(List<Map> repos) {
-        repos.collect {m -> new Category(m.name, m.travis, createMatcher(m))}
+        repos.collect {m -> new Category(m.name, m.travis, m.archived, createMatcher(m))}
     }
 
     def addToCategory(repo) {
-        categories.find {c -> c.matches(repo.name)}.addRepo(repo)
+        categories.find {c -> c.matches(repo.name) && c.archived == repo.archived}.addRepo(repo)
     }
 
     def sort(){
@@ -60,12 +61,14 @@ class CategoryManager {
 class Category {
     String name
     boolean travisEnabled
+    boolean archived
     List repos = []
     Predicate<String> matcher
 
-    Category(name, travisEnabled, matcher) {
+    Category(name, travisEnabled, archived, matcher) {
         this.name = name
         this.travisEnabled = travisEnabled
+        this.archived = archived
         this.matcher = matcher
     }
 

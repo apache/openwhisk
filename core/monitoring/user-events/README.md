@@ -36,6 +36,15 @@ This service connects to `events` topic and publishes the events to various serv
 The service needs the following env variables to be set
 
 - `KAFKA_HOSTS` - For local env it can be set to `172.17.0.1:9093`. When using [OpenWhisk Devtools][2] based setup use `kafka`
+- Namespaces can be removed from reports by listing them inside the `reference.conf` using the `whisk.user-events.ignored-namespaces` configuration.
+e.g:
+```
+whisk {
+  user-events {
+    ignored-namespaces = ["canary","testing"]
+  }
+}
+```
 
 Integrations
 ------------

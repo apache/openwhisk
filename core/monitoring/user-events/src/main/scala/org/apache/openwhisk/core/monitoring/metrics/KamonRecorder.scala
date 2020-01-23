@@ -21,15 +21,19 @@ import akka.event.slf4j.SLF4JLogging
 import org.apache.openwhisk.core.connector.{Activation, Metric}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
+import kamon.tag.TagSet
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.concurrent.TrieMap
 
 trait KamonMetricNames extends MetricNames {
+  val namespaceActivationMetric = "openwhisk.namespace.activations"
   val activationMetric = "openwhisk.action.activations"
   val coldStartMetric = "openwhisk.action.coldStarts"
   val waitTimeMetric = "openwhisk.action.waitTime"
   val initTimeMetric = "openwhisk.action.initTime"
   val durationMetric = "openwhisk.action.duration"
+  val responseSizeMetric = "openwhisk.action.responseSize"
   val statusMetric = "openwhisk.action.status"
 
   val concurrentLimitMetric = "openwhisk.action.limit.concurrent"
@@ -40,29 +44,29 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
   private val activationMetrics = new TrieMap[String, ActivationKamonMetrics]
   private val limitMetrics = new TrieMap[String, LimitKamonMetrics]
 
-  override def processActivation(activation: Activation, initiatorNamespace: String): Unit = {
-    lookup(activation, initiatorNamespace).record(activation)
+  override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
+    lookup(activation, initiator).record(activation, metricConfig)
   }
 
-  override def processMetric(metric: Metric, initiatorNamespace: String): Unit = {
-    val limitMetric = limitMetrics.getOrElseUpdate(initiatorNamespace, LimitKamonMetrics(initiatorNamespace))
+  override def processMetric(metric: Metric, initiator: String): Unit = {
+    val limitMetric = limitMetrics.getOrElseUpdate(initiator, LimitKamonMetrics(initiator))
     limitMetric.record(metric)
   }
 
-  def lookup(activation: Activation, initiatorNamespace: String): ActivationKamonMetrics = {
+  def lookup(activation: Activation, initiator: String): ActivationKamonMetrics = {
     val name = activation.name
     val kind = activation.kind
     val memory = activation.memory.toString
     val namespace = activation.namespace
     val action = activation.action
     activationMetrics.getOrElseUpdate(name, {
-      ActivationKamonMetrics(namespace, action, kind, memory, initiatorNamespace)
+      ActivationKamonMetrics(namespace, action, kind, memory, initiator)
     })
   }
 
   case class LimitKamonMetrics(namespace: String) {
-    private val concurrentLimit = Kamon.counter(concurrentLimitMetric).refine(`actionNamespace` -> namespace)
-    private val timedLimit = Kamon.counter(timedLimitMetric).refine(`actionNamespace` -> namespace)
+    private val concurrentLimit = Kamon.counter(concurrentLimitMetric).withTag(`actionNamespace`, namespace)
+    private val timedLimit = Kamon.counter(timedLimitMetric).withTag(`actionNamespace`, namespace)
 
     def record(m: Metric): Unit = {
       m.metricName match {
@@ -80,21 +84,36 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
                                     memory: String,
                                     initiator: String) {
     private val activationTags =
-      Map(
-        `actionNamespace` -> namespace,
-        `initiatorNamespace` -> initiator,
-        `actionName` -> action,
-        `actionKind` -> kind,
-        `actionMemory` -> memory)
-    private val tags = Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action)
+      TagSet.from(
+        Map(
+          `actionNamespace` -> namespace,
+          `initiatorNamespace` -> initiator,
+          `actionName` -> action,
+          `actionKind` -> kind,
+          `actionMemory` -> memory))
+    private val namespaceActivationsTags =
+      TagSet.from(Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator))
+    private val tags =
+      TagSet.from(Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action))
 
-    private val activations = Kamon.counter(activationMetric).refine(activationTags)
-    private val coldStarts = Kamon.counter(coldStartMetric).refine(tags)
-    private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
-    private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).refine(tags)
-    private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).refine(tags)
+    private val namespaceActivations = Kamon.counter(namespaceActivationMetric).withTags(namespaceActivationsTags)
+    private val activations = Kamon.counter(activationMetric).withTags(activationTags)
+    private val coldStarts = Kamon.counter(coldStartMetric).withTags(tags)
+    private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val initTime = Kamon.histogram(initTimeMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val duration = Kamon.histogram(durationMetric, MeasurementUnit.time.milliseconds).withTags(tags)
+    private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).withTags(tags)
 
-    def record(a: Activation): Unit = {
+    def record(a: Activation, metricConfig: MetricConfig): Unit = {
+      namespaceActivations.increment()
+
+      // only record activation if not executed in an ignored namespace
+      if (!metricConfig.ignoredNamespaces.contains(a.namespace)) {
+        recordActivation(a)
+      }
+    }
+
+    def recordActivation(a: Activation): Unit = {
       activations.increment()
 
       if (a.isColdStart) {
@@ -106,7 +125,9 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
       waitTime.record(a.waitTime.toMillis)
       duration.record(a.duration.toMillis)
 
-      Kamon.counter(statusMetric).refine(tags + ("status" -> a.status)).increment()
+      Kamon.counter(statusMetric).withTags(tags.withTag("status", a.status)).increment()
+
+      a.size.foreach(responseSize.record(_))
     }
   }
 }

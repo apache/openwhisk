@@ -16,6 +16,7 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
+import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
@@ -24,7 +25,7 @@ import common.StreamLogging
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.CacheInvalidationMessage
+import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
 import org.apache.openwhisk.core.entity.{
   DocumentReader,
@@ -36,7 +37,7 @@ import org.apache.openwhisk.core.entity.{
   WhiskPackage
 }
 import org.junit.runner.RunWith
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, TryValues}
 
@@ -51,11 +52,11 @@ class CacheInvalidatorTests
     with CosmosDBTestSupport
     with Matchers
     with ScalaFutures
-    with IntegrationPatience
     with TryValues
     with StreamLogging {
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
   override def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
 
@@ -79,14 +80,16 @@ class CacheInvalidatorTests
     val store = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](dbConfig, None)
     val pkg = WhiskPackage(EntityPath("cacheInvalidationTest"), EntityName(randomString()))
 
+    //Start cache invalidator after the db for whisks is created
+    startCacheInvalidator()
+    log.info("Cache Invalidator service started")
+
     //Store stuff in db
     val info = store.put(pkg).futureValue
     log.info(s"Added document ${info.id}")
 
-    //Start cache invalidator after the db for whisks is created
-    startCacheInvalidator()
     //This should result in change feed trigger and event to kafka topic
-    val topic = "cacheInvalidation"
+    val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
       consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
         topic)
@@ -109,11 +112,12 @@ class CacheInvalidatorTests
       |  cache-invalidator {
       |    cosmosdb {
       |      db = "$dbName"
+      |      start-from-beginning  = true
       |    }
       |  }
       |}
       """.stripMargin).withFallback(ConfigFactory.load())
-    CacheInvalidator.start(tsconfig)
+    CacheInvalidator.start(tsconfig).futureValue shouldBe Done
   }
 
 }

@@ -146,11 +146,11 @@ protected[core] object WhiskWebActionsApi extends Directives {
   private val mediaTranscoders = {
     // extensions are expected to contain only [a-z]
     Seq(
-      MediaExtension(".http", None, false, resultAsHttp _),
-      MediaExtension(".json", None, true, resultAsJson _),
-      MediaExtension(".html", Some(List("html")), true, resultAsHtml _),
-      MediaExtension(".svg", Some(List("svg")), true, resultAsSvg _),
-      MediaExtension(".text", Some(List("text")), true, resultAsText _))
+      MediaExtension(".http", resultAsHttp _),
+      MediaExtension(".json", resultAsJson _),
+      MediaExtension(".html", resultAsHtml _),
+      MediaExtension(".svg", resultAsSvg _),
+      MediaExtension(".text", resultAsText _))
   }
 
   private val defaultMediaTranscoder: MediaExtension = mediaTranscoders.find(_.extension == ".http").get
@@ -177,35 +177,52 @@ protected[core] object WhiskWebActionsApi extends Directives {
   /**
    * Supported extensions, their default projection and transcoder to complete a request.
    *
-   * @param extension         the supported media types for action response
-   * @param defaultProjection the default media extensions for action projection
-   * @param transcoder        the HTTP decoder and terminator for the extension
+   * @param extension  the supported media types for action response
+   * @param transcoder the HTTP decoder and terminator for the extension
    */
   protected case class MediaExtension(extension: String,
-                                      defaultProjection: Option[List[String]],
-                                      projectionAllowed: Boolean,
                                       transcoder: (JsValue, TransactionId, WebApiDirectives) => Route) {
     val extensionLength = extension.length
   }
 
-  private def resultAsHtml(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
-    case JsString(html) => complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, html))
-    case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid, jsonPrettyPrinter)
+  private def resultAsHtml(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = {
+    val htmlResult = result match {
+      case JsObject(fields) => fields.get("body").orElse(fields.get("html")).getOrElse(JsNull)
+      case _                => result
+    }
+
+    htmlResult match {
+      case JsString(html) => complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, html))
+      case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid, jsonPrettyPrinter)
+    }
   }
 
-  private def resultAsSvg(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
-    case JsString(svg) => complete(HttpEntity(`image/svg+xml`, svg.getBytes))
-    case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid, jsonPrettyPrinter)
+  private def resultAsSvg(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = {
+    val svgResult = result match {
+      case JsObject(fields) => fields.get("body").orElse(fields.get("svg")).getOrElse(JsNull)
+      case _                => result
+    }
+
+    svgResult match {
+      case JsString(svg) => complete(HttpEntity(`image/svg+xml`, svg.getBytes))
+      case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid, jsonPrettyPrinter)
+    }
   }
 
   private def resultAsText(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = {
-    result match {
-      case r: JsObject  => complete(OK, r.prettyPrint)
-      case r: JsArray   => complete(OK, r.prettyPrint)
-      case JsString(s)  => complete(OK, s)
-      case JsBoolean(b) => complete(OK, b.toString)
-      case JsNumber(n)  => complete(OK, n.toString)
-      case JsNull       => complete(OK, JsNull.toString)
+    val txtResult = result match {
+      case JsObject(fields) => fields.get("body").orElse(fields.get("text"))
+      case _                => Some(result)
+    }
+
+    txtResult match {
+      case Some(r: JsObject)  => complete(OK, r.prettyPrint)
+      case Some(r: JsArray)   => complete(OK, r.prettyPrint)
+      case Some(JsString(s))  => complete(OK, s)
+      case Some(JsBoolean(b)) => complete(OK, b.toString)
+      case Some(JsNumber(n))  => complete(OK, n.toString)
+      case Some(JsNull)       => complete(OK, JsNull.toString)
+      case _                  => terminate(NotFound, Messages.propertyNotFound)(transid, jsonPrettyPrinter)
     }
   }
 
@@ -617,11 +634,10 @@ trait WhiskWebActionsApi
       }
     }
 
-    completeRequest(queuedActivation, projectResultField(context, responseType), responseType)
+    completeRequest(queuedActivation, responseType)
   }
 
   private def completeRequest(queuedActivation: Future[Either[ActivationId, WhiskActivation]],
-                              projectResultField: => List[String],
                               responseType: MediaExtension)(implicit transid: TransactionId) = {
     onComplete(queuedActivation) {
       case Success(Right(activation)) =>
@@ -630,7 +646,7 @@ trait WhiskWebActionsApi
 
           if (activation.response.isSuccess || activation.response.isApplicationError) {
             val resultPath = if (activation.response.isSuccess) {
-              projectResultField
+              List.empty
             } else {
               // the activation produced an error response: therefore ignore
               // the requested projection and unwrap the error instead
@@ -735,27 +751,11 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Determines the result projection path, if any.
-   *
-   * @return optional list of projections
-   */
-  private def projectResultField(context: Context, responseType: MediaExtension): List[String] = {
-    val projection = if (responseType.projectionAllowed) {
-      Option(context.path)
-        .filter(_.nonEmpty)
-        .map(_.split("/").filter(_.nonEmpty).toList)
-        .orElse(responseType.defaultProjection)
-    } else responseType.defaultProjection
-
-    projection.getOrElse(List.empty)
-  }
-
-  /**
    * Check if "require-whisk-auth" authentication is needed, and if so, authenticate the request
    * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported
    *
    * @param annotations - web action annotations
-   * @param reqHeaders - web action invocation request headers
+   * @param reqHeaders  - web action invocation request headers
    * @return Option[Boolean]
    *         None if annotations does not include require-whisk-auth (i.e. auth test not needed)
    *         Some(true) if annotations includes require-whisk-auth and it's value matches the request header `X-Require-Whisk-Auth` value

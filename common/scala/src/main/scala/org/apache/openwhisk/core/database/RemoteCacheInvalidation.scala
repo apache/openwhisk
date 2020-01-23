@@ -54,19 +54,18 @@ object CacheInvalidationMessage extends DefaultJsonProtocol {
 class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: ControllerInstanceId)(
   implicit logging: Logging,
   as: ActorSystem) {
-
+  import RemoteCacheInvalidation._
   implicit private val ec = as.dispatchers.lookup("dispatchers.kafka-dispatcher")
 
-  private val topic = "cacheInvalidation"
   private val instanceId = s"$component${instance.asString}"
 
   private val msgProvider = SpiLoader.get[MessagingProvider]
   private val cacheInvalidationConsumer =
-    msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
+    msgProvider.getConsumer(config, s"$cacheInvalidationTopic$instanceId", cacheInvalidationTopic, maxPeek = 128)
   private val cacheInvalidationProducer = msgProvider.getProducer(config)
 
   def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
-    cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
+    cacheInvalidationProducer.send(cacheInvalidationTopic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
   }
 
   private val invalidationFeed = as.actorOf(Props {
@@ -99,4 +98,8 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
     }
     invalidationFeed ! MessageFeed.Processed
   }
+}
+
+object RemoteCacheInvalidation {
+  val cacheInvalidationTopic = "cacheInvalidation"
 }

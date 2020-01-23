@@ -16,30 +16,27 @@
  */
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
+import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.event.slf4j.SLF4JLogging
 import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
+import com.google.common.base.Throwables
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
-import org.slf4j.bridge.SLF4JBridgeHandler
+import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.core.database.RemoteCacheInvalidation.cacheInvalidationTopic
 
-import scala.concurrent.Future
-import scala.util.Success
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
-object CacheInvalidator extends SLF4JLogging {
-  //CosmosDB changefeed support uses Java Logging.
-  // Those needs to be routed to Slf4j
-  SLF4JBridgeHandler.removeHandlersForRootLogger()
-  SLF4JBridgeHandler.install()
-
-  //TODO Replace with constant from RemoteCacheInvalidation
-  val cacheInvalidationTopic = "cacheInvalidation"
+object CacheInvalidator {
 
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
 
-  def start(globalConfig: Config)(implicit system: ActorSystem, materializer: ActorMaterializer): Unit = {
+  def start(
+    globalConfig: Config)(implicit system: ActorSystem, materializer: ActorMaterializer, log: Logging): Future[Done] = {
+    implicit val ec: ExecutionContext = system.dispatcher
     val config = CacheInvalidatorConfig(globalConfig)
     val producer =
       KafkaEventProducer(
@@ -47,24 +44,26 @@ object CacheInvalidator extends SLF4JLogging {
         cacheInvalidationTopic,
         config.eventProducerConfig)
     val observer = new WhiskChangeEventObserver(config.invalidatorConfig, producer)
-    val feedManager = new ChangeFeedManager(whisksCollection, observer, config)
-    registerShutdownTasks(system, feedManager, producer)
-    log.info(s"Started the Cache invalidator service. ClusterId [${config.invalidatorConfig.clusterId}]")
+    val feedConsumer = new ChangeFeedConsumer(whisksCollection, config, observer)
+    feedConsumer.isStarted.andThen {
+      case Success(_) =>
+        registerShutdownTasks(system, feedConsumer, producer)
+        log.info(this, s"Started the Cache invalidator service. ClusterId [${config.invalidatorConfig.clusterId}]")
+      case Failure(t) =>
+        log.error(this, "Error occurred while starting the Consumer" + Throwables.getStackTraceAsString(t))
+    }
   }
 
   private def registerShutdownTasks(system: ActorSystem,
-                                    feedManager: ChangeFeedManager,
-                                    producer: KafkaEventProducer): Unit = {
+                                    feedConsumer: ChangeFeedConsumer,
+                                    producer: KafkaEventProducer)(implicit ec: ExecutionContext, log: Logging): Unit = {
     CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "closeFeedListeners") { () =>
-      implicit val ec = system.dispatcher
-      Future
-        .successful {
-          feedManager.close()
-        }
+      feedConsumer
+        .close()
         .flatMap { _ =>
           producer.close().andThen {
             case Success(_) =>
-              log.info("Kafka producer successfully shutdown")
+              log.info(this, "Kafka producer successfully shutdown")
           }
         }
     }

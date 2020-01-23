@@ -17,7 +17,8 @@
 
 package org.apache.openwhisk.core.entity
 
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.language.postfixOps
 import scala.util.Failure
@@ -79,7 +80,7 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
     def read(value: JsValue) =
       Try {
         val JsNumber(mb) = value
-        require(mb.isWhole(), "log limit must be whole number")
+        require(mb.isWhole, "log limit must be whole number")
         LogLimit(mb.intValue MB)
       } match {
         case Success(limit)                       => limit

@@ -23,7 +23,9 @@ import akka.kafka.scaladsl.Producer
 import akka.kafka.{ProducerMessage, ProducerSettings}
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.openwhisk.connector.kafka.KamonMetricsReporter
 
 import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -41,7 +43,7 @@ case class KafkaEventProducer(
       case (msgs, p) =>
         ProducerMessage.multi(msgs.map(newRecord), p)
     }
-    .via(Producer.flexiFlow(settings))
+    .via(Producer.flexiFlow(producerSettings))
     .map {
       case ProducerMessage.MultiResult(_, passThrough) =>
         passThrough.success(Done)
@@ -66,4 +68,7 @@ case class KafkaEventProducer(
   }
 
   private def newRecord(msg: String) = new ProducerRecord[String, String](topic, "messages", msg)
+
+  private def producerSettings =
+    settings.withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
 }

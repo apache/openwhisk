@@ -34,6 +34,7 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
 
 case class DockerContainerFactoryConfig(useRunc: Boolean)

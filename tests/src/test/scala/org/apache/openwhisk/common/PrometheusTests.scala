@@ -55,7 +55,7 @@ class PrometheusTests extends FlatSpec with Matchers with ScalatestRouteTest wit
 
   it should "respond to /metrics" in {
     val api = new KamonPrometheus
-    Kamon.counter("foo_bar").increment(42)
+    Kamon.counter("foo_bar").withoutTags().increment(42)
 
     //Sleep to ensure that Kamon metrics are pushed to reporters
     Thread.sleep(2.seconds.toMillis)

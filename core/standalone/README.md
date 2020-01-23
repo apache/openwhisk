@@ -26,8 +26,12 @@ executed as a normal java application from command line.
 java -jar openwhisk-standalone.jar
 ```
 
-This should start the OpenWhisk server on port 3233 by default. Once the server is started then [configure the cli][1]
-and then try out the [samples][2].
+This should start the OpenWhisk server on port 3233 by default and launch a Playground UI at port 3232.
+
+![Playground UI](../../docs/images/playground-ui.png)
+
+The Playground UI can be used to try out simple actions. To make use of all OpenWhisk features [configure the cli][1] and
+then try out the [samples][2].
 
 This server by default uses a memory based store and does not depend on any other external service like Kafka and CouchDB.
 It only needs Docker and Java to for running.
@@ -61,6 +65,12 @@ To pass argument to the run command use
 $ ./gradlew :core:standalone:bootRun --args='-m runtimes.json'
 ```
 
+You can also build a standalone docker image with:
+
+```bash
+$ ./gradlew :core:standalone:distDocker
+```
+
 ###  Usage
 
 OpenWhisk standalone server support various launch options
@@ -75,24 +85,25 @@ $ java -jar openwhisk-standalone.jar -h
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 
-  -m, --manifest  <arg>            Manifest json defining the supported runtimes
-  -c, --config-file  <arg>         application.conf which overrides the default
-                                   standalone.conf
-      --api-gw                     Enable API Gateway support
-      --couchdb                    Enable CouchDB support
-      --user-events                Enable User Events along with Prometheus and
-                                   Grafana
-      --kafka                      Enable embedded Kafka support
-      --kafka-ui                   Enable Kafka UI
+  -m, --manifest  <arg>               Manifest JSON defining the supported
+                                      runtimes
+  -c, --config-file  <arg>            application.conf which overrides the
+                                      default standalone.conf
+      --api-gw                        Enable API Gateway support
+      --couchdb                       Enable CouchDB support
+      --user-events                   Enable User Events along with Prometheus
+                                      and Grafana
+      --kafka                         Enable embedded Kafka support
+      --kafka-ui                      Enable Kafka UI
 
-      --all                        Enables all the optional services supported
-                                   by Standalone OpenWhisk like CouchDB, Kafka
-                                   etc
-      --api-gw-port  <arg>         API Gateway Port
-      --clean                      Clean any existing state like database
-  -d, --data-dir  <arg>            Directory used for storage
-      --dev-kcf                    Enables KubernetesContainerFactory for local
-                                   development
+      --all                           Enables all the optional services
+                                      supported by Standalone OpenWhisk like
+                                      CouchDB, Kafka etc
+      --api-gw-port  <arg>            API Gateway Port
+      --clean                         Clean any existing state like database
+  -d, --data-dir  <arg>               Directory used for storage
+      --dev-kcf                       Enables KubernetesContainerFactory for
+                                      local development
       --dev-mode                      Developer mode speeds up the startup by
                                       disabling preflight checks and avoiding
                                       explicit pulls.
@@ -102,6 +113,13 @@ $ java -jar openwhisk-standalone.jar -h
                                       configuring Prometheus to connect to
                                       existing running service instance
       --disable-color-logging         Disables colored logging
+      --enable-bootstrap              Enable bootstrap of default users and
+                                      actions like those needed for Api Gateway
+                                      or Playground UI. By default bootstrap is
+                                      done by default when using Memory store or
+                                      default CouchDB support. When using other
+                                      stores enable this flag to get bootstrap
+                                      done
       --kafka-docker-port  <arg>      Kafka port for use by docker based
                                       services. If not specified then 9091 or
                                       some random free port (if 9091 is busy)
@@ -109,14 +127,21 @@ $ java -jar openwhisk-standalone.jar -h
       --kafka-port  <arg>             Kafka port. If not specified then 9092 or
                                       some random free port (if 9092 is busy)
                                       would be used
+      --no-ui                         Disable Playground UI
+      --ui-port  <arg>                Playground UI server port. If not specified
+                                      then 3232 or some random free port (if
+                                      org.apache.openwhisk.standalone.StandaloneOpenWhisk$@75a1cd57
+                                      is busy) would be used
   -p, --port  <arg>                   Server port
   -v, --verbose
       --zk-port  <arg>                Zookeeper port. If not specified then 2181
                                       or some random free port (if 2181 is busy)
                                       would be used
   -h, --help                          Show help message
+      --version                       Show version of this program
 
 OpenWhisk standalone server
+
 ```
 
 Sections below would illustrate some of the supported options
@@ -224,11 +249,15 @@ whisk {
 
 Then pass this config file via `-c` option.
 
-#### Using Api Gateway
+Note that Standalone OpenWhisk will not bootstrap users and actions (e.g., API Gateway and Playground UI)
+when using an external database unless explicitly requested with `--enable-bootstrap`. This is to ensure
+that default users and actions are not added to your external artifact store.
 
-Api Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk Api gateway][3]
+#### Using API Gateway
+
+API Gateway mode can be enabled via `--api-gw` flag. In this mode upon launch a separate container for [OpenWhisk API gateway][3]
 would be launched on port `3234` (can be changed with `--api-gw-port`). In this mode you can make use of the
-[api gateway][4] support.
+[API Gateway][4] support.
 
 #### Using Kafka
 
@@ -347,6 +376,7 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "PWD": "/nodejsAction",
     "YARN_VERSION": "1.13.0",
     "__OW_ACTION_NAME": "/guest/hello",
+    "__OW_ACTION_VERSION": "0.0.1",
     "__OW_ACTIVATION_ID": "71e48d2d62e142eca48d2d62e192ec2d",
     "__OW_API_HOST": "http://host.docker.internal:3233",
     "__OW_DEADLINE": "1570223213407",
@@ -355,6 +385,35 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "payload": "hello, world"
 }
 ```
+
+## Launching OpenWhisk standalone with Docker
+
+If you have docker and bash installed, you can launch the standalone openwhisk from the docker image with just:
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh)`
+
+If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
+
+The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not open with playground, access it at `http://localhost:3232`.
+
+You can then install the [wsk CLI](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+
+`docker logs openwhisk | grep 'wsk property'`
+
+To properly shut down OpenWhisk and containers it creates, use [this script](stop.sh) or run the command:
+
+`docker exec openwhisk stop`
+
+### Extra Args for the Standalone OpenWhisk Docker Image
+
+When running OpenWhisk Standalone using the docker image,  you can set environment variables to pass extra args with the `-e` flag.
+
+Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
+
+You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with feature.
+
+You can also set additional environment variables for each container running actions invoked by OpenWhisk by setting `CONTAINER_EXTRA_ENV`. For example, setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for those images supporting starting the action under a debugger, like the typescript runtime.
+
 
 [1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
 [2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md

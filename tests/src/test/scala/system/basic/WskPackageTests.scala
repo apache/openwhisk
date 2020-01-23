@@ -176,7 +176,7 @@ class WskPackageTests extends TestHelpers with WskTestHelpers with WskActorSyste
    * Check that a description of an item includes the specified parameters.
    * Parameters keys in later parameter maps override earlier ones.
    */
-  def checkForParameters(itemDescription: String, paramSets: Map[String, JsValue]*) {
+  def checkForParameters(itemDescription: String, paramSets: Map[String, JsValue]*): Unit = {
     // Merge and the parameters handling overrides.
     val merged = HashMap.empty[String, JsValue]
     paramSets.foreach { merged ++= _ }

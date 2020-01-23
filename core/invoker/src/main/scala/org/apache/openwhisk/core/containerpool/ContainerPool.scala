@@ -73,6 +73,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
   var runBuffer = immutable.Queue.empty[Run]
+  // Track the resent buffer head - so that we don't resend buffer head multiple times
+  var resent: Option[Run] = None
   val logMessageInterval = 10.seconds
   //periodically emit metrics (don't need to do this for each message!)
   context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
@@ -112,6 +114,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
       if (runBuffer.isEmpty || isResentFromBuffer) {
+        if (isResentFromBuffer) {
+          //remove from resent tracking - it may get resent again, or get processed
+          resent = None
+        }
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
           if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
@@ -167,13 +173,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               //update freePool to track counts
               freePool = freePool + (actor -> newData)
             }
-            // Remove the action that get's executed now from the buffer and execute the next one afterwards.
+            // Remove the action that was just executed from the buffer and execute the next one in the queue.
             if (isResentFromBuffer) {
               // It is guaranteed that the currently executed messages is the head of the queue, if the message comes
               // from the buffer
               val (_, newBuffer) = runBuffer.dequeue
               runBuffer = newBuffer
-              runBuffer.dequeueOption.foreach { case (run, _) => self ! run }
+              // Try to process the next item in buffer (or get another message from feed, if buffer is now empty)
+              processBufferOrFeed()
             }
             actor ! r // forwards the run request to the container
             logContainerStart(r, containerState, newData.activeActivationCount, container)
@@ -183,7 +190,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // (and a new container would over commit the pool)
             val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
             val retryLogDeadline = if (isErrorLogged) {
-              logging.error(
+              logging.warn(
                 this,
                 s"Rescheduling Run message, too many message in the pool, " +
                   s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
@@ -199,10 +206,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             }
             if (!isResentFromBuffer) {
               // Add this request to the buffer, as it is not there yet.
-              runBuffer = runBuffer.enqueue(r)
+              runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
             }
-            // As this request is the first one in the buffer, try again to execute it.
-            self ! Run(r.action, r.msg, retryLogDeadline)
+          //buffered items will be processed via processBufferOrFeed()
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
@@ -212,7 +218,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
-      feed ! MessageFeed.Processed
       val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
       val newData =
         warmData.copy(lastUsed = oldData.lastUsed, activeActivationCount = oldData.activeActivationCount - 1)
@@ -234,7 +239,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool + (sender() -> newData)
         freePool = freePool - sender()
       }
-
+      processBufferOrFeed()
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
       prewarmedPool = prewarmedPool + (sender() -> data)
@@ -245,16 +250,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // so there is capacity to accept another job request
       freePool.get(sender()).foreach { f =>
         freePool = freePool - sender()
-        if (f.activeActivationCount > 0) {
-          feed ! MessageFeed.Processed
-        }
       }
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
-        feed ! MessageFeed.Processed
       }
-
+      processBufferOrFeed()
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
     // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
@@ -265,6 +266,25 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       busyPool = busyPool - sender()
     case EmitMetrics =>
       emitMetrics()
+  }
+
+  /** Resend next item in the buffer, or trigger next item in the feed, if no items in the buffer. */
+  def processBufferOrFeed() = {
+    // If buffer has more items, and head has not already been resent, send next one, otherwise get next from feed.
+    runBuffer.dequeueOption match {
+      case Some((run, _)) => //run the first from buffer
+        implicit val tid = run.msg.transid
+        //avoid sending dupes
+        if (resent.isEmpty) {
+          logging.info(this, s"re-processing from buffer (${runBuffer.length} items in buffer)")
+          resent = Some(run)
+          self ! run
+        } else {
+          //do not resend the buffer head multiple times (may reach this point from multiple messages, before the buffer head is re-processed)
+        }
+      case None => //feed me!
+        feed ! MessageFeed.Processed
+    }
   }
 
   /** Creates a new container and updates state accordingly. */

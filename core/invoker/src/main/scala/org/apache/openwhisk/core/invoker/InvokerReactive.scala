@@ -31,10 +31,12 @@ import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{UserContext, _}
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json._
 
 import scala.concurrent.duration._
@@ -65,6 +67,29 @@ object InvokerReactive extends InvokerProvider {
               controllerInstance: ControllerInstanceId,
               userId: UUID,
               acknowledegment: AcknowledegmentMessage): Future[Any]
+  }
+
+  /**
+   * Collect logs after the activation has finished.
+   *
+   * This method is called after an activation has finished. The logs gathered here are stored along the activation
+   * record in the database.
+   *
+   * @param transid transaction the activation ran in
+   * @param user the user who ran the activation
+   * @param activation the activation record
+   * @param container container used by the activation
+   * @param action action that was activated
+   * @return logs for the given activation
+   */
+  trait LogsCollector {
+    def logsToBeCollected(action: ExecutableWhiskAction): Boolean = action.limits.logs.asMegaBytes != 0.MB
+
+    def apply(transid: TransactionId,
+              user: Identity,
+              activation: WhiskActivation,
+              container: Container,
+              action: ExecutableWhiskAction): Future[ActivationLogs]
   }
 
   override def instance(
@@ -159,6 +184,8 @@ class InvokerReactive(
     new MessagingActiveAck(producer, instance, sender)
   }
 
+  private val collectLogs = new LogStoreCollector(logsProvider)
+
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, context: UserContext) => {
     implicit val transid: TransactionId = tid
@@ -169,7 +196,7 @@ class InvokerReactive(
   private val childFactory = (f: ActorRefFactory) =>
     f.actorOf(
       ContainerProxy
-        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
+        .props(containerFactory.createContainer, ack, store, collectLogs, instance, poolConfig))
 
   val prewarmingConfigs: List[PrewarmingConfig] = {
     ExecManifest.runtimesManifest.stemcells.flatMap {

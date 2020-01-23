@@ -245,7 +245,7 @@ curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/triggers/events \
 
 ### Triggers with Feed Actions
 
-There are special triggers that can be created using a feed action. The feed action it's an action that helps with the configuration of a feed provider that will be in charge of firing the trigger whenever there is an event for the trigger. Learn more about these feed providers in the [feeds.md] documentation.
+There are special triggers that can be created using a feed action. The feed action configures a feed provider such that events from the provider results in triggers being fired. Learn more about these feed providers in the [feeds.md] documentation.
 
 Some of the available triggers that leverage a feed action are periodic/alarms, Slack, Github, Cloudant/Couchdb, and messageHub/Kafka. You also can create your own feed action and feed provider.
 

@@ -39,38 +39,42 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
 import org.apache.openwhisk.core.entity.ActivationResponse
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 trait MetricRecorder {
-  def processActivation(activation: Activation, initiatorNamespace: String): Unit
+  def processActivation(activation: Activation, initiatorNamespace: String, metricConfig: MetricConfig): Unit
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
-case class EventConsumer(settings: ConsumerSettings[String, String], recorders: Seq[MetricRecorder])(
-  implicit system: ActorSystem,
-  materializer: ActorMaterializer)
+case class EventConsumer(settings: ConsumerSettings[String, String],
+                         recorders: Seq[MetricRecorder],
+                         metricConfig: MetricConfig)(implicit system: ActorSystem, materializer: ActorMaterializer)
     extends KafkaMetricsProvider {
   import EventConsumer._
 
   private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
-  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations")
-  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric")
+  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations").withoutTags()
+  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric").withoutTags()
 
   private val statusCounter = Kamon.counter("openwhisk.userevents.global.status")
-  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts")
+  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts").withoutTags()
 
-  private val statusSuccess = statusCounter.refine("status" -> ActivationResponse.statusSuccess)
-  private val statusFailure = statusCounter.refine("status" -> "failure")
-  private val statusApplicationError = statusCounter.refine("status" -> ActivationResponse.statusApplicationError)
-  private val statusDeveloperError = statusCounter.refine("status" -> ActivationResponse.statusDeveloperError)
-  private val statusInternalError = statusCounter.refine("status" -> ActivationResponse.statusWhiskError)
+  private val statusSuccess = statusCounter.withTag("status", ActivationResponse.statusSuccess)
+  private val statusFailure = statusCounter.withTag("status", "failure")
+  private val statusApplicationError = statusCounter.withTag("status", ActivationResponse.statusApplicationError)
+  private val statusDeveloperError = statusCounter.withTag("status", ActivationResponse.statusDeveloperError)
+  private val statusInternalError = statusCounter.withTag("status", ActivationResponse.statusWhiskError)
 
-  private val waitTime = Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds)
-  private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
-  private val duration = Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds)
+  private val waitTime =
+    Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val initTime =
+    Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val duration =
+    Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds).withoutTags()
 
-  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag")
+  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag").withoutTags()
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()
@@ -95,7 +99,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
     .run()
 
   private val lagRecorder =
-    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.set(consumerLag))
+    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.update(consumerLag))
 
   private def processEvent(value: String): Unit = {
     EventMessage
@@ -110,7 +114,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String], recorders: 
       .foreach { e =>
         e.body match {
           case a: Activation =>
-            recorders.foreach(_.processActivation(a, e.namespace))
+            recorders.foreach(_.processActivation(a, e.namespace, metricConfig))
             updateGlobalMetrics(a)
           case m: Metric =>
             recorders.foreach(_.processMetric(m, e.namespace))

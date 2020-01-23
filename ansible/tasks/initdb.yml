@@ -35,7 +35,7 @@
     dbName: "{{ db.whisk.auth }}"
     doc: "{{ lookup('file', '{{ item }}') }}"
   with_items:
-    - "{{ openwhisk_home }}/ansible/files/auth_index.json"
+    - "{{ openwhisk_home }}/ansible/files/auth_design_document_for_subjects_db_v2.0.0.json"
     - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
     - "{{ openwhisk_home }}/ansible/files/namespace_throttlings_design_document_for_subjects_db.json"
 

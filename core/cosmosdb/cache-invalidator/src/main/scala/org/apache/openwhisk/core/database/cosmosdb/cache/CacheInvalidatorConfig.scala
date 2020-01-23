@@ -17,34 +17,24 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import java.net.URI
-
-import com.microsoft.azure.documentdb.changefeedprocessor.{DocumentCollectionInfo => JDocumentCollectionInfo}
+import com.azure.data.cosmos.{ConnectionMode, ConsistencyLevel}
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigUtil.joinPath
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
-import scala.concurrent.duration.FiniteDuration
+case class ConnectionInfo(endpoint: String,
+                          key: String,
+                          db: String,
+                          throughput: Int,
+                          connectionMode: ConnectionMode,
+                          consistencyLevel: ConsistencyLevel)
 
-case class DocumentCollectionInfo(connectionInfo: ConnectionInfo, collectionName: String) {
-
-  def asJava: JDocumentCollectionInfo = {
-    val info = new JDocumentCollectionInfo
-    info.setUri(new URI(connectionInfo.endpoint))
-    info.setDatabaseName(connectionInfo.db)
-    info.setCollectionName(collectionName)
-    info.setMasterKey(connectionInfo.key)
-    info
-  }
-}
-
-case class ConnectionInfo(endpoint: String, key: String, db: String)
-
-case class FeedConfig(hostname: String, leaseCollection: String)
+case class FeedConfig(hostname: String, leaseCollection: String, startFromBeginning: Boolean)
 
 case class EventProducerConfig(bufferSize: Int)
 
-case class InvalidatorConfig(port: Int, feedPublishTimeout: FiniteDuration, clusterId: Option[String])
+case class InvalidatorConfig(port: Int, clusterId: Option[String])
 
 case class CacheInvalidatorConfig(globalConfig: Config) {
   val configRoot = "whisk.cache-invalidator"
@@ -56,7 +46,7 @@ case class CacheInvalidatorConfig(globalConfig: Config) {
     loadConfigOrThrow[EventProducerConfig](globalConfig.getConfig(eventConfigRoot))
   val invalidatorConfig: InvalidatorConfig = loadConfigOrThrow[InvalidatorConfig](globalConfig.getConfig(configRoot))
 
-  def getCollectionInfo(name: String): DocumentCollectionInfo = {
+  def getCollectionInfo(name: String): ConnectionInfo = {
     val config = globalConfig.getConfig(cosmosConfigRoot)
     val specificConfigPath = joinPath(connections, name)
 
@@ -67,7 +57,6 @@ case class CacheInvalidatorConfig(globalConfig: Config) {
       config
     }
 
-    val info = loadConfigOrThrow[ConnectionInfo](entityConfig)
-    DocumentCollectionInfo(info, name)
+    loadConfigOrThrow[ConnectionInfo](entityConfig)
   }
 }

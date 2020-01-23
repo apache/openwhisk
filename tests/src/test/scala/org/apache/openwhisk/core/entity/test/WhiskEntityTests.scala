@@ -32,15 +32,17 @@ import org.apache.openwhisk.core.entity.WhiskPackage
 import org.apache.openwhisk.core.entity.WhiskActivation
 import org.apache.openwhisk.core.entity.Subject
 import org.apache.openwhisk.core.entity.ActivationId
+import org.apache.openwhisk.core.entity.WhiskDocumentReader
 import java.time.Instant
 
-import spray.json.JsString
+import spray.json._
 import org.apache.openwhisk.core.entity.ActivationLogs
 import org.apache.openwhisk.core.entity.WhiskTrigger
 import org.apache.openwhisk.core.entity.ReducedRule
 import org.apache.openwhisk.core.entity.Status
 import org.apache.openwhisk.core.entity.WhiskEntity
 import org.apache.openwhisk.core.entity.WhiskRule
+import org.apache.openwhisk.core.database.DocumentTypeMismatchException
 
 @RunWith(classOf[JUnitRunner])
 class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
@@ -142,9 +144,6 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
   behavior of "WhiskEntity"
 
   it should "define the entityType property in its json representation" in {
-    def assertType(d: WhiskEntity, entityType: String) = {
-      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
-    }
 
     val action = WhiskAction(namespace, name, jsDefault("code"), Parameters())
     assertType(action, "action")
@@ -161,5 +160,68 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
     val trigger = WhiskTrigger(namespace, name)
     assertType(trigger, "trigger")
+  }
+
+  behavior of "WhiskDocumentReader"
+
+  it should "check entityType when deserialize" in {
+    def assertType(d: WhiskEntity, entityType: String) = {
+      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
+    }
+
+    val json =
+      """{
+        |	"name": "action_test",
+        |	"publish": false,
+        |	"annotations": [],
+        |	"version": "0.0.2",
+        |	"entityType": "action",
+        |	"exec": {
+        |		"kind": "nodejs:10",
+        |		"code": "foo",
+        |		"binary": false
+        |	},
+        |	"parameters": [],
+        |	"limits": {
+        |		"timeout": 60000,
+        |		"memory": 256
+        |	},
+        |	"namespace": "namespace",
+        |	"updated": 1546268400000
+        |}""".stripMargin.parseJson
+
+    val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
+    assertType(action.asInstanceOf[WhiskEntity], "action")
+    assertThrows[DocumentTypeMismatchException] {
+      WhiskDocumentReader.read(manifest[WhiskTrigger], json)
+    }
+  }
+
+  it should "deserialize without entityType" in {
+    val json =
+      """{
+        |  "name": "action_test",
+        |  "publish": false,
+        |  "annotations": [],
+        |  "version": "0.0.1",
+        |  "exec": {
+        |	   "kind": "nodejs:10",
+        |    "code": "foo",
+        |    "binary": false
+        |  },
+        |  "parameters": [],
+        |  "limits": {
+        |    "timeout": 60000,
+        |    "memory": 256
+        |  },
+        |  "namespace": "namespace",
+        |  "updated": 1546268400000
+        |}""".stripMargin.parseJson
+    val action = WhiskDocumentReader.read(manifest[WhiskAction], json)
+    assertType(action.asInstanceOf[WhiskEntity], "action")
+  }
+
+  protected def assertType(d: WhiskEntity, entityType: String) = {
+    d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
   }
 }

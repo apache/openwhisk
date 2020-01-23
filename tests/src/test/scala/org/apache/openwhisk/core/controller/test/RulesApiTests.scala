@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.controller.test
 
+import java.time.Instant
+
 import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -27,7 +29,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.core.controller.WhiskRulesApi
 import org.apache.openwhisk.core.entitlement.Collection
-import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.{WhiskRuleResponse, _}
 import org.apache.openwhisk.core.entity.test.OldWhiskTrigger
 import org.apache.openwhisk.http.ErrorResponse
 
@@ -61,6 +63,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
   val activeStatus = s"""{"status":"${Status.ACTIVE}"}""".parseJson.asJsObject
   val inactiveStatus = s"""{"status":"${Status.INACTIVE}"}""".parseJson.asJsObject
   val parametersLimit = Parameters.sizeLimit
+  val dummyInstant = Instant.now()
+
+  def checkResponse(response: WhiskRuleResponse, expected: WhiskRuleResponse) =
+    // ignore `updated` field because another test covers it
+    response should be(expected copy (updated = response.updated))
 
   //// GET /rules
   it should "list rules by default/explicit namespace" in {
@@ -164,14 +171,14 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
 
     // it should "get trigger by name in explicit namespace owned by subject" in
     Get(s"/$namespace/${collection.path}/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
 
     // it should "reject get trigger by name in explicit namespace not owned by subject" in
@@ -207,7 +214,32 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
+    }
+  }
+
+  it should "get rule with updated field" in {
+    implicit val tid = transid()
+
+    val rule = WhiskRule(
+      namespace,
+      EntityName("get_active_rule"),
+      afullname(namespace, "get_active_rule trigger"),
+      afullname(namespace, "an action"))
+    val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name, rules = Some {
+      Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+    })
+
+    put(entityStore, trigger)
+    put(entityStore, rule)
+
+    // `updated` field should be compared with a document in DB
+    val r = get(entityStore, rule.docid, WhiskRule)
+
+    Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskRuleResponse]
+      response should be(rule.withStatus(Status.ACTIVE) copy (updated = r.updated))
     }
   }
 
@@ -227,7 +259,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -264,7 +296,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -292,7 +324,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe None
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -310,7 +342,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Delete(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -329,7 +361,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -356,7 +388,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -385,7 +417,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -436,7 +468,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -468,7 +500,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
     }
   }
@@ -494,7 +526,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       val t = get(entityStore, trigger.docid, WhiskTrigger)
       deleteTrigger(t.docid)
 
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -524,7 +556,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       val t = get(entityStore, trigger.docid, WhiskTrigger)
       deleteTrigger(t.docid)
 
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -592,14 +624,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -623,14 +657,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -654,14 +690,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -685,14 +723,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe a[Some[_]]
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -713,14 +753,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -795,14 +837,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
       val response = responseAs[WhiskRuleResponse]
-      response should be(
+      checkResponse(
+        response,
         WhiskRuleResponse(
           namespace,
           rule.name,
           Status.ACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
-          version = SemVer().upPatch))
+          version = SemVer().upPatch,
+          updated = dummyInstant))
     }
   }
 
@@ -948,7 +992,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Get(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.toWhiskRule.withStatus(Status.INACTIVE))
+      checkResponse(response, rule.toWhiskRule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -972,7 +1016,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       status should be(OK)
       t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
       val response = responseAs[WhiskRuleResponse]
-      response should be(rule.withStatus(Status.ACTIVE))
+      checkResponse(response, rule.withStatus(Status.ACTIVE))
     }
   }
 

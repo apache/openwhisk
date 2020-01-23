@@ -16,7 +16,8 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
-import com.microsoft.azure.documentdb.Document
+import com.azure.data.cosmos.CosmosItemProperties
+import common.StreamLogging
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.junit.runner.RunWith
@@ -25,10 +26,9 @@ import org.scalatest.{FlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol
 
 import scala.collection.immutable.Seq
-import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
+class WhiskChangeEventObserverTests extends FlatSpec with Matchers with StreamLogging {
   import WhiskChangeEventObserver.instanceId
 
   behavior of "CosmosDB extract LSN from Session token"
@@ -48,7 +48,7 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
   behavior of "CosmosDB feed events"
 
   it should "generate cache events" in {
-    val config = InvalidatorConfig(8080, 60.seconds, None)
+    val config = InvalidatorConfig(8080, None)
     val docs = Seq(createDoc("foo"), createDoc("bar"))
     val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
@@ -58,7 +58,7 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
   }
 
   it should "filter clusterId" in {
-    val config = InvalidatorConfig(8080, 60.seconds, Some("cid1"))
+    val config = InvalidatorConfig(8080, Some("cid1"))
     val docs = Seq(createDoc("foo", Some("cid2")), createDoc("bar", Some("cid1")), createDoc("baz"))
     val processedDocs = WhiskChangeEventObserver.processDocs(docs, config)
 
@@ -68,10 +68,10 @@ class WhiskChangeEventObserverTests extends FlatSpec with Matchers {
       CacheInvalidationMessage(CacheKey("baz"), instanceId))
   }
 
-  private def createDoc(id: String, clusterId: Option[String] = None): Document = {
+  private def createDoc(id: String, clusterId: Option[String] = None): CosmosItemProperties = {
     val cdoc = CosmosDBDoc(id, clusterId)
     val json = CosmosDBDoc.seredes.write(cdoc).compactPrint
-    new Document(json)
+    new CosmosItemProperties(json)
   }
 
   case class CosmosDBDoc(id: String, _clusterId: Option[String], _lsn: Int = 42)

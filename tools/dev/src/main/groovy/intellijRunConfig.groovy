@@ -34,7 +34,7 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
     <option name="ENABLE_SWING_INSPECTOR" value="false" />
     <option name="ENV_VARIABLES" />
     <option name="PASS_PARENT_ENVS" value="true" />
-    <module name="${type}_main" />
+    <module name="openwhisk.core.${type}.main" />
     <envs>
       <% env.each { k,v -> %><env name="$k" value="$v" />
       <% } %>

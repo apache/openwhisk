@@ -26,6 +26,7 @@ import akka.actor.ActorSystem
 import common.WaitFor
 import common.WhiskProperties
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.Logging

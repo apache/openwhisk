@@ -534,7 +534,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
               }
               attachmentHandler(
                 doc,
-                Attached(getAttachmentName(name), contentType, Some(length.longValue()), Some(digest)))
+                Attached(getAttachmentName(name), contentType, Some(length.longValue), Some(digest)))
             case x =>
               throw DeserializationException("Attachment json does not have required fields" + x)
 

@@ -113,10 +113,9 @@ class ContainerPoolTests
     PreWarmedData(stub[Container], kind, memoryLimit)
 
   /** Helper to create WarmedData */
-  def warmedData(action: ExecutableWhiskAction = action,
-                 namespace: String = "invocationSpace",
-                 lastUsed: Instant = Instant.now) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
+  def warmedData(run: Run, lastUsed: Instant = Instant.now) = {
+    WarmedData(stub[Container], run.msg.user.namespace.name, run.action, lastUsed)
+  }
 
   /** Creates a sequence of containers and a factory returning this sequence. */
   def testContainers(n: Int) = {
@@ -144,7 +143,7 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
@@ -159,7 +158,7 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     pool ! runMessageDifferentVersion
     containers(0).expectMsg(runMessageDifferentVersion)
@@ -188,7 +187,7 @@ class ContainerPoolTests
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentEverything
     containers(0).expectMsg(Remove)
@@ -207,9 +206,10 @@ class ContainerPoolTests
     pool ! runMessageDifferentAction // 2 * stdMemory taken -> full
     containers(1).expectMsg(runMessageDifferentAction)
 
-    containers(0).send(pool, NeedWork(warmedData())) // first action finished -> 1 * stdMemory taken
+    containers(0).send(pool, NeedWork(warmedData(runMessage))) // first action finished -> 1 * stdMemory taken
     feed.expectMsg(MessageFeed.Processed)
-    containers(1).send(pool, NeedWork(warmedData())) // second action finished -> 1 * stdMemory taken
+    containers(1)
+      .send(pool, NeedWork(warmedData(runMessageDifferentAction))) // second action finished -> 1 * stdMemory taken
     feed.expectMsg(MessageFeed.Processed)
 
     pool ! runMessageLarge // need to remove both action to make space for the large action (needs 2 * stdMemory)
@@ -228,13 +228,13 @@ class ContainerPoolTests
     // Run the first container
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData(lastUsed = Instant.EPOCH)))
+    containers(0).send(pool, NeedWork(warmedData(runMessage, lastUsed = Instant.EPOCH)))
     feed.expectMsg(MessageFeed.Processed)
 
     // Run the second container, don't remove the first one
     pool ! runMessageDifferentEverything
     containers(1).expectMsg(runMessageDifferentEverything)
-    containers(1).send(pool, NeedWork(warmedData(lastUsed = Instant.now)))
+    containers(1).send(pool, NeedWork(warmedData(runMessageDifferentEverything, lastUsed = Instant.now)))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentNamespace
     containers(2).expectMsg(runMessageDifferentNamespace)
@@ -252,7 +252,7 @@ class ContainerPoolTests
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
     feed.expectMsg(MessageFeed.Processed)
     pool ! runMessageDifferentNamespace
     containers(0).expectMsg(Remove)
@@ -288,7 +288,7 @@ class ContainerPoolTests
     containers(1).expectNoMessage(100.milliseconds)
 
     // First action is finished
-    containers(0).send(pool, NeedWork(warmedData())) // pool is empty again.
+    containers(0).send(pool, NeedWork(warmedData(runMessage))) // pool is empty again.
     feed.expectMsg(MessageFeed.Processed)
 
     // Second action should run now
@@ -297,7 +297,7 @@ class ContainerPoolTests
       case Run(runMessageLarge.action, runMessageLarge.msg, Some(_)) => true
     }
 
-    containers(1).send(pool, NeedWork(warmedData()))
+    containers(1).send(pool, NeedWork(warmedData(runMessageLarge)))
     feed.expectMsg(MessageFeed.Processed)
   }
 
@@ -380,12 +380,12 @@ class ContainerPoolTests
     // container0 is created and used
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     // container0 is reused
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(0).send(pool, NeedWork(warmedData()))
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     // container0 is deleted
     containers(0).send(pool, ContainerRemoved)
@@ -409,6 +409,7 @@ class ContainerPoolTests
 
     // Send action that blocks the pool
     pool ! runMessageLarge
+    // Action 0 starts -> 0MB free
     containers(0).expectMsg(runMessageLarge)
 
     // Send action that should be written to the queue and retried in invoker
@@ -420,26 +421,37 @@ class ContainerPoolTests
     containers(2).expectNoMessage(100.milliseconds)
 
     // Action with 512 MB is finished
-    containers(0).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
-
-    // Action 1 should start immediately
-    containers(0).expectMsgPF() {
+    // Action 0 completes -> 512MB free
+    containers(0).send(pool, NeedWork(warmedData(runMessageLarge)))
+    // Action 1 should start immediately -> 256MB free
+    containers(1).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
       case Run(runMessage.action, runMessage.msg, Some(_)) => true
     }
-    // Action 2 should start immediately as well (without any retries, as there is already enough space in the pool)
-    containers(1).expectMsg(runMessageDifferentAction)
+    // Action 2 should start immediately as well -> 0MB free (without any retries, as there is already enough space in the pool)
+    containers(2).expectMsg(runMessageDifferentAction)
+
+    // When buffer is emptied, process next feed message
+    feed.expectMsg(MessageFeed.Processed)
+
+    // Action 1 completes, process feed
+    containers(1).send(pool, NeedWork(warmedData(runMessage)))
+    feed.expectMsg(MessageFeed.Processed)
+
+    // Action 2 completes, process feed
+    containers(2).send(pool, NeedWork(warmedData(runMessageDifferentAction)))
+    feed.expectMsg(MessageFeed.Processed)
+
   }
 
   it should "process activations in the order they are arriving" in within(timeout) {
-    val (containers, factory) = testContainers(4)
+    val (containers, factory) = testContainers(6)
     val feed = TestProbe()
 
     // Pool with 512 MB usermemory
     val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 2), feed.ref))
 
-    // Send 4 actions to the ContainerPool (Action 0, Action 2 and Action 3 with each 265 MB and Action 1 with 512 MB)
+    // Send 4 actions to the ContainerPool (Action 0, Action 2 and Action 3 with each 256 MB and Action 1 with 512 MB)
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     pool ! runMessageLarge
@@ -449,43 +461,209 @@ class ContainerPoolTests
     pool ! runMessageDifferentAction
     containers(3).expectNoMessage(100.milliseconds)
 
-    // Action 0 ist finished -> Large action should be executed now
-    containers(0).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
+    // Action 0 is finished -> 512 free; Large action should be executed now (2 more in queue)
+    containers(0).send(pool, NeedWork(warmedData(runMessage)))
+    // Buffer still has 2, so feed will not be used
+    feed.expectNoMessage(100.milliseconds)
     containers(1).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
       case Run(runMessageLarge.action, runMessageLarge.msg, Some(_)) => true
     }
 
-    // Send another action to the container pool, that would fit memory-wise
+    // Send another action to the container pool, that would fit memory-wise (3 in queue)
     pool ! runMessageDifferentEverything
     containers(4).expectNoMessage(100.milliseconds)
 
-    // Action 1 is finished -> Action 2 and Action 3 should be executed now
-    containers(1).send(pool, NeedWork(warmedData()))
-    feed.expectMsg(MessageFeed.Processed)
-    containers(2).expectMsgPF() {
-      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
-      case Run(runMessageDifferentNamespace.action, runMessageDifferentNamespace.msg, Some(_)) => true
-    }
+    // Action 1 is finished -> 512 free; Action 2 and Action 3 should be executed now (1 more in queue)
+    containers(1).send(pool, NeedWork(warmedData(runMessageLarge)))
+    // Buffer still has 1, so feed will not be used
+    feed.expectNoMessage(100.milliseconds)
+
+    containers(2).expectMsg(runMessageDifferentNamespace)
     // Assert retryLogline = false to check if this request has been stored in the queue instead of retrying in the system
     containers(3).expectMsg(runMessageDifferentAction)
 
-    // Action 3 is finished -> Action 4 should start
-    containers(3).send(pool, NeedWork(warmedData()))
+    // Action 3 is finished -> 256 free; Action 4 should start (0 in queue)
+    containers(3).send(pool, NeedWork(warmedData(runMessageDifferentAction)))
+    // Buffer is empty, so go back to processing feed
     feed.expectMsg(MessageFeed.Processed)
-    containers(4).expectMsgPF() {
+    // Run the 5th message from the buffer
+    containers(4).expectMsg(runMessageDifferentEverything)
+
+    // Action 2 is finished -> 256 free
+    containers(2).send(pool, NeedWork(warmedData(runMessageDifferentNamespace)))
+    feed.expectMsg(MessageFeed.Processed)
+
+    pool ! runMessage
+    // Back to buffering
+    pool ! runMessageDifferentVersion
+    containers(5).expectMsg(runMessage)
+    // Action 6 won't start because it is buffered, waiting for Action 4 to complete
+    containers(6).expectNoMessage(100.milliseconds)
+
+    // Action 4 is finished -> 256 free
+    containers(4).send(pool, NeedWork(warmedData(runMessageDifferentEverything)))
+
+    // Run the 6th message from the buffer
+    containers(6).expectMsgPF() {
       // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
-      case Run(runMessageDifferentEverything.action, runMessageDifferentEverything.msg, Some(_)) => true
+      case Run(runMessageDifferentVersion.action, runMessageDifferentVersion.msg, Some(_)) => true
     }
 
-    // Action 2 and 4 are finished
-    containers(2).send(pool, NeedWork(warmedData()))
+    // When buffer is emptied, process next feed message
     feed.expectMsg(MessageFeed.Processed)
-    containers(4).send(pool, NeedWork(warmedData()))
+
+    // Action 5 is finished -> 256 free, process feed
+    containers(5).send(pool, NeedWork(warmedData(runMessage)))
+    feed.expectMsg(MessageFeed.Processed)
+
+    // Action 6 is finished -> 512 free, process feed
+    containers(6).send(pool, NeedWork(warmedData(runMessageDifferentVersion)))
     feed.expectMsg(MessageFeed.Processed)
   }
 
+  it should "process runbuffer instead of requesting new messages" in {
+
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref))
+
+    val run1 = createRunMessage(action, invocationNamespace)
+    val run2 = createRunMessage(action, invocationNamespace)
+    val run3 = createRunMessage(action, invocationNamespace)
+
+    pool ! run1
+    pool ! run2 //will be buffered since the pool can only fit 1
+    pool ! run3 //will be buffered since the pool can only fit 1
+
+    //start first run
+    containers(0).expectMsg(run1)
+
+    //cannot launch more containers, so make sure additional containers are not created
+    containers(1).expectNoMessage(100.milliseconds)
+
+    //complete processing of first run
+    containers(0).send(pool, NeedWork(warmedData(run1)))
+
+    //don't feed till runBuffer is emptied
+    feed.expectNoMessage(100.milliseconds)
+
+    //start second run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run2.action, run2.msg, Some(_)) => true
+    }
+
+    //complete processing of second run
+    containers(0).send(pool, NeedWork(warmedData(run2)))
+
+    //feed as part of last buffer item processing
+    feed.expectMsg(MessageFeed.Processed)
+
+    //start third run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run3.action, run3.msg, None) => true
+    }
+
+    //complete processing of third run
+    containers(0).send(pool, NeedWork(warmedData(run3)))
+
+    //now we expect feed to send a new message (1 per completion = 2 new messages)
+    feed.expectMsg(MessageFeed.Processed)
+
+    //make sure only one though
+    feed.expectNoMessage(100.milliseconds)
+  }
+
+  it should "process runbuffer when container is removed" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val run1 = createRunMessage(action, invocationNamespace)
+    val run2 = createRunMessage(action, invocationNamespace)
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref))
+
+    //these will get buffered since allowLaunch is false
+    pool ! run1
+    pool ! run2
+
+    //start first run
+    containers(0).expectMsg(run1)
+
+    //trigger removal of the container ref, but don't start processing
+    containers(0).send(pool, RescheduleJob)
+
+    //trigger buffer processing by ContainerRemoved message
+    pool ! ContainerRemoved
+
+    //start second run
+    containers(1).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run2.action, run2.msg, Some(_)) => true
+    }
+  }
+
+  it should "process runbuffered items only once" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool = system.actorOf(ContainerPool.props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref))
+
+    val run1 = createRunMessage(action, invocationNamespace)
+    val run2 = createRunMessage(action, invocationNamespace)
+    val run3 = createRunMessage(action, invocationNamespace)
+
+    pool ! run1
+    pool ! run2 //will be buffered since the pool can only fit 1
+    pool ! run3 //will be buffered since the pool can only fit 1
+
+    //start first run
+    containers(0).expectMsg(run1)
+
+    //cannot launch more containers, so make sure additional containers are not created
+    containers(1).expectNoMessage(100.milliseconds)
+
+    //ContainerRemoved triggers buffer processing - if we don't prevent duplicates, this will cause the buffer head to be resent!
+    pool ! ContainerRemoved
+    pool ! ContainerRemoved
+    pool ! ContainerRemoved
+
+    //complete processing of first run
+    containers(0).send(pool, NeedWork(warmedData(run1)))
+
+    //don't feed till runBuffer is emptied
+    feed.expectNoMessage(100.milliseconds)
+
+    //start second run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run2.action, run2.msg, Some(_)) => true
+    }
+
+    //complete processing of second run
+    containers(0).send(pool, NeedWork(warmedData(run2)))
+
+    //feed as part of last buffer item processing
+    feed.expectMsg(MessageFeed.Processed)
+
+    //start third run
+    containers(0).expectMsgPF() {
+      // The `Some` assures, that it has been retried while the first action was still blocking the invoker.
+      case Run(run3.action, run3.msg, None) => true
+    }
+
+    //complete processing of third run
+    containers(0).send(pool, NeedWork(warmedData(run3)))
+
+    //now we expect feed to send a new message (1 per completion = 2 new messages)
+    feed.expectMsg(MessageFeed.Processed)
+
+    //make sure only one though
+    feed.expectNoMessage(100.milliseconds)
+  }
   it should "increase activation counts when scheduling to containers whose actions support concurrency" in {
     assume(concurrencyEnabled)
     val (containers, factory) = testContainers(2)
@@ -557,7 +735,7 @@ class ContainerPoolTests
     pool ! runMessageConcurrent
     containers(1).expectMsg(runMessageConcurrent)
 
-    containers(0).send(pool, NeedWork(warmedData(action = concurrentAction)))
+    containers(0).send(pool, NeedWork(warmedData(runMessageConcurrent)))
 
     // container0 is reused (since active count decreased)
     pool ! runMessageConcurrent

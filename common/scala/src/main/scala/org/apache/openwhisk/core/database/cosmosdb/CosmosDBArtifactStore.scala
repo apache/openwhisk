@@ -397,7 +397,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .queryDocuments(collection.getSelfLink, querySpec, newFeedOptions())
       .head()
       .map { r =>
-        val count = r.getResults.asScala.head.getLong(aggregate).longValue()
+        val count = r.getResults.asScala.head.getLong(aggregate).longValue
         transid.finished(this, start, s"[COUNT] '$collName' completed: count $count")
         collectMetrics(countToken, r.getRequestCharge)
         if (count > skip) count - skip else 0L
@@ -464,9 +464,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def recordResourceUsage() = {
     getResourceUsage().map { o =>
       o.foreach { u =>
-        u.documentsCount.foreach(documentCountToken.gauge.set(_))
-        u.documentsSize.foreach(ds => documentsSizeToken.gauge.set(ds.toKB))
-        u.indexSize.foreach(is => indexSizeToken.gauge.set(is.toKB))
+        u.documentsCount.foreach(documentCountToken.gauge.update(_))
+        u.documentsSize.foreach(ds => documentsSizeToken.gauge.update(ds.toKB))
+        u.indexSize.foreach(is => indexSizeToken.gauge.update(is.toKB))
         logging.info(this, s"Collection usage stats for [$collName] are ${u.asString}")
         u.indexingProgress.foreach { i =>
           if (i < 100) logging.info(this, s"Indexing for collection [$collName] is at $i%")

@@ -30,6 +30,7 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.core.entity.size._
 
 import scala.concurrent.Future
@@ -67,7 +68,7 @@ class LeanBalancer(config: WhiskConfig,
   }
 
   /** Creates an invoker for executing user actions. There is only one invoker in the lean model. */
-  private def makeALocalThreadedInvoker() {
+  private def makeALocalThreadedInvoker(): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
     SpiLoader.get[InvokerProvider].instance(config, invokerName, messageProducer, poolConfig, limitConfig)

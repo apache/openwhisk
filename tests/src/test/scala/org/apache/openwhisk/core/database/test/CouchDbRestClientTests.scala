@@ -37,6 +37,7 @@ import akka.util.ByteString
 import common.StreamLogging
 import common.WskActorSystem
 import pureconfig._
+import pureconfig.generic.auto._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.ConfigKeys

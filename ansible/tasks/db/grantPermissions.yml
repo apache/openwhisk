@@ -58,7 +58,7 @@
     force_basic_auth: yes
   when: db.provider == 'CouchDB'
 
-# https://console.bluemix.net/docs/services/Cloudant/api/authorization.html#authorization
+# https://cloud.ibm.com/docs/services/Cloudant/api/authorization.html#authorization
 - name: grant permissions for Cloudant
   uri:
     url: "{{ db.protocol }}://{{ dbHost }}:{{ db.port }}/{{ dbName }}/_security"

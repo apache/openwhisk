@@ -37,6 +37,7 @@ import org.apache.openwhisk.core.entity.WhiskRule
 import org.apache.openwhisk.core.entity.WhiskTrigger
 import org.apache.openwhisk.core.entity.types.EntityStore
 import pureconfig._
+import pureconfig.generic.auto._
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject

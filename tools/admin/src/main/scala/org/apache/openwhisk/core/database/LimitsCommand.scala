@@ -19,26 +19,18 @@ package org.apache.openwhisk.core.database
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import org.rogach.scallop.{ScallopConfBase, Subcommand}
-import spray.json.{JsObject, JsString, JsValue, RootJsonFormat}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
 import org.apache.openwhisk.core.database.LimitsCommand.LimitEntity
 import org.apache.openwhisk.core.entity.types.AuthStore
-import org.apache.openwhisk.core.entity.{
-  DocId,
-  DocInfo,
-  DocRevision,
-  EntityName,
-  Subject,
-  UserLimits,
-  WhiskAuth,
-  WhiskDocumentReader
-}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
+import org.rogach.scallop.{ScallopConfBase, Subcommand}
+import spray.json.{JsObject, JsString, JsValue, RootJsonFormat}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.reflectiveCalls
 import scala.reflect.classTag
 import scala.util.{Properties, Try}
 

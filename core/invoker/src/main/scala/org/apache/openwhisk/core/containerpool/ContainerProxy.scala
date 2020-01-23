@@ -23,7 +23,8 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.pattern.pipe
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
@@ -41,7 +42,7 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
+import org.apache.openwhisk.core.invoker.InvokerReactive.{ActiveAck, LogsCollector}
 import org.apache.openwhisk.http.Messages
 
 import scala.concurrent.Future
@@ -221,27 +222,28 @@ case object RunCompleted
  * @param unusedTimeout time after which the container is automatically thrown away
  * @param pauseGrace time to wait for new work before pausing the container
  */
-class ContainerProxy(
-  factory: (TransactionId,
-            String,
-            ImageName,
-            Boolean,
-            ByteSize,
-            Int,
-            Option[ExecutableWhiskAction]) => Future[Container],
-  sendActiveAck: ActiveAck,
-  storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-  collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-  instance: InvokerInstanceId,
-  poolConfig: ContainerPoolConfig,
-  unusedTimeout: FiniteDuration,
-  pauseGrace: FiniteDuration)
+class ContainerProxy(factory: (TransactionId,
+                               String,
+                               ImageName,
+                               Boolean,
+                               ByteSize,
+                               Int,
+                               Option[ExecutableWhiskAction]) => Future[Container],
+                     sendActiveAck: ActiveAck,
+                     storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+                     collectLogs: LogsCollector,
+                     instance: InvokerInstanceId,
+                     poolConfig: ContainerPoolConfig,
+                     unusedTimeout: FiniteDuration,
+                     pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
+  //track buffer processing state to avoid extra transitions near end of buffer - this provides a pseudo-state between Running and Ready
+  var bufferProcessing = false
 
   //keep a separate count to avoid confusion with ContainerState.activeActivationCount that is tracked/modified only in ContainerPool
   var activeCount = 0;
@@ -352,8 +354,23 @@ class ContainerProxy(
     // and we keep it in case we need to destroy it.
     case Event(completed: PreWarmCompleted, _) => stay using completed.data
 
+    // Run during prewarm init (for concurrent > 1)
+    case Event(job: Run, data: PreWarmedData) =>
+      implicit val transid = job.msg.transid
+      logging.info(this, s"buffering for warming container ${data.container}; ${activeCount} activations in flight")
+      runBuffer = runBuffer.enqueue(job)
+      stay()
+
+    // Run during cold init (for concurrent > 1)
+    case Event(job: Run, _: NoData) =>
+      implicit val transid = job.msg.transid
+      logging.info(this, s"buffering for cold warming container ${activeCount} activations in flight")
+      runBuffer = runBuffer.enqueue(job)
+      stay()
+
     // Init was successful
     case Event(completed: InitCompleted, _: PreWarmedData) =>
+      processBuffer(completed.data.action, completed.data)
       stay using completed.data
 
     // Init was successful
@@ -374,14 +391,15 @@ class ContainerProxy(
       }
     case Event(job: Run, data: WarmedData)
         if activeCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
-      logging.warn(this, s"buffering for container ${data.container}; ${activeCount} activations in flight")
+      implicit val transid = job.msg.transid
+      logging.warn(this, s"buffering for maxed warm container ${data.container}; ${activeCount} activations in flight")
       runBuffer = runBuffer.enqueue(job)
       stay()
     case Event(job: Run, data: WarmedData)
         if activeCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
       activeCount += 1
       implicit val transid = job.msg.transid
-
+      bufferProcessing = false //reset buffer processing state
       initializeAndRun(data.container, job)
         .map(_ => RunCompleted)
         .pipeTo(self)
@@ -480,19 +498,40 @@ class ContainerProxy(
 
   /** Either process runbuffer or signal parent to send work; return true if runbuffer is being processed */
   def requestWork(newData: WarmedData): Boolean = {
-    //if there is concurrency capacity, process runbuffer, or signal NeedWork
+    //if there is concurrency capacity, process runbuffer, signal NeedWork, or both
     if (activeCount < newData.action.limits.concurrency.maxConcurrent) {
-      runBuffer.dequeueOption match {
-        case Some((run, q)) =>
-          runBuffer = q
-          self ! run
-          true
-        case _ =>
+      if (runBuffer.nonEmpty) {
+        //only request work once, if available larger than runbuffer
+        val available = newData.action.limits.concurrency.maxConcurrent - activeCount
+        val needWork: Boolean = available > runBuffer.size
+        processBuffer(newData.action, newData)
+        if (needWork) {
+          //after buffer processing, then send NeedWork
           context.parent ! NeedWork(newData)
-          false
+        }
+        true
+      } else {
+        context.parent ! NeedWork(newData)
+        bufferProcessing //true in case buffer is still in process
       }
     } else {
       false
+    }
+  }
+
+  /** Process buffered items up to the capacity of action concurrency config */
+  def processBuffer(action: ExecutableWhiskAction, newData: ContainerData) = {
+    //send as many buffered as possible
+    val available = action.limits.concurrency.maxConcurrent - activeCount
+    logging.info(this, s"resending up to ${available} from ${runBuffer.length} buffered jobs")
+    1 to available foreach { _ =>
+      runBuffer.dequeueOption match {
+        case Some((run, q)) =>
+          self ! run
+          bufferProcessing = true
+          runBuffer = q
+        case _ =>
+      }
     }
   }
 
@@ -551,7 +590,7 @@ class ContainerProxy(
    * 4. recording the result to the data store
    *
    * @param container the container to run the job on
-   * @param job the job to run
+   * @param job       the job to run
    * @return a future completing after logs have been collected and
    *         added to the WhiskActivation
    */
@@ -559,13 +598,35 @@ class ContainerProxy(
     val actionTimeout = job.action.limits.timeout.duration
     val (env, parameters) = ContainerProxy.partitionArguments(job.msg.content, job.msg.initArgs)
 
+    val environment = Map(
+      "namespace" -> job.msg.user.namespace.name.toJson,
+      "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
+      "action_version" -> job.msg.action.version.toJson,
+      "activation_id" -> job.msg.activationId.toString.toJson,
+      "transaction_id" -> job.msg.transid.id.toJson)
+
+    // if the action requests the api key to be injected into the action context, add it here;
+    // treat a missing annotation as requesting the api key for backward compatibility
+    val authEnvironment = {
+      if (job.action.annotations.isTruthy(Annotations.ProvideApiKeyAnnotationName, valueForNonExistent = true)) {
+        job.msg.user.authkey.toEnvironment.fields
+      } else Map.empty
+    }
+
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
       case data: WarmedData =>
         Future.successful(None)
       case _ =>
+        val owEnv = (authEnvironment ++ environment + ("deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)) map {
+          case (key, value) => "__OW_" + key.toUpperCase -> value
+        }
+
         container
-          .initialize(job.action.containerInitializer(env), actionTimeout, job.action.limits.concurrency.maxConcurrent)
+          .initialize(
+            job.action.containerInitializer(env ++ owEnv),
+            actionTimeout,
+            job.action.limits.concurrency.maxConcurrent)
           .map(Some(_))
     }
 
@@ -576,29 +637,14 @@ class ContainerProxy(
           self ! InitCompleted(WarmedData(container, job.msg.user.namespace.name, job.action, Instant.now, 1))
         }
 
-        // if the action requests the api key to be injected into the action context, add it here;
-        // treat a missing annotation as requesting the api key for backward compatibility
-        val authEnvironment = {
-          if (job.action.annotations.isTruthy(Annotations.ProvideApiKeyAnnotationName, valueForNonExistent = true)) {
-            job.msg.user.authkey.toEnvironment
-          } else JsObject.empty
-        }
-
-        val environment = JsObject(
-          "namespace" -> job.msg.user.namespace.name.toJson,
-          "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
-          "activation_id" -> job.msg.activationId.toString.toJson,
-          "transaction_id" -> job.msg.transid.id.toJson,
+        val env = authEnvironment ++ environment ++ Map(
           // compute deadline on invoker side avoids discrepancies inside container
           // but potentially under-estimates actual deadline
           "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
 
         container
-          .run(
-            parameters,
-            JsObject(authEnvironment.fields ++ environment.fields),
-            actionTimeout,
-            job.action.limits.concurrency.maxConcurrent)(job.msg.transid)
+          .run(parameters, env.toJson.asJsObject, actionTimeout, job.action.limits.concurrency.maxConcurrent)(
+            job.msg.transid)
           .map {
             case (runInterval, response) =>
               val initRunInterval = initInterval
@@ -631,23 +677,26 @@ class ContainerProxy(
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
+    val splitAckMessagesPendingLogCollection = collectLogs.logsToBeCollected(job.action)
     // Sending an active ack is an asynchronous operation. The result is forwarded as soon as
     // possible for blocking activations so that dependent activations can be scheduled. The
     // completion message which frees a load balancer slot is sent after the active ack future
     // completes to ensure proper ordering.
     val sendResult = if (job.msg.blocking) {
       activation.map { result =>
-        sendActiveAck(
-          tid,
-          result,
-          job.msg.blocking,
-          job.msg.rootControllerIndex,
-          job.msg.user.namespace.uuid,
-          ResultMessage(tid, result))
+        val msg =
+          if (splitAckMessagesPendingLogCollection) ResultMessage(tid, result)
+          else CombinedCompletionAndResultMessage(tid, result, instance)
+        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
       }
     } else {
       // For non-blocking request, do not forward the result.
-      Future.successful(())
+      if (splitAckMessagesPendingLogCollection) Future.successful(())
+      else
+        activation.map { result =>
+          val msg = CompletionMessage(tid, result, instance)
+          sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+        }
     }
 
     val context = UserContext(job.msg.user)
@@ -656,7 +705,7 @@ class ContainerProxy(
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
         // Skips log collection entirely, if the limit is set to 0
-        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+        if (!splitAckMessagesPendingLogCollection) {
           Future.successful(Right(activation))
         } else {
           val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
@@ -680,15 +729,17 @@ class ContainerProxy(
       .foreach { activation =>
         // Sending the completion message to the controller after the active ack ensures proper ordering
         // (result is received before the completion message for blocking invokes).
-        sendResult.onComplete(
-          _ =>
-            sendActiveAck(
-              tid,
-              activation,
-              job.msg.blocking,
-              job.msg.rootControllerIndex,
-              job.msg.user.namespace.uuid,
-              CompletionMessage(tid, activation, instance)))
+        if (splitAckMessagesPendingLogCollection) {
+          sendResult.onComplete(
+            _ =>
+              sendActiveAck(
+                tid,
+                activation,
+                job.msg.blocking,
+                job.msg.rootControllerIndex,
+                job.msg.user.namespace.uuid,
+                CompletionMessage(tid, activation, instance)))
+        }
         // Storing the record. Entirely asynchronous and not waited upon.
         storeActivation(tid, activation, context)
       }
@@ -706,21 +757,20 @@ class ContainerProxy(
 final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
 
 object ContainerProxy {
-  def props(
-    factory: (TransactionId,
-              String,
-              ImageName,
-              Boolean,
-              ByteSize,
-              Int,
-              Option[ExecutableWhiskAction]) => Future[Container],
-    ack: ActiveAck,
-    store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
-    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-    instance: InvokerInstanceId,
-    poolConfig: ContainerPoolConfig,
-    unusedTimeout: FiniteDuration = timeouts.idleContainer,
-    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+  def props(factory: (TransactionId,
+                      String,
+                      ImageName,
+                      Boolean,
+                      ByteSize,
+                      Int,
+                      Option[ExecutableWhiskAction]) => Future[Container],
+            ack: ActiveAck,
+            store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+            collectLogs: LogsCollector,
+            instance: InvokerInstanceId,
+            poolConfig: ContainerPoolConfig,
+            unusedTimeout: FiniteDuration = timeouts.idleContainer,
+            pauseGrace: FiniteDuration = timeouts.pauseGrace) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.

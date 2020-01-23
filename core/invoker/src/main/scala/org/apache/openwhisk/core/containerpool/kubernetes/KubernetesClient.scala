@@ -40,7 +40,8 @@ import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -57,11 +58,6 @@ import scala.util.{Failure, Success, Try}
 case class KubernetesClientTimeoutConfig(run: Duration, logs: Duration)
 
 /**
- * Configuration for kubernetes invoker-agent
- */
-case class KubernetesInvokerAgentConfig(enabled: Boolean, port: Int)
-
-/**
  * Configuration for node affinity for the pods that execute user action containers
  * The key,value pair should match the <key,value> pair with which the invoker worker nodes
  * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
@@ -73,9 +69,9 @@ case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: S
  * General configuration for kubernetes client
  */
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
-                                  invokerAgent: KubernetesInvokerAgentConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
+                                  actionNamespace: Option[String] = None,
                                   podTemplate: Option[ConfigMapValue] = None)
 
 /**
@@ -93,11 +89,13 @@ class KubernetesClient(
     with ProcessRunner {
   implicit protected val ec = executionContext
   implicit protected val am = ActorMaterializer()
-  implicit protected val kubeRestClient = new DefaultKubernetesClient(
-    new ConfigBuilder()
+  implicit protected val kubeRestClient = {
+    val configBuilder = new ConfigBuilder()
       .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
-      .build())
+    config.actionNamespace.foreach(configBuilder.withNamespace)
+    new DefaultKubernetesClient(configBuilder.build())
+  }
 
   private val podBuilder = new WhiskPodBuilder(kubeRestClient, config.userPodNodeAffinity, config.podTemplate)
 

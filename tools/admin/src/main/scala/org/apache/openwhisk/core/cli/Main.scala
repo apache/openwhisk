@@ -73,7 +73,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 object Main {
   val printedName = "wskadmin"
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     //Parse conf before instantiating actorSystem to ensure fast pre check of config
     val conf = new Conf(args)
     initLogging(conf)

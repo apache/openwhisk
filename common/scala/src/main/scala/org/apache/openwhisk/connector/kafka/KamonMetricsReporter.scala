@@ -22,15 +22,18 @@ import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import kamon.Kamon
 import kamon.metric.{Counter, Gauge, Metric}
+import kamon.tag.TagSet
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.metrics.stats.Total
 import org.apache.kafka.common.metrics.{KafkaMetric, MetricsReporter}
 import org.apache.openwhisk.core.ConfigKeys
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
+import scala.collection.JavaConverters._
 
 class KamonMetricsReporter extends MetricsReporter {
   import KamonMetricsReporter._
@@ -59,14 +62,14 @@ class KamonMetricsReporter extends MetricsReporter {
   private def add(metric: KafkaMetric): Unit = {
     val mn = metric.metricName()
     if (metricConfig.names.contains(mn.name()) && shouldIncludeMetric(mn)) {
-      val tags = mn.tags()
+      val tags = kafkaTagsToTagSet(mn.tags())
       val metricName = kamonName(mn)
       val bridge = if (isCounterMetric(metric)) {
         val counter = Kamon.counter(metricName)
-        new CounterBridge(metric, counter, counter.refine(tags))
+        new CounterBridge(metric, counter, counter.withTags(tags))
       } else {
         val gauge = Kamon.gauge(metricName)
-        new GaugeBridge(metric, gauge, gauge.refine(tags))
+        new GaugeBridge(metric, gauge, gauge.withTags(tags))
       }
       metrics.putIfAbsent(mn, bridge)
     }
@@ -83,8 +86,8 @@ object KamonMetricsReporter {
 
   case class KafkaMetricConfig(names: Set[String], reportInterval: FiniteDuration)
 
-  abstract class MetricBridge(val kafkaMetric: KafkaMetric, kamonMetric: Metric[_]) {
-    def remove(): Unit = kamonMetric.remove(kafkaMetric.metricName().tags())
+  abstract class MetricBridge(val kafkaMetric: KafkaMetric, kamonMetric: Metric[_, _]) {
+    def remove(): Unit = kamonMetric.remove(kafkaTagsToTagSet(kafkaMetric.metricName().tags()))
     def update(): Unit
 
     def metricValue: Long =
@@ -96,12 +99,12 @@ object KamonMetricsReporter {
         .getOrElse(0L)
   }
 
-  class GaugeBridge(kafkaMetric: KafkaMetric, kamonMetric: Metric[_], gauge: Gauge)
+  class GaugeBridge(kafkaMetric: KafkaMetric, kamonMetric: Metric.Gauge, gauge: Gauge)
       extends MetricBridge(kafkaMetric, kamonMetric) {
-    override def update(): Unit = gauge.set(metricValue)
+    override def update(): Unit = gauge.update(metricValue)
   }
 
-  class CounterBridge(kafkaMetric: KafkaMetric, kamonMetric: Metric[_], counter: Counter)
+  class CounterBridge(kafkaMetric: KafkaMetric, kamonMetric: Metric.Counter, counter: Counter)
       extends MetricBridge(kafkaMetric, kamonMetric) {
     @volatile
     private var lastValue: Long = 0
@@ -130,4 +133,9 @@ object KamonMetricsReporter {
     if (excludedTopicAttributes.contains(m.name())) !m.tags().containsKey("topic")
     else true
   }
+
+  private def kafkaTagsToTagSet(kafkaTags: util.Map[String, String]): TagSet =
+    kafkaTags.asScala.foldLeft(TagSet.Empty) {
+      case (set, (k, v)) => set.withTag(k, v)
+    }
 }
