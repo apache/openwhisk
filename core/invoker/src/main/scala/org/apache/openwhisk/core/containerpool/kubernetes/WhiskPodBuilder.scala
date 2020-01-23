@@ -83,15 +83,31 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       specBuilder.editMatchingContainer(actionContainerPredicate)
     } else specBuilder.addNewContainer()
 
+    //for now calculate cpu from memory, 100m per 256Mi, min is 100m(.1cpu), max is 10000 (10cpu)
+    val cpu = calculateCpu(memory)
+
+    // max((totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt, 2) // The minimum allowed cpu-shares is 2
+
     //In container its assumed that env, port, resource limits are set explicitly
     //Here if any value exist in template then that would be overridden
     containerBuilder
       .withNewResources()
-      .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
+      //explicitly set requests and limits to same values
+      .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi"), "cpu" -> new Quantity(cpu + "m")).asJava)
+      .withRequests(Map("memory" -> new Quantity(memory.toMB + "Mi"), "cpu" -> new Quantity(cpu + "m")).asJava)
       .endResources()
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars.asJava)
+      .addNewEnv()
+      .withName("POD_UID")
+      .withNewValueFrom()
+      .withNewFieldRef()
+      .withApiVersion("v1")
+      .withFieldPath("metadata.uid")
+      .endFieldRef()
+      .endValueFrom()
+      .endEnv()
       .addNewPort()
       .withContainerPort(8080)
       .withName("action")
@@ -110,6 +126,13 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .endSpec()
       .build()
     pod
+  }
+
+  def calculateCpu(memory: ByteSize): Int = {
+    val cpuPer256 = 100
+    val cpuMin = 100
+    val cpuMax = 8000
+    math.min(math.max((memory.toMB / 256) * cpuPer256, cpuMin), cpuMax).toInt
   }
 
   private def loadPodSpec(bytes: Array[Byte]): Pod = {

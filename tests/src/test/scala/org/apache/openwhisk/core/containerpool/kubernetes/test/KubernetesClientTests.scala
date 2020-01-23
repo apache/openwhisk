@@ -210,7 +210,7 @@ object KubernetesClientTests {
       Future.successful(())
     }
 
-    override def rm(podName: String): Future[Unit] = {
+    override def rm(podName: String)(implicit transid: TransactionId): Future[Unit] = {
       rms += ContainerId(podName)
       Future.successful(())
     }
