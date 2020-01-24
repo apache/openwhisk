@@ -49,13 +49,13 @@ case class ParameterStorageConfig(key: String = "") {
 object ParameterEncryption {
   private val storageConfigLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
   var storageConfig = storageConfigLoader.getOrElse(ParameterStorageConfig.apply())
-  private def enc = storageConfig.getKeyBytes().length match {
-    case 16 => new Aes128(storageConfig.getKeyBytes())
-    case 32 => new Aes256(storageConfig.getKeyBytes())
+  private def enc = storageConfig.getKeyBytes.length match {
+    case 16 => new Aes128(storageConfig.getKeyBytes)
+    case 32 => new Aes256(storageConfig.getKeyBytes)
     case 0  => new NoopCrypt
     case _ =>
       throw new IllegalArgumentException(
-        s"Only 0, 16 and 32 characters support for key size but instead got ${storageConfig.getKeyBytes().length}")
+        s"Only 0, 16 and 32 characters support for key size but instead got ${storageConfig.getKeyBytes.length}")
   }
   def lock(params: Parameters): Parameters = {
     new Parameters(
