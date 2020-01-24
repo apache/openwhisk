@@ -16,6 +16,8 @@
  */
 package org.apache.openwhisk.core.entity.test
 
+import java.security.InvalidAlgorithmParameterException
+
 import org.apache.openwhisk.core.entity._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -24,7 +26,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers with BeforeAndAfter {
+class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfter {
 
   after {
     ParameterEncryption.storageConfig = new ParameterStorageConfig("")
@@ -33,7 +35,7 @@ class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers w
   val parameters = new Parameters(
     Map(
       new ParameterName("one") -> new ParameterValue(JsString("secret"), false),
-      new ParameterName("two") -> new ParameterValue(JsString("secret"), false)))
+      new ParameterName("two") -> new ParameterValue(JsString("secret"), true)))
 
   behavior of "Parameters"
   it should "handle complex objects in param body" in {
@@ -97,7 +99,7 @@ class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers w
   }
 
   it should "read the merged message payload from kafka into parameters" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
 
     val unlockedParam = new ParameterValue(JsString("test-plain"), false)
@@ -112,7 +114,7 @@ class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers w
 
   behavior of "AesParameterEncryption"
   it should "correctly mark the encrypted parameters after lock" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
@@ -121,8 +123,17 @@ class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers w
     }))
   }
 
+  it should "serialize to json correctly" in {
+    val output =
+      """\Q{"one":{"encryption":"aes128","init":false,"value":"\E.*\Q"},"two":{"encryption":"aes128","init":true,"value":"\E.*\Q"}}""".stripMargin.r
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
+    val locked = ParameterEncryption.lock(parameters)
+    val dbString = locked.toJsObject.toString
+    dbString should fullyMatch regex output
+  }
+
   it should "correctly decrypted encrypted values" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
@@ -139,36 +150,35 @@ class ParameterEncryptionTests extends FlatSpec with ExecHelpers with Matchers w
   }
 
   // Not sure having cancelled tests is a good idea either, need to work on aes256 packaging.
-//  it should "work if with aes256 if policy allows it" in {
-//    ParameterEncryption.storageConfig = new ParameterStorageConfig("j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")
-//    try {
-//      val locked = ParameterEncryption.lock(parameters)
-//      locked.getMap.map(({
-//        case (_, paramValue) =>
-//          paramValue.encryption.convertTo[String] shouldBe "aes256"
-//          paramValue.value.convertTo[String] should not be "secret"
-//      }))
-//
-//      val unlocked = ParameterEncryption.unlock(locked)
-//      unlocked.getMap.map(({
-//        case (_, paramValue) =>
-//          paramValue.encryption shouldBe JsNull
-//          paramValue.value.convertTo[String] shouldBe "secret"
-//      }))
-//    } catch {
-//      case e: InvalidAlgorithmParameterException =>
-//        cancel(e)
-//    }
-//  }
+  it should "work if with aes256 if policy allows it" in {
+    ParameterEncryption.storageConfig =
+      new ParameterStorageConfig("aes256", "", "j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")
+    try {
+      val locked = ParameterEncryption.lock(parameters)
+      locked.getMap.map(({
+        case (_, paramValue) =>
+          paramValue.encryption.convertTo[String] shouldBe "aes256"
+          paramValue.value.convertTo[String] should not be "secret"
+      }))
+
+      val unlocked = ParameterEncryption.unlock(locked)
+      unlocked.getMap.map(({
+        case (_, paramValue) =>
+          paramValue.encryption shouldBe JsNull
+          paramValue.value.convertTo[String] shouldBe "secret"
+      }))
+    } catch {
+      case e: InvalidAlgorithmParameterException =>
+        cancel(e)
+    }
+  }
 
   behavior of "NoopEncryption"
   it should "not mark parameters as encrypted" in {
-    val unlock = ParameterEncryption.unlock(parameters)
-    unlock.getMap.map(({
+    val locked = ParameterEncryption.lock(parameters)
+    locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption shouldBe JsNull
         paramValue.value.convertTo[String] shouldBe "secret"
     }))
   }
-
 }
