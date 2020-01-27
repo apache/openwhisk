@@ -20,13 +20,20 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.utils.Serialization
 import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
-import org.apache.openwhisk.core.containerpool.kubernetes.{KubernetesInvokerNodeAffinity, WhiskPodBuilder}
+import org.apache.openwhisk.core.containerpool.kubernetes.{
+  KubernetesClientConfig,
+  KubernetesClientTimeoutConfig,
+  KubernetesCpuScalingConfig,
+  KubernetesInvokerNodeAffinity,
+  WhiskPodBuilder
+}
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport {
@@ -104,7 +111,14 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
   }
 
   private def assertPodSettings(builder: WhiskPodBuilder): Pod = {
-    val pod = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), Map("fooL" -> "barV"))
+    val config = KubernetesClientConfig(
+      KubernetesClientTimeoutConfig(1.second, 1.second),
+      KubernetesInvokerNodeAffinity(false, "k", "v"),
+      true,
+      None,
+      None,
+      Some(KubernetesCpuScalingConfig(300, 256.MB, 700)))
+    val pod = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
       c.getEnv.asScala.exists(_.getName == "foo") shouldBe true
