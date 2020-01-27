@@ -61,11 +61,6 @@ import scala.util.{Failure, Success, Try}
 case class KubernetesClientTimeoutConfig(run: FiniteDuration, logs: FiniteDuration)
 
 /**
- * Configuration for kubernetes cpu resource request/limit scaling based on action memory limit
- */
-case class KubernetesCpuScalingConfig(millicpus: Int, memory: ByteSize, maxMillicpus: ByteSize)
-
-/**
  * Configuration for node affinity for the pods that execute user action containers
  * The key,value pair should match the <key,value> pair with which the invoker worker nodes
  * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
@@ -80,8 +75,7 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
                                   actionNamespace: Option[String] = None,
-                                  podTemplate: Option[ConfigMapValue] = None,
-                                  cpuScaling: Option[KubernetesCpuScalingConfig] = None)
+                                  podTemplate: Option[ConfigMapValue] = None)
 
 case class KubernetesTimeoutException(timeout: FiniteDuration)
     extends Exception(s"Timed out after ${timeout.toSeconds}s")
@@ -126,8 +120,7 @@ class KubernetesClient(
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("create"),
-      s"launching pod $name (image:$image, mem: ${memory.toMB}, cpu: ${podBuilder
-        .calculateCpu(memory)}) (timeout: ${config.timeouts.run.toSeconds}s)",
+      s"launching pod $name (image:$image, mem: ${memory.toMB}) (timeout: ${config.timeouts.run.toSeconds}s)",
       logLevel = akka.event.Logging.InfoLevel)
 
     //create the pod; catch any failure to end the transaction timer
