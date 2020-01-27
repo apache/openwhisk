@@ -741,6 +741,26 @@ class ContainerPoolTests
     pool ! runMessageConcurrent
     containers(0).expectMsg(runMessageConcurrent)
   }
+
+  it should "backfill prewarms when prewarm containers are removed" in {
+    val (containers, factory) = testContainers(6)
+    val feed = TestProbe()
+
+    val pool =
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 5), feed.ref, List(PrewarmingConfig(2, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(1).expectMsg(Start(exec, memoryLimit))
+
+    //removing 2 prewarm containers will start 2 containers via backfill
+    containers(0).send(pool, ContainerRemoved)
+    containers(1).send(pool, ContainerRemoved)
+    containers(2).expectMsg(Start(exec, memoryLimit))
+    containers(3).expectMsg(Start(exec, memoryLimit))
+    //make sure extra prewarms are not started
+    containers(4).expectNoMessage(100.milliseconds)
+    containers(5).expectNoMessage(100.milliseconds)
+  }
 }
 abstract class MockableContainer extends Container {
   protected[core] val addr: ContainerAddress = ContainerAddress("nohost")
