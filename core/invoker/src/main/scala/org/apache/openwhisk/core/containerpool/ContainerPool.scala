@@ -403,6 +403,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     MetricEmitter.emitGaugeMetric(
       LoggingMarkers.CONTAINER_POOL_PREWARM_SIZE,
       prewarmedPool.map(_._2.memoryLimit.toMB).sum)
+    val unused = freePool.filter(_._2.activeActivationCount == 0)
+    val unusedMB = unused.map(_._2.memoryLimit.toMB).sum
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_IDLES_COUNT, unused.size)
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_IDLES_SIZE, unusedMB)
   }
 }
 
