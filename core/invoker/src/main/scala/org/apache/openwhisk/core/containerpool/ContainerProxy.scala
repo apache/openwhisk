@@ -650,9 +650,7 @@ class ContainerProxy(factory: (TransactionId,
     }
   }
   private def disableHealthPing() = {
-    if (healtCheckConfig.enabled) {
-      healthPingActor.foreach(_ ! HealthPingEnabled(false))
-    }
+    healthPingActor.foreach(_ ! HealthPingEnabled(false))
   }
 
   /**
@@ -963,11 +961,17 @@ object ContainerProxy {
 }
 
 object TCPPingClient {
-  def props(containerId:String, config: ContainerProxyHealthCheckConfig, remote: InetSocketAddress, replies: ActorRef) =
+  def props(containerId: String,
+            config: ContainerProxyHealthCheckConfig,
+            remote: InetSocketAddress,
+            replies: ActorRef) =
     Props(new TCPPingClient(containerId, remote, replies, config))
 }
 
-class TCPPingClient(containerId:String, remote: InetSocketAddress, listener: ActorRef, config: ContainerProxyHealthCheckConfig)
+class TCPPingClient(containerId: String,
+                    remote: InetSocketAddress,
+                    listener: ActorRef,
+                    config: ContainerProxyHealthCheckConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
   import context.system
@@ -1018,7 +1022,9 @@ class TCPPingClient(containerId:String, remote: InetSocketAddress, listener: Act
       sender() ! Close
       if (failedCount > 0) {
         //reset in case of temp failure
-        logging.info(this, s"Succeeded health connection to $containerId ($addressString) after $failedCount previous failures")
+        logging.info(
+          this,
+          s"Succeeded health connection to $containerId ($addressString) after $failedCount previous failures")
         failedCount = 0
       } else {
         logging.debug(this, s"Succeeded health connection to $containerId ($addressString)")
