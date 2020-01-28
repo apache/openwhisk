@@ -1554,7 +1554,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(counter_invoker_containerStart_counter_total{containerState=\"warmed\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\"}[$interval])) by (containerState)",
+          "expr": "sum(increase(counter_invoker_containerStart_counter_total{containerState=\"warmed\",namespace=~\"$namespace\",action=~\"$action\",initiator=~\"$initiator\",region=~\"$region\",stack=~\"$stack\"}[$interval])) by (containerState)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{containerState}}",
