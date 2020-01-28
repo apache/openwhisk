@@ -484,7 +484,7 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_MESOS_CMD_TIMEOUT(cmd: String) =
     LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
-  def INVOKER_CONTAINER_START(containerState: String, userNamespace: String, actionNamespace: String, action: String) =
+  def INVOKER_CONTAINER_START(containerState: String, invocationNamespace: String, namespace: String, action: String) =
     LogMarkerToken(
       invoker,
       "containerStart",
@@ -492,8 +492,8 @@ object LoggingMarkers {
       Some(containerState),
       Map(
         "containerState" -> containerState,
-        "userNamespace" -> userNamespace,
-        "actionNamespace" -> actionNamespace,
+        "initiator" -> invocationNamespace,
+        "namespace" -> namespace,
         "action" -> action))(MeasurementUnit.none)
   val INVOKER_CONTAINER_HEALTH = LogMarkerToken(invoker, "containerHealth", start)(MeasurementUnit.time.milliseconds)
   val INVOKER_CONTAINER_HEALTH_FAILED_WARM =
