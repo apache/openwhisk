@@ -213,7 +213,8 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper with WhiskIns
       includedPaths = Set(
         IncludedPath(s"/$NS/?", Index(Range, String, -1)),
         IncludedPath(s"/$computed/$NS_PATH/?", Index(Range, String, -1)),
-        IncludedPath(s"/$START/?", Index(Range, Number, -1))))
+        IncludedPath(s"/$START/?", Index(Range, Number, -1)),
+        IncludedPath(s"/$deleted/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
                                view: String,
