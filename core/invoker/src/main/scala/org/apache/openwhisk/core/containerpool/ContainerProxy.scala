@@ -249,7 +249,8 @@ class ContainerProxy(factory: (TransactionId,
                      poolConfig: ContainerPoolConfig,
                      healtCheckConfig: ContainerProxyHealthCheckConfig,
                      unusedTimeout: FiniteDuration,
-                     pauseGrace: FiniteDuration)
+                     pauseGrace: FiniteDuration,
+                     testTcp: Option[ActorRef])
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -266,6 +267,7 @@ class ContainerProxy(factory: (TransactionId,
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
   //track the resuming run for easily referring to the action being resumed (it may fail)
   var resumeRun: Option[Run] = None
+  val tcp: ActorRef = testTcp.getOrElse(IO(Tcp)) //allows to testing interaction with Tcp extension
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -436,7 +438,7 @@ class ContainerProxy(factory: (TransactionId,
       MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_WARM)
       //resend to self will send to parent once we get to Removing state
       if (resumeRun.isDefined) {
-        logging.warn(this, "Ready/Paused warm container unhealthy, will retry activation.")
+        logging.warn(this, "Ready warm container unhealthy, will retry activation.")
         resumeRun.foreach(self ! _)
         resumeRun = None
       }
@@ -533,7 +535,9 @@ class ContainerProxy(factory: (TransactionId,
     case _ -> Started =>
       if (healtCheckConfig.enabled) {
         logging.debug(this, "enabling health ping on Started")
-        enableHealthPing(nextStateData.getContainer)
+        nextStateData.getContainer.foreach { c =>
+          enableHealthPing(c)
+        }
       }
       unstashAll()
     case _ -> Running =>
@@ -636,18 +640,16 @@ class ContainerProxy(factory: (TransactionId,
     }
   }
 
-  private def enableHealthPing(container: Option[Container]) = {
-    container.foreach { c =>
-      val hpa = healthPingActor.getOrElse {
-        logging.info(this, s"creating health ping actor for ${c.addr.asString()}")
-        val hp = context.actorOf(
-          TCPPingClient
-            .props(c.toString(), healtCheckConfig, new InetSocketAddress(c.addr.host, c.addr.port), self))
-        healthPingActor = Some(hp)
-        hp
-      }
-      hpa ! HealthPingEnabled(true)
+  private def enableHealthPing(c: Container) = {
+    val hpa = healthPingActor.getOrElse {
+      logging.info(this, s"creating health ping actor for ${c.addr.asString()}")
+      val hp = context.actorOf(
+        TCPPingClient
+          .props(tcp, c.toString(), healtCheckConfig, new InetSocketAddress(c.addr.host, c.addr.port)))
+      healthPingActor = Some(hp)
+      hp
     }
+    hpa ! HealthPingEnabled(true)
   }
   private def disableHealthPing() = {
     healthPingActor.foreach(_ ! HealthPingEnabled(false))
@@ -850,7 +852,8 @@ object ContainerProxy {
             healthCheckConfig: ContainerProxyHealthCheckConfig =
               loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
             unusedTimeout: FiniteDuration = timeouts.idleContainer,
-            pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+            pauseGrace: FiniteDuration = timeouts.pauseGrace,
+            tcp: Option[ActorRef] = None) =
     Props(
       new ContainerProxy(
         factory,
@@ -861,7 +864,8 @@ object ContainerProxy {
         poolConfig,
         healthCheckConfig,
         unusedTimeout,
-        pauseGrace))
+        pauseGrace,
+        tcp))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
@@ -961,27 +965,22 @@ object ContainerProxy {
 }
 
 object TCPPingClient {
-  def props(containerId: String,
-            config: ContainerProxyHealthCheckConfig,
-            remote: InetSocketAddress,
-            replies: ActorRef) =
-    Props(new TCPPingClient(containerId, remote, replies, config))
+  def props(tcp: ActorRef, containerId: String, config: ContainerProxyHealthCheckConfig, remote: InetSocketAddress) =
+    Props(new TCPPingClient(tcp, containerId, remote, config))
 }
 
-class TCPPingClient(containerId: String,
+class TCPPingClient(tcp: ActorRef,
+                    containerId: String,
                     remote: InetSocketAddress,
-                    listener: ActorRef,
                     config: ContainerProxyHealthCheckConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
-  import context.system
   implicit val ec = context.system.dispatcher
   implicit var healthPingTx = TransactionId.actionHealthPing
   case object HealthPingSend
 
   var scheduledPing: Option[Cancellable] = None
   var failedCount = 0
-  val tcp = IO(Tcp)
   val addressString = s"${remote.getHostString}:${remote.getPort}"
   restartPing()
 
@@ -1009,8 +1008,8 @@ class TCPPingClient(containerId: String,
         logging.error(
           this,
           s"Failed health connection to $containerId ($addressString) $failedCount times - exceeded max ${config.maxFails} failures")
-        //destroy this container since we cannot communicae with it
-        listener ! FailureMessage(
+        //destroy this container since we cannot communicate with it
+        context.parent ! FailureMessage(
           new SocketException(s"Health connection to $containerId ($addressString) failed $failedCount times"))
         cancelPing()
         context.stop(self)

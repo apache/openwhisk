@@ -17,18 +17,19 @@
 
 package org.apache.openwhisk.core.containerpool.test
 
+import java.net.InetSocketAddress
 import java.time.Instant
 
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
-import akka.testkit.CallingThreadDispatcher
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.io.Tcp.{Close, CommandFailed, Connect, Connected}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -558,6 +559,110 @@ class ContainerProxyTests
       acker.calls should have size 1
       store.calls should have size 1
       acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "resend a failed Run when it is first Run after Ready state" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+        atomicRunCount.incrementAndGet()
+        //every run after first fails
+        if (runCount > 1) {
+          Future.failed(ContainerHealthError(messageTransId, "intentional failure"))
+        } else {
+          Future.successful((runInterval, ActivationResponse.success()))
+        }
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker(noLogsAction)
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    machine ! Run(noLogsAction, message)
+    expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, noLogsAction)
+    expectMsg(Transition(machine, Running, Ready))
+
+    val failingRun = Run(noLogsAction, message)
+    val runAfterFail = Run(noLogsAction, message)
+    //should fail and retry
+    machine ! failingRun
+    machine ! runAfterFail //will be buffered first, and then retried
+    expectMsg(Transition(machine, Ready, Running))
+    //on failure, buffered are resent first
+    expectMsg(runAfterFail)
+    //resend the first run to parent, and start removal process
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(failingRun)
+    expectNoMessage(100.milliseconds)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 2
+      collector.calls should have size 0
+      acker.calls should have size 1
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "start tcp ping to containers when action healthcheck enabled" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val container = new TestContainer()
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker(noLogsAction)
+    val store = createStore
+    val collector = createCollector()
+    val tcpProbe = TestProbe()
+    val healthchecks = healthchecksConfig(true)
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecks,
+            pauseGrace = pauseGrace,
+            tcp = Some(tcpProbe.ref)))
+    registerCallback(machine)
+    preWarm(machine)
+
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    //pings should repeat till the container goes into Running state
+    run(machine, Started)
+    tcpProbe.expectNoMessage(healthchecks.checkPeriod + 100.milliseconds)
+
+    awaitAssert {
+      factory.calls should have size 1
     }
   }
 
@@ -1665,5 +1770,68 @@ class ContainerProxyTests
       atomicLogsCount.incrementAndGet()
       Source.empty
     }
+  }
+}
+@RunWith(classOf[JUnitRunner])
+class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with FlatSpecLike {
+  val config = ContainerProxyHealthCheckConfig(true, 200.milliseconds, 2)
+  val addr = new InetSocketAddress("1.2.3.4", 12345)
+  val localAddr = new InetSocketAddress("localhost", 5432)
+
+  behavior of "TCPPingClient"
+  it should "start the ping on HealthPingEnabled(true) and stop on HealthPingEnabled(false)" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    pingClient ! HealthPingEnabled(true)
+    tcpProbe.expectMsg(Connect(addr))
+    //measure the delay between connections
+    val start = System.currentTimeMillis()
+    tcpProbe.expectMsg(Connect(addr))
+    val delay = System.currentTimeMillis() - start
+    delay should be > config.checkPeriod.toMillis - 25 //allow 25ms slop
+    tcpProbe.expectMsg(Connect(addr))
+    //make sure disable works
+    pingClient ! HealthPingEnabled(false)
+    //make sure no Connect msg for at least the check period
+    tcpProbe.expectNoMessage(config.checkPeriod)
+  }
+  it should "send FailureMessage and cancel the ping on CommandFailed" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    val clientProbe = TestProbe()
+    clientProbe watch pingClient
+    pingClient ! HealthPingEnabled(true)
+    val c = Connect(addr)
+    //send config.maxFails CommandFailed messages
+    (1 to config.maxFails).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    //now we expect termination
+    clientProbe.expectTerminated(pingClient)
+  }
+  it should "reset failedCount on Connected" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    val clientProbe = TestProbe()
+    clientProbe watch pingClient
+    pingClient ! HealthPingEnabled(true)
+    val c = Connect(addr)
+    //send maxFails-1 (should not fail)
+    (1 to config.maxFails - 1).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    tcpProbe.expectMsg(c)
+    tcpProbe.send(pingClient, Connected(addr, localAddr))
+    //counter should be reset
+    tcpProbe.expectMsg(Close)
+    //send maxFails (will fail, but counter is reset so we get maxFails tries)
+    (1 to config.maxFails).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    //now we expect termination
+    clientProbe.expectTerminated(pingClient)
   }
 }
