@@ -162,7 +162,7 @@ class ContainerProxyTests
   def expectWarmed(namespace: String, action: ExecutableWhiskAction) = {
     val test = EntityName(namespace)
     expectMsgPF() {
-      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) => //matched, otherwise will fail
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _, _)) => //matched, otherwise will fail
     }
   }
 
@@ -1649,7 +1649,7 @@ class ContainerProxyTests
       initialCount)
     val nextWarmedData = warmedData.nextRun(Run(action, message))
     nextWarmedData should matchPattern {
-      case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount) =>
+      case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount, _) =>
     }
     warmedData.lastUsed.until(nextWarmedData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
   }

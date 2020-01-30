@@ -442,8 +442,8 @@ object ContainerPool {
                                            idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles
       .find {
-        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
-        case _                                                                                => false
+        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _, _)) if c.hasCapacity() => true
+        case _                                                                                   => false
       }
       .orElse {
         idles.find {
