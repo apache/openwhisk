@@ -79,6 +79,20 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       //scaled cpu is: action mem/config.mem x config.maxMillicpus
       c.getResources.getLimits.asScala.get("cpu").map(_.getAmount) shouldBe Some("600m")
     }
+
+    val config2 = KubernetesClientConfig(
+      KubernetesClientTimeoutConfig(1.second, 1.second),
+      KubernetesInvokerNodeAffinity(false, "k", "v"),
+      true,
+      None,
+      None)
+    val pod4 = builder.buildPodSpec(name, testImage, 7.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config2)
+    withClue(Serialization.asYaml(pod4)) {
+      val c = getActionContainer(pod4)
+      //if scaling config is not provided, no cpu resources are specified
+      c.getResources.getLimits.asScala.get("cpu").map(_.getAmount) shouldBe None
+    }
+
   }
   it should "extend existing pod template" in {
     val template = """
