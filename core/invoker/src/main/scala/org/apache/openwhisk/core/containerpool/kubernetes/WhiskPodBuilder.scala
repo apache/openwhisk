@@ -87,22 +87,11 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
     //Here if any value exist in template then that would be overridden
     containerBuilder
       .withNewResources()
-      //explicitly set requests and limits to same values
       .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
-      .withRequests(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
       .endResources()
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars.asJava)
-      .addNewEnv()
-      .withName("POD_UID")
-      .withNewValueFrom()
-      .withNewFieldRef()
-      .withApiVersion("v1")
-      .withFieldPath("metadata.uid")
-      .endFieldRef()
-      .endValueFrom()
-      .endEnv()
       .addNewPort()
       .withContainerPort(8080)
       .withName("action")

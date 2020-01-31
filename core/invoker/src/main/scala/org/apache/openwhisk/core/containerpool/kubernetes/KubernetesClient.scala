@@ -77,9 +77,6 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   actionNamespace: Option[String] = None,
                                   podTemplate: Option[ConfigMapValue] = None)
 
-case class KubernetesTimeoutException(timeout: FiniteDuration)
-    extends Exception(s"Timed out after ${timeout.toSeconds}s")
-
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
  *
@@ -95,7 +92,6 @@ class KubernetesClient(
     with ProcessRunner {
   implicit protected val ec = executionContext
   implicit protected val am = ActorMaterializer()
-  implicit protected val scheduler = as.scheduler
   implicit protected val kubeRestClient = {
     val configBuilder = new ConfigBuilder()
       .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
@@ -124,7 +120,7 @@ class KubernetesClient(
       logLevel = akka.event.Logging.InfoLevel)
 
     //create the pod; catch any failure to end the transaction timer
-    val p = try {
+    try {
       kubeRestClient.pods.inNamespace(namespace).create(pod)
     } catch {
       case e: Throwable =>
@@ -132,15 +128,22 @@ class KubernetesClient(
         throw e
     }
     //wait for the pod to become ready; catch any failure to end the transaction timer
-    waitForPod(namespace, p, start.start, config.timeouts.run)
-      .map { readyPod =>
-        val c = toContainer(readyPod)
+    Future {
+      blocking {
+        val createdPod = kubeRestClient.pods
+          .inNamespace(namespace)
+          .withName(name)
+          .waitUntilReady(config.timeouts.run.length, config.timeouts.run.unit)
+        toContainer(createdPod)
+      }
+    }.map { container =>
         transid.finished(this, start, logLevel = InfoLevel)
-        c
+        container
       }
       .recoverWith {
         case e =>
           transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
+          //log pod events to diagnose pod readiness failures
           val podEvents = kubeRestClient.events
             .inNamespace(namespace)
             .withField("involvedObject.name", name)
@@ -261,30 +264,6 @@ class KubernetesClient(
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
     new KubernetesContainer(id, addr, workerIP, nativeContainerId, portFwd)
-  }
-
-  // check for ready status every 1 second until timeout (minus the start time, which is the time for the pod create call) has past
-  private def waitForPod(namespace: String,
-                         pod: Pod,
-                         start: Instant,
-                         timeout: FiniteDuration,
-                         deadlineOpt: Option[Deadline] = None): Future[Pod] = {
-    val readyPod = kubeRestClient
-      .pods()
-      .inNamespace(namespace)
-      .withName(pod.getMetadata.getName)
-    val deadline = deadlineOpt.getOrElse((timeout - (System.currentTimeMillis() - start.toEpochMilli).millis).fromNow)
-    if (!readyPod.isReady) {
-      if (deadline.isOverdue()) {
-        Future.failed(KubernetesTimeoutException(timeout))
-      } else {
-        after(1.seconds, scheduler) {
-          waitForPod(namespace, pod, start, timeout, Some(deadline))
-        }
-      }
-    } else {
-      Future.successful(readyPod.get())
-    }
   }
 }
 
