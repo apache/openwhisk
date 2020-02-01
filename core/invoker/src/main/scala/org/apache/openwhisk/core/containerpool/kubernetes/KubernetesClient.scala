@@ -26,7 +26,6 @@ import akka.event.Logging.ErrorLevel
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.pattern.after
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
 import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
