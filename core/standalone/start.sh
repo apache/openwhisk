@@ -15,13 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-USER="${1:-openwhisk}"
+IMAGE="${1:-openwhisk/standalone:nightly}"
 shift
 docker run --rm -d \
   -h openwhisk --name openwhisk \
   -p 3233:3233 -p 3232:3232 \
   -v //var/run/docker.sock:/var/run/docker.sock \
- $USER/standalone "$@"
+ "$IMAGE" "$@"
 docker exec openwhisk waitready
 case "$(uname)" in
  (Linux) xdg-open http://localhost:3232 ;;
