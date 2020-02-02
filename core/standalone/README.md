@@ -396,7 +396,7 @@ The script will start the standalone controller with Docker, and will also try t
 
 The default standalone controller image is published as `openwhisk/standalone:nightly` for convenience.
 
-You can specify a different image to this script and also pass additional parameters to docker. The general format is:
+You can specify a different image to this script and also pass additional parameters to Docker. The general format is:
 
 `bash <(curl -sL https://s.apache.org/openwhisk.sh) [<image-name>] [<additional-docker-parameters>...]`
 
