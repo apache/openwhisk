@@ -406,7 +406,7 @@ If the playground is not enough, you can then install the [wsk CLI](https://gith
 
 `docker logs openwhisk | grep 'wsk property'`
 
-To properly shut down OpenWhisk and the additional containers it creates, use [this script](stop.sh) or run the command:
+To properly shut down OpenWhisk and any additional containers it has created, use [this script](stop.sh) or run the command:
 
 `docker exec openwhisk stop`
 
