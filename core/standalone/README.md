@@ -392,7 +392,7 @@ If you have docker and bash installed, you can launch the standalone openwhisk f
 
 `bash <(curl -sL https://s.apache.org/openwhisk.sh)`
 
-The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not open with playground, access it at `http://localhost:3232`.
+The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not automatically open the OpenWhisk playground, you can access it at `http://localhost:3232`.
 
 It defaults to the image `openwhisk/standalone:nightly`.
 
