@@ -254,6 +254,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
   def readMergedList(value: JsValue): Parameters =
     Try {
+
       val JsObject(obj) = value
       new Parameters(
         obj
@@ -340,7 +341,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
                 (key, value)
               case Seq(JsString(k), v: JsValue, e: JsString) if (i.asJsObject.fields.contains("encryption")) =>
                 val key = new ParameterName(k)
-                val value = ParameterValue(v, false, None)
+                val value = ParameterValue(v, false, Some(e))
                 (key, value)
             }
           })

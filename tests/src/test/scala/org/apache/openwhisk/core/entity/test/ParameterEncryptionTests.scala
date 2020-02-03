@@ -99,7 +99,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   }
 
   it should "read the merged message payload from kafka into parameters" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
 
     val unlockedParam = new ParameterValue(JsString("test-plain"), false)
@@ -114,30 +114,30 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   behavior of "AesParameterEncryption"
   it should "correctly mark the encrypted parameters after lock" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes128"
+        paramValue.encryption.convertTo[String] shouldBe "aes-128"
         paramValue.value.convertTo[String] should not be "secret"
     }))
   }
 
   it should "serialize to json correctly" in {
     val output =
-      """\Q{"one":{"encryption":"aes128","init":false,"value":"\E.*\Q"},"two":{"encryption":"aes128","init":true,"value":"\E.*\Q"}}""".stripMargin.r
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
+      """\Q{"one":{"encryption":"aes-128","init":false,"value":"\E.*\Q"},"two":{"encryption":"aes-128","init":true,"value":"\E.*\Q"}}""".stripMargin.r
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
     val dbString = locked.toJsObject.toString
     dbString should fullyMatch regex output
   }
 
   it should "correctly decrypted encrypted values" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes128"
+        paramValue.encryption.convertTo[String] shouldBe "aes-128"
         paramValue.value.convertTo[String] should not be "secret"
     }))
 
@@ -152,12 +152,12 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   // Not sure having cancelled tests is a good idea either, need to work on aes256 packaging.
   it should "work if with aes256 if policy allows it" in {
     ParameterEncryption.storageConfig =
-      new ParameterStorageConfig("aes256", "", "j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")
+      new ParameterStorageConfig("aes-256", "", "j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")
     try {
       val locked = ParameterEncryption.lock(parameters)
       locked.getMap.map(({
         case (_, paramValue) =>
-          paramValue.encryption.convertTo[String] shouldBe "aes256"
+          paramValue.encryption.convertTo[String] shouldBe "aes-256"
           paramValue.value.convertTo[String] should not be "secret"
       }))
 
@@ -169,7 +169,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
       }))
     } catch {
       case e: InvalidAlgorithmParameterException =>
-        cancel(e)
+        cancel(e.toString)
     }
   }
 

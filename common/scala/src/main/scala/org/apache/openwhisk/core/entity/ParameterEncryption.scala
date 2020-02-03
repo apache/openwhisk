@@ -93,7 +93,7 @@ private trait AesEncryption extends encrypter {
   val key: Array[Byte]
   val ivLen: Int
   val name: String
-  private val tLen = key.length * 8
+  private val tLen = 128
   private val secretKey = new SecretKeySpec(key, "AES")
 
   private val secureRandom = new SecureRandom()
@@ -138,21 +138,21 @@ private trait AesEncryption extends encrypter {
 }
 
 private object Aes128 {
-  val name: String = "aes128"
+  val name: String = "aes-128"
 }
 private case class Aes128(val key: Array[Byte], val ivLen: Int = 12, val name: String = Aes128.name)
     extends AesEncryption
     with encrypter
 
 private object Aes256 {
-  val name: String = "aes256"
+  val name: String = "aes-256"
 }
 private case class Aes256(val key: Array[Byte], val ivLen: Int = 128, val name: String = Aes256.name)
     extends AesEncryption
     with encrypter
 
 private class NoopCrypt extends encrypter {
-  val name = "noop"
+  val name = ""
   def encrypt(p: ParameterValue): ParameterValue = {
     p
   }
