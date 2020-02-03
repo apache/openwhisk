@@ -172,6 +172,34 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
         cancel(e.toString)
     }
   }
+  it should "support reverting back to Noop encryption" in {
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==", "")
+    try {
+      val locked = ParameterEncryption.lock(parameters)
+      locked.getMap.map(({
+        case (_, paramValue) =>
+          paramValue.encryption.convertTo[String] shouldBe "aes-128"
+          paramValue.value.convertTo[String] should not be "secret"
+      }))
+
+      val lockedJson = locked.toJsObject
+
+      ParameterEncryption.storageConfig = new ParameterStorageConfig("", "ra1V6AfOYAv0jCzEdufIFA==", "")
+
+      val toDecrypt = Parameters.serdes.read(lockedJson)
+
+      val unlocked = ParameterEncryption.unlock(toDecrypt)
+      unlocked.getMap.map(({
+        case (_, paramValue) =>
+          paramValue.encryption shouldBe JsNull
+          paramValue.value.convertTo[String] shouldBe "secret"
+      }))
+      unlocked.toJsObject should not be JsNull
+    } catch {
+      case e: InvalidAlgorithmParameterException =>
+        cancel(e.toString)
+    }
+  }
 
   behavior of "NoopEncryption"
   it should "not mark parameters as encrypted" in {

@@ -299,7 +299,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
             i._2.asJsObject.getFields("value", "init", "encryption") match {
               case Seq(v: JsValue, JsBoolean(init), e: JsValue) if e != JsNull =>
                 val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init, Some(JsString(e.toString())))
+                val value = ParameterValue(v, init, Some(JsString(e.convertTo[String])))
                 converted = converted + (key -> value)
               case Seq(v: JsValue, JsBoolean(init), e: JsValue) =>
                 val key = new ParameterName(i._1)
