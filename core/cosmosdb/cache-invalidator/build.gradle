@@ -31,8 +31,10 @@ project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile project(':common:scala')
-    compile "com.microsoft.azure:azure-cosmos:3.3.0"
+    compile (project(':common:scala')) {
+        exclude group: 'com.microsoft.azure', module:'azure-cosmosdb'
+    }
+    compile "com.microsoft.azure:azure-cosmos:3.5.0"
     compile "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
 }
 
