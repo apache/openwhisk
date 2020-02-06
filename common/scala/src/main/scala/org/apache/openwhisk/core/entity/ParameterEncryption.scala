@@ -28,7 +28,7 @@ import pureconfig.loadConfig
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsNull, JsString}
 import pureconfig.generic.auto._
-
+import spray.json._
 case class ParameterStorageConfig(current: String = "", aes128: String = "", aes256: String = "")
 
 object ParameterEncryption {
@@ -104,10 +104,7 @@ private trait AesEncryption extends encrypter {
     val gcmSpec = new GCMParameterSpec(tLen, iv)
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmSpec)
-    val clearText = value.value.toString().drop(1).dropRight(1).getBytes(StandardCharsets.UTF_8)
-    // When using spray to force the conversion to a string it fails, so falling back to forcing
-    // it to a string and remove the json quotes.
-    //    val clearText = value.value.convertTo[String].getBytes(StandardCharsets.UTF_8)
+    val clearText = value.value.compactPrint.getBytes(StandardCharsets.UTF_8)
     val cipherText = cipher.doFinal(clearText)
 
     val byteBuffer = ByteBuffer.allocate(4 + iv.length + cipherText.length)
@@ -135,7 +132,7 @@ private trait AesEncryption extends encrypter {
     cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec)
     val plainTextBytes = cipher.doFinal(cipherText)
     val plainText = new String(plainTextBytes, StandardCharsets.UTF_8)
-    ParameterValue(JsString(plainText), value.init)
+    ParameterValue(plainText.parseJson, value.init)
   }
 
 }
