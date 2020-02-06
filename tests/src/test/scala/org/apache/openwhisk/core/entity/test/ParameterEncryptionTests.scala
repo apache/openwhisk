@@ -34,8 +34,8 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   val parameters = new Parameters(
     Map(
-      new ParameterName("one") -> new ParameterValue(JsString("secret"), false),
-      new ParameterName("two") -> new ParameterValue(JsString("secret"), true)))
+      new ParameterName("one") -> new ParameterValue("secret".toJson, false),
+      new ParameterName("two") -> new ParameterValue("secret".toJson, true)))
 
   behavior of "Parameters"
   it should "handle complex objects in param body" in {
@@ -148,7 +148,45 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
         paramValue.value.convertTo[String] shouldBe "secret"
     }))
   }
+  it should "correctly decrypted encrypted JsObject values" in {
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    val obj = Map("key" -> "xyz".toJson, "value" -> "v1".toJson).toJson
 
+    val complexParam = new Parameters(Map(new ParameterName("one") -> new ParameterValue(obj, false)))
+
+    val locked = ParameterEncryption.lock(complexParam)
+    locked.getMap.map(({
+      case (_, paramValue) =>
+        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.value.convertTo[String] should not be "secret"
+    }))
+
+    val unlocked = ParameterEncryption.unlock(locked)
+    unlocked.getMap.map(({
+      case (_, paramValue) =>
+        paramValue.encryption shouldBe JsNull
+        paramValue.value shouldBe obj
+    }))
+  }
+  it should "correctly decrypted encrypted multiline values" in {
+    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    val lines = "line1\nline2\nline3\nline4"
+    val multiline = new Parameters(Map(new ParameterName("one") -> new ParameterValue(JsString(lines), false)))
+
+    val locked = ParameterEncryption.lock(multiline)
+    locked.getMap.map(({
+      case (_, paramValue) =>
+        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.value.convertTo[String] should not be "secret"
+    }))
+
+    val unlocked = ParameterEncryption.unlock(locked)
+    unlocked.getMap.map(({
+      case (_, paramValue) =>
+        paramValue.encryption shouldBe JsNull
+        paramValue.value.convertTo[String] shouldBe lines
+    }))
+  }
   // Not sure having cancelled tests is a good idea either, need to work on aes256 packaging.
   it should "work if with aes256 if policy allows it" in {
     ParameterEncryption.storageConfig =
