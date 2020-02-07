@@ -22,18 +22,23 @@ It would enhance the discoverability of proposals and help community members to 
 1. Create a pull request to describe your proposal with [this template](./POEM-N-template.md). The initial state of a proposal should be _"Draft"_.
 2. [Create a corresponding issue]((/issues/new?template=proposal.md)) to propose a new change based on [this template](../github/ISSUE_TEMPLATE/proposal.md). It is mainly used to track discussion history.
 3. Discuss the proposals with any channels(issue comments, mailing list, Slack, etc) to form a consensus and update your proposal based on comments as much as needed.
-4. When members form a consensus for the proposal. The PR can be merged with the _"In-progress"_ state. And the implementation begins and any volunteer can join the implementation ideally.
-5. If the proposal is not accepted and no consensus is formed, the PR still can be merged with the state, _"Abandoned"_.
-6. When implementation is included in the master branch, it is supposed to update the state of the proposal to _"Completed"_ as well. A corresponding issue is supposed to be closed at this point.
+4. When members form a rough consensus for the proposal. The proposal owner can request a vote via the dev mailing list.
+5. The voting process follows the [Apache Voting guideline](https://www.apache.org/foundation/voting.html). The PR can be merged with the _"In-progress"_ state if the voting is successfully closed without any veto. 
+6. The implementation begins as the proposal is filed into the repo and any volunteer can join the implementation ideally.
+7. If the proposal is not accepted or no consensus is formed, the PR is merged with the state, _"Abandoned"_.
+8. When implementation is included in the master branch, it is supposed to update the state of the proposal to _"Completed"_ as well. A corresponding issue is closed at this point.
 
-Note: Committers and PMCs are supposed to label issues with an appropriate label to track its status.
+### Note
+* Committers and PMCs are supposed to label issues with an appropriate label to track its status.
+* There are 4 labels(`draft`, `in-progress`, `completed`, and `abandoned`) to specify the state of a proposal and one special label(`proposal`) to differentiate proposals from other issues.
+ 
 
 
 ### Proposal Lifecycle
 A proposal is supposed to be in one of the following states: 
 * **Draft**: A new enhancement is proposed and it is under discussion.
 * **In-progress**: A consensus for the proposal is formed and implementation is in progress.
-* **Complete**: Implementation is finished and the change is included in the master branch.
+* **Completed**: Implementation is finished and the change is included in the master branch.
 * **Abandoned**: A proposal is not accepted for some reason such as ”no consensus is formed”.
 
 
