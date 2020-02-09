@@ -200,7 +200,7 @@
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "actionloop-rust-v1.34",
+                    "name": "action-rust-v1.34",
                     "tag": "latest"
                 },
                 "deprecated": false,
