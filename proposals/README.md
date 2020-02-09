@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 # Proposal for OpenWhisk EnhanceMents (POEMs)
 
 A Proposal for OpenWhisk EnhanceMent(POEM) is a way to propose, and manage new features/ideas in OpenWhisk.
@@ -14,7 +33,7 @@ You can find the full details in [POEM-1](./POEM-1-proposal-for-openwhisk-enhanc
 Create an issue when you propose:
  * any major new feature, subsystem, or piece of functionality
  * a big change which requires multiple PRs to complete it
- * a breaking change that impacts public interfaces, data structures, or core execution paths. 
+ * a breaking change that impacts public interfaces, data structures, or core execution paths.
 
 If you are not sure, ask to committers or PMCs of OpenWhisk.
 
