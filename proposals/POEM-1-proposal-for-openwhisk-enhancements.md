@@ -18,7 +18,7 @@
 -->
 
 # Title
-Proposal for OpenWhisk EnhanceMents (POEMs)
+Process for introducing an OpenWhisk Enhancement (POEM)
 
 ## Status
 * Current state: Draft
@@ -26,8 +26,9 @@ Proposal for OpenWhisk EnhanceMents (POEMs)
 
 ## Summary
 
-A Proposal for OpenWhisk EnhanceMent(POEM) is a way to propose and manage new features/ideas in OpenWhisk.
-The one who wants to include any major new feature, subsystem, piece of functionality and any breaking changes is supposed to open a proposal under this directory.
+Introduce a process for suggesting and implementing a substantive OpenWhisk Enhancement (POEM).
+A developer or group of developers working together to propose and implement a major new feature or functionality, a new subsystem, or a breaking change should follow the process described herein and open a proposal for consideration under this directory.
+
 
 ## Motivation
 
