@@ -285,7 +285,7 @@ protected[actions] trait SequenceActions {
       .foldLeft(initialAccounting) { (accountingFuture, futureAction) =>
         accountingFuture.flatMap { accounting =>
           if (accounting.atomicActionCnt < actionSequenceLimit) {
-            invokeNextAction(user, futureAction, accounting, cause)
+            invokeNextAction(user, futureAction, accounting, cause, transid)
               .flatMap { accounting =>
                 if (!accounting.shortcircuit) {
                   Future.successful(accounting)
@@ -327,12 +327,14 @@ protected[actions] trait SequenceActions {
    * @param cause the activation id of the first sequence containing this activations
    * @return a future which resolves with updated accounting for a sequence, including the last result, duration, and activation ids
    */
-  private def invokeNextAction(
-    user: Identity,
-    futureAction: Future[WhiskActionMetaData],
-    accounting: SequenceAccounting,
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[SequenceAccounting] = {
+  private def invokeNextAction(user: Identity,
+                               futureAction: Future[WhiskActionMetaData],
+                               accounting: SequenceAccounting,
+                               cause: Option[ActivationId],
+                               parentTid: TransactionId): Future[SequenceAccounting] = {
     futureAction.flatMap { action =>
+      implicit val transid: TransactionId = TransactionId.childOf(parentTid)
+
       // the previous response becomes input for the next action in the sequence;
       // the accounting no longer needs to hold a reference to it once the action is
       // invoked, so previousResponse.getAndSet(null) drops the reference at this point

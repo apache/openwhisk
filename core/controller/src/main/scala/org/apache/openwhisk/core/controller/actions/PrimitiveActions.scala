@@ -290,7 +290,7 @@ protected[actions] trait PrimitiveActions {
     logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
 
     val response: Future[Either[ActivationId, WhiskActivation]] =
-      invokeConductor(user, payload, session).map(response =>
+      invokeConductor(user, payload, session, transid).map(response =>
         Right(completeActivation(user, session, response, waitForResponse.isDefined)))
 
     // is caller waiting for the result of the activation?
@@ -315,10 +315,14 @@ protected[actions] trait PrimitiveActions {
    * @param user the identity invoking the action
    * @param payload the dynamic arguments for the activation
    * @param session the session object for this composition
-   * @param transid a transaction id for logging
+   * @param parentTid a parent transaction id
    */
-  private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def invokeConductor(user: Identity,
+                              payload: Option[JsObject],
+                              session: Session,
+                              parentTid: TransactionId): Future[ActivationResponse] = {
+
+    implicit val transid: TransactionId = TransactionId.childOf(parentTid)
 
     if (session.accounting.conductors > 2 * actionSequenceLimit) {
       // composition is too long
@@ -365,19 +369,21 @@ protected[actions] trait PrimitiveActions {
             case Some(next) =>
               FullyQualifiedEntityName.resolveName(next, user.namespace.name) match {
                 case Some(fqn) if session.accounting.components < actionSequenceLimit =>
-                  tryInvokeNext(user, fqn, params, session)
+                  tryInvokeNext(user, fqn, params, session, transid)
 
                 case Some(_) => // composition is too long
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionIsTooLong))),
-                    session = session)
+                    session = session,
+                    transid)
 
                 case None => // parsing failure
                   invokeConductor(
                     user,
                     payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentInvalid(next)))),
-                    session = session)
+                    session = session,
+                    transid)
 
               }
           }
@@ -395,8 +401,14 @@ protected[actions] trait PrimitiveActions {
    * @param session the session for the current activation
    * @return promise for the eventual activation
    */
-  private def tryInvokeNext(user: Identity, fqn: FullyQualifiedEntityName, params: Option[JsObject], session: Session)(
-    implicit transid: TransactionId): Future[ActivationResponse] = {
+  private def tryInvokeNext(user: Identity,
+                            fqn: FullyQualifiedEntityName,
+                            params: Option[JsObject],
+                            session: Session,
+                            parentTid: TransactionId): Future[ActivationResponse] = {
+
+    implicit val transid: TransactionId = TransactionId.childOf(parentTid)
+
     val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
     entitlementProvider
       .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
@@ -415,7 +427,8 @@ protected[actions] trait PrimitiveActions {
               invokeConductor(
                 user,
                 payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotFound(fqn.asString)))),
-                session = session)
+                session = session,
+                transid)
           }
       }
       .recoverWith {
@@ -424,7 +437,8 @@ protected[actions] trait PrimitiveActions {
           invokeConductor(
             user,
             payload = Some(JsObject(ERROR_FIELD -> JsString(compositionComponentNotAccessible(fqn.asString)))),
-            session = session)
+            session = session,
+            transid)
       }
   }
 
@@ -480,7 +494,7 @@ protected[actions] trait PrimitiveActions {
       case Left(response) => // unsuccessful invocation, return error response
         Future.successful(response)
       case Right(activation) => // reinvoke conductor on component result
-        invokeConductor(user, payload = Some(activation.resultAsJson), session = session)
+        invokeConductor(user, payload = Some(activation.resultAsJson), session = session, transid)
     }
   }
 

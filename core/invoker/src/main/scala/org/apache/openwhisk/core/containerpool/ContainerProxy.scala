@@ -917,21 +917,13 @@ object ContainerProxy {
                                totalInterval: Interval,
                                isTimeout: Boolean,
                                response: ActivationResponse) = {
-    val causedBy = Some {
-      if (job.msg.causedBySequence) {
-        Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE))
-      } else {
-        // emit the internal system hold time as the 'wait' time, but only for non-sequence
-        // actions, since the transid start time for a sequence does not correspond
-        // with a specific component of the activation but the entire sequence;
-        // it will require some work to generate a new transaction id for a sequence
-        // component - however, because the trace of activations is recorded in the parent
-        // sequence, a client can determine the queue time for sequences that way
-        val end = initInterval.map(_.start).getOrElse(totalInterval.start)
-        Parameters(
-          WhiskActivation.waitTimeAnnotation,
-          Interval(job.msg.transid.meta.start, end).duration.toMillis.toJson)
-      }
+    val causedBy = if (job.msg.causedBySequence) {
+      Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
+    } else None
+
+    val waitTime = {
+      val end = initInterval.map(_.start).getOrElse(totalInterval.start)
+      Parameters(WhiskActivation.waitTimeAnnotation, Interval(job.msg.transid.meta.start, end).duration.toMillis.toJson)
     }
 
     val initTime = {
@@ -957,7 +949,7 @@ object ContainerProxy {
           Parameters(WhiskActivation.pathAnnotation, JsString(job.action.fullyQualifiedName(false).asString)) ++
           Parameters(WhiskActivation.kindAnnotation, JsString(job.action.exec.kind)) ++
           Parameters(WhiskActivation.timeoutAnnotation, JsBoolean(isTimeout)) ++
-          causedBy ++ initTime ++ binding
+          causedBy ++ initTime ++ waitTime ++ binding
       })
   }
 
