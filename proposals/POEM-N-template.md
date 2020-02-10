@@ -31,8 +31,7 @@ A good simple title would help to describe the purpose of a proposal.
 ## Summary
 
 This section summarize the proposal.
-A brief description, proposed changes, and effects are expected to be included.  
-
+A brief description, proposed changes, and effects are expected to be included.
 
 ## Motivation
 
@@ -46,16 +45,13 @@ This section may include large subsections, diagrams, links to references, and s
 It is recommended to include an architectural diagram.
 A link to an external resource is enough.
 
-
 ### Design
 
 This section describes the design details.
 
-
 ### Implementation details
 
 This section describe how to implement the proposal.
-
 
 ## Issue (optional)
 

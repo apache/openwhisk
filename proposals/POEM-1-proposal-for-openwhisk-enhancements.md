@@ -29,7 +29,6 @@ Process for introducing an OpenWhisk Enhancement (POEM)
 Introduce a process for suggesting and implementing a substantive OpenWhisk Enhancement (POEM).
 A developer or group of developers working together to propose and implement a major new feature or functionality, a new subsystem, or a breaking change should follow the process described herein and open a proposal for consideration under this directory.
 
-
 ## Motivation
 
 As the project grows, more and more issues are getting complex and require multiple parties and an extended period of time to develop them.
@@ -52,15 +51,12 @@ It would enhance the discoverability of proposals and help community members to 
 * Committers and PMCs are supposed to label issues with an appropriate label to track its status.
 * There are 4 labels(`draft`, `in-progress`, `completed`, and `abandoned`) to specify the state of a proposal and one special label(`proposal`) to differentiate proposals from other issues.
 
-
-
 ### Proposal Lifecycle
 A proposal is supposed to be in one of the following states:
 * **Draft**: A new enhancement is proposed and it is under discussion.
 * **In-progress**: A consensus for the proposal is formed and implementation is in progress.
 * **Completed**: Implementation is finished and the change is included in the master branch.
 * **Abandoned**: A proposal is not accepted for some reason such as ”no consensus is formed”.
-
 
 ## Issue
 
