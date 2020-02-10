@@ -18,6 +18,7 @@
 package org.apache.openwhisk.common
 
 import java.time.{Clock, Duration, Instant}
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
@@ -28,6 +29,8 @@ import pureconfig.generic.auto._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.WhiskInstants._
 
+import scala.annotation.tailrec
+
 import scala.util.Try
 
 /**
@@ -36,8 +39,10 @@ import scala.util.Try
  * metadata is stored indirectly in the referenced meta object.
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
+  def rootId = findRoot(meta).id
   def id = meta.id
-  override def toString = s"#tid_${meta.id}"
+  override def toString = s"#tid_$id"
+  def rootIdToString = s"#tid_$rootId"
 
   def toHeader = RawHeader(TransactionId.generatorConfig.header, meta.id)
 
@@ -172,6 +177,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def deltaToMarker(startMarker: StartMarker, endTime: Instant = Instant.now(Clock.systemUTC)) =
     Duration.between(startMarker.start, endTime).toMillis
 
+  def hasParent = meta.parent.isDefined
+
   /**
    * Formats log message to include marker.
    *
@@ -179,6 +186,13 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    * @param marker: The marker to add to the message
    */
   private def createMessageWithMarker(message: String, marker: LogMarker): String = s"$message $marker"
+
+  /**
+   * Find root transaction metadata
+   */
+  @tailrec
+  private def findRoot(meta: TransactionMetadata): TransactionMetadata =
+    if (meta.parent.isDefined) findRoot(meta.parent.get) else meta
 }
 
 /**
@@ -197,7 +211,10 @@ case class StartMarker(start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(id: String, start: Instant, extraLogging: Boolean = false)
+protected case class TransactionMetadata(id: String,
+                                         start: Instant,
+                                         extraLogging: Boolean = false,
+                                         parent: Option[TransactionMetadata] = None)
 
 case class MetricConfig(prometheusEnabled: Boolean,
                         kamonEnabled: Boolean,
@@ -227,28 +244,45 @@ object TransactionId {
   val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
   val actionHealthPing = TransactionId(systemPrefix + "actionHealth")
 
+  private val dict = ('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9')
+
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     val now = Instant.now(Clock.systemUTC()).inMills
     TransactionId(TransactionMetadata(tid, now, extraLogging))
   }
 
-  implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) = {
-      if (t.meta.extraLogging)
-        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
-      else
-        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
-    }
+  def childOf(parentTid: TransactionId): TransactionId = {
+    val now = Instant.now(Clock.systemUTC()).inMills
+    val tid = generateTid()
+    TransactionId(TransactionMetadata(tid, now, parentTid.meta.extraLogging, Some(parentTid.meta)))
+  }
 
-    def read(value: JsValue) =
+  def generateTid(): String = {
+    (0 until 32).map(_ => dict(ThreadLocalRandom.current().nextInt(dict.size))).mkString("")
+  }
+
+  implicit val serdes = new RootJsonFormat[TransactionId] {
+
+    private def writeMetadata(meta: TransactionMetadata): JsArray = {
+      val p = meta.parent.map(p => writeMetadata(p)).getOrElse(JsNull)
+      if (meta.extraLogging)
+        JsArray(JsString(meta.id), JsNumber(meta.start.toEpochMilli), JsBoolean(meta.extraLogging), p)
+      else
+        JsArray(JsString(meta.id), JsNumber(meta.start.toEpochMilli), p)
+    }
+    private def readMetadata(value: JsValue): Option[TransactionMetadata] = {
       Try {
         value match {
-          case JsArray(Vector(JsString(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
-          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
-            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
+          case JsArray(Vector(JsString(id), JsNumber(start), parent)) =>
+            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false, readMetadata(parent)))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging), parent)) =>
+            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging, readMetadata(parent)))
         }
-      } getOrElse unknown
+      } getOrElse Option.empty
+    }
+
+    def write(t: TransactionId): JsArray = writeMetadata(t.meta)
+    def read(value: JsValue): TransactionId = readMetadata(value).map(meta => TransactionId(meta)).getOrElse(unknown)
   }
 }
 
