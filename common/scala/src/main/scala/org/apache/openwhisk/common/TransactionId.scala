@@ -264,19 +264,23 @@ object TransactionId {
   implicit val serdes = new RootJsonFormat[TransactionId] {
 
     private def writeMetadata(meta: TransactionMetadata): JsArray = {
-      val p = meta.parent.map(p => writeMetadata(p)).getOrElse(JsNull)
-      if (meta.extraLogging)
-        JsArray(JsString(meta.id), JsNumber(meta.start.toEpochMilli), JsBoolean(meta.extraLogging), p)
-      else
-        JsArray(JsString(meta.id), JsNumber(meta.start.toEpochMilli), p)
+      val base = Vector(JsString(meta.id), JsNumber(meta.start.toEpochMilli))
+      val extraLogging = if (meta.extraLogging) Vector(JsBoolean(meta.extraLogging)) else Vector.empty
+      val parent = if (meta.parent.isDefined) Vector(writeMetadata(meta.parent.get)) else Vector.empty
+      JsArray(base ++ extraLogging ++ parent)
     }
+
     private def readMetadata(value: JsValue): Option[TransactionMetadata] = {
       Try {
         value match {
-          case JsArray(Vector(JsString(id), JsNumber(start), parent)) =>
-            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false, readMetadata(parent)))
+          case JsArray(Vector(JsString(id), JsNumber(start))) =>
+            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
           case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging), parent)) =>
             Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging, readMetadata(parent)))
+          case JsArray(Vector(JsString(id), JsNumber(start), parent)) =>
+            Some(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false, readMetadata(parent)))
         }
       } getOrElse Option.empty
     }

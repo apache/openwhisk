@@ -31,7 +31,7 @@ class TransactionIdTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "deserialize with parent tid" in {
 
-    val json = """["ctid1",1600000000000,["ptid1",1500000000000,null]]""".stripMargin.parseJson
+    val json = """["ctid1",1600000000000,["ptid1",1500000000000]]""".stripMargin.parseJson
 
     val pnow = Instant.ofEpochMilli(1500000000000L)
     val cnow = Instant.ofEpochMilli(1600000000000L)
@@ -43,9 +43,23 @@ class TransactionIdTests extends FlatSpec with Matchers with StreamLogging {
     transactionId shouldBe ctid
   }
 
+  it should "deserialize with parent tid and extraLogging parameter" in {
+
+    val json = """["ctid1",1600000000000,true,["ptid1",1500000000000,true]]""".stripMargin.parseJson
+
+    val pnow = Instant.ofEpochMilli(1500000000000L)
+    val cnow = Instant.ofEpochMilli(1600000000000L)
+
+    val ptid = TransactionId(TransactionMetadata("ptid1", pnow, extraLogging = true))
+    val ctid = TransactionId(TransactionMetadata("ctid1", cnow, extraLogging = true, parent = Some(ptid.meta)))
+
+    val transactionId = TransactionId.serdes.read(json)
+    transactionId shouldBe ctid
+  }
+
   it should "deserialize without parent tid" in {
 
-    val json = """["ctid1",1600000000000,null]""".stripMargin.parseJson
+    val json = """["ctid1",1600000000000]""".stripMargin.parseJson
 
     val cnow = Instant.ofEpochMilli(1600000000000L)
     val ctid = TransactionId(TransactionMetadata("ctid1", cnow))
@@ -66,7 +80,21 @@ class TransactionIdTests extends FlatSpec with Matchers with StreamLogging {
 
     val js = TransactionId.serdes.write(ctid)
 
-    val js2 = """["ctid1",1600000000000,["ptid1",1500000000000,null]]""".stripMargin.parseJson
+    val js2 = """["ctid1",1600000000000,["ptid1",1500000000000]]""".stripMargin.parseJson
+    js shouldBe js2
+  }
+
+  it should "serialize with parent tid and extraLogging parameter" in {
+
+    val pnow = Instant.ofEpochMilli(1500000000000L)
+    val cnow = Instant.ofEpochMilli(1600000000000L)
+
+    val ptid = TransactionId(TransactionMetadata("ptid1", pnow, extraLogging = true))
+    val ctid = TransactionId(TransactionMetadata("ctid1", cnow, extraLogging = true, parent = Some(ptid.meta)))
+
+    val js = TransactionId.serdes.write(ctid)
+
+    val js2 = """["ctid1",1600000000000,true,["ptid1",1500000000000,true]]""".stripMargin.parseJson
     js shouldBe js2
   }
 
@@ -76,7 +104,7 @@ class TransactionIdTests extends FlatSpec with Matchers with StreamLogging {
     val ctid = TransactionId(TransactionMetadata("ctid1", cnow))
 
     val js = TransactionId.serdes.write(ctid)
-    val js2 = """["ctid1",1600000000000,null]""".stripMargin.parseJson
+    val js2 = """["ctid1",1600000000000]""".stripMargin.parseJson
     js shouldBe js2
   }
 
