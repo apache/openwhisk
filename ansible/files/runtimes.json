@@ -201,7 +201,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-rust-v1.34",
-                    "tag": "latest"
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
