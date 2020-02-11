@@ -102,7 +102,7 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
 
   protected def format(id: TransactionId, name: String, logmsg: String) = {
     val currentId = if (id.hasParent) id else ""
-    s"[${id.rootIdToString}] [$currentId] [$name] $logmsg"
+    s"[${id.root}] [$currentId] [$name] $logmsg"
   }
 }
 
@@ -129,7 +129,7 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
     }
     val currentId = if (id.hasParent) id else ""
 
-    val parts = Seq(s"[$time]", s"[$level]", s"[${id.rootIdToString}]", s"[$currentId]") ++ Seq(s"[$name]") ++ logMessage
+    val parts = Seq(s"[$time]", s"[$level]", s"[${id.root}]", s"[$currentId]") ++ Seq(s"[$name]") ++ logMessage
     outputStream.println(parts.mkString(" "))
   }
 }

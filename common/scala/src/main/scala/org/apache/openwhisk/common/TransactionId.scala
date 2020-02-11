@@ -39,10 +39,9 @@ import scala.util.Try
  * metadata is stored indirectly in the referenced meta object.
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
-  def rootId = findRoot(meta).id
+  def root = findRoot(meta)
   def id = meta.id
-  override def toString = s"#tid_$id"
-  def rootIdToString = s"#tid_$rootId"
+  override def toString = meta.toString
 
   def toHeader = RawHeader(TransactionId.generatorConfig.header, meta.id)
 
@@ -214,7 +213,9 @@ case class StartMarker(start: Instant, startMarker: LogMarkerToken)
 protected case class TransactionMetadata(id: String,
                                          start: Instant,
                                          extraLogging: Boolean = false,
-                                         parent: Option[TransactionMetadata] = None)
+                                         parent: Option[TransactionMetadata] = None) {
+  override def toString = s"#tid_$id"
+}
 
 case class MetricConfig(prometheusEnabled: Boolean,
                         kamonEnabled: Boolean,

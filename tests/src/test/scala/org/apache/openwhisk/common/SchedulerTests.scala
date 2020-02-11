@@ -127,7 +127,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
 
     waitForCalls()
     stream.toString.split(" ").drop(1).mkString(" ") shouldBe {
-      s"[ERROR] [${transid.rootIdToString}] [] [Scheduler] halted because $msg\n"
+      s"[ERROR] [${transid.root}] [] [Scheduler] halted because $msg\n"
     }
   }
 
