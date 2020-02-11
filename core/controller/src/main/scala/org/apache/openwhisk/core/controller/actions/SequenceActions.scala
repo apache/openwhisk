@@ -21,8 +21,11 @@ import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
 import org.apache.openwhisk.core.connector.{EventMessage, MessagingProvider}
+import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.controller.WhiskServices
 import org.apache.openwhisk.core.database.{ActivationStore, NoDocumentException, UserContext}
 import org.apache.openwhisk.core.entity._
@@ -199,7 +202,7 @@ protected[actions] trait SequenceActions {
                                      topmost: Boolean,
                                      cause: Option[ActivationId],
                                      start: Instant,
-                                     end: Instant): WhiskActivation = {
+                                     end: Instant)(implicit transid: TransactionId): WhiskActivation = {
 
     // compute max memory
     val sequenceLimits = accounting.maxMemory map { maxMemoryAcrossActionsInSequence =>
@@ -212,6 +215,11 @@ protected[actions] trait SequenceActions {
     val causedBy = if (!topmost) {
       Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
     } else None
+
+    // set waitTime for sequence action
+    val waitTime = {
+      Parameters(WhiskActivation.waitTimeAnnotation, Interval(transid.meta.start, start).duration.toMillis.toJson)
+    }
 
     // set binding if an invoked action is in a package binding
     val binding = action.binding map { path =>
@@ -234,7 +242,7 @@ protected[actions] trait SequenceActions {
       annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(topmost)) ++
         Parameters(WhiskActivation.pathAnnotation, JsString(action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
-        causedBy ++ binding ++
+        causedBy ++ waitTime ++ binding ++
         sequenceLimits,
       duration = Some(accounting.duration))
   }

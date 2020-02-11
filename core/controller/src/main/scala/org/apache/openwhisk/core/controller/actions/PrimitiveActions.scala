@@ -21,8 +21,8 @@ import java.time.{Clock, Instant}
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
+import spray.json.DefaultJsonProtocol._
 import spray.json._
-
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId, UserEvents}
 import org.apache.openwhisk.core.connector.{ActivationMessage, EventMessage, MessagingProvider}
@@ -37,13 +37,13 @@ import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.containerpool.Interval
 
 import scala.collection.mutable.Buffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
-
 import pureconfig._
 import pureconfig.generic.auto._
 
@@ -558,6 +558,13 @@ protected[actions] trait PrimitiveActions {
       Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE))
     }
 
+    // set waitTime for conductor action
+    val waitTime = {
+      Parameters(
+        WhiskActivation.waitTimeAnnotation,
+        Interval(transid.meta.start, session.start).duration.toMillis.toJson)
+    }
+
     // set binding if invoked action is in a package binding
     val binding =
       session.action.binding.map(f => Parameters(WhiskActivation.bindingAnnotation, JsString(f.asString)))
@@ -581,7 +588,7 @@ protected[actions] trait PrimitiveActions {
         Parameters(WhiskActivation.pathAnnotation, JsString(session.action.fullyQualifiedName(false).asString)) ++
         Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
         Parameters(WhiskActivation.conductorAnnotation, JsTrue) ++
-        causedBy ++ binding ++
+        causedBy ++ waitTime ++ binding ++
         sequenceLimits,
       duration = Some(session.duration))
 

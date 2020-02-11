@@ -364,6 +364,9 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
         totalWait = allowedActionDuration) { componentActivation =>
         componentActivation.cause shouldBe defined
         componentActivation.cause.get shouldBe (activation.activationId)
+        // check waitTime
+        val waitTime = componentActivation.getAnnotationValue("waitTime")
+        waitTime shouldBe defined
         // check causedBy
         val causedBy = componentActivation.getAnnotationValue("causedBy")
         causedBy shouldBe defined
