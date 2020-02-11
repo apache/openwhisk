@@ -420,10 +420,10 @@ You can pass additional parameters (for example set system properties) to the JV
 
 You can also set additional environment variables for each container running actions invoked by OpenWhisk by setting `CONTAINER_EXTRA_ENV`. For example, setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for those images supporting starting the action under a debugger, like the typescript runtime.
 
-[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
-[2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
-[3]: https://github.com/apache/incubator-openwhisk-apigateway
-[4]: https://github.com/apache/incubator-openwhisk/blob/master/docs/apigateway.md
+[1]: https://github.com/apache/openwhisk/blob/master/docs/cli.md
+[2]: https://github.com/apache/openwhisk/blob/master/docs/samples.md
+[3]: https://github.com/apache/openwhisk-apigateway
+[4]: https://github.com/apache/openwhisk/blob/master/docs/apigateway.md
 [5]: https://github.com/embeddedkafka/embedded-kafka
 [6]: https://github.com/obsidiandynamics/kafdrop
 [7]: https://github.com/apache/openwhisk/blob/master/docs/metrics.md#user-specific-metrics

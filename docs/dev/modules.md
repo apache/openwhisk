@@ -110,7 +110,7 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 |---	|---	|
 | [openwhisk-external-resources](https://github.com/apache/openwhisk-external-resources) | ✨ Curated list of awesome OpenWhisk things ✨ |
 | [openwhisk-test](https://github.com/apache/openwhisk-test) | Test repo. for Apache OpenWhisk client-side tooling. |
-| [openwhisk-website](https://github.com/apache/openwhisk-website) | Apache OpenWhisk website (openwhisk.incubator.apache.org) code built using Jekyll |
+| [openwhisk-website](https://github.com/apache/openwhisk-website) | Apache OpenWhisk website (openwhisk.apache.org) code built using Jekyll |
 
 
 ## Archived
