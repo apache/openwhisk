@@ -263,7 +263,24 @@
                     "attachmentType": "text/plain"
                 }
             }
+        ],
+        "rust": [
+            {
+                "kind": "rust:1.34",
+                "default": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-rust-v1.34",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            }
         ]
+
     },
     "blackboxes": [
         {
