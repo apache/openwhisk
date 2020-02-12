@@ -18,7 +18,7 @@
     "commander": "^2.19.0",
     "ini": "^1.3.5",
     "node-exec-promise": "^1.0.2",
-    "openwhisk": "^3.18.0",
+    "openwhisk": "^3.21.1",
     "xmlhttprequest": "^1.8.0"
   }
 }
