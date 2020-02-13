@@ -18,7 +18,6 @@
 package org.apache.openwhisk.common
 
 import java.time.{Clock, Duration, Instant}
-import java.util.concurrent.ThreadLocalRandom
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
