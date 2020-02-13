@@ -259,7 +259,9 @@ object TransactionId {
   }
 
   def generateTid(): String = {
-    (0 until 32).map(_ => dict(ThreadLocalRandom.current().nextInt(dict.size))).mkString("")
+    val sb = new StringBuilder
+    for (_ <- 1 to 32) sb.append(dict(util.Random.nextInt(dict.length)))
+    sb.toString
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
