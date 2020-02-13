@@ -27,7 +27,7 @@ If you prefer to use Docker-machine, you can follow instructions in [docker-mach
 The following are required to build and deploy OpenWhisk from a Mac host:
 
 - [Docker 18.06.3](https://docs.docker.com/docker-for-mac/install/)
-- [Open JDK 8](https://adoptopenjdk.net/releases.html#x64_mac)
+- [Open JDK 10](https://adoptopenjdk.net/releases.html#x64_mac)
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
@@ -44,10 +44,10 @@ echo '
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install cask
 brew tap homebrew/cask
-# install for finding alternative versions (java8)
-brew tap homebrew/cask-versions
-# install java 8
-brew cask install adoptopenjdk8
+# install for AdoptOpenJDK (java10)
+brew tap AdoptOpenJDK/openjdk
+# install java 10
+brew cask install adoptopenjdk10
 # install scala
 brew install scala
 # install gnu tar
