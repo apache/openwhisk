@@ -56,6 +56,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .editOrNewMetadata()
       .withName(name)
       .addToLabels("name", name)
+      .addToLabels("user-action-pod", "true")
       .addToLabels(labels.asJava)
       .endMetadata()
 
