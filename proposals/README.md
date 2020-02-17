@@ -29,7 +29,7 @@ You can find the full details in [POEM-1](./POEM-1-proposal-for-openwhisk-enhanc
 2. [Create a corresponding issue](/issues/new?template=proposal.md) with the prefix, `[Proposal]` in the title.
 3. Follow the process outlined in the [POEM-1](./POEM-1-proposal-for-openwhisk-enhancements.md).
 
-## What is considered to open a proposal
+## When should I open a proposal?
 Create an issue when you propose:
  * any major new feature, subsystem, or piece of functionality
  * a big change which requires multiple PRs to complete it
