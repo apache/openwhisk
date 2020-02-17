@@ -26,7 +26,7 @@ Process for introducing an OpenWhisk Enhancement (POEM)
 
 ## Summary
 
-Introduce a process for suggesting and implementing a substantive OpenWhisk Enhancement (POEM).
+Introduce and document a process for suggesting and implementing a substantive OpenWhisk Enhancement (POEM).
 A developer or group of developers working together to propose and implement a major new feature or functionality, a new subsystem, or a breaking change should follow the process described herein and open a proposal for consideration under this directory.
 
 ## Motivation
