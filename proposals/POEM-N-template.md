@@ -39,21 +39,11 @@ This section summarize the proposal.
 A brief description, proposed changes, and effects are expected to be included.
 You should cover the "what" and the "why" and briefly the "how".
 
-## Motivation
-
-Please describe the problem to be solved by this proposal and/or any ideas behind it.
-
-## Proposed changes
+## Proposed changes: Architecture Diagram (optional), and Design
 This section may include large subsections, diagrams, links to references, and so on.
-
-### Architecture Diagram (optional)
 
 It is recommended to include an architectural diagram.
 A link to an external resource is enough.
-
-### Design
-
-This section describes the design details.
 
 ### Implementation details
 
