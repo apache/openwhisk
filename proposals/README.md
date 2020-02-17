@@ -17,9 +17,9 @@
 #
 -->
 
-# Proposal for OpenWhisk EnhanceMents (POEMs)
+# How to submit a Proposal for an OpenWhisk Enhancement (POEM)
 
-A Proposal for OpenWhisk EnhanceMent(POEM) is a way to propose, and manage new features/ideas in OpenWhisk.
+This directory contains Proposals for OpenWhisk Enhancements (POEM). Proposed changes, new features and ideas are documented using a process outlined in this document. If you're a contributor interested in out of the proposals, you are encouraged to reach out to the proposal authors. This is a welcoming community and we look forward to your contributions.
 This directory contains approved proposals. The one who wants to include any major new feature, subsystem, piece of functionality and any breaking changes is supposed to open a proposal.
 
 You can find the full details in [POEM-1](./POEM-1-proposal-for-openwhisk-enhancements.md).
@@ -35,6 +35,6 @@ Create an issue when you propose:
  * a big change which requires multiple PRs to complete it
  * a breaking change that impacts public interfaces, data structures, or core execution paths.
 
-If you are not sure, ask to committers or PMCs of OpenWhisk.
+If you are not sure, ask to committers or the [PMC] of OpenWhisk.
 
-We are inspired by KEP(Kubernetes Enhancement Proposals), KIP(Kafka Improvement Proposal), and Cordova-discuss.
+The POEM process was inspired by KEP( Kubernetes Enhancement Proposals), KIP (Kafka Improvement Proposal), and Cordova-discuss.

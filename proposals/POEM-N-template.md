@@ -23,15 +23,21 @@ Create a pull request using this template.
 # Title
 This is the title of the POEM.
 A good simple title would help to describe the purpose of a proposal.
+# Your Poem
 
+Roses are red.
+Violets are blue.
+Your ideas are beautiful.
+We welcome you.
 ## Status
 * Current state: (Draft | In-progress | Completed | Abandoned)
-* Author: @author (Github ID)
+* Author(s): @author (Github ID)
 
-## Summary
+## Summary and Motivation
 
 This section summarize the proposal.
 A brief description, proposed changes, and effects are expected to be included.
+You should cover the "what" and the "why" and briefly the "how".
 
 ## Motivation
 
