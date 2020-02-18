@@ -36,7 +36,7 @@
                     "name": "action-nodejs-v8",
                     "tag": "nightly"
                 },
-                "deprecated": false,
+                "deprecated": true,
                 "attached": {
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
