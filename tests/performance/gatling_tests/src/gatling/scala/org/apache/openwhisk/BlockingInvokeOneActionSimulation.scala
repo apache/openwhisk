@@ -23,8 +23,7 @@ import org.apache.openwhisk.extension.whisk.OpenWhiskProtocolBuilder
 import org.apache.openwhisk.extension.whisk.Predef._
 import io.gatling.core.Predef._
 import io.gatling.core.structure.ScenarioBuilder
-import io.gatling.core.util.Resource
-import org.apache.commons.io.FileUtils
+import io.gatling.core.util.ClasspathPackagedResource
 
 import scala.concurrent.duration._
 
@@ -51,17 +50,15 @@ class BlockingInvokeOneActionSimulation extends Simulation {
   val async = sys.env.getOrElse("ASYNC", "false").toBoolean
 
   val actionName = "testActionForBlockingInvokeOneAction"
-  val actionfile = if (async) "nodeJSAsyncAction.js" else "nodeJSAction.js"
+  val actionfile = if (async) "/data/nodeJSAsyncAction.js" else "/data/nodeJSAction.js"
 
   // Define scenario
   val test: ScenarioBuilder = scenario(s"Invoke one ${if (async) "async" else "sync"} action blocking")
     .doIf(_.userId == 1) {
-      exec(
-        openWhisk("Create action")
-          .authenticate(uuid, key)
-          .action(actionName)
-          .create(FileUtils
-            .readFileToString(Resource.body(actionfile).get.file, StandardCharsets.UTF_8)))
+      exec(openWhisk("Create action")
+        .authenticate(uuid, key)
+        .action(actionName)
+        .create(ClasspathPackagedResource(actionfile, getClass.getResource(actionfile)).string(StandardCharsets.UTF_8)))
     }
     .rendezVous(connections)
     .during(5.seconds) {
