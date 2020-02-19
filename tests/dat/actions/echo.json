@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "publish": false,
     "exec": {
-        "kind": "nodejs:6",
+        "kind": "nodejs:10",
         "code": "/**\n * Returns params, or an empty string if no parameter values are provided\n */\nfunction main(params) {\n    return params || {};\n}\n\n"
     },
     "annotations": [],
