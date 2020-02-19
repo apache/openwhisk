@@ -43,7 +43,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * (external log collection and retrieval must be enabled via LogStore SPI to expose logs to wsk cli)
  */
 class YARNTask(override protected val id: ContainerId,
-               override protected val addr: ContainerAddress,
+               override protected[core] val addr: ContainerAddress,
                override protected val ec: ExecutionContext,
                override protected val logging: Logging,
                override protected val as: ActorSystem,

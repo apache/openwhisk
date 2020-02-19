@@ -112,7 +112,8 @@ class DockerContainerTests
         body: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
-        retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
+        retry: Boolean = false,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
       }
       override protected val logCollectingIdleTimeout = awaitLogs

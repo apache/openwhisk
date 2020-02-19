@@ -39,6 +39,7 @@ import scala.concurrent.duration._
 import spray.json.JsObject
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.AkkaContainerClient
+import org.apache.openwhisk.core.containerpool.ContainerHealthError
 import org.apache.openwhisk.core.entity.ActivationResponse._
 import org.apache.openwhisk.core.entity.size._
 
@@ -141,6 +142,14 @@ class AkkaContainerClientTests
     }
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
+  }
+
+  it should "throw ContainerHealthError on HttpHostConnectException if reschedule==true" in {
+    val timeout = 5.seconds
+    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 1.B, 100)
+    assertThrows[ContainerHealthError] {
+      Await.result(connection.post("/run", JsObject.empty, retry = false, reschedule = true), 10.seconds)
+    }
   }
 
   it should "retry till success within timeout limit" in {

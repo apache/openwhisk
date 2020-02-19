@@ -24,7 +24,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse.ContainerHttpError
 import org.apache.openwhisk.core.entity.ActivationResponse._
 
 trait ContainerClient {
-  def post(endpoint: String, body: JsValue, retry: Boolean)(
+  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]]
   def close(): Future[Unit]
 }

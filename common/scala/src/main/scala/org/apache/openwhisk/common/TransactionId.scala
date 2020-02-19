@@ -225,6 +225,7 @@ object TransactionId {
   val invokerHealth = TransactionId(systemPrefix + "invokerHealth") // Invoker supervision
   val controller = TransactionId(systemPrefix + "controller") // Controller startup
   val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
+  val actionHealthPing = TransactionId(systemPrefix + "actionHealth")
 
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     val now = Instant.now(Clock.systemUTC()).inMills

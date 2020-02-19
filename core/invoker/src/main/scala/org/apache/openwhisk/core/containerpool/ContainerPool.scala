@@ -69,6 +69,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
   // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
@@ -79,13 +80,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   //periodically emit metrics (don't need to do this for each message!)
   context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
 
-  prewarmConfig.foreach { config =>
-    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} ${config.memoryLimit.toString}")(
-      TransactionId.invokerWarmup)
-    (1 to config.count).foreach { _ =>
-      prewarmContainer(config.exec, config.memoryLimit)
-    }
-  }
+  backfillPrewarms(true)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -95,7 +90,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     r.msg.transid.mark(
       this,
-      LoggingMarkers.INVOKER_CONTAINER_START(containerState),
+      LoggingMarkers.INVOKER_CONTAINER_START(
+        containerState,
+        r.msg.user.namespace.toString,
+        r.msg.action.namespace.toString,
+        r.msg.action.name.toString),
       s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
       akka.event.Logging.InfoLevel)
   }
@@ -242,6 +241,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       processBufferOrFeed()
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
+      prewarmStartingPool = prewarmStartingPool - sender()
       prewarmedPool = prewarmedPool + (sender() -> data)
 
     // Container got removed
@@ -256,6 +256,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         busyPool = busyPool - sender()
       }
       processBufferOrFeed()
+
+      //in case this was a prewarm
+      prewarmedPool.get(sender()).foreach { _ =>
+        logging.info(this, "failed prewarm removed")
+        prewarmedPool = prewarmedPool - sender()
+      }
+      //in case this was a starting prewarm
+      prewarmStartingPool.get(sender()).foreach { _ =>
+        logging.info(this, "failed starting prewarm removed")
+        prewarmStartingPool = prewarmStartingPool - sender()
+      }
+
+      //backfill prewarms on every ContainerRemoved, just in case
+      backfillPrewarms(false) //in case a prewarm is removed due to health failure or crash
+
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
     // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
@@ -287,6 +302,29 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     }
   }
 
+  /** Install prewarm containers up to the configured requirements for each kind/memory combination. */
+  def backfillPrewarms(init: Boolean) = {
+    prewarmConfig.foreach { config =>
+      val kind = config.exec.kind
+      val memory = config.memoryLimit
+      val currentCount = prewarmedPool.count {
+        case (_, PreWarmedData(_, `kind`, `memory`, _)) => true //done starting
+        case _                                          => false //started but not finished starting
+      }
+      val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
+      val containerCount = currentCount + startingCount
+      if (containerCount < config.count) {
+        logging.info(
+          this,
+          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${config.count - containerCount} pre-warms to desired count: ${config.count} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+        (containerCount until config.count).foreach { _ =>
+          prewarmContainer(config.exec, config.memoryLimit)
+        }
+      }
+    }
+  }
+
   /** Creates a new container and updates state accordingly. */
   def createContainer(memoryLimit: ByteSize): (ActorRef, ContainerData) = {
     val ref = childFactory(context)
@@ -296,8 +334,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit =
-    childFactory(context) ! Start(exec, memoryLimit)
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize): Unit = {
+    val newContainer = childFactory(context)
+    prewarmStartingPool = prewarmStartingPool + (newContainer -> (exec.kind, memoryLimit))
+    newContainer ! Start(exec, memoryLimit)
+  }
 
   /**
    * Takes a prewarm container out of the prewarmed pool
@@ -362,6 +403,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     MetricEmitter.emitGaugeMetric(
       LoggingMarkers.CONTAINER_POOL_PREWARM_SIZE,
       prewarmedPool.map(_._2.memoryLimit.toMB).sum)
+    val unused = freePool.filter(_._2.activeActivationCount == 0)
+    val unusedMB = unused.map(_._2.memoryLimit.toMB).sum
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_IDLES_COUNT, unused.size)
+    MetricEmitter.emitGaugeMetric(LoggingMarkers.CONTAINER_POOL_IDLES_SIZE, unusedMB)
   }
 }
 
@@ -397,8 +442,8 @@ object ContainerPool {
                                            idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
     idles
       .find {
-        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _)) if c.hasCapacity() => true
-        case _                                                                                => false
+        case (_, c @ WarmedData(_, `invocationNamespace`, `action`, _, _, _)) if c.hasCapacity() => true
+        case _                                                                                   => false
       }
       .orElse {
         idles.find {

@@ -474,8 +474,23 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "mesos", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_MESOS_CMD_TIMEOUT(cmd: String) =
     LogMarkerToken(invoker, "mesos", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
-  def INVOKER_CONTAINER_START(containerState: String) =
-    LogMarkerToken(invoker, "containerStart", counter, Some(containerState), Map("containerState" -> containerState))(
+  def INVOKER_CONTAINER_START(containerState: String, invocationNamespace: String, namespace: String, action: String) =
+    LogMarkerToken(
+      invoker,
+      "containerStart",
+      counter,
+      Some(containerState),
+      Map(
+        "containerState" -> containerState,
+        "initiator" -> invocationNamespace,
+        "namespace" -> namespace,
+        "action" -> action))(MeasurementUnit.none)
+  val INVOKER_CONTAINER_HEALTH = LogMarkerToken(invoker, "containerHealth", start)(MeasurementUnit.time.milliseconds)
+  val INVOKER_CONTAINER_HEALTH_FAILED_WARM =
+    LogMarkerToken(invoker, "containerHealthFailed", counter, Some("warm"), Map("containerState" -> "warm"))(
+      MeasurementUnit.none)
+  val INVOKER_CONTAINER_HEALTH_FAILED_PREWARM =
+    LogMarkerToken(invoker, "containerHealthFailed", counter, Some("prewarm"), Map("containerState" -> "prewarm"))(
       MeasurementUnit.none)
   val CONTAINER_CLIENT_RETRIES =
     LogMarkerToken(containerClient, "retries", counter)(MeasurementUnit.none)
@@ -494,6 +509,10 @@ object LoggingMarkers {
     LogMarkerToken(containerPool, "prewarmCount", counter)(MeasurementUnit.none)
   val CONTAINER_POOL_PREWARM_SIZE =
     LogMarkerToken(containerPool, "prewarmSize", counter)(MeasurementUnit.information.megabytes)
+  val CONTAINER_POOL_IDLES_COUNT =
+    LogMarkerToken(containerPool, "idlesCount", counter)(MeasurementUnit.none)
+  val CONTAINER_POOL_IDLES_SIZE =
+    LogMarkerToken(containerPool, "idlesSize", counter)(MeasurementUnit.information.megabytes)
 
   val INVOKER_TOTALMEM_BLACKBOX = LogMarkerToken(loadbalancer, "totalCapacityBlackBox", counter)(MeasurementUnit.none)
   val INVOKER_TOTALMEM_MANAGED = LogMarkerToken(loadbalancer, "totalCapacityManaged", counter)(MeasurementUnit.none)

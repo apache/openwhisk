@@ -188,7 +188,7 @@ object JsonFormatters extends DefaultJsonProtocol {
 }
 
 class MesosTask(override protected val id: ContainerId,
-                override protected val addr: ContainerAddress,
+                override protected[core] val addr: ContainerAddress,
                 override protected implicit val ec: ExecutionContext,
                 override protected implicit val logging: Logging,
                 override protected val as: ActorSystem,
