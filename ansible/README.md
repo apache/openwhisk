@@ -198,9 +198,9 @@ ansible-playbook -i environments/<environment> routemgmt.yml
 
 ### Using ElasticSearch to Store Activations
 
-You can use ElasticSearch to store activations separately while other entities still stored in CouchDB, there is a playbook script to setup a simple ES cluster for test and develop purpose
+You can use ElasticSearch (ES) to store activations separately while other entities remain stored in CouchDB. There is an Ansible playbook to setup a simple ES cluster for testing and development purposes.
 
--   Provide your custom elasticsearch related ansible arguments:
+-   Provide your custom ES related ansible arguments:
 
 ```
 elastic_protocol="http"
@@ -214,16 +214,18 @@ elastic_password="admin"
 elasticsearch_connect_string="x.x.x.x:9200,y.y.y.y:9200" // if you want to use an external ES cluster, add it
 ```
 
--   Then execute:
+-  Then execute:
 
 ```
 cd <openwhisk_home>
 ./gradlew distDocker
 cd ansible
-ansible-playbook -i environments/<environment> couchdb.yml // couchdb is still needed to store subjects and actions
+# couchdb is still needed to store subjects and actions
+ansible-playbook -i environments/<environment> couchdb.yml 
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
-ansible-playbook -i environments/<environment> elasticsearch.yml // this will deploy a simple ES cluster, you can skip this to use external ES cluster
+# this will deploy a simple ES cluster, you can skip this to use external ES cluster
+ansible-playbook -i environments/<environment> elasticsearch.yml
 ansible-playbook -i environments/<environment> openwhisk.yml -e db_activation_backend=ElasticSearch
 
 # installs a catalog of public packages and actions
