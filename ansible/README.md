@@ -221,7 +221,7 @@ cd <openwhisk_home>
 ./gradlew distDocker
 cd ansible
 # couchdb is still needed to store subjects and actions
-ansible-playbook -i environments/<environment> couchdb.yml 
+ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
 # this will deploy a simple ES cluster, you can skip this to use external ES cluster

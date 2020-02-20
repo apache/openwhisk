@@ -88,9 +88,7 @@
 - name: wait until ElasticSearch in this host is up and running
   uri:
     url: "{{ db.elasticsearch.protocol }}://{{ ansible_host }}:{{ http_port }}"
-    status_code: 200
-    return_content: yes
   register: result
-  until: result.json is defined
+  until: result.status == 200
   retries: 12
   delay: 5

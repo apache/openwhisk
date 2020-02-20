@@ -237,6 +237,10 @@ Components = [
                   'recreate main db for entities',
                   yaml = 'wipe.yml'),
 
+    makeComponent('elasticsearch',
+                  'deploy elasticsearch',
+                  modes = 'clean'),
+
     makeComponent('build',
                   'build system',
                   yaml = False,
