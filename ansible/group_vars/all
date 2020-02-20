@@ -312,7 +312,7 @@ couchdb:
   version: 2.3
 
 elasticsearch:
-  version: 6.4.2
+  version: 6.7.2
 
 elasticsearch_connect_string: "{% set ret = [] %}\
                                {% for host in groups['elasticsearch'] %}\
