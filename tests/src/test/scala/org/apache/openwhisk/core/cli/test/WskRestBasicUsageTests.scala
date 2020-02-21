@@ -335,6 +335,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         fields.get("api_key") shouldBe empty
         fields("namespace") shouldBe namespace
         fields("action_name") shouldBe s"/$namespace/$name"
+        fields("action_version") should fullyMatch regex ("""\d+.\d+.\d+""")
         fields("activation_id") shouldBe activation.activationId
         fields("deadline").toLong should be >= start
       }
@@ -360,6 +361,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         fields("api_key") shouldBe wskprops.authKey
         fields("namespace") shouldBe namespace
         fields("action_name") shouldBe s"/$namespace/$name"
+        fields("action_version") should fullyMatch regex ("""\d+.\d+.\d+""")
         fields("activation_id") shouldBe activation.activationId
         fields("deadline").toLong should be >= start
       }

@@ -102,6 +102,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
    *               "api_key": process.env__OW_API_KEY,
    *               "namespace": process.env.__OW_NAMESPACE,
    *               "action_name": process.env.__OW_ACTION_NAME,
+   *               "action_version": process.env.__OW_ACTION_VERSION,
    *               "activation_id": process.env.__OW_ACTIVATION_ID,
    *               "deadline": process.env.__OW_DEADLINE
    *             }
@@ -309,16 +310,19 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       "api_key" -> "abc",
       "namespace" -> "zzz",
       "action_name" -> "xxx",
+      "action_version" -> "0.0.1",
       "activation_id" -> "iii",
       "deadline" -> "123")
 
     val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
 
+    // the api host is sent as a docker run environment parameter
     val (out, err) = withActionContainer(env.take(1).toMap) { c =>
       val (initCode, _) = c.init(initPayload(config.code, config.main))
       initCode should be(200)
 
-      val (runCode, out) = c.run(runPayload(JsObject.empty, Some(props.toMap.toJson.asJsObject)))
+      // we omit the api host from the run payload so the docker run env var is used
+      val (runCode, out) = c.run(runPayload(JsObject.empty, Some(props.drop(1).toMap.toJson.asJsObject)))
       runCode should be(200)
       out shouldBe defined
       props.map {

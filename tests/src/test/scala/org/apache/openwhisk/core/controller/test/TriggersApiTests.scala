@@ -67,6 +67,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   def aname() = MakeName.next("triggers_tests")
   def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
   val parametersLimit = Parameters.sizeLimit
+  val dummyInstant = Instant.now()
 
   //// GET /triggers
   it should "list triggers by default/explicit namespace" in {
@@ -183,6 +184,21 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     }
   }
 
+  it should "get trigger with updated field" in {
+    implicit val tid = transid()
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
+    put(entityStore, trigger)
+
+    // `updated` field should be compared with a document in DB
+    val t = get(entityStore, trigger.docid, WhiskTrigger)
+
+    Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskTrigger]
+      response should be(trigger copy (updated = t.updated))
+    }
+  }
+
   it should "report Conflict if the name was of a different type" in {
     implicit val tid = transid()
     val rule = WhiskRule(
@@ -217,7 +233,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      checkWhiskEntityResponse(response, trigger.withoutRules)
     }
   }
 
@@ -229,7 +245,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      checkWhiskEntityResponse(response, trigger.withoutRules)
     }
   }
 
@@ -256,7 +272,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val code = "a" * (allowedActivationEntitySize.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
     Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(
           SizeError(fieldDescriptionForSizeError, (content.length).B, allowedActivationEntitySize.B))
@@ -273,7 +289,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     } reduce (_ ++ _)
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -289,7 +305,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     } reduce (_ ++ _)
     val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -307,7 +323,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(RequestEntityTooLarge)
+      status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -323,11 +339,14 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       deleteTrigger(trigger.docid)
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(WhiskTrigger(
-        trigger.namespace,
-        trigger.name,
-        trigger.parameters,
-        version = trigger.version.upPatch).withoutRules)
+      checkWhiskEntityResponse(
+        response,
+        WhiskTrigger(
+          trigger.namespace,
+          trigger.name,
+          trigger.parameters,
+          version = trigger.version.upPatch,
+          updated = dummyInstant).withoutRules)
     }
   }
 
@@ -432,8 +451,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[WhiskTrigger]
       status should be(OK)
-
-      response should be(trigger.toWhiskTrigger)
+      checkWhiskEntityResponse(response, trigger.toWhiskTrigger)
     }
   }
 

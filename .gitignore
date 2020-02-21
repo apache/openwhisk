@@ -18,7 +18,6 @@ results
 !/ansible/environments/docker-machine
 !/ansible/environments/local
 !/ansible/environments/mac
-!/ansible/environments/vagrant
 
 # Eclipse
 bin/
@@ -47,9 +46,6 @@ build/
 # NodeJS
 node_modules
 
-# Vagrant
-.vagrant*
-
 # IntelliJ
 .idea
 *.class
@@ -72,14 +68,18 @@ ansible/roles/invoker/files/*
 
 # .zip files must be explicited whitelisted
 *.zip
-!tests/dat/actions/blackbox.zip
-!tests/dat/actions/helloSwift.zip
-!tests/dat/actions/python.zip
-!tests/dat/actions/python2_virtualenv.zip
-!tests/dat/actions/python3_virtualenv.zip
-!tests/dat/actions/python_virtualenv_dir.zip
-!tests/dat/actions/python_virtualenv_name.zip
-!tests/dat/actions/zippedaction.zip
+tests/dat/actions/zippedaction/node_modules
+tests/dat/actions/sleep.jar
+tests/dat/actions/blackbox.zip
+tests/dat/actions/python.zip
+tests/dat/actions/zippedaction.zip
+tests/dat/actions/zippedaction/node_modules
+tests/dat/actions/python2_virtualenv.zip
+tests/dat/actions/python_virtualenv/virtualenv
+tests/dat/actions/.built
+tests/dat/actions/unicode.tests/java-8.bin
+tests/performance/gatling_tests/src/gatling/resources/data/javaAction.jar
+tests/performance/gatling_tests/.built
 
 # dev
 intellij-run-config.groovy

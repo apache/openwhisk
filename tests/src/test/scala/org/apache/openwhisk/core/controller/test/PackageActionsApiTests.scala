@@ -162,7 +162,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS10),
+          updated = response.updated))
     }
   }
 

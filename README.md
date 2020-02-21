@@ -31,7 +31,6 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 * [Quick Start](#quick-start) (Docker-Compose)
 * [Native development](#native-development) (Mac and Ubuntu)
 * [Kubernetes](#kubernetes-setup)
-* [Vagrant](#vagrant-setup)
 * [Learn concepts and commands](#learn-concepts-and-commands)
 * [Issues](#issues)
 * [Slack](#slack)
@@ -57,37 +56,6 @@ git clone https://github.com/apache/openwhisk-deploy-kube.git
 
 Then follow the instructions in the [OpenWhisk on Kubernetes README.md](https://github.com/apache/openwhisk-deploy-kube/blob/master/README.md).
 
-### Vagrant Setup
-A [Vagrant](http://vagrantup.com) machine is also available to run OpenWhisk on Mac, Windows PC or GNU/Linux but isn't used by as much of the dev team so sometimes lags behind.
-Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html) for your operating system and architecture.
-
-**Note:** For Windows, you may need to install an ssh client in order to use the command `vagrant ssh`. Cygwin works well for this, and Git Bash comes with an ssh client you can point to. If you run the command and no ssh is installed, Vagrant will give you some options to try.
-
-Follow these step to run your first OpenWhisk Action:
-```
-# Clone openwhisk
-git clone --depth=1 https://github.com/apache/openwhisk.git openwhisk
-
-# Change directory to tools/vagrant
-cd openwhisk/tools/vagrant
-
-# Run script to create vm and run hello action
-./hello
-```
-
-Wait for hello action output:
-```
-wsk action invoke /whisk.system/utils/echo -p message hello --result
-{
-    "message": "hello"
-}
-```
-
-These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
-For more information about using OpenWhisk on Vagrant see the [tools/vagrant/README.md](tools/vagrant/README.md)
-
-During the Vagrant setup, the Oracle JDK 8 is used as the default Java environment. If you would like to use OpenJDK 8, please change the line "su vagrant -c 'source all.sh oracle'" into "su vagrant -c 'source all.sh'" in tools/vagrant/Vagrantfile.
-
 ### Native development
 
 Docker must be natively installed in order to build and deploy OpenWhisk.
@@ -107,7 +75,6 @@ interested in:
 - [Create triggers and rules](docs/triggers_rules.md)
 - [Use and create packages](docs/packages.md)
 - [Browse and use the catalog](docs/catalog.md)
-- [Using the OpenWhisk mobile SDK](docs/mobile_sdk.md)
 - [OpenWhisk system details](docs/reference.md)
 - [Implementing feeds](docs/feeds.md)
 - [Developing a runtime for a new language](docs/actions-actionloop.md)

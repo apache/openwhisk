@@ -23,6 +23,7 @@ import org.apache.kafka.clients.producer._
 import org.apache.kafka.common.errors._
 import org.apache.kafka.common.serialization.StringSerializer
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{Counter, Logging, TransactionId}
 import org.apache.openwhisk.connector.kafka.KafkaConfiguration._
 import org.apache.openwhisk.core.ConfigKeys

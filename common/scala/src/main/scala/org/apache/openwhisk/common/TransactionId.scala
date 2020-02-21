@@ -21,10 +21,10 @@ import java.time.{Clock, Duration, Instant}
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
-import pureconfig.loadConfigOrThrow
 import spray.json._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.WhiskInstants._
 
@@ -225,6 +225,7 @@ object TransactionId {
   val invokerHealth = TransactionId(systemPrefix + "invokerHealth") // Invoker supervision
   val controller = TransactionId(systemPrefix + "controller") // Controller startup
   val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
+  val actionHealthPing = TransactionId(systemPrefix + "actionHealth")
 
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     val now = Instant.now(Clock.systemUTC()).inMills

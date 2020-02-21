@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.entity
 
+import java.time.Instant
+
 import spray.json.DefaultJsonProtocol
 import org.apache.openwhisk.core.database.DocumentFactory
 import spray.json._
@@ -54,8 +56,9 @@ case class ReducedRule(action: FullyQualifiedEntityName, status: Status)
  * @param limits the limits to impose on the trigger
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the trigger
+ * @param annotations the set of annotations to attribute to the trigger
  * @param rules the map of the rules that are associated with this trigger. Key is the rulename and value is the ReducedRule
+ * @param updated the timestamp when the trigger is updated
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -66,7 +69,8 @@ case class WhiskTrigger(namespace: EntityPath,
                         version: SemVer = SemVer(),
                         publish: Boolean = false,
                         annotations: Parameters = Parameters(),
-                        rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None)
+                        rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None,
+                        override val updated: Instant = WhiskEntity.currentMillis())
     extends WhiskEntity(name, "trigger") {
 
   require(limits != null, "limits undefined")
@@ -108,11 +112,12 @@ object WhiskTrigger
     extends DocumentFactory[WhiskTrigger]
     with WhiskEntityQueries[WhiskTrigger]
     with DefaultJsonProtocol {
+  import WhiskActivation.instantSerdes
 
   override val collectionName = "triggers"
 
   private implicit val fqnSerdesAsDocId = FullyQualifiedEntityName.serdesAsDocId
-  override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
+  override implicit val serdes = jsonFormat9(WhiskTrigger.apply)
 
   override val cacheEnabled = true
 }

@@ -221,7 +221,7 @@
       "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
-      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | string }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | lower }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db.host }}"
@@ -245,17 +245,17 @@
       "CONFIG_whisk_containerFactory_runtimesRegistry_url": "{{ runtimes_registry | default('') }}"
       "CONFIG_whisk_containerFactory_userImagesRegistry_url": "{{ user_images_registry | default('') }}"
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() | string }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() | lower }}"
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
       "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
       "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
       "CONFIG_whisk_containerPool_userMemory": "{{ hostvars[groups['invokers'][invoker_index | int]].user_memory | default(invoker.userMemory) }}"
       "CONFIG_whisk_docker_client_parallelRuns": "{{ invoker_parallel_runs | default() }}"
-      "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc | default(false) | string }}"
+      "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc | default(false) | lower }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
-      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | string }}"
-      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | string }}"
-      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | string }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | lower }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | lower }}"
+      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | lower }}"
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
@@ -271,7 +271,7 @@
       "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
-      "CONFIG_whisk_containerPool_akkaClient": "{{ container_pool_akka_client | default('false') | string }}"
+      "CONFIG_whisk_containerPool_akkaClient": "{{ container_pool_akka_client | default('false') | lower }}"
       "CONFIG_whisk_containerFactory_containerArgs_extraEnvVars_0": "__OW_ALLOW_CONCURRENT={{ runtimes_enable_concurrency | default('false') }}"
       "CONFIG_whisk_invoker_protocol": "{{ invoker.protocol }}"
       "CONFIG_whisk_invoker_https_keystorePath": "/conf/{{ invoker.ssl.keystore.name }}"
@@ -345,6 +345,11 @@
   set_fact:
     volumes: "{{ volumes|default('') }},{{ coverage_logs_dir }}/invoker:/coverage"
   when: coverage_enabled
+
+- name: set invoker docker volumes
+  set_fact:
+    volumes: "{{ volumes|default('') }},{{ invoker.docker.volumes | join(',') }}"
+  when: invoker.docker.volumes|length > 0
 
 - name: start invoker
   docker_container:

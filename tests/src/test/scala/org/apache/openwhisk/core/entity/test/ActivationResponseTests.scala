@@ -51,7 +51,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
       {
         val response = ContainerResponse(okStatus = true, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
         val run = processRunResponseContent(Right(response), logger)
-        run.statusCode shouldBe DeveloperError
+        run.statusCode shouldBe ApplicationError
         run.result.get.asJsObject
           .fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
       }

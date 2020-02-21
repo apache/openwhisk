@@ -22,7 +22,8 @@ import io.opentracing.mock.{MockSpan, MockTracer}
 import com.github.benmanes.caffeine.cache.Ticker
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId}
 import org.apache.openwhisk.common.tracing.{OpenTracer, TracingConfig}
 import org.apache.openwhisk.core.ConfigKeys

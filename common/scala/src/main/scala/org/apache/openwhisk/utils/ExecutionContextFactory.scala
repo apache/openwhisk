@@ -39,13 +39,13 @@ object ExecutionContextFactory {
    * timeout duration
    *
    */
-  def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(
+  def expire[T](duration: FiniteDuration, using: Scheduler)(value: => Future[T])(
     implicit ec: ExecutionContext): CancellableFuture[T] = {
     val p = Promise[T]()
     val cancellable = using.scheduleOnce(duration) {
       p completeWith {
         try value
-        catch { case NonFatal(t) ⇒ Future.failed(t) }
+        catch { case NonFatal(t) => Future.failed(t) }
       }
     }
     (cancellable, p.future)

@@ -824,7 +824,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"project a field from the result object (auth? ${creds.isDefined})" in {
+    it should s"not project a field from the result object (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.json/content").foreach { path =>
@@ -833,45 +833,13 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
-            val response = responseAs[JsObject]
+            val response = responseAs[JsObject].fields("content")
             response shouldBe metaPayload(
               m.method.name.toLowerCase,
               JsObject.empty,
               creds,
               path = "/content",
               pkgName = "proxy")
-          }
-        }
-      }
-
-      Seq(
-        s"$systemId/proxy/export_c.text/content/z",
-        s"$systemId/proxy/export_c.text/content/z/",
-        s"$systemId/proxy/export_c.text/content/z//").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[String]
-            response shouldBe "Z"
-          }
-        }
-      }
-    }
-
-    it should s"reject when projecting a result which does not match expected type (auth? ${creds.isDefined})" in {
-      implicit val tid = transid()
-
-      // these project a result which does not match expected type
-      Seq(s"$systemId/proxy/export_c.json/a").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          actionResult = Some(JsObject("a" -> JsString("b")))
-
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(BadRequest)
-            confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
           }
         }
       }
@@ -1038,10 +1006,10 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
       Seq(JsObject("a" -> "A".toJson), JsArray("a".toJson), JsString("a"), JsTrue, JsNumber(1), JsNull)
         .foreach { jsval =>
-          val path = s"$systemId/proxy/export_c.text/res"
+          val path = s"$systemId/proxy/export_c.text"
           allowedMethods.foreach { m =>
             invocationsAllowed += 1
-            actionResult = Some(JsObject("res" -> jsval))
+            actionResult = Some(JsObject("body" -> jsval))
 
             m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
               responseAs[String] shouldBe {
@@ -1472,20 +1440,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"support formdata (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      Seq(s"$systemId/proxy/export_c.text/content/field1", s"$systemId/proxy/export_c.text/content/field2").foreach {
-        path =>
-          val form = FormData(Map("field1" -> "value1", "field2" -> "value2"))
-          invocationsAllowed += 2
+      Seq(s"$systemId/proxy/export_c.json").foreach { path =>
+        val form = FormData(Map("field1" -> "value1", "field2" -> "value2"))
+        invocationsAllowed += 1
 
-          Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            responseAs[String] should (be("value1") or be("value2"))
-          }
-
-          Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            responseAs[String] should (be("value1") or be("value2"))
-          }
+        Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          responseAs[JsObject].fields("content").asJsObject.fields("field1") shouldBe JsString("value1")
+          responseAs[JsObject].fields("content").asJsObject.fields("field2") shouldBe JsString("value2")
+        }
       }
     }
 
@@ -1497,7 +1460,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
         val content = s"""{"a":"$largeEntity"}"""
         Post(s"$testRoutePath/$path", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
-          status should be(RequestEntityTooLarge)
+          status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
             SizeError(fieldDescriptionForSizeError, (largeEntity.length + 8).B, allowedActivationEntitySize.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
@@ -1505,7 +1468,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
         val form = FormData(Map("a" -> largeEntity))
         Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
-          status should be(RequestEntityTooLarge)
+          status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
             SizeError(fieldDescriptionForSizeError, (largeEntity.length + 2).B, allowedActivationEntitySize.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
@@ -1952,7 +1915,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     it should s"support json (including +json subtypes) (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      val path = s"$systemId/proxy/export_c.text/content/field1"
+      val path = s"$systemId/proxy/export_c.json"
       val entity = JsObject("field1" -> "value1".toJson)
 
       Seq(
@@ -1961,7 +1924,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         invocationsAllowed += 1
         Post(s"$testRoutePath/$path", HttpEntity(ct, entity.compactPrint)) ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
-          responseAs[String] shouldBe "value1"
+          responseAs[JsObject].fields("content").asJsObject.fields("field1") shouldBe entity.fields("field1")
         }
       }
     }

@@ -19,18 +19,14 @@ import org.scoverage.ScoverageReport
 import static groovy.json.JsonOutput.*
 
 plugins {
+    id 'eclipse'
+    id 'maven'
     id 'org.hidetake.swagger.generator' version '2.18.1'
+    id 'org.scoverage'
+    id 'scala'
 }
 
-apply plugin: 'scala'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
 compileTestScala.options.encoding = 'UTF-8'
-
-repositories {
-    mavenCentral()
-}
 
 install.dependsOn ':tools:admin:install'
 
@@ -167,6 +163,14 @@ task testSystemBasic(type: Test) {
     include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
 }
 
+task testSystemKCF(type: Test) {
+    exclude getPattern("REQUIRE_SYSTEM_BASIC", "excludes")
+    include getPattern("REQUIRE_SYSTEM_BASIC", "includes")
+
+    // KubernetesContainerFactory's logs API is not reliable and mixes stdout/stderr into a single stream
+    exclude "**/*ActivationLogsTests*"
+}
+
 task testUnit(type: Test) {
     systemProperty("whisk.spi.ArtifactStoreProvider", "org.apache.openwhisk.core.database.memory.MemoryArtifactStoreProvider")
     exclude getPattern("REQUIRE_ONLY_DB", "excludes")
@@ -188,24 +192,24 @@ task testUnit(type: Test) {
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile 'org.apache.commons:commons-lang3:3.3.2'
-    compile 'org.apache.httpcomponents:httpclient:4.5.2:tests'
-    compile 'org.apache.httpcomponents:httpmime:4.3.6'
-    compile 'junit:junit:4.11'
-    compile 'io.rest-assured:rest-assured:4.0.0'
-    compile 'org.scalatest:scalatest_2.12:3.0.5'
-    compile "com.typesafe.akka:akka-testkit_2.12:${gradle.akka.version}"
-    compile 'com.google.code.gson:gson:2.3.1'
-    compile 'org.scalamock:scalamock-scalatest-support_2.12:3.6.0'
-    compile "com.typesafe.akka:akka-http-testkit_2.12:${gradle.akka_http.version}"
-    compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
+    compile "org.apache.commons:commons-lang3:3.3.2"
+    compile "org.apache.httpcomponents:httpclient:4.5.2:tests"
+    compile "org.apache.httpcomponents:httpmime:4.3.6"
+    compile "junit:junit:4.11"
+    compile "io.rest-assured:rest-assured:4.0.0"
+    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    compile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.google.code.gson:gson:2.3.1"
+    compile "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
+    compile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    compile "com.github.java-json-tools:json-schema-validator:2.2.8"
     compile "org.mockito:mockito-core:2.27.0"
-    compile 'io.opentracing:opentracing-mock:0.31.0'
+    compile "io.opentracing:opentracing-mock:0.31.0"
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
-    compile 'com.atlassian.oai:swagger-request-validator-core:1.4.5'
-    compile "com.typesafe.akka:akka-stream-kafka-testkit_2.12:${gradle.akka_kafka.version}"
-    compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-stream-testkit_2.12:${gradle.akka.version}"
+    compile "com.atlassian.oai:swagger-request-validator-core:1.4.5"
+    compile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    compile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
@@ -218,10 +222,6 @@ dependencies {
     compile project(':tools:admin')
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')
@@ -241,10 +241,17 @@ task createKeystore(dependsOn: deleteKeystore) {
     }
 }
 
+task buildArtifacts(type:Exec) {
+  workingDir 'dat/actions'
+  commandLine './build.sh'
+}
+
 tasks.withType(Test) {
     dependsOn createKeystore
+    dependsOn buildArtifacts
 }
 createKeystore.mustRunAfter(testClasses)
+buildArtifacts.mustRunAfter(testClasses)
 
 gradle.projectsEvaluated {
     task testCoverageLean(type: Test) {
@@ -259,6 +266,13 @@ gradle.projectsEvaluated {
     task testCoverage(type: Test) {
         classpath = getScoverageClasspath(project, projectsWithCoverage)
     }
+
+    tasks.withType(ScalaCompile) {
+        configure(scalaCompileOptions.forkOptions) {
+            memoryMaximumSize = '1g'
+        }
+    }
+
     tasks.withType(Test) {
         systemProperties(System.getProperties())
         systemProperty("whisk.server.jar", getStandaloneJarFilePath())

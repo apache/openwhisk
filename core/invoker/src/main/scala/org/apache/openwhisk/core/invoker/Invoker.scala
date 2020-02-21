@@ -33,7 +33,8 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.{Spi, SpiLoader}
 import org.apache.openwhisk.utils.ExecutionContextFactory
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -59,12 +60,11 @@ object Invoker {
     // Replace the hostname of the invoker to the assigned id of the invoker.
     val newKamonConfig = Kamon.config
       .withValue("kamon.environment.host", ConfigValueFactory.fromAnyRef(s"invoker$instance"))
-    Kamon.reconfigure(newKamonConfig)
+    Kamon.init(newKamonConfig)
   }
 
   def main(args: Array[String]): Unit = {
     ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
@@ -75,7 +75,7 @@ object Invoker {
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
-      Kamon.stopAllReporters().map(_ => Done)
+      Kamon.stopModules().map(_ => Done)
     }
 
     // load values for the required properties from the environment

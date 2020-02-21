@@ -18,7 +18,8 @@
 package org.apache.openwhisk.core.containerpool.kubernetes
 
 import akka.actor.ActorSystem
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -52,11 +53,7 @@ class KubernetesContainerFactory(
 
   private def initializeKubeClient(): KubernetesClient = {
     val config = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes)
-    if (config.invokerAgent.enabled) {
-      new KubernetesClientWithInvokerAgent(config)(ec)
-    } else {
-      new KubernetesClient(config)(ec)
-    }
+    new KubernetesClient(config)(ec)
   }
 
   /** Perform cleanup on init */

@@ -1,4 +1,5 @@
 {
     "library": "okhttp-gson",
-    "dateLibrary": "java8"
+    "dateLibrary": "java8",
+    "hideGenerationTimestamp": true
 }

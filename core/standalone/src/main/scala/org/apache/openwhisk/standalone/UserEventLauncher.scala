@@ -25,7 +25,8 @@ import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 

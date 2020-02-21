@@ -34,7 +34,8 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.standalone.ColorOutput.clr
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.checkOrAllocatePort
 import org.rogach.scallop.ScallopConf
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -103,10 +104,13 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   val devKcf = opt[Boolean](descr = "Enables KubernetesContainerFactory for local development")
 
   val noUi = opt[Boolean](descr = "Disable Playground UI", noshort = true)
+
   val uiPort = opt[Int](
     descr = s"Playground UI server port. If not specified then $preferredPgPort or some random free port " +
       s"(if $StandaloneOpenWhisk is busy) would be used",
     noshort = true)
+
+  val noBrowser = opt[Boolean](descr = "Disable Launching Browser", noshort = true)
 
   val devUserEventsPort = opt[Int](
     descr = "Specify the port for the user-event service. This mode can be used for local " +
@@ -563,7 +567,14 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext, materializer: ActorMaterializer) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "playground")
     val pgPort = getPort(conf.uiPort.toOption, preferredPgPort)
-    new PlaygroundLauncher(StandaloneDockerSupport.getLocalHostName(), owPort, pgPort, systemAuthKey, conf.devMode())
+    new PlaygroundLauncher(
+      StandaloneDockerSupport.getLocalHostName(),
+      StandaloneDockerSupport.getExternalHostName(),
+      owPort,
+      pgPort,
+      systemAuthKey,
+      conf.devMode(),
+      conf.noBrowser())
   }
 
   private def systemAuthKey: String = {

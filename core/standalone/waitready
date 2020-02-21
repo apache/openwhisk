@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+AUTH="23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP"
+wsk property set --apihost "http://$(hostname):3233" --auth "$AUTH"
+until wsk action list 2>/dev/null >/dev/null
+do sleep 1 ; echo server still not ready - retrying
+done
+wsk action update testme <(echo 'function main(){return {"ready":true}}') --kind nodejs:10
+until wsk action invoke testme -r 2>/dev/null | grep 'ready'
+do sleep 1 ; echo server initializing... 
+done
+wsk action delete testme

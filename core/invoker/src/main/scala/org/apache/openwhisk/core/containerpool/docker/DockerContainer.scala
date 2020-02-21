@@ -164,7 +164,7 @@ object DockerContainer {
  * @param addr the ip of the container
  */
 class DockerContainer(protected val id: ContainerId,
-                      protected val addr: ContainerAddress,
+                      protected[core] val addr: ContainerAddress,
                       protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
                                                       runc: RuncApi,
                                                       override protected val as: ActorSystem,
@@ -210,11 +210,13 @@ class DockerContainer(protected val id: ContainerId,
     }
   }
 
-  override protected def callContainer(path: String,
-                                       body: JsObject,
-                                       timeout: FiniteDuration,
-                                       maxConcurrent: Int,
-                                       retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
+  override protected def callContainer(
+    path: String,
+    body: JsObject,
+    timeout: FiniteDuration,
+    maxConcurrent: Int,
+    retry: Boolean = false,
+    reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
@@ -231,7 +233,7 @@ class DockerContainer(protected val id: ContainerId,
     }
 
     http
-      .post(path, body, retry)
+      .post(path, body, retry, reschedule)
       .flatMap { response =>
         val finished = Instant.now()
 

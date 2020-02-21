@@ -31,7 +31,7 @@ sudo add-apt-repository \
 sudo apt-get -y update
 
 # AUFS
-# Use '-virtual' package to support docker tests of the script and still run under Vagrant
+# Use '-virtual' package to support docker tests of the script
 sudo apt-get --no-install-recommends -y install linux-image-extra-virtual
 
 # DOCKER
@@ -42,9 +42,4 @@ sudo apt-mark hold docker-ce
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H unix:///var/run/docker.sock --storage-driver=aufs"'\'' >> /etc/default/docker'
 sudo gpasswd -a "$(whoami)" docker
 
-
 sudo service docker restart
-
-# do not run this command without a vagrant reload during provisioning
-# it gives an error that docker is not up (which the reload fixes).
-# sudo docker version

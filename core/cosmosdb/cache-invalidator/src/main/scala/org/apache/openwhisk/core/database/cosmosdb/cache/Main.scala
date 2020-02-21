@@ -30,7 +30,7 @@ object Main {
     implicit val log: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
 
     ConfigMXBean.register()
-    Kamon.loadReportersFromConfig()
+    Kamon.init()
     val port = CacheInvalidatorConfig(system.settings.config).invalidatorConfig.port
     BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
     CacheInvalidator.start(system.settings.config)

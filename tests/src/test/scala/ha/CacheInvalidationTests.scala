@@ -37,7 +37,7 @@ import common.WskTestHelpers
 import common.rest.HttpConnection
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import pureconfig.loadConfigOrThrow
+import pureconfig._
 
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem {

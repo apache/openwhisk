@@ -65,6 +65,12 @@ To pass argument to the run command use
 $ ./gradlew :core:standalone:bootRun --args='-m runtimes.json'
 ```
 
+You can also build a standalone docker image with:
+
+```bash
+$ ./gradlew :core:standalone:distDocker
+```
+
 ###  Usage
 
 OpenWhisk standalone server support various launch options
@@ -370,6 +376,7 @@ This shows an output like below indicating that KubernetesContainerFactory based
     "PWD": "/nodejsAction",
     "YARN_VERSION": "1.13.0",
     "__OW_ACTION_NAME": "/guest/hello",
+    "__OW_ACTION_VERSION": "0.0.1",
     "__OW_ACTIVATION_ID": "71e48d2d62e142eca48d2d62e192ec2d",
     "__OW_API_HOST": "http://host.docker.internal:3233",
     "__OW_DEADLINE": "1570223213407",
@@ -379,10 +386,44 @@ This shows an output like below indicating that KubernetesContainerFactory based
 }
 ```
 
-[1]: https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md
-[2]: https://github.com/apache/incubator-openwhisk/blob/master/docs/samples.md
-[3]: https://github.com/apache/incubator-openwhisk-apigateway
-[4]: https://github.com/apache/incubator-openwhisk/blob/master/docs/apigateway.md
+## Launching OpenWhisk standalone with Docker
+
+If you have docker and bash installed, you can launch the standalone openwhisk from the docker image with just:
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh)`
+
+The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not automatically open the OpenWhisk playground, you can access it at `http://localhost:3232`.
+
+The default standalone controller image is published as `openwhisk/standalone:nightly` for convenience.
+
+You can specify a different image to this script and also pass additional parameters to Docker. The general format is:
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh) [<image-name>] [<additional-docker-parameters>...]`
+
+If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
+
+If the playground is not enough, you can then install the [wsk CLI](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
+
+`docker logs openwhisk | grep 'wsk property'`
+
+To properly shut down OpenWhisk and any additional containers it has created, use [this script](stop.sh) or run the command:
+
+`docker exec openwhisk stop`
+
+### Extra Args for the Standalone OpenWhisk Docker Image
+
+When running OpenWhisk Standalone using the docker image,  you can set environment variables to pass extra args with the `-e` flag.
+
+Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
+
+You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with feature.
+
+You can also set additional environment variables for each container running actions invoked by OpenWhisk by setting `CONTAINER_EXTRA_ENV`. For example, setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for those images supporting starting the action under a debugger, like the typescript runtime.
+
+[1]: https://github.com/apache/openwhisk/blob/master/docs/cli.md
+[2]: https://github.com/apache/openwhisk/blob/master/docs/samples.md
+[3]: https://github.com/apache/openwhisk-apigateway
+[4]: https://github.com/apache/openwhisk/blob/master/docs/apigateway.md
 [5]: https://github.com/embeddedkafka/embedded-kafka
 [6]: https://github.com/obsidiandynamics/kafdrop
 [7]: https://github.com/apache/openwhisk/blob/master/docs/metrics.md#user-specific-metrics

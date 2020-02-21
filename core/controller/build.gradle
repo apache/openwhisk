@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-apply plugin: 'scala'
-apply plugin: 'application'
-apply plugin: 'eclipse'
-apply plugin: 'maven'
-apply plugin: 'org.scoverage'
+plugins {
+    id 'application'
+    id 'eclipse'
+    id 'maven'
+    id 'org.scoverage'
+    id 'scala'
+}
 
 ext.dockerImageName = 'controller'
 apply from: '../../gradle/docker.gradle'
@@ -33,21 +35,13 @@ ext.coverageDirs = [
 ]
 distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile 'com.lightbend.akka.management:akka-management-cluster-bootstrap_2.12:0.11.0'
-    compile 'com.lightbend.akka.discovery:akka-discovery-kubernetes-api_2.12:0.11.0'
-    compile 'com.lightbend.akka.discovery:akka-discovery-marathon-api_2.12:0.11.0'
+    compile "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    compile "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    compile "com.lightbend.akka.discovery:akka-discovery-marathon-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
     compile project(':common:scala')
     compile project(':core:invoker')
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 mainClassName = "org.apache.openwhisk.core.controller.Controller"

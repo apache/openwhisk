@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.entity
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
+import pureconfig.generic.auto._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -77,7 +78,7 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
     def read(value: JsValue) = {
       Try {
         val JsNumber(c) = value
-        require(c.isWhole(), "concurrency limit must be whole number")
+        require(c.isWhole, "concurrency limit must be whole number")
 
         ConcurrencyLimit(c.toInt)
       } match {

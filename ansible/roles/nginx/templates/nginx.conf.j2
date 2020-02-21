@@ -141,10 +141,6 @@ http {
             return 301 https://github.com/apache/openwhisk-runtime-docker/releases/download/sdk%400.1.0/blackbox-0.1.0.tar.gz;
         }
 
-        location /OpenWhiskIOSStarterApp.zip {
-            return 301 https://github.com/apache/openwhisk-client-swift/releases/download/0.3.0/starterapp-0.3.0.zip;
-        }
-
         location /cli {
             autoindex on;
             alias /etc/nginx/cli/go/download;

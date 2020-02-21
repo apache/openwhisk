@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.cli.test
 
-import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import scala.util.Failure
@@ -88,7 +87,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
     val name = "webaction"
     val file = Some(TestUtils.getTestActionFilename("echo.js"))
     val host = getServiceURL()
-    val requestPath = host + s"$testRoutePath/$namespace/default/$name.text/a?a="
+    val requestPath = host + s"$testRoutePath/$namespace/default/$name.json/a?a="
     val padAmount = MAX_URL_LENGTH - requestPath.length
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
@@ -111,7 +110,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
           withClue(s"response code: $responseCode, url length: ${url.length}, pad amount: ${pad.length}, url: $url") {
             responseCode shouldBe code
             if (code == 200) {
-              response.body.asString shouldBe pad
+              response.body.asString.parseJson.asJsObject.fields("a").convertTo[String] shouldBe pad
             } else {
               response.body.asString should include("414 Request-URI Too Large") // from nginx
             }
@@ -127,7 +126,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       val name = "webaction"
       val file = Some(TestUtils.getTestActionFilename("echo.js"))
       val host = getServiceURL()
-      val url = s"$host$testRoutePath/$namespace/default/$name.text/__ow_user"
+      val url = s"$host$testRoutePath/$namespace/default/$name.json"
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
         action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> true.toJson))
@@ -145,7 +144,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
         .get(url)
 
       authorizedResponse.statusCode shouldBe 200
-      authorizedResponse.body.asString shouldBe namespace
+      authorizedResponse.body.asString.parseJson.asJsObject.fields("__ow_user").convertTo[String] shouldBe namespace
   }
 
   it should "ensure that CORS header is preserved for custom options" in withAssetCleaner(wskprops) {
@@ -216,7 +215,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       val file = Some(TestUtils.getTestActionFilename("echo.js"))
       val bodyContent = "This is the body"
       val host = getServiceURL()
-      val url = s"$host$testRoutePath/$namespace/default/webaction.text/__ow_body"
+      val url = s"$host$testRoutePath/$namespace/default/webaction.json"
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
         action.create(name, file, web = Some("true"))
@@ -224,11 +223,11 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
       val paramRes = RestAssured.given().contentType("text/html").param("key", "value").config(sslconfig).post(url)
       paramRes.statusCode shouldBe 200
-      new String(paramRes.body.asByteArray, StandardCharsets.UTF_8) shouldBe "key=value"
+      paramRes.body.asString().parseJson.asJsObject.fields("__ow_body").convertTo[String] shouldBe "key=value"
 
       val bodyRes = RestAssured.given().contentType("text/html").body(bodyContent).config(sslconfig).post(url)
       bodyRes.statusCode shouldBe 200
-      new String(bodyRes.body.asByteArray, StandardCharsets.UTF_8) shouldBe bodyContent
+      bodyRes.body.asString().parseJson.asJsObject.fields("__ow_body").convertTo[String] shouldBe bodyContent
   }
 
   it should "reject invocation of web action with invalid accept header" in withAssetCleaner(wskprops) {
@@ -368,7 +367,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
         action.create(actionName, file, web = Some(true.toString))(wp)
       }
 
-      val url = getServiceApiHost(vanitySubdomain, true) + s"/default/$actionName.text/a?a=A"
+      val url = getServiceApiHost(vanitySubdomain, true) + s"/default/$actionName.json/a?a=A"
       println(s"url: $url")
 
       // try the rest assured path first, failing that, try curl with explicit resolve
@@ -376,7 +375,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
         val response = RestAssured.given().config(sslconfig).get(url)
         val responseCode = response.statusCode
         responseCode shouldBe 200
-        response.body.asString shouldBe "A"
+        response.body.asString.parseJson.asJsObject.fields("a").convertTo[String] shouldBe "A"
       } match {
         case Failure(t) =>
           println(s"RestAssured path failed, trying curl: $t")
@@ -390,7 +389,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
           val cmd = Seq("curl", "-k", url, "--resolve", s"$host:$ip")
           val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
           withClue(s"\n$stderr\n") {
-            stdout shouldBe "A"
+            stdout.parseJson.asJsObject.fields("a").convertTo[String] shouldBe "A"
             exitCode shouldBe 0
           }
 

@@ -149,7 +149,7 @@ kafka:
     protocols:
     - TLSv1.2
   protocol: "{{ kafka_protocol_for_setup }}"
-  version: 0.11.0.1
+  version: 2.12-2.3.1
   port: 9072
   advertisedPort: 9093
   ras:
@@ -199,6 +199,7 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
     runcdir: "{{ invoker_runcdir | default('/run/docker/runtime-runc/moby') }}"
+    volumes: "{{ invoker_docker_volumes | default([]) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
   jmxremote:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
@@ -225,7 +226,7 @@ nginx:
   htmldir: "{{ ui_path | default(false) }}"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.15') }}"
+  version: "{{ nginx_version | default('1.17') }}"
   port:
     http: 80
     https: 443

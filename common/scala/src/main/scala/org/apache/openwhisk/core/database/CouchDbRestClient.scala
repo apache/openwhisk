@@ -117,16 +117,18 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
       }
     }
 
+    def bool2OptStr(bool: Boolean): Option[String] = if (bool) Some("true") else None
+
     val args = Seq[(String, Option[String])](
       "startkey" -> list2OptJson(startKey).map(_.toString),
       "endkey" -> list2OptJson(endKey).map(_.toString),
       "skip" -> skip.filter(_ > 0).map(_.toString),
       "limit" -> limit.filter(_ > 0).map(_.toString),
       "stale" -> stale.value,
-      "include_docs" -> Some(includeDocs).filter(identity).map(_.toString),
-      "descending" -> Some(descending).filter(identity).map(_.toString),
-      "reduce" -> Some(reduce).map(_.toString),
-      "group" -> Some(group).filter(identity).map(_.toString))
+      "include_docs" -> bool2OptStr(includeDocs),
+      "descending" -> bool2OptStr(descending),
+      "reduce" -> Some(reduce.toString),
+      "group" -> bool2OptStr(group))
 
     // Throw out all undefined arguments.
     val argMap: Map[String, String] = args

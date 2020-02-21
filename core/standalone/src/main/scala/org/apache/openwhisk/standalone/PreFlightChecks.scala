@@ -20,7 +20,8 @@ package org.apache.openwhisk.standalone
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.commons.lang3.StringUtils
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.isPortFree
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.io.AnsiColor
 import scala.sys.process._
@@ -43,6 +44,9 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
   def run(): Unit = {
     println(separator)
     println("Running pre flight checks ...")
+    println()
+    println(s"Local Host Name: ${StandaloneDockerSupport.getLocalHostName()}")
+    println(s"Local Internal Name: ${StandaloneDockerSupport.getLocalHostInternalName()}")
     println()
     checkForDocker()
     checkForWsk()
@@ -112,6 +116,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
     val apihost = "wsk property get --apihost".!!.trim
 
     val requiredHostValue = s"http://${StandaloneDockerSupport.getLocalHostName()}:${conf.port()}"
+    val externalHostValue = s"http://${StandaloneDockerSupport.getExternalHostName()}:${conf.port()}"
 
     //We can use -o option to get raw value. However as its a recent addition
     //using a lazy approach where we check if output ends with one of the configured auth keys or
@@ -129,7 +134,7 @@ case class PreFlightChecks(conf: Conf) extends AnsiColor {
         case Some((ns, guestAuth)) =>
           println(s"$warn Configure wsk via below command to connect to this server as [$ns]")
           println()
-          println(clr(s"wsk property set --apihost '$requiredHostValue' --auth '$guestAuth'", MAGENTA, clrEnabled))
+          println(clr(s"wsk property set --apihost '$externalHostValue' --auth '$guestAuth'", MAGENTA, clrEnabled))
         case None =>
       }
     }

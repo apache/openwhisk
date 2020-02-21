@@ -43,12 +43,41 @@ subprojects {
     group 'org.apache.openwhisk'
     version '1.0.0-SNAPSHOT'
 
+    pluginManager.withPlugin('scala') {
+        // Constraint all transitive akka-* dependencies to the one we want to use to avoid issues.
+        // List generated via
+        // ./gradlew :test:dependencies | grep -o 'akka-.*_' | cut -c 6- | rev | cut -c 2- | rev | sort -u
+        def cons = project.getDependencies().getConstraints()
+        def akka = ['akka-actor', 'akka-cluster', 'akka-cluster-metrics', 'akka-cluster-tools', 'akka-coordination',
+                    'akka-discovery', 'akka-distributed-data', 'akka-protobuf', 'akka-remote', 'akka-slf4j',
+                    'akka-stream', 'akka-stream-testkit', 'akka-testkit']
+        def akkaHttp = ['akka-http', 'akka-http-core', 'akka-http-spray-json', 'akka-http-testkit', 'akka-http-xml',
+                        'akka-parsing']
+
+        akka.forEach {
+            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
+        }
+        akkaHttp.forEach {
+            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
+        }
+    }
+
     afterEvaluate {
-        if (project.plugins.hasPlugin('application')
-                && project.plugins.hasPlugin('scala')) {
-            startScripts {
-                doLast {
-                    unixScript.text = configureUnixClasspath(unixScript)
+        if (project.plugins.hasPlugin('scala')) {
+            repositories {
+                mavenCentral()
+            }
+
+            tasks.withType(ScalaCompile) {
+                scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+                scalaCompileOptions.forkOptions.jvmArgs = ["-Xss2m"]
+            }
+
+            if (project.plugins.hasPlugin('application')) {
+                startScripts {
+                    doLast {
+                        unixScript.text = configureUnixClasspath(unixScript)
+                    }
                 }
             }
         }

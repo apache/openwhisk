@@ -47,7 +47,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
   behavior of "UserEvents"
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     consumer.close()
   }
 

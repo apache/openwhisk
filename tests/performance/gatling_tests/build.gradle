@@ -16,21 +16,25 @@
  */
 
 plugins {
-    id "com.github.lkishalmi.gatling" version "0.7.2"
+    id 'com.github.lkishalmi.gatling' version '3.2.1'
+    id 'eclipse'
+    id 'scala'
 }
 
-apply plugin: 'eclipse'
-apply plugin: 'scala'
-
-repositories {
-    mavenCentral()
+sourceSets {
+    gatling {
+        scala.srcDirs = ["src/gatling/scala/"]
+        resources.srcDirs = ["src/gatling/resources/"]
+    }
 }
 
 dependencies {
-    gatling "io.spray:spray-json_2.12:1.3.4"
+    gatling "io.spray:spray-json_${gradle.scala.depVersion}:1.3.4"
     gatling "commons-io:commons-io:2.6"
 }
 
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+task buildArtifacts(type:Exec) {
+  commandLine './build.sh'
 }
+
+tasks.matching {it != buildArtifacts}.all {it.dependsOn buildArtifacts}

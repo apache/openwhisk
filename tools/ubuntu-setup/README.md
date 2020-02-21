@@ -19,10 +19,10 @@
 
 # Setting up OpenWhisk on Ubuntu server(s)
 
-The following are verified to work on Ubuntu 14 LTS. You may need `sudo` or root access to install required software depending on your system setup.
+The following are verified to work on Ubuntu 18.04. You may need `sudo` or root access to install required software depending on your system setup.
 
 The commands below should be executed on the host machine for single VM/server deployments of OpenWhisk.
-For a distributed deployment spanning multiple VMs, the commands should be executed on a machine with network connectivity to all the VMs in the deployment - this is called the `bootstrapper` and it is ideally an Ubuntu 14.04 VM that is provisioned in an IaaS (infrastructure as a service platform e.g., OpenStack).
+For a distributed deployment spanning multiple VMs, the commands should be executed on a machine with network connectivity to all the VMs in the deployment - this is called the `bootstrapper` and it is ideally an Ubuntu 18.04 VM that is provisioned in an IaaS (infrastructure as a service platform).
 Your local machine can act as the bootstrapper as well if it can connect to the VMs deployed in your IaaS.
 
   ```

@@ -47,7 +47,10 @@
     kafka_non_ssl_vars:
       "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
-      "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
+      "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "EXTERNAL:PLAINTEXT"
+      "KAFKA_LISTENERS": "EXTERNAL://:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_ADVERTISED_LISTENERS": "EXTERNAL://{{ ansible_host }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_INTER_BROKER_LISTENER_NAME": "EXTERNAL"
 
 - name: add kafka ssl env vars
   when: kafka.protocol == 'SSL'
@@ -56,9 +59,9 @@
       "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_PORT": "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:SSL"
-      "KAFKA_LISTENERS": "EXTERNAL://:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
-      "KAFKA_ADVERTISED_LISTENERS": "EXTERNAL://{{ ansible_host }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
-      "KAFKA_PROTOCOL_NAME": "INTERNAL"
+      "KAFKA_LISTENERS": "EXTERNAL://:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }},INTERNAL://:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_ADVERTISED_LISTENERS": "EXTERNAL://{{ ansible_host }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }},INTERNAL://{{ ansible_host }}:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_INTER_BROKER_LISTENER_NAME": "INTERNAL"
       "KAFKA_SSL_KEYSTORE_LOCATION": "/config/{{ kafka.ssl.keystore.name }}"
       "KAFKA_SSL_KEYSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
       "KAFKA_SSL_KEY_PASSWORD": "{{ kafka.ssl.keystore.password }}"
@@ -67,11 +70,6 @@
       "KAFKA_SSL_CLIENT_AUTH": "{{ kafka.ssl.client_authentication }}"
       "KAFKA_SSL_CIPHER_SUITES": "{{ kafka.ssl.cipher_suites | join(',') }}"
       "KAFKA_SSL_ENABLED_PROTOCOLS": "{{ kafka.ssl.protocols | join(',') }}"
-    # The sed script passed in CUSTOM_INIT_SCRIPT fixes a bug in the wurstmeister dcoker image
-    # by patching the server.configuration file right before kafka is started.
-    # The script adds the missing advertized hostname to the advertised.listener property
-    # Issue: https://github.com/wurstmeister/kafka-docker/issues/221
-      "CUSTOM_INIT_SCRIPT": sed -i \'/^advertised\\.listeners/ s/\\/\\/\\:/\\/\\/{{ ansible_host }}\\:/\' /opt/kafka/config/server.properties
 
 - name: "join kafka ssl env vars"
   when: kafka.protocol == 'SSL'

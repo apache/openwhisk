@@ -44,7 +44,8 @@ import org.apache.openwhisk.core.containerpool.docker.DockerContainerFactoryConf
 import org.apache.openwhisk.core.containerpool.docker.RuncApi
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId}
 import org.apache.openwhisk.core.entity.size._
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
 class DockerContainerFactoryTests

@@ -1897,6 +1897,7 @@
             "nodejs:12",
             "nodejs:default",
             "php:7.3",
+            "php:7.4",
             "php:default",
             "python:2",
             "python:3",
@@ -1907,11 +1908,15 @@
             "go:default",
             "sequence",
             "swift:4.2",
+            "swift:5.1",
             "swift:default",
             "dotnet:2.2",
+            "dotnet:3.1",
             "dotnet:default",
             "ballerina:0.990",
-            "ballerina:default"
+            "ballerina:default",
+            "rust:1.34",
+            "rust:default"
           ],
           "description": "the type of action"
         },
@@ -1997,6 +2002,10 @@
             "activating",
             "deactivating"
           ]
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the rule was updated"
         },
         "trigger": {
           "$ref": "#/definitions/PathName"

@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpResponse
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Concat, Sink, Source}
 
@@ -37,7 +36,6 @@ import org.scalatest.Matchers
 import org.scalatest.time.{Seconds, Span}
 import common.{StreamLogging, WskActorSystem}
 import okio.Buffer
-import spray.json.{JsObject, JsValue}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.containerpool.kubernetes._
@@ -212,7 +210,7 @@ object KubernetesClientTests {
       Future.successful(())
     }
 
-    override def rm(podName: String): Future[Unit] = {
+    override def rm(podName: String)(implicit transid: TransactionId): Future[Unit] = {
       rms += ContainerId(podName)
       Future.successful(())
     }
@@ -236,30 +234,6 @@ object KubernetesClientTests {
       implicit transid: TransactionId): Source[TypedLogLine, Any] = {
       logCalls += ((container.id, sinceTime))
       Source(List.empty[TypedLogLine])
-    }
-  }
-
-  class TestKubernetesClientWithInvokerAgent(implicit as: ActorSystem)
-      extends TestKubernetesClient
-      with KubernetesApiWithInvokerAgent {
-    var agentCommands = mutable.Buffer.empty[(ContainerId, String, Option[Map[String, JsValue]])]
-    var forwardLogs = mutable.Buffer.empty[(ContainerId, Long)]
-
-    def agentCommand(command: String,
-                     container: KubernetesContainer,
-                     payload: Option[Map[String, JsValue]] = None): Future[HttpResponse] = {
-      agentCommands += ((container.id, command, payload))
-      Future.successful(HttpResponse())
-    }
-
-    def forwardLogs(container: KubernetesContainer,
-                    lastOffset: Long,
-                    sizeLimit: ByteSize,
-                    sentinelledLogs: Boolean,
-                    additionalMetadata: Map[String, JsValue],
-                    augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Long] = {
-      forwardLogs += ((container.id, lastOffset))
-      Future.successful(lastOffset + sizeLimit.toBytes) // for testing, pretend we read size limit bytes
     }
   }
 }

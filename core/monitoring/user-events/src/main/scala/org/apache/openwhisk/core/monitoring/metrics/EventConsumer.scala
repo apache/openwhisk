@@ -55,23 +55,26 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
-  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations")
-  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric")
+  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations").withoutTags()
+  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric").withoutTags()
 
   private val statusCounter = Kamon.counter("openwhisk.userevents.global.status")
-  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts")
+  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts").withoutTags()
 
-  private val statusSuccess = statusCounter.refine("status" -> ActivationResponse.statusSuccess)
-  private val statusFailure = statusCounter.refine("status" -> "failure")
-  private val statusApplicationError = statusCounter.refine("status" -> ActivationResponse.statusApplicationError)
-  private val statusDeveloperError = statusCounter.refine("status" -> ActivationResponse.statusDeveloperError)
-  private val statusInternalError = statusCounter.refine("status" -> ActivationResponse.statusWhiskError)
+  private val statusSuccess = statusCounter.withTag("status", ActivationResponse.statusSuccess)
+  private val statusFailure = statusCounter.withTag("status", "failure")
+  private val statusApplicationError = statusCounter.withTag("status", ActivationResponse.statusApplicationError)
+  private val statusDeveloperError = statusCounter.withTag("status", ActivationResponse.statusDeveloperError)
+  private val statusInternalError = statusCounter.withTag("status", ActivationResponse.statusWhiskError)
 
-  private val waitTime = Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds)
-  private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
-  private val duration = Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds)
+  private val waitTime =
+    Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val initTime =
+    Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val duration =
+    Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds).withoutTags()
 
-  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag")
+  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag").withoutTags()
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()
@@ -96,7 +99,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
     .run()
 
   private val lagRecorder =
-    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.set(consumerLag))
+    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.update(consumerLag))
 
   private def processEvent(value: String): Unit = {
     EventMessage

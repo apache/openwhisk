@@ -24,10 +24,8 @@ tools/cli/wsk      text eol=lf
 tools/cli/wskadmin text eol=lf
 
 # bash files not having the .sh extension
-tools/vagrant/simple/wsk        text eol=lf
 gradlew                         text eol=lf
 core/javaAction/proxy/gradlew   text eol=lf
-tools/vagrant/hello             text eol=lf
 sdk/docker/client/action        text eol=lf
 
 # auth files with default api keys

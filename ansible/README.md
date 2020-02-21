@@ -31,11 +31,6 @@ sudo pip install ansible==2.5.2
 sudo pip install jinja2==2.9.6
 ```
 
-#### Vagrant users
-Nothing to be done, Ansible is already installed during vagrant provisioning.
-You can skip setup and prereq steps as those have been done by vagrant for you.
-You may jump directly to [Deploying Using CouchDB](#deploying-using-couchdb)
-
 #### Docker for Mac users
 ```
 sudo easy_install pip

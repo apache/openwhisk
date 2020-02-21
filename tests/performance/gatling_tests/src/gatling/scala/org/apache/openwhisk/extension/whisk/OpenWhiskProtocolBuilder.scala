@@ -20,9 +20,9 @@ package org.apache.openwhisk.extension.whisk
 import java.net.URL
 
 import com.softwaremill.quicklens._
-import io.gatling.core.Predef._
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.http.Predef._
+import io.gatling.core.Predef._
 import io.gatling.http.protocol.HttpProtocol
 
 import scala.language.implicitConversions
@@ -72,7 +72,7 @@ case class OpenWhiskProtocolBuilder(private val protocol: OpenWhiskProtocol) {
   /** build the http protocol with the parameters provided by the openwhisk-protocol. */
   def build(implicit configuration: GatlingConfiguration) = {
     http
-      .baseURL(s"${protocol.protocol}://${protocol.apiHost}:${protocol.port}")
+      .baseUrl(s"${protocol.protocol}://${protocol.apiHost}:${protocol.port}")
       .contentTypeHeader("application/json")
       .userAgentHeader("gatlingLoadTest")
       .warmUp("http://google.com")

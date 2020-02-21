@@ -38,7 +38,8 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse._
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size.SizeLong
-import pureconfig.loadConfigOrThrow
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.annotation.tailrec
 import scala.concurrent._
@@ -89,7 +90,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
    * @param retry whether or not to retry on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean)(
+  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
@@ -100,14 +101,18 @@ protected class ApacheBlockingContainerClient(hostname: String,
 
     Future {
       blocking {
-        execute(request, timeout, maxConcurrent, retry)
+        execute(request, timeout, maxConcurrent, retry, reschedule)
       }
     }
   }
 
   // Annotation will make the compiler complain if no tail recursion is possible
-  @tailrec private def execute(request: HttpRequestBase, timeout: FiniteDuration, maxConcurrent: Int, retry: Boolean)(
-    implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
+  @tailrec private def execute(
+    request: HttpRequestBase,
+    timeout: FiniteDuration,
+    maxConcurrent: Int,
+    retry: Boolean,
+    reschedule: Boolean = false)(implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     val start = Instant.now
 
     Try(connection.execute(request)).map { response =>
@@ -157,7 +162,10 @@ protected class ApacheBlockingContainerClient(hostname: String,
       case t: NoHttpResponseException if ApacheBlockingContainerClient.clientConfig.retryNoHttpResponseException =>
         Failure(RetryableConnectionError(t))
     } match {
-      case Success(response) => response
+      case Success(response)                                  => response
+      case Failure(_: RetryableConnectionError) if reschedule =>
+        //propagate as a failed future; clients can retry at a different container
+        throw ContainerHealthError(tid, request.getURI.toString)
       case Failure(t: RetryableConnectionError) if retry =>
         if (timeout > Duration.Zero) {
           Thread.sleep(50) // Sleep for 50 milliseconds
