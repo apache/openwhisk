@@ -134,7 +134,7 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
         value =>
           Kamon
             .counter(userDefinedStatusCodeMetric)
-            .refine(tags + ("userDefinedStatusCode" -> value.toString))
+            .withTags(tags.withTag("userDefinedStatusCode", value.toString))
             .increment())
     }
   }
