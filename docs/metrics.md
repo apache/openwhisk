@@ -315,6 +315,7 @@ conductor - true for conductor backed actions
 memory - maximum memory allowed for action container
 causedBy - contains the "causedBy" annotation (can be "sequence" or nothing at the moment)
 size - size (in bytes) of the invocation response
+userDefinedStatusCode - status code represents `statusCode` set in result response. (if not set, this field will not be present)
 ```
 Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```

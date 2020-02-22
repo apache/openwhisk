@@ -96,6 +96,52 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
     |  "version": "0.0.1"
     |}""".stripMargin.parseJson
 
+  val whiskActivationErrorJs = """
+    |{
+    |  "activationId": "be97c2fed5dc43d097c2fed5dc73d085",
+    |  "annotations": [{
+    |    "key": "causedBy",
+    |    "value": "sequence"
+    |  }, {
+    |    "key": "path",
+    |    "value": "ns2/a"
+    |  }, {
+    |    "key": "waitTime",
+    |    "value": 5
+    |  }, {
+    |    "key": "kind",
+    |    "value": "testkind"
+    |  }, {
+    |    "key": "limits",
+    |    "value": {
+    |      "concurrency": 1,
+    |      "memory": 128,
+    |      "timeout": 1000
+    |    }
+    |  }, {
+    |    "key": "initTime",
+    |    "value": 10
+    |  }],
+    |  "duration": 123,
+    |  "end": 1570013740007,
+    |  "logs": [],
+    |  "name": "a",
+    |  "namespace": "ns",
+    |  "publish": false,
+    |  "response": {
+    |    "result": {
+    |      "error": {
+    |         "statusCode": 404,
+    |         "body": "Requested resource not found"
+    |      }
+    |    },
+    |    "statusCode": 0
+    |  },
+    |  "start": 1570013740005,
+    |  "subject": "anon-HfJWZZSG9YE38Y8DJbgp9Xn0YyN",
+    |  "version": "0.0.1"
+    |}""".stripMargin.parseJson
+
   val activationJs = """
      |{
      |  "causedBy": "sequence",
@@ -109,10 +155,27 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
      |  "waitTime": 5
      |}""".stripMargin.parseJson
 
+  val activationWithActionStatusCodeJs =
+    """
+      |{
+      |  "userDefinedStatusCode": 404,
+      |  "causedBy": "sequence",
+      |  "conductor": false,
+      |  "duration": 123,
+      |  "initTime": 10,
+      |  "kind": "testkind",
+      |  "memory": 128,
+      |  "name": "ns2/a",
+      |  "statusCode": 0,
+      |  "waitTime": 5
+      |}""".stripMargin.parseJson
+
   it should "deserialize without error" in {
     val activationResponse = ActivationResponse.serdes.read(activationResponseJs)
     val whiskActivation = WhiskActivation.serdes.read(whiskActivationJs)
     val activation = Activation.activationFormat.read(activationJs)
+    val whiskActivationWithError = WhiskActivation.serdes.read(whiskActivationErrorJs)
+    val activationWithActionStatus = Activation.activationFormat.read(activationWithActionStatusCodeJs)
   }
 
   def generateJsons(): Unit = {

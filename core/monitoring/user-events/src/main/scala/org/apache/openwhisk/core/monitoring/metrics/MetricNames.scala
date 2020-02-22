@@ -24,6 +24,7 @@ trait MetricNames {
   val actionStatus = "status"
   val actionMemory = "memory"
   val actionKind = "kind"
+  val userDefinedStatusCode = "status_code"
 
   def activationMetric: String
   def coldStartMetric: String
@@ -32,6 +33,7 @@ trait MetricNames {
   def durationMetric: String
   def statusMetric: String
   def responseSizeMetric: String
+  def userDefinedStatusCodeMetric: String
 
   def concurrentLimitMetric: String
   def timedLimitMetric: String

@@ -90,5 +90,43 @@ class EventMessageTests extends FlatSpec with Matchers {
       Activation("ns2/a", 0, toDuration(0), toDuration(0), toDuration(0), "testkind", false, 0, None, Some(42)))
   }
 
+  it should "Transform a activation with status code" in {
+    val resultWithError =
+      """
+        |{
+        | "statusCode" : 404,
+        | "body": "Requested resource not found"
+        |}
+        |""".stripMargin.parseJson
+    val a =
+      fullActivation
+        .copy(response = ActivationResponse.applicationError(resultWithError, Some(42)))
+    Activation.from(a).map(act => act.userDefinedStatusCode) shouldBe Success(Some(404))
+  }
+
+  it should "Transform a activation with error status code" in {
+    val resultWithError =
+      """
+        |{
+        | "error": {
+        |   "statusCode" : "404",
+        |   "body": "Requested resource not found"
+        | }
+        |}
+        |""".stripMargin.parseJson
+    Activation.userDefinedStatusCode(Some(resultWithError)) shouldBe Some(404)
+  }
+
+  it should "Transform a activation with error status code with invalid error code" in {
+    val resultWithInvalidError =
+      """
+        |{
+        |   "statusCode" : "i404",
+        |   "body": "Requested resource not found"
+        |}
+        |""".stripMargin.parseJson
+    Activation.userDefinedStatusCode(Some(resultWithInvalidError)) shouldBe Some(400)
+  }
+
   def toDuration(milliseconds: Long) = new FiniteDuration(milliseconds, TimeUnit.MILLISECONDS)
 }
