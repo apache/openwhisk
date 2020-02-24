@@ -51,7 +51,8 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.containerpool.docker.test.DockerContainerTests._
 
-import scala.collection.{immutable, mutable}
+import scala.collection.immutable.Queue
+import scala.collection.mutable
 
 /**
  * Unit tests for ContainerPool schedule
@@ -435,7 +436,7 @@ class KubernetesContainerTests
       override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
         logCalls += ((container.id, sinceTime))
-        logSource(Seq(expectedLogEntry, expectedLogEntry), appendSentinel = false)
+        logSource(Queue(expectedLogEntry, expectedLogEntry), appendSentinel = false)
       }
     }
 
@@ -489,15 +490,15 @@ class KubernetesContainerTests
 object KubernetesContainerTests {
 
   def logSource(logLine: TypedLogLine, appendSentinel: Boolean): Source[TypedLogLine, Any] =
-    logSource(Seq(logLine), appendSentinel)
+    logSource(Queue(logLine), appendSentinel)
 
-  def logSource(logs: Seq[TypedLogLine], appendSentinel: Boolean): Source[TypedLogLine, Any] =
-    Source(toLogs(logs, appendSentinel).to[immutable.Seq])
+  def logSource(logs: Queue[TypedLogLine], appendSentinel: Boolean): Source[TypedLogLine, Any] =
+    Source(toLogs(logs, appendSentinel))
 
-  def toLogs(logLine: TypedLogLine, appendSentinel: Boolean): Seq[TypedLogLine] =
-    toLogs(Seq(logLine), appendSentinel)
+  def toLogs(logLine: TypedLogLine, appendSentinel: Boolean): Queue[TypedLogLine] =
+    toLogs(Queue(logLine), appendSentinel)
 
-  def toLogs(log: Seq[TypedLogLine], appendSentinel: Boolean): Seq[TypedLogLine] =
+  def toLogs(log: Queue[TypedLogLine], appendSentinel: Boolean): Queue[TypedLogLine] =
     if (appendSentinel) {
       val lastTime = log.lastOption.map { case TypedLogLine(time, _, _) => time }.getOrElse(Instant.EPOCH)
       log :+
