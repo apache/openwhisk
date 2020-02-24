@@ -55,7 +55,7 @@ class CosmosDBUtilTest extends FlatSpec with Matchers with OptionValues {
     JsHelpers.getFieldPath(result, "b", "c").value shouldBe JsString("r['b']['c']")
   }
 
-  private def fieldsAsJson(fields: String*) = toJson(CosmosDBUtil.prepareFieldClause(fields.toList))
+  private def fieldsAsJson(fields: String*) = toJson(CosmosDBUtil.prepareFieldClause(fields.toSet))
 
   private def toJson(s: String): JsObject = {
     //Strip of last `As VIEW`
