@@ -303,6 +303,7 @@ gradle.projectsEvaluated {
         runner = new org.scoverage.ScoverageRunner(project.configurations.scoverage)
         reportDir = reportTestScoverage.reportDir
         sources = reportTestScoverage.sources
+        sourceEncoding = 'UTF-8'
         dataDir = reportTestScoverage.dataDir
         coverageOutputCobertura = reportTestScoverage.coverageOutputCobertura
         coverageOutputXML = reportTestScoverage.coverageOutputXML
