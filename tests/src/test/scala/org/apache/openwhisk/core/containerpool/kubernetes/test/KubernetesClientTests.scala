@@ -44,7 +44,7 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_SENTINEL
 
 import scala.collection.mutable
-import scala.collection.immutable
+import scala.collection.immutable.Queue
 
 @RunWith(classOf[JUnitRunner])
 class KubernetesClientTests
@@ -102,14 +102,12 @@ class KubernetesClientTests
   def firstSource(lastTimestamp: Option[Instant] = None): Source[TypedLogLine, Any] =
     Source(
       KubernetesRestLogSourceStage
-        .readLines(new Buffer().writeUtf8(firstLog), lastTimestamp, List.empty)
-        .to[immutable.Seq])
+        .readLines(new Buffer().writeUtf8(firstLog), lastTimestamp, Queue.empty))
 
   def secondSource(lastTimestamp: Option[Instant] = None): Source[TypedLogLine, Any] =
     Source(
       KubernetesRestLogSourceStage
-        .readLines(new Buffer().writeUtf8(secondLog), lastTimestamp, List.empty)
-        .to[immutable.Seq])
+        .readLines(new Buffer().writeUtf8(secondLog), lastTimestamp, Queue.empty))
 
   it should "forward suspend commands to the client" in {
     implicit val kubernetes = new TestKubernetesClient

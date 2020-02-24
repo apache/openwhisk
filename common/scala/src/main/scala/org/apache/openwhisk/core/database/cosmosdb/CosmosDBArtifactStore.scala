@@ -350,7 +350,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val f = Source
       .fromPublisher(publisher)
       .wireTap(collectQueryMetrics(_))
-      .mapConcat(asSeq)
+      .mapConcat(asVector)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)
       .map(js =>

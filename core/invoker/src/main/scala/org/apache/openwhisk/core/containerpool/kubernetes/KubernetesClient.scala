@@ -21,6 +21,7 @@ import java.io.IOException
 import java.net.SocketTimeoutException
 import java.time.format.DateTimeFormatterBuilder
 import java.time.{Instant, ZoneId}
+
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.event.Logging.InfoLevel
@@ -30,6 +31,7 @@ import akka.stream.scaladsl.Source
 import akka.stream.stage._
 import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
 import akka.util.ByteString
+
 import collection.JavaConverters._
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.client.utils.Serialization
@@ -47,7 +49,9 @@ import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+
 import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future}
@@ -330,8 +334,7 @@ object KubernetesRestLogSourceStage {
   @tailrec
   def readLines(src: BufferedSource,
                 lastTimestamp: Option[Instant],
-                lines: Seq[TypedLogLine] = Seq.empty[TypedLogLine]): Seq[TypedLogLine] = {
-
+                lines: Queue[TypedLogLine] = Queue.empty[TypedLogLine]): Queue[TypedLogLine] = {
     if (!src.exhausted()) {
       (for {
         line <- Option(src.readUtf8Line()) if !line.isEmpty
