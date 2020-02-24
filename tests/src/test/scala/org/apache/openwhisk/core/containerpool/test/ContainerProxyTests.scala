@@ -1714,7 +1714,7 @@ class ContainerProxyTests
       initializeEnv.fields("__OW_TRANSACTION_ID") shouldBe transid.id.toJson
 
       val convertedAuthKey = message.user.authkey.toEnvironment.fields.map(f => ("__OW_" + f._1.toUpperCase(), f._2))
-      val authEnvironment = initializeEnv.fields.filterKeys(convertedAuthKey.contains)
+      val authEnvironment = initializeEnv.fields.filterKeys(convertedAuthKey.contains).toMap
       if (apiKeyMustBePresent) {
         convertedAuthKey shouldBe authEnvironment
       } else {
@@ -1746,7 +1746,7 @@ class ContainerProxyTests
       environment.fields("action_version") shouldBe message.action.version.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       environment.fields("transaction_id") shouldBe transid.id.toJson
-      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
+      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains).toMap
       if (apiKeyMustBePresent) {
         message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
       } else {
