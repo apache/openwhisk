@@ -21,6 +21,7 @@ import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Cancellable
 import java.time.Instant
+
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
@@ -33,17 +34,19 @@ import akka.io.Tcp.Connected
 import akka.pattern.pipe
 import pureconfig._
 import pureconfig.generic.auto._
-
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
+
 import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.common.TransactionId.systemPrefix
+
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
   ActivationMessage,
   CombinedCompletionAndResultMessage,
@@ -55,8 +58,9 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.invoker.InvokerReactive.{ActiveAck, LogsCollector}
+import org.apache.openwhisk.core.invoker.Invoker.LogsCollector
 import org.apache.openwhisk.http.Messages
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}

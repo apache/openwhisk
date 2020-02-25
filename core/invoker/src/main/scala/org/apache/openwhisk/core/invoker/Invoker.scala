@@ -26,8 +26,8 @@ import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider}
-import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
-import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ConcurrencyLimitConfig, ExecManifest, InvokerInstanceId}
+import org.apache.openwhisk.core.containerpool.{Container, ContainerPoolConfig}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
@@ -37,12 +37,35 @@ import pureconfig._
 import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
 
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
 
 object Invoker {
+
+  /**
+   * Collect logs after the activation has finished.
+   *
+   * This method is called after an activation has finished. The logs gathered here are stored along the activation
+   * record in the database.
+   *
+   * @param transid transaction the activation ran in
+   * @param user the user who ran the activation
+   * @param activation the activation record
+   * @param container container used by the activation
+   * @param action action that was activated
+   * @return logs for the given activation
+   */
+  trait LogsCollector {
+    def logsToBeCollected(action: ExecutableWhiskAction): Boolean = action.limits.logs.asMegaBytes != 0.MB
+
+    def apply(transid: TransactionId,
+              user: Identity,
+              activation: WhiskActivation,
+              container: Container,
+              action: ExecutableWhiskAction): Future[ActivationLogs]
+  }
 
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 

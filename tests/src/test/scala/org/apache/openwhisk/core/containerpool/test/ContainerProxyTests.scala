@@ -36,6 +36,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
   AcknowledegmentMessage,
   ActivationMessage,
@@ -51,7 +52,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-import org.apache.openwhisk.core.invoker.InvokerReactive
+import org.apache.openwhisk.core.invoker.Invoker
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -172,7 +173,7 @@ class ContainerProxyTests
     expectMsg(Transition(machine, Pausing, Paused))
   }
 
-  trait LoggedAcker extends InvokerReactive.ActiveAck {
+  trait LoggedAcker extends ActiveAck {
     def calls =
       mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage)]()
 
@@ -239,8 +240,7 @@ class ContainerProxyTests
       response
   }
 
-  class LoggedCollector(response: Future[ActivationLogs], invokeCallback: () => Unit)
-      extends InvokerReactive.LogsCollector {
+  class LoggedCollector(response: Future[ActivationLogs], invokeCallback: () => Unit) extends Invoker.LogsCollector {
     val collector = LoggedFunction {
       (transid: TransactionId,
        user: Identity,
