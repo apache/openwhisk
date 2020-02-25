@@ -178,7 +178,7 @@ class MesosContainerFactory(config: WhiskConfig,
       }
     })
 
-  override def init(): Unit = Unit
+  override def init(): Unit = ()
 
   /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
   override def cleanup(): Unit = {

@@ -59,7 +59,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
       if (s.length < 5) {
         Left(CommandMessages.shortName)
       } else {
-        Right(Unit)
+        Right(())
       }
     }
 
@@ -71,7 +71,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
           } else if (!isUUID(uuid)) {
             Left(CommandMessages.invalidUUID)
           } else {
-            Right(Unit)
+            Right(())
           }
         case _ => Left(s"failed to determine authorization id and key: $a")
       }

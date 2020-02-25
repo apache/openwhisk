@@ -64,7 +64,7 @@ class YARNTask(override protected val id: ContainerId,
   /** Dual of halt. */
   override def resume()(implicit transid: TransactionId): Future[Unit] = {
     // resume not supported
-    Future.successful(Unit)
+    Future.successful(())
   }
 
   /** Completely destroys this instance of the container. */
