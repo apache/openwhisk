@@ -357,7 +357,7 @@ object Activation extends DefaultJsonProtocol {
 
     statusCode match {
       case Some(value) =>
-        Try { value.convertTo[BigInt].intValue() } match {
+        Try { value.convertTo[BigInt].intValue } match {
           case Failure(_)    => Some(BadRequest.intValue)
           case Success(code) => Some(code)
         }

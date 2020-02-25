@@ -186,7 +186,7 @@ class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase
     //would increment a counter
     if (TransactionId.metricsKamonTags) {
       RetryMetricsCollector.getCounter(CosmosDBAction.Create) match {
-        case Some(x: LongAdder) => x.snapshot(false).intValue()
+        case Some(x: LongAdder) => x.snapshot(false).intValue
         case _                  => 0
       }
     } else {
