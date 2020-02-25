@@ -17,7 +17,16 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import com.microsoft.azure.cosmosdb._
+import com.microsoft.azure.cosmosdb.{
+  Database,
+  DocumentCollection,
+  FeedResponse,
+  RequestOptions,
+  Resource,
+  SqlParameter,
+  SqlParameterCollection,
+  SqlQuerySpec
+}
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import org.apache.openwhisk.common.Logging
 

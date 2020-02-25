@@ -365,7 +365,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val g = f.andThen {
       case Success(queryResult) =>
         if (queryMetrics.nonEmpty) {
-          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics: _*)
+          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics.toSeq: _*)
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")

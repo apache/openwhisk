@@ -97,7 +97,7 @@ object MesosTask {
       case "host"   => Host
       case _        => User(network)
     }
-    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty
+    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty[String, Set[String]]
 
     //transform our config to mesos-actor config:
     val healthCheckConfig = mesosConfig.healthCheck.map(
