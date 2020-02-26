@@ -282,3 +282,8 @@ other OpenWhisk clients. In which case, appropriate tests should be added as nec
 The OpenWhisk platform will perform a generic integration test as part of its basic
 system tests. This integration test will require a [test function](#the-test-action) to
 be available so that the test harness can create, invoke, and delete the action.
+
+### Additonal Execution Environments
+
+#### Action Proxy Single Entrypoint Interface
+There are now several runtimes that support execution environments in addition to OpenWhisk. This started so that the runtimes could be served using Knative Serving, and is the only additonal execution environment currently supported. In an effort to standardize how the various action proxy implementation containers are able to handle additional single entrypoint (such as Knative Serving) execution environment, there is a description of the contract and example cases outlining how a container should respond with a given input. The descriptions and example cases are documented in [Single Entrypoint Proxy Contract](single_entrypoint_proxy_contract.md).
