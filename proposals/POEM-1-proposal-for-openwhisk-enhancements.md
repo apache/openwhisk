@@ -39,7 +39,7 @@ The goals are to enhance the discoverability of proposals, and to help community
 
 ### Procedures
 1. Create a pull request to describe your proposal with [this template](./POEM-N-template.md). The initial state of a proposal should be _"Draft"_.
-2. [Create a corresponding issue]((../../../issues/new?template=proposal.md)) to propose a new change based on [this template](../github/ISSUE_TEMPLATE/proposal.md). It is mainly used to track discussion history.
+2. [Create a corresponding issue](https://github.com/apache/openwhisk/issues/new?template=proposal.md) to propose a new change based on [this template](../.github/ISSUE_TEMPLATE/proposal.md). It is mainly used to track discussion history.
 3. Discuss the proposals using to form a consensus and update your proposal based on comments as needed. It is important to be inclusive, and to notify the OpenWhisk community of meaningful changes using the Apache [`dev` list](https://openwhisk.apache.org/community.html) for this project. Other forms of communication such as Slack are OK but any meaningful results should be documented in issues and the `dev` list.
 4. When members form a rough consensus for the proposal. The proposal owner can request a vote via the dev mailing list.
 5. The voting process follows the [Apache Voting guideline](https://www.apache.org/foundation/voting.html). The PR can be merged with the _"In-progress"_ state if the voting is successfully closed without any veto.

@@ -26,7 +26,7 @@ You can find the full details in [POEM-1](./POEM-1-proposal-for-openwhisk-enhanc
 
 ## Quickstart to propose a new change.
 1. Copy the [POEM template](./POEM-N-template.md) and open a pull request.
-2. [Create a corresponding issue](/issues/new?template=proposal.md) with the prefix, `[Proposal]` in the title.
+2. [Create a corresponding issue](https://github.com/apache/openwhisk/issues/new?template=proposal.md) with the prefix, `[Proposal]` in the title.
 3. Follow the process outlined in the [POEM-1](./POEM-1-proposal-for-openwhisk-enhancements.md).
 
 ## When should I open a proposal?
