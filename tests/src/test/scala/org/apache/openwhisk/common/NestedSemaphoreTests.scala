@@ -17,13 +17,21 @@
 
 package org.apache.openwhisk.common
 
+import common.ConcurrencyHelpers
+import org.apache.openwhisk.utils.ExecutionContextFactory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.duration.DurationInt
+
 @RunWith(classOf[JUnitRunner])
-class NestedSemaphoreTests extends FlatSpec with Matchers {
+class NestedSemaphoreTests extends FlatSpec with Matchers with ConcurrencyHelpers {
+  // use an infinite thread pool to allow for maximum concurrency
+  implicit val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+  val acquireTimeout = 1.minute
+
   behavior of "NestedSemaphore"
 
   it should "allow acquire of concurrency permits before acquire of memory permits" in {
@@ -34,16 +42,17 @@ class NestedSemaphoreTests extends FlatSpec with Matchers {
     val actionConcurrency = 5
     val actionMemory = 3
     //use all concurrency on a single slot
-    (1 to 5).par.map { i =>
-      s.tryAcquireConcurrent(actionId, actionConcurrency, actionMemory) shouldBe true
-    }
+    concurrently(5, acquireTimeout) {
+      s.tryAcquireConcurrent(actionId, actionConcurrency, actionMemory)
+    } should contain only true
     s.availablePermits shouldBe 20 - 3 //we used a single container (memory == 3)
     s.concurrentState(actionId).availablePermits shouldBe 0
 
     //use up all the remaining memory (17) and concurrency slots (17 / 3 * 5 = 25)
-    (1 to 25).par.map { i =>
-      s.tryAcquireConcurrent(actionId, actionConcurrency, actionMemory) shouldBe true
-    }
+    concurrently(25, acquireTimeout) {
+      s.tryAcquireConcurrent(actionId, actionConcurrency, actionMemory)
+    } should contain only true
+
     s.availablePermits shouldBe 2 //we used 18 (20/3 = 6, 6*3=18)
     s.concurrentState(actionId).availablePermits shouldBe 0
     s.tryAcquireConcurrent("action1", actionConcurrency, actionMemory) shouldBe false
@@ -55,7 +64,7 @@ class NestedSemaphoreTests extends FlatSpec with Matchers {
     (0 until 100).foreach { _ =>
       val s = new NestedSemaphore(32)
       // try to acquire more permits than allowed in parallel
-      val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
+      val acquires = concurrently(64, acquireTimeout)(s.tryAcquire())
 
       val result = Seq.fill(32)(true) ++ Seq.fill(32)(false)
       acquires should contain theSameElementsAs result

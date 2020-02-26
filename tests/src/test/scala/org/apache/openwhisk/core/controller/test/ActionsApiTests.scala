@@ -1161,7 +1161,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       action.publish,
       action.annotations ++ systemAnnotations(kind))
 
-    (0 until 5).par.map { i =>
+    (0 until 5).map { i =>
       Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
         status should be(OK)
         val response = responseAs[WhiskAction]

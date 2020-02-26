@@ -17,13 +17,21 @@
 
 package org.apache.openwhisk.common
 
+import common.ConcurrencyHelpers
+import org.apache.openwhisk.utils.ExecutionContextFactory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.duration.DurationInt
+
 @RunWith(classOf[JUnitRunner])
-class ResizableSemaphoreTests extends FlatSpec with Matchers {
+class ResizableSemaphoreTests extends FlatSpec with Matchers with ConcurrencyHelpers {
+  // use an infinite thread pool to allow for maximum concurrency
+  implicit val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+  val acquireTimeout = 1.minute
+
   behavior of "ResizableSemaphore"
 
   it should "not allow to acquire, force or release negative amounts of permits" in {
@@ -163,7 +171,7 @@ class ResizableSemaphoreTests extends FlatSpec with Matchers {
     (0 until 100).foreach { _ =>
       val s = new ResizableSemaphore(32, 35)
       // try to acquire more permits than allowed in parallel
-      val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
+      val acquires = concurrently(64, acquireTimeout)(s.tryAcquire())
 
       val result = Seq.fill(32)(true) ++ Seq.fill(32)(false)
       acquires should contain theSameElementsAs result
@@ -173,11 +181,10 @@ class ResizableSemaphoreTests extends FlatSpec with Matchers {
   it should "release permits even under concurrent load" in {
     val s = new ResizableSemaphore(32, 35)
     // try to acquire more permits than allowed in parallel
-    val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
+    concurrently(64, acquireTimeout)(s.tryAcquire())
+    concurrently(32, acquireTimeout)(s.release(1, true))
 
-    (0 until 32).par.map(_ => s.release(1, true))
     s.counter shouldBe 0
-
   }
 
 }

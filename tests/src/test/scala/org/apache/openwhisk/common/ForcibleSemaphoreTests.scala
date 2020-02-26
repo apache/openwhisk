@@ -17,12 +17,19 @@
 
 package org.apache.openwhisk.common
 
+import common.ConcurrencyHelpers
+import org.apache.openwhisk.utils.ExecutionContextFactory
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.duration.DurationInt
+
 @RunWith(classOf[JUnitRunner])
-class ForcibleSemaphoreTests extends FlatSpec with Matchers {
+class ForcibleSemaphoreTests extends FlatSpec with Matchers with ConcurrencyHelpers {
+  // use an infinite thread pool to allow for maximum concurrency
+  implicit val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+
   behavior of "ForcableSemaphore"
 
   it should "not allow to acquire, force or release negative amounts of permits" in {
@@ -79,7 +86,7 @@ class ForcibleSemaphoreTests extends FlatSpec with Matchers {
     (0 until 100).foreach { _ =>
       val s = new ForcibleSemaphore(32)
       // try to acquire more permits than allowed in parallel
-      val acquires = (0 until 64).par.map(_ => s.tryAcquire()).seq
+      val acquires = concurrently(64, 1.minute)(s.tryAcquire())
 
       val result = Seq.fill(32)(true) ++ Seq.fill(32)(false)
       acquires should contain theSameElementsAs result
