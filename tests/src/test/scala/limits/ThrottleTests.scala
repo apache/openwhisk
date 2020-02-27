@@ -21,9 +21,7 @@ import java.time.Instant
 
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 
-import scala.collection.parallel.immutable.ParSeq
-import scala.concurrent.Future
-import scala.concurrent.Promise
+import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
@@ -102,10 +100,15 @@ class ThrottleTests
    *
    * @param results the sequence of results from invocations or firings
    */
-  def waitForActivations(results: ParSeq[RunResult]) = results.foreach { result =>
-    if (result.exitCode == SUCCESS_EXIT) {
-      withActivation(wsk.activation, result, totalWait = 5.minutes)(identity)
+  def waitForActivations(results: Seq[RunResult]) = {
+    val done = results.map { result =>
+      if (result.exitCode == SUCCESS_EXIT) {
+        Future(withActivation(wsk.activation, result, totalWait = 5.minutes)(_ => ()))
+      } else {
+        Future.successful(())
+      }
     }
+    Await.result(Future.sequence(done), 5.minutes)
   }
 
   /**
@@ -201,7 +204,7 @@ class ThrottleTests
     // wait for the activations last, if these fail, the throttle should be settled
     // and this gives the activations time to complete and may avoid unnecessarily polling
     println("waiting for activations to complete")
-    waitForActivations(results.par)
+    waitForActivations(results)
   }
 
   it should "throttle multiple activations of one trigger" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -286,7 +289,7 @@ class ThrottleTests
     // wait for the activations last, giving the activations time to complete and
     // may avoid unnecessarily polling; if these fail, the throttle may not be settled
     println("waiting for activations to complete")
-    waitForActivations(combinedResults.par)
+    waitForActivations(combinedResults)
   }
 }
 
