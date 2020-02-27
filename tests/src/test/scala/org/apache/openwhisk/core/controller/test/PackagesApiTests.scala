@@ -293,7 +293,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskPackageWithActions]
-      response should be(provider withActions ())
+      response should be(provider.withActions())
     }
   }
 
@@ -308,7 +308,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskPackageWithActions]
-      response should be(provider copy (updated = pkg.updated) withActions ())
+      response should be(provider.copy(updated = pkg.updated).withActions())
     }
   }
 
@@ -321,7 +321,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Get(s"$collectionPath/${reference.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskPackageWithActions]
-      response should be(reference inherit provider.parameters withActions ())
+      response should be(reference.inherit(provider.parameters).withActions())
       // this is redundant in case the precedence orders on inherit are changed incorrectly
       response.wp.parameters should be(Parameters("a", "A") ++ Parameters("b", "b") ++ Parameters("c", "C"))
     }

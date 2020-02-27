@@ -119,7 +119,7 @@ class DockerContainerFactoryTests
     (dockerApiStub
       .rm(_: ContainerId)(_: TransactionId))
       .expects(ContainerId("fakecontainerid"), *)
-      .returning(Future.successful(Unit))
+      .returning(Future.successful(()))
     //setup clientVersion exceptation
     (dockerApiStub.clientVersion _)
       .expects()

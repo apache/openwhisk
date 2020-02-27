@@ -98,7 +98,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
     waitForCalls()
     scheduled ! PoisonPill
 
-    val differences = calculateDifferences(calls)
+    val differences = calculateDifferences(calls.toSeq)
     withClue(s"expecting all $differences to be >= $timeBetweenCalls") {
       differences.forall(_ >= timeBetweenCalls)
     }
@@ -158,7 +158,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
     waitForCalls(interval = timeBetweenCalls)
     scheduled ! PoisonPill
 
-    val differences = calculateDifferences(calls)
+    val differences = calculateDifferences(calls.toSeq)
     withClue(s"expecting all $differences to be <= $timeBetweenCalls") {
       differences should not be 'empty
       differences.forall(_ <= timeBetweenCalls + schedulerSlack)
@@ -221,7 +221,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
     waitForCalls(interval = timeBetweenCalls)
     scheduled ! PoisonPill
 
-    val differences = calculateDifferences(calls)
+    val differences = calculateDifferences(calls.toSeq)
     withClue(s"expecting all $differences to be <= $computationTime") {
       differences should not be 'empty
       differences.forall(_ <= computationTime + schedulerSlack)

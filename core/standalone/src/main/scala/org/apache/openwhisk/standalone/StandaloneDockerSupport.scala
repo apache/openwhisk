@@ -204,7 +204,7 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     with WindowsDockerClient {
 
   override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
-    if (pullDisabled) Future.successful(Unit) else super.pull(image)
+    if (pullDisabled) Future.successful(()) else super.pull(image)
   }
 
   override def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] =

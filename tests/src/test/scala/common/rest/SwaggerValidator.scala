@@ -106,6 +106,7 @@ trait SwaggerValidator {
       .asScala
       .filter(m => m.getLevel == ValidationReport.Level.ERROR)
       .map(_.toString)
+      .toSeq
   }
 
   def strictEntityBodyAsString(entity: HttpEntity): String = entity match {

@@ -263,7 +263,7 @@ class ContainerProxyTests
   }
 
   def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs()),
-                      invokeCallback: () => Unit = () => Unit) =
+                      invokeCallback: () => Unit = () => ()) =
     new LoggedCollector(response, invokeCallback)
 
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>

@@ -75,14 +75,13 @@ trait RunCliCmd extends Matchers {
       params.filter(s =>
         !s.equals("--auth") && !(params.indexOf(s) > 0 && params(params.indexOf(s) - 1).equals("--auth")))
     }
-    if (showCmd) println(args.mkString(" ") + " " + finalParams.mkString(" "))
+    args.appendAll(finalParams)
+    if (showCmd) println(args.mkString(" "))
 
-    val rr = retry(
-      0,
-      retriesOnNetworkError,
-      () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args ++ finalParams))
+    val rr =
+      retry(0, retriesOnNetworkError, () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args.toSeq))
 
-    withClue(hideStr(reportFailure(args ++ finalParams, expectedExitCode, rr).toString(), hideFromOutput)) {
+    withClue(hideStr(reportFailure(args, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
         val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
         if (!ok) {

@@ -701,7 +701,8 @@ class ContainerProxy(factory: (TransactionId,
       case data: WarmedData =>
         Future.successful(None)
       case _ =>
-        val owEnv = (authEnvironment ++ environment + ("deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)) map {
+        val owEnv = (authEnvironment ++ environment ++ Map(
+          "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)) map {
           case (key, value) => "__OW_" + key.toUpperCase -> value
         }
 
