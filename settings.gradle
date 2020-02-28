@@ -46,7 +46,7 @@ gradle.ext.scalafmt = [
 ]
 
 gradle.ext.akka = [version : '2.5.26']
-gradle.ext.akka_kafka = [version : '1.1.0']
+gradle.ext.akka_kafka = [version : '2.0.2']
 gradle.ext.akka_http = [version : '10.1.11']
 gradle.ext.akka_management = [version : '1.0.5']
 
