@@ -51,7 +51,6 @@ import akka.http.scaladsl.model.HttpHeader
 import akka.stream.ActorMaterializer
 import common.WskActorSystem
 import pureconfig._
-import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
 class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem with WskTestHelpers {
