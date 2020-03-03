@@ -22,7 +22,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.core.entity.size._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Attachments {
 
@@ -66,13 +66,11 @@ object Attachments {
     implicit val serdes = {
       implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {
         override def write(c: ContentType) = JsString(c.value)
-        override def read(js: JsValue) =
-          Try {
-            val JsString(c) = js
-            ContentType.parse(c).right.get
-          } getOrElse {
-            throw new DeserializationException("Could not deserialize content-type")
-          }
+        override def read(js: JsValue) = {
+          Try(js.convertTo[String])
+            .flatMap(ContentType.parse(_).fold(_ => Failure(new Exception("failed to parse content-type")), Success(_)))
+            .getOrElse(throw new DeserializationException("Could not deserialize content-type"))
+        }
       }
 
       jsonFormat4(Attached.apply)
