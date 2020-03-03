@@ -19,11 +19,23 @@ package org.apache.openwhisk.core.database.test.behavior
 
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.NoDocumentException
-import org.apache.openwhisk.core.entity.ActivationId
+import org.apache.openwhisk.core.entity.{ActivationId, WhiskActivation}
 
 import scala.util.Random
 
 trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
+
+  protected def checkStoreActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
+    store(activation, context) shouldBe activation.docinfo
+  }
+
+  protected def checkDeleteActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
+    activationStore.delete(ActivationId(activation.docid.asString), context).futureValue shouldBe true
+  }
+
+  protected def checkGetActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
+    activationStore.get(ActivationId(activation.docid.asString), context).futureValue shouldBe activation
+  }
 
   behavior of s"${storeType}ActivationStore store"
 
@@ -32,8 +44,7 @@ trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
     val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
     val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
-    val doc = store(activation, context)
-    doc shouldBe activation.docinfo
+    checkStoreActivation(activation)
   }
 
   behavior of s"${storeType}ActivationStore delete"
@@ -44,7 +55,7 @@ trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
     val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
     store(activation, context)
-    activationStore.delete(ActivationId(activation.docid.asString), context).futureValue shouldBe true
+    checkDeleteActivation(activation)
   }
 
   it should "throws NoDocumentException when activation does not exist" in {
@@ -60,7 +71,7 @@ trait ActivationStoreCRUDBehaviors extends ActivationStoreBehaviorBase {
     val action = s"action1_${Random.alphanumeric.take(4).mkString}"
     val activation = newActivation(namespace, action, 1L)
     store(activation, context)
-    activationStore.get(ActivationId(activation.docid.asString), context).futureValue shouldBe activation
+    checkGetActivation(activation)
   }
 
   it should "throws NoDocumentException when activation does not exist" in {

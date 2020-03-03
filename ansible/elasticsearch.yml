@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,22 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+---
+# This playbook deploys a ElasticSearch cluster
 
-set -e
-
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
-ROOTDIR="$SCRIPTDIR/../.."
-
-cd $ROOTDIR/tools/travis
-export TESTCONTAINERS_RYUK_DISABLED="true"
-export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-
-./scan.sh
-
-./setupPrereq.sh
-
-cat "$ROOTDIR/tests/src/test/resources/application.conf"
-
-./distDocker.sh
-
-./runTests.sh
+- hosts: elasticsearch
+  vars:
+    #
+    # host_group - usually "{{ groups['...'] }}" where '...' is what was used
+    #   for 'hosts' above.  The hostname of each host will be looked up in this
+    #   group to assign a zero-based index.  That index will be used in concert
+    #   with 'name_prefix' below to assign a host/container name.
+    host_group: "{{ groups['elasticsearch'] }}"
+    #
+    # name_prefix - a unique prefix for this set of elasticsearches.  The prefix
+    # will be used in combination with an index (determined using
+    # 'host_group' above) to name host/elasticsearcher.
+    name_prefix: "elasticsearch"
+  roles:
+  - elasticsearch

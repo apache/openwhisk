@@ -275,6 +275,22 @@
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"
 
+- name: setup elasticsearch activation store env
+  set_fact:
+    elastic_env:
+      "CONFIG_whisk_activationStore_elasticsearch_protocol": "{{ db.elasticsearch.protocol}}"
+      "CONFIG_whisk_activationStore_elasticsearch_hosts": "{{ elasticsearch_connect_string }}"
+      "CONFIG_whisk_activationStore_elasticsearch_indexPattern": "{{ db.elasticsearch.index_pattern }}"
+      "CONFIG_whisk_activationStore_elasticsearch_username": "{{ db.elasticsearch.auth.admin.username }}"
+      "CONFIG_whisk_activationStore_elasticsearch_password": "{{ db.elasticsearch.auth.admin.password }}"
+      "CONFIG_whisk_spi_ActivationStoreProvider": "org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationStoreProvider"
+  when: db.activation_store.backend == "ElasticSearch"
+
+- name: merge elasticsearch activation store env
+  set_fact:
+    env: "{{ env | combine(elastic_env) }}"
+  when: db.activation_store.backend == "ElasticSearch"
+
 - name: populate volumes for controller
   set_fact:
     controller_volumes:

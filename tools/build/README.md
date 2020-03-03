@@ -30,6 +30,7 @@ The script is called `redo` because for most development, one will want to "redo
 - usage information: `redo -h`
 - initialize environment and `docker-machine` (for mac): `redo setup prereq`
 - start CouchDB container and initialize DB with system and guest keys: `redo couchdb initdb`
+- start ElasticSearch container to store activations: `redo elasticsearch`
 - build and deploy system: `redo deploy`
 - run tests: `redo props tests`
 

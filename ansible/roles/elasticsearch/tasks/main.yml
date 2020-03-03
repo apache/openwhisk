@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,22 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+---
+# This role will deploy a database server. Use the role if you want to use ElasticSearch locally.
+# In deploy mode it will start the ElasticSearch container.
+# In clean mode it will remove the ElasticSearch container.
 
-set -e
+- import_tasks: deploy.yml
+  when: mode == "deploy"
 
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
-ROOTDIR="$SCRIPTDIR/../.."
-
-cd $ROOTDIR/tools/travis
-export TESTCONTAINERS_RYUK_DISABLED="true"
-export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-
-./scan.sh
-
-./setupPrereq.sh
-
-cat "$ROOTDIR/tests/src/test/resources/application.conf"
-
-./distDocker.sh
-
-./runTests.sh
+- import_tasks: clean.yml
+  when: mode == "clean"
