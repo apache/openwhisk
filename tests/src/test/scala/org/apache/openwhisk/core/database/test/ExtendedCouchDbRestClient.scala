@@ -46,9 +46,8 @@ class ExtendedCouchDbRestClient(protocol: String,
 
   // http://docs.couchdb.org/en/1.6.1/api/server/common.html#all-dbs
   def dbs(): Future[Either[StatusCode, List[String]]] = {
-    requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"), headers = baseHeaders)).map { either =>
-      either.right.map(_.convertTo[List[String]])
-    }
+    requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"), headers = baseHeaders))
+      .map(_.map(_.convertTo[List[String]]))
   }
 
   // http://docs.couchdb.org/en/1.6.1/api/database/common.html#put--db

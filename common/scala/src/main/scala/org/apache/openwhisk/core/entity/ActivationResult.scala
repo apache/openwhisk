@@ -160,9 +160,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
    */
   protected[core] def processInitResponseContent(response: Either[ContainerConnectionError, ContainerResponse],
                                                  logger: Logging): ActivationResponse = {
-    require(
-      response.isLeft || !response.right.exists(_.ok),
-      s"should not interpret init response when status code is OK")
+    require(response.isLeft || !response.exists(_.ok), s"should not interpret init response when status code is OK")
     response match {
       case Right(ContainerResponse(code, str, truncated)) =>
         val sizeOpt = Option(str).map(_.length)
