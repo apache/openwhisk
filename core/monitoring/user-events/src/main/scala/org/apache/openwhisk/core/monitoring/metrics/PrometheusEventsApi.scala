@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
-import akka.http.scaladsl.model.{ContentType, HttpCharset, HttpCharsets, MediaType, MessageEntity}
+import akka.http.scaladsl.model.{ContentType, HttpCharsets, MediaType, MessageEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.connector.kafka.KafkaMetricRoute
