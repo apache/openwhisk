@@ -67,11 +67,10 @@ object Attachments {
       implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {
         override def write(c: ContentType) = JsString(c.value)
         override def read(js: JsValue) = {
-          Try(js.convertTo[String])
-            .flatMap(ContentType.parse(_).fold(_ => Failure(new Exception("failed to parse content-type")), Success(_)))
-            .getOrElse(throw new DeserializationException("Could not deserialize content-type"))
+          Try(js.convertTo[String]).toOption.flatMap(ContentType.parse(_).toOption).getOrElse {
+            throw new DeserializationException("Could not deserialize content-type")
+          }
         }
-      }
 
       jsonFormat4(Attached.apply)
     }
