@@ -21,12 +21,11 @@ import java.lang.management.ManagementFactory
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.kafka.ConsumerMessage.CommittableOffsetBatch
-import akka.kafka.scaladsl.Consumer
+import akka.kafka.scaladsl.{Committer, Consumer}
 import akka.kafka.scaladsl.Consumer.DrainingControl
-import akka.kafka.{ConsumerSettings, Subscriptions}
+import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.scaladsl.Keep
 import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
@@ -85,6 +84,8 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
 
   override def metrics(): Future[Map[MetricName, common.Metric]] = control.metrics
 
+  private val committerSettings = CommitterSettings(system).withMaxBatch(20)
+
   //TODO Use RestartSource
   private val control: DrainingControl[Done] = Consumer
     .committableSource(updatedSettings, Subscriptions.topics(userEventTopic))
@@ -92,9 +93,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
       processEvent(msg.record.value())
       msg.committableOffset
     }
-    .batch(max = 20, CommittableOffsetBatch(_))(_.updated(_))
-    .mapAsync(3)(_.commitScaladsl())
-    .toMat(Sink.ignore)(Keep.both)
+    .toMat(Committer.sink(committerSettings))(Keep.both)
     .mapMaterializedValue(DrainingControl.apply)
     .run()
 
