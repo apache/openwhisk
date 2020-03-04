@@ -24,6 +24,7 @@ import org.apache.openwhisk.common.Counter;
 public class RecordingLeakDetectorFactory extends ResourceLeakDetectorFactory {
     static final Counter counter = new Counter();
     @Override
+    @SuppressWarnings("deprecation")
     public <T> ResourceLeakDetector<T> newResourceLeakDetector(Class<T> resource, int samplingInterval, long maxActive) {
         return new RecordingLeakDetector<T>(counter, resource, samplingInterval);
     }
