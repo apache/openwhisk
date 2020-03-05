@@ -122,9 +122,10 @@ The above JSON object would instruct the runtime to be initialized with the func
 Below is a table outlining the standardized behaviors that any action proxy implementation needs to fulfill. NodeJS was the sample language used, but corresponding example cases could be written in the language of the corresponding runtime it is showcasing.
 
 
-| Test Name | Action Code (In NodeJS) | Input | Output | Status code | Mime type | Notes | Environment Variables |
-|-----------|-------------------------|-------|--------|-------------|-----------|-------|-----------------------|
-|           |                         |       |        |             |           |       |                       |
+| Test Name   | Action Code (In NodeJS)                                                    | Input                                                                             | Output                                             | Status code | Mime type        | Notes | Environment Variables |
+|-------------|----------------------------------------------------------------------------|-----------------------------------------------------------------------------------|----------------------------------------------------|-------------|------------------|-------|-----------------------|
+| Hello World | <code>function main() {<br>  return {payload: 'Hello World!'};<br>}</code> | <code>{<br> "value": {<br>   "name": "Joe",<br>   "place": "TX"<br> }<br>}</code> | <code>{<br>  "payload": 'Hello World!'<br>}</code> | 200         | application/json |       |                       |
+
 ## Implementations
 
 ### [NodeJS](https://github.com/apache/openwhisk-runtime-nodejs)
