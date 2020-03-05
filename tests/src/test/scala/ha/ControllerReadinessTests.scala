@@ -34,7 +34,12 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class ControllerReadinessTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem with ScalaFutures {
+class ControllerReadinessTests
+    extends FlatSpec
+    with Matchers
+    with WskTestHelpers
+    with WskActorSystem
+    with ScalaFutures {
 
   implicit val wskprops = WskProps()
   implicit val materializer = ActorMaterializer()
@@ -66,7 +71,6 @@ class ControllerReadinessTests extends FlatSpec with Matchers with WskTestHelper
   behavior of "Controller"
 
   it should "return list of invokers" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-
     if (amountOfControllers >= 1) {
       val res = request(controller0DockerHost, controllerPort, "/invokers")
       res shouldBe Some((StatusCodes.OK, "{\"invoker0/0\":\"up\",\"invoker1/1\":\"up\"}"))
@@ -76,7 +80,6 @@ class ControllerReadinessTests extends FlatSpec with Matchers with WskTestHelper
   }
 
   it should "return healthy invokers" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-
     if (amountOfControllers >= 1) {
       val res = request(controller0DockerHost, controllerPort, "/invokers/healthy/count")
       res shouldBe Some((StatusCodes.OK, "2"))
@@ -84,7 +87,6 @@ class ControllerReadinessTests extends FlatSpec with Matchers with WskTestHelper
   }
 
   it should "return ready state" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-
     if (amountOfControllers >= 1) {
       val res = request(controller0DockerHost, controllerPort, "/invokers/ready")
       res shouldBe Some((StatusCodes.OK, "healthy 2/2"))
@@ -93,19 +95,19 @@ class ControllerReadinessTests extends FlatSpec with Matchers with WskTestHelper
 
   it should "return ready state true when healthy == total invokers" in {
 
-    val res = Controller.readyState(5, 5 , 1.0)
+    val res = Controller.readyState(5, 5, 1.0)
     res shouldBe true
   }
 
   it should "return ready state false when 0 invokers" in {
 
-    val res = Controller.readyState(0, 0 , 0.5)
+    val res = Controller.readyState(0, 0, 0.5)
     res shouldBe false
   }
 
   it should "return ready state false when threshold < (healthy / total)" in {
 
-    val res = Controller.readyState(7, 3 , 0.5)
+    val res = Controller.readyState(7, 3, 0.5)
     res shouldBe false
   }
 
