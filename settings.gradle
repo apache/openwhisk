@@ -35,9 +35,9 @@ include 'tools:admin'
 rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
-    version: '2.12.10',
-    depVersion: '2.12',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
+    version: '2.13.1',
+    depVersion: '2.13',
+    compileFlags: ['-feature', '-unchecked', '-deprecation']
 ]
 
 gradle.ext.scalafmt = [
