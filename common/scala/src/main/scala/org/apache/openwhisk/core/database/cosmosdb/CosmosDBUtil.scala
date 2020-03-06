@@ -22,8 +22,6 @@ import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import org.apache.openwhisk.core.database.StoreUtils.transform
 import spray.json.{JsObject, JsString}
 
-import scala.collection.immutable.Iterable
-
 private[cosmosdb] object CosmosDBConstants {
 
   /**
@@ -73,37 +71,19 @@ private[cosmosdb] trait CosmosDBUtil {
    * }}}
    * Here it uses {{{r['keyName']}}} notation to avoid issues around using reserved words as field name
    */
-  def prepareFieldClause(fields: Iterable[String]): String = {
-    val m = fields.foldLeft(Map.empty[String, Any]) { (map, name) =>
-      addToMap(name, map)
-    }
-    val withId = addToMap(cid, m)
-    val json = asJsonLikeString(withId)
+  def prepareFieldClause(fields: Set[String]): String = {
+    val json = (fields + cid)
+      .map { field =>
+        val split = field.split('.')
+
+        val selector = "r" + split.mkString("['", "']['", "']")
+        val prefix = split.map(k => s""""$k":""").mkString("{")
+        val suffix = split.drop(1).map(_ => "}").mkString
+
+        prefix + selector + suffix
+      }
+      .mkString("{", ",", "}")
     s"$json AS $alias"
-  }
-
-  private def addToMap(name: String, map: Map[String, _]): Map[String, Any] = name.split('.').toList match {
-    case Nil     => throw new IllegalStateException(s"'$name' split on '.' should not result in empty list")
-    case x :: xs => addToMap(x, xs, Nil, map)
-  }
-
-  private def addToMap(key: String,
-                       children: List[String],
-                       keyPath: List[String],
-                       map: Map[String, Any]): Map[String, Any] = children match {
-    case Nil => map + (key -> s"r${makeKeyPath(key :: keyPath)}")
-    case x :: xs =>
-      map + (key -> addToMap(x, xs, key :: keyPath, map.getOrElse(key, Map.empty).asInstanceOf[Map[String, Any]]))
-  }
-
-  private def makeKeyPath(keyPath: List[String]) = keyPath.reverse.map(f => s"['$f']").mkString
-
-  private def asJsonLikeString(m: Map[_, _]) =
-    m.map { case (k, v) => s""" "$k" : ${asString(v)}""" }.mkString("{", ",", "}")
-
-  private def asString(v: Any): String = v match {
-    case m: Map[_, _] => asJsonLikeString(m)
-    case x            => x.toString
   }
 
   /**
