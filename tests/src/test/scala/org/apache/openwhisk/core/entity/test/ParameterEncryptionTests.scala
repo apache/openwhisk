@@ -102,9 +102,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
 
-    val unlockedParam = new ParameterValue(JsString("test-plain"), false)
-    val mixedParams =
-      locked.merge(Some((new Parameters(Map.empty) + (new ParameterName("plain") -> unlockedParam)).toJsObject))
+    val mixedParams = locked.merge(Some(Parameters("plain", "test-plain").toJsObject))
     val params = Parameters.readMergedList(mixedParams.get)
     params.get("one").get shouldBe locked.get("one").get
     params.get("two").get shouldBe locked.get("two").get
@@ -116,11 +114,11 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "correctly mark the encrypted parameters after lock" in {
     ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
     val locked = ParameterEncryption.lock(parameters)
-    locked.getMap.map(({
+    locked.getMap.foreach {
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
-    }))
+    }
   }
 
   it should "serialize to json correctly" in {
@@ -137,14 +135,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }))
 
     val unlocked = ParameterEncryption.unlock(locked)
     unlocked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption shouldBe JsNull
+        paramValue.encryption shouldBe empty
         paramValue.value.convertTo[String] shouldBe "secret"
     }))
   }
@@ -157,14 +155,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val locked = ParameterEncryption.lock(complexParam)
     locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }))
 
     val unlocked = ParameterEncryption.unlock(locked)
     unlocked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption shouldBe JsNull
+        paramValue.encryption shouldBe empty
         paramValue.value shouldBe obj
     }))
   }
@@ -176,14 +174,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val locked = ParameterEncryption.lock(multiline)
     locked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption.convertTo[String] shouldBe "aes-128"
+        paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }))
 
     val unlocked = ParameterEncryption.unlock(locked)
     unlocked.getMap.map(({
       case (_, paramValue) =>
-        paramValue.encryption shouldBe JsNull
+        paramValue.encryption shouldBe empty
         paramValue.value.convertTo[String] shouldBe lines
     }))
   }
@@ -195,14 +193,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
       val locked = ParameterEncryption.lock(parameters)
       locked.getMap.map(({
         case (_, paramValue) =>
-          paramValue.encryption.convertTo[String] shouldBe "aes-256"
+          paramValue.encryption shouldBe Some("aes-256")
           paramValue.value.convertTo[String] should not be "secret"
       }))
 
       val unlocked = ParameterEncryption.unlock(locked)
       unlocked.getMap.map(({
         case (_, paramValue) =>
-          paramValue.encryption shouldBe JsNull
+          paramValue.encryption shouldBe empty
           paramValue.value.convertTo[String] shouldBe "secret"
       }))
     } catch {
@@ -216,7 +214,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
       val locked = ParameterEncryption.lock(parameters)
       locked.getMap.map(({
         case (_, paramValue) =>
-          paramValue.encryption.convertTo[String] shouldBe "aes-128"
+          paramValue.encryption shouldBe Some("aes-128")
           paramValue.value.convertTo[String] should not be "secret"
       }))
 
@@ -229,10 +227,10 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
       val unlocked = ParameterEncryption.unlock(toDecrypt)
       unlocked.getMap.map(({
         case (_, paramValue) =>
-          paramValue.encryption shouldBe JsNull
+          paramValue.encryption shouldBe empty
           paramValue.value.convertTo[String] shouldBe "secret"
       }))
-      unlocked.toJsObject should not be JsNull
+      unlocked.toJsObject shouldBe JsObject("one" -> "secret".toJson, "two" -> "secret".toJson)
     } catch {
       case e: InvalidAlgorithmParameterException =>
         cancel(e.toString)

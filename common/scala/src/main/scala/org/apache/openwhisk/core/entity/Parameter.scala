@@ -46,13 +46,6 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
       .foldLeft(0 B)(_ + _)
   }
 
-  protected[entity] def +(p: (ParameterName, ParameterValue)) = {
-
-    Option(p) map { p =>
-      new Parameters(params + (p._1 -> p._2))
-    } getOrElse this
-  }
-
   protected[entity] def +(p: ParameterName, v: ParameterValue) = {
     new Parameters(params + (p -> v))
   }
@@ -86,26 +79,20 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   }
   protected[core] def toJsArray = {
     JsArray(params map { p =>
-      val init = p._2.init match {
-        case true => Some("init" -> p._2.init.toJson)
-        case _    => None
-      }
-      val encrypt = p._2.encryption match {
-        case (JsNull) => None
-        case _        => Some("encryption" -> p._2.encryption)
-      }
+      val init = if (p._2.init) Some("init" -> JsTrue) else None
+      val encrypt = p._2.encryption.map(e => ("encryption" -> JsString(e)))
+
       // Have do use this slightly strange construction to get the json object order identical.
-      JsObject(ListMap() ++ encrypt ++ init ++ Map("key" -> p._1.name.toJson, "value" -> p._2.value.toJson))
+      JsObject(ListMap.empty ++ encrypt ++ init ++ Map("key" -> p._1.name.toJson, "value" -> p._2.value))
     } toSeq: _*)
   }
 
   protected[core] def toJsObject =
     JsObject(params.map(p => {
       val newValue =
-        if (p._2.encryption == JsNull)
-          p._2.value.toJson
-        else
-          JsObject("value" -> p._2.value.toJson, "encryption" -> p._2.encryption, "init" -> p._2.init.toJson)
+        p._2.encryption
+          .map(e => JsObject("value" -> p._2.value, "init" -> p._2.init.toJson, "encryption" -> e.toJson))
+          .getOrElse(p._2.value)
       (p._1.name, newValue)
     }))
 
@@ -175,20 +162,17 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
  *
  * @param v the value of the parameter, may be null
  * @param init if true, this parameter value is only offered to the action during initialization
- * @param encryptionDetails the name of the encrypter used to store the parameter.
+ * @param encryption the name of the encryption algorithm used to store the parameter or none (plain text)
  */
 protected[entity] case class ParameterValue protected[entity] (private val v: JsValue,
                                                                val init: Boolean,
-                                                               val encryptionDetails: Option[JsString] = None) {
+                                                               val encryption: Option[String] = None) {
 
   /** @return JsValue if defined else JsNull. */
   protected[entity] def value = Option(v) getOrElse JsNull
 
   /** @return true iff value is not JsNull. */
   protected[entity] def isDefined = value != JsNull
-
-  /** @return JsValue if defined else JsNull. */
-  protected[entity] def encryption = encryptionDetails getOrElse JsNull
 
   /**
    * The size of the ParameterValue entity as ByteSize.
@@ -263,7 +247,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
             val paramVal: ParameterValue = tuple._2 match {
               case o: JsObject =>
                 o.getFields("value", "init", "encryption") match {
-                  case Seq(v: JsValue, JsBoolean(i), e: JsString) =>
+                  case Seq(v: JsValue, JsBoolean(i), JsString(e)) =>
                     ParameterValue(v, i, Some(e))
                   case _ => ParameterValue(o, false, None)
                 }
@@ -297,22 +281,26 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
           val JsObject(o) = value
           o.foreach(i =>
             i._2.asJsObject.getFields("value", "init", "encryption") match {
-              case Seq(v: JsValue, JsBoolean(init), e: JsValue) if e != JsNull =>
+              case Seq(v: JsValue, JsBoolean(init), JsString(e)) =>
                 val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init, Some(JsString(e.convertTo[String])))
+                val value = ParameterValue(v, init, Some(e))
                 converted = converted + (key -> value)
-              case Seq(v: JsValue, JsBoolean(init), e: JsValue) =>
+              case Seq(v: JsValue, JsBoolean(init)) =>
                 val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init, None)
+                val value = ParameterValue(v, init)
+                converted = converted + (key -> value)
+              case Seq(v: JsValue, JsBoolean(init), JsNull) =>
+                val key = new ParameterName(i._1)
+                val value = ParameterValue(v, init)
                 converted = converted + (key -> value)
           })
           if (converted.size == 0) {
-            deserializationError("parameters malformed no parameters available: " + value.toString())
+            deserializationError("parameters malformed no parameters available: " + value.toString)
           } else {
             new Parameters(converted)
           }
         } getOrElse deserializationError(
-          "parameters malformed could not read directly: " + (if (value != null) value.toString() else ""))
+          "parameters malformed could not read directly: " + (if (value != null) value.toString else ""))
       }
 
     /**
@@ -331,7 +319,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, false)
                 (key, value)
-              case Seq(JsString(k), v: JsValue, JsBoolean(i), e: JsString) =>
+              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, i, Some(e))
                 (key, value)
@@ -339,7 +327,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, i)
                 (key, value)
-              case Seq(JsString(k), v: JsValue, e: JsString) if (i.asJsObject.fields.contains("encryption")) =>
+              case Seq(JsString(k), v: JsValue, JsString(e)) if (i.asJsObject.fields.contains("encryption")) =>
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, false, Some(e))
                 (key, value)
