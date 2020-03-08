@@ -695,7 +695,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     val json = Seq[JsValue](
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)),
       JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsFalse)),
-      JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsTrue)))
+      JsArray(JsObject(Map("key" -> "k".toJson, "value" -> "v".toJson, "init" -> JsTrue))))
 
     val params = json.map { p =>
       Parameters.serdes.read(p)

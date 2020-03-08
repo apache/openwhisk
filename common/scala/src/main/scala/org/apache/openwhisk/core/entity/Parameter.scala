@@ -82,8 +82,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
       val init = if (p._2.init) Some("init" -> JsTrue) else None
       val encrypt = p._2.encryption.map(e => ("encryption" -> JsString(e)))
 
-      // Have do use this slightly strange construction to get the json object order identical.
-      JsObject(ListMap.empty ++ encrypt ++ init ++ Map("key" -> p._1.name.toJson, "value" -> p._2.value))
+      JsObject(Map("key" -> p._1.name.toJson, "value" -> p._2.value) ++ init ++ encrypt)
     } toSeq: _*)
   }
 
