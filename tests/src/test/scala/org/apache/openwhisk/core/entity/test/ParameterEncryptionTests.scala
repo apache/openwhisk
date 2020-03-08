@@ -29,7 +29,7 @@ import spray.json._
 class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfter {
 
   after {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("")
+    ParameterEncryption.initialize(ParameterStorageConfig())
   }
 
   val parameters = new Parameters(
@@ -99,7 +99,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   }
 
   it should "read the merged message payload from kafka into parameters" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val locked = ParameterEncryption.lock(parameters)
 
     val mixedParams = locked.merge(Some(Parameters("plain", "test-plain").toJsObject))
@@ -112,7 +112,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   behavior of "AesParameterEncryption"
   it should "correctly mark the encrypted parameters after lock" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.foreach {
       case (_, paramValue) =>
@@ -124,14 +124,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "serialize to json correctly" in {
     val output =
       """\Q{"one":{"encryption":"aes-128","init":false,"value":"\E.*\Q"},"two":{"encryption":"aes-128","init":true,"value":"\E.*\Q"}}""".stripMargin.r
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val locked = ParameterEncryption.lock(parameters)
     val dbString = locked.toJsObject.toString
     dbString should fullyMatch regex output
   }
 
   it should "correctly decrypted encrypted values" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val locked = ParameterEncryption.lock(parameters)
     locked.getMap.map(({
       case (_, paramValue) =>
@@ -147,7 +147,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     }))
   }
   it should "correctly decrypted encrypted JsObject values" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val obj = Map("key" -> "xyz".toJson, "value" -> "v1".toJson).toJson
 
     val complexParam = new Parameters(Map(new ParameterName("one") -> new ParameterValue(obj, false)))
@@ -167,7 +167,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     }))
   }
   it should "correctly decrypted encrypted multiline values" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     val lines = "line1\nline2\nline3\nline4"
     val multiline = new Parameters(Map(new ParameterName("one") -> new ParameterValue(JsString(lines), false)))
 
@@ -187,8 +187,8 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   }
   // Not sure having cancelled tests is a good idea either, need to work on aes256 packaging.
   it should "work if with aes256 if policy allows it" in {
-    ParameterEncryption.storageConfig =
-      new ParameterStorageConfig("aes-256", "", "j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")
+    ParameterEncryption.initialize(
+      ParameterStorageConfig("aes-256", aes256 = Some("j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E=")))
     try {
       val locked = ParameterEncryption.lock(parameters)
       locked.getMap.map(({
@@ -209,7 +209,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     }
   }
   it should "support reverting back to Noop encryption" in {
-    ParameterEncryption.storageConfig = new ParameterStorageConfig("aes-128", "ra1V6AfOYAv0jCzEdufIFA==", "")
+    ParameterEncryption.initialize(ParameterStorageConfig("aes-128", aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
     try {
       val locked = ParameterEncryption.lock(parameters)
       locked.getMap.map(({
@@ -220,7 +220,8 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
       val lockedJson = locked.toJsObject
 
-      ParameterEncryption.storageConfig = new ParameterStorageConfig("", "ra1V6AfOYAv0jCzEdufIFA==", "")
+      // current mode defaults to noop
+      ParameterEncryption.initialize(ParameterStorageConfig(aes128 = Some("ra1V6AfOYAv0jCzEdufIFA==")))
 
       val toDecrypt = Parameters.serdes.read(lockedJson)
 

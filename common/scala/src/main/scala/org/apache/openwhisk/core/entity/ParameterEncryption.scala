@@ -29,37 +29,70 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import pureconfig.generic.auto._
 import spray.json._
-case class ParameterStorageConfig(current: String = "", aes128: String = "", aes256: String = "")
 
-object ParameterEncryption {
-  private val storageConfigLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
-  var storageConfig = storageConfigLoader.getOrElse(ParameterStorageConfig.apply())
+protected[core] case class ParameterStorageConfig(current: String = ParameterEncryption.NO_ENCRYPTION,
+                                                  aes128: Option[String] = None,
+                                                  aes256: Option[String] = None)
 
-  def lock(params: Parameters): Parameters = {
-    val configuredEncryptors = new encrypters(storageConfig)
-    new Parameters(
-      params.getMap
-        .map(({
-          case (paramName, paramValue) if paramValue.encryption.isEmpty =>
-            paramName -> configuredEncryptors.getCurrentEncrypter().encrypt(paramValue)
-          case (paramName, paramValue) => paramName -> paramValue
-        })))
+protected[core] object ParameterEncryption {
+
+  val NO_ENCRYPTION = "noop"
+
+  private val noop = new NoopCrypt()
+
+  private var defaultEncryptor: encrypter = noop
+  private var encryptors: Map[String, encrypter] = Map.empty
+
+  {
+    val configLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
+    val config = configLoader.getOrElse(ParameterStorageConfig(noop.name))
+    initialize(config)
   }
+
+  def initialize(config: ParameterStorageConfig): Unit = {
+    val availableEncrypters = Map(noop.name -> noop) ++
+      config.aes128.map(k => Aes128.name -> new Aes128(getKeyBytes(k))) ++
+      config.aes256.map(k => Aes256.name -> new Aes256(getKeyBytes(k)))
+
+    // should this succeed if the given current scheme does not exist?
+    defaultEncryptor = availableEncrypters.get(config.current).getOrElse(noop)
+    encryptors = availableEncrypters
+  }
+
+  private def getKeyBytes(key: String): Array[Byte] = {
+    if (key.length == 0) {
+      Array.empty
+    } else {
+      Base64.getDecoder.decode(key)
+    }
+  }
+
+  /**
+   * Encrypts any parameters that are not yet encoded.
+   *
+   * @param params the parameters to encode
+   * @return parameters with all values encrypted
+   */
+  def lock(params: Parameters): Parameters = {
+    new Parameters(params.getMap.map {
+      case (paramName, paramValue) if paramValue.encryption.isEmpty =>
+        paramName -> defaultEncryptor.encrypt(paramValue)
+      case p => p
+    })
+  }
+
+  /**
+   * Decodes parameters. If the encryption scheme for a parameter is not recognized, it is not modified.
+   *
+   * @param params the parameters to decode
+   * @return parameters will all values decoded (where scheme is known)
+   */
   def unlock(params: Parameters): Parameters = {
-    val configuredEncryptors = new encrypters(storageConfig)
-    new Parameters(
-      params.getMap
-        .map(({
-          case (paramName, paramValue)
-              if paramValue.encryption.isDefined && !configuredEncryptors
-                .getEncrypter(paramValue.encryption.get)
-                .isEmpty =>
-            paramName -> configuredEncryptors
-              .getEncrypter(paramValue.encryption.get)
-              .get
-              .decrypt(paramValue)
-          case (paramName, paramValue) => paramName -> paramValue
-        })))
+    new Parameters(params.getMap.map {
+      case (paramName, paramValue) if paramValue.encryption.nonEmpty =>
+        paramName -> encryptors(paramValue.encryption.getOrElse(noop.name)).decrypt(paramValue)
+      case p => p
+    })
   }
 }
 
@@ -67,30 +100,6 @@ private trait encrypter {
   def encrypt(p: ParameterValue): ParameterValue
   def decrypt(p: ParameterValue): ParameterValue
   val name: String
-}
-
-private class encrypters(val storageConfig: ParameterStorageConfig) {
-  val noop = new NoopCrypt()
-
-  private val availableEncrypters = Map.empty ++
-    (if (!storageConfig.aes256.isEmpty) Some(Aes256.name -> new Aes256(getKeyBytes(storageConfig.aes256))) else None) ++
-    (if (!storageConfig.aes128.isEmpty) Some(Aes128.name -> new Aes128(getKeyBytes(storageConfig.aes128))) else None)
-
-  protected[entity] def getCurrentEncrypter(): encrypter = {
-    availableEncrypters.get(ParameterEncryption.storageConfig.current).getOrElse(noop)
-  }
-
-  protected[entity] def getEncrypter(name: String): Option[encrypter] = {
-    availableEncrypters.get(name)
-  }
-
-  def getKeyBytes(key: String): Array[Byte] = {
-    if (key.length == 0) {
-      Array.empty
-    } else {
-      Base64.getDecoder.decode(key)
-    }
-  }
 }
 
 private trait AesEncryption extends encrypter {
@@ -156,12 +165,7 @@ private case class Aes256(val key: Array[Byte], val ivLen: Int = 128, val name: 
     with encrypter
 
 private class NoopCrypt extends encrypter {
-  val name = ""
-  def encrypt(p: ParameterValue): ParameterValue = {
-    p
-  }
-
-  def decrypt(p: ParameterValue): ParameterValue = {
-    p
-  }
+  val name = ParameterEncryption.NO_ENCRYPTION
+  def encrypt(p: ParameterValue) = p
+  def decrypt(p: ParameterValue) = p
 }
