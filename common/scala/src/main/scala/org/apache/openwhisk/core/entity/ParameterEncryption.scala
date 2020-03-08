@@ -37,11 +37,15 @@ protected[core] case class ParameterStorageConfig(current: String = ParameterEnc
 protected[core] object ParameterEncryption {
 
   val NO_ENCRYPTION = "noop"
+  val AES128_ENCRYPTION = "aes-128"
+  val AES256_ENCRYPTION = "aes-256"
 
-  private val noop = new NoopCrypt()
+  private val noop = new Encrypter {
+    override val name = NO_ENCRYPTION
+  }
 
-  private var defaultEncryptor: encrypter = noop
-  private var encryptors: Map[String, encrypter] = Map.empty
+  private var defaultEncryptor: Encrypter = noop
+  private var encryptors: Map[String, Encrypter] = Map.empty
 
   {
     val configLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
@@ -51,8 +55,8 @@ protected[core] object ParameterEncryption {
 
   def initialize(config: ParameterStorageConfig): Unit = {
     val availableEncrypters = Map(noop.name -> noop) ++
-      config.aes128.map(k => Aes128.name -> new Aes128(getKeyBytes(k))) ++
-      config.aes256.map(k => Aes256.name -> new Aes256(getKeyBytes(k)))
+      config.aes128.map(k => AES128_ENCRYPTION -> new Aes128(getKeyBytes(k))) ++
+      config.aes256.map(k => AES256_ENCRYPTION -> new Aes256(getKeyBytes(k)))
 
     // should this succeed if the given current scheme does not exist?
     defaultEncryptor = availableEncrypters.get(config.current).getOrElse(noop)
@@ -96,22 +100,21 @@ protected[core] object ParameterEncryption {
   }
 }
 
-private trait encrypter {
-  def encrypt(p: ParameterValue): ParameterValue
-  def decrypt(p: ParameterValue): ParameterValue
+private trait Encrypter {
   val name: String
+  def encrypt(p: ParameterValue): ParameterValue = p
+  def decrypt(p: ParameterValue): ParameterValue = p
 }
 
-private trait AesEncryption extends encrypter {
+private trait AesEncryption extends Encrypter {
   val key: Array[Byte]
   val ivLen: Int
   val name: String
   private val tLen = 128
   private val secretKey = new SecretKeySpec(key, "AES")
-
   private val secureRandom = new SecureRandom()
 
-  def encrypt(value: ParameterValue): ParameterValue = {
+  override def encrypt(value: ParameterValue): ParameterValue = {
     val iv = new Array[Byte](ivLen)
     secureRandom.nextBytes(iv)
     val gcmSpec = new GCMParameterSpec(tLen, iv)
@@ -128,7 +131,7 @@ private trait AesEncryption extends encrypter {
     ParameterValue(JsString(Base64.getEncoder.encodeToString(cipherMessage)), value.init, Some(name))
   }
 
-  def decrypt(value: ParameterValue): ParameterValue = {
+  override def decrypt(value: ParameterValue): ParameterValue = {
     val cipherMessage = value.value.convertTo[String].getBytes(StandardCharsets.UTF_8)
     val byteBuffer = ByteBuffer.wrap(Base64.getDecoder.decode(cipherMessage))
     val ivLength = byteBuffer.getInt
@@ -150,22 +153,12 @@ private trait AesEncryption extends encrypter {
 
 }
 
-private object Aes128 {
-  val name: String = "aes-128"
+private case class Aes128(override val key: Array[Byte]) extends AesEncryption with Encrypter {
+  override val name = ParameterEncryption.AES128_ENCRYPTION
+  override val ivLen = 12
 }
-private case class Aes128(val key: Array[Byte], val ivLen: Int = 12, val name: String = Aes128.name)
-    extends AesEncryption
-    with encrypter
 
-private object Aes256 {
-  val name: String = "aes-256"
-}
-private case class Aes256(val key: Array[Byte], val ivLen: Int = 128, val name: String = Aes256.name)
-    extends AesEncryption
-    with encrypter
-
-private class NoopCrypt extends encrypter {
-  val name = ParameterEncryption.NO_ENCRYPTION
-  def encrypt(p: ParameterValue) = p
-  def decrypt(p: ParameterValue) = p
+private case class Aes256(override val key: Array[Byte]) extends AesEncryption with Encrypter {
+  override val name = ParameterEncryption.AES256_ENCRYPTION
+  override val ivLen = 128
 }
