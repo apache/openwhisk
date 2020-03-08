@@ -774,9 +774,7 @@ class ContainerProxy(factory: (TransactionId,
   def initializeAndRun(container: Container, job: Run, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[WhiskActivation] = {
     val actionTimeout = job.action.limits.timeout.duration
-    val unlockedContent = job.msg.content.map { js =>
-      ParameterEncryption.unlock(Parameters.readMergedList(js)).toJsObject
-    }
+    val unlockedContent = job.msg.content.map(Parameters.readMergedList(_).unlock().toJsObject)
 
     val (env, parameters) = ContainerProxy.partitionArguments(unlockedContent, job.msg.initArgs)
 

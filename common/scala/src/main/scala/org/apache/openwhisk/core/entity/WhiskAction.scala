@@ -384,7 +384,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       val stream = new ByteArrayInputStream(bytes)
       super.putAndAttach(
         db,
-        doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
+        doc.copy(parameters = doc.parameters.lock()).revision[WhiskAction](doc.rev),
         attachmentUpdater,
         attachmentType,
         stream,
@@ -404,10 +404,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         case exec @ BlackBoxExec(_, Some(Inline(code)), _, _, binary) =>
           putWithAttachment(code, binary, exec)
         case _ =>
-          super.put(
-            db,
-            doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
-            old)
+          super.put(db, doc.copy(parameters = doc.parameters.lock()).revision[WhiskAction](doc.rev), old)
       }
     } match {
       case Success(f) => f

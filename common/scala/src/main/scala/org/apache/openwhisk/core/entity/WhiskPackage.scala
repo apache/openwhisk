@@ -205,7 +205,7 @@ object WhiskPackage
   override def put[A >: WhiskPackage](db: ArtifactStore[A], doc: WhiskPackage, old: Option[WhiskPackage])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    super.put(db, doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskPackage](doc.rev), old)
+    super.put(db, doc.copy(parameters = doc.parameters.lock()).revision[WhiskPackage](doc.rev), old)
   }
 }
 

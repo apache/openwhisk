@@ -130,6 +130,36 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
       case _            => true
     } getOrElse valueForNonExistent
   }
+
+  /**
+   * Encrypts any parameters that are not yet encoded.
+   *
+   * @return parameters with all values encrypted
+   */
+  def lock(encoder: Option[Encrypter] = None): Parameters = {
+    new Parameters(params.map {
+      case (paramName, paramValue) if paramValue.encryption.isEmpty =>
+        paramName -> encoder.getOrElse(ParameterEncryption.singleton.default).encrypt(paramValue)
+      case p => p
+    })
+  }
+
+  /**
+   * Decodes parameters. If the encryption scheme for a parameter is not recognized, it is not modified.
+   *
+   * @return parameters will all values decoded (where scheme is known)
+   */
+  def unlock(decoder: Option[ParameterEncryption] = None): Parameters = {
+    new Parameters(params.map {
+      case (paramName, paramValue) if paramValue.encryption.nonEmpty =>
+        paramName -> decoder
+          .getOrElse(ParameterEncryption.singleton)
+          .encryptor(paramValue.encryption)
+          .decrypt(paramValue)
+      case p => p
+    })
+  }
+
 }
 
 /**

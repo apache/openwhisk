@@ -34,85 +34,70 @@ protected[core] case class ParameterStorageConfig(current: String = ParameterEnc
                                                   aes128: Option[String] = None,
                                                   aes256: Option[String] = None)
 
+protected[core] case class ParameterEncryption(default: Encrypter, encryptors: Map[String, Encrypter]) {
+
+  /**
+   * Gets the default encryptor or the encryptor for the given scheme name.
+   *
+   * @param name optionnal name of the encryption algorithm (defaults to current from last configuration)
+   * @return the encryptor if there is one else no-op encryptor
+   */
+  def encryptor(name: Option[String] = None): Encrypter = {
+    encryptors.get(name.getOrElse(default.name)).getOrElse(ParameterEncryption.noop)
+  }
+
+}
+
 protected[core] object ParameterEncryption {
 
   val NO_ENCRYPTION = "noop"
   val AES128_ENCRYPTION = "aes-128"
   val AES256_ENCRYPTION = "aes-256"
 
-  private val noop = new Encrypter {
+  val noop = new Encrypter {
     override val name = NO_ENCRYPTION
   }
 
-  private var defaultEncryptor: Encrypter = noop
-  private var encryptors: Map[String, Encrypter] = Map.empty
-
-  {
+  val singleton: ParameterEncryption = {
     val configLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
     val config = configLoader.getOrElse(ParameterStorageConfig(noop.name))
-    initialize(config)
+    ParameterEncryption(config)
   }
 
-  def initialize(config: ParameterStorageConfig): Unit = {
-    val availableEncrypters = Map(noop.name -> noop) ++
-      config.aes128.map(k => AES128_ENCRYPTION -> new Aes128(getKeyBytes(k))) ++
-      config.aes256.map(k => AES256_ENCRYPTION -> new Aes256(getKeyBytes(k)))
+  def apply(config: ParameterStorageConfig): ParameterEncryption = {
+    val availableEncoders = Map(noop.name -> noop) ++
+      config.aes128.map(k => AES128_ENCRYPTION -> new Aes128(k)) ++
+      config.aes256.map(k => AES256_ENCRYPTION -> new Aes256(k))
 
-    // should this succeed if the given current scheme does not exist?
-    defaultEncryptor = availableEncrypters.get(config.current).getOrElse(noop)
-    encryptors = availableEncrypters
+    val defaultEncoder: Encrypter = availableEncoders.get(config.current).getOrElse(noop)
+
+    ParameterEncryption(defaultEncoder, availableEncoders)
   }
+}
 
-  private def getKeyBytes(key: String): Array[Byte] = {
+protected[core] trait Encrypter {
+  val name: String
+  def encrypt(p: ParameterValue): ParameterValue = p
+  def decrypt(p: ParameterValue): ParameterValue = p
+}
+
+protected[core] object Encrypter {
+  protected[entity] def getKeyBytes(key: String): Array[Byte] = {
     if (key.length == 0) {
       Array.empty
     } else {
       Base64.getDecoder.decode(key)
     }
   }
-
-  /**
-   * Encrypts any parameters that are not yet encoded.
-   *
-   * @param params the parameters to encode
-   * @return parameters with all values encrypted
-   */
-  def lock(params: Parameters): Parameters = {
-    new Parameters(params.getMap.map {
-      case (paramName, paramValue) if paramValue.encryption.isEmpty =>
-        paramName -> defaultEncryptor.encrypt(paramValue)
-      case p => p
-    })
-  }
-
-  /**
-   * Decodes parameters. If the encryption scheme for a parameter is not recognized, it is not modified.
-   *
-   * @param params the parameters to decode
-   * @return parameters will all values decoded (where scheme is known)
-   */
-  def unlock(params: Parameters): Parameters = {
-    new Parameters(params.getMap.map {
-      case (paramName, paramValue) if paramValue.encryption.nonEmpty =>
-        paramName -> encryptors(paramValue.encryption.getOrElse(noop.name)).decrypt(paramValue)
-      case p => p
-    })
-  }
 }
 
-private trait Encrypter {
-  val name: String
-  def encrypt(p: ParameterValue): ParameterValue = p
-  def decrypt(p: ParameterValue): ParameterValue = p
-}
-
-private trait AesEncryption extends Encrypter {
+protected[core] trait AesEncryption extends Encrypter {
   val key: Array[Byte]
   val ivLen: Int
   val name: String
   private val tLen = 128
-  private val secretKey = new SecretKeySpec(key, "AES")
   private val secureRandom = new SecureRandom()
+  private lazy val secretKey = new SecretKeySpec(key, "AES")
 
   override def encrypt(value: ParameterValue): ParameterValue = {
     val iv = new Array[Byte](ivLen)
@@ -153,12 +138,14 @@ private trait AesEncryption extends Encrypter {
 
 }
 
-private case class Aes128(override val key: Array[Byte]) extends AesEncryption with Encrypter {
+protected[core] class Aes128(val k: String) extends AesEncryption with Encrypter {
+  override val key = Encrypter.getKeyBytes(k)
   override val name = ParameterEncryption.AES128_ENCRYPTION
   override val ivLen = 12
 }
 
-private case class Aes256(override val key: Array[Byte]) extends AesEncryption with Encrypter {
+protected[core] class Aes256(val k: String) extends AesEncryption with Encrypter {
+  override val key = Encrypter.getKeyBytes(k)
   override val name = ParameterEncryption.AES256_ENCRYPTION
   override val ivLen = 128
 }
