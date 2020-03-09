@@ -283,7 +283,10 @@ The OpenWhisk platform will perform a generic integration test as part of its ba
 system tests. This integration test will require a [test function](#the-test-action) to
 be available so that the test harness can create, invoke, and delete the action.
 
-### Additonal Execution Environments
+### Supporting Additonal Execution Environments
+
+There are now several runtimes that support execution environments in addition to OpenWhisk. Currently only an interface for single entrypoint execution environments has been defined, but more could be defined in the future.
 
 #### Action Proxy Single Entrypoint Interface
-There are now several runtimes that support execution environments in addition to OpenWhisk. This started so that the runtimes could be served using Knative Serving, and is the only additonal execution environment currently supported. In an effort to standardize how the various action proxy implementation containers are able to handle additional single entrypoint (such as Knative Serving) execution environment, there is a description of the contract and example cases outlining how a container should respond with a given input. The descriptions and example cases are documented in [Single Entrypoint Proxy Contract](single_entrypoint_proxy_contract.md).
+
+Single entrypoint proxies are proxies that have only addressable http endpoint. They do not use `/init` and `/run` enpoints utilized by standard OpenWhisk runtime environments; instead both the initialization and activation are handled through one endpoint. The first example of such a proxy was implemented for Knative Serving, but the same interface can be used for any single entrypoint execution environment. In an effort to standardize how the various action proxy implementation containers are able to handle single entrypoint execution environments (such as Knative Serving), there is a description of the contract and example cases outlining how a container should respond with a given input. The descriptions and example cases are documented in [Single Entrypoint Proxy Contract](single_entrypoint_proxy_contract.md).
