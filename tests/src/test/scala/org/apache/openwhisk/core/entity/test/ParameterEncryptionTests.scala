@@ -113,7 +113,16 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "serialize to json correctly" in {
     val locked = parameters.lock(aes128encoder)
     locked.toJsObject.toString should fullyMatch regex """\Q{"one":"\E.*\Q","two":"\E.*\Q"}""".stripMargin.r
-    locked.lockedParameters shouldBe Map("one" -> "aes-128", "two" -> "aes-128")
+    locked.lockedParameters() shouldBe Map("one" -> "aes-128", "two" -> "aes-128")
+  }
+
+  it should "serialize to json correctly when a locked parameter is overriden" in {
+    val locked = parameters.lock(aes128encoder)
+    locked
+      .merge(Some(JsObject("one" -> JsString("override"))))
+      .get
+      .compactPrint should fullyMatch regex """\Q{"one":"override","two":"\E.*\Q"}""".stripMargin.r
+    locked.lockedParameters(Set("one")) shouldBe Map("two" -> "aes-128")
   }
 
   it should "correctly decrypt encrypted values" in {

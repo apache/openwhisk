@@ -754,6 +754,7 @@ class ContainerProxy(factory: (TransactionId,
     }
     hpa ! HealthPingEnabled(true)
   }
+
   private def disableHealthPing() = {
     healthPingActor.foreach(_ ! HealthPingEnabled(false))
   }
@@ -1097,13 +1098,8 @@ object ContainerProxy {
     content.map {
       case JsObject(fields) =>
         JsObject(fields.map {
-          case (k, o: JsObject) =>
-            o.getFields("value", "encryption") match {
-              case Seq(s: JsString, JsString(e)) => (k -> decoder.encryptor(e).decrypt(s))
-              case Seq(v: JsValue, JsNull)       => (k -> v)
-            }
-
-          case p => p
+          case (k, v: JsString) if lockedArgs.contains(k) => (k -> decoder.encryptor(lockedArgs(k)).decrypt(v))
+          case p                                          => p
         })
     }
   }

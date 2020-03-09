@@ -74,10 +74,12 @@ protected[core] class Parameters protected[entity] (protected[entity] val params
     params.keySet filter (params(_).init) map (_.name)
   }
 
-  /** Gets map of all locked (encrypted) parameters. */
-  protected[core] def lockedParameters: Map[String, String] = {
+  /**
+   * Gets map of all locked (encrypted) parameters, excluding parameters from given set.
+   */
+  protected[core] def lockedParameters(exclude: Set[String] = Set.empty): Map[String, String] = {
     params.collect {
-      case p if p._2.encryption.isDefined => (p._1.name -> p._2.encryption.get)
+      case p if p._2.encryption.isDefined && !exclude.contains(p._1.name) => (p._1.name -> p._2.encryption.get)
     }
   }
 
