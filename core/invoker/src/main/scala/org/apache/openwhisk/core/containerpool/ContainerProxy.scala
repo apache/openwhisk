@@ -774,9 +774,10 @@ class ContainerProxy(factory: (TransactionId,
   def initializeAndRun(container: Container, job: Run, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[WhiskActivation] = {
     val actionTimeout = job.action.limits.timeout.duration
-    val unlockedContent = job.msg.content.map(Parameters.readMergedList(_).unlock().toJsObject)
+    val unlockedArgs =
+      ContainerProxy.unlockArguments(job.msg.content, job.msg.lockedArgs, ParameterEncryption.singleton)
 
-    val (env, parameters) = ContainerProxy.partitionArguments(unlockedContent, job.msg.initArgs)
+    val (env, parameters) = ContainerProxy.partitionArguments(unlockedArgs, job.msg.initArgs)
 
     val environment = Map(
       "namespace" -> job.msg.user.namespace.name.toJson,
@@ -1087,6 +1088,23 @@ object ContainerProxy {
       case Some(js) =>
         val (env, args) = js.fields.partition(k => initArgs.contains(k._1))
         (env, JsObject(args))
+    }
+  }
+
+  def unlockArguments(content: Option[JsObject],
+                      lockedArgs: Map[String, String],
+                      decoder: ParameterEncryption): Option[JsObject] = {
+    content.map {
+      case JsObject(fields) =>
+        JsObject(fields.map {
+          case (k, o: JsObject) =>
+            o.getFields("value", "encryption") match {
+              case Seq(s: JsString, JsString(e)) => (k -> decoder.encryptor(e).decrypt(s))
+              case Seq(v: JsValue, JsNull)       => (k -> v)
+            }
+
+          case p => p
+        })
     }
   }
 }

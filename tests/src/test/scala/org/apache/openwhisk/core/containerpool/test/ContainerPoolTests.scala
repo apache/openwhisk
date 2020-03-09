@@ -87,7 +87,8 @@ class ContainerPoolTests
       ControllerInstanceId("0"),
       blocking = false,
       content = None,
-      initArgs = Set.empty)
+      initArgs = Set.empty,
+      lockedArgs = Map.empty)
     Run(action, message)
   }
 

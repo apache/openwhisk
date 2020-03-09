@@ -46,6 +46,10 @@ protected[core] case class ParameterEncryption(default: Encrypter, encryptors: M
     encryptors.get(name.getOrElse(default.name)).getOrElse(ParameterEncryption.noop)
   }
 
+  def encryptor(name: String): Encrypter = {
+    encryptors.get(name).getOrElse(ParameterEncryption.noop)
+  }
+
 }
 
 protected[core] object ParameterEncryption {
@@ -79,6 +83,7 @@ protected[core] trait Encrypter {
   val name: String
   def encrypt(p: ParameterValue): ParameterValue = p
   def decrypt(p: ParameterValue): ParameterValue = p
+  def decrypt(v: JsString): JsValue = v
 }
 
 protected[core] object Encrypter {
@@ -116,8 +121,15 @@ protected[core] trait AesEncryption extends Encrypter {
     ParameterValue(JsString(Base64.getEncoder.encodeToString(cipherMessage)), value.init, Some(name))
   }
 
-  override def decrypt(value: ParameterValue): ParameterValue = {
-    val cipherMessage = value.value.convertTo[String].getBytes(StandardCharsets.UTF_8)
+  override def decrypt(p: ParameterValue): ParameterValue = {
+    p.value match {
+      case s: JsString => p.copy(v = decrypt(s), encryption = None)
+      case _           => p
+    }
+  }
+
+  override def decrypt(value: JsString): JsValue = {
+    val cipherMessage = value.convertTo[String].getBytes(StandardCharsets.UTF_8)
     val byteBuffer = ByteBuffer.wrap(Base64.getDecoder.decode(cipherMessage))
     val ivLength = byteBuffer.getInt
     if (ivLength != ivLen) {
@@ -133,7 +145,7 @@ protected[core] trait AesEncryption extends Encrypter {
     cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec)
     val plainTextBytes = cipher.doFinal(cipherText)
     val plainText = new String(plainTextBytes, StandardCharsets.UTF_8)
-    ParameterValue(plainText.parseJson, value.init)
+    plainText.parseJson
   }
 
 }

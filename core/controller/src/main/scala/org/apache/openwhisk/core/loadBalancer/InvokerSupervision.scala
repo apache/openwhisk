@@ -416,7 +416,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         rootControllerIndex = controllerInstance,
         blocking = false,
         content = None,
-        initArgs = Set.empty)
+        initArgs = Set.empty,
+        lockedArgs = Map.empty)
 
       context.parent ! ActivationRequest(activationMessage, invokerInstance)
     }

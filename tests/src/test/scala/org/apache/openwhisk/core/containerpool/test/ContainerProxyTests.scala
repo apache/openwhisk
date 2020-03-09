@@ -125,7 +125,8 @@ class ContainerProxyTests
     ControllerInstanceId("0"),
     blocking = false,
     content = Some(activationArguments),
-    initArgs = Set("ENV_VAR"))
+    initArgs = Set("ENV_VAR"),
+    lockedArgs = Map.empty)
 
   /*
    * Helpers for assertions and actor lifecycles

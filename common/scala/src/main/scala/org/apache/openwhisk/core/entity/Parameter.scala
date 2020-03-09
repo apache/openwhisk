@@ -21,7 +21,6 @@ import org.apache.openwhisk.core.entity.size.{SizeInt, SizeString}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-import scala.collection.immutable.ListMap
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -74,9 +73,17 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.keySet filter (params(_).init) map (_.name)
   }
 
+  /** Gets list all locked (encrypted) parameters. */
+  protected[core] def lockedParameters: Map[String, String] = {
+    params.collect {
+      case p if p._2.encryption.isDefined => (p._1.name -> p._2.encryption.get)
+    }
+  }
+
   protected[core] def getMap = {
     params
   }
+
   protected[core] def toJsArray = {
     JsArray(params map { p =>
       val init = if (p._2.init) Some("init" -> JsTrue) else None
@@ -86,14 +93,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     } toSeq: _*)
   }
 
-  protected[core] def toJsObject =
-    JsObject(params.map(p => {
-      val newValue =
-        p._2.encryption
-          .map(e => JsObject("value" -> p._2.value, "init" -> p._2.init.toJson, "encryption" -> e.toJson))
-          .getOrElse(p._2.value)
-      (p._1.name, newValue)
-    }))
+  protected[core] def toJsObject = JsObject(params.map(p => (p._1.name -> p._2.value.toJson)))
 
   override def toString = toJsArray.compactPrint
 
@@ -134,12 +134,13 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   /**
    * Encrypts any parameters that are not yet encoded.
    *
+   * @param encoder the encoder to transform parameter values with
    * @return parameters with all values encrypted
    */
-  def lock(encoder: Option[Encrypter] = None): Parameters = {
+  def lock(encoder: Encrypter): Parameters = {
     new Parameters(params.map {
       case (paramName, paramValue) if paramValue.encryption.isEmpty =>
-        paramName -> encoder.getOrElse(ParameterEncryption.singleton.default).encrypt(paramValue)
+        paramName -> encoder.encrypt(paramValue)
       case p => p
     })
   }
@@ -147,15 +148,13 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
   /**
    * Decodes parameters. If the encryption scheme for a parameter is not recognized, it is not modified.
    *
+   * @param decoder the decoder to use to transform locked values
    * @return parameters will all values decoded (where scheme is known)
    */
-  def unlock(decoder: Option[ParameterEncryption] = None): Parameters = {
+  def unlock(decoder: ParameterEncryption): Parameters = {
     new Parameters(params.map {
-      case (paramName, paramValue) if paramValue.encryption.nonEmpty =>
-        paramName -> decoder
-          .getOrElse(ParameterEncryption.singleton)
-          .encryptor(paramValue.encryption)
-          .decrypt(paramValue)
+      case (paramName, paramValue) if paramValue.encryption.isDefined =>
+        paramName -> decoder.encryptor(paramValue.encryption).decrypt(paramValue)
       case p => p
     })
   }
@@ -265,29 +264,6 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
     ParameterValue(Option(v).getOrElse(JsNull), false, None))
   }
 
-  def readMergedList(value: JsValue): Parameters =
-    Try {
-
-      val JsObject(obj) = value
-      new Parameters(
-        obj
-          .map((tuple: (String, JsValue)) => {
-            val key = new ParameterName(tuple._1)
-            val paramVal: ParameterValue = tuple._2 match {
-              case o: JsObject =>
-                o.getFields("value", "init", "encryption") match {
-                  case Seq(v: JsValue, JsBoolean(i), JsString(e)) =>
-                    ParameterValue(v, i, Some(e))
-                  case _ => ParameterValue(o, false, None)
-                }
-              case v: JsValue => ParameterValue(v, false, None)
-            }
-            (key, paramVal)
-          })
-          .toMap)
-    } getOrElse deserializationError(
-      "parameters malformed, could not get a JsObject from: " + (if (value != null) value.toString() else ""))
-
   override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {
     def write(p: Parameters) = p.toJsArray
 
@@ -298,39 +274,12 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      * @param parameters the JSON representation of an parameter array
      * @return Parameters instance if parameters conforms to schema
      */
-    def read(value: JsValue) =
-      Try {
-        val JsArray(params) = value
-        params
-      } flatMap {
-        read(_)
-      } getOrElse {
-        Try {
-          var converted = new ListMap[ParameterName, ParameterValue]()
-          val JsObject(o) = value
-          o.foreach(i =>
-            i._2.asJsObject.getFields("value", "init", "encryption") match {
-              case Seq(v: JsValue, JsBoolean(init), JsString(e)) =>
-                val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init, Some(e))
-                converted = converted + (key -> value)
-              case Seq(v: JsValue, JsBoolean(init)) =>
-                val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init)
-                converted = converted + (key -> value)
-              case Seq(v: JsValue, JsBoolean(init), JsNull) =>
-                val key = new ParameterName(i._1)
-                val value = ParameterValue(v, init)
-                converted = converted + (key -> value)
-          })
-          if (converted.size == 0) {
-            deserializationError("parameters malformed no parameters available: " + value.toString)
-          } else {
-            new Parameters(converted)
-          }
-        } getOrElse deserializationError(
-          "parameters malformed could not read directly: " + (if (value != null) value.toString else ""))
+    def read(value: JsValue): Parameters = {
+      value match {
+        case JsArray(params) => read(params).getOrElse(deserializationError("parameters malformed!"))
+        case _               => deserializationError("parameters malformed!")
       }
+    }
 
     /**
      * Gets parameters as a Parameters instances.
@@ -348,15 +297,19 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, false)
                 (key, value)
-              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, i, Some(e))
-                (key, value)
               case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, i)
                 (key, value)
-              case Seq(JsString(k), v: JsValue, JsString(e)) if (i.asJsObject.fields.contains("encryption")) =>
+              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, i, Some(e))
+                (key, value)
+              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsNull) =>
+                val key = new ParameterName(k)
+                val value = ParameterValue(v, i, None)
+                (key, value)
+              case Seq(JsString(k), v: JsValue, JsString(e)) =>
                 val key = new ParameterName(k)
                 val value = ParameterValue(v, false, Some(e))
                 (key, value)
