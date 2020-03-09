@@ -19,28 +19,29 @@ package org.apache.openwhisk.core.controller.test
 
 import java.time.Instant
 
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.{sprayJsonMarshaller, sprayJsonUnmarshaller}
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.server.Route
-import org.apache.commons.lang3.StringUtils
-import org.apache.openwhisk.core.connector.ActivationMessage
-import org.apache.openwhisk.core.controller.WhiskActionsApi
-import org.apache.openwhisk.core.database.UserContext
-import org.apache.openwhisk.core.entitlement.Collection
-import org.apache.openwhisk.core.entity.Attachments.Inline
-import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.entity.test.ExecHelpers
-import org.apache.openwhisk.http.{ErrorResponse, Messages}
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
-import spray.json.DefaultJsonProtocol._
-import spray.json._
-
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.server.Route
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import org.apache.openwhisk.core.controller.WhiskActionsApi
+import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.entitlement.Collection
+import org.apache.openwhisk.http.ErrorResponse
+import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.core.database.UserContext
+import akka.http.scaladsl.model.headers.RawHeader
+import org.apache.commons.lang3.StringUtils
+import org.apache.openwhisk.core.connector.ActivationMessage
+import org.apache.openwhisk.core.entity.Attachments.Inline
+import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
  * Tests Actions API.
@@ -223,22 +224,22 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-//  it should "ignore updated field when updating action" in {
-//    implicit val tid = transid()
-//
-//    val action = WhiskAction(namespace, aname(), jsDefault(""))
-//    val dummyUpdated = WhiskEntity.currentMillis().toEpochMilli
-//
-//    val content = JsObject(
-//      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
-//      "updated" -> dummyUpdated.toJson)
-//
-//    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
-//      status should be(OK)
-//      val response = responseAs[WhiskAction]
-//      response.updated.toEpochMilli should be > dummyUpdated
-//    }
-//  }
+  it should "ignore updated field when updating action" in {
+    implicit val tid = transid()
+
+    val action = WhiskAction(namespace, aname(), jsDefault(""))
+    val dummyUpdated = WhiskEntity.currentMillis().toEpochMilli
+
+    val content = JsObject(
+      "exec" -> JsObject("code" -> "".toJson, "kind" -> action.exec.kind.toJson),
+      "updated" -> dummyUpdated.toJson)
+
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response.updated.toEpochMilli should be > dummyUpdated
+    }
+  }
 
   def getExecPermutations() = {
     implicit val tid = transid()
@@ -1702,9 +1703,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
 @RunWith(classOf[JUnitRunner])
 class WhiskActionsApiTests extends FlatSpec with Matchers with ExecHelpers {
+  import WhiskActionsApi.amendAnnotations
   import Annotations.ProvideApiKeyAnnotationName
   import WhiskAction.execFieldName
-  import WhiskActionsApi.amendAnnotations
 
   val baseParams = Parameters("a", JsString("A")) ++ Parameters("b", JsString("B"))
   val keyTruthyAnnotation = Parameters(ProvideApiKeyAnnotationName, JsTrue)
