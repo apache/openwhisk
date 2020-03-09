@@ -102,7 +102,8 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   it should "correctly mark the encrypted parameters after lock" in {
     val locked = parameters.lock(aes128encoder)
-    locked.getMap.foreach {
+
+    locked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
@@ -118,14 +119,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "correctly decrypt encrypted values" in {
     val locked = parameters.lock(aes128encoder)
 
-    locked.getMap.foreach {
+    locked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }
 
     val unlocked = locked.unlock(aes128decoder)
-    unlocked.getMap.foreach {
+    unlocked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe empty
         paramValue.value.convertTo[String] shouldBe "secret"
@@ -137,14 +138,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val complexParam = new Parameters(Map(new ParameterName("one") -> new ParameterValue(obj, false)))
 
     val locked = complexParam.lock(aes128encoder)
-    locked.getMap.foreach {
+    locked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }
 
     val unlocked = locked.unlock(aes128decoder)
-    unlocked.getMap.foreach {
+    unlocked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe empty
         paramValue.value shouldBe obj
@@ -155,14 +156,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val multiline = new Parameters(Map(new ParameterName("one") -> new ParameterValue(JsString(lines), false)))
 
     val locked = multiline.lock(aes128encoder)
-    locked.getMap.foreach {
+    locked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe Some("aes-128")
         paramValue.value.convertTo[String] should not be "secret"
     }
 
     val unlocked = locked.unlock(aes128decoder)
-    unlocked.getMap.foreach {
+    unlocked.params.foreach {
       case (_, paramValue) =>
         paramValue.encryption shouldBe empty
         paramValue.value.convertTo[String] shouldBe lines
@@ -173,14 +174,14 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "work if with aes256 if policy allows it" in {
     try {
       val locked = parameters.lock(aes256encoder)
-      locked.getMap.foreach {
+      locked.params.foreach {
         case (_, paramValue) =>
           paramValue.encryption shouldBe Some("aes-256")
           paramValue.value.convertTo[String] should not be "secret"
       }
 
       val unlocked = locked.unlock(noop)
-      unlocked.getMap.foreach {
+      unlocked.params.foreach {
         case (_, paramValue) =>
           paramValue.encryption shouldBe empty
           paramValue.value.convertTo[String] shouldBe "secret"
@@ -194,7 +195,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   it should "support reverting back to Noop encryption" in {
     try {
       val locked = parameters.lock(aes128encoder)
-      locked.getMap.foreach {
+      locked.params.foreach {
         case (_, paramValue) =>
           paramValue.encryption shouldBe Some("aes-128")
           paramValue.value.convertTo[String] should not be "secret"
@@ -205,7 +206,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
       // defaults to no-op
       val unlocked = toDecrypt.unlock(noop)
-      unlocked.getMap.foreach {
+      unlocked.params.foreach {
         case (_, paramValue) =>
           paramValue.encryption shouldBe empty
           paramValue.value.convertTo[String] shouldBe "secret"
@@ -222,7 +223,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   it should "not mark parameters as encrypted" in {
     val locked = parameters.lock(ParameterEncryption.noop)
-    locked.getMap.foreach {
+    locked.params.foreach {
       case (_, paramValue) =>
         paramValue.value.convertTo[String] shouldBe "secret"
     }

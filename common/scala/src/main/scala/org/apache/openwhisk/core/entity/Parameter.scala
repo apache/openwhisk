@@ -17,12 +17,13 @@
 
 package org.apache.openwhisk.core.entity
 
-import org.apache.openwhisk.core.entity.size.{SizeInt, SizeString}
+import scala.util.{Failure, Success, Try}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import org.apache.openwhisk.core.entity.size.SizeInt
+import org.apache.openwhisk.core.entity.size.SizeString
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a
@@ -31,7 +32,7 @@ import scala.util.{Failure, Success, Try}
  * @param key the parameter name, assured to be non-null because it is a value
  * @param value the parameter value, assured to be non-null because it is a value
  */
-protected[core] class Parameters protected[entity] (private val params: Map[ParameterName, ParameterValue])
+protected[core] class Parameters protected[entity] (protected[entity] val params: Map[ParameterName, ParameterValue])
     extends AnyVal {
 
   /**
@@ -78,10 +79,6 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.collect {
       case p if p._2.encryption.isDefined => (p._1.name -> p._2.encryption.get)
     }
-  }
-
-  protected[core] def getMap = {
-    params
   }
 
   protected[core] def toJsArray = {
