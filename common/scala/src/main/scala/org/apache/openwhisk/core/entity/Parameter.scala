@@ -64,17 +64,17 @@ protected[core] class Parameters protected[entity] (protected[entity] val params
     Try(new Parameters(params - new ParameterName(p))) getOrElse this
   }
 
-  /** Gets list all defined parameters. */
+  /** Gets set of all defined parameters. */
   protected[core] def definedParameters: Set[String] = {
     params.keySet filter (params(_).isDefined) map (_.name)
   }
 
-  /** Gets list all defined parameters. */
+  /** Gets set of all defined parameters. */
   protected[core] def initParameters: Set[String] = {
     params.keySet filter (params(_).init) map (_.name)
   }
 
-  /** Gets list all locked (encrypted) parameters. */
+  /** Gets map of all locked (encrypted) parameters. */
   protected[core] def lockedParameters: Map[String, String] = {
     params.collect {
       case p if p._2.encryption.isDefined => (p._1.name -> p._2.encryption.get)
@@ -217,8 +217,8 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
    * Creates a parameter tuple from a pair of strings.
    * A convenience method for tests.
    *
-   * @param p the parameter name
-   * @param v the parameter value
+   * @param p    the parameter name
+   * @param v    the parameter value
    * @param init the parameter is for initialization
    * @return (ParameterName, ParameterValue)
    * @throws IllegalArgumentException if key is not defined
@@ -233,8 +233,8 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   /**
    * Creates a parameter tuple from a parameter name and JsValue.
    *
-   * @param p the parameter name
-   * @param v the parameter value
+   * @param p    the parameter name
+   * @param v    the parameter value
    * @param init the parameter is for initialization
    * @return (ParameterName, ParameterValue)
    * @throws IllegalArgumentException if key is not defined
@@ -286,33 +286,30 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      * @return Parameters instance if parameters conforms to schema
      */
     def read(params: Vector[JsValue]) = Try {
-      new Parameters(
-        params
-          .map(i => {
-            i.asJsObject.getFields("key", "value", "init", "encryption") match {
-              case Seq(JsString(k), v: JsValue) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, false)
-                (key, value)
-              case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, i)
-                (key, value)
-              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, i, Some(e))
-                (key, value)
-              case Seq(JsString(k), v: JsValue, JsBoolean(i), JsNull) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, i, None)
-                (key, value)
-              case Seq(JsString(k), v: JsValue, JsString(e)) =>
-                val key = new ParameterName(k)
-                val value = ParameterValue(v, false, Some(e))
-                (key, value)
-            }
-          })
-          .toMap)
+      new Parameters(params.map {
+        _.asJsObject.getFields("key", "value", "init", "encryption") match {
+          case Seq(JsString(k), v: JsValue) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, false)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, i)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, i, Some(e))
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsBoolean(i), JsNull) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, i, None)
+            (key, value)
+          case Seq(JsString(k), v: JsValue, JsString(e)) =>
+            val key = new ParameterName(k)
+            val value = ParameterValue(v, false, Some(e))
+            (key, value)
+        }
+      }.toMap)
     }
   }
 }
