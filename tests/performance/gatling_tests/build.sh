@@ -25,13 +25,7 @@ if [ -f ".built" ]; then
   exit 0
 fi
 
-# need java 8 to build java actions since that's the version of the runtime currently
-jv=$(java -version 2>&1 | head -1 | awk -F'"' '{print $2}')
-if [[ $jv == 1.8.* ]]; then
-  echo "java version is $jv (ok)"
-  (cd src/gatling/resources/data/src/java && "$GRADLEW_PATH/gradlew" build && cp build/libs/gatling-1.0.jar ../../javaAction.jar)
-  touch .built
-else
-  echo "java version is $jv (not ok)"
-  echo "skipping java actions"
-fi
+# Let gradle set the source and target versions to let it sort out if it can produce
+# byte code that is compatible with java8.
+(cd src/gatling/resources/data/src/java && "$GRADLEW_PATH/gradlew" build && cp build/libs/gatling-1.0.jar ../../javaAction.jar)
+touch .built

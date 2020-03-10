@@ -191,6 +191,46 @@ ansible-playbook -i environments/<environment> routemgmt.yml
 - To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
+### Using ElasticSearch to Store Activations
+
+You can use ElasticSearch (ES) to store activations separately while other entities remain stored in CouchDB. There is an Ansible playbook to setup a simple ES cluster for testing and development purposes.
+
+-   Provide your custom ES related ansible arguments:
+
+```
+elastic_protocol="http"
+elastic_index_pattern="openwhisk-%s" // this will be combined with namespace's name, so different namespace can use different index
+elastic_base_volume="esdata" // name of docker volume to store ES data
+elastic_cluster_name="openwhisk"
+elastic_java_opts="-Xms1g -Xmx1g"
+elastic_loglevel="INFO"
+elastic_username="admin"
+elastic_password="admin"
+elasticsearch_connect_string="x.x.x.x:9200,y.y.y.y:9200" // if you want to use an external ES cluster, add it
+```
+
+-  Then execute:
+
+```
+cd <openwhisk_home>
+./gradlew distDocker
+cd ansible
+# couchdb is still needed to store subjects and actions
+ansible-playbook -i environments/<environment> couchdb.yml
+ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
+# this will deploy a simple ES cluster, you can skip this to use external ES cluster
+ansible-playbook -i environments/<environment> elasticsearch.yml
+ansible-playbook -i environments/<environment> openwhisk.yml -e db_activation_backend=ElasticSearch
+
+# installs a catalog of public packages and actions
+ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
+```
+
 ### Configuring the installation of `wsk` CLI
 There are two installation modes to install `wsk` CLI: remote and local.
 

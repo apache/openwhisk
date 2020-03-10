@@ -1,0 +1,94 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# This role will run a ElasticSearch server on the db group
+
+- name: set the vm.max_map_count to 262144
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+  become: true
+
+- name: set elasticsearch container name, volume and port
+  set_fact:
+    elasticsearch_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
+    volume_name: "{{ db.elasticsearch.base_volume ~ host_group.index(inventory_hostname) }}"
+    http_port: "{{ (db.elasticsearch.port|int) + host_group.index(inventory_hostname) }}"
+    transport_port: "{{ (db.elasticsearch.base_transport_port|int) + host_group.index(inventory_hostname) }}"
+
+- name: ensure elasticserach config directory is created with permissions
+  file:
+    path: "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}"
+    state: directory
+    mode: 0755
+  become: "{{ db.elasticsearch.dir.become }}"
+
+# create volume direcotry if it's a directory path(not a named volume)
+- name: ensure elasticserach volume directory is created with permissions
+  file:
+    path: "{{ volume_name }}"
+    state: directory
+    mode: 0700
+    owner: "{{ db.elasticsearch.uid }}"
+  become: true
+  when: volume_name is search("/")
+
+- name: copy elasticsearch config file
+  template:
+    src: "elasticsearch.yml.j2"
+    dest: "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}/elasticsearch.yml"
+    mode: 0644
+  become: "{{ db.elasticsearch.dir.become }}"
+
+- name: copy elasticsearch log config file
+  template:
+    src: "log4j2.properties.j2"
+    dest: "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}/log4j2.properties"
+    mode: 0644
+  become: "{{ db.elasticsearch.dir.become }}"
+
+- name: "(re)start ElasticSearch from '{{ elasticsearch_image }} ' "
+  vars:
+    elasticsearch_image: "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
+  docker_container:
+    name: "{{ elasticsearch_name }}"
+    image: "{{ elasticsearch_image }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    ports:
+      - "{{ http_port }}:9200"
+      - "{{ transport_port }}:{{ transport_port }}"
+    volumes:
+      - "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+      - "{{ db.elasticsearch.confdir }}/{{ elasticsearch_name }}/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties"
+      - "{{ volume_name }}:/usr/share/elasticsearch/data"
+    pull: "{{ docker.pull_elasticsearch | default(true) }}"
+    ulimits:
+      - "nofile:262144:262144"
+      - "memlock:-1:-1"
+    env:
+      TZ: "{{ docker.timezone }}"
+      ES_JAVA_OPTS: "{{ db.elasticsearch.java_opts }}"
+
+- name: wait until ElasticSearch in this host is up and running
+  uri:
+    url: "{{ db.elasticsearch.protocol }}://{{ ansible_host }}:{{ http_port }}"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

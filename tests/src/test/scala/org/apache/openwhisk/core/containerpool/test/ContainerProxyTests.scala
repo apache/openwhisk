@@ -17,24 +17,26 @@
 
 package org.apache.openwhisk.core.containerpool.test
 
+import java.net.InetSocketAddress
 import java.time.Instant
 
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
-import akka.testkit.CallingThreadDispatcher
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.io.Tcp.{Close, CommandFailed, Connect, Connected}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
   AcknowledegmentMessage,
   ActivationMessage,
@@ -50,7 +52,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-import org.apache.openwhisk.core.invoker.InvokerReactive
+import org.apache.openwhisk.core.invoker.Invoker
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -161,7 +163,7 @@ class ContainerProxyTests
   def expectWarmed(namespace: String, action: ExecutableWhiskAction) = {
     val test = EntityName(namespace)
     expectMsgPF() {
-      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _)) => //matched, otherwise will fail
+      case a @ NeedWork(WarmedData(_, `test`, `action`, _, _, _)) => //matched, otherwise will fail
     }
   }
 
@@ -171,7 +173,7 @@ class ContainerProxyTests
     expectMsg(Transition(machine, Pausing, Paused))
   }
 
-  trait LoggedAcker extends InvokerReactive.ActiveAck {
+  trait LoggedAcker extends ActiveAck {
     def calls =
       mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage)]()
 
@@ -238,8 +240,7 @@ class ContainerProxyTests
       response
   }
 
-  class LoggedCollector(response: Future[ActivationLogs], invokeCallback: () => Unit)
-      extends InvokerReactive.LogsCollector {
+  class LoggedCollector(response: Future[ActivationLogs], invokeCallback: () => Unit) extends Invoker.LogsCollector {
     val collector = LoggedFunction {
       (transid: TransactionId,
        user: Identity,
@@ -262,7 +263,7 @@ class ContainerProxyTests
   }
 
   def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs()),
-                      invokeCallback: () => Unit = () => Unit) =
+                      invokeCallback: () => Unit = () => ()) =
     new LoggedCollector(response, invokeCallback)
 
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
@@ -273,6 +274,7 @@ class ContainerProxyTests
       Future.successful(())
   }
   val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
+  def healthchecksConfig(enabled: Boolean = false) = ContainerProxyHealthCheckConfig(enabled, 100.milliseconds, 2)
   val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 
   behavior of "ContainerProxy"
@@ -309,6 +311,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, Some("myname"), userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -338,6 +341,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -382,6 +386,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -445,6 +450,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     preWarm(machine)
@@ -495,6 +501,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -535,6 +542,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -551,6 +559,110 @@ class ContainerProxyTests
       acker.calls should have size 1
       store.calls should have size 1
       acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "resend a failed Run when it is first Run after Ready state" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+        atomicRunCount.incrementAndGet()
+        //every run after first fails
+        if (runCount > 1) {
+          Future.failed(ContainerHealthError(messageTransId, "intentional failure"))
+        } else {
+          Future.successful((runInterval, ActivationResponse.success()))
+        }
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker(noLogsAction)
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    machine ! Run(noLogsAction, message)
+    expectMsg(Transition(machine, Uninitialized, Running))
+    expectWarmed(invocationNamespace.name, noLogsAction)
+    expectMsg(Transition(machine, Running, Ready))
+
+    val failingRun = Run(noLogsAction, message)
+    val runAfterFail = Run(noLogsAction, message)
+    //should fail and retry
+    machine ! failingRun
+    machine ! runAfterFail //will be buffered first, and then retried
+    expectMsg(Transition(machine, Ready, Running))
+    //on failure, buffered are resent first
+    expectMsg(runAfterFail)
+    //resend the first run to parent, and start removal process
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(failingRun)
+    expectNoMessage(100.milliseconds)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 2
+      collector.calls should have size 0
+      acker.calls should have size 1
+      store.calls should have size 1
+      acker.calls.head._6 shouldBe a[CompletionMessage]
+    }
+  }
+
+  it should "start tcp ping to containers when action healthcheck enabled" in within(timeout) {
+    val noLogsAction = action.copy(limits = ActionLimits(logs = LogLimit(0.MB)))
+    val container = new TestContainer()
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker(noLogsAction)
+    val store = createStore
+    val collector = createCollector()
+    val tcpProbe = TestProbe()
+    val healthchecks = healthchecksConfig(true)
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecks,
+            pauseGrace = pauseGrace,
+            tcp = Some(tcpProbe.ref)))
+    registerCallback(machine)
+    preWarm(machine)
+
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 8080)))
+    //pings should repeat till the container goes into Running state
+    run(machine, Started)
+    tcpProbe.expectNoMessage(healthchecks.checkPeriod + 100.milliseconds)
+
+    awaitAssert {
+      factory.calls should have size 1
     }
   }
 
@@ -663,6 +775,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     (factory, container, acker, store, collector, machine)
@@ -706,6 +819,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace)
           .withDispatcher(CallingThreadDispatcher.Id))
     registerCallback(machine)
@@ -801,8 +915,12 @@ class ContainerProxyTests
   it should "complete the transaction and reuse the container on a failed run IFF failure was applicationError" in within(
     timeout) {
     val container = new TestContainer {
-      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-        implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         //every other run fails
         if (runCount % 2 == 0) {
@@ -827,6 +945,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
@@ -900,6 +1019,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -944,6 +1064,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -971,8 +1092,12 @@ class ContainerProxyTests
   it should "complete the transaction and destroy the container on a failed run IFF failure was containerError" in within(
     timeout) {
     val container = new TestContainer {
-      override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-        implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
       }
@@ -992,6 +1117,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1030,6 +1156,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1067,6 +1194,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     machine ! Run(action, message)
@@ -1108,6 +1236,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
@@ -1130,6 +1259,145 @@ class ContainerProxyTests
     }
   }
 
+  it should "resend the job to the parent if /run fails connection after Paused -> Running" in within(timeout) {
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+        if (reschedule) {
+          throw ContainerHealthError(transid, "reconnect failed to xyz")
+        }
+        super.run(parameters, environment, timeout, concurrent, reschedule)
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            createCollector(),
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    run(machine, Uninitialized) // first run an activation
+    timeout(machine) // times out Ready state so container suspends
+    expectPause(machine)
+
+    val runMessage = Run(action, message)
+    machine ! runMessage
+    expectMsg(Transition(machine, Paused, Running))
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(runMessage)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.runCount shouldBe 1
+      container.suspendCount shouldBe 1
+      container.resumeCount shouldBe 1
+      container.destroyCount shouldBe 1
+    }
+  }
+
+  it should "resend the job to the parent if /run fails connection after Ready -> Running" in within(timeout) {
+    val container = new TestContainer {
+      override def run(
+        parameters: JsObject,
+        environment: JsObject,
+        timeout: FiniteDuration,
+        concurrent: Int,
+        reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+
+        if (reschedule) {
+          throw ContainerHealthError(transid, "reconnect failed to xyz")
+        }
+        super.run(parameters, environment, timeout, concurrent, reschedule)
+      }
+    }
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            createCollector(),
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    run(machine, Uninitialized) // first run an activation
+    //will be in Ready state now
+
+    val runMessage = Run(action, message)
+    machine ! runMessage
+    expectMsg(Transition(machine, Ready, Running))
+    expectMsg(RescheduleJob)
+    expectMsg(Transition(machine, Running, Removing))
+    expectMsg(runMessage)
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.runCount shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      container.destroyCount shouldBe 1
+    }
+  }
+
+  it should "remove and replace a prewarm container if it fails healthcheck after startup" in within(timeout) {
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(true),
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+    preWarm(machine)
+
+    //expect failure after healthchecks fail
+    expectMsg(ContainerRemoved)
+    expectMsg(Transition(machine, Started, Removing))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 0
+      container.runCount shouldBe 0
+      collector.calls should have size 0
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 0
+    }
+  }
   it should "remove the container if suspend fails" in within(timeout) {
     val container = new TestContainer {
       override def suspend()(implicit transid: TransactionId) = {
@@ -1151,6 +1419,7 @@ class ContainerProxyTests
             createCollector(),
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -1196,6 +1465,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -1255,6 +1525,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
     run(machine, Uninitialized)
@@ -1303,6 +1574,7 @@ class ContainerProxyTests
             collector,
             InvokerInstanceId(0, userMemory = defaultUserMemory),
             poolConfig,
+            healthchecksConfig(),
             pauseGrace = pauseGrace))
     registerCallback(machine)
 
@@ -1377,7 +1649,7 @@ class ContainerProxyTests
       initialCount)
     val nextWarmedData = warmedData.nextRun(Run(action, message))
     nextWarmedData should matchPattern {
-      case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount) =>
+      case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount, _) =>
     }
     warmedData.lastUsed.until(nextWarmedData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
   }
@@ -1390,7 +1662,7 @@ class ContainerProxyTests
                       apiKeyMustBePresent: Boolean = true)
       extends Container {
     protected[core] val id = ContainerId("testcontainer")
-    protected val addr = ContainerAddress("0.0.0.0")
+    protected[core] val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher
     override implicit protected val as: ActorSystem = system
@@ -1442,7 +1714,7 @@ class ContainerProxyTests
       initializeEnv.fields("__OW_TRANSACTION_ID") shouldBe transid.id.toJson
 
       val convertedAuthKey = message.user.authkey.toEnvironment.fields.map(f => ("__OW_" + f._1.toUpperCase(), f._2))
-      val authEnvironment = initializeEnv.fields.filterKeys(convertedAuthKey.contains)
+      val authEnvironment = initializeEnv.fields.filterKeys(convertedAuthKey.contains).toMap
       if (apiKeyMustBePresent) {
         convertedAuthKey shouldBe authEnvironment
       } else {
@@ -1458,8 +1730,12 @@ class ContainerProxyTests
 
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
-    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration, concurrent: Int)(
-      implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
+    override def run(
+      parameters: JsObject,
+      environment: JsObject,
+      timeout: FiniteDuration,
+      concurrent: Int,
+      reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
       // the "init" arguments are not passed on run
       parameters shouldBe JsObject(activationArguments.fields.filter(k => !filterEnvVar(k._1)))
@@ -1470,7 +1746,7 @@ class ContainerProxyTests
       environment.fields("action_version") shouldBe message.action.version.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       environment.fields("transaction_id") shouldBe transid.id.toJson
-      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
+      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains).toMap
       if (apiKeyMustBePresent) {
         message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
       } else {
@@ -1494,5 +1770,68 @@ class ContainerProxyTests
       atomicLogsCount.incrementAndGet()
       Source.empty
     }
+  }
+}
+@RunWith(classOf[JUnitRunner])
+class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with FlatSpecLike {
+  val config = ContainerProxyHealthCheckConfig(true, 200.milliseconds, 2)
+  val addr = new InetSocketAddress("1.2.3.4", 12345)
+  val localAddr = new InetSocketAddress("localhost", 5432)
+
+  behavior of "TCPPingClient"
+  it should "start the ping on HealthPingEnabled(true) and stop on HealthPingEnabled(false)" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    pingClient ! HealthPingEnabled(true)
+    tcpProbe.expectMsg(Connect(addr))
+    //measure the delay between connections
+    val start = System.currentTimeMillis()
+    tcpProbe.expectMsg(Connect(addr))
+    val delay = System.currentTimeMillis() - start
+    delay should be > config.checkPeriod.toMillis - 25 //allow 25ms slop
+    tcpProbe.expectMsg(Connect(addr))
+    //make sure disable works
+    pingClient ! HealthPingEnabled(false)
+    //make sure no Connect msg for at least the check period
+    tcpProbe.expectNoMessage(config.checkPeriod)
+  }
+  it should "send FailureMessage and cancel the ping on CommandFailed" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    val clientProbe = TestProbe()
+    clientProbe watch pingClient
+    pingClient ! HealthPingEnabled(true)
+    val c = Connect(addr)
+    //send config.maxFails CommandFailed messages
+    (1 to config.maxFails).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    //now we expect termination
+    clientProbe.expectTerminated(pingClient)
+  }
+  it should "reset failedCount on Connected" in {
+    val tcpProbe = TestProbe()
+    val pingClient = system.actorOf(TCPPingClient.props(tcpProbe.ref, "1234", config, addr))
+    val clientProbe = TestProbe()
+    clientProbe watch pingClient
+    pingClient ! HealthPingEnabled(true)
+    val c = Connect(addr)
+    //send maxFails-1 (should not fail)
+    (1 to config.maxFails - 1).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    tcpProbe.expectMsg(c)
+    tcpProbe.send(pingClient, Connected(addr, localAddr))
+    //counter should be reset
+    tcpProbe.expectMsg(Close)
+    //send maxFails (will fail, but counter is reset so we get maxFails tries)
+    (1 to config.maxFails).foreach { _ =>
+      tcpProbe.expectMsg(c)
+      pingClient ! CommandFailed(c)
+    }
+    //now we expect termination
+    clientProbe.expectTerminated(pingClient)
   }
 }

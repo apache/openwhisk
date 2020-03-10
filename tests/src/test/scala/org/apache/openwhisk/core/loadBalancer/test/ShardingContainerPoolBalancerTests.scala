@@ -497,7 +497,7 @@ class ShardingContainerPoolBalancerTests
     val stepSize = stepSizes(hash % stepSizes.size)
     val uuid = UUID()
     //initiate activation
-    val published = (0 until numActivations).par.map { _ =>
+    val published = (0 until numActivations).map { _ =>
       val aid = ActivationId.generate()
       val msg = ActivationMessage(
         TransactionId.testing,
@@ -545,12 +545,12 @@ class ShardingContainerPoolBalancerTests
     }
 
     //complete all
-    val acks = ids.par.map { aid =>
+    val acks = ids.map { aid =>
       val invoker = balancer.activationSlots(aid).invokerName
       completeActivation(invoker, balancer, aid)
     }
 
-    Await.ready(Future.sequence(acks.toList), 10.seconds)
+    Await.ready(Future.sequence(acks), 10.seconds)
 
     //verify invokers go back to unused state
     invokers.foreach { i =>

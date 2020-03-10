@@ -25,6 +25,11 @@ plugins {
     id 'com.gorylenko.gradle-git-properties' version '2.0.0'
 }
 
+ext.dockerImageName = 'standalone'
+ext.dockerBuildArgs = [ "OPENWHISK_JAR=build/libs/openwhisk-standalone-${version}.jar"]
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'bootJar'
+
 project.archivesBaseName = "openwhisk-standalone"
 
 task copySwagger(type: Copy) {
@@ -47,7 +52,7 @@ def apiGwActions = ['createApi', "deleteApi", "getApi"]
 
 task copyGWActions() {
     doLast {
-        def routeMgmtDir = new File(project.projectDir.getParentFile(), "routemgmt")
+        def routeMgmtDir = new File(project.projectDir, "../routemgmt")
         def commonDir = new File(routeMgmtDir, "common")
         def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
         apiGwActions.each { actionName ->
@@ -80,7 +85,7 @@ task copyGWActions() {
 
 task copyGrafanaConfig() {
     doLast {
-        def grafanaDir = new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/grafana")
+        def grafanaDir = new File(project(':core:monitoring:user-events').projectDir, "compose/grafana")
         def grafanaBuildDir = mkdir("$buildDir/tmp/grafana")
         def zipFileName = "grafana-config.zip"
         def zipFile = new File(grafanaBuildDir, zipFileName)
@@ -98,17 +103,17 @@ processResources.dependsOn copyGWActions
 processResources.dependsOn copyGrafanaConfig
 
 processResources {
-    from(new File(project.rootProject.projectDir, "ansible/files/runtimes.json")) {
+    from(new File(project.projectDir, "../../ansible/files/runtimes.json")) {
         into(".")
     }
-    from(new File(project.rootProject.projectDir, "ansible/files")) {
+    from(new File(project.projectDir, "../../ansible/files")) {
         include "*.json"
         into("couch")
     }
     from(file("$buildDir/tmp/grafana/grafana-config.zip")){
         into(".")
     }
-    from(new File(project.rootProject.getProjectDir(), "core/monitoring/user-events/compose/prometheus/prometheus.yml")){
+    from(new File(project(':core:monitoring:user-events').projectDir, "compose/prometheus/prometheus.yml")){
         into(".")
     }
     //Implement the logic present in controller Docker file
@@ -153,6 +158,7 @@ dependencies {
 
     compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
+    compile "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
 
     testCompile "junit:junit:4.11"
     testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"

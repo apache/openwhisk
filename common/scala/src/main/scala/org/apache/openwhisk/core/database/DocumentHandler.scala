@@ -156,7 +156,7 @@ object ActivationHandler extends SimpleHandler {
   }
 
   private def computeActivationView(js: JsObject): JsObject = {
-    val common = js.fields.filterKeys(commonFields)
+    val common = js.fields.filterKeys(commonFields).toMap
 
     val (endTime, duration) = js.getFields("end", "start") match {
       case Seq(JsNumber(end), JsNumber(start)) if end != 0 => (JsNumber(end), JsNumber(end - start))
@@ -263,19 +263,19 @@ object WhisksHandler extends SimpleHandler {
   }
 
   private def computeTriggersView(js: JsObject): JsObject = {
-    JsObject(js.fields.filterKeys(commonFields))
+    JsObject(js.fields.filterKeys(commonFields).toMap)
   }
 
   private def computePublicPackageView(js: JsObject): JsObject = {
-    JsObject(js.fields.filterKeys(commonFields) + ("binding" -> JsFalse))
+    JsObject(js.fields.filterKeys(commonFields).toMap + ("binding" -> JsFalse))
   }
 
   private def computeRulesView(js: JsObject) = {
-    JsObject(js.fields.filterKeys(ruleFields))
+    JsObject(js.fields.filterKeys(ruleFields).toMap)
   }
 
   private def computePackageView(js: JsObject): JsObject = {
-    val common = js.fields.filterKeys(commonFields)
+    val common = js.fields.filterKeys(commonFields).toMap
     val binding = js.fields.get("binding") match {
       case Some(x: JsObject) if x.fields.nonEmpty => x
       case _                                      => JsFalse
@@ -284,7 +284,7 @@ object WhisksHandler extends SimpleHandler {
   }
 
   private def computeActionView(js: JsObject): JsObject = {
-    val base = js.fields.filterKeys(commonFields ++ Set("limits"))
+    val base = js.fields.filterKeys(commonFields ++ Set("limits")).toMap
     val exec_binary = JsHelpers.getFieldPath(js, "exec", "binary")
     JsObject(base + ("exec" -> JsObject("binary" -> exec_binary.getOrElse(JsFalse))))
   }

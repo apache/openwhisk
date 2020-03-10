@@ -350,7 +350,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val f = Source
       .fromPublisher(publisher)
       .wireTap(collectQueryMetrics(_))
-      .mapConcat(asSeq)
+      .mapConcat(asVector)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)
       .map(js =>
@@ -365,7 +365,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val g = f.andThen {
       case Success(queryResult) =>
         if (queryMetrics.nonEmpty) {
-          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics: _*)
+          val combinedMetrics = QueryMetrics.ZERO.add(queryMetrics.toSeq: _*)
           logging.debug(
             this,
             s"[QueryMetricsEnabled] Collection [$collName] - Query [${querySpec.getQueryText}].\nQueryMetrics\n[$combinedMetrics]")
@@ -464,9 +464,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def recordResourceUsage() = {
     getResourceUsage().map { o =>
       o.foreach { u =>
-        u.documentsCount.foreach(documentCountToken.gauge.set(_))
-        u.documentsSize.foreach(ds => documentsSizeToken.gauge.set(ds.toKB))
-        u.indexSize.foreach(is => indexSizeToken.gauge.set(is.toKB))
+        u.documentsCount.foreach(documentCountToken.gauge.update(_))
+        u.documentsSize.foreach(ds => documentsSizeToken.gauge.update(ds.toKB))
+        u.indexSize.foreach(is => indexSizeToken.gauge.update(is.toKB))
         logging.info(this, s"Collection usage stats for [$collName] are ${u.asString}")
         u.indexingProgress.foreach { i =>
           if (i < 100) logging.info(this, s"Indexing for collection [$collName] is at $i%")

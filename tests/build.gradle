@@ -207,12 +207,13 @@ dependencies {
     compile "io.opentracing:opentracing-mock:0.31.0"
     compile "org.apache.curator:curator-test:${gradle.curator.version}"
     compile "com.atlassian.oai:swagger-request-validator-core:1.4.5"
+    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     compile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
-    compile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
+    compile "org.testcontainers:elasticsearch:1.12.3"
 
     compile project(':common:scala')
     compile project(':core:controller')
@@ -303,6 +304,7 @@ gradle.projectsEvaluated {
         runner = new org.scoverage.ScoverageRunner(project.configurations.scoverage)
         reportDir = reportTestScoverage.reportDir
         sources = reportTestScoverage.sources
+        sourceEncoding = 'UTF-8'
         dataDir = reportTestScoverage.dataDir
         coverageOutputCobertura = reportTestScoverage.coverageOutputCobertura
         coverageOutputXML = reportTestScoverage.coverageOutputXML

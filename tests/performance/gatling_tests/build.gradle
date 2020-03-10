@@ -16,9 +16,16 @@
  */
 
 plugins {
-    id 'com.github.lkishalmi.gatling' version '0.7.2'
+    id 'com.github.lkishalmi.gatling' version '3.2.1'
     id 'eclipse'
     id 'scala'
+}
+
+sourceSets {
+    gatling {
+        scala.srcDirs = ["src/gatling/scala/"]
+        resources.srcDirs = ["src/gatling/resources/"]
+    }
 }
 
 dependencies {

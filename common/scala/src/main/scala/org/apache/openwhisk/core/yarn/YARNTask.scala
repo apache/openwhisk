@@ -43,7 +43,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * (external log collection and retrieval must be enabled via LogStore SPI to expose logs to wsk cli)
  */
 class YARNTask(override protected val id: ContainerId,
-               override protected val addr: ContainerAddress,
+               override protected[core] val addr: ContainerAddress,
                override protected val ec: ExecutionContext,
                override protected val logging: Logging,
                override protected val as: ActorSystem,
@@ -64,7 +64,7 @@ class YARNTask(override protected val id: ContainerId,
   /** Dual of halt. */
   override def resume()(implicit transid: TransactionId): Future[Unit] = {
     // resume not supported
-    Future.successful(Unit)
+    Future.successful(())
   }
 
   /** Completely destroys this instance of the container. */

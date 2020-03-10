@@ -17,13 +17,17 @@
 
 package org.apache.openwhisk.core.connector
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
+
 import scala.concurrent.duration._
+import akka.http.scaladsl.model.StatusCodes._
 import java.util.concurrent.TimeUnit
-import org.apache.openwhisk.core.entity.ActivationResponse.statusForCode
+
+import org.apache.openwhisk.core.entity.ActivationResponse.{statusForCode, ERROR_FIELD}
+import org.apache.openwhisk.utils.JsHelpers
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -293,7 +297,8 @@ case class Activation(name: String,
                       conductor: Boolean,
                       memory: Int,
                       causedBy: Option[String],
-                      size: Option[Int] = None)
+                      size: Option[Int] = None,
+                      userDefinedStatusCode: Option[Int] = None)
     extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
@@ -314,6 +319,7 @@ case class Activation(name: String,
 object Activation extends DefaultJsonProtocol {
 
   val typeName = "Activation"
+
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
 
   private implicit val durationFormat = new RootJsonFormat[Duration] {
@@ -340,7 +346,24 @@ object Activation extends DefaultJsonProtocol {
       "conductor",
       "memory",
       "causedBy",
-      "size")
+      "size",
+      "userDefinedStatusCode")
+
+  /** Get "StatusCode" from result response set by action developer **/
+  def userDefinedStatusCode(result: Option[JsValue]): Option[Int] = {
+    val statusCode = JsHelpers
+      .getFieldPath(result.get.asJsObject, ERROR_FIELD, "statusCode")
+      .orElse(JsHelpers.getFieldPath(result.get.asJsObject, "statusCode"))
+
+    statusCode match {
+      case Some(value) =>
+        Try { value.convertTo[BigInt].intValue } match {
+          case Failure(_)    => Some(BadRequest.intValue)
+          case Success(code) => Some(code)
+        }
+      case None => None
+    }
+  }
 
   /** Constructs an "Activation" event from a WhiskActivation */
   def from(a: WhiskActivation): Try[Activation] = {
@@ -363,7 +386,8 @@ object Activation extends DefaultJsonProtocol {
           .map(_.memory.megabytes)
           .getOrElse(0),
         a.annotations.getAs[String](WhiskActivation.causedByAnnotation).toOption,
-        a.response.size)
+        a.response.size,
+        userDefinedStatusCode(a.response.result))
     }
   }
 

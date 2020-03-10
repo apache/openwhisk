@@ -1,0 +1,23 @@
+cluster.name: "{{ db.elasticsearch.cluster_name }}"
+node.name: "{{ elasticsearch_name }}"
+network.host: 0.0.0.0
+network.publish_host: {{ ansible_default_ipv4.address }}
+
+http.port: 9200
+transport.tcp.port: {{ transport_port }}
+
+# minimum_master_nodes need to be explicitly set when bound on a public IP
+# set to 1 to allow single node clusters
+# Details: https://github.com/elastic/elasticsearch/pull/17282
+discovery.zen.ping.unicast.hosts:
+{% for es in groups['elasticsearch'] %}
+   - {{ hostvars[es].ansible_host }}:{{ db.elasticsearch.base_transport_port + host_group.index(es)|int }}
+{% endfor %}
+discovery.zen.minimum_master_nodes: {{ (host_group|length / 2 + 1) | int}}
+
+gateway.recover_after_nodes: {{ (host_group|length / 2 + 1) | int }}
+gateway.expected_nodes: {{ host_group|length }}
+gateway.recover_after_time: 5m
+
+xpack.security.enabled: false
+bootstrap.memory_lock: true

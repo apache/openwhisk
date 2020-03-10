@@ -148,7 +148,7 @@ class KafkaConnectorTests
       kafkaHosts.indices.foreach { i =>
         val message = createMessage()
         val kafkaHost = kafkaHosts(i).split(":")(0)
-        val startLog = s", started"
+        val startLog = s"\\[KafkaServer id=$i\\] started"
         val prevCount = startLog.r.findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout).length
 
         // 1. stop one of kafka node

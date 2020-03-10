@@ -110,11 +110,11 @@ class ContainerPoolTests
 
   /** Helper to create PreWarmedData */
   def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
-    PreWarmedData(stub[Container], kind, memoryLimit)
+    PreWarmedData(stub[MockableContainer], kind, memoryLimit)
 
   /** Helper to create WarmedData */
   def warmedData(run: Run, lastUsed: Instant = Instant.now) = {
-    WarmedData(stub[Container], run.msg.user.namespace.name, run.action, lastUsed)
+    WarmedData(stub[MockableContainer], run.msg.user.namespace.name, run.action, lastUsed)
   }
 
   /** Creates a sequence of containers and a factory returning this sequence. */
@@ -741,6 +741,29 @@ class ContainerPoolTests
     pool ! runMessageConcurrent
     containers(0).expectMsg(runMessageConcurrent)
   }
+
+  it should "backfill prewarms when prewarm containers are removed" in {
+    val (containers, factory) = testContainers(6)
+    val feed = TestProbe()
+
+    val pool =
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 5), feed.ref, List(PrewarmingConfig(2, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(1).expectMsg(Start(exec, memoryLimit))
+
+    //removing 2 prewarm containers will start 2 containers via backfill
+    containers(0).send(pool, ContainerRemoved)
+    containers(1).send(pool, ContainerRemoved)
+    containers(2).expectMsg(Start(exec, memoryLimit))
+    containers(3).expectMsg(Start(exec, memoryLimit))
+    //make sure extra prewarms are not started
+    containers(4).expectNoMessage(100.milliseconds)
+    containers(5).expectNoMessage(100.milliseconds)
+  }
+}
+abstract class MockableContainer extends Container {
+  protected[core] val addr: ContainerAddress = ContainerAddress("nohost")
 }
 
 /**
@@ -765,14 +788,14 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
                  namespace: String = standardNamespace.asString,
                  lastUsed: Instant = Instant.now,
                  active: Int = 0) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed, active)
+    WarmedData(stub[MockableContainer], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create WarmingData with sensible defaults */
   def warmingData(action: ExecutableWhiskAction = createAction(),
                   namespace: String = standardNamespace.asString,
                   lastUsed: Instant = Instant.now,
                   active: Int = 0) =
-    WarmingData(stub[Container], EntityName(namespace), action, lastUsed, active)
+    WarmingData(stub[MockableContainer], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create WarmingData with sensible defaults */
   def warmingColdData(action: ExecutableWhiskAction = createAction(),
@@ -782,7 +805,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
-  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
+  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[MockableContainer], kind, 256.MB)
 
   /** Helper to create NoData */
   def noData() = NoData()

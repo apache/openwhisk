@@ -248,11 +248,11 @@ class WskAdminTests extends TestHelpers with WskActorSystem with Matchers with B
     val subject = Subject().asString
     try {
       // set some limits
-      wskadmin.cli(Seq("limits", "set", subject, "--allowedKinds", "nodejs:6", "blackbox"))
+      wskadmin.cli(Seq("limits", "set", subject, "--allowedKinds", "nodejs:10", "blackbox"))
       // check correctly set
       val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.linesIterator.toSeq
       lines should have size 1
-      lines(0) shouldBe "allowedKinds = [u'nodejs:6', u'blackbox']"
+      lines(0) shouldBe "allowedKinds = [u'nodejs:10', u'blackbox']"
     } finally {
       wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
     }

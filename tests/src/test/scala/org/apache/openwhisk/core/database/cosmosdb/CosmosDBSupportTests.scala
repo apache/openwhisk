@@ -108,7 +108,7 @@ class CosmosDBSupportTests
 
   private def newMapper(paths: Set[String]) = {
     val mapper = stub[CosmosDBViewMapper]
-    mapper.indexingPolicy _ when () returns newTestIndexingPolicy(paths)
+    (mapper.indexingPolicy _).when().returns(newTestIndexingPolicy(paths))
     mapper
   }
 

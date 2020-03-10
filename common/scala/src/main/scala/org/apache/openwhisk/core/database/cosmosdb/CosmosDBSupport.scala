@@ -17,12 +17,20 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import com.microsoft.azure.cosmosdb._
+import com.microsoft.azure.cosmosdb.{
+  Database,
+  DocumentCollection,
+  FeedResponse,
+  RequestOptions,
+  Resource,
+  SqlParameter,
+  SqlParameterCollection,
+  SqlQuerySpec
+}
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import org.apache.openwhisk.common.Logging
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable
 
 private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil {
   protected def config: CosmosDBConfig
@@ -93,5 +101,5 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with Cosmo
   protected def querySpec(id: String) =
     new SqlQuerySpec("SELECT * FROM root r WHERE r.id=@id", new SqlParameterCollection(new SqlParameter("@id", id)))
 
-  protected def asSeq[T <: Resource](r: FeedResponse[T]): immutable.Seq[T] = r.getResults.asScala.to[immutable.Seq]
+  protected def asVector[T <: Resource](r: FeedResponse[T]): Vector[T] = r.getResults.asScala.toVector
 }

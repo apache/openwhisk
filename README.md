@@ -75,7 +75,6 @@ interested in:
 - [Create triggers and rules](docs/triggers_rules.md)
 - [Use and create packages](docs/packages.md)
 - [Browse and use the catalog](docs/catalog.md)
-- [Using the OpenWhisk mobile SDK](docs/mobile_sdk.md)
 - [OpenWhisk system details](docs/reference.md)
 - [Implementing feeds](docs/feeds.md)
 - [Developing a runtime for a new language](docs/actions-actionloop.md)

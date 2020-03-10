@@ -122,14 +122,8 @@ case class WhiskPackage(namespace: EntityPath,
    * for this check.
    */
   def withPackageActions(actions: List[WhiskPackageAction] = List.empty): WhiskPackageWithActions = {
-    val actionGroups = actions map { a =>
-      //  group into "actions" and "feeds"
-      val feed = a.annotations.get(Parameters.Feed) map { _ =>
-        true
-      } getOrElse false
-      (feed, a)
-    } groupBy { _._1 } mapValues { _.map(_._2) }
-    WhiskPackageWithActions(this, actionGroups.getOrElse(false, List.empty), actionGroups.getOrElse(true, List.empty))
+    val (feedActions, nonFeedActions) = actions.partition(_.annotations.get(Parameters.Feed).isDefined)
+    WhiskPackageWithActions(this, nonFeedActions, feedActions)
   }
 
   def toJson = WhiskPackage.serdes.write(this).asJsObject

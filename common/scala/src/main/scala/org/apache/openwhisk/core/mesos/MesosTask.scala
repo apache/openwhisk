@@ -97,7 +97,7 @@ object MesosTask {
       case "host"   => Host
       case _        => User(network)
     }
-    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty
+    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map.empty[String, Set[String]]
 
     //transform our config to mesos-actor config:
     val healthCheckConfig = mesosConfig.healthCheck.map(
@@ -188,7 +188,7 @@ object JsonFormatters extends DefaultJsonProtocol {
 }
 
 class MesosTask(override protected val id: ContainerId,
-                override protected val addr: ContainerAddress,
+                override protected[core] val addr: ContainerAddress,
                 override protected implicit val ec: ExecutionContext,
                 override protected implicit val logging: Logging,
                 override protected val as: ActorSystem,

@@ -21,12 +21,11 @@ import java.lang.management.ManagementFactory
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.kafka.ConsumerMessage.CommittableOffsetBatch
-import akka.kafka.scaladsl.Consumer
+import akka.kafka.scaladsl.{Committer, Consumer}
 import akka.kafka.scaladsl.Consumer.DrainingControl
-import akka.kafka.{ConsumerSettings, Subscriptions}
+import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.scaladsl.Keep
 import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
@@ -55,23 +54,26 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
-  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations")
-  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric")
+  private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations").withoutTags()
+  private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric").withoutTags()
 
   private val statusCounter = Kamon.counter("openwhisk.userevents.global.status")
-  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts")
+  private val coldStartCounter = Kamon.counter("openwhisk.userevents.global.coldStarts").withoutTags()
 
-  private val statusSuccess = statusCounter.refine("status" -> ActivationResponse.statusSuccess)
-  private val statusFailure = statusCounter.refine("status" -> "failure")
-  private val statusApplicationError = statusCounter.refine("status" -> ActivationResponse.statusApplicationError)
-  private val statusDeveloperError = statusCounter.refine("status" -> ActivationResponse.statusDeveloperError)
-  private val statusInternalError = statusCounter.refine("status" -> ActivationResponse.statusWhiskError)
+  private val statusSuccess = statusCounter.withTag("status", ActivationResponse.statusSuccess)
+  private val statusFailure = statusCounter.withTag("status", "failure")
+  private val statusApplicationError = statusCounter.withTag("status", ActivationResponse.statusApplicationError)
+  private val statusDeveloperError = statusCounter.withTag("status", ActivationResponse.statusDeveloperError)
+  private val statusInternalError = statusCounter.withTag("status", ActivationResponse.statusWhiskError)
 
-  private val waitTime = Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds)
-  private val initTime = Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds)
-  private val duration = Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds)
+  private val waitTime =
+    Kamon.histogram("openwhisk.userevents.global.waitTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val initTime =
+    Kamon.histogram("openwhisk.userevents.global.initTime", MeasurementUnit.time.milliseconds).withoutTags()
+  private val duration =
+    Kamon.histogram("openwhisk.userevents.global.duration", MeasurementUnit.time.milliseconds).withoutTags()
 
-  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag")
+  private val lagGauge = Kamon.gauge("openwhisk.userevents.consumer.lag").withoutTags()
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()
@@ -82,6 +84,8 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
 
   override def metrics(): Future[Map[MetricName, common.Metric]] = control.metrics
 
+  private val committerSettings = CommitterSettings(system).withMaxBatch(20)
+
   //TODO Use RestartSource
   private val control: DrainingControl[Done] = Consumer
     .committableSource(updatedSettings, Subscriptions.topics(userEventTopic))
@@ -89,14 +93,12 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
       processEvent(msg.record.value())
       msg.committableOffset
     }
-    .batch(max = 20, CommittableOffsetBatch(_))(_.updated(_))
-    .mapAsync(3)(_.commitScaladsl())
-    .toMat(Sink.ignore)(Keep.both)
+    .toMat(Committer.sink(committerSettings))(Keep.both)
     .mapMaterializedValue(DrainingControl.apply)
     .run()
 
   private val lagRecorder =
-    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.set(consumerLag))
+    system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.update(consumerLag))
 
   private def processEvent(value: String): Unit = {
     EventMessage

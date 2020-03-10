@@ -27,7 +27,7 @@ import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object Main {
   def main(args: Array[String]): Unit = {
-    Kamon.loadReportersFromConfig()
+    Kamon.init()
     implicit val system: ActorSystem = ActorSystem("events-actor-system")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     val binding = OpenWhiskEvents.start(system.settings.config)

@@ -21,7 +21,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
 import org.apache.openwhisk.core.containerpool.logging.LogStore
 import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
-import org.apache.openwhisk.core.invoker.InvokerReactive.LogsCollector
+import org.apache.openwhisk.core.invoker.Invoker.LogsCollector
 
 import scala.concurrent.Future
 

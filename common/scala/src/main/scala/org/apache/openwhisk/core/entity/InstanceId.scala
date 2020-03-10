@@ -18,8 +18,6 @@
 package org.apache.openwhisk.core.entity
 
 import spray.json.DefaultJsonProtocol
-import org.apache.openwhisk.core.entity.ControllerInstanceId.LEGAL_CHARS
-import org.apache.openwhisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
 
 /**
  * An instance id representing an invoker
@@ -31,24 +29,37 @@ import org.apache.openwhisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
 case class InvokerInstanceId(val instance: Int,
                              uniqueName: Option[String] = None,
                              displayedName: Option[String] = None,
-                             val userMemory: ByteSize) {
+                             val userMemory: ByteSize)
+    extends InstanceId {
   def toInt: Int = instance
 
-  override def toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
+  override val instanceType = "invoker"
+
+  override val source = s"$instanceType$instance"
+
+  override val toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
 }
 
-case class ControllerInstanceId(val asString: String) {
-  require(
-    asString.length <= MAX_NAME_LENGTH && asString.matches(LEGAL_CHARS),
-    "Controller instance id contains invalid characters")
+case class ControllerInstanceId(asString: String) extends InstanceId {
+  validate(asString)
+  override val instanceType = "controller"
+
+  override val source = s"$instanceType$asString"
+
+  override val toString: String = source
 }
 
 object InvokerInstanceId extends DefaultJsonProtocol {
   import org.apache.openwhisk.core.entity.size.{serdes => xserds}
-  implicit val serdes = jsonFormat4(InvokerInstanceId.apply)
+  implicit val serdes = jsonFormat(InvokerInstanceId.apply, "instance", "uniqueName", "displayedName", "userMemory")
 }
 
 object ControllerInstanceId extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat(ControllerInstanceId.apply _, "asString")
+}
+
+trait InstanceId {
+
   // controller ids become part of a kafka topic, hence, hence allow only certain characters
   // see https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/internals/Topic.java#L29
   private val LEGAL_CHARS = "[a-zA-Z0-9._-]+"
@@ -56,5 +67,13 @@ object ControllerInstanceId extends DefaultJsonProtocol {
   // reserve some number of characters as the prefix to be added to topic names
   private val MAX_NAME_LENGTH = 249 - 121
 
-  implicit val serdes = jsonFormat1(ControllerInstanceId.apply)
+  def validate(asString: String): Unit =
+    require(
+      asString.length <= MAX_NAME_LENGTH && asString.matches(LEGAL_CHARS),
+      s"$instanceType instance id contains invalid characters")
+
+  val instanceType: String
+
+  val source: String
+
 }

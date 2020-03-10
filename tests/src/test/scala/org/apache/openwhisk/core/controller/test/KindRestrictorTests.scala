@@ -39,7 +39,7 @@ class KindRestrictorTests extends FlatSpec with Matchers with StreamLogging {
 
   behavior of "Kind Restrictor"
 
-  val allowedKinds = Set("nodejs:6", "python")
+  val allowedKinds = Set("nodejs:10", "python")
   val disallowedKinds = Set("golang", "blackbox")
   val allKinds = allowedKinds ++ disallowedKinds
 

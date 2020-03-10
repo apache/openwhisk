@@ -96,6 +96,10 @@ whisk {
     parameter-storage {
         key = ""
     }
+    
+    elasticsearch {
+        docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)

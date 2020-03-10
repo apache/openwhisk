@@ -27,7 +27,6 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import akka.actor.Props
@@ -190,21 +189,21 @@ class CouchDbRestClientTests
     val futures: Vector[Future[Try[Either[StatusCode, JsObject]]]] =
       promises.map(_.future.map(e => Success(e)).recover { case t: Throwable => Failure(t) })
 
-    whenReady(Future.sequence(futures), Timeout(timeSpan * 2)) { results =>
-      // We check that the first result was OK
-      // (i.e. the service worked before the disruption)
-      results.head.toOption shouldBe defined
-      checkInstanceInfoResponse(results.head.get)
+    val results = Await.result(Future.sequence(futures), timeSpan * 2)
 
-      // We check that the last result was OK
-      // (i.e. the service worked again after the disruption)
-      results.last.toOption shouldBe defined
-      checkInstanceInfoResponse(results.last.get)
+    // We check that the first result was OK
+    // (i.e. the service worked before the disruption)
+    results.head.toOption shouldBe defined
+    checkInstanceInfoResponse(results.head.get)
 
-      // We check that there was at least one error
-      // (i.e. we did manage to unbind for a while)
-      results.find(_.isFailure) shouldBe defined
-    }
+    // We check that the last result was OK
+    // (i.e. the service worked again after the disruption)
+    results.last.toOption shouldBe defined
+    checkInstanceInfoResponse(results.last.get)
+
+    // We check that there was at least one error
+    // (i.e. we did manage to unbind for a while)
+    results.find(_.isFailure) shouldBe defined
   }
 
   it should "upload then download an attachment" in {

@@ -247,6 +247,7 @@ object ConfigKeys {
 
   val containerProxy = "whisk.container-proxy"
   val containerProxyTimeouts = s"$containerProxy.timeouts"
+  val containerProxyHealth = s"$containerProxy.action-health-check"
 
   val s3 = "whisk.s3"
   val query = "whisk.query-limit"
@@ -256,6 +257,7 @@ object ConfigKeys {
   val controllerActivation = s"$controller.activation"
 
   val activationStore = "whisk.activation-store"
+  val elasticSearchActivationStore = s"$activationStore.elasticsearch"
   val activationStoreWithFileStorage = s"$activationStore.with-file-storage"
 
   val metrics = "whisk.metrics"

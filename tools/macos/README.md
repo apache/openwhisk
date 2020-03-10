@@ -27,7 +27,7 @@ If you prefer to use Docker-machine, you can follow instructions in [docker-mach
 The following are required to build and deploy OpenWhisk from a Mac host:
 
 - [Docker 18.06.3](https://docs.docker.com/docker-for-mac/install/)
-- [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or [Open JDK 8](https://adoptopenjdk.net/releases.html#x64_mac)
+- [Open JDK 10](https://adoptopenjdk.net/releases.html#x64_mac)
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
@@ -43,11 +43,11 @@ echo '
 # install homebrew
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install cask
-brew tap caskroom/cask
-# install for finding alternative versions (java8)
-brew tap caskroom/versions
-# install java 8
-brew cask install java8
+brew tap homebrew/cask
+# install for AdoptOpenJDK (java10)
+brew tap AdoptOpenJDK/openjdk
+# install java 10
+brew cask install adoptopenjdk10
 # install scala
 brew install scala
 # install gnu tar
@@ -58,27 +58,7 @@ sudo easy_install pip
 sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
-The above section of command installs Oracle JDK 8 as the default Java environment. If you would like to install Open JDK 8 instead of Oracle JDK 8, please run the following section:
-
-```bash
-# install for finding alternative versions (Open JDK 8)
-brew tap AdoptOpenJDK/openjdk
-# install Open JDK 8
-brew install adoptopenjdk-openjdk8
-```
-
-instead of
-
-```bash
-# install for finding alternative versions (java8)
-brew tap caskroom/versions
-# install java 8
-brew cask install java8
-```
-
-with the shell command described above.
-
-No matter which JDK is used, make sure you correctly configure the environment variable $JAVA_HOME.
+Make sure you correctly configure the environment variable $JAVA_HOME.
 
 # Build
 ```bash

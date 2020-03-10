@@ -15,30 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.invoker
+package org.apache.openwhisk.core.ack
 
 import org.apache.kafka.common.errors.RecordTooLargeException
-import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
+import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, EventMessage, MessageProducer}
-import org.apache.openwhisk.core.entity.{ControllerInstanceId, InvokerInstanceId, UUID, WhiskActivation}
-import org.apache.openwhisk.core.invoker.InvokerReactive.ActiveAck
+import org.apache.openwhisk.core.entity._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-trait EventSender {
-  def send(msg: => EventMessage): Unit
-}
-
-class UserEventSender(producer: MessageProducer) extends EventSender {
-  override def send(msg: => EventMessage): Unit = UserEvents.send(producer, msg)
-}
-
-class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId, eventSender: Option[EventSender])(
+class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventSender: Option[EventSender])(
   implicit logging: Logging,
   ec: ExecutionContext)
     extends ActiveAck {
-  private val source = s"invoker${instance.instance}"
   override def apply(tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
@@ -58,7 +48,7 @@ class MessagingActiveAck(producer: MessageProducer, instance: InvokerInstanceId,
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
     if (acknowledegment.isSlotFree.nonEmpty) {
       eventSender.foreach { s =>
-        EventMessage.from(activationResult, source, userId) match {
+        EventMessage.from(activationResult, instance.source, userId) match {
           case Success(msg) => s.send(msg)
           case Failure(t)   => logging.error(this, s"activation event was not sent: $t")
         }

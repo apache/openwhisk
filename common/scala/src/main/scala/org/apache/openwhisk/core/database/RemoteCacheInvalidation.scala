@@ -65,7 +65,7 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
   private val cacheInvalidationProducer = msgProvider.getProducer(config)
 
   def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
-    cacheInvalidationProducer.send(cacheInvalidationTopic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
+    cacheInvalidationProducer.send(cacheInvalidationTopic, CacheInvalidationMessage(key, instanceId)).map(_ => ())
   }
 
   private val invalidationFeed = as.actorOf(Props {

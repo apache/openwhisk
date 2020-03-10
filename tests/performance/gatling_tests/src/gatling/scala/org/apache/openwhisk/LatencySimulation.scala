@@ -23,8 +23,7 @@ import java.util.Base64
 import org.apache.openwhisk.extension.whisk.Predef._
 import io.gatling.core.Predef._
 import io.gatling.core.session.Expression
-import io.gatling.core.util.Resource
-import org.apache.commons.io.FileUtils
+import io.gatling.core.util.ClasspathPackagedResource
 
 import scala.concurrent.duration._
 
@@ -65,14 +64,15 @@ class LatencySimulation extends Simulation {
    * `main` is only needed for java. This is the name of the class where the main method is located.
    */
   val actions: Seq[(String, String, String, String)] = Map(
-    "nodejs:default" -> (FileUtils
-      .readFileToString(Resource.body("nodeJSAction.js").get.file, StandardCharsets.UTF_8), "latencyTest_node", ""),
-    "python:default" -> (FileUtils
-      .readFileToString(Resource.body("pythonAction.py").get.file, StandardCharsets.UTF_8), "latencyTest_python", ""),
-    "swift:default" -> (FileUtils
-      .readFileToString(Resource.body("swiftAction.swift").get.file, StandardCharsets.UTF_8), "latencyTest_swift", ""),
-    "java:default" -> (Base64.getEncoder.encodeToString(
-      FileUtils.readFileToByteArray(Resource.body("javaAction.jar").get.file)), "latencyTest_java", "JavaAction"))
+    "nodejs:default" -> (ClasspathPackagedResource("nodeJSAction.js", getClass.getResource("/data/nodeJSAction.js"))
+      .string(StandardCharsets.UTF_8), "latencyTest_node", ""),
+    "python:default" -> (ClasspathPackagedResource("pythonAction.py", getClass.getResource("/data/pythonAction.py"))
+      .string(StandardCharsets.UTF_8), "latencyTest_python", ""),
+    "swift:default" -> (ClasspathPackagedResource("swiftAction.swift", getClass.getResource("/data/swiftAction.swift"))
+      .string(StandardCharsets.UTF_8), "latencyTest_swift", ""),
+    "java:default" -> (Base64.getEncoder.encodeToString(ClasspathPackagedResource(
+      "javaAction.jar",
+      getClass.getResource("/data/javaAction.jar")).bytes), "latencyTest_java", "JavaAction"))
     .filterNot(e => excludedKinds.contains(e._1))
     .map {
       case (kind, (code, name, main)) =>

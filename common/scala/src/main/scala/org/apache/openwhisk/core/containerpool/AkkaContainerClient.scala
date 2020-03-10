@@ -87,9 +87,10 @@ protected class AkkaContainerClient(
    * @param endpoint the path the api call relative to hostname
    * @param body the JSON value to post (this is usually a JSON objecT)
    * @param retry whether or not to retry on connection failure
+   * @param reschedule whether or not to throw ContainerHealthError (triggers reschedule) on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean)(
+  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
 
     //create the request
@@ -98,7 +99,7 @@ protected class AkkaContainerClient(
         .withHeaders(Accept(MediaTypes.`application/json`))
     }
 
-    retryingRequest(req, timeout, retry)
+    retryingRequest(req, timeout, retry, reschedule, endpoint)
       .flatMap {
         case (response, retries) => {
           if (retries > 0) {
@@ -126,26 +127,35 @@ protected class AkkaContainerClient(
           }
         }
       }
-      .recover {
-        case t: TimeoutException => Left(Timeout(t))
-        case NonFatal(t)         => Left(ConnectionError(t))
+      .recoverWith {
+        case t: TimeoutException =>
+          Future.successful(Left(Timeout(t)))
+        case t: ContainerHealthError =>
+          //propagate as a failed future; clients can retry at a different container
+          Future.failed(t)
+        case NonFatal(t) =>
+          Future.successful(Left(ConnectionError(t)))
       }
   }
   //returns a Future HttpResponse -> Int (where Int is the retryCount)
   private def retryingRequest(req: Future[HttpRequest],
                               timeout: FiniteDuration,
                               retry: Boolean,
-                              retryCount: Int = 0): Future[(HttpResponse, Int)] = {
+                              reschedule: Boolean,
+                              endpoint: String,
+                              retryCount: Int = 0)(implicit tid: TransactionId): Future[(HttpResponse, Int)] = {
     val start = Instant.now
 
     request(req)
       .map((_, retryCount))
       .recoverWith {
+        case _: StreamTcpException if reschedule =>
+          Future.failed(ContainerHealthError(tid, endpoint))
         case t: StreamTcpException if retry =>
           if (timeout > Duration.Zero) {
             akka.pattern.after(retryInterval, as.scheduler)({
               val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
-              retryingRequest(req, newTimeout, retry, retryCount + 1)
+              retryingRequest(req, newTimeout, retry, reschedule, endpoint, retryCount + 1)
             })
           } else {
             logging.warn(

@@ -102,11 +102,11 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       action.create(
         name,
         Some(TestUtils.getTestActionFilename("printParams.js")),
-        parameters = params.mapValues(_.toJson))
+        parameters = params.mapValues(_.toJson).toMap)
     }
 
     val invokeParams = Map("payload" -> testString)
-    val run = wsk.action.invoke(name, invokeParams.mapValues(_.toJson))
+    val run = wsk.action.invoke(name, invokeParams.mapValues(_.toJson).toMap)
     withActivation(wsk.activation, run) { activation =>
       val logs = activation.logs.get.mkString(" ")
 
