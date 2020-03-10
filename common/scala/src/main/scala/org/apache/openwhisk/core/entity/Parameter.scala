@@ -136,12 +136,16 @@ protected[core] class Parameters protected[entity] (protected[entity] val params
    * @param encoder the encoder to transform parameter values with
    * @return parameters with all values encrypted
    */
-  def lock(encoder: Encrypter): Parameters = {
-    new Parameters(params.map {
-      case (paramName, paramValue) if paramValue.encryption.isEmpty =>
-        paramName -> encoder.encrypt(paramValue)
-      case p => p
-    })
+  def lock(encoder: Option[Encrypter] = None): Parameters = {
+    encoder
+      .map { coder =>
+        new Parameters(params.map {
+          case (paramName, paramValue) if paramValue.encryption.isEmpty =>
+            paramName -> coder.encrypt(paramValue)
+          case p => p
+        })
+      }
+      .getOrElse(this)
   }
 
   /**
@@ -152,9 +156,10 @@ protected[core] class Parameters protected[entity] (protected[entity] val params
    */
   def unlock(decoder: ParameterEncryption): Parameters = {
     new Parameters(params.map {
-      case (paramName, paramValue) if paramValue.encryption.isDefined =>
-        paramName -> decoder.encryptor(paramValue.encryption).decrypt(paramValue)
-      case p => p
+      case p @ (paramName, paramValue) =>
+        paramValue.encryption
+          .map(paramName -> decoder.encryptor(_).decrypt(paramValue))
+          .getOrElse(p)
     })
   }
 

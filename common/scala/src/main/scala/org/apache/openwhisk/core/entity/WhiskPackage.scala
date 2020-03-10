@@ -198,9 +198,11 @@ object WhiskPackage
     }
     jsonFormat8(WhiskPackage.apply)
   }
+
   override val cacheEnabled = true
 
   lazy val publicPackagesView: View = WhiskQueries.entitiesView(collection = s"$collectionName-public")
+
   // overriden to store encrypted parameters.
   override def put[A >: WhiskPackage](db: ArtifactStore[A], doc: WhiskPackage, old: Option[WhiskPackage])(
     implicit transid: TransactionId,

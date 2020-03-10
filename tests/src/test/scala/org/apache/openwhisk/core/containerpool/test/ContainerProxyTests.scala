@@ -297,6 +297,18 @@ class ContainerProxyTests
     }
   }
 
+  it should "unlock arguments" in {
+    val k128 = "ra1V6AfOYAv0jCzEdufIFA=="
+    val coder = ParameterEncryption(ParameterStorageConfig("aes-128", aes128 = Some(k128)))
+    val locker = Some(coder.encryptor("aes-128"))
+
+    val param = Parameters("a", "abc").lock(locker).merge(Some(JsObject("b" -> JsString("xyz"))))
+    param.get.compactPrint should not include "abc"
+    ContainerProxy.unlockArguments(param, Map("a" -> "aes-128"), coder) shouldBe Some {
+      JsObject("a" -> JsString("abc"), "b" -> JsString("xyz"))
+    }
+  }
+
   /*
    * SUCCESSFUL CASES
    */

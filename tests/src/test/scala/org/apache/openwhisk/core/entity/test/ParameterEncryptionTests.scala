@@ -45,6 +45,16 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
       new ParameterName("one") -> new ParameterValue("secret".toJson, false),
       new ParameterName("two") -> new ParameterValue("secret".toJson, true)))
 
+  behavior of "ParameterEncryption"
+
+  it should "not have a default coder when turned off" in {
+    ParameterEncryption(ParameterStorageConfig("")).default shouldBe empty
+    ParameterEncryption(ParameterStorageConfig("off")).default shouldBe empty
+    ParameterEncryption(ParameterStorageConfig("noop")).default shouldBe empty
+    ParameterEncryption(ParameterStorageConfig("OFF")).default shouldBe empty
+    ParameterEncryption(ParameterStorageConfig("NOOP")).default shouldBe empty
+  }
+
   behavior of "Parameters"
 
   it should "handle decryption of json objects" in {
@@ -59,6 +69,10 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val p = Parameters.serdes.read(originalValue.parseJson)
     p.get("paramName1").get.convertTo[String] shouldBe "from-action"
     p.get("paramName2").get.convertTo[String] shouldBe "from-pack"
+    p.params.foreach {
+      case (_, paramValue) =>
+        paramValue.encryption shouldBe empty
+    }
   }
 
   it should "handle decryption of json objects with null field" in {
@@ -73,6 +87,10 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
     val p = Parameters.serdes.read(originalValue.parseJson)
     p.get("paramName1").get.convertTo[String] shouldBe "from-action"
     p.get("paramName2").get.convertTo[String] shouldBe "from-pack"
+    p.params.foreach {
+      case (_, paramValue) =>
+        paramValue.encryption shouldBe empty
+    }
   }
 
   it should "drop encryption propery when no longer encrypted" in {
@@ -86,6 +104,10 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
 
     val p = Parameters.serdes.read(originalValue.parseJson)
     Parameters.serdes.write(p).compactPrint should not include "encryption"
+    p.params.foreach {
+      case (_, paramValue) =>
+        paramValue.encryption shouldBe empty
+    }
   }
 
   it should "read the merged message payload from kafka into parameters" in {
@@ -231,7 +253,7 @@ class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfte
   behavior of "No-op Encryption"
 
   it should "not mark parameters as encrypted" in {
-    val locked = parameters.lock(ParameterEncryption.noop)
+    val locked = parameters.lock()
     locked.params.foreach {
       case (_, paramValue) =>
         paramValue.value.convertTo[String] shouldBe "secret"

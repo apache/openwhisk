@@ -348,6 +348,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
   import WhiskActivation.instantSerdes
+
   val execFieldName = "exec"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 

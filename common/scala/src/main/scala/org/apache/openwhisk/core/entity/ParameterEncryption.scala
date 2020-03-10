@@ -34,18 +34,14 @@ protected[core] case class ParameterStorageConfig(current: String = ParameterEnc
                                                   aes128: Option[String] = None,
                                                   aes256: Option[String] = None)
 
-protected[core] case class ParameterEncryption(default: Encrypter, encryptors: Map[String, Encrypter]) {
+protected[core] class ParameterEncryption(val default: Option[Encrypter], encryptors: Map[String, Encrypter]) {
 
   /**
-   * Gets the default encryptor or the encryptor for the given scheme name.
+   * Gets the coder for the given scheme name.
    *
-   * @param name optionnal name of the encryption algorithm (defaults to current from last configuration)
-   * @return the encryptor if there is one else no-op encryptor
+   * @param name the name of the encryption algorithm (defaults to current from last configuration)
+   * @return the coder if there is one else no-op encryptor
    */
-  def encryptor(name: Option[String] = None): Encrypter = {
-    encryptors.get(name.getOrElse(default.name)).getOrElse(ParameterEncryption.noop)
-  }
-
   def encryptor(name: String): Encrypter = {
     encryptors.get(name).getOrElse(ParameterEncryption.noop)
   }
@@ -73,9 +69,13 @@ protected[core] object ParameterEncryption {
       config.aes128.map(k => AES128_ENCRYPTION -> new Aes128(k)) ++
       config.aes256.map(k => AES256_ENCRYPTION -> new Aes256(k))
 
-    val defaultEncoder: Encrypter = availableEncoders.get(config.current).getOrElse(noop)
+    val current = config.current.toLowerCase match {
+      case "" | "off" | NO_ENCRYPTION => NO_ENCRYPTION
+      case s                          => s
+    }
 
-    ParameterEncryption(defaultEncoder, availableEncoders)
+    val defaultEncoder: Encrypter = availableEncoders.get(current).getOrElse(noop)
+    new ParameterEncryption(Option(defaultEncoder).filter(_ != noop), availableEncoders)
   }
 }
 
