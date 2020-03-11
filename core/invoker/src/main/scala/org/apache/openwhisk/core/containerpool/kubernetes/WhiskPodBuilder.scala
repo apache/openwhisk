@@ -41,7 +41,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
                    image: String,
                    memory: ByteSize,
                    environment: Map[String, String],
-                   labels: Map[String, String])(implicit transid: TransactionId): Pod = {
+                   labels: Map[String, String],
+                   config: KubernetesClientConfig)(implicit transid: TransactionId): Pod = {
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq
@@ -84,11 +85,18 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       specBuilder.editMatchingContainer(actionContainerPredicate)
     } else specBuilder.addNewContainer()
 
+    //if cpu scaling is enabled, calculate cpu from memory, 100m per 256Mi, min is 100m(.1cpu), max is 10000 (10cpu)
+    val cpu = config.cpuScaling
+      .map(cpuConfig => Map("cpu" -> new Quantity(calculateCpu(cpuConfig, memory) + "m")))
+      .getOrElse(Map.empty)
+
     //In container its assumed that env, port, resource limits are set explicitly
     //Here if any value exist in template then that would be overridden
     containerBuilder
       .withNewResources()
-      .withLimits(Map("memory" -> new Quantity(memory.toMB + "Mi")).asJava)
+      //explicitly set requests and limits to same values
+      .withLimits((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu).asJava)
+      .withRequests((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu).asJava)
       .endResources()
       .withName("user-action")
       .withImage(image)
@@ -111,6 +119,13 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .endSpec()
       .build()
     pod
+  }
+
+  def calculateCpu(c: KubernetesCpuScalingConfig, memory: ByteSize): Int = {
+    val cpuPerMemorySegment = c.millicpus
+    val cpuMin = c.millicpus
+    val cpuMax = c.maxMillicpus
+    math.min(math.max((memory.toMB / c.memory.toMB) * cpuPerMemorySegment, cpuMin), cpuMax).toInt
   }
 
   private def loadPodSpec(bytes: Array[Byte]): Pod = {

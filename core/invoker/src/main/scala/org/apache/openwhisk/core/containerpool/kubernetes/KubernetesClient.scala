@@ -64,6 +64,11 @@ import scala.util.{Failure, Success, Try}
 case class KubernetesClientTimeoutConfig(run: FiniteDuration, logs: FiniteDuration)
 
 /**
+ * Configuration for kubernetes cpu resource request/limit scaling based on action memory limit
+ */
+case class KubernetesCpuScalingConfig(millicpus: Int, memory: ByteSize, maxMillicpus: Int)
+
+/**
  * Configuration for node affinity for the pods that execute user action containers
  * The key,value pair should match the <key,value> pair with which the invoker worker nodes
  * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
@@ -78,7 +83,8 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
                                   actionNamespace: Option[String] = None,
-                                  podTemplate: Option[ConfigMapValue] = None)
+                                  podTemplate: Option[ConfigMapValue] = None,
+                                  cpuScaling: Option[KubernetesCpuScalingConfig] = None)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -111,7 +117,7 @@ class KubernetesClient(
           environment: Map[String, String] = Map.empty,
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
-    val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels)
+    val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels, config)
     if (transid.meta.extraLogging) {
       log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
