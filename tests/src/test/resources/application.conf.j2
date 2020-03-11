@@ -93,6 +93,10 @@ whisk {
         }
     }
 
+    parameter-storage {
+        key = ""
+    }
+    
     elasticsearch {
         docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
     }

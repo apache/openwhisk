@@ -27,7 +27,7 @@ import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.DocumentFactory
+import org.apache.openwhisk.core.database.{ArtifactStore, CacheChangeNotification, DocumentFactory}
 import org.apache.openwhisk.core.entity.types.EntityStore
 
 /**
@@ -198,10 +198,15 @@ object WhiskPackage
     }
     jsonFormat8(WhiskPackage.apply)
   }
-
   override val cacheEnabled = true
 
   lazy val publicPackagesView: View = WhiskQueries.entitiesView(collection = s"$collectionName-public")
+  // overriden to store encrypted parameters.
+  override def put[A >: WhiskPackage](db: ArtifactStore[A], doc: WhiskPackage, old: Option[WhiskPackage])(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+    super.put(db, doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskPackage](doc.rev), old)
+  }
 }
 
 /**
