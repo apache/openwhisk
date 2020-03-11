@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.controller.test
 
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Route
-import io.restassured.RestAssured
 import org.apache.openwhisk.common.AkkaLogging
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
@@ -53,26 +52,6 @@ class ControllerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach
     }
   }
 
-  it should "return list of invokers" in {
-    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers")
-
-    response.statusCode shouldBe 200
-    response.body.asString shouldBe "{\"invoker0/0\":\"up\",\"invoker1/1\":\"up\"}"
-  }
-
-  it should "return healthy invokers status" in {
-    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/healthy/count")
-
-    response.statusCode shouldBe 200
-    response.body.asString() shouldBe "2"
-  }
-
-  it should "return healthy invokers" in {
-    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/ready")
-
-    response.statusCode shouldBe 200
-    response.body.asString() shouldBe "healthy 2/2"
-  }
 
   it should "return ready state true when healthy == total invokers" in {
 
