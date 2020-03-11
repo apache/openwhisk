@@ -138,7 +138,7 @@ class Controller(val instance: ControllerInstanceId,
    *
    * @return JSON with details of invoker health or count of healthy invokers respectively.
    */
-  private val internalInvokerHealth = {
+  protected[controller] val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
     (pathPrefix("invokers") & get) {
       pathEndOrSingleSlash {
