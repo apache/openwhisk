@@ -17,7 +17,8 @@
 
 package org.apache.openwhisk.core.containerpool.kubernetes.test
 
-import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.policy.PodDisruptionBudgetBuilder
+import io.fabric8.kubernetes.api.model.{IntOrString, LabelSelectorBuilder, Pod}
 import io.fabric8.kubernetes.client.utils.Serialization
 import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
 import org.apache.openwhisk.core.containerpool.kubernetes.{
@@ -57,23 +58,24 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       true,
       None,
       None,
-      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)))
+      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
+      false)
 
-    val pod = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+    val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
       //min cpu is: config.millicpus
       c.getResources.getLimits.asScala.get("cpu").map(_.getAmount) shouldBe Some("300m")
     }
 
-    val pod2 = builder.buildPodSpec(name, testImage, 15.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+    val (pod2, _) = builder.buildPodSpec(name, testImage, 15.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod2)) {
       val c = getActionContainer(pod2)
       //max cpu is: config.maxMillicpus
       c.getResources.getLimits.asScala.get("cpu").map(_.getAmount) shouldBe Some("1000m")
     }
 
-    val pod3 = builder.buildPodSpec(name, testImage, 7.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+    val (pod3, _) = builder.buildPodSpec(name, testImage, 7.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod3)) {
       val c = getActionContainer(pod3)
       //scaled cpu is: action mem/config.mem x config.maxMillicpus
@@ -85,8 +87,10 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       KubernetesInvokerNodeAffinity(false, "k", "v"),
       true,
       None,
-      None)
-    val pod4 = builder.buildPodSpec(name, testImage, 7.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config2)
+      None,
+      None,
+      false)
+    val (pod4, _) = builder.buildPodSpec(name, testImage, 7.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config2)
     withClue(Serialization.asYaml(pod4)) {
       val c = getActionContainer(pod4)
       //if scaling config is not provided, no cpu resources are specified
@@ -131,6 +135,11 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
     pod.getMetadata.getNamespace shouldBe "whiskns"
   }
 
+  it should "build a pod disruption budget for the pod, if enabled" in {
+    val builder = new WhiskPodBuilder(kubeClient, affinity)
+    assertPodSettings(builder, true)
+  }
+
   it should "extend existing pod template with affinity" in {
     val template = """
        |apiVersion: "v1"
@@ -154,15 +163,17 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
     terms.exists(_.getMatchExpressions.asScala.exists(_.getKey == "nodelabel")) shouldBe true
   }
 
-  private def assertPodSettings(builder: WhiskPodBuilder): Pod = {
+  private def assertPodSettings(builder: WhiskPodBuilder, pdbEnabled: Boolean = false): Pod = {
     val config = KubernetesClientConfig(
       KubernetesClientTimeoutConfig(1.second, 1.second),
       KubernetesInvokerNodeAffinity(false, "k", "v"),
       true,
       None,
       None,
-      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)))
-    val pod = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
+      pdbEnabled)
+    val labels = Map("fooL" -> "barV")
+    val (pod, pdb) = builder.buildPodSpec(name, testImage, memLimit, Map("foo" -> "bar"), labels, config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
       c.getEnv.asScala.exists(_.getName == "foo") shouldBe true
@@ -183,6 +194,19 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
           pod.getSpec.getAffinity.getNodeAffinity.getRequiredDuringSchedulingIgnoredDuringExecution.getNodeSelectorTerms.asScala
         terms.exists(_.getMatchExpressions.asScala.exists(_.getKey == affinity.key)) shouldBe true
       }
+    }
+    if (pdbEnabled) {
+      println("matching pdb...")
+      pdb shouldBe Some(
+        new PodDisruptionBudgetBuilder().withNewMetadata
+          .withName(name)
+          .addToLabels(labels.asJava)
+          .endMetadata()
+          .withNewSpec()
+          .withMinAvailable(new IntOrString(1))
+          .withSelector(new LabelSelectorBuilder().withMatchLabels(Map("name" -> name).asJava).build())
+          .and
+          .build)
     }
     pod
   }
