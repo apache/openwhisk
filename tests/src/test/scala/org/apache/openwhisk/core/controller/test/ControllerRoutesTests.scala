@@ -52,7 +52,6 @@ class ControllerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach
     }
   }
 
-
   it should "return ready state true when healthy == total invokers" in {
 
     val res = Controller.readyState(5, 5, 1.0)
