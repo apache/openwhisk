@@ -294,28 +294,31 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
      */
     def read(params: Vector[JsValue]) = Try {
       new Parameters(params.map {
-        _.asJsObject.getFields("key", "value", "init", "encryption") match {
-          case Seq(JsString(k), v: JsValue) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, false)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, i)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, i, Some(e))
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsBoolean(i), JsNull) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, i, None)
-            (key, value)
-          case Seq(JsString(k), v: JsValue, JsString(e)) =>
-            val key = new ParameterName(k)
-            val value = ParameterValue(v, false, Some(e))
-            (key, value)
-        }
+        case o @ JsObject(fields) =>
+          o.getFields("key", "value", "init", "encryption") match {
+            case Seq(JsString(k), v: JsValue) if fields.contains("value") =>
+              val key = new ParameterName(k)
+              val value = ParameterValue(v, false)
+              (key, value)
+            case Seq(JsString(k), v: JsValue, JsBoolean(i)) =>
+              val key = new ParameterName(k)
+              val value = ParameterValue(v, i)
+              (key, value)
+            case Seq(JsString(k), v: JsValue, JsBoolean(i), JsString(e)) =>
+              val key = new ParameterName(k)
+              val value = ParameterValue(v, i, Some(e))
+              (key, value)
+            case Seq(JsString(k), v: JsValue, JsBoolean(i), JsNull) =>
+              val key = new ParameterName(k)
+              val value = ParameterValue(v, i, None)
+              (key, value)
+            case Seq(JsString(k), v: JsValue, JsString(e))
+                if fields.contains("value") && fields.contains("encryption") =>
+              val key = new ParameterName(k)
+              val value = ParameterValue(v, false, Some(e))
+              (key, value)
+          }
+        case _ => deserializationError("invalid parameter")
       }.toMap)
     }
   }
