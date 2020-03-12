@@ -82,9 +82,10 @@ case class KubernetesInvokerNodeAffinity(enabled: Boolean, key: String, value: S
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   userPodNodeAffinity: KubernetesInvokerNodeAffinity,
                                   portForwardingEnabled: Boolean,
-                                  actionNamespace: Option[String] = None,
-                                  podTemplate: Option[ConfigMapValue] = None,
-                                  cpuScaling: Option[KubernetesCpuScalingConfig] = None)
+                                  actionNamespace: Option[String],
+                                  podTemplate: Option[ConfigMapValue],
+                                  cpuScaling: Option[KubernetesCpuScalingConfig],
+                                  pdbEnabled: Boolean)
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -117,7 +118,7 @@ class KubernetesClient(
           environment: Map[String, String] = Map.empty,
           labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
-    val pod = podBuilder.buildPodSpec(name, image, memory, environment, labels, config)
+    val (pod, pdb) = podBuilder.buildPodSpec(name, image, memory, environment, labels, config)
     if (transid.meta.extraLogging) {
       log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
@@ -131,6 +132,12 @@ class KubernetesClient(
     //create the pod; catch any failure to end the transaction timer
     try {
       kubeRestClient.pods.inNamespace(namespace).create(pod)
+      pdb.map(
+        p =>
+          kubeRestClient.policy.podDisruptionBudget
+            .inNamespace(namespace)
+            .withName(name)
+            .create(p))
     } catch {
       case e: Throwable =>
         transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
@@ -171,48 +178,10 @@ class KubernetesClient(
   }
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
-    val start = transid.started(
-      this,
-      LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
-      s"Deleting pod ${container.id}",
-      logLevel = akka.event.Logging.InfoLevel)
-    Future {
-      blocking {
-        kubeRestClient
-          .inNamespace(kubeRestClient.getNamespace)
-          .pods()
-          .withName(container.id.asString)
-          .delete()
-      }
-    }.map(_ => transid.finished(this, start, logLevel = InfoLevel))
-      .recover {
-        case e =>
-          transid.failed(
-            this,
-            start,
-            s"Failed delete pod for '${container.id}': ${e.getClass} - ${e.getMessage}",
-            ErrorLevel)
-      }
+    deleteByName(container.id.asString)
   }
   def rm(podName: String)(implicit transid: TransactionId): Future[Unit] = {
-    val start = transid.started(
-      this,
-      LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
-      s"Deleting pod $podName",
-      logLevel = akka.event.Logging.InfoLevel)
-    Future {
-      blocking {
-        kubeRestClient
-          .inNamespace(kubeRestClient.getNamespace)
-          .pods()
-          .withName(podName)
-          .delete()
-      }
-    }.map(_ => transid.finished(this, start, logLevel = InfoLevel))
-      .recover {
-        case e =>
-          transid.failed(this, start, s"Failed delete pod for '$podName': ${e.getClass} - ${e.getMessage}", ErrorLevel)
-      }
+    deleteByName(podName)
   }
 
   def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
@@ -228,6 +197,12 @@ class KubernetesClient(
           .pods()
           .withLabel(key, value)
           .delete()
+        if (config.pdbEnabled) {
+          kubeRestClient.policy.podDisruptionBudget
+            .inNamespace(kubeRestClient.getNamespace)
+            .withLabel(key, value)
+            .delete()
+        }
       }
     }.map(_ => transid.finished(this, start, logLevel = InfoLevel))
       .recover {
@@ -239,7 +214,36 @@ class KubernetesClient(
             ErrorLevel)
       }
   }
-
+  private def deleteByName(podName: String)(implicit transid: TransactionId) = {
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
+      s"Deleting pod ${podName}",
+      logLevel = akka.event.Logging.InfoLevel)
+    Future {
+      blocking {
+        kubeRestClient
+          .inNamespace(kubeRestClient.getNamespace)
+          .pods()
+          .withName(podName)
+          .delete()
+        if (config.pdbEnabled) {
+          kubeRestClient.policy.podDisruptionBudget
+            .inNamespace(kubeRestClient.getNamespace)
+            .withName(podName)
+            .delete()
+        }
+      }
+    }.map(_ => transid.finished(this, start, logLevel = InfoLevel))
+      .recover {
+        case e =>
+          transid.failed(
+            this,
+            start,
+            s"Failed delete pod for '${podName}': ${e.getClass} - ${e.getMessage}",
+            ErrorLevel)
+      }
+  }
   // suspend is a no-op with the basic KubernetesClient
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = Future.successful({})
 

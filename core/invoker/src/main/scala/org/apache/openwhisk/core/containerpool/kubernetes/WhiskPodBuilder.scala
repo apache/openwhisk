@@ -21,7 +21,16 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 
 import io.fabric8.kubernetes.api.builder.Predicate
-import io.fabric8.kubernetes.api.model.{ContainerBuilder, EnvVarBuilder, Pod, PodBuilder, Quantity}
+import io.fabric8.kubernetes.api.model.policy.{PodDisruptionBudget, PodDisruptionBudgetBuilder}
+import io.fabric8.kubernetes.api.model.{
+  ContainerBuilder,
+  EnvVarBuilder,
+  IntOrString,
+  LabelSelectorBuilder,
+  Pod,
+  PodBuilder,
+  Quantity
+}
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
@@ -37,12 +46,13 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
 
   def affinityEnabled: Boolean = userPodNodeAffinity.enabled
 
-  def buildPodSpec(name: String,
-                   image: String,
-                   memory: ByteSize,
-                   environment: Map[String, String],
-                   labels: Map[String, String],
-                   config: KubernetesClientConfig)(implicit transid: TransactionId): Pod = {
+  def buildPodSpec(
+    name: String,
+    image: String,
+    memory: ByteSize,
+    environment: Map[String, String],
+    labels: Map[String, String],
+    config: KubernetesClientConfig)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq
@@ -118,7 +128,21 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .endContainer()
       .endSpec()
       .build()
-    pod
+    val pdb = if (config.pdbEnabled) {
+      Some(
+        new PodDisruptionBudgetBuilder().withNewMetadata
+          .withName(name)
+          .addToLabels(labels.asJava)
+          .endMetadata()
+          .withNewSpec()
+          .withMinAvailable(new IntOrString(1))
+          .withSelector(new LabelSelectorBuilder().withMatchLabels(Map("name" -> name).asJava).build())
+          .and
+          .build)
+    } else {
+      None
+    }
+    (pod, pdb)
   }
 
   def calculateCpu(c: KubernetesCpuScalingConfig, memory: ByteSize): Int = {
