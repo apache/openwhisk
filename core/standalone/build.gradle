@@ -152,6 +152,7 @@ bootJar {
 install.dependsOn(bootJar)
 
 dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':core:controller')
     compile project(':tools:admin')
     compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
@@ -162,10 +163,6 @@ dependencies {
 
     testCompile "junit:junit:4.11"
     testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-}
-
-tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 gradle.projectsEvaluated {
