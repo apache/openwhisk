@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.policy.{PodDisruptionBudget, PodDisruptio
 import io.fabric8.kubernetes.api.model.{
   ContainerBuilder,
   EnvVarBuilder,
+  EnvVarSourceBuilder,
   IntOrString,
   LabelSelectorBuilder,
   Pod,
@@ -32,19 +33,17 @@ import io.fabric8.kubernetes.api.model.{
   Quantity
 }
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import org.apache.openwhisk.common.{ConfigMapValue, TransactionId}
+import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.ByteSize
 
 import scala.collection.JavaConverters._
 
-class WhiskPodBuilder(client: NamespacedKubernetesClient,
-                      userPodNodeAffinity: KubernetesInvokerNodeAffinity,
-                      podTemplate: Option[ConfigMapValue] = None) {
-  private val template = podTemplate.map(_.value.getBytes(UTF_8))
+class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClientConfig) {
+  private val template = config.podTemplate.map(_.value.getBytes(UTF_8))
   private val actionContainerName = "user-action"
   private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
 
-  def affinityEnabled: Boolean = userPodNodeAffinity.enabled
+  def affinityEnabled: Boolean = config.userPodNodeAffinity.enabled
 
   def buildPodSpec(
     name: String,
@@ -55,7 +54,15 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
     config: KubernetesClientConfig)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
-    }.toSeq
+    }.toSeq ++ config.fieldRefEnvironment
+      .map(_.map({
+        case (key, value) =>
+          new EnvVarBuilder()
+            .withName(key)
+            .withValueFrom(new EnvVarSourceBuilder().withNewFieldRef().withFieldPath(value).endFieldRef().build())
+            .build()
+      }).toSeq)
+      .getOrElse(Seq.empty)
 
     val baseBuilder = template match {
       case Some(bytes) =>
@@ -73,7 +80,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
 
     val specBuilder = pb1.editOrNewSpec().withRestartPolicy("Always")
 
-    if (userPodNodeAffinity.enabled) {
+    if (config.userPodNodeAffinity.enabled) {
       val affinity = specBuilder
         .editOrNewAffinity()
         .editOrNewNodeAffinity()
@@ -81,9 +88,9 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       affinity
         .addNewNodeSelectorTerm()
         .addNewMatchExpression()
-        .withKey(userPodNodeAffinity.key)
+        .withKey(config.userPodNodeAffinity.key)
         .withOperator("In")
-        .withValues(userPodNodeAffinity.value)
+        .withValues(config.userPodNodeAffinity.value)
         .endMatchExpression()
         .endNodeSelectorTerm()
         .endRequiredDuringSchedulingIgnoredDuringExecution()
@@ -111,15 +118,6 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient,
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars.asJava)
-      .addNewEnv()
-      .withName("POD_UID")
-      .withNewValueFrom()
-      .withNewFieldRef()
-      .withApiVersion("v1")
-      .withFieldPath("metadata.uid")
-      .endFieldRef()
-      .endValueFrom()
-      .endEnv()
       .addNewPort()
       .withContainerPort(8080)
       .withName("action")
