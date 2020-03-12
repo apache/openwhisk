@@ -60,7 +60,7 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       false,
       None,
       configMap,
-      None,
+      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
       false,
       Some(Map("POD_UID" -> "metadata.uid")))
 
