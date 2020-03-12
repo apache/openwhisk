@@ -139,13 +139,14 @@ class KubernetesClient(
 
     //create the pod; catch any failure to end the transaction timer
     val createdPod = try {
-      kubeRestClient.pods.inNamespace(namespace).create(pod)
+      val created = kubeRestClient.pods.inNamespace(namespace).create(pod)
       pdb.map(
         p =>
           kubeRestClient.policy.podDisruptionBudget
             .inNamespace(namespace)
             .withName(name)
             .create(p))
+      created
     } catch {
       case e: Throwable =>
         transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
