@@ -127,7 +127,7 @@ class ActivationFileStorage(logFilePrefix: String,
 
     // Write each log line to file and then write the activation metadata
     Source
-      .fromIterator(() => transcribedLogs.toIterator)
+      .fromIterator(() => transcribedLogs.iterator)
       .runWith(Flow[ByteString].concat(Source.single(transcribedActivation)).to(writeToFile))
   }
 }
