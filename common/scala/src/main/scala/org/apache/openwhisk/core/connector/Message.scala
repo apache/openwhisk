@@ -357,14 +357,6 @@ object Activation extends DefaultJsonProtocol {
     statusCode.map {
       case value => Try(value.convertTo[BigInt].intValue).toOption.getOrElse(BadRequest.intValue)
     }
-//    statusCode match {
-//      case Some(value) =>
-//        Try { value.convertTo[BigInt].intValue } match {
-//          case Failure(_)    => Some(BadRequest.intValue)
-//          case Success(code) => Some(code)
-//        }
-//      case None => None
-//    }
   }
 
   /** Constructs an "Activation" event from a WhiskActivation */
