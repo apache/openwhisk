@@ -92,7 +92,8 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   actionNamespace: Option[String],
                                   podTemplate: Option[ConfigMapValue],
                                   cpuScaling: Option[KubernetesCpuScalingConfig],
-                                  pdbEnabled: Boolean)
+                                  pdbEnabled: Boolean,
+                                  fieldRefEnvironment: Option[Map[String, String]])
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
@@ -118,7 +119,7 @@ class KubernetesClient(
     new DefaultKubernetesClient(configBuilder.build())
   }
 
-  private val podBuilder = new WhiskPodBuilder(kubeRestClient, config.userPodNodeAffinity, config.podTemplate)
+  private val podBuilder = new WhiskPodBuilder(kubeRestClient, config)
 
   def run(name: String,
           image: String,
