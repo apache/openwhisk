@@ -39,7 +39,7 @@ import spray.json._
  * Represents a single log line as read from a docker log
  */
 protected[core] case class LogLine(time: String, stream: String, log: String) {
-  def toFormattedString = f"$time%-30s $stream: ${log.trim}"
+  def toFormattedString = f"$time%-30s $stream: ${log.stripLineEnd}"
 }
 
 protected[core] object LogLine extends DefaultJsonProtocol {
