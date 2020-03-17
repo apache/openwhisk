@@ -21,7 +21,8 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import kamon.Kamon
@@ -44,7 +45,7 @@ import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
 
 import scala.concurrent.ExecutionContext.Implicits
-import scala.concurrent.duration.{DurationInt}
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
@@ -159,9 +160,9 @@ class Controller(val instance: ControllerInstanceId,
           val healthy = invokersHealth.count(_.status == InvokerState.Healthy)
           val ready = Controller.readyState(all, healthy, Controller.readinessThreshold.getOrElse(1))
           if (ready)
-            complete(s"healthy $healthy/$all")
+            complete(JsObject("healthy" -> s"$healthy/$all".toJson))
           else
-            complete(StatusCodes.InternalServerError -> s"unhealthy ${all - healthy}/$all")
+            complete(InternalServerError -> JsObject("unhealthy" -> s"${all - healthy}/$all".toJson))
         }
       }
     }
@@ -184,7 +185,7 @@ object Controller {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
-  protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction").toOption
+  protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction")
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is

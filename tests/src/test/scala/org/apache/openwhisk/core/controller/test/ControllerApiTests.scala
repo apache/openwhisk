@@ -80,14 +80,14 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
     val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/healthy/count")
 
     response.statusCode shouldBe 200
-    response.body.asString() shouldBe "2"
+    response.body.asString shouldBe "2"
   }
 
   it should "return healthy invokers" in {
     val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/ready")
 
     response.statusCode shouldBe 200
-    response.body.asString() shouldBe "healthy 2/2"
+    response.body.asString shouldBe "{\"healthy\":\"2/2\"}"
   }
 
 }

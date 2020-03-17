@@ -26,6 +26,9 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 import system.rest.RestUtil
+import spray.json._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
 
 /**
  * Tests controller readiness.
@@ -48,7 +51,7 @@ class ControllerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach
       new Controller(instance, Runtimes(Set.empty, Set.empty, None), whiskConfig, system, materializer, logger)
     Get("/invokers/ready") ~> Route.seal(controller.internalInvokerHealth) ~> check {
       status shouldBe InternalServerError
-      responseAs[String] shouldBe "unhealthy 0/0"
+      responseAs[JsObject].fields("unhealthy") shouldBe JsString("0/0")
     }
   }
 
