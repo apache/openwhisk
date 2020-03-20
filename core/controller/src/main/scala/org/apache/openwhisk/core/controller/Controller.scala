@@ -21,6 +21,7 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
@@ -131,12 +132,14 @@ class Controller(val instance: ControllerInstanceId,
   private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
   /**
-   * Handles GET /invokers
-   *             /invokers/healthy/count
+   * Handles GET /invokers - list of invokers
+   *             /invokers/healthy/count - nr of healthy invokers
+   *             /invokers/ready - 200 in case # of healthy invokers are above the expected value
+   *                             - 500 in case # of healthy invokers are bellow the expected value
    *
    * @return JSON with details of invoker health or count of healthy invokers respectively.
    */
-  private val internalInvokerHealth = {
+  protected[controller] val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
     (pathPrefix("invokers") & get) {
       pathEndOrSingleSlash {
@@ -150,6 +153,16 @@ class Controller(val instance: ControllerInstanceId,
           loadBalancer
             .invokerHealth()
             .map(_.count(_.status == InvokerState.Healthy).toJson)
+        }
+      } ~ path("ready") {
+        onSuccess(loadBalancer.invokerHealth()) { invokersHealth =>
+          val all = invokersHealth.size
+          val healthy = invokersHealth.count(_.status == InvokerState.Healthy)
+          val ready = Controller.readyState(all, healthy, Controller.readinessThreshold.getOrElse(1))
+          if (ready)
+            complete(JsObject("healthy" -> s"$healthy/$all".toJson))
+          else
+            complete(InternalServerError -> JsObject("unhealthy" -> s"${all - healthy}/$all".toJson))
         }
       }
     }
@@ -172,6 +185,7 @@ object Controller {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
+  protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction")
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
@@ -206,6 +220,10 @@ object Controller {
         "min_action_logs" -> logLimit.min.toBytes.toJson,
         "max_action_logs" -> logLimit.max.toBytes.toJson),
       "runtimes" -> runtimes.toJson)
+
+  def readyState(allInvokers: Int, healthyInvokers: Int, readinessThreshold: Double): Boolean = {
+    if (allInvokers > 0) (healthyInvokers / allInvokers) >= readinessThreshold else false
+  }
 
   def main(args: Array[String]): Unit = {
     implicit val actorSystem = ActorSystem("controller-actor-system")

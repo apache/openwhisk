@@ -17,16 +17,15 @@
 
 package org.apache.openwhisk.core.controller.test
 
-import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-import io.restassured.RestAssured
 import common.StreamLogging
-import spray.json._
-import spray.json.DefaultJsonProtocol._
+import io.restassured.RestAssured
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entity.{ExecManifest, LogLimit, MemoryLimit, TimeLimit}
+import org.junit.runner.RunWith
+import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import system.rest.RestUtil
 
 /**
@@ -66,6 +65,29 @@ class ControllerApiTests extends FlatSpec with RestUtil with Matchers with Strea
         "max_action_logs" -> LogLimit.config.max.toBytes.toJson))
     response.statusCode should be(200)
     response.body.asString.parseJson shouldBe (expectedJson)
+  }
+
+  behavior of "Controller"
+
+  it should "return list of invokers" in {
+    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers")
+
+    response.statusCode shouldBe 200
+    response.body.asString shouldBe "{\"invoker0/0\":\"up\",\"invoker1/1\":\"up\"}"
+  }
+
+  it should "return healthy invokers status" in {
+    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/healthy/count")
+
+    response.statusCode shouldBe 200
+    response.body.asString shouldBe "2"
+  }
+
+  it should "return healthy invokers" in {
+    val response = RestAssured.given.config(sslconfig).get(s"$getServiceURL/invokers/ready")
+
+    response.statusCode shouldBe 200
+    response.body.asString shouldBe "{\"healthy\":\"2/2\"}"
   }
 
 }
