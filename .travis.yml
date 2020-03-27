@@ -71,6 +71,9 @@ install:
 jobs:
   include:
     - script:
+        - TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
+      name: "Scala 2.13 compilation"
+    - script:
         - ./tools/travis/runUnitTests.sh
         - ./tools/travis/checkAndUploadLogs.sh unit db
       name: "Unit Tests"
