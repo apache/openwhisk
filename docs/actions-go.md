@@ -180,7 +180,7 @@ If you have multiple sources in current directory, even with a subfolder with so
 cd src
 zip -r ../src.zip *
 cd ..
-docker run openwhisk/action-golang-v1.11 -compile main <src.zip >exec.zip
+docker -i run openwhisk/action-golang-v1.11 -compile main <src.zip >exec.zip
 ```
 
 Note that the output is always a zip file in  Linux AMD64 format so the executable can be run only inside a Docker Linux container.
