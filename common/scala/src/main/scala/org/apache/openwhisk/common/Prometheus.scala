@@ -18,7 +18,7 @@
 package org.apache.openwhisk.common
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.http.scaladsl.model.{ContentType, HttpEntity}
+import akka.http.scaladsl.model.{ContentType, HttpCharsets, HttpEntity, MediaType}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import kamon.Kamon
@@ -26,7 +26,8 @@ import kamon.prometheus.PrometheusReporter
 
 class KamonPrometheus extends AutoCloseable {
   private val reporter = new PrometheusReporter
-  private val v4 = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
+  private val v4: ContentType = ContentType.apply(
+    MediaType.textWithFixedCharset("plain", HttpCharsets.`UTF-8`).withParams(Map("version" -> "0.0.4")))
   Kamon.registerModule("prometheus", reporter)
 
   def route: Route = path("metrics") {

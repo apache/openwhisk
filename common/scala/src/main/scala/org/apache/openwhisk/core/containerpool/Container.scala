@@ -261,7 +261,7 @@ case class Interval(start: Instant, end: Instant) {
 }
 
 case class RunResult(interval: Interval, response: Either[ContainerConnectionError, ContainerResponse]) {
-  def ok = response.right.exists(_.ok)
+  def ok = response.exists(_.ok)
   def toBriefString = response.fold(_.toString, _.toString)
 }
 

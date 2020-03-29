@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
-import akka.http.scaladsl.model.{ContentType, MessageEntity}
+import akka.http.scaladsl.model.{ContentType, HttpCharsets, MediaType, MessageEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.connector.kafka.KafkaMetricRoute
@@ -30,7 +30,8 @@ trait PrometheusExporter {
 }
 
 object PrometheusExporter {
-  val textV4: ContentType = ContentType.parse("text/plain; version=0.0.4; charset=utf-8").right.get
+  val textV4: ContentType = ContentType.apply(
+    MediaType.textWithFixedCharset("plain", HttpCharsets.`UTF-8`).withParams(Map("version" -> "0.0.4")))
 }
 
 class PrometheusEventsApi(consumer: EventConsumer, prometheus: PrometheusExporter)(implicit ec: ExecutionContext) {
