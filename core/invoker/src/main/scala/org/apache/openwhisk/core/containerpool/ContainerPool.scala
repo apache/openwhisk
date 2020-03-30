@@ -109,6 +109,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // Check if the message is resent from the buffer. Only the first message on the buffer can be resent.
       val isResentFromBuffer = runBuffer.nonEmpty && runBuffer.dequeueOption.exists(_._1.msg == r.msg)
 
+      val kind = r.action.exec.kind
+      val memory = r.action.limits.memory.megabytes.MB
+      val prewarmedPoolForOtherKind = prewarmedPool.filter { warmInfo =>
+        warmInfo match {
+          case (_, PreWarmedData(_, `kind`, `memory`, _)) => false
+          case _                                          => true
+        }
+      }
       // Only process request, if there are no other requests waiting for free slots, or if the current request is the
       // next request to process
       // It is guaranteed, that only the first message on the buffer is resent.
@@ -119,7 +127,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         }
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
-          if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
+          if (hasPoolSpaceFor(busyPool ++ prewarmedPoolForOtherKind, r.action.limits.memory.megabytes.MB)) {
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
@@ -128,7 +136,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
-                if (hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)) {
+                if (hasPoolSpaceFor(
+                      busyPool ++ freePool ++ prewarmedPoolForOtherKind,
+                      r.action.limits.memory.megabytes.MB)) {
                   takePrewarmContainer(r.action)
                     .map(container => (container, "prewarmed"))
                     .orElse(Some(createContainer(r.action.limits.memory.megabytes.MB), "cold"))
