@@ -15,16 +15,10 @@
 # limitations under the License.
 #
 
-sudo: required
-
+os: linux
 dist: xenial
-
-language: scala
-scala:
-   - 2.12.7
-
-jdk:
-  - openjdk11
+language: java
+jdk: openjdk11
 
 services:
   - docker
@@ -78,8 +72,8 @@ jobs:
         - ./tools/travis/checkAndUploadLogs.sh unit db
       name: "Unit Tests"
     - script:
-       - ./tools/travis/runSystemTests.sh
-       - ./tools/travis/checkAndUploadLogs.sh system
+      - ./tools/travis/runSystemTests.sh
+      - ./tools/travis/checkAndUploadLogs.sh system
       name: "System Tests"
     - script:
       - ./tools/travis/runMultiRuntimeTests.sh
