@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -33,13 +34,12 @@ import akka.actor.ActorSystem
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import common.WhiskProperties
+import common.{StreamLogging, WhiskProperties}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
-import org.apache.openwhisk.core.entity.ExecManifest.ImageName
+import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, ReactivePrewarmingConfig, RuntimeManifest}
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
 
@@ -55,7 +55,8 @@ class ContainerPoolTests
     with FlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with MockFactory {
+    with MockFactory
+    with StreamLogging {
 
   override def afterAll = TestKit.shutdownActorSystem(system)
 
@@ -67,6 +68,9 @@ class ContainerPoolTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
+  val ttl = Duration("2 seconds")
+  val threshold = 1
+  val increment = 1
 
   /** Creates a `Run` message */
   def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
@@ -109,8 +113,8 @@ class ContainerPoolTests
   val runMessageConcurrentDifferentNamespace = createRunMessage(concurrentAction, differentInvocationNamespace)
 
   /** Helper to create PreWarmedData */
-  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
-    PreWarmedData(stub[MockableContainer], kind, memoryLimit)
+  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit, expires: Option[Deadline] = None) =
+    PreWarmedData(stub[MockableContainer], kind, memoryLimit, expires = expires)
 
   /** Helper to create WarmedData */
   def warmedData(run: Run, lastUsed: Instant = Instant.now) = {
@@ -388,7 +392,7 @@ class ContainerPoolTests
     containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     // container0 is deleted
-    containers(0).send(pool, ContainerRemoved)
+    containers(0).send(pool, ContainerRemoved(true))
 
     // container1 is created and used
     pool ! runMessage
@@ -597,7 +601,7 @@ class ContainerPoolTests
     containers(0).send(pool, RescheduleJob)
 
     //trigger buffer processing by ContainerRemoved message
-    pool ! ContainerRemoved
+    pool ! ContainerRemoved(true)
 
     //start second run
     containers(1).expectMsgPF() {
@@ -627,9 +631,9 @@ class ContainerPoolTests
     containers(1).expectNoMessage(100.milliseconds)
 
     //ContainerRemoved triggers buffer processing - if we don't prevent duplicates, this will cause the buffer head to be resent!
-    pool ! ContainerRemoved
-    pool ! ContainerRemoved
-    pool ! ContainerRemoved
+    pool ! ContainerRemoved(true)
+    pool ! ContainerRemoved(true)
+    pool ! ContainerRemoved(true)
 
     //complete processing of first run
     containers(0).send(pool, NeedWork(warmedData(run1)))
@@ -753,13 +757,102 @@ class ContainerPoolTests
     containers(1).expectMsg(Start(exec, memoryLimit))
 
     //removing 2 prewarm containers will start 2 containers via backfill
-    containers(0).send(pool, ContainerRemoved)
-    containers(1).send(pool, ContainerRemoved)
+    containers(0).send(pool, ContainerRemoved(true))
+    containers(1).send(pool, ContainerRemoved(true))
     containers(2).expectMsg(Start(exec, memoryLimit))
     containers(3).expectMsg(Start(exec, memoryLimit))
     //make sure extra prewarms are not started
     containers(4).expectNoMessage(100.milliseconds)
     containers(5).expectNoMessage(100.milliseconds)
+  }
+
+  it should "remove the prewarmed container after ttl time if unused" in {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val deadline: Option[Deadline] = Some(FiniteDuration(ttl.toSeconds, TimeUnit.SECONDS).fromNow)
+    val reactive: Option[ReactivePrewarmingConfig] = Some(ReactivePrewarmingConfig(0, 2, ttl, threshold, increment))
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(
+            factory,
+            poolConfig(MemoryLimit.STD_MEMORY * 4),
+            feed.ref,
+            List(PrewarmingConfig(2, exec, memoryLimit, reactive))))
+    containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    stream.reset()
+
+    // Make sure prewarmed containers can be deleted from prewarmedPool due to unused
+    Thread.sleep(3.seconds.toMillis)
+
+    pool ! AdjustPrewarmedContainer
+    containers(0).expectMsg(Remove)
+    containers(1).expectMsg(Remove)
+    containers(0).send(pool, ContainerRemoved(false))
+    containers(1).send(pool, ContainerRemoved(false))
+
+    // Make sure prewarmed containers are deleted
+    Thread.sleep(2.seconds.toMillis)
+
+    stream.toString should include("prewarmed container is deleted")
+    stream.reset()
+  }
+
+  it should "supplement prewarmed container when doesn't have enough container to handle activation" in {
+    val (containers, factory) = testContainers(6)
+    val feed = TestProbe()
+
+    val deadline: Option[Deadline] = Some(FiniteDuration(ttl.toSeconds, TimeUnit.SECONDS).fromNow)
+    val reactive: Option[ReactivePrewarmingConfig] = Some(ReactivePrewarmingConfig(0, 2, ttl, threshold, increment))
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(
+            factory,
+            poolConfig(MemoryLimit.STD_MEMORY * 4),
+            feed.ref,
+            List(PrewarmingConfig(2, exec, memoryLimit, reactive))))
+    containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    stream.reset()
+
+    // Make sure prewarmed containers can be deleted from prewarmedPool due to unused
+    Thread.sleep(3.seconds.toMillis)
+
+    pool ! AdjustPrewarmedContainer
+    containers(0).expectMsg(Remove)
+    containers(1).expectMsg(Remove)
+    containers(0).send(pool, ContainerRemoved(false))
+    containers(1).send(pool, ContainerRemoved(false))
+
+    val action = ExecutableWhiskAction(
+      EntityPath("actionSpace"),
+      EntityName("actionName"),
+      exec,
+      limits = ActionLimits(memory = MemoryLimit(memoryLimit)))
+    val run = createRunMessage(action, invocationNamespace)
+
+    // Make sure prewarmed containers are deleted
+    Thread.sleep(2.seconds.toMillis)
+
+    pool ! run
+    pool ! run
+    containers(2).expectMsg(run)
+    containers(3).expectMsg(run)
+
+    // Make sure cold start in previous 1 minute can be counted
+    Thread.sleep(60.seconds.toMillis)
+
+    // supplement 2 prewarmed container
+    pool ! AdjustPrewarmedContainer
+    containers(4).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(5).expectMsg(Start(exec, memoryLimit, Some(ttl)))
   }
 }
 abstract class MockableContainer extends Container {

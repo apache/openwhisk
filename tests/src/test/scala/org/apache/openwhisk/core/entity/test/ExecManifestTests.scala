@@ -123,7 +123,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("p1").get.image.resolveImageName() shouldBe "ppp/???:ttt"
     runtimes.resolveDefaultRuntime("q1").get.image.resolveImageName() shouldBe "rrr/???:ttt"
     runtimes.resolveDefaultRuntime("s1").get.image.resolveImageName() shouldBe "???"
-    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).initialCount shouldBe 2
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }
 
@@ -237,7 +237,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
 
   it should "de/serialize stem cell configuration" in {
     val cell = StemCell(3, 128.MB)
-    val cellAsJson = JsObject("count" -> JsNumber(3), "memory" -> JsString("128 MB"))
+    val cellAsJson = JsObject("initialCount" -> JsNumber(3), "memory" -> JsString("128 MB"))
     stemCellSerdes.write(cell) shouldBe cellAsJson
     stemCellSerdes.read(cellAsJson) shouldBe cell
 
@@ -250,12 +250,12 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     }
 
     an[IllegalArgumentException] shouldBe thrownBy {
-      val cellAsJson = JsObject("count" -> JsNumber(0), "memory" -> JsString("128 MB"))
+      val cellAsJson = JsObject("initialCount" -> JsNumber(0), "memory" -> JsString("128 MB"))
       stemCellSerdes.read(cellAsJson)
     }
 
     the[IllegalArgumentException] thrownBy {
-      val cellAsJson = JsObject("count" -> JsNumber(1), "memory" -> JsString("128"))
+      val cellAsJson = JsObject("initialCount" -> JsNumber(1), "memory" -> JsString("128"))
       stemCellSerdes.read(cellAsJson)
     } should have message {
       ByteSize.formatError
@@ -273,7 +273,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |          "name": "nodejsaction"
                  |        },
                  |        "stemCells": [{
-                 |          "count": 1,
+                 |          "initialCount": 1,
                  |          "memory": "128 MB"
                  |        }]
                  |      }, {
@@ -283,10 +283,10 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |          "name": "nodejsaction"
                  |        },
                  |        "stemCells": [{
-                 |          "count": 1,
+                 |          "initialCount": 1,
                  |          "memory": "128 MB"
                  |        }, {
-                 |          "count": 1,
+                 |          "initialCount": 1,
                  |          "memory": "256 MB"
                  |        }]
                  |      }
@@ -297,7 +297,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |        "name": "pythonaction"
                  |      },
                  |      "stemCells": [{
-                 |        "count": 2,
+                 |        "initialCount": 2,
                  |        "memory": "256 MB"
                  |      }]
                  |    }],
@@ -345,13 +345,13 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     }
 
     def stemCellFactory(m: RuntimeManifest, cells: List[StemCell]) = cells.map { c =>
-      (m.kind, m.image, c.count, c.memory)
+      (m.kind, m.image, c.initialCount, c.memory)
     }
 
     mf.stemcells.flatMap {
       case (m, cells) =>
         cells.map { c =>
-          (m.kind, m.image, c.count, c.memory)
+          (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
       (js6.kind, js6.image, 1, 128.MB),

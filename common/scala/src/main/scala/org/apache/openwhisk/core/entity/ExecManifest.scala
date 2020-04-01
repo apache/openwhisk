@@ -26,7 +26,10 @@ import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.Attachments.Attached._
-import fastparse._, NoWhitespace._
+import fastparse._
+import NoWhitespace._
+
+import scala.concurrent.duration.Duration
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -135,11 +138,37 @@ protected[core] object ExecManifest {
   /**
    * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
    *
-   * @param count  the number of stemcell containers to create
+   * @param initialCount  the initial number of stemcell containers to create
    * @param memory the max memory this stemcell will allocate
+   * @param reactive the reactive prewarming prewarmed config, which is disabled by default
    */
-  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
-    require(count > 0, "count must be positive")
+  protected[entity] case class StemCell(initialCount: Int,
+                                        memory: ByteSize,
+                                        reactive: Option[ReactivePrewarmingConfig] = None) {
+    require(initialCount > 0, "initialCount must be positive")
+  }
+
+  /**
+   * A stemcell's ReactivePrewarmingConfig configuration
+   *
+   * @param minCount the max number of stemcell containers to exist
+   * @param maxCount  the max number of stemcell containers to create
+   * @param ttl time to live of the prewarmed container
+   * @param threshold the executed activation number of cold start in previous one minute
+   * @param increment increase per increment prewarmed number under per threshold activations
+   */
+  protected[core] case class ReactivePrewarmingConfig(minCount: Int,
+                                                      maxCount: Int,
+                                                      ttl: Duration,
+                                                      threshold: Int,
+                                                      increment: Int) {
+    require(
+      minCount >= 0 && minCount <= maxCount,
+      "minCount must be be greater than 0 and less than or equal to maxCount")
+    require(maxCount > 0, "maxCount must be positive")
+    require(ttl.toSeconds > 0, "ttl must be positive")
+    require(threshold > 0, "threshold must be positive")
+    require(increment > 0 && increment <= maxCount, "increment must be positive and less than or equal to count")
   }
 
   /**
@@ -344,9 +373,22 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat4(ImageName.apply)
 
+  protected[entity] implicit val ttlSerdes: RootJsonFormat[Duration] = new RootJsonFormat[Duration] {
+    override def write(duration: Duration): JsValue = JsString(duration.toString)
+
+    override def read(value: JsValue): Duration = value match {
+      case JsString(s) => Duration(s)
+      case _ =>
+        deserializationError("time unit not supported. Only milliseconds, seconds, minutes, hours, days are supported")
+    }
+  }
+
+  protected[entity] implicit val reactivePrewarmingConfigSerdes: RootJsonFormat[ReactivePrewarmingConfig] = jsonFormat5(
+    ReactivePrewarmingConfig.apply)
+
   protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
     import org.apache.openwhisk.core.entity.size.serdes
-    jsonFormat2(StemCell.apply)
+    jsonFormat3(StemCell.apply)
   }
 
   protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)

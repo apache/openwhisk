@@ -156,7 +156,7 @@ class ContainerProxyTests
 
   /** Expect a NeedWork message with prewarmed data */
   def expectPreWarmed(kind: String) = expectMsgPF() {
-    case NeedWork(PreWarmedData(_, kind, memoryLimit, _)) => true
+    case NeedWork(PreWarmedData(_, kind, memoryLimit, _, _)) => true
   }
 
   /** Expect a NeedWork message with warmed data */
@@ -1025,7 +1025,7 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectMsg(ContainerRemoved)
+    expectMsg(ContainerRemoved(true))
 
     awaitAssert {
       factory.calls should have size 1
@@ -1070,7 +1070,7 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(ContainerRemoved(true)) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
     awaitAssert {
@@ -1123,7 +1123,7 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(ContainerRemoved(true)) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
     awaitAssert {
@@ -1162,7 +1162,7 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(ContainerRemoved(true)) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
     awaitAssert {
@@ -1200,7 +1200,7 @@ class ContainerProxyTests
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(ContainerRemoved(true)) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Running, Removing))
 
     awaitAssert {
@@ -1386,7 +1386,7 @@ class ContainerProxyTests
     preWarm(machine)
 
     //expect failure after healthchecks fail
-    expectMsg(ContainerRemoved)
+    expectMsg(ContainerRemoved(true))
     expectMsg(Transition(machine, Started, Removing))
 
     awaitAssert {
@@ -1426,7 +1426,7 @@ class ContainerProxyTests
     run(machine, Uninitialized)
     timeout(machine) // times out Ready state so container suspends
     expectMsg(Transition(machine, Ready, Pausing))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(ContainerRemoved(true)) // The message is sent as soon as the container decides to destroy itself
     expectMsg(Transition(machine, Pausing, Removing))
 
     awaitAssert {
@@ -1483,7 +1483,7 @@ class ContainerProxyTests
     expectMsg(Transition(machine, Running, Ready))
 
     // Remove the container after the transaction finished
-    expectMsg(ContainerRemoved)
+    expectMsg(ContainerRemoved(true))
     expectMsg(Transition(machine, Ready, Removing))
 
     awaitAssert {
