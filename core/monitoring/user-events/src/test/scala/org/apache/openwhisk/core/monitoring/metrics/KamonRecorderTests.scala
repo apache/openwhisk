@@ -25,7 +25,7 @@ import kamon.module.MetricReporter
 import kamon.Kamon
 import kamon.tag.Lookups
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
-import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
@@ -118,7 +118,17 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
   private def newActivationEvent(actionPath: String) =
     EventMessage(
       "test",
-      Activation(actionPath, 2, 3.millis, 5.millis, 11.millis, kind, false, memory, None),
+      Activation(
+        actionPath,
+        ActivationId.generate().asString,
+        2,
+        3.millis,
+        5.millis,
+        11.millis,
+        kind,
+        false,
+        memory,
+        None),
       Subject("testuser"),
       initiator,
       UUID("test"),
