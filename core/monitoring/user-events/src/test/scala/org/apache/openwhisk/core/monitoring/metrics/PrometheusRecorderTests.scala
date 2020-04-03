@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.monitoring.metrics
 
 import io.prometheus.client.CollectorRegistry
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
-import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
@@ -83,7 +83,17 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   private def newActivationEvent(actionPath: String, kind: String, memory: String) =
     EventMessage(
       "test",
-      Activation(actionPath, 2, 1254.millis, 30.millis, 433433.millis, kind, false, memory.toInt, None),
+      Activation(
+        actionPath,
+        ActivationId.generate().asString,
+        2,
+        1254.millis,
+        30.millis,
+        433433.millis,
+        kind,
+        false,
+        memory.toInt,
+        None),
       Subject("testuser"),
       initiator,
       UUID("test"),

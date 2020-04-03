@@ -145,6 +145,7 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
   val activationJs = """
      |{
      |  "causedBy": "sequence",
+     |  "activationId": "be97c2fed5dc43d097c2fed5dc73d085",
      |  "conductor": false,
      |  "duration": 123,
      |  "initTime": 10,
@@ -159,6 +160,7 @@ class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants wi
     """
       |{
       |  "userDefinedStatusCode": 404,
+      |  "activationId": "be97c2fed5dc43d097c2fed5dc73d085",
       |  "causedBy": "sequence",
       |  "conductor": false,
       |  "duration": 123,
