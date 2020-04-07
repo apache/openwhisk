@@ -16,7 +16,7 @@
   "editable": true,
   "gnetId": 9564,
   "graphTooltip": 0,
-  "iteration": 1580164808936,
+  "iteration": 1584194893683,
   "links": [],
   "panels": [
     {
@@ -788,8 +788,8 @@
       "datasource": "Prometheus",
       "fill": 0,
       "gridPos": {
-        "h": 9,
-        "w": 6,
+        "h": 6,
+        "w": 9,
         "x": 0,
         "y": 10
       },
@@ -875,9 +875,9 @@
       "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
-        "h": 9,
-        "w": 6,
-        "x": 6,
+        "h": 6,
+        "w": 8,
+        "x": 9,
         "y": 10
       },
       "id": 18,
@@ -967,9 +967,9 @@
       "description": "Number of application, developer and internal errors: \n\n[application_error] =  action ran but there was an error and it was handled\n\n[action_developer_error] = action ran but failed to handle an error, or action did not run and failed to initialize\n\n[whisk_internal_error] = internal system error",
       "fill": 1,
       "gridPos": {
-        "h": 9,
-        "w": 6,
-        "x": 12,
+        "h": 6,
+        "w": 7,
+        "x": 17,
         "y": 10
       },
       "id": 20,
@@ -1054,10 +1054,10 @@
       "datasource": "Prometheus",
       "fill": 1,
       "gridPos": {
-        "h": 9,
-        "w": 6,
-        "x": 18,
-        "y": 10
+        "h": 6,
+        "w": 9,
+        "x": 0,
+        "y": 16
       },
       "id": 22,
       "legend": {
@@ -1141,12 +1141,98 @@
       }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "description": "Action statusCode defined by Action Developer.",
+      "fill": 1,
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 9,
+        "y": 16
+      },
+      "id": 44,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(increase(openwhisk_action_status_code{region=~\"$region\",stack=~\"$stack\",namespace=~\"$namespace\",action=~\"$action\",status!=\"success\",initiator=~\"$initiator\"}[$interval])) by (action,status_code)",
+          "format": "time_series",
+          "instant": false,
+          "intervalFactor": 1,
+          "legendFormat": "{{action}}: statusCode:{{status_code}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Activation Status Code [$interval]",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "activations",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 22
       },
       "id": 12,
       "panels": [],
@@ -1164,7 +1250,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 23
       },
       "id": 38,
       "legend": {
@@ -1251,7 +1337,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 31
       },
       "id": 10,
       "panels": [],
@@ -1269,7 +1355,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 32
       },
       "id": 24,
       "legend": {
@@ -1357,7 +1443,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 41
       },
       "id": 35,
       "legend": {
@@ -1444,7 +1530,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 50
       },
       "id": 41,
       "legend": {
@@ -1528,7 +1614,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 50
       },
       "id": 42,
       "legend": {
