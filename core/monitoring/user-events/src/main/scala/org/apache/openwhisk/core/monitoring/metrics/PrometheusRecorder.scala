@@ -34,6 +34,7 @@ import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.LinkedHashMap
 import scala.concurrent.duration.Duration
 
 trait PrometheusMetricNames extends MetricNames {
@@ -162,7 +163,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
 
   case class PrometheusMetrics() extends PrometheusMetricNames {
 
-    val metricTags: Map[String, String] = Map(
+    val metricTags: LinkedHashMap[String, String] = LinkedHashMap(
       actionNamespace -> config.renameTags.getOrElse(actionNamespace, actionNamespace),
       initiatorNamespace -> config.renameTags.getOrElse(initiatorNamespace, initiatorNamespace),
       actionName -> config.renameTags.getOrElse(actionName, actionName),
@@ -172,84 +173,64 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
       userDefinedStatusCode -> config.renameTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode))
 
     val namespaceActivationTags = metricTags.filterKeys(Set(actionNamespace, initiatorNamespace)).values.toSeq
+    val activationTags = metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq
 
     val namespaceActivationCounter =
-      counter(
-        namespaceMetric,
-        "Namespace activations Count",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace)).values.toSeq: _*)
+      counter(namespaceMetric, "Namespace activations Count", namespaceActivationTags: _*)
+
     val activationCounter =
       counter(
         activationMetric,
         "Activation Count",
-        metricTags
-          .filterKeys(Set(actionNamespace, initiatorNamespace, actionName, actionKind, actionMemory))
-          .values
-          .toSeq: _*)
+        (activationTags ++ metricTags.filterKeys(Set(actionKind, actionMemory)).values.toSeq): _*)
 
     val coldStartCounter =
-      counter(
-        coldStartMetric,
-        "Cold start counts",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+      counter(coldStartMetric, "Cold start counts", activationTags: _*)
+
     val statusCounter =
       counter(
         statusMetric,
         "Activation failure status type",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName, actionStatus)).values.toSeq: _*)
+        (activationTags :+ metricTags.getOrElse(actionStatus, actionStatus)): _*)
 
     val userDefinedStatusCodeCounter =
       counter(
         userDefinedStatusCodeMetric,
         "status code returned in action result response set by developer",
-        metricTags
-          .filterKeys(Set(actionNamespace, initiatorNamespace, actionName, userDefinedStatusCode))
-          .values
-          .toSeq: _*)
+        (activationTags :+ metricTags.getOrElse(actionStatus, actionStatus)): _*)
 
     val waitTimeHisto =
-      histogram(
-        waitTimeMetric,
-        "Internal system hold time",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+      histogram(waitTimeMetric, "Internal system hold time", activationTags: _*)
 
     val initTimeHisto =
-      histogram(
-        initTimeMetric,
-        "Time it took to initialize an action, e.g. docker init",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+      histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", activationTags: _*)
 
     val durationHisto =
-      histogram(
-        durationMetric,
-        "Actual time the action code was running",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+      histogram(durationMetric, "Actual time the action code was running", activationTags: _*)
+
     val responseSizeHisto =
       Histogram
         .build()
         .name(responseSizeMetric)
         .help("Activation Response size")
-        .labelNames(metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+        .labelNames(activationTags: _*)
         .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
         .register()
 
     val memoryGauge =
-      gauge(
-        memoryMetric,
-        "Memory consumption of the action containers",
-        metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq: _*)
+      gauge(memoryMetric, "Memory consumption of the action containers", activationTags: _*)
 
     val concurrentLimitCounter =
       counter(
         concurrentLimitMetric,
         "a user has exceeded its limit for concurrent invocations",
-        metricTags.filterKeys(Set(actionNamespace)).values.toSeq: _*)
+        metricTags.getOrElse(actionNamespace, actionNamespace))
 
     val timedLimitCounter =
       counter(
         timedLimitMetric,
         "the user has reached its per minute limit for the number of invocations",
-        metricTags.filterKeys(Set(actionNamespace)).values.toSeq: _*)
+        metricTags.getOrElse(actionNamespace, actionNamespace))
 
     private def counter(name: String, help: String, tags: String*) =
       Counter
