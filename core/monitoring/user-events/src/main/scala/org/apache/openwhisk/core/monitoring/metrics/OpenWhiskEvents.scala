@@ -43,6 +43,7 @@ object OpenWhiskEvents extends SLF4JLogging {
     implicit val ec: ExecutionContext = system.dispatcher
 
     val prometheusReporter = new PrometheusReporter()
+    Kamon.registerModule("prometheus", prometheusReporter)
     Kamon.init(config)
 
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "whisk.user-events")
