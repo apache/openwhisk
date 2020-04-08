@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.http.scaladsl.model.headers.HttpEncodings._
-import akka.http.scaladsl.model.headers.{HttpEncoding, HttpEncodings, `Accept-Encoding`, `Content-Encoding`}
+import akka.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
 import akka.http.scaladsl.model.{HttpCharsets, HttpEntity, HttpResponse}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import kamon.prometheus.PrometheusReporter
@@ -29,6 +29,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.Matcher
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import pureconfig.loadConfigOrThrow
+import io.prometheus.client.CollectorRegistry
 import pureconfig.generic.auto._
 
 import scala.concurrent.duration.DurationInt
@@ -48,8 +49,9 @@ class ApiTests
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
+    CollectorRegistry.defaultRegistry.clear()
     val metricConfig = loadConfigOrThrow[MetricConfig](system.settings.config, "user-events")
-    val mericRecorder  = PrometheusRecorder(new PrometheusReporter, metricConfig)
+    val mericRecorder = PrometheusRecorder(new PrometheusReporter, metricConfig)
     consumer = createConsumer(56754, system.settings.config, mericRecorder)
     api = new PrometheusEventsApi(consumer, createExporter())
   }

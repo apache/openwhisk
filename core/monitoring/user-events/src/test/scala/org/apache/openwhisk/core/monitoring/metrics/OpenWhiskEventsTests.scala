@@ -21,6 +21,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
+import io.prometheus.client.CollectorRegistry
 import kamon.Kamon
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -48,10 +49,13 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
            | whisk {
            |  user-events {
            |    port = $httpPort
+           |    rename-tags {
+           |      namespace = "ow_namespace"
+           |    }
            |  }
            | }
          """.stripMargin).withFallback(globalConfig)
-
+    CollectorRegistry.defaultRegistry.clear()
     val binding = OpenWhiskEvents.start(config).futureValue
     val res = get("localhost", httpPort, "/ping")
     res shouldBe Some(StatusCodes.OK, "pong")

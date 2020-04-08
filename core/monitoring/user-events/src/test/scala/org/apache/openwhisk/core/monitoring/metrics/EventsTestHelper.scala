@@ -28,9 +28,7 @@ import pureconfig.generic.auto._
 
 trait EventsTestHelper {
 
-  protected def createConsumer(kport: Int,
-                               globalConfig: Config,
-                               recorder: MetricRecorder)(
+  protected def createConsumer(kport: Int, globalConfig: Config, recorder: MetricRecorder)(
     implicit system: ActorSystem,
     materializer: ActorMaterializer) = {
     val settings = OpenWhiskEvents
