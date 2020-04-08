@@ -197,7 +197,7 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
       counter(
         userDefinedStatusCodeMetric,
         "status code returned in action result response set by developer",
-        (activationTags :+ metricTags.getOrElse(actionStatus, actionStatus)): _*)
+        (activationTags :+ metricTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode)): _*)
 
     val waitTimeHisto =
       histogram(waitTimeMetric, "Internal system hold time", activationTags: _*)
