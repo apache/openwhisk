@@ -18,11 +18,15 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import io.prometheus.client.CollectorRegistry
+import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
 import org.apache.openwhisk.core.entity.{ActivationResponse, Subject, UUID}
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 
@@ -39,8 +43,9 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
 
   it should "push user events to kamon" in {
     createCustomTopic(EventConsumer.userEventTopic)
-
-    val consumer = createConsumer(kafkaPort, system.settings.config)
+    val metricConfig = loadConfigOrThrow[MetricConfig](system.settings.config, "user-events")
+    val mericRecorder  = PrometheusRecorder(new PrometheusReporter, metricConfig)
+    val consumer = createConsumer(kafkaPort, system.settings.config, mericRecorder)
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,
       newActivationEvent(s"$namespaceDemo/$actionWithCustomPackage", kind, memory).serialize)
