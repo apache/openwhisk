@@ -147,8 +147,11 @@ class ContainerProxyTests
   }
 
   /** Run the common action on the state-machine, assumes good cases */
-  def run(machine: ActorRef, currentState: ContainerState) = {
-    machine ! Run(action, message)
+  def run(machine: ActorRef,
+          currentState: ContainerState,
+          blockingAction: Boolean = false,
+          transactionId: TransactionId = messageTransId) = {
+    machine ! Run(action, message.copy(blocking = blockingAction, transid = transactionId))
     expectMsg(Transition(machine, currentState, Running))
     expectWarmed(invocationNamespace.name, action)
     expectMsg(Transition(machine, Running, Ready))
@@ -1652,6 +1655,163 @@ class ContainerProxyTests
       case WarmedData(pwData.container, message.user.namespace.name, action, _, newCount, _) =>
     }
     warmedData.lastUsed.until(nextWarmedData.lastUsed, ChronoUnit.SECONDS) should be >= timeDiffSeconds.toLong
+  }
+
+  it should "not store the successful blocking Activation when disable store is configured" in within(timeout) {
+    val container = new TestContainer()
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
+
+    val transactionId = TransactionId(messageTransId.meta.id)
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            true,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    preWarm(machine)
+
+    run(machine, Started, true, transactionId)
+    awaitAssert {
+      responses shouldBe empty
+    }
+  }
+
+  it should "store successful blocking Activation when debugging flag is on and disable store is configured" in within(
+    timeout) {
+    val container = new TestContainer()
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
+
+    // Debugging on
+    val transactionId = TransactionId(messageTransId.meta.id, true)
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            true,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    preWarm(machine)
+
+    run(machine, Started, true, transactionId)
+    awaitAssert {
+      responses should have size 1
+    }
+  }
+
+  it should "store nonblocking successful Activation when debugging flag is off and disable stored is configured" in within(
+    timeout) {
+    val container = new TestContainer()
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            true,
+            pauseGrace = pauseGrace))
+    registerCallback(machine)
+
+    preWarm(machine)
+
+    run(machine, Started)
+    awaitAssert {
+      responses should have size 1
+    }
+  }
+
+  it should "store blocking unsuccessful Activation when debugging flag is off and disable store is configured" in within(
+    timeout) {
+    val container = new TestContainer {
+      override def initialize(initializer: JsObject,
+                              timeout: FiniteDuration,
+                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
+        initializeCount += 1
+        Future.failed(InitializationError(initInterval, ActivationResponse.developerError("boom")))
+      }
+    }
+    val msg = message.copy(blocking = true)
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    var responses = List.empty[WhiskActivation]
+    def store(t: TransactionId, a: WhiskActivation, u: UserContext): Future[Any] = {
+      responses = responses :+ a
+      Future.successful(true)
+    }
+    val collector = createCollector()
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            true,
+            pauseGrace = pauseGrace))
+
+    registerCallback(machine)
+
+    machine ! Run(action, msg)
+    expectMsg(Transition(machine, Uninitialized, Running))
+    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(Transition(machine, Running, Removing))
+
+    awaitAssert {
+      responses should have size 1
+      val activation = acker.calls(0)._2
+      activation.response shouldBe ActivationResponse.developerError("boom")
+    }
   }
 
   /**
