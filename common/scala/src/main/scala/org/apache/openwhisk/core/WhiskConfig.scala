@@ -40,7 +40,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
                   optionalProperties: Set[String] = Set.empty,
                   propertiesFile: File = null,
                   env: Map[String, String] = sys.env)(implicit logging: Logging)
-    extends Config(requiredProperties, optionalProperties)(env) {
+  extends Config(requiredProperties, optionalProperties)(env) {
 
   /**
    * Loads the properties as specified above.
@@ -265,6 +265,8 @@ object ConfigKeys {
 
   val whiskConfig = "whisk.config"
   val swaggerUi = "whisk.swagger-ui"
+
+  val disableStoreResult = s"$activation.disable-store-result"
 
   val apacheClientConfig = "whisk.apache-client"
 

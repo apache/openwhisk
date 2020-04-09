@@ -32,7 +32,7 @@ import akka.io.Tcp.CommandFailed
 import akka.io.Tcp.Connect
 import akka.io.Tcp.Connected
 import akka.pattern.pipe
-import pureconfig._
+import pureconfig.{loadConfig, _}
 import pureconfig.generic.auto._
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
@@ -100,7 +100,7 @@ sealed abstract class ContainerData(val lastUsed: Instant, val memoryLimit: Byte
 sealed abstract class ContainerNotStarted(override val lastUsed: Instant,
                                           override val memoryLimit: ByteSize,
                                           override val activeActivationCount: Int)
-    extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
+  extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
   override def getContainer = None
   override val initingState = "cold"
 }
@@ -110,7 +110,7 @@ sealed abstract class ContainerStarted(val container: Container,
                                        override val lastUsed: Instant,
                                        override val memoryLimit: ByteSize,
                                        override val activeActivationCount: Int)
-    extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
+  extends ContainerData(lastUsed, memoryLimit, activeActivationCount) {
   override def getContainer = Some(container)
 }
 
@@ -129,14 +129,14 @@ sealed abstract trait ContainerNotInUse {
 
 /** type representing a cold (not running) container */
 case class NoData(override val activeActivationCount: Int = 0)
-    extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount)
+  extends ContainerNotStarted(Instant.EPOCH, 0.B, activeActivationCount)
     with ContainerNotInUse {
   override def nextRun(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
 
 /** type representing a cold (not running) container with specific memory allocation */
 case class MemoryData(override val memoryLimit: ByteSize, override val activeActivationCount: Int = 0)
-    extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount)
+  extends ContainerNotStarted(Instant.EPOCH, memoryLimit, activeActivationCount)
     with ContainerNotInUse {
   override def nextRun(r: Run) = WarmingColdData(r.msg.user.namespace.name, r.action, Instant.now, 1)
 }
@@ -146,7 +146,7 @@ case class PreWarmedData(override val container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
                          override val activeActivationCount: Int = 0)
-    extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount)
+  extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount)
     with ContainerNotInUse {
   override val initingState = "prewarmed"
   override def nextRun(r: Run) =
@@ -159,7 +159,7 @@ case class WarmingData(override val container: Container,
                        action: ExecutableWhiskAction,
                        override val lastUsed: Instant,
                        override val activeActivationCount: Int = 0)
-    extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+  extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warming"
   override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
@@ -170,7 +170,7 @@ case class WarmingColdData(invocationNamespace: EntityName,
                            action: ExecutableWhiskAction,
                            override val lastUsed: Instant,
                            override val activeActivationCount: Int = 0)
-    extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+  extends ContainerNotStarted(lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmingCold"
   override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
@@ -183,7 +183,7 @@ case class WarmedData(override val container: Container,
                       override val lastUsed: Instant,
                       override val activeActivationCount: Int = 0,
                       resumeRun: Option[Run] = None)
-    extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
+  extends ContainerStarted(container, lastUsed, action.limits.memory.megabytes.MB, activeActivationCount)
     with ContainerInUse {
   override val initingState = "warmed"
   override def nextRun(r: Run) = copy(lastUsed = Instant.now, activeActivationCount = activeActivationCount + 1)
@@ -244,22 +244,23 @@ case object RunCompleted
  * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(factory: (TransactionId,
-                               String,
-                               ImageName,
-                               Boolean,
-                               ByteSize,
-                               Int,
-                               Option[ExecutableWhiskAction]) => Future[Container],
+  String,
+  ImageName,
+  Boolean,
+  ByteSize,
+  Int,
+  Option[ExecutableWhiskAction]) => Future[Container],
                      sendActiveAck: ActiveAck,
                      storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
                      collectLogs: LogsCollector,
                      instance: InvokerInstanceId,
                      poolConfig: ContainerPoolConfig,
                      healtCheckConfig: ContainerProxyHealthCheckConfig,
+                     disableStoreResultConfig: Boolean,
                      unusedTimeout: FiniteDuration,
                      pauseGrace: FiniteDuration,
                      testTcp: Option[ActorRef])
-    extends FSM[ContainerState, ContainerData]
+  extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
@@ -422,13 +423,13 @@ class ContainerProxy(factory: (TransactionId,
         goto(Ready) using newData
       }
     case Event(job: Run, data: WarmedData)
-        if activeCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
+      if activeCount >= data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if we are over concurrency limit, and not a failure on resume
       implicit val transid = job.msg.transid
       logging.warn(this, s"buffering for maxed warm container ${data.container}; ${activeCount} activations in flight")
       runBuffer = runBuffer.enqueue(job)
       stay()
     case Event(job: Run, data: WarmedData)
-        if activeCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
+      if activeCount < data.action.limits.concurrency.maxConcurrent && !rescheduleJob => //if there was a delay, and not a failure on resume, skip the run
       activeCount += 1
       implicit val transid = job.msg.transid
       bufferProcessing = false //reset buffer processing state
@@ -836,7 +837,10 @@ class ContainerProxy(factory: (TransactionId,
                 CompletionMessage(tid, activation, instance)))
         }
         // Storing the record. Entirely asynchronous and not waited upon.
-        storeActivation(tid, activation, context)
+        // Don't store the record when activation is successful, blocking, not in debug mode and no disable store is configured
+        if (!(activation.response.isSuccess && job.msg.blocking && !tid.meta.extraLogging && disableStoreResultConfig)) {
+          storeActivation(tid, activation, context)
+        }
       }
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
@@ -854,19 +858,20 @@ final case class ContainerProxyHealthCheckConfig(enabled: Boolean, checkPeriod: 
 
 object ContainerProxy {
   def props(factory: (TransactionId,
-                      String,
-                      ImageName,
-                      Boolean,
-                      ByteSize,
-                      Int,
-                      Option[ExecutableWhiskAction]) => Future[Container],
+    String,
+    ImageName,
+    Boolean,
+    ByteSize,
+    Int,
+    Option[ExecutableWhiskAction]) => Future[Container],
             ack: ActiveAck,
             store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
             collectLogs: LogsCollector,
             instance: InvokerInstanceId,
             poolConfig: ContainerPoolConfig,
             healthCheckConfig: ContainerProxyHealthCheckConfig =
-              loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
+            loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
+            disableStoreResultConfig: Boolean = loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false),
             unusedTimeout: FiniteDuration = timeouts.idleContainer,
             pauseGrace: FiniteDuration = timeouts.pauseGrace,
             tcp: Option[ActorRef] = None) =
@@ -879,6 +884,7 @@ object ContainerProxy {
         instance,
         poolConfig,
         healthCheckConfig,
+        disableStoreResultConfig,
         unusedTimeout,
         pauseGrace,
         tcp))
@@ -908,7 +914,7 @@ object ContainerProxy {
    * Creates a WhiskActivation ready to be sent via active ack.
    *
    * @param job the job that was executed
-   * @param interval the time it took to execute the job
+   * @param totalInterval the time it took to execute the job
    * @param response the response to return to the user
    * @return a WhiskActivation to be sent to the user
    */
@@ -989,7 +995,7 @@ class TCPPingClient(tcp: ActorRef,
                     containerId: String,
                     remote: InetSocketAddress,
                     config: ContainerProxyHealthCheckConfig)
-    extends Actor {
+  extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
   implicit val ec = context.system.dispatcher
   implicit var healthPingTx = TransactionId.actionHealthPing
