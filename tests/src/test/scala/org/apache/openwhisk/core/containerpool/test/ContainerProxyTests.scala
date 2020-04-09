@@ -151,7 +151,8 @@ class ContainerProxyTests
           currentState: ContainerState,
           blockingAction: Boolean = false,
           transactionId: TransactionId = messageTransId) = {
-    machine ! Run(action, message.copy(blocking = blockingAction, transid = transactionId))
+    val msg = if (blockingAction) message.copy(blocking = blockingAction, transid = transactionId) else message
+    machine ! Run(action, msg)
     expectMsg(Transition(machine, currentState, Running))
     expectWarmed(invocationNamespace.name, action)
     expectMsg(Transition(machine, Running, Ready))
