@@ -34,7 +34,6 @@ import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.LinkedHashMap
 import scala.concurrent.duration.Duration
 
 trait PrometheusMetricNames extends MetricNames {
@@ -163,74 +162,61 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
 
   case class PrometheusMetrics() extends PrometheusMetricNames {
 
-    val metricTags: LinkedHashMap[String, String] = LinkedHashMap(
-      actionNamespace -> config.renameTags.getOrElse(actionNamespace, actionNamespace),
-      initiatorNamespace -> config.renameTags.getOrElse(initiatorNamespace, initiatorNamespace),
-      actionName -> config.renameTags.getOrElse(actionName, actionName),
-      actionKind -> config.renameTags.getOrElse(actionKind, actionKind),
-      actionMemory -> config.renameTags.getOrElse(actionMemory, actionMemory),
-      actionStatus -> config.renameTags.getOrElse(actionStatus, actionStatus),
-      userDefinedStatusCode -> config.renameTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode))
-
-    val namespaceActivationTags = metricTags.filterKeys(Set(actionNamespace, initiatorNamespace)).values.toSeq
-    val activationTags = metricTags.filterKeys(Set(actionNamespace, initiatorNamespace, actionName)).values.toSeq
+    private val namespace = config.renameTags.getOrElse(actionNamespace, actionNamespace)
+    private val initiator = config.renameTags.getOrElse(initiatorNamespace, initiatorNamespace)
+    private val action = config.renameTags.getOrElse(actionName, actionName)
+    private val kind = config.renameTags.getOrElse(actionKind, actionKind)
+    private val memory = config.renameTags.getOrElse(actionMemory, actionMemory)
+    private val status = config.renameTags.getOrElse(actionStatus, actionStatus)
+    private val statusCode = config.renameTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode)
 
     val namespaceActivationCounter =
-      counter(namespaceMetric, "Namespace activations Count", namespaceActivationTags: _*)
+      counter(namespaceMetric, "Namespace activations Count", namespace, initiator)
 
     val activationCounter =
-      counter(
-        activationMetric,
-        "Activation Count",
-        (activationTags ++ metricTags.filterKeys(Set(actionKind, actionMemory)).values.toSeq): _*)
+      counter(activationMetric, "Activation Count", namespace, initiator, action, kind, memory)
 
     val coldStartCounter =
-      counter(coldStartMetric, "Cold start counts", activationTags: _*)
+      counter(coldStartMetric, "Cold start counts", namespace, initiator, action)
 
     val statusCounter =
-      counter(
-        statusMetric,
-        "Activation failure status type",
-        (activationTags :+ metricTags.getOrElse(actionStatus, actionStatus)): _*)
+      counter(statusMetric, "Activation failure status type", namespace, initiator, action, status)
 
     val userDefinedStatusCodeCounter =
       counter(
         userDefinedStatusCodeMetric,
         "status code returned in action result response set by developer",
-        (activationTags :+ metricTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode)): _*)
+        namespace,
+        initiator,
+        action,
+        statusCode)
 
     val waitTimeHisto =
-      histogram(waitTimeMetric, "Internal system hold time", activationTags: _*)
+      histogram(waitTimeMetric, "Internal system hold time", namespace, initiator, action)
 
     val initTimeHisto =
-      histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", activationTags: _*)
+      histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", namespace, initiator, action)
 
     val durationHisto =
-      histogram(durationMetric, "Actual time the action code was running", activationTags: _*)
+      histogram(durationMetric, "Actual time the action code was running", namespace, initiator, action)
 
     val responseSizeHisto =
       Histogram
         .build()
         .name(responseSizeMetric)
         .help("Activation Response size")
-        .labelNames(activationTags: _*)
+        .labelNames(namespace, initiator, action)
         .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
         .register()
 
     val memoryGauge =
-      gauge(memoryMetric, "Memory consumption of the action containers", activationTags: _*)
+      gauge(memoryMetric, "Memory consumption of the action containers", namespace, initiator, action)
 
     val concurrentLimitCounter =
-      counter(
-        concurrentLimitMetric,
-        "a user has exceeded its limit for concurrent invocations",
-        metricTags.getOrElse(actionNamespace, actionNamespace))
+      counter(concurrentLimitMetric, "a user has exceeded its limit for concurrent invocations", namespace)
 
     val timedLimitCounter =
-      counter(
-        timedLimitMetric,
-        "the user has reached its per minute limit for the number of invocations",
-        metricTags.getOrElse(actionNamespace, actionNamespace))
+      counter(timedLimitMetric, "the user has reached its per minute limit for the number of invocations", namespace)
 
     private def counter(name: String, help: String, tags: String*) =
       Counter
