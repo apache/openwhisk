@@ -40,11 +40,12 @@ class EventMessageTests extends FlatSpec with Matchers {
 
   behavior of "Activation"
 
+  val activationId = ActivationId.generate()
   val fullActivation = WhiskActivation(
     namespace = EntityPath("ns"),
     name = EntityName("a"),
     Subject(),
-    activationId = ActivationId.generate(),
+    activationId = activationId,
     start = Instant.now(),
     end = Instant.now(),
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1))), Some(42)),
@@ -60,6 +61,7 @@ class EventMessageTests extends FlatSpec with Matchers {
     Activation.from(fullActivation) shouldBe Success(
       Activation(
         "ns2/a",
+        activationId.asString,
         0,
         toDuration(123),
         toDuration(5),
@@ -87,7 +89,18 @@ class EventMessageTests extends FlatSpec with Matchers {
             "ns2/a"))
 
     Activation.from(a) shouldBe Success(
-      Activation("ns2/a", 0, toDuration(0), toDuration(0), toDuration(0), "testkind", false, 0, None, Some(42)))
+      Activation(
+        "ns2/a",
+        activationId.asString,
+        0,
+        toDuration(0),
+        toDuration(0),
+        toDuration(0),
+        "testkind",
+        false,
+        0,
+        None,
+        Some(42)))
   }
 
   it should "Transform a activation with status code" in {
