@@ -289,6 +289,7 @@ object EventMessageBody extends DefaultJsonProtocol {
 }
 
 case class Activation(name: String,
+                      activationId: String,
                       statusCode: Int,
                       duration: Duration,
                       waitTime: Duration,
@@ -338,6 +339,7 @@ object Activation extends DefaultJsonProtocol {
     jsonFormat(
       Activation.apply _,
       "name",
+      "activationId",
       "statusCode",
       "duration",
       "waitTime",
@@ -369,6 +371,7 @@ object Activation extends DefaultJsonProtocol {
     } yield {
       Activation(
         fqn,
+        a.activationId.asString,
         a.response.statusCode,
         toDuration(a.duration.getOrElse(0)),
         toDuration(a.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0)),
