@@ -290,7 +290,8 @@ protected[actions] trait PrimitiveActions {
     logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
 
     val response: Future[Either[ActivationId, WhiskActivation]] =
-      invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
+      invokeConductor(user, payload, session).map(response =>
+        Right(completeActivation(user, session, response, waitForResponse.isDefined)))
 
     // is caller waiting for the result of the activation?
     cause
@@ -526,8 +527,10 @@ protected[actions] trait PrimitiveActions {
    * Creates an activation for a composition and writes it back to the datastore.
    * Returns the activation.
    */
-  private def completeActivation(user: Identity, session: Session, response: ActivationResponse)(
-    implicit transid: TransactionId): WhiskActivation = {
+  private def completeActivation(user: Identity,
+                                 session: Session,
+                                 response: ActivationResponse,
+                                 blockingComposition: Boolean)(implicit transid: TransactionId): WhiskActivation = {
 
     val context = UserContext(user)
 
@@ -575,7 +578,10 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
+    // Don't store the record when activation is successful, blocking, not in debug mode and no disable store is configured
+    if (!(activation.response.isSuccess && blockingComposition && !transid.meta.extraLogging && disableStoreResultConfig)) {
+      activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
+    }
 
     activation
   }
@@ -662,6 +668,9 @@ protected[actions] trait PrimitiveActions {
 
   protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
+
+  protected val disableStoreResultConfig: Boolean = loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false)
+
 }
 
 case class ControllerActivationConfig(pollingFromDb: Boolean, maxWaitForBlockingActivation: FiniteDuration)

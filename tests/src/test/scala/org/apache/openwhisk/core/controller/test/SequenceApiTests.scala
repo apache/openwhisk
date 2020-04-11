@@ -17,21 +17,22 @@
 
 package org.apache.openwhisk.core.controller.test
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 import java.time.Instant
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import akka.http.scaladsl.model.StatusCodes._
+
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Route
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.WhiskActionsApi
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.http.{ErrorResponse, Messages}
 import org.apache.openwhisk.http.Messages.sequenceComponentNotFound
+import org.apache.openwhisk.http.{ErrorResponse, Messages}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
@@ -429,52 +430,6 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
       }
       logContains("atomic action count 6")(stream)
     }
-  }
-
-  /**
-   * Makes a simple sequence action and installs it in the db (no call to wsk api/cli).
-   * All actions are in the default package.
-   *
-   * @param sequenceName the name of the sequence
-   * @param ns           the namespace to be used when creating the component actions and the sequence action
-   * @param components   the names of the actions (entity names, no namespace)
-   */
-  private def putSimpleSequenceInDB(sequenceName: String, ns: EntityPath, components: Vector[String])(
-    implicit tid: TransactionId) = {
-    val seqAction = makeSimpleSequence(sequenceName, ns, components)
-    put(entityStore, seqAction)
-  }
-
-  /**
-   * Returns a WhiskAction that can be used to create/update a sequence.
-   * If instructed to do so, installs the component actions in the db.
-   * All actions are in the default package.
-   *
-   * @param sequenceName   the name of the sequence
-   * @param ns             the namespace to be used when creating the component actions and the sequence action
-   * @param componentNames the names of the actions (entity names, no namespace)
-   * @param installDB      if true, installs the component actions in the db (default true)
-   */
-  private def makeSimpleSequence(sequenceName: String,
-                                 ns: EntityPath,
-                                 componentNames: Vector[String],
-                                 installDB: Boolean = true)(implicit tid: TransactionId): WhiskAction = {
-    if (installDB) {
-      // create bogus wsk actions
-      val wskActions = componentNames.toSet[String] map { c =>
-        WhiskAction(ns, EntityName(c), jsDefault("??"))
-      }
-      // add them to the db
-      wskActions.foreach {
-        put(entityStore, _)
-      }
-    }
-    // add namespace to component names
-    val components = componentNames map { c =>
-      stringToFullyQualifiedName(s"/$ns/$c")
-    }
-    // create wsk action for the sequence
-    WhiskAction(namespace, EntityName(sequenceName), sequence(components))
   }
 
   private def logContains(w: String)(implicit stream: java.io.ByteArrayOutputStream): Boolean = {
