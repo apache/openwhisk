@@ -751,16 +751,16 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Check if "require-whisk-auth" authentication is needed, and if so, authenticate the request
-   * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported
+   * Checks if "require-whisk-auth" authentication is needed, and if so, authenticate the request.
+   * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported.
    *
    * @param annotations - web action annotations
    * @param reqHeaders  - web action invocation request headers
    * @return Option[Boolean]
-   *         None if annotations does not include require-whisk-auth (i.e. auth test not needed)
-   *         Some(true) if annotations includes require-whisk-auth and it's value matches the request header `X-Require-Whisk-Auth` value
+   *         None if annotations does not include require-whisk-auth (i.e., auth test not needed)
+   *         Some(true) if annotations includes require-whisk-auth and its value matches the request header `X-Require-Whisk-Auth` value
    *         Some(false) if annotations includes require-whisk-auth and the request does not include the header `X-Require-Whisk-Auth`
-   *         Some(false) if annotations includes require-whisk-auth and it's value deos not match the request header `X-Require-Whisk-Auth` value
+   *         Some(false) if annotations includes require-whisk-auth and its value does not match the request header `X-Require-Whisk-Auth` value
    */
   private def requiredWhiskAuthSuccessful(annotations: Parameters, reqHeaders: Seq[HttpHeader]): Option[Boolean] = {
     annotations
