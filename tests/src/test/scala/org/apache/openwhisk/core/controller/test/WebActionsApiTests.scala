@@ -135,7 +135,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
   var failCheckEntitlement = false // toggle to cause entitlement to fail
   var actionResult: Option[JsObject] = None
-  var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or  requireAuthenticationKey)
+  var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or requireAuthenticationKey)
   var testParametersInInvokeAction = true // toggle to test parameter in invokeAction
   var requireAuthenticationKey = "example-web-action-api-key"
   var invocationCount = 0
