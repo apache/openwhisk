@@ -23,10 +23,13 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR/tools/travis
+if [[ $(./excludes.sh | tail -1) == 'SKIP' ]]; then
+    echo 'Skipping build.'
+    exit 0
+fi
+
 export TESTCONTAINERS_RYUK_DISABLED="true"
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-
-./scan.sh
 
 ./setupPrereq.sh
 

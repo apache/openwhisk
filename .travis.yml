@@ -65,6 +65,9 @@ install:
 jobs:
   include:
     - script:
+        - ./tools/travis/scan.sh
+      name: "Scan code"
+    - script:
         - TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
       name: "Scala 2.13 compilation"
     - script:

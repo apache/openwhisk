@@ -22,6 +22,12 @@ set -e
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
+cd $ROOTDIR/tools/travis
+if [[ $(./excludes.sh | tail -1) == 'SKIP' ]]; then
+    echo 'Skipping build.'
+    exit 0
+fi
+
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_STANDALONE"
 export GRADLE_COVERAGE=true
 

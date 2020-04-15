@@ -16,20 +16,18 @@
 # limitations under the License.
 #
 
-set -e
-
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
-ROOTDIR="$SCRIPTDIR/../.."
-
-cd $ROOTDIR/tools/travis
-if [[ $(./excludes.sh | tail -1) == 'SKIP' ]]; then
-    echo 'Skipping build.'
-    exit 0
+if [ -z "$TRAVIS_BRANCH" ]; then
+    echo 'Could not determine diffs'
+    exit
 fi
 
-cd $ROOTDIR
-SECONDS=0
-cat whisk.properties
-TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage :tests:testSwaggerCodegen
-bash <(curl -s https://codecov.io/bash)
-echo "Time taken for ${0##*/} is $SECONDS secs"
+# exclude job if it only touches documentation
+result=$(git diff --name-only HEAD...$TRAVIS_BRANCH | grep -v .md)
+status=$?
+if [ $status == 1 ]; then
+    # no relevant changes detected'
+    echo 'SKIP'
+else
+    echo 'Detected relevant changes'
+    echo $result
+fi
