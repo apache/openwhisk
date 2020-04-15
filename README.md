@@ -41,38 +41,43 @@ Learn more at [http://openwhisk.apache.org](http://openwhisk.apache.org).
 
 ### Quick Start
 
-The easiest way to start using OpenWhisk is to install the "Standalone Controller". This is a full-featured OpenWhisk stack running as a Java
-process for convenience. Serverless functions run within Docker containers.
-Please refer to [Docker's installation instructions](https://docs.docker.com/install/) to configure your system to use Docker.
+The easiest way to start using OpenWhisk is to install the "Standalone" OpenWhisk stack.
+This is a full-featured OpenWhisk stack running as a Java process for convenience.
+Serverless functions run within Docker containers. You will need [Docker](https://docs.docker.com/install),
+[Java](https://java.com/en/download/help/download_options.xml) and [Node.js](https://nodejs.org) available on your machine.
 
+To get started:
 ```
 git clone https://github.com/apache/openwhisk.git
 cd openwhisk
 ./gradlew core:standalone:bootRun
 ```
 
-- When the standalone controller is up, it will open your browser to a functions Playground,
+- When the OpenWhisk stack is up, it will open your browser to a functions Playground,
 typically served from http://localhost:3232. The Playground allows you create and run functions directly from your browser.
 
 - To make use of all OpenWhisk features, you will need the OpenWhisk command line tool called
 `wsk` which you can download from https://s.apache.org/openwhisk-cli-download.
 Please refer to the [CLI configuration](./docs/cli.md) for additional details. Typically you
-configure the CLI for the Standalone Controller as follows:
+configure the CLI for Standalone OpenWhisk as follows:
 ```
 wsk property set \
   --apihost 'http://localhost:3233' \
   --auth '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP'
 ```
 
-- The Standalone Controller can be configured to deploy additional capabilities when that is desirable.
+- Standalone OpenWhisk can be configured to deploy additional capabilities when that is desirable.
 Additional resources are available [here](./core/standalone/README.md).
 
 ### Deploy to Kubernetes
 
-Another path to quickly starting to use OpenWhisk is to install it on a Kubernetes cluster.
-On a Mac, you can use the Kubernetes support built into Docker 18.06 (or higher).
-You can also deploy OpenWhisk on Minikube, on a managed Kubernetes cluster provisioned from a
-public cloud provider, or on a Kubernetes cluster you manage yourself. To get started,
+OpenWhisk can also be installed on a Kubernetes cluster. You can use
+a managed Kubernetes cluster provisioned from a public cloud provider
+(e.g., AKS, EKS, IKS, GKE), or cluster you manage yourself.
+Additionally for local development, OpenWhisk is compatible with Minikube,
+and Kubernetes for Mac using the support built into Docker 18.06 (or higher).
+
+To get started:
 
 ```
 git clone https://github.com/apache/openwhisk-deploy-kube.git
