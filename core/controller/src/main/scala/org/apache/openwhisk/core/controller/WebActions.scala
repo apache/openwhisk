@@ -175,7 +175,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
   }
 
   /**
-   * Supported extensions, their default projection and transcoder to complete a request.
+   * Supported extensions and transcoder to complete a request.
    *
    * @param extension  the supported media types for action response
    * @param transcoder the HTTP decoder and terminator for the extension
@@ -450,11 +450,6 @@ trait WhiskWebActionsApi
    * extension is one of supported media types. An example is ".json" for a JSON response or ".html" for
    * an text/html response.
    *
-   * Optionally, the result form the action may be projected based on a named property. As in
-   * /web/some-namespace/some-package/some-action/some-property. If the property
-   * does not exist in the result then a NotFound error is generated. A path of properties may
-   * be supplied to project nested properties.
-   *
    * Actions may be exposed to this web proxy by adding an annotation ("export" -> true).
    */
   def routes(user: Option[Identity])(implicit transid: TransactionId): Route = {
@@ -498,27 +493,43 @@ trait WhiskWebActionsApi
           validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid, jsonPrettyPrinter) {
             requestMethodParamsAndPath { context =>
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
-                onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
+                onComplete(verifyWebAction(fullActionName)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    val requiredAuthOk =
-                      requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
-                    if (!requiredAuthOk) {
-                      logging.debug(
-                        this,
-                        "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
-                      terminate(Unauthorized)
-                    } else if (!action.annotations
-                                 .getAs[Boolean](Annotations.WebCustomOptionsAnnotationName)
-                                 .getOrElse(false)) {
+                    val actionDelegatesCors =
+                      !action.annotations.getAs[Boolean](Annotations.WebCustomOptionsAnnotationName).getOrElse(false)
+
+                    if (actionDelegatesCors) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
                         } else {
-                          extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                          extractEntityAndProcessRequest(
+                            confirmAuthenticated(action.annotations, context.headers, onBehalfOf).getOrElse(true),
+                            actionOwnerIdentity,
+                            action,
+                            extension,
+                            onBehalfOf,
+                            context,
+                            e)
                         }
                       }
                     } else {
-                      extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                      val allowedToProceed = if (context.method != OPTIONS) {
+                        confirmAuthenticated(action.annotations, context.headers, onBehalfOf).getOrElse(true)
+                      } else {
+                        // invoke the action for OPTIONS even if user is not authorized
+                        // so that action can respond to option request
+                        true
+                      }
+
+                      extractEntityAndProcessRequest(
+                        allowedToProceed,
+                        actionOwnerIdentity,
+                        action,
+                        extension,
+                        onBehalfOf,
+                        context,
+                        e)
                     }
 
                   case Failure(t: RejectRequest) =>
@@ -549,12 +560,11 @@ trait WhiskWebActionsApi
    *         not entitled (throttled), package/action not found, action not web enabled,
    *         or request overrides final parameters
    */
-  private def verifyWebAction(actionName: FullyQualifiedEntityName, authenticated: Boolean)(
-    implicit transid: TransactionId) = {
+  private def verifyWebAction(actionName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
 
     // lookup the identity for the action namespace
     identityLookup(actionName.path.root) flatMap { actionOwnerIdentity =>
-      confirmExportedAction(actionLookup(actionName), authenticated) flatMap { a =>
+      confirmExportedAction(actionLookup(actionName)) flatMap { a =>
         checkEntitlement(actionOwnerIdentity, a) map { _ =>
           (actionOwnerIdentity, a)
         }
@@ -562,7 +572,8 @@ trait WhiskWebActionsApi
     }
   }
 
-  private def extractEntityAndProcessRequest(actionOwnerIdentity: Identity,
+  private def extractEntityAndProcessRequest(authorizedToProceed: Boolean,
+                                             actionOwnerIdentity: Identity,
                                              action: WhiskActionMetaData,
                                              extension: MediaExtension,
                                              onBehalfOf: Option[Identity],
@@ -573,40 +584,46 @@ trait WhiskWebActionsApi
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.getAs[Boolean](Annotations.RawHttpAnnotationName).getOrElse(false)) { isRawHttpAction =>
-      httpEntity match {
-        case Empty =>
-          process(None, isRawHttpAction)
+    if (authorizedToProceed) {
+      provide(action.annotations.getAs[Boolean](Annotations.RawHttpAnnotationName).getOrElse(false)) {
+        isRawHttpAction =>
+          httpEntity match {
+            case Empty =>
+              process(None, isRawHttpAction)
 
-        case HttpEntity.Strict(ct, json) if WhiskWebActionsApi.isJsonFamily(ct.mediaType) && !isRawHttpAction =>
-          if (json.nonEmpty) {
-            entity(as[JsValue]) { body =>
-              process(Some(body), isRawHttpAction)
-            }
-          } else {
-            process(None, isRawHttpAction)
+            case HttpEntity.Strict(ct, json) if WhiskWebActionsApi.isJsonFamily(ct.mediaType) && !isRawHttpAction =>
+              if (json.nonEmpty) {
+                entity(as[JsValue]) { body =>
+                  process(Some(body), isRawHttpAction)
+                }
+              } else {
+                process(None, isRawHttpAction)
+              }
+
+            case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, _), _)
+                if !isRawHttpAction =>
+              entity(as[FormData]) { form =>
+                val body = form.fields.toMap.toJson.asJsObject
+                process(Some(body), isRawHttpAction)
+              }
+
+            case HttpEntity.Strict(contentType, data) =>
+              // for legacy, we are encoding application/json still
+              if (contentType.mediaType.binary || contentType.mediaType == `application/json`) {
+                Try(JsString(Base64.getEncoder.encodeToString(data.toArray))) match {
+                  case Success(bytes) => process(Some(bytes), isRawHttpAction)
+                  case Failure(t)     => terminate(BadRequest, Messages.unsupportedContentType(contentType.mediaType))
+                }
+              } else {
+                val str = JsString(data.utf8String)
+                process(Some(str), isRawHttpAction)
+              }
+
+            case _ => terminate(BadRequest, Messages.unsupportedContentType)
           }
-
-        case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, _), _) if !isRawHttpAction =>
-          entity(as[FormData]) { form =>
-            val body = form.fields.toMap.toJson.asJsObject
-            process(Some(body), isRawHttpAction)
-          }
-
-        case HttpEntity.Strict(contentType, data) =>
-          // for legacy, we are encoding application/json still
-          if (contentType.mediaType.binary || contentType.mediaType == `application/json`) {
-            Try(JsString(Base64.getEncoder.encodeToString(data.toArray))) match {
-              case Success(bytes) => process(Some(bytes), isRawHttpAction)
-              case Failure(t)     => terminate(BadRequest, Messages.unsupportedContentType(contentType.mediaType))
-            }
-          } else {
-            val str = JsString(data.utf8String)
-            process(Some(str), isRawHttpAction)
-          }
-
-        case _ => terminate(BadRequest, Messages.unsupportedContentType)
       }
+    } else {
+      terminate(Unauthorized)
     }
   }
 
@@ -648,9 +665,8 @@ trait WhiskWebActionsApi
             val resultPath = if (activation.response.isSuccess) {
               List.empty
             } else {
-              // the activation produced an error response: therefore ignore
-              // the requested projection and unwrap the error instead
-              // and attempt to handle it per the desired response type (extension)
+              // the activation produced an error response, so look for an error property
+              // in the response, unwrap it and use it to terminate the response
               List(ActivationResponse.ERROR_FIELD)
             }
 
@@ -717,24 +733,19 @@ trait WhiskWebActionsApi
 
   /**
    * Checks if an action is exported (i.e., carries the required annotation).
+   * This function does not check if web action requires authentication.
    */
-  private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
+  private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData])(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser =
-        action.annotations.getAs[Boolean](Annotations.RequireWhiskAuthAnnotation).getOrElse(false)
       val isExported = action.annotations.getAs[Boolean](Annotations.WebActionAnnotationName).getOrElse(false)
 
-      if ((isExported && requiresAuthenticatedUser && authenticated) ||
-          (isExported && !requiresAuthenticatedUser)) {
+      if (isExported) {
         logging.debug(this, s"${action.fullyQualifiedName(true)} is exported")
         Future.successful(action)
-      } else if (!isExported) {
+      } else {
         logging.debug(this, s"${action.fullyQualifiedName(true)} not exported")
         Future.failed(RejectRequest(NotFound))
-      } else {
-        logging.debug(this, s"${action.fullyQualifiedName(true)} requires authentication")
-        Future.failed(RejectRequest(Unauthorized))
       }
     }
   }
@@ -751,30 +762,33 @@ trait WhiskWebActionsApi
   }
 
   /**
-   * Checks if "require-whisk-auth" authentication is needed, and if so, authenticate the request.
-   * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported.
+   * Checks if an action requires authenticate and is authenticated (i.e., carries the required annotation).
+   * This function assumes the action is a web action.
    *
-   * @param annotations - web action annotations
-   * @param reqHeaders  - web action invocation request headers
-   * @return Option[Boolean]
-   *         None if annotations does not include require-whisk-auth (i.e., auth test not needed)
-   *         Some(true) if annotations includes require-whisk-auth and its value matches the request header `X-Require-Whisk-Auth` value
-   *         Some(false) if annotations includes require-whisk-auth and the request does not include the header `X-Require-Whisk-Auth`
-   *         Some(false) if annotations includes require-whisk-auth and its value does not match the request header `X-Require-Whisk-Auth` value
+   * @param annotations the web action annotations
+   * @param reqHeaders the web action invocation request headers
+   * @param authenticatedUser true if this request is from an authenticated whisk user
+   * @return None if web annotation does not specify an authentication scheme
+   *         Some(true) if web annotation includes require-whisk-auth and value matches the request header `X-Require-Whisk-Auth` value
+   *         Some(true) if web annotation requires an authenticated whisk user and that user has already authenticated
+   *         Some(false) if web annotation includes require-whisk-auth and the request does not include the header `X-Require-Whisk-Auth`
+   *         Some(false) if web annotation includes require-whisk-auth and its value does not match the request header `X-Require-Whisk-Auth` value
    */
-  private def requiredWhiskAuthSuccessful(annotations: Parameters, reqHeaders: Seq[HttpHeader]): Option[Boolean] = {
+  private def confirmAuthenticated(annotations: Parameters,
+                                   reqHeaders: Seq[HttpHeader],
+                                   authenticatedUser: Option[Identity]): Option[Boolean] = {
+    def checkAuthHeader(expected: String): Boolean = {
+      reqHeaders.find(_.is(WhiskAction.requireWhiskAuthHeader)).map(_.value == expected).getOrElse(false)
+    }
+
     annotations
       .get(Annotations.RequireWhiskAuthAnnotation)
-      .flatMap {
-        case JsString(authStr) => Some(authStr)
-        case JsNumber(authNum) => Some(authNum.toString)
-        case _                 => None
-      }
-      .map { reqWhiskAuthAnnotationStr =>
-        reqHeaders
-          .find(_.is(WhiskAction.requireWhiskAuthHeader))
-          .map(_.value == reqWhiskAuthAnnotationStr)
-          .getOrElse(false) // false => when no x-require-whisk-auth header is present
+      .map {
+        case JsString(auth)           => checkAuthHeader(auth) // allowed if auth matches header
+        case JsNumber(auth)           => checkAuthHeader(auth.toString) // allowed if auth matches header
+        case JsTrue | JsBoolean(true) => authenticatedUser.isDefined // allowed if user already authenticated
+        case _                        => false // not allowed, something is not right
       }
   }
+
 }
