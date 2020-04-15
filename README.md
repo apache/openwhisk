@@ -73,7 +73,7 @@ Additional resources are available [here](./core/standalone/README.md).
 
 OpenWhisk can also be installed on a Kubernetes cluster. You can use
 a managed Kubernetes cluster provisioned from a public cloud provider
-(e.g., AKS, EKS, IKS, GKE), or cluster you manage yourself.
+(e.g., AKS, EKS, IKS, GKE), or a cluster you manage yourself.
 Additionally for local development, OpenWhisk is compatible with Minikube,
 and Kubernetes for Mac using the support built into Docker 18.06 (or higher).
 
