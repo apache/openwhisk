@@ -53,7 +53,7 @@ cd openwhisk
 ./gradlew core:standalone:bootRun
 ```
 
-- When the OpenWhisk stack is up, it will open your browser to a functions Playground,
+- When the OpenWhisk stack is up, it will open your browser to a functions [Playground](./docs/images/playground-ui.png),
 typically served from http://localhost:3232. The Playground allows you create and run functions directly from your browser.
 
 - To make use of all OpenWhisk features, you will need the OpenWhisk command line tool called
