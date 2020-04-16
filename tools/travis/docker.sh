@@ -16,8 +16,14 @@
 # limitations under the License.
 #
 
+set -e
+
 BASEDIR=$(dirname "$0")
-echo "$BASEDIR"
+
+if [[ $($BASEDIR/tools/travis/excludes.sh | tail -1) == 'SKIP' ]]; then
+    echo 'Skipping setup.'
+    exit 0
+fi
 
 sudo gpasswd -a travis docker
 sudo usermod -aG docker travis

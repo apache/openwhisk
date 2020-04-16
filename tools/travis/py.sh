@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+set -e
+
 BASEDIR=$(dirname "$0")
 
 if [[ $($BASEDIR/tools/travis/excludes.sh | tail -1) == 'SKIP' ]]; then
@@ -23,35 +25,6 @@ if [[ $($BASEDIR/tools/travis/excludes.sh | tail -1) == 'SKIP' ]]; then
     exit 0
 fi
 
-# retries a command for five times and exits with the non-zero exit if even after
-# the retries the command did not succeed.
-function retry() {
-  local exitcode=0
-  for i in {1..5};
-  do
-    exitcode=0
-    "$@" && break || exitcode=$? && echo "$i. attempt failed. Will retry $((5-i)) more times!" && sleep 1;
-  done
-  if [ $exitcode -ne 0 ]; then
-    exit $exitcode
-  fi
-}
-
-# Python
-pip install --user couchdb
-
-# Ansible
-pip install --user ansible==2.5.2
-
-# Azure CosmosDB
-pip install --user pydocumentdb
-
-# Support the revises log upload script
-pip install --user humanize requests
-
-# Basic check that all code compiles and depdendencies are downloaded correctly.
-# Compiling the tests will compile all components as well.
-#
-# Downloads the gradle wrapper, dependencies and tries to compile the code.
-# Retried 5 times in case there are network hiccups.
-TERM=dumb retry ./gradlew :tests:compileTestScala
+sudo apt-get install -y python3-pip
+pip install --user --upgrade pip setuptools six
+pip3 install --user setuptools six
