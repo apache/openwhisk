@@ -64,6 +64,7 @@ case class SplunkLogStoreConfig(host: String,
                                 logTimestampField: String,
                                 logStreamField: String,
                                 logMessageField: String,
+                                namespaceField: String,
                                 activationIdField: String,
                                 queryConstraints: String,
                                 queryTimestampOffsetSeconds: Int,
@@ -106,12 +107,12 @@ class SplunkLogStore(
   override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] = {
 
     //example curl request:
-    //    curl -u  username:password -k https://splunkhost:port/services/search/jobs -d exec_mode=oneshot -d output_mode=json -d "search=search index=\"someindex\" | spath=log_message | search activation_id=a930e5ae4ad4455c8f2505d665aad282 |  table log_message" -d "earliest_time=2017-08-29T12:00:00" -d "latest_time=2017-10-29T12:00:00"
+    //    curl -u  username:password -k https://splunkhost:port/services/search/jobs -d exec_mode=oneshot -d output_mode=json -d "search=search index=someindex | search namespace=guest | search activation_id=a930e5ae4ad4455c8f2505d665aad282 | spath=log_message | table log_message" -d "earliest_time=2017-08-29T12:00:00" -d "latest_time=2017-10-29T12:00:00"
     //example response:
     //    {"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"}], "highlighted":{}}
     //note: splunk returns results in reverse-chronological order, therefore we include "| reverse" to cause results to arrive in chronological order
     val search =
-      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.logMessageField}| search ${splunkConfig.queryConstraints} ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField}| reverse"""
+      s"""search index="${splunkConfig.index}" | search ${splunkConfig.queryConstraints} | search ${splunkConfig.namespaceField}=${activation.namespace.asString} | search ${splunkConfig.activationIdField}=${activation.activationId.toString} | spath ${splunkConfig.logMessageField} | table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField} | reverse"""
 
     val entity = FormData(
       Map(

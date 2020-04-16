@@ -69,6 +69,7 @@ class SplunkLogStoreTests
     "log_timestamp",
     "log_stream",
     "log_message",
+    "namespace",
     "activation_id",
     "somefield::somevalue",
     22,
@@ -126,7 +127,7 @@ class SplunkLogStoreTests
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.logMessageField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
+                s"""search index="${testConfig.index}" | search ${testConfig.queryConstraints} | search ${testConfig.namespaceField}=${activation.namespace.asString} | search ${testConfig.activationIdField}=${activation.activationId.toString} | spath ${testConfig.logMessageField} | table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField} | reverse""")
 
               (
                 Success(

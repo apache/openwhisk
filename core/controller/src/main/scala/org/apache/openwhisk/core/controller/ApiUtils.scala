@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.controller
 
+import java.time.Instant
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
@@ -29,15 +30,20 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.server.{Directives, RequestContext, RouteResult}
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+import spray.json.{JsObject, JsValue, RootJsonFormat}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.PostProcess.PostProcessEntity
 import org.apache.openwhisk.core.database._
-import org.apache.openwhisk.core.entity.DocId
-import org.apache.openwhisk.core.entity.WhiskDocument
+import org.apache.openwhisk.core.entity.{
+  ActivationId,
+  DocId,
+  EntityName,
+  EntityPath,
+  Subject,
+  WhiskActivation,
+  WhiskDocument
+}
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages._
@@ -184,6 +190,72 @@ trait ReadOps extends Directives {
       case Failure(t: NoDocumentException) =>
         logging.debug(this, s"[PROJECT] entity does not exist")
         terminate(NotFound)
+      case Failure(t: DocumentTypeMismatchException) =>
+        logging.debug(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
+        terminate(Conflict, conformanceMessage)
+      case Failure(t: ArtifactStoreException) =>
+        logging.debug(this, s"[PROJECT] entity unreadable")
+        terminate(InternalServerError, t.getMessage)
+      case Failure(t: Throwable) =>
+        logging.error(this, s"[PROJECT] entity failed: ${t.getMessage}")
+        terminate(InternalServerError)
+    }
+  }
+
+  /**
+   * Waits on specified Future that returns an entity of type A from datastore.
+   * In case A entity is not stored, use the docId to search logstore
+   * Terminates HTTP request.
+   *
+   * @param entity future that returns an entity of type A fetched from datastore
+   * @param docId activation DocId
+   * @param disableStoreResultConfig configuration
+   * @param project a function A => JSON which projects fields form A
+   *
+   * Responses are one of (Code, Message)
+   * - 200 project(A) as JSON
+   * - 404 Not Found
+   * - 500 Internal Server Error
+   */
+  protected def getEntityAndProjectLog[A <: DocumentRevisionProvider, Au >: A](
+    entity: Future[A],
+    docId: DocId,
+    disableStoreResultConfig: Boolean,
+    project: A => Future[JsObject])(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
+    onComplete(entity) {
+      case Success(entity) =>
+        logging.debug(this, s"[PROJECT] entity success")
+        onComplete(project(entity)) {
+          case Success(response: JsObject) =>
+            complete(OK, response)
+          case Failure(t: Throwable) =>
+            logging.error(this, s"[PROJECT] projection failed: ${t.getMessage}")
+            terminate(InternalServerError, t.getMessage)
+        }
+      case Failure(t: NoDocumentException) =>
+        // In case disableStoreResult configuration is active, persevere
+        // log might still be available even if entity was not
+        if (disableStoreResultConfig) {
+          val namespace = docId.asString.split("/")(0)
+          val id = docId.asString.split("/")(1)
+          val whiskActivation = WhiskActivation(
+            EntityPath(namespace),
+            EntityName(namespace),
+            Subject(),
+            ActivationId(id),
+            Instant.EPOCH,
+            Instant.now())
+          onComplete(project(whiskActivation.asInstanceOf[A])) {
+            case Success(response: JsObject) =>
+              logging.debug(this, s"[PROJECT] entity success")
+              complete(OK, response)
+            case Failure(t: Throwable) =>
+              logging.error(this, s"[PROJECT] projection failed: ${t.getMessage}")
+              terminate(InternalServerError, t.getMessage)
+          }
+        } else {
+          terminate(NotFound)
+        }
       case Failure(t: DocumentTypeMismatchException) =>
         logging.debug(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
         terminate(Conflict, conformanceMessage)
