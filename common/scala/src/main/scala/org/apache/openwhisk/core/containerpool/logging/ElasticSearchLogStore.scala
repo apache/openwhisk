@@ -38,6 +38,7 @@ import pureconfig.generic.auto._
 
 case class ElasticSearchLogFieldConfig(userLogs: String,
                                        message: String,
+                                       tenantId: String,
                                        activationId: String,
                                        stream: String,
                                        time: String)
@@ -92,7 +93,7 @@ class ElasticSearchLogStore(
 
   private def generatePayload(activation: WhiskActivation) = {
     val logQuery =
-      s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
+      s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.tenantId}: ${activation.namespace.asString} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
     val queryString = EsQueryString(logQuery)
     val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrderAsc)
 
