@@ -79,9 +79,8 @@ class ElasticSearchLogStoreTests
       ContentTypes.`application/json`,
       s"""{"took":799,"timed_out":false,"_shards":{"total":204,"successful":204,"failed":0},"hits":{"total":2,"max_score":null,"hits":[{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196689522Z","accountId":null,"message":"some log stuff\\n","type":"user_logs","event_uuid":"1c00007f-ecb9-4083-8d2e-4d5e2849621f","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"${tenantId}","logmet_cluster":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.687Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897687]},{"_index":"logstash-2018.03.05.02","_type":"user_logs","_id":"14c2a5b7-8cad-4ec0-992e-70fab1996465","_score":null,"_source":{"time_date":"2018-03-05T02:10:38.196754258Z","accountId":null,"message":"more logs\\n","type":"user_logs","event_uuid":"14c2a5b7-8cad-4ec0-992e-70fab1996465","activationId_str":"$activationId","action_str":"user@email.com/logs","tenantId":"tenant","${tenantId}":"topic1-elasticsearch_1","@timestamp":"2018-03-05T02:11:37.701Z","@version":"1","stream_str":"stdout","timestamp":"2018-03-05T02:10:39.131Z"},"sort":[1520215897701]}]}}"""))
   private val defaultPayload = JsObject(
-    "query" -> JsObject(
-      "query_string" -> JsObject("query" -> JsString(
-        s"_type: ${defaultConfig.logSchema.userLogs} AND ${defaultConfig.logSchema.tenantId}: $tenantId AND ${defaultConfig.logSchema.activationId}: $activationId"))),
+    "query" -> JsObject("query_string" -> JsObject("query" -> JsString(
+      s"_type: ${defaultConfig.logSchema.userLogs} AND ${defaultConfig.logSchema.tenantId}: $tenantId AND ${defaultConfig.logSchema.activationId}: $activationId"))),
     "sort" -> JsArray(JsObject(defaultConfig.logSchema.time -> JsObject("order" -> JsString("asc")))),
     "from" -> JsNumber(0)).compactPrint
   private val defaultHttpRequest = HttpRequest(
