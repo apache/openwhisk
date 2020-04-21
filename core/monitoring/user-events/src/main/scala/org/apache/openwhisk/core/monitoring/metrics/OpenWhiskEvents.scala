@@ -29,6 +29,7 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import pureconfig._
 import pureconfig.generic.auto._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 object OpenWhiskEvents extends SLF4JLogging {
@@ -36,7 +37,10 @@ object OpenWhiskEvents extends SLF4JLogging {
   case class MetricConfig(port: Int,
                           enableKamon: Boolean,
                           ignoredNamespaces: Set[String],
-                          renameTags: Map[String, String])
+                          renameTags: Map[String, String],
+                          retry: RetryConfig)
+
+  case class RetryConfig(minBackoff: FiniteDuration, maxBackoff: FiniteDuration, randomFactor: Double, maxRestarts: Int)
 
   def start(config: Config)(implicit system: ActorSystem,
                             materializer: ActorMaterializer): Future[Http.ServerBinding] = {

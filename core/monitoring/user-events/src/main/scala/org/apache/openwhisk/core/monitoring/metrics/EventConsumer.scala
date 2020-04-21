@@ -18,14 +18,14 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import java.lang.management.ManagementFactory
+import java.util.concurrent.atomic.AtomicReference
 
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.scaladsl.{Committer, Consumer}
-import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.{RestartSource, Sink}
 import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
@@ -77,25 +77,34 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
 
   def shutdown(): Future[Done] = {
     lagRecorder.cancel()
-    control.drainAndShutdown()(system.dispatcher)
+    control.get().drainAndShutdown(result)(system.dispatcher)
   }
 
-  def isRunning: Boolean = !control.isShutdown.isCompleted
+  def isRunning: Boolean = !control.get().isShutdown.isCompleted
 
-  override def metrics(): Future[Map[MetricName, common.Metric]] = control.metrics
+  override def metrics(): Future[Map[MetricName, common.Metric]] = control.get().metrics
 
-  private val committerSettings = CommitterSettings(system).withMaxBatch(20)
+  private val committerSettings = CommitterSettings(system)
+  private val control = new AtomicReference[Consumer.Control](Consumer.NoopControl)
 
-  //TODO Use RestartSource
-  private val control: DrainingControl[Done] = Consumer
-    .committableSource(updatedSettings, Subscriptions.topics(userEventTopic))
-    .map { msg =>
-      processEvent(msg.record.value())
-      msg.committableOffset
+  private val result = RestartSource
+    .onFailuresWithBackoff(
+      minBackoff = metricConfig.retry.minBackoff,
+      maxBackoff = metricConfig.retry.maxBackoff,
+      randomFactor = metricConfig.retry.randomFactor,
+      maxRestarts = metricConfig.retry.maxRestarts) { () =>
+      Consumer
+        .committableSource(updatedSettings, Subscriptions.topics(userEventTopic))
+        // this is to access to the Consumer.Control
+        // instances of the latest Kafka Consumer source
+        .mapMaterializedValue(c => control.set(c))
+        .map { msg =>
+          processEvent(msg.record.value())
+          msg.committableOffset
+        }
+        .via(Committer.flow(committerSettings))
     }
-    .toMat(Committer.sink(committerSettings))(Keep.both)
-    .mapMaterializedValue(DrainingControl.apply)
-    .run()
+    .runWith(Sink.ignore)
 
   private val lagRecorder =
     system.scheduler.schedule(10.seconds, 10.seconds)(lagGauge.update(consumerLag))
