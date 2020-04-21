@@ -578,10 +578,11 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    // Don't store the record when activation is successful, blocking, not in debug mode and no disable store is configured
-    if (!(activation.response.isSuccess && blockingComposition && !transid.meta.extraLogging && disableStoreResultConfig)) {
-      activationStore.storeAfterCheck(activation, context)(transid, notifier = None)
-    }
+    activationStore.storeAfterCheck(activation, context)(
+      transid,
+      notifier = None,
+      blockingComposition,
+      disableStoreResultConfig)
 
     activation
   }
@@ -669,7 +670,7 @@ protected[actions] trait PrimitiveActions {
   protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
 
-  protected val disableStoreResultConfig: Boolean = loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false)
+  protected val disableStoreResultConfig = loadConfigOrThrow[Option[Boolean]](ConfigKeys.disableStoreResult)
 
 }
 

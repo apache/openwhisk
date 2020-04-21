@@ -32,8 +32,8 @@ import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
+import pureconfig.loadConfigOrThrow
 import spray.json._
-import pureconfig.loadConfig
 
 import scala.collection._
 import scala.concurrent.duration._
@@ -180,10 +180,11 @@ protected[actions] trait SequenceActions {
             }
           }
 
-          // Don't store the record when activation is successful, blocking, not in debug mode and no disable store is configured
-          if (!(seqActivation.response.isSuccess && blockingSequence && !transid.meta.extraLogging && disableSequenceStoreResultConfig)) {
-            activationStore.storeAfterCheck(seqActivation, context)(transid, notifier = None)
-          }
+          activationStore.storeAfterCheck(seqActivation, context)(
+            transid,
+            notifier = None,
+            blockingSequence,
+            disableSequenceStoreResultConfig)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?
@@ -397,8 +398,7 @@ protected[actions] trait SequenceActions {
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-  protected val disableSequenceStoreResultConfig: Boolean =
-    loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false)
+  protected val disableSequenceStoreResultConfig = loadConfigOrThrow[Option[Boolean]](ConfigKeys.disableStoreResult)
 }
 
 /**

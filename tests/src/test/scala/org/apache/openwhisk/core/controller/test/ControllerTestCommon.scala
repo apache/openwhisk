@@ -125,8 +125,15 @@ protected trait ControllerTestCommon
   }
 
   def storeActivation(activation: WhiskActivation, context: UserContext)(implicit transid: TransactionId,
-                                                                         timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = activationStore.storeAfterCheck(activation, context)
+                                                                         timeout: Duration = 10 seconds,
+                                                                         isBlockingActivation: Boolean = false,
+                                                                         disableStoreResult: Option[Boolean] = Some(
+                                                                           false)): DocInfo = {
+    val docFuture = activationStore.storeAfterCheck(activation, context)(
+      transid,
+      notifier = None,
+      isBlockingActivation,
+      disableStoreResult)
     val doc = Await.result(docFuture, timeout)
     assert(doc != null)
     doc

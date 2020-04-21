@@ -32,7 +32,7 @@ import akka.io.Tcp.CommandFailed
 import akka.io.Tcp.Connect
 import akka.io.Tcp.Connected
 import akka.pattern.pipe
-import pureconfig.{loadConfig, _}
+import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
@@ -251,12 +251,11 @@ class ContainerProxy(factory: (TransactionId,
                                Int,
                                Option[ExecutableWhiskAction]) => Future[Container],
                      sendActiveAck: ActiveAck,
-                     storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+                     storeActivation: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
                      collectLogs: LogsCollector,
                      instance: InvokerInstanceId,
                      poolConfig: ContainerPoolConfig,
                      healtCheckConfig: ContainerProxyHealthCheckConfig,
-                     disableStoreResultConfig: Boolean,
                      unusedTimeout: FiniteDuration,
                      pauseGrace: FiniteDuration,
                      testTcp: Option[ActorRef])
@@ -275,6 +274,7 @@ class ContainerProxy(factory: (TransactionId,
   var activeCount = 0;
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
   val tcp: ActorRef = testTcp.getOrElse(IO(Tcp)) //allows to testing interaction with Tcp extension
+
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -339,7 +339,7 @@ class ContainerProxy(factory: (TransactionId,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
               CombinedCompletionAndResultMessage(transid, activation, instance))
-            storeActivation(transid, activation, context)
+            storeActivation(transid, activation, job.msg.blocking, context)
         }
         .flatMap { container =>
           // now attempt to inject the user code and run the action
@@ -836,11 +836,7 @@ class ContainerProxy(factory: (TransactionId,
                 job.msg.user.namespace.uuid,
                 CompletionMessage(tid, activation, instance)))
         }
-        // Storing the record. Entirely asynchronous and not waited upon.
-        // Don't store the record when activation is successful, blocking, not in debug mode and no disable store is configured
-        if (!(activation.response.isSuccess && job.msg.blocking && !tid.meta.extraLogging && disableStoreResultConfig)) {
-          storeActivation(tid, activation, context)
-        }
+        storeActivation(tid, activation, job.msg.blocking, context)
       }
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
@@ -865,13 +861,12 @@ object ContainerProxy {
                       Int,
                       Option[ExecutableWhiskAction]) => Future[Container],
             ack: ActiveAck,
-            store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+            store: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
             collectLogs: LogsCollector,
             instance: InvokerInstanceId,
             poolConfig: ContainerPoolConfig,
             healthCheckConfig: ContainerProxyHealthCheckConfig =
               loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
-            disableStoreResultConfig: Boolean = loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false),
             unusedTimeout: FiniteDuration = timeouts.idleContainer,
             pauseGrace: FiniteDuration = timeouts.pauseGrace,
             tcp: Option[ActorRef] = None) =
@@ -884,7 +879,6 @@ object ContainerProxy {
         instance,
         poolConfig,
         healthCheckConfig,
-        disableStoreResultConfig,
         unusedTimeout,
         pauseGrace,
         tcp))

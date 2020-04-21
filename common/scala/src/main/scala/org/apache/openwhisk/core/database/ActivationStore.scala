@@ -42,10 +42,18 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def storeAfterCheck(activation: WhiskActivation, context: UserContext)(
-    implicit transid: TransactionId,
-    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    if (context.user.limits.storeActivations.getOrElse(true)) {
+  def storeAfterCheck(activation: WhiskActivation, context: UserContext)(implicit transid: TransactionId,
+                                                                         notifier: Option[CacheChangeNotification],
+                                                                         isBlockingActivation: Boolean = false,
+                                                                         disableStoreResultConfig: Option[Boolean] =
+                                                                           Some(false)): Future[DocInfo] = {
+    if (context.user.limits.storeActivations.getOrElse(true) &&
+        shouldStoreActivation(
+          activation.response.isSuccess,
+          isBlockingActivation,
+          transid.meta.extraLogging,
+          disableStoreResultConfig.get)) {
+
       store(activation, context)
     } else {
       Future.successful(DocInfo(activation.docid))
@@ -154,6 +162,23 @@ trait ActivationStore {
     since: Option[Instant] = None,
     upto: Option[Instant] = None,
     context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+
+  /**
+   * Check if the system is configured to not store the activation in the database
+   * Dont't store if activation is successful, blocking, not in debug mode and no disable store is configured
+   *
+   * @param isSuccess is successful activation
+   * @param isBlocking is blocking activation
+   * @param debugMode is logging header set to "on" for the invocation
+   * @param disableStore is disable store configured
+   * @return Should the activation be stored to the database
+   */
+  private def shouldStoreActivation(isSuccess: Boolean,
+                                    isBlocking: Boolean,
+                                    debugMode: Boolean,
+                                    disableStore: Boolean): Boolean = {
+    !(isSuccess && isBlocking && !debugMode && disableStore)
+  }
 }
 
 trait ActivationStoreProvider extends Spi {

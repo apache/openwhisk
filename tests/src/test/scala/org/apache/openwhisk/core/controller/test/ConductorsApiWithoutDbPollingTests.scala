@@ -59,7 +59,7 @@ class ConductorsApiWithoutDbPollingTests extends ControllerTestCommon with Whisk
   val conductor = MakeName.next("conductor")
   val step = MakeName.next("step")
 
-  override val disableStoreResultConfig = true
+  override val disableStoreResultConfig = Some(true)
 
   override val loadBalancer = new FakeLoadBalancerService(whiskConfig)
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {}

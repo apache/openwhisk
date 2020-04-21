@@ -62,7 +62,7 @@ class SequenceApiWithoutDbPollingTests extends ControllerTestCommon with WhiskAc
   val action2 = MakeName.next("action1")
   val action_fail = MakeName.next("action_fail")
 
-  override val disableSequenceStoreResultConfig = true
+  override val disableSequenceStoreResultConfig = Some(true)
 
   override val loadBalancer = new FakeLoadBalancerService(whiskConfig)
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {}

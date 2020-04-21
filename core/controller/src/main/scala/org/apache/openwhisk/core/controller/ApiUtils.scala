@@ -247,10 +247,10 @@ trait ReadOps extends Directives {
             Instant.now())
           onComplete(project(whiskActivation.asInstanceOf[A])) {
             case Success(response: JsObject) =>
-              logging.debug(this, s"[PROJECT] entity success")
+              logging.debug(this, s"[PROJECTLOG] entity success")
               complete(OK, response)
             case Failure(t: Throwable) =>
-              logging.error(this, s"[PROJECT] projection failed: ${t.getMessage}")
+              logging.error(this, s"[PROJECTLOG] projection failed: ${t.getMessage}")
               terminate(InternalServerError, t.getMessage)
           }
         } else {

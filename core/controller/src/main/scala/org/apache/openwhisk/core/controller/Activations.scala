@@ -38,7 +38,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
-import pureconfig.loadConfig
+import pureconfig.loadConfigOrThrow
 
 object WhiskActivationsApi {
 
@@ -74,7 +74,7 @@ object WhiskActivationsApi {
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider with AuthorizedRouteProvider with ReadOps {
 
-  protected val disableStoreResultConfig: Boolean = loadConfig[Boolean](ConfigKeys.disableStoreResult).getOrElse(false)
+  protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
 
   protected override val collection = Collection(Collection.ACTIVATIONS)
 

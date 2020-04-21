@@ -582,6 +582,80 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
+  //// GET /activations/id/result when db store is disabled
+  it should "return activation empty when db store is disabled" in {
+    implicit val tid = transid()
+    implicit val isBlockingActivation = true
+    implicit val disableStoreResult = Some(true)
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
+
+    storeActivation(activation, context)
+
+    Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+      status should be(NotFound)
+    }
+  }
+
+  //// GET /activations/id/result when store is disabled and activation is not blocking
+  it should "get activation result by id when db store is disabled and activation is not blocking" in {
+    implicit val tid = transid()
+    implicit val isBlockingActivation = false
+    implicit val disableStoreResult = Some(true)
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
+    try {
+      storeActivation(activation, context)
+
+      Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response should be(activation.response.toExtendedJson)
+      }
+    } finally {
+      deleteActivation(ActivationId(activation.docid.asString), context)
+    }
+  }
+
+  //// GET /activations/id/result when store is disabled and activation is unsuccessful
+  it should "get activation result by id when db store is disabled and activation is unsuccessful" in {
+    implicit val tid = transid()
+    implicit val isBlockingActivation = true
+    implicit val disableStoreResult = Some(true)
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now,
+        response = ActivationResponse.whiskError("activation error"))
+    try {
+      storeActivation(activation, context)
+
+      Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response should be(activation.response.toExtendedJson)
+      }
+    } finally {
+      deleteActivation(ActivationId(activation.docid.asString), context)
+    }
+  }
+
   //// GET /activations/id/logs
   it should "get activation logs by id" in {
     implicit val tid = transid()
