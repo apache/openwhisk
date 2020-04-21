@@ -164,7 +164,7 @@ trait ActivationStore {
     context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
   /**
-   * Check if the system is configured to not store the activation in the database
+   * Checks if the system is configured to not store the activation in the database.
    * Dont't store if activation is successful, blocking, not in debug mode and no disable store is configured
    *
    * @param isSuccess is successful activation
