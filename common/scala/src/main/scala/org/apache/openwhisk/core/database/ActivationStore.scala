@@ -165,7 +165,11 @@ trait ActivationStore {
 
   /**
    * Checks if the system is configured to not store the activation in the database.
-   * Dont't store if activation is successful, blocking, not in debug mode and no disable store is configured
+   * Only stores activations if one of these is true:
+   * - result is an error,
+   * - a non-blocking activation
+   * - an activation in debug mode
+   * - activation stores is not disabled via a configuration parameter
    *
    * @param isSuccess is successful activation
    * @param isBlocking is blocking activation
