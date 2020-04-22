@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.controller
 
 import java.time.Instant
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
@@ -35,15 +36,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.PostProcess.PostProcessEntity
 import org.apache.openwhisk.core.database._
-import org.apache.openwhisk.core.entity.{
-  ActivationId,
-  DocId,
-  EntityName,
-  EntityPath,
-  Subject,
-  WhiskActivation,
-  WhiskDocument
-}
+import org.apache.openwhisk.core.entity.{ActivationLogs, DocId, WhiskActivation, WhiskDocument}
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages._
@@ -221,11 +214,20 @@ trait ReadOps extends Directives {
     entity: Future[A],
     docId: DocId,
     disableStoreResultConfig: Boolean,
-    project: A => Future[JsObject])(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
+    project: (String, String, Instant, Instant, ActivationLogs) => Future[JsObject])(implicit transid: TransactionId,
+                                                                                     format: RootJsonFormat[A],
+                                                                                     ma: Manifest[A]) = {
     onComplete(entity) {
       case Success(entity) =>
         logging.debug(this, s"[PROJECT] entity success")
-        onComplete(project(entity)) {
+        val activation = entity.asInstanceOf[WhiskActivation]
+        onComplete(
+          project(
+            activation.namespace.asString,
+            activation.activationId.asString,
+            activation.start,
+            activation.end,
+            activation.logs)) {
           case Success(response: JsObject) =>
             complete(OK, response)
           case Failure(t: Throwable) =>
@@ -238,14 +240,7 @@ trait ReadOps extends Directives {
         if (disableStoreResultConfig) {
           val namespace = docId.asString.split("/")(0)
           val id = docId.asString.split("/")(1)
-          val whiskActivation = WhiskActivation(
-            EntityPath(namespace),
-            EntityName(namespace),
-            Subject(),
-            ActivationId(id),
-            Instant.EPOCH,
-            Instant.now())
-          onComplete(project(whiskActivation.asInstanceOf[A])) {
+          onComplete(project(namespace, id, Instant.EPOCH, Instant.now(), ActivationLogs())) {
             case Success(response: JsObject) =>
               logging.debug(this, s"[PROJECTLOG] entity success")
               complete(OK, response)

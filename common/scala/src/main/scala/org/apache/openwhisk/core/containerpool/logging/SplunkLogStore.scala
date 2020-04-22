@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
+import java.time.Instant
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding.Post
@@ -36,9 +38,7 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
-
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
-
 import pureconfig._
 import pureconfig.generic.auto._
 
@@ -47,13 +47,10 @@ import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.json._
-
 import org.apache.openwhisk.common.AkkaLogging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationLogs
-import org.apache.openwhisk.core.entity.WhiskActivation
 import org.apache.openwhisk.core.database.UserContext
 
 case class SplunkLogStoreConfig(host: String,
@@ -104,7 +101,12 @@ class SplunkLogStore(
         Http().createClientHttpsContext(AkkaSSLConfig().mapSettings(s => s.withLoose(s.loose.withDisableSNI(true))))
       else Http().defaultClientHttpsContext)
 
-  override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] = {
+  override def fetchLogs(namespace: String,
+                         activationId: String,
+                         start: Instant,
+                         end: Instant,
+                         logs: ActivationLogs,
+                         context: UserContext): Future[ActivationLogs] = {
 
     //example curl request:
     //    curl -u  username:password -k https://splunkhost:port/services/search/jobs -d exec_mode=oneshot -d output_mode=json -d "search=search index=someindex | search namespace=guest | search activation_id=a930e5ae4ad4455c8f2505d665aad282 | spath=log_message | table log_message" -d "earliest_time=2017-08-29T12:00:00" -d "latest_time=2017-10-29T12:00:00"
@@ -112,17 +114,17 @@ class SplunkLogStore(
     //    {"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"}], "highlighted":{}}
     //note: splunk returns results in reverse-chronological order, therefore we include "| reverse" to cause results to arrive in chronological order
     val search =
-      s"""search index="${splunkConfig.index}" | search ${splunkConfig.queryConstraints} | search ${splunkConfig.namespaceField}=${activation.namespace.asString} | search ${splunkConfig.activationIdField}=${activation.activationId.toString} | spath ${splunkConfig.logMessageField} | table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField} | reverse"""
+      s"""search index="${splunkConfig.index}" | search ${splunkConfig.queryConstraints} | search ${splunkConfig.namespaceField}=${namespace} | search ${splunkConfig.activationIdField}=${activationId} | spath ${splunkConfig.logMessageField} | table ${splunkConfig.logTimestampField}, ${splunkConfig.logStreamField}, ${splunkConfig.logMessageField} | reverse"""
 
     val entity = FormData(
       Map(
         "exec_mode" -> "oneshot",
         "search" -> search,
         "output_mode" -> "json",
-        "earliest_time" -> activation.start
+        "earliest_time" -> start
           .minusSeconds(splunkConfig.queryTimestampOffsetSeconds)
           .toString, //assume that activation start/end are UTC zone, and splunk events are the same
-        "latest_time" -> activation.end
+        "latest_time" -> end
           .plusSeconds(splunkConfig.queryTimestampOffsetSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
           .toString)).toEntity
 

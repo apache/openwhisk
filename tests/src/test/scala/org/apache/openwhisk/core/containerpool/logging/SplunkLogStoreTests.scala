@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
-import java.time.ZonedDateTime
+import java.time.{Instant, ZonedDateTime}
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -159,7 +159,14 @@ class SplunkLogStoreTests
   it should "find logs based on activation timestamps" in {
     //use the a flow that asserts the request structure and provides a response in the expected format
     val splunkStore = new SplunkLogStore(system, Some(testFlow), testConfig)
-    val result = await(splunkStore.fetchLogs(activation, context))
+    val result = await(
+      splunkStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        activation.start,
+        activation.end,
+        ActivationLogs(),
+        context))
     result shouldBe ActivationLogs(
       Vector(
         "2007-12-03T10:15:30Z           stdout: some log message",
@@ -171,13 +178,27 @@ class SplunkLogStoreTests
   it should "fail to connect to bogus host" in {
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
-    a[Throwable] should be thrownBy await(splunkStore.fetchLogs(activation, context))
+    a[Throwable] should be thrownBy await(
+      splunkStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        Instant.EPOCH,
+        Instant.now(),
+        ActivationLogs(),
+        context))
   }
 
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
-    a[RuntimeException] should be thrownBy await(splunkStore.fetchLogs(activation, context))
+    a[RuntimeException] should be thrownBy await(
+      splunkStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        Instant.EPOCH,
+        Instant.now(),
+        ActivationLogs(),
+        context))
   }
 
 }

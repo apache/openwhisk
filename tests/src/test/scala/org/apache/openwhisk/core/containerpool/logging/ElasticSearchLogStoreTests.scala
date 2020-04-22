@@ -135,7 +135,14 @@ class ElasticSearchLogStoreTests
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfig)
 
-    await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
+    await(
+      esLogStore.fetchLogs(
+        activation.withoutLogs.namespace.asString,
+        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.start,
+        activation.withoutLogs.end,
+        activation.withoutLogs.logs,
+        defaultContext)) shouldBe expectedLogs
   }
 
   it should "get logs from supplied activation record when required headers are not present" in {
@@ -145,7 +152,14 @@ class ElasticSearchLogStoreTests
         Some(testFlow(defaultHttpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfigRequiredHeaders)
 
-    await(esLogStore.fetchLogs(activation, defaultContext)) shouldBe expectedLogs
+    await(
+      esLogStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        activation.start,
+        activation.end,
+        activation.logs,
+        defaultContext)) shouldBe expectedLogs
   }
 
   it should "get user logs from ElasticSearch when required headers are needed" in {
@@ -170,7 +184,14 @@ class ElasticSearchLogStoreTests
       entity = HttpEntity.Empty)
     val context = UserContext(user, requiredHeadersHttpRequest)
 
-    await(esLogStore.fetchLogs(activation.withoutLogs, context)) shouldBe expectedLogs
+    await(
+      esLogStore.fetchLogs(
+        activation.withoutLogs.namespace.asString,
+        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.start,
+        activation.withoutLogs.end,
+        activation.withoutLogs.logs,
+        context)) shouldBe expectedLogs
   }
 
   it should "dynamically replace $UUID in request path" in {
@@ -186,13 +207,27 @@ class ElasticSearchLogStoreTests
       Some(testFlow(defaultHttpResponse, httpRequest)),
       elasticSearchConfig = dynamicPathConfig)
 
-    await(esLogStore.fetchLogs(activation.withoutLogs, defaultContext)) shouldBe expectedLogs
+    await(
+      esLogStore.fetchLogs(
+        activation.withoutLogs.namespace.asString,
+        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.start,
+        activation.withoutLogs.end,
+        activation.withoutLogs.logs,
+        defaultContext)) shouldBe expectedLogs
   }
 
   it should "fail to connect to invalid host" in {
     val esLogStore = new ElasticSearchLogStore(system, elasticSearchConfig = defaultConfig)
 
-    a[Throwable] should be thrownBy await(esLogStore.fetchLogs(activation, defaultContext))
+    a[Throwable] should be thrownBy await(
+      esLogStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        activation.start,
+        activation.end,
+        activation.logs,
+        defaultContext))
   }
 
   it should "forward errors from ElasticSearch" in {
@@ -203,7 +238,14 @@ class ElasticSearchLogStoreTests
         Some(testFlow(httpResponse, defaultHttpRequest)),
         elasticSearchConfig = defaultConfig)
 
-    a[RuntimeException] should be thrownBy await(esLogStore.fetchLogs(activation, defaultContext))
+    a[RuntimeException] should be thrownBy await(
+      esLogStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId.asString,
+        activation.start,
+        activation.end,
+        activation.logs,
+        defaultContext))
   }
 
   it should "error when configuration protocol is invalid" in {

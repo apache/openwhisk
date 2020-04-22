@@ -68,8 +68,13 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   override val containerParameters = Map("--log-driver" -> Set("json-file"))
 
   /* As logs are already part of the activation record, just return that bit of it */
-  override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] =
-    Future.successful(activation.logs)
+  override def fetchLogs(namespace: String,
+                         activationId: String,
+                         start: Instant,
+                         end: Instant,
+                         logs: ActivationLogs,
+                         context: UserContext): Future[ActivationLogs] =
+    Future.successful(logs)
 
   /**
    * Obtains the container's stdout and stderr output.
