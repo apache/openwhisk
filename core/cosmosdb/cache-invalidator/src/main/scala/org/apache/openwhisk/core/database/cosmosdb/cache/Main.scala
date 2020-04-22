@@ -35,9 +35,10 @@ object Main {
     Kamon.init()
     val port = CacheInvalidatorConfig(system.settings.config).invalidatorConfig.port
     BasicHttpService.startHttpService(new BasicRasService {}.route, port, None)
-    CacheInvalidator
-      .start(system.settings.config)
+    val (start, finish) = new CacheInvalidator(system.settings.config).start()
+    start
       .map(_ => log.info(this, s"Started the server at http://localhost:$port"))
+    finish
       .andThen {
         case _ =>
           Kamon.stopModules().andThen {
