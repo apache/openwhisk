@@ -21,10 +21,9 @@ import akka.actor.CoordinatedShutdown
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import common.StreamLogging
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
 import org.apache.openwhisk.core.entity.{
@@ -52,10 +51,10 @@ class CacheInvalidatorTests
     with CosmosDBTestSupport
     with Matchers
     with ScalaFutures
-    with TryValues
-    with StreamLogging {
+    with TryValues {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  private implicit val logging = new AkkaLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
   override def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
@@ -81,7 +80,9 @@ class CacheInvalidatorTests
     val pkg = WhiskPackage(EntityPath("cacheInvalidationTest"), EntityName(randomString()))
 
     //Start cache invalidator after the db for whisks is created
-    startCacheInvalidator()
+    val cacheInvalidator = startCacheInvalidator()
+    val (start, finish) = cacheInvalidator.start()
+    start.futureValue shouldBe Done
     log.info("Cache Invalidator service started")
 
     //Store stuff in db
@@ -97,11 +98,13 @@ class CacheInvalidatorTests
     CacheInvalidationMessage.parse(msgs.head).get.key.mainId shouldBe pkg.docid.asString
 
     store.del(info).futureValue
+    cacheInvalidator.stop(None)
+    finish.futureValue shouldBe Done
   }
 
   private def randomString() = Random.alphanumeric.take(5).mkString
 
-  private def startCacheInvalidator() = {
+  private def startCacheInvalidator(): CacheInvalidator = {
     val tsconfig = ConfigFactory.parseString(s"""
       |akka.kafka.producer {
       |  kafka-clients {
@@ -117,7 +120,7 @@ class CacheInvalidatorTests
       |  }
       |}
       """.stripMargin).withFallback(ConfigFactory.load())
-    CacheInvalidator.start(tsconfig).futureValue shouldBe Done
+    new CacheInvalidator(tsconfig)
   }
 
 }
