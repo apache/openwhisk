@@ -73,7 +73,7 @@ protected trait ControllerTestCommon
   override lazy val entitlementProvider: EntitlementProvider =
     new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
-  override val activationIdFactory: ActivationId.ActivationIdGenerator = new ActivationId.ActivationIdGenerator {
+  override val activationIdFactory = new ActivationId.ActivationIdGenerator {
     // need a static activation id to test activations api
     private val fixedId = ActivationId.generate()
     override def make = fixedId
