@@ -22,9 +22,10 @@ import akka.actor.ActorSystem
 import akka.kafka.scaladsl.Producer
 import akka.kafka.{ProducerMessage, ProducerSettings}
 import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
+import akka.stream._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.connector.kafka.KamonMetricsReporter
 
 import scala.collection.immutable.Seq
@@ -33,24 +34,33 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 case class KafkaEventProducer(
   settings: ProducerSettings[String, String],
   topic: String,
-  eventProducerConfig: EventProducerConfig)(implicit system: ActorSystem, materializer: ActorMaterializer)
+  eventProducerConfig: EventProducerConfig)(implicit system: ActorSystem, materializer: ActorMaterializer, log: Logging)
     extends EventProducer {
   private implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private val queue = Source
-    .queue[(Seq[String], Promise[Done])](eventProducerConfig.bufferSize, OverflowStrategy.dropNew) //TODO Use backpressure
+  private val (queue, stream) = Source
+    .queue[(Seq[String], Promise[Done])](eventProducerConfig.bufferSize, OverflowStrategy.fail) //TODO Use backpressure
     .map {
       case (msgs, p) =>
+        log.info(this, s"Sending ${msgs.size} messages to kafka.")
         ProducerMessage.multi(msgs.map(newRecord), p)
     }
     .via(Producer.flexiFlow(producerSettings))
     .map {
-      case ProducerMessage.MultiResult(_, passThrough) =>
+      case ProducerMessage.MultiResult(r, passThrough) =>
+        log.info(this, s"Produced ${r.size} messages.")
         passThrough.success(Done)
-      case _ => //As we use multi mode only other modes need not be handled
+      case _ =>
+      //As we use multi mode only other modes need not be handled
     }
-    .toMat(Sink.ignore)(Keep.left)
-    .run
+    .recover {
+      case t: Throwable =>
+        //this will happen in case of shutdown while items are still queued, i.e. if producer cannot connect
+        throw (t)
+    }
+    .toMat(Sink.ignore)(Keep.both)
+    .run()
+  def getStreamFuture() = stream
 
   override def send(msg: Seq[String]): Future[Done] = {
     val promise = Promise[Done]
@@ -63,6 +73,7 @@ case class KafkaEventProducer(
   }
 
   def close(): Future[Done] = {
+    log.info(this, "Closing kafka producer.")
     queue.complete()
     queue.watchCompletion()
   }
