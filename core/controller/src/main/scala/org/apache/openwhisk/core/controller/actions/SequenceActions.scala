@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
-import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{EventMessage, MessagingProvider}
 import org.apache.openwhisk.core.controller.WhiskServices
 import org.apache.openwhisk.core.database.{ActivationStore, NoDocumentException, UserContext}
@@ -32,7 +31,6 @@ import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
-import pureconfig.loadConfigOrThrow
 import spray.json._
 
 import scala.collection._
@@ -180,11 +178,9 @@ protected[actions] trait SequenceActions {
             }
           }
 
-          activationStore.storeAfterCheck(seqActivation, context)(
+          activationStore.storeAfterCheck(seqActivation, blockingSequence, context)(
             transid,
-            notifier = None,
-            blockingSequence,
-            disableSequenceStoreResultConfig)
+            notifier = None)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?
@@ -398,7 +394,6 @@ protected[actions] trait SequenceActions {
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-  protected val disableSequenceStoreResultConfig = loadConfigOrThrow[Option[Boolean]](ConfigKeys.disableStoreResult)
 }
 
 /**

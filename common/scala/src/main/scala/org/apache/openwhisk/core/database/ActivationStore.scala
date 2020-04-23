@@ -24,14 +24,18 @@ import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.spi.Spi
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Future
 
 case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 
 trait ActivationStore {
+
+  protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
 
   /**
    * Checks if an activation should be stored in database and stores it.
@@ -42,17 +46,15 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def storeAfterCheck(activation: WhiskActivation, context: UserContext)(implicit transid: TransactionId,
+  def storeAfterCheck(activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext)(implicit transid: TransactionId,
                                                                          notifier: Option[CacheChangeNotification],
-                                                                         isBlockingActivation: Boolean = false,
-                                                                         disableStoreResultConfig: Option[Boolean] =
-                                                                           Some(false)): Future[DocInfo] = {
+                                                                         disableStore: Boolean = disableStoreResultConfig): Future[DocInfo] = {
     if (context.user.limits.storeActivations.getOrElse(true) &&
         shouldStoreActivation(
           activation.response.isSuccess,
           isBlockingActivation,
           transid.meta.extraLogging,
-          disableStoreResultConfig.get)) {
+          disableStore)) {
 
       store(activation, context)
     } else {

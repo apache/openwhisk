@@ -578,11 +578,9 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    activationStore.storeAfterCheck(activation, context)(
+    activationStore.storeAfterCheck(activation, blockingComposition, context)(
       transid,
-      notifier = None,
-      blockingComposition,
-      disableStoreResultConfig)
+      notifier = None)
 
     activation
   }
@@ -669,8 +667,6 @@ protected[actions] trait PrimitiveActions {
 
   protected val controllerActivationConfig =
     loadConfigOrThrow[ControllerActivationConfig](ConfigKeys.controllerActivation)
-
-  protected val disableStoreResultConfig = loadConfigOrThrow[Option[Boolean]](ConfigKeys.disableStoreResult)
 
 }
 
