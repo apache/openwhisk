@@ -53,9 +53,9 @@ class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
    * e.g. the SplunkLogStore to expose logs from some external source */
   def fetchLogs(namespace: String,
                 activationId: String,
-                start: Instant,
-                end: Instant,
-                logs: ActivationLogs,
+                start: Option[Instant],
+                end: Option[Instant],
+                activationLogs: Option[ActivationLogs],
                 context: UserContext): Future[ActivationLogs] =
     Future.successful(ActivationLogs(Vector("Logs are not available.")))
 }

@@ -79,6 +79,9 @@ trait LogStore {
    * Fetch relevant logs for the given activation from the store.
    *
    * This method is called when a user requests logs via the API.
+   * The "logs" parameter is not empty if:
+   * - the activation record exists
+   * - the logs are stored embedded in the activation record
    *
    * @param namespace namespace to fetch the logs for
    * @param activationId activation to fetch the logs for
@@ -88,9 +91,9 @@ trait LogStore {
    */
   def fetchLogs(namespace: String,
                 activationId: String,
-                start: Instant = Instant.EPOCH,
-                end: Instant = Instant.now(),
-                logs: ActivationLogs,
+                start: Option[Instant],
+                end: Option[Instant],
+                logs: Option[ActivationLogs],
                 content: UserContext): Future[ActivationLogs]
 }
 

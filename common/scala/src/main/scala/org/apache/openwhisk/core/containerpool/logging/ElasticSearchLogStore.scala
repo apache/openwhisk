@@ -102,9 +102,9 @@ class ElasticSearchLogStore(
 
   override def fetchLogs(namespace: String,
                          activationId: String,
-                         start: Instant,
-                         end: Instant,
-                         logs: ActivationLogs,
+                         start: Option[Instant],
+                         end: Option[Instant],
+                         activationLogs: Option[ActivationLogs],
                          context: UserContext): Future[ActivationLogs] = {
     val headers = extractRequiredHeaders(context.request.headers)
 
@@ -119,7 +119,11 @@ class ElasticSearchLogStore(
             Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
         }
     } else {
-      Future.successful(logs)
+      activationLogs match {
+        case Some(logs) => Future.successful(logs)
+        case None =>
+          Future.failed(new RuntimeException(s"Activation logs not available for activation ${activationId}"))
+      }
     }
   }
 }

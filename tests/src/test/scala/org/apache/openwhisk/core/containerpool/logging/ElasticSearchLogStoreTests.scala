@@ -139,9 +139,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
         activation.withoutLogs.activationId.asString,
-        activation.withoutLogs.start,
-        activation.withoutLogs.end,
-        activation.withoutLogs.logs,
+        None,
+        None,
+        Some(activation.withoutLogs.logs),
         defaultContext)) shouldBe expectedLogs
   }
 
@@ -156,9 +156,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.namespace.asString,
         activation.activationId.asString,
-        activation.start,
-        activation.end,
-        activation.logs,
+        None,
+        None,
+        Some(activation.logs),
         defaultContext)) shouldBe expectedLogs
   }
 
@@ -188,9 +188,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
         activation.withoutLogs.activationId.asString,
-        activation.withoutLogs.start,
-        activation.withoutLogs.end,
-        activation.withoutLogs.logs,
+        None,
+        None,
+        Some(activation.withoutLogs.logs),
         context)) shouldBe expectedLogs
   }
 
@@ -211,9 +211,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
         activation.withoutLogs.activationId.asString,
-        activation.withoutLogs.start,
-        activation.withoutLogs.end,
-        activation.withoutLogs.logs,
+        None,
+        None,
+        Some(activation.withoutLogs.logs),
         defaultContext)) shouldBe expectedLogs
   }
 
@@ -224,9 +224,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.namespace.asString,
         activation.activationId.asString,
-        activation.start,
-        activation.end,
-        activation.logs,
+        None,
+        None,
+        Some(activation.logs),
         defaultContext))
   }
 
@@ -242,9 +242,9 @@ class ElasticSearchLogStoreTests
       esLogStore.fetchLogs(
         activation.namespace.asString,
         activation.activationId.asString,
-        activation.start,
-        activation.end,
-        activation.logs,
+        None,
+        None,
+        Some(activation.logs),
         defaultContext))
   }
 

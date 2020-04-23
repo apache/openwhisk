@@ -214,9 +214,10 @@ trait ReadOps extends Directives {
     entity: Future[A],
     docId: DocId,
     disableStoreResultConfig: Boolean,
-    project: (String, String, Instant, Instant, ActivationLogs) => Future[JsObject])(implicit transid: TransactionId,
-                                                                                     format: RootJsonFormat[A],
-                                                                                     ma: Manifest[A]) = {
+    project: (String, String, Option[Instant], Option[Instant], Option[ActivationLogs]) => Future[JsObject])(
+    implicit transid: TransactionId,
+    format: RootJsonFormat[A],
+    ma: Manifest[A]) = {
     onComplete(entity) {
       case Success(entity) =>
         logging.debug(this, s"[PROJECT] entity success")
@@ -225,9 +226,9 @@ trait ReadOps extends Directives {
           project(
             activation.namespace.asString,
             activation.activationId.asString,
-            activation.start,
-            activation.end,
-            activation.logs)) {
+            Some(activation.start),
+            Some(activation.end),
+            Some(activation.logs))) {
           case Success(response: JsObject) =>
             complete(OK, response)
           case Failure(t: Throwable) =>
@@ -240,7 +241,7 @@ trait ReadOps extends Directives {
         if (disableStoreResultConfig) {
           val namespace = docId.asString.split("/")(0)
           val id = docId.asString.split("/")(1)
-          onComplete(project(namespace, id, Instant.EPOCH, Instant.now(), ActivationLogs())) {
+          onComplete(project(namespace, id, None, None, None)) {
             case Success(response: JsObject) =>
               logging.debug(this, s"[PROJECTLOG] entity success")
               complete(OK, response)

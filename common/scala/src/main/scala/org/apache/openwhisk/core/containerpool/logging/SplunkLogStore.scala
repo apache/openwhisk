@@ -103,9 +103,9 @@ class SplunkLogStore(
 
   override def fetchLogs(namespace: String,
                          activationId: String,
-                         start: Instant,
-                         end: Instant,
-                         logs: ActivationLogs,
+                         start: Option[Instant],
+                         end: Option[Instant],
+                         logs: Option[ActivationLogs],
                          context: UserContext): Future[ActivationLogs] = {
 
     //example curl request:
@@ -122,9 +122,11 @@ class SplunkLogStore(
         "search" -> search,
         "output_mode" -> "json",
         "earliest_time" -> start
+          .getOrElse(Instant.EPOCH)
           .minusSeconds(splunkConfig.queryTimestampOffsetSeconds)
           .toString, //assume that activation start/end are UTC zone, and splunk events are the same
         "latest_time" -> end
+          .getOrElse(Instant.now())
           .plusSeconds(splunkConfig.queryTimestampOffsetSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
           .toString)).toEntity
 

@@ -227,7 +227,11 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       activationStore.get(ActivationId(docid.asString), context),
       docid,
       disableStoreResultConfig,
-      (namespace: String, activationId: String, start: Instant, end: Instant, logs: ActivationLogs) =>
+      (namespace: String,
+       activationId: String,
+       start: Option[Instant],
+       end: Option[Instant],
+       logs: Option[ActivationLogs]) =>
         logStore.fetchLogs(namespace, activationId, start, end, logs, context).map(_.toJsonObject))
   }
 }

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.ZonedDateTime
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -163,9 +163,9 @@ class SplunkLogStoreTests
       splunkStore.fetchLogs(
         activation.namespace.asString,
         activation.activationId.asString,
-        activation.start,
-        activation.end,
-        ActivationLogs(),
+        Some(activation.start),
+        Some(activation.end),
+        None,
         context))
     result shouldBe ActivationLogs(
       Vector(
@@ -179,26 +179,14 @@ class SplunkLogStoreTests
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
     a[Throwable] should be thrownBy await(
-      splunkStore.fetchLogs(
-        activation.namespace.asString,
-        activation.activationId.asString,
-        Instant.EPOCH,
-        Instant.now(),
-        ActivationLogs(),
-        context))
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId.asString, None, None, None, context))
   }
 
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
     a[RuntimeException] should be thrownBy await(
-      splunkStore.fetchLogs(
-        activation.namespace.asString,
-        activation.activationId.asString,
-        Instant.EPOCH,
-        Instant.now(),
-        ActivationLogs(),
-        context))
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId.asString, None, None, None, context))
   }
 
 }
