@@ -45,6 +45,7 @@ object Main {
             case _ =>
               system.terminate().andThen {
                 case _ =>
+                  //it is possible that the cosmos sdk reactor system does not cleanly shut down, so we will explicitly terminate jvm here.
                   log.info(this, "Exiting")
                   sys.exit(0)
               }

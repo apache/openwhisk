@@ -37,7 +37,6 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.Seq
 import scala.compat.java8.FutureConverters._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 trait ChangeFeedObserver {
   def process(context: ChangeFeedObserverContext, docs: Seq[CosmosItemProperties]): Future[Done]
@@ -98,16 +97,18 @@ class ChangeFeedConsumer(collName: String, config: CacheInvalidatorConfig, obser
   def close(): Future[Done] = {
 
     processor
-      .map(
-        p =>
-          Try(p.stop().toFuture.toScala)
-            .recover {
-              case t: Throwable =>
-                log.warn(this, s"Failed to stop processor ${t}")
-                Future.successful(Unit)
-            }
-            .get
-            .map(_ => Done))
+      .map { p =>
+        // be careful about exceptions thrown during ChangeFeedProcessor.stop()
+        // e.g. calling stop() before start() completed, etc will throw exceptions
+        val stop = try {
+          p.stop().toFuture.toScala
+        } catch {
+          case t: Throwable =>
+            log.warn(this, s"Failed to stop processor ${t}")
+            Future.successful(Void)
+        }
+        stop.map(_ => Done)
+      }
       .getOrElse(Future.successful(Done))
       .andThen {
         case _ =>
