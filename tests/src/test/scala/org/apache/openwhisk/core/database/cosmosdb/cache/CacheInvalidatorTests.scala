@@ -16,12 +16,15 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
+import java.net.UnknownHostException
+
 import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
+import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
@@ -102,6 +105,53 @@ class CacheInvalidatorTests
     finish.futureValue shouldBe Done
   }
 
+  it should "exit if there is a missing kafka broker config" in {
+    implicit val tid = TransactionId.testing
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    implicit val format = WhiskEntityJsonFormat
+    dbName = createTestDB().getId
+    val dbConfig = storeConfig.copy(db = dbName)
+    val store = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](dbConfig, None)
+    val pkg = WhiskPackage(EntityPath("cacheInvalidationTest"), EntityName(randomString()))
+
+    //Start cache invalidator after the db for whisks is created
+    val cacheInvalidator = startCacheInvalidatorWithoutKafka()
+    val (start, finish) = cacheInvalidator.start()
+    start.futureValue shouldBe Done
+    log.info("Cache Invalidator service started")
+    //when kafka config is missing, we expect KafkaException from producer immediately (although stopping feed processor takes some time)
+    finish.failed.futureValue shouldBe an[KafkaException]
+  }
+  it should "exit if kafka is not consuming" in {
+    implicit val tid = TransactionId.testing
+    implicit val docReader: DocumentReader = WhiskDocumentReader
+    implicit val format = WhiskEntityJsonFormat
+    dbName = createTestDB().getId
+    val dbConfig = storeConfig.copy(db = dbName)
+    val store = CosmosDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](dbConfig, None)
+    val pkg = WhiskPackage(EntityPath("cacheInvalidationTest"), EntityName(randomString()))
+
+    //Start cache invalidator with a bogus kafka broker after the db for whisks is created
+    val cacheInvalidator = startCacheInvalidatorWithInvalidKafka()
+    val (start, finish) = cacheInvalidator.start()
+    start.futureValue shouldBe Done
+    log.info("Cache Invalidator service started")
+
+    //Store stuff in db
+    val info = store.put(pkg).futureValue
+    log.info(s"Added document ${info.id}")
+    //when we cannot connect to kafka, we expect KafkaException from producer after timeout
+    finish.failed.futureValue shouldBe an[KafkaException]
+  }
+
+  it should "exit if there is a bad db config" in {
+    //Start cache invalidator after the db for whisks is created
+    val cacheInvalidator = startCacheInvalidatorWithoutCosmos()
+    val (start, finish) = cacheInvalidator.start()
+    //when db config is broken, we expect reactor.core.Exceptions$ReactiveException (a non-public RuntimeException)
+    start.failed.futureValue.getCause shouldBe an[UnknownHostException]
+  }
+
   private def randomString() = Random.alphanumeric.take(5).mkString
 
   private def startCacheInvalidator(): CacheInvalidator = {
@@ -122,5 +172,59 @@ class CacheInvalidatorTests
       """.stripMargin).withFallback(ConfigFactory.load())
     new CacheInvalidator(tsconfig)
   }
-
+  private def startCacheInvalidatorWithoutKafka(): CacheInvalidator = {
+    val tsconfig = ConfigFactory.parseString(s"""
+      |akka.kafka.producer {
+      |  kafka-clients {
+      |    #this config is missing
+      |  }
+      |}
+      |whisk {
+      |  cache-invalidator {
+      |    cosmosdb {
+      |      db = "$dbName"
+      |      start-from-beginning  = true
+      |    }
+      |  }
+      |}
+      """.stripMargin).withFallback(ConfigFactory.load())
+    new CacheInvalidator(tsconfig)
+  }
+  private def startCacheInvalidatorWithInvalidKafka(): CacheInvalidator = {
+    val tsconfig = ConfigFactory.parseString(s"""
+      |akka.kafka.producer {
+      |  kafka-clients {
+      |    bootstrap.servers = "localhost:9092"
+      |  }
+      |}
+      |whisk {
+      |  cache-invalidator {
+      |    cosmosdb {
+      |      db = "$dbName"
+      |      start-from-beginning  = true
+      |    }
+      |  }
+      |}
+      """.stripMargin).withFallback(ConfigFactory.load())
+    new CacheInvalidator(tsconfig)
+  }
+  private def startCacheInvalidatorWithoutCosmos(): CacheInvalidator = {
+    val tsconfig = ConfigFactory.parseString(s"""
+      |akka.kafka.producer {
+      |  kafka-clients {
+      |    bootstrap.servers = "$server"
+      |  }
+      |}
+      |whisk {
+      |  cache-invalidator {
+      |    cosmosdb {
+      |      db = "$dbName"
+      |      endpoint = "https://BADENDPOINT-nobody-home.documents.azure.com:443/"
+      |      start-from-beginning  = true
+      |    }
+      |  }
+      |}
+      """.stripMargin).withFallback(ConfigFactory.load())
+    new CacheInvalidator(tsconfig)
+  }
 }
