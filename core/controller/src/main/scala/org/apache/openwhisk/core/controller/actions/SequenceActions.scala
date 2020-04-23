@@ -178,9 +178,7 @@ protected[actions] trait SequenceActions {
             }
           }
 
-          activationStore.storeAfterCheck(seqActivation, blockingSequence, context)(
-            transid,
-            notifier = None)
+          activationStore.storeAfterCheck(seqActivation, blockingSequence, context)(transid, notifier = None, logging)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?

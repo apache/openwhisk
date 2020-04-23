@@ -578,9 +578,7 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    activationStore.storeAfterCheck(activation, blockingComposition, context)(
-      transid,
-      notifier = None)
+    activationStore.storeAfterCheck(activation, blockingComposition, context)(transid, notifier = None, logging)
 
     activation
   }

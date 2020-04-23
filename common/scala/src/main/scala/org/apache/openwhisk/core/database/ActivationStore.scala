@@ -36,19 +36,23 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 trait ActivationStore {
 
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
+  protected val unstoredLogsEnabledConfig = loadConfigOrThrow[Boolean](ConfigKeys.unstoredLogsEnabled)
 
   /**
    * Checks if an activation should be stored in database and stores it.
    *
    * @param activation activation to store
+   * @param isBlockingActivation is activation blocking
    * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def storeAfterCheck(activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext)(implicit transid: TransactionId,
-                                                                         notifier: Option[CacheChangeNotification],
-                                                                         disableStore: Boolean = disableStoreResultConfig): Future[DocInfo] = {
+  def storeAfterCheck(activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification],
+    logging: Logging,
+    disableStore: Boolean = disableStoreResultConfig): Future[DocInfo] = {
     if (context.user.limits.storeActivations.getOrElse(true) &&
         shouldStoreActivation(
           activation.response.isSuccess,
@@ -58,6 +62,12 @@ trait ActivationStore {
 
       store(activation, context)
     } else {
+      if (unstoredLogsEnabledConfig) {
+        logging.info(
+          this,
+          s"Successful NOT stored activation ${activation.activationId.asString} from namespace ${activation.namespace.asString} with response_size=${activation.response.size
+            .getOrElse("0")}B")
+      }
       Future.successful(DocInfo(activation.docid))
     }
   }

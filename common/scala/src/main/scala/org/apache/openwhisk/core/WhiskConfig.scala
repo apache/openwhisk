@@ -267,6 +267,7 @@ object ConfigKeys {
   val swaggerUi = "whisk.swagger-ui"
 
   val disableStoreResult = s"$activation.disable-store-result"
+  val unstoredLogsEnabled = s"$activation.unstored-logs-enabled"
 
   val apacheClientConfig = "whisk.apache-client"
 
