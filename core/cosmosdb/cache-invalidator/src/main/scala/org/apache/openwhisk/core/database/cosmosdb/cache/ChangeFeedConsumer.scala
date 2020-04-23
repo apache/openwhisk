@@ -100,14 +100,13 @@ class ChangeFeedConsumer(collName: String, config: CacheInvalidatorConfig, obser
       .map { p =>
         // be careful about exceptions thrown during ChangeFeedProcessor.stop()
         // e.g. calling stop() before start() completed, etc will throw exceptions
-        val stop = try {
-          p.stop().toFuture.toScala
+        try {
+          p.stop().toFuture.toScala.map(_ => Done)
         } catch {
           case t: Throwable =>
             log.warn(this, s"Failed to stop processor ${t}")
-            Future.successful(Void)
+            Future.failed(t)
         }
-        stop.map(_ => Done)
       }
       .getOrElse(Future.successful(Done))
       .andThen {
