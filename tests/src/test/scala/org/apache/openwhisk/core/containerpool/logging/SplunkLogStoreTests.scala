@@ -72,9 +72,9 @@ class SplunkLogStoreTests
     "namespace",
     "activation_id",
     "somefield::somevalue",
-    10,
-    168,
-    22,
+    10.seconds,
+    7.days,
+    22.seconds,
     disableSNI = false)
 
   behavior of "Splunk LogStore"

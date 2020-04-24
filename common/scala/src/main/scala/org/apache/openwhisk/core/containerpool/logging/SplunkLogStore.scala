@@ -53,6 +53,7 @@ import org.apache.openwhisk.common.AkkaLogging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationLogs
 import org.apache.openwhisk.core.database.UserContext
+import scala.concurrent.duration.FiniteDuration
 
 case class SplunkLogStoreConfig(host: String,
                                 port: Int,
@@ -65,9 +66,9 @@ case class SplunkLogStoreConfig(host: String,
                                 namespaceField: String,
                                 activationIdField: String,
                                 queryConstraints: String,
-                                finalizeMaxTime: Int,
-                                earliestTimeOffsetHours: Int,
-                                queryTimestampOffsetSeconds: Int,
+                                finalizeMaxTime: FiniteDuration,
+                                earliestTimeOffset: FiniteDuration,
+                                queryTimestampOffset: FiniteDuration,
                                 disableSNI: Boolean)
 case class SplunkResponse(results: Vector[JsObject])
 object SplunkResponseJsonProtocol extends DefaultJsonProtocol {
@@ -125,14 +126,14 @@ class SplunkLogStore(
         "search" -> search,
         "output_mode" -> "json",
         "earliest_time" -> start
-          .getOrElse(Instant.now().minus(splunkConfig.earliestTimeOffsetHours, ChronoUnit.HOURS))
-          .minusSeconds(splunkConfig.queryTimestampOffsetSeconds)
+          .getOrElse(Instant.now().minus(splunkConfig.earliestTimeOffset.toSeconds, ChronoUnit.SECONDS))
+          .minusSeconds(splunkConfig.queryTimestampOffset.toSeconds)
           .toString, //assume that activation start/end are UTC zone, and splunk events are the same
         "latest_time" -> end
           .getOrElse(Instant.now())
-          .plusSeconds(splunkConfig.queryTimestampOffsetSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
+          .plusSeconds(splunkConfig.queryTimestampOffset.toSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
           .toString,
-        "max_time" -> splunkConfig.finalizeMaxTime.toString //max time for the search query to run in seconds
+        "max_time" -> splunkConfig.finalizeMaxTime.toSeconds.toString //max time for the search query to run in seconds
       )).toEntity
 
     logging.debug(this, "sending request")
