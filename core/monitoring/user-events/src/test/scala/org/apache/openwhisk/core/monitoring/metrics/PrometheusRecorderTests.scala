@@ -17,12 +17,17 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
+import com.typesafe.config.ConfigFactory
 import io.prometheus.client.CollectorRegistry
+import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.connector.{Activation, EventMessage}
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subject, UUID}
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration._
 
@@ -36,11 +41,13 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   val actionWithDefaultPackage = "createApi"
   val kind = "nodejs:10"
   val memory = "256"
+  createCustomTopic(EventConsumer.userEventTopic)
 
   it should "push user events to kamon" in {
-    createCustomTopic(EventConsumer.userEventTopic)
-
-    val consumer = createConsumer(kafkaPort, system.settings.config)
+    CollectorRegistry.defaultRegistry.clear()
+    val metricConfig = loadConfigOrThrow[MetricConfig](system.settings.config, "user-events")
+    val metricRecorder = PrometheusRecorder(new PrometheusReporter, metricConfig)
+    val consumer = createConsumer(kafkaPort, system.settings.config, metricRecorder)
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,
       newActivationEvent(s"$namespaceDemo/$actionWithCustomPackage", kind, memory).serialize)
@@ -80,6 +87,37 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     namespaceCounterTotal(namespaceMetric, namespaceGuest) shouldBe 1
   }
 
+  it should "push user event to kamon with prometheus metrics tags relabel" in {
+    val httpPort = freePort()
+    val globalConfig = system.settings.config
+    val config = ConfigFactory.parseString(s"""
+            | whisk {
+            |  user-events {
+            |    port = $httpPort
+            |    enable-kamon = false
+            |    ignored-namespaces = ["guest"]
+            |    rename-tags {
+            |      namespace = "ow_namespace"
+            |    }
+            |  }
+            | }
+         """.stripMargin)
+    CollectorRegistry.defaultRegistry.clear()
+    val metricConfig = loadConfigOrThrow[MetricConfig](config, "whisk.user-events")
+    val metricRecorder = PrometheusRecorder(new PrometheusReporter, metricConfig)
+    val consumer = createConsumer(kafkaPort, system.settings.config, metricRecorder)
+
+    publishStringMessageToKafka(
+      EventConsumer.userEventTopic,
+      newActivationEvent(s"$namespaceDemo/$actionWithCustomPackage", kind, memory).serialize)
+
+    sleep(sleepAfterProduce, "sleeping post produce")
+    consumer.shutdown().futureValue
+    CollectorRegistry.defaultRegistry.getSampleValue(
+      activationMetric,
+      Array("ow_namespace", "initiator", "action", "kind", "memory"),
+      Array(namespaceDemo, initiator, actionWithCustomPackage, kind, memory)) shouldBe 1
+  }
   private def newActivationEvent(actionPath: String, kind: String, memory: String) =
     EventMessage(
       "test",

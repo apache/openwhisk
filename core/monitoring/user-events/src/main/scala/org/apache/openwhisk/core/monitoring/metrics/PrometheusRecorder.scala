@@ -25,12 +25,12 @@ import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.{HttpEntity, MessageEntity}
 import akka.stream.scaladsl.{Concat, Source}
 import akka.util.ByteString
-import org.apache.openwhisk.core.connector.{Activation, Metric}
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter
-import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
+import org.apache.openwhisk.core.connector.{Activation, Metric}
 import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ActivationResponse}
+import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -52,13 +52,13 @@ trait PrometheusMetricNames extends MetricNames {
   val timedLimitMetric = "openwhisk_action_limit_timed_total"
 }
 
-case class PrometheusRecorder(kamon: PrometheusReporter)
+case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
     extends MetricRecorder
     with PrometheusExporter
     with SLF4JLogging {
-  import PrometheusRecorder._
   private val activationMetrics = new TrieMap[String, ActivationPromMetrics]
   private val limitMetrics = new TrieMap[String, LimitPromMetrics]
+  private val promMetrics = PrometheusMetrics()
 
   override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
     lookup(activation, initiator).record(activation, initiator, metricConfig)
@@ -85,8 +85,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
   }
 
   case class LimitPromMetrics(namespace: String) {
-    private val concurrentLimit = concurrentLimitCounter.labels(namespace)
-    private val timedLimit = timedLimitCounter.labels(namespace)
+    private val concurrentLimit = promMetrics.concurrentLimitCounter.labels(namespace)
+    private val timedLimit = promMetrics.timedLimitCounter.labels(namespace)
 
     def record(m: Metric): Unit = {
       m.metricName match {
@@ -103,24 +103,25 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
                                    kind: String,
                                    memory: String,
                                    initiatorNamespace: String) {
-    private val namespaceActivations = namespaceActivationCounter.labels(namespace, initiatorNamespace)
-    private val activations = activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
-    private val coldStarts = coldStartCounter.labels(namespace, initiatorNamespace, action)
-    private val waitTime = waitTimeHisto.labels(namespace, initiatorNamespace, action)
-    private val initTime = initTimeHisto.labels(namespace, initiatorNamespace, action)
-    private val duration = durationHisto.labels(namespace, initiatorNamespace, action)
-    private val responseSize = responseSizeHisto.labels(namespace, initiatorNamespace, action)
 
-    private val gauge = memoryGauge.labels(namespace, initiatorNamespace, action)
+    private val namespaceActivations = promMetrics.namespaceActivationCounter.labels(namespace, initiatorNamespace)
+    private val activations = promMetrics.activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
+    private val coldStarts = promMetrics.coldStartCounter.labels(namespace, initiatorNamespace, action)
+    private val waitTime = promMetrics.waitTimeHisto.labels(namespace, initiatorNamespace, action)
+    private val initTime = promMetrics.initTimeHisto.labels(namespace, initiatorNamespace, action)
+    private val duration = promMetrics.durationHisto.labels(namespace, initiatorNamespace, action)
+    private val responseSize = promMetrics.responseSizeHisto.labels(namespace, initiatorNamespace, action)
+
+    private val gauge = promMetrics.memoryGauge.labels(namespace, initiatorNamespace, action)
 
     private val statusSuccess =
-      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusSuccess)
+      promMetrics.statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusSuccess)
     private val statusApplicationError =
-      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusApplicationError)
+      promMetrics.statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusApplicationError)
     private val statusDeveloperError =
-      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusDeveloperError)
+      promMetrics.statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusDeveloperError)
     private val statusInternalError =
-      statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
+      promMetrics.statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
     def record(a: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
       namespaceActivations.inc()
@@ -150,13 +151,96 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
         case ActivationResponse.statusApplicationError => statusApplicationError.inc()
         case ActivationResponse.statusDeveloperError   => statusDeveloperError.inc()
         case ActivationResponse.statusWhiskError       => statusInternalError.inc()
-        case x                                         => statusCounter.labels(namespace, initiator, action, x).inc()
+        case x                                         => promMetrics.statusCounter.labels(namespace, initiator, action, x).inc()
       }
 
       a.size.foreach(responseSize.observe(_))
       a.userDefinedStatusCode.foreach(value =>
-        userDefinedStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
+        promMetrics.userDefinedStatusCodeCounter.labels(namespace, initiator, action, value.toString).inc())
     }
+  }
+
+  case class PrometheusMetrics() extends PrometheusMetricNames {
+
+    private val namespace = config.renameTags.getOrElse(actionNamespace, actionNamespace)
+    private val initiator = config.renameTags.getOrElse(initiatorNamespace, initiatorNamespace)
+    private val action = config.renameTags.getOrElse(actionName, actionName)
+    private val kind = config.renameTags.getOrElse(actionKind, actionKind)
+    private val memory = config.renameTags.getOrElse(actionMemory, actionMemory)
+    private val status = config.renameTags.getOrElse(actionStatus, actionStatus)
+    private val statusCode = config.renameTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode)
+
+    val namespaceActivationCounter =
+      counter(namespaceMetric, "Namespace activations Count", namespace, initiator)
+
+    val activationCounter =
+      counter(activationMetric, "Activation Count", namespace, initiator, action, kind, memory)
+
+    val coldStartCounter =
+      counter(coldStartMetric, "Cold start counts", namespace, initiator, action)
+
+    val statusCounter =
+      counter(statusMetric, "Activation failure status type", namespace, initiator, action, status)
+
+    val userDefinedStatusCodeCounter =
+      counter(
+        userDefinedStatusCodeMetric,
+        "status code returned in action result response set by developer",
+        namespace,
+        initiator,
+        action,
+        statusCode)
+
+    val waitTimeHisto =
+      histogram(waitTimeMetric, "Internal system hold time", namespace, initiator, action)
+
+    val initTimeHisto =
+      histogram(initTimeMetric, "Time it took to initialize an action, e.g. docker init", namespace, initiator, action)
+
+    val durationHisto =
+      histogram(durationMetric, "Actual time the action code was running", namespace, initiator, action)
+
+    val responseSizeHisto =
+      Histogram
+        .build()
+        .name(responseSizeMetric)
+        .help("Activation Response size")
+        .labelNames(namespace, initiator, action)
+        .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
+        .register()
+
+    val memoryGauge =
+      gauge(memoryMetric, "Memory consumption of the action containers", namespace, initiator, action)
+
+    val concurrentLimitCounter =
+      counter(concurrentLimitMetric, "a user has exceeded its limit for concurrent invocations", namespace)
+
+    val timedLimitCounter =
+      counter(timedLimitMetric, "the user has reached its per minute limit for the number of invocations", namespace)
+
+    private def counter(name: String, help: String, tags: String*) =
+      Counter
+        .build()
+        .name(name)
+        .help(help)
+        .labelNames(tags: _*)
+        .register()
+
+    private def gauge(name: String, help: String, tags: String*) =
+      Gauge
+        .build()
+        .name(name)
+        .help(help)
+        .labelNames(tags: _*)
+        .register()
+
+    private def histogram(name: String, help: String, tags: String*) =
+      Histogram
+        .build()
+        .name(name)
+        .help(help)
+        .labelNames(tags: _*)
+        .register()
   }
 
   //Returns a floating point number
@@ -189,95 +273,4 @@ case class PrometheusRecorder(kamon: PrometheusReporter)
       value
     }
   }
-}
-
-object PrometheusRecorder extends PrometheusMetricNames {
-  private val namespaceActivationCounter =
-    counter(namespaceMetric, "Namespace activations Count", actionNamespace, initiatorNamespace)
-  private val activationCounter =
-    counter(
-      activationMetric,
-      "Activation Count",
-      actionNamespace,
-      initiatorNamespace,
-      actionName,
-      actionKind,
-      actionMemory)
-  private val coldStartCounter =
-    counter(coldStartMetric, "Cold start counts", actionNamespace, initiatorNamespace, actionName)
-  private val statusCounter =
-    counter(
-      statusMetric,
-      "Activation failure status type",
-      actionNamespace,
-      initiatorNamespace,
-      actionName,
-      actionStatus)
-  private val userDefinedStatusCodeCounter =
-    counter(
-      userDefinedStatusCodeMetric,
-      "status code returned in action result response set by developer",
-      actionNamespace,
-      initiatorNamespace,
-      actionName,
-      userDefinedStatusCode)
-  private val waitTimeHisto =
-    histogram(waitTimeMetric, "Internal system hold time", actionNamespace, initiatorNamespace, actionName)
-  private val initTimeHisto =
-    histogram(
-      initTimeMetric,
-      "Time it took to initialize an action, e.g. docker init",
-      actionNamespace,
-      initiatorNamespace,
-      actionName)
-  private val durationHisto =
-    histogram(
-      durationMetric,
-      "Actual time the action code was running",
-      actionNamespace,
-      initiatorNamespace,
-      actionName)
-  private val responseSizeHisto =
-    Histogram
-      .build()
-      .name(responseSizeMetric)
-      .help("Activation Response size")
-      .labelNames(actionNamespace, initiatorNamespace, actionName)
-      .linearBuckets(0, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes.toDouble, 10)
-      .register()
-  private val memoryGauge =
-    gauge(memoryMetric, "Memory consumption of the action containers", actionNamespace, initiatorNamespace, actionName)
-
-  private val concurrentLimitCounter =
-    counter(concurrentLimitMetric, "a user has exceeded its limit for concurrent invocations", actionNamespace)
-
-  private val timedLimitCounter =
-    counter(
-      timedLimitMetric,
-      "the user has reached its per minute limit for the number of invocations",
-      actionNamespace)
-
-  private def counter(name: String, help: String, tags: String*) =
-    Counter
-      .build()
-      .name(name)
-      .help(help)
-      .labelNames(tags: _*)
-      .register()
-
-  private def gauge(name: String, help: String, tags: String*) =
-    Gauge
-      .build()
-      .name(name)
-      .help(help)
-      .labelNames(tags: _*)
-      .register()
-
-  private def histogram(name: String, help: String, tags: String*) =
-    Histogram
-      .build()
-      .name(name)
-      .help(help)
-      .labelNames(tags: _*)
-      .register()
 }

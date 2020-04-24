@@ -45,6 +45,19 @@ whisk {
   }
 }
 ```
+- To rename metrics tags, use the below configuration. Currently, this configuration only applies to the Prometheus
+Metrics. For example, here `namespace` tag name will be replaced by `ow_namespace` in all metrics.
+
+```
+whisk {
+  user-events {
+    rename-tags {
+      # rename/relabel prometheus metrics tags
+      "namespace" = "ow_namespae"
+     }
+  }
+}
+```
 
 Integrations
 ------------
