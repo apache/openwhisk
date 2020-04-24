@@ -124,15 +124,15 @@ protected trait ControllerTestCommon
     Await.result(activationStore.get(activationId, context), timeout)
   }
 
-  def storeActivation(activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext)(
-    implicit transid: TransactionId,
-    timeout: Duration = 10 seconds,
-    disableStore: Boolean = false): DocInfo = {
-    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, context)(
+  def storeActivation(
+    activation: WhiskActivation,
+    isBlockingActivation: Boolean,
+    disableStore: Boolean,
+    context: UserContext)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, Some(disableStore), context)(
       transid,
       notifier = None,
-      logging,
-      disableStore)
+      logging)
     val doc = Await.result(docFuture, timeout)
     assert(doc != null)
     doc

@@ -48,17 +48,18 @@ trait ActivationStore {
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def storeAfterCheck(activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext)(
-    implicit transid: TransactionId,
-    notifier: Option[CacheChangeNotification],
-    logging: Logging,
-    disableStore: Boolean = disableStoreResultConfig): Future[DocInfo] = {
+  def storeAfterCheck(activation: WhiskActivation,
+                      isBlockingActivation: Boolean,
+                      disableStore: Option[Boolean],
+                      context: UserContext)(implicit transid: TransactionId,
+                                            notifier: Option[CacheChangeNotification],
+                                            logging: Logging): Future[DocInfo] = {
     if (context.user.limits.storeActivations.getOrElse(true) &&
         shouldStoreActivation(
           activation.response.isSuccess,
           isBlockingActivation,
           transid.meta.extraLogging,
-          disableStore)) {
+          disableStore.getOrElse(disableStoreResultConfig))) {
 
       store(activation, context)
     } else {
