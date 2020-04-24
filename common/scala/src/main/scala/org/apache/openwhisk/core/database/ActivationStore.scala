@@ -65,7 +65,7 @@ trait ActivationStore {
       if (unstoredLogsEnabledConfig) {
         logging.info(
           this,
-          s"Successful NOT stored activation ${activation.activationId.asString} from namespace ${activation.namespace.asString} with response_size=${activation.response.size
+          s"Successful NOT stored activation ${activation.activationId.asString} for action ${activation.name} from namespace ${activation.namespace.asString} with response_size=${activation.response.size
             .getOrElse("0")}B")
       }
       Future.successful(DocInfo(activation.docid))
