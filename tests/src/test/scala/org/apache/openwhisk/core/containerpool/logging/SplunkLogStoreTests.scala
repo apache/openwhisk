@@ -72,6 +72,8 @@ class SplunkLogStoreTests
     "namespace",
     "activation_id",
     "somefield::somevalue",
+    10,
+    168,
     22,
     disableSNI = false)
 
@@ -119,6 +121,7 @@ class SplunkLogStoreTests
               val outputMode = form.fields.get("output_mode")
               val search = form.fields.get("search")
               val execMode = form.fields.get("exec_mode")
+              val maxTime = form.fields.get("max_time")
 
               request.uri.path.toString() shouldBe "/services/search/jobs"
               request.headers shouldBe List(Authorization.basic(testConfig.username, testConfig.password))
@@ -126,6 +129,7 @@ class SplunkLogStoreTests
               latestTime shouldBe Some(endTimePlusOffset)
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
+              maxTime shouldBe Some("10")
               search shouldBe Some(
                 s"""search index="${testConfig.index}" | search ${testConfig.queryConstraints} | search ${testConfig.namespaceField}=${activation.namespace.asString} | search ${testConfig.activationIdField}=${activation.activationId.toString} | spath ${testConfig.logMessageField} | table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField} | reverse""")
 

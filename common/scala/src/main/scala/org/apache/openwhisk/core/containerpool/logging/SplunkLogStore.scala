@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.logging
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -64,6 +65,8 @@ case class SplunkLogStoreConfig(host: String,
                                 namespaceField: String,
                                 activationIdField: String,
                                 queryConstraints: String,
+                                finalizeMaxTime: Int,
+                                earliestTimeOffsetHours: Int,
                                 queryTimestampOffsetSeconds: Int,
                                 disableSNI: Boolean)
 case class SplunkResponse(results: Vector[JsObject])
@@ -122,13 +125,15 @@ class SplunkLogStore(
         "search" -> search,
         "output_mode" -> "json",
         "earliest_time" -> start
-          .getOrElse(Instant.EPOCH)
+          .getOrElse(Instant.now().minus(splunkConfig.earliestTimeOffsetHours, ChronoUnit.HOURS))
           .minusSeconds(splunkConfig.queryTimestampOffsetSeconds)
           .toString, //assume that activation start/end are UTC zone, and splunk events are the same
         "latest_time" -> end
           .getOrElse(Instant.now())
           .plusSeconds(splunkConfig.queryTimestampOffsetSeconds) //add 5s to avoid a timerange of 0 on short-lived activations
-          .toString)).toEntity
+          .toString,
+        "max_time" -> splunkConfig.finalizeMaxTime.toString //max time for the search query to run in seconds
+      )).toEntity
 
     logging.debug(this, "sending request")
     queueRequest(
