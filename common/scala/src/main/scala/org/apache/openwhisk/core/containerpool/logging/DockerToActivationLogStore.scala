@@ -69,7 +69,7 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
 
   /* As logs are already part of the activation record, just return that bit of it */
   override def fetchLogs(namespace: String,
-                         activationId: String,
+                         activationId: ActivationId,
                          start: Option[Instant],
                          end: Option[Instant],
                          activationLogs: Option[ActivationLogs],

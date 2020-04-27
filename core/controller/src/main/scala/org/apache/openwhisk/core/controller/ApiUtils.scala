@@ -36,7 +36,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.PostProcess.PostProcessEntity
 import org.apache.openwhisk.core.database._
-import org.apache.openwhisk.core.entity.{ActivationLogs, DocId, WhiskActivation, WhiskDocument}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, DocId, WhiskActivation, WhiskDocument}
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages._
@@ -214,7 +214,7 @@ trait ReadOps extends Directives {
     entity: Future[A],
     docId: DocId,
     disableStoreResultConfig: Boolean,
-    project: (String, String, Option[Instant], Option[Instant], Option[ActivationLogs]) => Future[JsObject])(
+    project: (String, ActivationId, Option[Instant], Option[Instant], Option[ActivationLogs]) => Future[JsObject])(
     implicit transid: TransactionId,
     format: RootJsonFormat[A],
     ma: Manifest[A]) = {
@@ -225,7 +225,7 @@ trait ReadOps extends Directives {
         onComplete(
           project(
             activation.namespace.asString,
-            activation.activationId.asString,
+            activation.activationId,
             Some(activation.start),
             Some(activation.end),
             Some(activation.logs))) {
@@ -241,7 +241,7 @@ trait ReadOps extends Directives {
         if (disableStoreResultConfig) {
           val namespace = docId.asString.split("/")(0)
           val id = docId.asString.split("/")(1)
-          onComplete(project(namespace, id, None, None, None)) {
+          onComplete(project(namespace, ActivationId(id), None, None, None)) {
             case Success(response: JsObject) =>
               logging.debug(this, s"[PROJECTLOG] entity success")
               complete(OK, response)

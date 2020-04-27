@@ -228,7 +228,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       docid,
       disableStoreResultConfig,
       (namespace: String,
-       activationId: String,
+       activationId: ActivationId,
        start: Option[Instant],
        end: Option[Instant],
        logs: Option[ActivationLogs]) =>

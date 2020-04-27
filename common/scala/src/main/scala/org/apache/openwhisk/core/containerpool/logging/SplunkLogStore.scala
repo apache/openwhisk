@@ -51,8 +51,9 @@ import scala.util.Try
 import spray.json._
 import org.apache.openwhisk.common.AkkaLogging
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.entity.ActivationLogs
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs}
 import org.apache.openwhisk.core.database.UserContext
+
 import scala.concurrent.duration.FiniteDuration
 
 case class SplunkLogStoreConfig(host: String,
@@ -106,7 +107,7 @@ class SplunkLogStore(
       else Http().defaultClientHttpsContext)
 
   override def fetchLogs(namespace: String,
-                         activationId: String,
+                         activationId: ActivationId,
                          start: Option[Instant],
                          end: Option[Instant],
                          logs: Option[ActivationLogs],

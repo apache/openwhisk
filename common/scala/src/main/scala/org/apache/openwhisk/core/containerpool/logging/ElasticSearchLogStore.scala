@@ -23,7 +23,7 @@ import java.time.Instant
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import akka.http.scaladsl.model._
-import org.apache.openwhisk.core.entity.{ActivationLogs, Identity}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, Identity}
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.UserContext
@@ -89,7 +89,7 @@ class ElasticSearchLogStore(
   private def extractRequiredHeaders(headers: Seq[HttpHeader]) =
     headers.filter(h => elasticSearchConfig.requiredHeaders.contains(h.lowercaseName)).toList
 
-  private def generatePayload(namespace: String, activationId: String) = {
+  private def generatePayload(namespace: String, activationId: ActivationId) = {
     val logQuery =
       s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.tenantId}: ${namespace} AND ${elasticSearchConfig.logSchema.activationId}: ${activationId}"
     val queryString = EsQueryString(logQuery)
@@ -101,7 +101,7 @@ class ElasticSearchLogStore(
   private def generatePath(user: Identity) = elasticSearchConfig.path.format(user.namespace.uuid.asString)
 
   override def fetchLogs(namespace: String,
-                         activationId: String,
+                         activationId: ActivationId,
                          start: Option[Instant],
                          end: Option[Instant],
                          activationLogs: Option[ActivationLogs],

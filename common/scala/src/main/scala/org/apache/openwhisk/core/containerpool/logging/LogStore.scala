@@ -22,7 +22,7 @@ import java.time.Instant
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import org.apache.openwhisk.spi.Spi
 import org.apache.openwhisk.core.database.UserContext
 
@@ -90,7 +90,7 @@ trait LogStore {
    * @return the relevant logs
    */
   def fetchLogs(namespace: String,
-                activationId: String,
+                activationId: ActivationId,
                 start: Option[Instant],
                 end: Option[Instant],
                 logs: Option[ActivationLogs],

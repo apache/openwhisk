@@ -22,7 +22,7 @@ import java.time.Instant
 import akka.actor.ActorSystem
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import org.apache.openwhisk.core.database.UserContext
 
 import scala.concurrent.Future
@@ -52,7 +52,7 @@ class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
   /** no logs exposed to API/CLI using only the LogDriverLogStore; use an extended version,
    * e.g. the SplunkLogStore to expose logs from some external source */
   def fetchLogs(namespace: String,
-                activationId: String,
+                activationId: ActivationId,
                 start: Option[Instant],
                 end: Option[Instant],
                 activationLogs: Option[ActivationLogs],
