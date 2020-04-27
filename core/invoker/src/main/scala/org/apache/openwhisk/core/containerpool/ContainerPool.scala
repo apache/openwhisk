@@ -465,7 +465,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
     val kind = action.exec.kind
     val memory = action.limits.memory.megabytes.MB
-    prewarmedPool
+    val now = Deadline.now
+    prewarmedPool.toSeq
+      .sortBy(_._2.expires.getOrElse(now))
       .find {
         case (_, PreWarmedData(_, `kind`, `memory`, _, _)) => true
         case _                                             => false
