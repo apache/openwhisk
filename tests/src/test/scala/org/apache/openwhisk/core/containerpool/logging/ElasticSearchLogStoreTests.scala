@@ -138,7 +138,7 @@ class ElasticSearchLogStoreTests
     await(
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
-        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.activationId,
         None,
         None,
         Some(activation.withoutLogs.logs),
@@ -155,7 +155,7 @@ class ElasticSearchLogStoreTests
     await(
       esLogStore.fetchLogs(
         activation.namespace.asString,
-        activation.activationId.asString,
+        activation.activationId,
         None,
         None,
         Some(activation.logs),
@@ -187,7 +187,7 @@ class ElasticSearchLogStoreTests
     await(
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
-        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.activationId,
         None,
         None,
         Some(activation.withoutLogs.logs),
@@ -210,7 +210,7 @@ class ElasticSearchLogStoreTests
     await(
       esLogStore.fetchLogs(
         activation.withoutLogs.namespace.asString,
-        activation.withoutLogs.activationId.asString,
+        activation.withoutLogs.activationId,
         None,
         None,
         Some(activation.withoutLogs.logs),
@@ -223,7 +223,7 @@ class ElasticSearchLogStoreTests
     a[Throwable] should be thrownBy await(
       esLogStore.fetchLogs(
         activation.namespace.asString,
-        activation.activationId.asString,
+        activation.activationId,
         None,
         None,
         Some(activation.logs),
@@ -241,7 +241,7 @@ class ElasticSearchLogStoreTests
     a[RuntimeException] should be thrownBy await(
       esLogStore.fetchLogs(
         activation.namespace.asString,
-        activation.activationId.asString,
+        activation.activationId,
         None,
         None,
         Some(activation.logs),

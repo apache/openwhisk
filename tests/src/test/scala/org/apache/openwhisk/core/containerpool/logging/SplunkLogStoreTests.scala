@@ -166,7 +166,7 @@ class SplunkLogStoreTests
     val result = await(
       splunkStore.fetchLogs(
         activation.namespace.asString,
-        activation.activationId.asString,
+        activation.activationId,
         Some(activation.start),
         Some(activation.end),
         None,
@@ -183,14 +183,14 @@ class SplunkLogStoreTests
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
     a[Throwable] should be thrownBy await(
-      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId.asString, None, None, None, context))
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId, None, None, None, context))
   }
 
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
     a[RuntimeException] should be thrownBy await(
-      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId.asString, None, None, None, context))
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId, None, None, None, context))
   }
 
 }
