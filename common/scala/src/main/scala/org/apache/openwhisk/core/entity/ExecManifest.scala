@@ -386,9 +386,22 @@ protected[core] object ExecManifest {
   protected[entity] implicit val reactivePrewarmingConfigSerdes: RootJsonFormat[ReactivePrewarmingConfig] = jsonFormat5(
     ReactivePrewarmingConfig.apply)
 
-  protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
+  protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
     import org.apache.openwhisk.core.entity.size.serdes
-    jsonFormat3(StemCell.apply)
+    val defaultSerdes = jsonFormat3(StemCell.apply)
+    override def read(value: JsValue): StemCell = {
+      val initialCount =
+        value.asJsObject.fields
+          .get("initialCount")
+          .orElse(value.asJsObject.fields.get("count"))
+          .map(_.toString().toInt)
+          .get
+      val memory = value.asJsObject.fields.get("memory").map(_.convertTo[ByteSize]).get
+      val config = value.asJsObject.fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
+      StemCell(initialCount, memory, config)
+    }
+
+    override def write(s: StemCell) = defaultSerdes.write(s)
   }
 
   protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)
