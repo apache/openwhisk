@@ -266,11 +266,12 @@ class ContainerProxyTests
                       invokeCallback: () => Unit = () => ()) =
     new LoggedCollector(response, invokeCallback)
 
-  def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
-    Future.successful(())
+  def createStore = LoggedFunction {
+    (transid: TransactionId, activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext) =>
+      Future.successful(())
   }
   def createSyncStore = SynchronizedLoggedFunction {
-    (transid: TransactionId, activation: WhiskActivation, context: UserContext) =>
+    (transid: TransactionId, activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext) =>
       Future.successful(())
   }
   val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)

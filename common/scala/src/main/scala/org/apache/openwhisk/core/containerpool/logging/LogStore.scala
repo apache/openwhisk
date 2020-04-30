@@ -17,11 +17,12 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
-import akka.actor.ActorSystem
+import java.time.Instant
 
+import akka.actor.ActorSystem
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.Container
-import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import org.apache.openwhisk.spi.Spi
 import org.apache.openwhisk.core.database.UserContext
 
@@ -78,11 +79,22 @@ trait LogStore {
    * Fetch relevant logs for the given activation from the store.
    *
    * This method is called when a user requests logs via the API.
+   * The "logs" parameter is not empty if:
+   * - the activation record exists
+   * - the logs are stored embedded in the activation record
    *
-   * @param activation activation to fetch the logs for
+   * @param namespace namespace to fetch the logs for
+   * @param activationId activation to fetch the logs for
+   * @param start activation start
+   * @param end activation end
    * @return the relevant logs
    */
-  def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs]
+  def fetchLogs(namespace: String,
+                activationId: ActivationId,
+                start: Option[Instant],
+                end: Option[Instant],
+                logs: Option[ActivationLogs],
+                content: UserContext): Future[ActivationLogs]
 }
 
 trait LogStoreProvider extends Spi {

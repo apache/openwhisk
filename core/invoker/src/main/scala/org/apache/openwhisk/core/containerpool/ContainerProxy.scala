@@ -32,7 +32,7 @@ import akka.io.Tcp.CommandFailed
 import akka.io.Tcp.Connect
 import akka.io.Tcp.Connected
 import akka.pattern.pipe
-import pureconfig._
+import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
@@ -251,7 +251,7 @@ class ContainerProxy(factory: (TransactionId,
                                Int,
                                Option[ExecutableWhiskAction]) => Future[Container],
                      sendActiveAck: ActiveAck,
-                     storeActivation: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+                     storeActivation: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
                      collectLogs: LogsCollector,
                      instance: InvokerInstanceId,
                      poolConfig: ContainerPoolConfig,
@@ -274,6 +274,7 @@ class ContainerProxy(factory: (TransactionId,
   var activeCount = 0;
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
   val tcp: ActorRef = testTcp.getOrElse(IO(Tcp)) //allows to testing interaction with Tcp extension
+
   startWith(Uninitialized, NoData())
 
   when(Uninitialized) {
@@ -338,7 +339,7 @@ class ContainerProxy(factory: (TransactionId,
               job.msg.rootControllerIndex,
               job.msg.user.namespace.uuid,
               CombinedCompletionAndResultMessage(transid, activation, instance))
-            storeActivation(transid, activation, context)
+            storeActivation(transid, activation, job.msg.blocking, context)
         }
         .flatMap { container =>
           // now attempt to inject the user code and run the action
@@ -835,8 +836,7 @@ class ContainerProxy(factory: (TransactionId,
                 job.msg.user.namespace.uuid,
                 CompletionMessage(tid, activation, instance)))
         }
-        // Storing the record. Entirely asynchronous and not waited upon.
-        storeActivation(tid, activation, context)
+        storeActivation(tid, activation, job.msg.blocking, context)
       }
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
@@ -861,7 +861,7 @@ object ContainerProxy {
                       Int,
                       Option[ExecutableWhiskAction]) => Future[Container],
             ack: ActiveAck,
-            store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+            store: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
             collectLogs: LogsCollector,
             instance: InvokerInstanceId,
             poolConfig: ContainerPoolConfig,
@@ -908,7 +908,7 @@ object ContainerProxy {
    * Creates a WhiskActivation ready to be sent via active ack.
    *
    * @param job the job that was executed
-   * @param interval the time it took to execute the job
+   * @param totalInterval the time it took to execute the job
    * @param response the response to return to the user
    * @return a WhiskActivation to be sent to the user
    */

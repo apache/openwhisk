@@ -28,6 +28,7 @@ import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.logging.LogStore
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import org.apache.openwhisk.core.database.ActivationStore
@@ -37,6 +38,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import pureconfig.loadConfigOrThrow
 
 object WhiskActivationsApi {
 
@@ -71,6 +73,8 @@ object WhiskActivationsApi {
 
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider with AuthorizedRouteProvider with ReadOps {
+
+  protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
 
   protected override val collection = Collection(Collection.ACTIVATIONS)
 
@@ -219,8 +223,15 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
    * - 500 Internal Server Error
    */
   private def fetchLogs(context: UserContext, docid: DocId)(implicit transid: TransactionId) = {
-    getEntityAndProject(
+    getEntityAndProjectLog(
       activationStore.get(ActivationId(docid.asString), context),
-      (activation: WhiskActivation) => logStore.fetchLogs(activation, context).map(_.toJsonObject))
+      docid,
+      disableStoreResultConfig,
+      (namespace: String,
+       activationId: ActivationId,
+       start: Option[Instant],
+       end: Option[Instant],
+       logs: Option[ActivationLogs]) =>
+        logStore.fetchLogs(namespace, activationId, start, end, logs, context).map(_.toJsonObject))
   }
 }

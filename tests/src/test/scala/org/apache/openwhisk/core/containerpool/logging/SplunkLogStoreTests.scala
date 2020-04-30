@@ -69,9 +69,12 @@ class SplunkLogStoreTests
     "log_timestamp",
     "log_stream",
     "log_message",
+    "namespace",
     "activation_id",
     "somefield::somevalue",
-    22,
+    10.seconds,
+    7.days,
+    22.seconds,
     disableSNI = false)
 
   behavior of "Splunk LogStore"
@@ -118,6 +121,7 @@ class SplunkLogStoreTests
               val outputMode = form.fields.get("output_mode")
               val search = form.fields.get("search")
               val execMode = form.fields.get("exec_mode")
+              val maxTime = form.fields.get("max_time")
 
               request.uri.path.toString() shouldBe "/services/search/jobs"
               request.headers shouldBe List(Authorization.basic(testConfig.username, testConfig.password))
@@ -125,8 +129,9 @@ class SplunkLogStoreTests
               latestTime shouldBe Some(endTimePlusOffset)
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
+              maxTime shouldBe Some("10")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.logMessageField}| search ${testConfig.queryConstraints} ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField}| reverse""")
+                s"""search index="${testConfig.index}" | search ${testConfig.queryConstraints} | search ${testConfig.namespaceField}=${activation.namespace.asString} | search ${testConfig.activationIdField}=${activation.activationId.toString} | spath ${testConfig.logMessageField} | table ${testConfig.logTimestampField}, ${testConfig.logStreamField}, ${testConfig.logMessageField} | reverse""")
 
               (
                 Success(
@@ -158,7 +163,14 @@ class SplunkLogStoreTests
   it should "find logs based on activation timestamps" in {
     //use the a flow that asserts the request structure and provides a response in the expected format
     val splunkStore = new SplunkLogStore(system, Some(testFlow), testConfig)
-    val result = await(splunkStore.fetchLogs(activation, context))
+    val result = await(
+      splunkStore.fetchLogs(
+        activation.namespace.asString,
+        activation.activationId,
+        Some(activation.start),
+        Some(activation.end),
+        None,
+        context))
     result shouldBe ActivationLogs(
       Vector(
         "2007-12-03T10:15:30Z           stdout: some log message",
@@ -170,13 +182,15 @@ class SplunkLogStoreTests
   it should "fail to connect to bogus host" in {
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
-    a[Throwable] should be thrownBy await(splunkStore.fetchLogs(activation, context))
+    a[Throwable] should be thrownBy await(
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId, None, None, None, context))
   }
 
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
-    a[RuntimeException] should be thrownBy await(splunkStore.fetchLogs(activation, context))
+    a[RuntimeException] should be thrownBy await(
+      splunkStore.fetchLogs(activation.namespace.asString, activation.activationId, None, None, None, context))
   }
 
 }

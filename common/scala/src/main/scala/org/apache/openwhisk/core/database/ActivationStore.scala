@@ -24,8 +24,10 @@ import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.spi.Spi
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Future
 
@@ -33,21 +35,40 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 
 trait ActivationStore {
 
+  protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
+  protected val unstoredLogsEnabledConfig = loadConfigOrThrow[Boolean](ConfigKeys.unstoredLogsEnabled)
+
   /**
    * Checks if an activation should be stored in database and stores it.
    *
    * @param activation activation to store
+   * @param isBlockingActivation is activation blocking
    * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
    * @return Future containing DocInfo related to stored activation
    */
-  def storeAfterCheck(activation: WhiskActivation, context: UserContext)(
-    implicit transid: TransactionId,
-    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-    if (context.user.limits.storeActivations.getOrElse(true)) {
+  def storeAfterCheck(activation: WhiskActivation,
+                      isBlockingActivation: Boolean,
+                      disableStore: Option[Boolean],
+                      context: UserContext)(implicit transid: TransactionId,
+                                            notifier: Option[CacheChangeNotification],
+                                            logging: Logging): Future[DocInfo] = {
+    if (context.user.limits.storeActivations.getOrElse(true) &&
+        shouldStoreActivation(
+          activation.response.isSuccess,
+          isBlockingActivation,
+          transid.meta.extraLogging,
+          disableStore.getOrElse(disableStoreResultConfig))) {
+
       store(activation, context)
     } else {
+      if (unstoredLogsEnabledConfig) {
+        logging.info(
+          this,
+          s"Explicitly NOT storing activation ${activation.activationId.asString} for action ${activation.name} from namespace ${activation.namespace.asString} with response_size=${activation.response.size
+            .getOrElse("0")}B")
+      }
       Future.successful(DocInfo(activation.docid))
     }
   }
@@ -154,6 +175,27 @@ trait ActivationStore {
     since: Option[Instant] = None,
     upto: Option[Instant] = None,
     context: UserContext)(implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
+
+  /**
+   * Checks if the system is configured to not store the activation in the database.
+   * Only stores activations if one of these is true:
+   * - result is an error,
+   * - a non-blocking activation
+   * - an activation in debug mode
+   * - activation stores is not disabled via a configuration parameter
+   *
+   * @param isSuccess is successful activation
+   * @param isBlocking is blocking activation
+   * @param debugMode is logging header set to "on" for the invocation
+   * @param disableStore is disable store configured
+   * @return Should the activation be stored to the database
+   */
+  private def shouldStoreActivation(isSuccess: Boolean,
+                                    isBlocking: Boolean,
+                                    debugMode: Boolean,
+                                    disableStore: Boolean): Boolean = {
+    !isSuccess || !isBlocking || debugMode || !disableStore
+  }
 }
 
 trait ActivationStoreProvider extends Spi {

@@ -73,7 +73,7 @@ protected trait ControllerTestCommon
   override lazy val entitlementProvider: EntitlementProvider =
     new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
-  override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
+  override val activationIdFactory = new ActivationId.ActivationIdGenerator {
     // need a static activation id to test activations api
     private val fixedId = ActivationId.generate()
     override def make = fixedId
@@ -124,9 +124,15 @@ protected trait ControllerTestCommon
     Await.result(activationStore.get(activationId, context), timeout)
   }
 
-  def storeActivation(activation: WhiskActivation, context: UserContext)(implicit transid: TransactionId,
-                                                                         timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = activationStore.storeAfterCheck(activation, context)
+  def storeActivation(
+    activation: WhiskActivation,
+    isBlockingActivation: Boolean,
+    disableStore: Boolean,
+    context: UserContext)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, Some(disableStore), context)(
+      transid,
+      notifier = None,
+      logging)
     val doc = Await.result(docFuture, timeout)
     assert(doc != null)
     doc
@@ -247,6 +253,52 @@ protected trait ControllerTestCommon
   protected object BadEntity extends DocumentFactory[BadEntity] with DefaultJsonProtocol {
     implicit val serdes = jsonFormat5(BadEntity.apply)
     override val cacheEnabled = true
+  }
+
+  /**
+   * Makes a simple sequence action and installs it in the db (no call to wsk api/cli).
+   * All actions are in the default package.
+   *
+   * @param sequenceName the name of the sequence
+   * @param ns           the namespace to be used when creating the component actions and the sequence action
+   * @param components   the names of the actions (entity names, no namespace)
+   */
+  protected def putSimpleSequenceInDB(sequenceName: String, ns: EntityPath, components: Vector[String])(
+    implicit tid: TransactionId) = {
+    val seqAction = makeSimpleSequence(sequenceName, ns, components)
+    put(entityStore, seqAction)
+  }
+
+  /**
+   * Returns a WhiskAction that can be used to create/update a sequence.
+   * If instructed to do so, installs the component actions in the db.
+   * All actions are in the default package.
+   *
+   * @param sequenceName   the name of the sequence
+   * @param ns             the namespace to be used when creating the component actions and the sequence action
+   * @param componentNames the names of the actions (entity names, no namespace)
+   * @param installDB      if true, installs the component actions in the db (default true)
+   */
+  protected def makeSimpleSequence(sequenceName: String,
+                                   ns: EntityPath,
+                                   componentNames: Vector[String],
+                                   installDB: Boolean = true)(implicit tid: TransactionId): WhiskAction = {
+    if (installDB) {
+      // create bogus wsk actions
+      val wskActions = componentNames.toSet[String] map { c =>
+        WhiskAction(ns, EntityName(c), jsDefault("??"))
+      }
+      // add them to the db
+      wskActions.foreach {
+        put(entityStore, _)
+      }
+    }
+    // add namespace to component names
+    val components = componentNames map { c =>
+      stringToFullyQualifiedName(s"/$ns/$c")
+    }
+    // create wsk action for the sequence
+    WhiskAction(ns, EntityName(sequenceName), sequence(components))
   }
 }
 

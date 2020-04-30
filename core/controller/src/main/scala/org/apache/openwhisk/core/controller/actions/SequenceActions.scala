@@ -21,7 +21,6 @@ import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
-import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
 import org.apache.openwhisk.core.connector.{EventMessage, MessagingProvider}
 import org.apache.openwhisk.core.controller.WhiskServices
@@ -32,6 +31,7 @@ import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory.FutureExtensions
+import spray.json._
 
 import scala.collection._
 import scala.concurrent.duration._
@@ -120,6 +120,7 @@ protected[actions] trait SequenceActions {
         user,
         action,
         topmost,
+        waitForOutermostResponse.isDefined,
         start,
         cause)
     }
@@ -152,6 +153,7 @@ protected[actions] trait SequenceActions {
                                          user: Identity,
                                          action: WhiskActionMetaData,
                                          topmost: Boolean,
+                                         blockingSequence: Boolean,
                                          start: Instant,
                                          cause: Option[ActivationId])(
     implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
@@ -175,7 +177,11 @@ protected[actions] trait SequenceActions {
               case Failure(t)   => logging.warn(this, s"activation event was not sent: $t")
             }
           }
-          activationStore.storeAfterCheck(seqActivation, context)(transid, notifier = None)
+
+          activationStore.storeAfterCheck(seqActivation, blockingSequence, None, context)(
+            transid,
+            notifier = None,
+            logging)
 
         // This should never happen; in this case, there is no activation record created or stored:
         // should there be?
@@ -388,6 +394,7 @@ protected[actions] trait SequenceActions {
 
   /** Max atomic action count allowed for sequences */
   private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
+
 }
 
 /**

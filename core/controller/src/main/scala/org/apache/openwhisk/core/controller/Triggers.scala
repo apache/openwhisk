@@ -169,7 +169,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     triggerActivation
                 }
                 .map { activation =>
-                  activationStore.storeAfterCheck(activation, context)
+                  activationStore.storeAfterCheck(activation, false, None, context)
                 }
 
               respondWithActivationIdHeader(triggerActivationId) {

@@ -18,26 +18,25 @@
 package org.apache.openwhisk.core.containerpool.logging
 
 import java.nio.file.{Path, Paths}
+import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import akka.http.scaladsl.model._
-
-import org.apache.openwhisk.core.entity.{ActivationLogs, Identity, WhiskActivation}
+import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, Identity}
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.UserContext
 
 import scala.concurrent.{Future, Promise}
 import scala.util.Try
-
 import spray.json._
-
 import pureconfig._
 import pureconfig.generic.auto._
 
 case class ElasticSearchLogFieldConfig(userLogs: String,
                                        message: String,
+                                       tenantId: String,
                                        activationId: String,
                                        stream: String,
                                        time: String)
@@ -90,9 +89,9 @@ class ElasticSearchLogStore(
   private def extractRequiredHeaders(headers: Seq[HttpHeader]) =
     headers.filter(h => elasticSearchConfig.requiredHeaders.contains(h.lowercaseName)).toList
 
-  private def generatePayload(activation: WhiskActivation) = {
+  private def generatePayload(namespace: String, activationId: ActivationId) = {
     val logQuery =
-      s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
+      s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.tenantId}: ${namespace} AND ${elasticSearchConfig.logSchema.activationId}: ${activationId}"
     val queryString = EsQueryString(logQuery)
     val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrderAsc)
 
@@ -101,19 +100,30 @@ class ElasticSearchLogStore(
 
   private def generatePath(user: Identity) = elasticSearchConfig.path.format(user.namespace.uuid.asString)
 
-  override def fetchLogs(activation: WhiskActivation, context: UserContext): Future[ActivationLogs] = {
+  override def fetchLogs(namespace: String,
+                         activationId: ActivationId,
+                         start: Option[Instant],
+                         end: Option[Instant],
+                         activationLogs: Option[ActivationLogs],
+                         context: UserContext): Future[ActivationLogs] = {
     val headers = extractRequiredHeaders(context.request.headers)
 
     // Return logs from ElasticSearch, or return logs from activation if required headers are not present
     if (headers.length == elasticSearchConfig.requiredHeaders.length) {
-      esClient.search[EsSearchResult](generatePath(context.user), generatePayload(activation), headers).flatMap {
-        case Right(queryResult) =>
-          Future.successful(transcribeLogs(queryResult))
-        case Left(code) =>
-          Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
-      }
+      esClient
+        .search[EsSearchResult](generatePath(context.user), generatePayload(namespace, activationId), headers)
+        .flatMap {
+          case Right(queryResult) =>
+            Future.successful(transcribeLogs(queryResult))
+          case Left(code) =>
+            Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
+        }
     } else {
-      Future.successful(activation.logs)
+      activationLogs match {
+        case Some(logs) => Future.successful(logs)
+        case None =>
+          Future.failed(new RuntimeException(s"Activation logs not available for activation ${activationId}"))
+      }
     }
   }
 }
