@@ -168,7 +168,7 @@ protected[core] object ExecManifest {
     require(maxCount > 0, "maxCount must be positive")
     require(ttl.toSeconds > 0, "ttl must be positive")
     require(threshold > 0, "threshold must be positive")
-    require(increment > 0 && increment <= maxCount, "increment must be positive and less than or equal to count")
+    require(increment > 0 && increment <= maxCount, "increment must be positive and less than or equal to maxCount")
   }
 
   /**
@@ -388,16 +388,18 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
     import org.apache.openwhisk.core.entity.size.serdes
+    import org.apache.openwhisk.core.entity.size.SizeInt
     val defaultSerdes = jsonFormat3(StemCell.apply)
     override def read(value: JsValue): StemCell = {
+      val fields = value.asJsObject.fields
       val initialCount =
-        value.asJsObject.fields
+        fields
           .get("initialCount")
-          .orElse(value.asJsObject.fields.get("count"))
-          .map(_.toString().toInt)
-          .get
-      val memory = value.asJsObject.fields.get("memory").map(_.convertTo[ByteSize]).get
-      val config = value.asJsObject.fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
+          .orElse(fields.get("count"))
+          .map(_.convertTo[Int])
+          .getOrElse(1)
+      val memory = fields.get("memory").map(_.convertTo[ByteSize]).getOrElse(256.MB)
+      val config = fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
       StemCell(initialCount, memory, config)
     }
 
