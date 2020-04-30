@@ -230,7 +230,7 @@ When the process ends, the last line of text output to `stdout` will be parsed a
 
 ```
 #!/bin/bash
-read ARGS
+ARGS=$@
 NAME=`echo "$ARGS" | jq -r '."name"'`
 DATE=`date`
 echo "{ \"message\": \"Hello $NAME! It is $DATE.\" }"
