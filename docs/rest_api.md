@@ -33,6 +33,7 @@ These are the collection endpoints:
 - `https://$APIHOST/api/v1/namespaces/{namespace}/rules`
 - `https://$APIHOST/api/v1/namespaces/{namespace}/packages`
 - `https://$APIHOST/api/v1/namespaces/{namespace}/activations`
+- `https://$APIHOST/api/v1/namespaces/{namespace}/limits`
 
 The `$APIHOST` is the OpenWhisk API hostname (for example, localhost, 172.17.0.1, and so on).
 For the `{namespace}`, the character `_` can be used to specify the user's *default
@@ -326,3 +327,11 @@ To get all the details of an activation including results and logs, send a HTTP 
 ```bash
 curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/activations/f81dfddd7156401a8a6497f2724fec7b
 ```
+
+## Limits
+
+To get the limits set for a namespace (i.e. invocationsPerMinute, concurrentInvocations, firesPerMinute)
+```bash
+curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/limits
+```
+Note that the default system values are returned if no limit is set in couchdb.
