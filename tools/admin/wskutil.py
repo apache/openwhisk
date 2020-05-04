@@ -35,7 +35,9 @@ import socket
 
 # global configurations, can control whether to allow untrusted certificates
 # on HTTPS connections
-httpRequestProps = {'secure': True}
+
+verify_cert = os.getenv('DB_VERIFY_CERT') is None or os.getenv('DB_VERIFY_CERT').lower() != 'false'
+httpRequestProps = {'secure': verify_cert}
 
 def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 60):
     url = urlparse(urlString)
