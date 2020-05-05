@@ -577,4 +577,6 @@ object LoggingMarkers {
   val DATABASE_ATTS_DELETE =
     LogMarkerToken(database, "deleteDocumentAttachments", start)(MeasurementUnit.time.milliseconds)
   val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", counter)(MeasurementUnit.none)
+  val DATABASE_ATTS_LIST =
+    LogMarkerToken(database, "listDocumentAttachments", start)(MeasurementUnit.time.milliseconds)
 }

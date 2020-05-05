@@ -17,17 +17,22 @@
 
 package org.apache.openwhisk.core.database.azblob
 
+import java.util.function.Consumer
+
 import akka.actor.ActorSystem
 import akka.event.Logging
+import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.model.ContentType
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
+import com.azure.storage.blob.models.BlobItem
 import com.azure.storage.blob.{BlobContainerAsyncClient, BlobContainerClientBuilder}
 import com.azure.storage.common.StorageSharedKeyCredential
 import com.typesafe.config.Config
 import org.apache.openwhisk.common.LoggingMarkers.{
   DATABASE_ATTS_DELETE,
+  DATABASE_ATTS_LIST,
   DATABASE_ATT_DELETE,
   DATABASE_ATT_GET,
   DATABASE_ATT_SAVE
@@ -175,20 +180,83 @@ class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String)
   }
 
   override protected[core] def deleteAttachments(docId: DocId)(implicit transid: TransactionId): Future[Boolean] = {
+    def toHandler[P](f: (P) => Unit): Consumer[P] = (t: P) => f(t)
+    val startList =
+      transid.started(
+        this,
+        DATABASE_ATTS_LIST,
+        s"[ATTS_LIST] listing attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
+
+    val blobs = client.listBlobsByHierarchy(objectKeyPrefix(docId))
+    var listCount = 0
+    blobs.subscribe(
+      toHandler { b: BlobItem =>
+        listCount += 1
+      },
+      toHandler { b: Throwable =>
+        transid.failed(
+          this,
+          startList,
+          s"[ATTS_LIST] failed: listing attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
+      },
+      () =>
+        transid.finished(
+          this,
+          startList,
+          s"[ATTS_LIST] completed: listing ${listCount} attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}",
+          InfoLevel))
+
     val start =
       transid.started(
         this,
         DATABASE_ATTS_DELETE,
-        s"[ATT_DELETE] deleting attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
+        s"[ATTS_DELETE] deleting attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
 
+    var count = 0
     val f = Source
       .fromPublisher(client.listBlobsByHierarchy(objectKeyPrefix(docId)))
-      .mapAsync(1)(b => client.getBlobAsyncClient(b.getName).delete().toFuture.toScala)
+      .mapAsync(1) { b =>
+        count += 1
+        val startDelete =
+          transid.started(
+            this,
+            DATABASE_ATT_DELETE,
+            s"[ATT_DELETE] deleting attachment '${b.getName}' of document 'id: $docId'")
+        client
+          .getBlobAsyncClient(b.getName)
+          .delete()
+          .toFuture
+          .toScala
+          .map(
+            _ =>
+              transid.finished(
+                this,
+                startDelete,
+                s"[ATT_DELETE] completed: deleting attachment '${b.getName}' of document 'id: $docId'"))
+          .recover {
+            case t =>
+              transid.failed(
+                this,
+                startDelete,
+                s"[ATT_DELETE] failed: deleting attachment '${b.getName}' of document 'id: $docId' error: $t")
+          }
+
+      }
+      .recover {
+        case t =>
+          logging.error(this, s"[ATT_DELETE] :error in delete ${t}")
+          throw t
+      }
       .runWith(Sink.seq)
       .map(_ => true)
 
-    f.foreach(_ =>
-      transid.finished(this, start, s"[ATTS_DELETE] completed: deleting attachments of document 'id: $docId'"))
+    f.foreach(
+      _ =>
+        transid.finished(
+          this,
+          start,
+          s"[ATTS_DELETE] completed: deleting ${count} attachments of document 'id: $docId'",
+          InfoLevel))
 
     reportFailure(
       f,
