@@ -633,7 +633,6 @@ class ContainerProxy(factory: (TransactionId,
       .flatMap(_ => container.destroy()(TransactionId.invokerNanny))
       .map(_ => ContainerRemoved)
       .pipeTo(self)
-    println("removing")
     goto(Removing) using newData
   }
 
