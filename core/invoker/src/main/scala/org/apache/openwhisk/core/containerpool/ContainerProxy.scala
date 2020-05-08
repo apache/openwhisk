@@ -37,7 +37,6 @@ import pureconfig.generic.auto._
 import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
-import java.util.concurrent.TimeUnit
 
 import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.common.TransactionId.systemPrefix
@@ -196,7 +195,7 @@ case class WarmedData(override val container: Container,
 }
 
 // Events received by the actor
-case class Start(exec: CodeExec[_], memoryLimit: ByteSize, ttl: Option[Duration] = None)
+case class Start(exec: CodeExec[_], memoryLimit: ByteSize, expires: Option[FiniteDuration] = None)
 case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
 case object Remove
 case class HealthPingEnabled(enabled: Boolean)
@@ -283,10 +282,6 @@ class ContainerProxy(factory: (TransactionId,
   when(Uninitialized) {
     // pre warm a container (creates a stem cell container)
     case Event(job: Start, _) =>
-      val deadline = job.ttl match {
-        case Some(value) => Some(FiniteDuration(value.toMillis, TimeUnit.MILLISECONDS).fromNow)
-        case None        => None
-      }
       factory(
         TransactionId.invokerWarmup,
         ContainerProxy.containerName(instance, "prewarm", job.exec.kind),
@@ -296,7 +291,8 @@ class ContainerProxy(factory: (TransactionId,
         poolConfig.cpuShare(job.memoryLimit),
         None)
         .map(container =>
-          PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit, expires = deadline)))
+          PreWarmCompleted(
+            PreWarmedData(container, job.exec.kind, job.memoryLimit, expires = job.expires.map(_.fromNow))))
         .pipeTo(self)
 
       goto(Starting)

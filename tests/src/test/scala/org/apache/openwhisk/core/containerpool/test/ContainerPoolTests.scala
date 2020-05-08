@@ -68,7 +68,7 @@ class ContainerPoolTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
-  val ttl = Duration("2 seconds")
+  val ttl = FiniteDuration(2, TimeUnit.SECONDS)
   val threshold = 1
   val increment = 1
 
@@ -770,7 +770,6 @@ class ContainerPoolTests
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
 
-    val deadline: Option[Deadline] = Some(FiniteDuration(ttl.toSeconds, TimeUnit.SECONDS).fromNow)
     val reactive: Option[ReactivePrewarmingConfig] = Some(ReactivePrewarmingConfig(0, 2, ttl, threshold, increment))
     val pool =
       system.actorOf(
@@ -782,8 +781,8 @@ class ContainerPoolTests
             List(PrewarmingConfig(2, exec, memoryLimit, reactive))))
     containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
-    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
-    containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = Some(ttl.fromNow))))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = Some(ttl.fromNow))))
     stream.reset()
 
     // Make sure prewarmed containers can be deleted from prewarmedPool due to unused
@@ -806,7 +805,7 @@ class ContainerPoolTests
     val (containers, factory) = testContainers(6)
     val feed = TestProbe()
 
-    val deadline: Option[Deadline] = Some(FiniteDuration(ttl.toSeconds, TimeUnit.SECONDS).fromNow)
+    val deadline: Option[Deadline] = Some(ttl.fromNow)
     val reactive: Option[ReactivePrewarmingConfig] = Some(ReactivePrewarmingConfig(0, 2, ttl, threshold, increment))
     val pool =
       system.actorOf(

@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.entity.Attachments.Attached._
 import fastparse._
 import NoWhitespace._
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -159,7 +159,7 @@ protected[core] object ExecManifest {
    */
   protected[core] case class ReactivePrewarmingConfig(minCount: Int,
                                                       maxCount: Int,
-                                                      ttl: Duration,
+                                                      ttl: FiniteDuration,
                                                       threshold: Int,
                                                       increment: Int) {
     require(
@@ -373,11 +373,13 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat4(ImageName.apply)
 
-  protected[entity] implicit val ttlSerdes: RootJsonFormat[Duration] = new RootJsonFormat[Duration] {
-    override def write(duration: Duration): JsValue = JsString(duration.toString)
+  protected[entity] implicit val ttlSerdes: RootJsonFormat[FiniteDuration] = new RootJsonFormat[FiniteDuration] {
+    override def write(finiteDuration: FiniteDuration): JsValue = JsString(finiteDuration.toString)
 
-    override def read(value: JsValue): Duration = value match {
-      case JsString(s) => Duration(s)
+    override def read(value: JsValue): FiniteDuration = value match {
+      case JsString(s) =>
+        val duration = Duration(s)
+        FiniteDuration(duration.length, duration.unit)
       case _ =>
         deserializationError("time unit not supported. Only milliseconds, seconds, minutes, hours, days are supported")
     }
@@ -388,7 +390,6 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
     import org.apache.openwhisk.core.entity.size.serdes
-    import org.apache.openwhisk.core.entity.size.SizeInt
     val defaultSerdes = jsonFormat3(StemCell.apply)
     override def read(value: JsValue): StemCell = {
       val fields = value.asJsObject.fields
@@ -397,8 +398,8 @@ protected[core] object ExecManifest {
           .get("initialCount")
           .orElse(fields.get("count"))
           .map(_.convertTo[Int])
-          .getOrElse(1)
-      val memory = fields.get("memory").map(_.convertTo[ByteSize]).getOrElse(256.MB)
+          .get
+      val memory = fields.get("memory").map(_.convertTo[ByteSize]).get
       val config = fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
       StemCell(initialCount, memory, config)
     }
