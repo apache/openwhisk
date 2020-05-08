@@ -68,7 +68,7 @@ object InvokerInstanceId extends DefaultJsonProtocol {
       fields ++= List("instanceType" -> JsString(i.instanceType))
       i.uniqueName.foreach(uniqueName => fields ++= List("uniqueName" -> JsString(uniqueName)))
       i.displayedName.foreach(displayedName => fields ++= List("displayedName" -> JsString(displayedName)))
-      JsObject(fields: _*)
+      JsObject(fields.toSeq: _*)
     }
 
     override def read(json: JsValue): InvokerInstanceId = {
