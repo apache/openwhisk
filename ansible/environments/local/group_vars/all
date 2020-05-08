@@ -48,3 +48,7 @@ env_hosts_dir: "{{ playbook_dir }}/environments/local"
 container_pool_akka_client: true
 runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
+
+limit_invocations_per_minute: 6000
+limit_invocations_concurrent: 3000
+limit_fires_per_minute: 6000
