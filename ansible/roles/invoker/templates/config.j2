@@ -6,3 +6,14 @@ include classpath("application.conf")
 #     prometheus-enabled = true
 #   }
 # }
+
+whisk {
+  container-proxy {
+    timeouts {
+      # The "unusedTimeout" in the ContainerProxy,
+      #aka 'How long should a container sit idle until we kill it?'
+      idle-container = 10 minutes
+      pause-grace = 10 milliseconds
+    }
+  }
+}
