@@ -21,7 +21,10 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import org.apache.openwhisk.core.entity.ControllerInstanceId
+import org.apache.openwhisk.core.entity.{ControllerInstanceId, InstanceId}
+import spray.json.{JsObject, JsString}
+
+import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
 class ControllerInstanceIdTests extends FlatSpec with Matchers {
@@ -41,6 +44,13 @@ class ControllerInstanceIdTests extends FlatSpec with Matchers {
         ControllerInstanceId(s)
       }
     }
+  }
+
+  it should "serialize and deserialize ControllerInstanceId" in {
+    val i = ControllerInstanceId("controller0")
+    i.serialize shouldBe JsObject("asString" -> JsString(i.asString), "instanceType" -> JsString(i.instanceType)).compactPrint
+    i.serialize shouldBe i.toJson.compactPrint
+    InstanceId.parse(i.serialize) shouldBe Success(i)
   }
 
 }
