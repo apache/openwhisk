@@ -2656,19 +2656,22 @@
     "UserLimits": {
       "properties": {
         "invocationsPerMinute": {
-          "type": "int",
+          "type": "integer",
           "description": "Max allowed invocations per minute for namespace"
         },
         "concurrentInvocations": {
-          "type": "int",
+          "type": "integer",
           "description": "Max allowed concurrent in flight invocations for namespace"
         },
         "firesPerMinute": {
-          "type": "int",
+          "type": "integer",
           "description": "Max allowed trigger fires per minute for namespace"
         },
         "allowedKinds": {
           "type": "array",
+          "items": {
+            "type": "string"
+          },
           "description": "List of runtimes whitelisted to be used by namespace (all if none returned)"
         },
         "storeActivations": {
