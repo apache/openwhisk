@@ -24,6 +24,7 @@ ENV WHISKDEPLOY_CLI_VERSION latest
 
 RUN apt-get update && apt-get install -y \
   git \
+  jq \
   libffi-dev \
   nodejs \
   npm \
