@@ -334,4 +334,4 @@ To get the limits set for a namespace (i.e. invocationsPerMinute, concurrentInvo
 ```bash
 curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/limits
 ```
-Note that the default system values are returned if no limit is set in couchdb.
+Note that the default system values are returned if no specific limits are set for the user corresponding to the authenticated identity.
