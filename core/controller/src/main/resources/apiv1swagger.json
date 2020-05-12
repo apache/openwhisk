@@ -37,6 +37,9 @@
     },
     {
       "name": "Namespaces"
+    },
+    {
+      "name": "Limits"
     }
   ],
   "paths": {
@@ -1676,6 +1679,42 @@
           }
         }
       }
+    },
+    "/namespaces/{namespace}/limits": {
+      "get": {
+        "tags": [
+          "Limits"
+        ],
+        "summary": "Get the limits for a namespace",
+        "description": "Get limits.",
+        "operationId": "getLimits",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "description": "The entity namespace",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Return output",
+            "schema": {
+              "$ref": "#/definitions/UserLimits"
+            }
+          },
+          "401": {
+            "$ref": "#/responses/UnauthorizedRequest"
+          },
+          "500": {
+            "$ref": "#/responses/ServerError"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -2611,6 +2650,33 @@
             "$ref": "#/definitions/KeyValue"
           },
           "description": "parameter bindings included in the context passed to the provider"
+        }
+      }
+    },
+    "UserLimits": {
+      "properties": {
+        "invocationsPerMinute": {
+          "type": "integer",
+          "description": "Max allowed invocations per minute for namespace"
+        },
+        "concurrentInvocations": {
+          "type": "integer",
+          "description": "Max allowed concurrent in flight invocations for namespace"
+        },
+        "firesPerMinute": {
+          "type": "integer",
+          "description": "Max allowed trigger fires per minute for namespace"
+        },
+        "allowedKinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of runtimes whitelisted to be used by namespace (all if none returned)"
+        },
+        "storeActivations": {
+          "type": "boolean",
+          "description": "Whether storing activation is turned on for namespace (default is true)"
         }
       }
     }

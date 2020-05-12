@@ -206,7 +206,8 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
                   triggers.routes(user) ~
                   rules.routes(user) ~
                   activations.routes(user) ~
-                  packages.routes(user)
+                  packages.routes(user) ~
+                  limits.routes(user)
               }
           } ~
           swaggerRoutes
@@ -233,9 +234,16 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   private val triggers = new TriggersApi(apiPath, apiVersion)
   private val activations = new ActivationsApi(apiPath, apiVersion)
   private val rules = new RulesApi(apiPath, apiVersion)
+  private val limits = new LimitsApi(apiPath, apiVersion)
   private val web = new WebActionsApi(Seq("web"), new WebApiDirectives())
 
   class NamespacesApi(val apiPath: String, val apiVersion: String) extends WhiskNamespacesApi
+
+  class LimitsApi(val apiPath: String, val apiVersion: String)(
+    implicit override val entitlementProvider: EntitlementProvider,
+    override val executionContext: ExecutionContext,
+    override val whiskConfig: WhiskConfig)
+      extends WhiskLimitsApi
 
   class ActionsApi(val apiPath: String, val apiVersion: String)(
     implicit override val actorSystem: ActorSystem,
