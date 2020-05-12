@@ -133,7 +133,7 @@ def run(args):
     if args.verbose:
         print('Sending value: %s...' % json.dumps(value)[0:40])
     r = requests.post(containerRoute(args, 'run'), json = {"value": value})
-    print(r.text)
+    print(str(r.content, 'utf-8'))
 
 def processPayload(payload):
     if payload and os.path.exists(payload):
