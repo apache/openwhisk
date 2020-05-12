@@ -87,43 +87,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   // Key is ColdStartKey, value is the number of cold Start in minute
   var coldStartCount = immutable.Map.empty[ColdStartKey, Int]
 
-  backfillPrewarms(true)
+  adjustPrewarmedContainer(true, false)
 
   // check periodically every 1 minute, adjust prewarmed container(delete if unused for some time and create some increment containers)
   context.system.scheduler.schedule(1.minute, 1.minute, self, AdjustPrewarmedContainer)
-
-  def adjustPrewarmedContainer(): Unit = {
-    prewarmConfig.foreach { config =>
-      // Delete unused prewarmed container until minCount is reached
-      val kind = config.exec.kind
-      val memory = config.memoryLimit
-      config.reactive.foreach { reactiveValue =>
-        val minCount = reactiveValue.minCount
-        val maxCount = reactiveValue.maxCount
-        prewarmedPool
-          .filter { warmInfo =>
-            warmInfo match {
-              case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
-              case _                                                                  => false
-            }
-          }
-          .drop(minCount)
-          .foreach(_._1 ! Remove)
-
-        // supplement some prewarmed container if cold start happened
-        val coldStartKey = ColdStartKey(kind, memory)
-        coldStartCount.get(coldStartKey).foreach { value =>
-          // Let's assume that threshold is `2`, increment is `1` in runtime.json
-          // if cold start number in previous minute is `2`, requireCount is `2/2 * 1 = 1`
-          // if cold start number in previous minute is `4`, requireCount is `4/2 * 1 = 2`
-          val requireCount =
-            math.min(math.max(1, (value / reactiveValue.threshold) * reactiveValue.increment), maxCount)
-          prewarmContainerIfpossible(kind, memory, requireCount)
-        }
-      }
-    }
-    coldStartCount = immutable.Map.empty[ColdStartKey, Int]
-  }
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -321,7 +288,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
       //backfill prewarms on every ContainerRemoved(replacePrewarm = true), just in case
       if (replacePrewarm) {
-        backfillPrewarms(false) //in case a prewarm is removed due to health failure or crash
+        adjustPrewarmedContainer(false, false) //in case a prewarm is removed due to health failure or crash
       }
 
     // This message is received for one of these reasons:
@@ -336,7 +303,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       emitMetrics()
 
     case AdjustPrewarmedContainer =>
-      adjustPrewarmedContainer()
+      adjustPrewarmedContainer(false, true)
   }
 
   /** Resend next item in the buffer, or trigger next item in the feed, if no items in the buffer. */
@@ -359,35 +326,72 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Install prewarm containers up to the configured requirements for each kind/memory combination. */
-  def backfillPrewarms(init: Boolean) = {
+  def adjustPrewarmedContainer(init: Boolean, scheduled: Boolean): Unit = {
     prewarmConfig.foreach { config =>
+      // Delete unused prewarmed container until minCount is reached
       val kind = config.exec.kind
       val memory = config.memoryLimit
-      val initialCount = config.initialCount
-      var minCount = initialCount
-      var expires: Option[FiniteDuration] = None
-      config.reactive match {
-        case Some(reactiveValue) =>
-          minCount = reactiveValue.minCount
-          expires = Some(reactiveValue.ttl)
-        case None =>
-      }
-      val currentCount = prewarmedPool.count {
-        case (_, PreWarmedData(_, `kind`, `memory`, _, _)) => true //done starting
-        case _                                             => false //started but not finished starting
+
+      val runningCount = prewarmedPool.count {
+        //done starting, and not expired
+        case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if !p.isExpired() => true
+        //started but not finished starting (or expired)
+        case _ => false
       }
       val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
-      val containerCount = currentCount + startingCount
-      if (containerCount < initialCount) {
-        val requiredCount = if (init) initialCount else minCount
-        logging.info(
-          this,
-          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${requiredCount - containerCount} pre-warms to desired count: ${requiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
-          TransactionId.invokerWarmup)
-        (containerCount until requiredCount).foreach { _ =>
-          prewarmContainer(config.exec, config.memoryLimit, expires)
+      val currentCount = runningCount + startingCount
+      //determine how many are needed
+      val desiredCount: Int =
+        if (init) config.initialCount
+        else {
+          if (scheduled) {
+            //scheduled/reactive config backfill
+            config.reactive
+              .map(c => getReactiveCold(c, kind, memory).getOrElse(c.minCount)) //reactive -> desired is either cold start driven, or minCount
+              .getOrElse(config.initialCount) //not reactive -> desired is always initial count
+          } else {
+            //normal backfill after removal - make sure at least minCount or initialCount is started
+            config.reactive.map(_.minCount).getOrElse(config.initialCount)
+          }
+        }
+
+      //remove expired
+      if (scheduled) {
+        config.reactive.foreach { reactiveValue =>
+          prewarmedPool
+            .filter { warmInfo =>
+              warmInfo match {
+                case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
+                case _                                                                  => false
+              }
+            }
+            .drop(reactiveValue.minCount) //keep minCount even if expired
+            .map(_._1 ! Remove)
         }
       }
+
+      if (currentCount < desiredCount) {
+        logging.info(
+          this,
+          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${desiredCount - currentCount} pre-warms to desired count: ${desiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+        (currentCount until desiredCount).foreach { _ =>
+          prewarmContainer(config.exec, config.memoryLimit, config.reactive.map(_.ttl))
+        }
+      }
+    }
+    if (scheduled) {
+      //clear coldStartCounts each time scheduled event is processed to reset counts
+      coldStartCount = immutable.Map.empty[ColdStartKey, Int]
+    }
+  }
+
+  def getReactiveCold(config: ReactivePrewarmingConfig, kind: String, memory: ByteSize): Option[Int] = {
+    coldStartCount.get(ColdStartKey(kind, memory)).map { value =>
+      // Let's assume that threshold is `2`, increment is `1` in runtimes.json
+      // if cold start number in previous minute is `2`, requireCount is `2/2 * 1 = 1`
+      // if cold start number in previous minute is `4`, requireCount is `4/2 * 1 = 2`
+      math.min(math.max(config.minCount, (value / config.threshold) * config.increment), config.maxCount)
     }
   }
 
@@ -400,40 +404,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   /** Creates a new prewarmed container */
-  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize, expires: Option[FiniteDuration]): Unit = {
+  def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize, ttl: Option[FiniteDuration]): Unit = {
     val newContainer = childFactory(context)
     prewarmStartingPool = prewarmStartingPool + (newContainer -> (exec.kind, memoryLimit))
-    newContainer ! Start(exec, memoryLimit, expires)
-  }
-
-  /** Create a new prewarm container if currentCount doesn't reach maxCount */
-  def prewarmContainerIfpossible(kind: String, memoryLimit: ByteSize, count: Int): Unit = {
-    prewarmConfig
-      .filter { config =>
-        kind == config.exec.kind && memoryLimit == config.memoryLimit
-      }
-      .foreach { config =>
-        config.reactive match {
-          case Some(reactiveValue) =>
-            val currentCount = prewarmedPool.count {
-              case (_, PreWarmedData(_, `kind`, `memoryLimit`, _, _)) => true //done starting
-              case _                                                  => false //started but not finished starting
-            }
-            val ttl = reactiveValue.ttl
-            val maxCount = reactiveValue.maxCount
-            val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memoryLimit)
-            val containerCount = currentCount + startingCount
-            if (containerCount < maxCount) {
-              val createNumber = if (maxCount - containerCount > count) count else maxCount - containerCount
-              logging.info(this, s"add ${createNumber} [kind: ${kind} memory: ${memoryLimit}] prewarmed containers")
-              1 to createNumber foreach { _ =>
-                prewarmContainer(config.exec, config.memoryLimit, Some(ttl))
-              }
-            }
-          case None => // do nothing
-        }
-
-      }
+    newContainer ! Start(exec, memoryLimit, ttl)
   }
 
   /** this is only for cold start statistics of prewarm configs, e.g. not blackbox or other configs. */
@@ -476,11 +450,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           // Create a new prewarm container
           // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the
           // factory
-          val expires = data.expires match {
+          val ttl = data.expires match {
             case Some(value) => Some(value.time)
             case None        => None
           }
-          prewarmContainer(action.exec, memory, expires)
+          prewarmContainer(action.exec, memory, ttl)
           (ref, data)
       }
   }
