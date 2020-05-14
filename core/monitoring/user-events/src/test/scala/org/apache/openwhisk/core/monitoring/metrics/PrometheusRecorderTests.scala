@@ -99,6 +99,12 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
             |    rename-tags {
             |      namespace = "ow_namespace"
             |    }
+            |    retry {
+            |      min-backoff = 3 secs
+            |      max-backoff = 30 secs
+            |      random-factor = 0.2
+            |      max-restarts = 10
+            |    }
             |  }
             | }
          """.stripMargin)
