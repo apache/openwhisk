@@ -129,7 +129,8 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false)
+  def poolConfig(userMemory: ByteSize) =
+    ContainerPoolConfig(userMemory, 0.5, false, FiniteDuration(1, TimeUnit.MINUTES))
 
   behavior of "ContainerPool"
 
@@ -801,12 +802,12 @@ class ContainerPoolTests
     stream.reset()
   }
 
-  it should "supplement prewarmed container when doesn't have enough container to handle activation" in {
-    val (containers, factory) = testContainers(6)
+  it should "adjust prewarm container run well without reactive config" in {
+    val (containers, factory) = testContainers(4)
     val feed = TestProbe()
 
-    val deadline: Option[Deadline] = Some(ttl.fromNow)
-    val reactive: Option[ReactivePrewarmingConfig] = Some(ReactivePrewarmingConfig(0, 2, ttl, threshold, increment))
+    stream.reset()
+    val initialCount = 2
     val pool =
       system.actorOf(
         ContainerPool
@@ -814,44 +815,153 @@ class ContainerPoolTests
             factory,
             poolConfig(MemoryLimit.STD_MEMORY * 4),
             feed.ref,
-            List(PrewarmingConfig(2, exec, memoryLimit, reactive))))
+            List(PrewarmingConfig(initialCount, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(1).expectMsg(Start(exec, memoryLimit))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind)))
+
+    // when invoker starts, include 0 prewarm container at the very beginning
+    stream.toString should include(s"currentCount: 0 prewarmed container")
+
+    // the desiredCount should equal with initialCount when invoker starts
+    stream.toString should include(s"needs ${initialCount} desired prewarmed container")
+
+    stream.reset()
+    pool ! AdjustPrewarmedContainer
+
+    // Make sure adjustPrewarmContainer run finished
+    Thread.sleep(2.seconds.toMillis)
+
+    // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
+    stream.toString should include(s"currentCount: ${initialCount} prewarmed container")
+  }
+
+  it should "adjust prewarm container run well with reactive config" in {
+    val (containers, factory) = testContainers(15)
+    val feed = TestProbe()
+
+    stream.reset()
+    val minCount = 0
+    val initialCount = 2
+    val maxCount = 4
+    val deadline: Option[Deadline] = Some(ttl.fromNow)
+    val reactive: Option[ReactivePrewarmingConfig] =
+      Some(ReactivePrewarmingConfig(minCount, maxCount, ttl, threshold, increment))
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(
+            factory,
+            poolConfig(MemoryLimit.STD_MEMORY * 8),
+            feed.ref,
+            List(PrewarmingConfig(initialCount, exec, memoryLimit, reactive))))
     containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
     containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+
+    // when invoker starts, include 0 prewarm container at the very beginning
+    stream.toString should include(s"currentCount: 0 prewarmed container")
+
+    // the desiredCount should equal with initialCount when invoker starts
+    stream.toString should include(s"needs ${initialCount} desired prewarmed container")
+
     stream.reset()
 
-    // Make sure prewarmed containers can be deleted from prewarmedPool due to unused
-    Thread.sleep(3.seconds.toMillis)
-
+    // Make sure the created prewarmed containers are expired
+    Thread.sleep(ttl.toMillis)
     pool ! AdjustPrewarmedContainer
+    // Make sure adjustPrewarmContainer run finished
+    Thread.sleep(2.seconds.toMillis)
+
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
     containers(0).send(pool, ContainerRemoved(false))
     containers(1).send(pool, ContainerRemoved(false))
 
+    // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
+    stream.toString should include(s"currentCount: ${initialCount} prewarmed container")
+
+    // the desiredCount should equal with minCount because cold start didn't happen
+    stream.toString should include(s"needs ${minCount} desired prewarmed container")
+    // Previously created prewarmed containers should be removed
+    stream.toString should include(s"removed ${initialCount} expired prewarmed container")
+
+    stream.reset()
     val action = ExecutableWhiskAction(
       EntityPath("actionSpace"),
       EntityName("actionName"),
       exec,
       limits = ActionLimits(memory = MemoryLimit(memoryLimit)))
     val run = createRunMessage(action, invocationNamespace)
-
-    // Make sure prewarmed containers are deleted
-    Thread.sleep(2.seconds.toMillis)
-
+    // 2 code start happened
     pool ! run
     pool ! run
     containers(2).expectMsg(run)
     containers(3).expectMsg(run)
 
-    // Make sure cold start in previous 1 minute can be counted
-    Thread.sleep(60.seconds.toMillis)
-
-    // supplement 2 prewarmed container
     pool ! AdjustPrewarmedContainer
+    // Make sure adjustPrewarmContainer run finished
+    Thread.sleep(2.seconds.toMillis)
+
+    // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+    stream.toString should include(s"currentCount: 0 prewarmed container")
+    // the desiredCount should equal with 2 due to cold start happened
+    stream.toString should include(s"needs 2 desired prewarmed container")
+
     containers(4).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(5).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(4).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(5).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+
+    // Make sure the created prewarmed containers are expired
+    stream.reset()
+    Thread.sleep(ttl.toMillis)
+    pool ! AdjustPrewarmedContainer
+    // Make sure adjustPrewarmContainer run finished
+    Thread.sleep(2.seconds.toMillis)
+
+    containers(4).expectMsg(Remove)
+    containers(5).expectMsg(Remove)
+    containers(4).send(pool, ContainerRemoved(false))
+    containers(5).send(pool, ContainerRemoved(false))
+
+    // removed previous 2 prewarmed container due to expired
+    stream.toString should include(s"removed 2 expired prewarmed container")
+
+    stream.reset()
+    // 5 code start happened(5 > maxCount)
+    pool ! run
+    pool ! run
+    pool ! run
+    pool ! run
+    pool ! run
+
+    containers(6).expectMsg(run)
+    containers(7).expectMsg(run)
+    containers(8).expectMsg(run)
+    containers(9).expectMsg(run)
+    containers(10).expectMsg(run)
+
+    pool ! AdjustPrewarmedContainer
+    // Make sure adjustPrewarmContainer run finished
+    Thread.sleep(2.seconds.toMillis)
+
+    // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+    stream.toString should include(s"currentCount: 0 prewarmed container")
+
+    // in spite of the cold start number > maxCount, but the desiredCount can't be greater than maxCount
+    stream.toString should include(s"needs ${maxCount} desired prewarmed container")
+
+    containers(11).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(12).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(13).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(14).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(11).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(12).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(13).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(14).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
   }
 }
 abstract class MockableContainer extends Container {

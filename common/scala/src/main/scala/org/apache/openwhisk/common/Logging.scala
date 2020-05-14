@@ -511,6 +511,12 @@ object LoggingMarkers {
     LogMarkerToken(containerPool, "prewarmSize", counter)(MeasurementUnit.information.megabytes)
   val CONTAINER_POOL_IDLES_COUNT =
     LogMarkerToken(containerPool, "idlesCount", counter)(MeasurementUnit.none)
+  def CONTAINER_POOL_COLDSTART(memory: String, kind: String) =
+    LogMarkerToken(containerPool, "coldstart", counter, None, Map("memory" -> memory, "kind" -> kind))(
+      MeasurementUnit.none)
+  def CONTAINER_POOL_EXPIRED(memory: String, kind: String) =
+    LogMarkerToken(containerPool, "expired", counter, None, Map("memory" -> memory, "kind" -> kind))(
+      MeasurementUnit.none)
   val CONTAINER_POOL_IDLES_SIZE =
     LogMarkerToken(containerPool, "idlesSize", counter)(MeasurementUnit.information.megabytes)
 

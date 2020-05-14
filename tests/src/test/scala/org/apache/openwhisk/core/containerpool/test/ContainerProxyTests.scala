@@ -27,6 +27,7 @@ import akka.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe
 import akka.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.io.Tcp.{Close, CommandFailed, Connect, Connected}
@@ -274,7 +275,7 @@ class ContainerProxyTests
     (transid: TransactionId, activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext) =>
       Future.successful(())
   }
-  val poolConfig = ContainerPoolConfig(2.MB, 0.5, false)
+  val poolConfig = ContainerPoolConfig(2.MB, 0.5, false, FiniteDuration(1, TimeUnit.MINUTES))
   def healthchecksConfig(enabled: Boolean = false) = ContainerProxyHealthCheckConfig(enabled, 100.milliseconds, 2)
   val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 

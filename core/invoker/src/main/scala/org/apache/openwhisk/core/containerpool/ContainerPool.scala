@@ -89,8 +89,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   adjustPrewarmedContainer(true, false)
 
-  // check periodically every 1 minute, adjust prewarmed container(delete if unused for some time and create some increment containers)
-  context.system.scheduler.schedule(1.minute, 1.minute, self, AdjustPrewarmedContainer)
+  // check periodically, adjust prewarmed container(delete if unused for some time and create some increment containers)
+  context.system.scheduler.schedule(10.seconds, poolConfig.prewarmExpiredCheckPeriod, self, AdjustPrewarmedContainer)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -333,41 +333,53 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       val memory = config.memoryLimit
 
       val runningCount = prewarmedPool.count {
-        //done starting, and not expired
+        // done starting, and not expired
         case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if !p.isExpired() => true
-        //started but not finished starting (or expired)
+        // started but not finished starting (or expired)
         case _ => false
       }
       val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
       val currentCount = runningCount + startingCount
-      //determine how many are needed
+
+      logging.info(
+        this,
+        s"[kind: ${kind} memory: ${memory.toString}] currentCount: ${currentCount} prewarmed container")
+
+      // determine how many are needed
       val desiredCount: Int =
         if (init) config.initialCount
         else {
           if (scheduled) {
-            //scheduled/reactive config backfill
+            // scheduled/reactive config backfill
             config.reactive
               .map(c => getReactiveCold(c, kind, memory).getOrElse(c.minCount)) //reactive -> desired is either cold start driven, or minCount
               .getOrElse(config.initialCount) //not reactive -> desired is always initial count
           } else {
-            //normal backfill after removal - make sure at least minCount or initialCount is started
+            // normal backfill after removal - make sure at least minCount or initialCount is started
             config.reactive.map(_.minCount).getOrElse(config.initialCount)
           }
         }
 
-      //remove expired
-      if (scheduled) {
-        config.reactive.foreach { reactiveValue =>
-          prewarmedPool
-            .filter { warmInfo =>
-              warmInfo match {
-                case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
-                case _                                                                  => false
-              }
+      logging.info(
+        this,
+        s"[kind: ${kind} memory: ${memory.toString}] needs ${desiredCount} desired prewarmed container")
+
+      // remove expired
+      config.reactive.foreach { _ =>
+        val expiredPrewarmedContainer = prewarmedPool
+          .filter { warmInfo =>
+            warmInfo match {
+              case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
+              case _                                                                  => false
             }
-            .drop(reactiveValue.minCount) //keep minCount even if expired
-            .map(_._1 ! Remove)
-        }
+          }
+        // emit expired container counter metric with memory + kind
+        val removedCount = expiredPrewarmedContainer.size
+        MetricEmitter.emitHistogramMetric(LoggingMarkers.CONTAINER_POOL_EXPIRED(memory.toString, kind), removedCount)
+        logging.info(
+          this,
+          s"[kind: ${kind} memory: ${memory.toString}] removed ${removedCount} expired prewarmed container")
+        expiredPrewarmedContainer.map(_._1 ! Remove)
       }
 
       if (currentCount < desiredCount) {
@@ -381,7 +393,16 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       }
     }
     if (scheduled) {
-      //clear coldStartCounts each time scheduled event is processed to reset counts
+      // emit cold start counter metric with memory + kind
+      coldStartCount foreach { coldStart =>
+        val coldStartKey = coldStart._1
+        val coldStartValue = coldStart._2
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.CONTAINER_POOL_COLDSTART(coldStartKey.memory.toString, coldStartKey.kind),
+          coldStartValue)
+
+      }
+      // clear coldStartCounts each time scheduled event is processed to reset counts
       coldStartCount = immutable.Map.empty[ColdStartKey, Int]
     }
   }
