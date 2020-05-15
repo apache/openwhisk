@@ -374,11 +374,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             }
           }
         // emit expired container counter metric with memory + kind
-        val removedCount = expiredPrewarmedContainer.size
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.CONTAINER_POOL_EXPIRED(memory.toString, kind), removedCount)
+        MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
         logging.info(
           this,
-          s"[kind: ${kind} memory: ${memory.toString}] removed ${removedCount} expired prewarmed container")
+          s"[kind: ${kind} memory: ${memory.toString}] removed ${expiredPrewarmedContainer.size} expired prewarmed container")
         expiredPrewarmedContainer.map(_._1 ! Remove)
       }
 
@@ -396,11 +395,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       // emit cold start counter metric with memory + kind
       coldStartCount foreach { coldStart =>
         val coldStartKey = coldStart._1
-        val coldStartValue = coldStart._2
-        MetricEmitter.emitHistogramMetric(
-          LoggingMarkers.CONTAINER_POOL_COLDSTART(coldStartKey.memory.toString, coldStartKey.kind),
-          coldStartValue)
-
+        MetricEmitter.emitCounterMetric(
+          LoggingMarkers.CONTAINER_POOL_PREWARM_COLDSTART(coldStartKey.memory.toString, coldStartKey.kind))
       }
       // clear coldStartCounts each time scheduled event is processed to reset counts
       coldStartCount = immutable.Map.empty[ColdStartKey, Int]

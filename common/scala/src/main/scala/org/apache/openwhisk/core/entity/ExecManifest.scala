@@ -166,7 +166,7 @@ protected[core] object ExecManifest {
       minCount >= 0 && minCount <= maxCount,
       "minCount must be be greater than 0 and less than or equal to maxCount")
     require(maxCount > 0, "maxCount must be positive")
-    require(ttl.toSeconds > 0, "ttl must be positive")
+    require(ttl.toMillis > 0, "ttl must be positive")
     require(threshold > 0, "threshold must be positive")
     require(increment > 0 && increment <= maxCount, "increment must be positive and less than or equal to maxCount")
   }

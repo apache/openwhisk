@@ -42,6 +42,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, ReactivePrewarmingConfig, RuntimeManifest}
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
+import org.scalatest.concurrent.Eventually
 
 /**
  * Behavior tests for the ContainerPool
@@ -56,6 +57,7 @@ class ContainerPoolTests
     with Matchers
     with BeforeAndAfterAll
     with MockFactory
+    with Eventually
     with StreamLogging {
 
   override def afterAll = TestKit.shutdownActorSystem(system)
@@ -68,7 +70,7 @@ class ContainerPoolTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
-  val ttl = FiniteDuration(2, TimeUnit.SECONDS)
+  val ttl = FiniteDuration(500, TimeUnit.MILLISECONDS)
   val threshold = 1
   val increment = 1
 
@@ -787,19 +789,16 @@ class ContainerPoolTests
     stream.reset()
 
     // Make sure prewarmed containers can be deleted from prewarmedPool due to unused
-    Thread.sleep(3.seconds.toMillis)
+    Thread.sleep(ttl.toMillis + 1)
 
     pool ! AdjustPrewarmedContainer
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
     containers(0).send(pool, ContainerRemoved(false))
     containers(1).send(pool, ContainerRemoved(false))
-
-    // Make sure prewarmed containers are deleted
-    Thread.sleep(2.seconds.toMillis)
-
-    stream.toString should include("prewarmed container is deleted")
-    stream.reset()
+    eventually {
+      stream.toString should include("prewarmed container is deleted")
+    }
   }
 
   it should "adjust prewarm container run well without reactive config" in {
@@ -830,11 +829,10 @@ class ContainerPoolTests
     stream.reset()
     pool ! AdjustPrewarmedContainer
 
-    // Make sure adjustPrewarmContainer run finished
-    Thread.sleep(2.seconds.toMillis)
-
     // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
-    stream.toString should include(s"currentCount: ${initialCount} prewarmed container")
+    eventually {
+      stream.toString should include(s"currentCount: ${initialCount} prewarmed container")
+    }
   }
 
   it should "adjust prewarm container run well with reactive config" in {
@@ -870,18 +868,16 @@ class ContainerPoolTests
     stream.reset()
 
     // Make sure the created prewarmed containers are expired
-    Thread.sleep(ttl.toMillis)
+    Thread.sleep(ttl.toMillis + 1)
     pool ! AdjustPrewarmedContainer
-    // Make sure adjustPrewarmContainer run finished
-    Thread.sleep(2.seconds.toMillis)
 
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
     containers(0).send(pool, ContainerRemoved(false))
     containers(1).send(pool, ContainerRemoved(false))
 
-    // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
-    stream.toString should include(s"currentCount: ${initialCount} prewarmed container")
+    // currentCount should equal with 0 due to these 2 prewarmed containers are expired
+    stream.toString should include(s"currentCount: 0 prewarmed container")
 
     // the desiredCount should equal with minCount because cold start didn't happen
     stream.toString should include(s"needs ${minCount} desired prewarmed container")
@@ -902,25 +898,23 @@ class ContainerPoolTests
     containers(3).expectMsg(run)
 
     pool ! AdjustPrewarmedContainer
-    // Make sure adjustPrewarmContainer run finished
-    Thread.sleep(2.seconds.toMillis)
 
-    // Because already removed expired prewarmed containrs, so currentCount should equal with 0
-    stream.toString should include(s"currentCount: 0 prewarmed container")
-    // the desiredCount should equal with 2 due to cold start happened
-    stream.toString should include(s"needs 2 desired prewarmed container")
+    eventually {
+      // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+      stream.toString should include(s"currentCount: 0 prewarmed container")
+      // the desiredCount should equal with 2 due to cold start happened
+      stream.toString should include(s"needs 2 desired prewarmed container")
+    }
 
     containers(4).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(5).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(4).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
     containers(5).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
 
-    // Make sure the created prewarmed containers are expired
     stream.reset()
-    Thread.sleep(ttl.toMillis)
+    // Make sure the created prewarmed containers are expired
+    Thread.sleep(ttl.toMillis + 1)
     pool ! AdjustPrewarmedContainer
-    // Make sure adjustPrewarmContainer run finished
-    Thread.sleep(2.seconds.toMillis)
 
     containers(4).expectMsg(Remove)
     containers(5).expectMsg(Remove)
@@ -945,14 +939,13 @@ class ContainerPoolTests
     containers(10).expectMsg(run)
 
     pool ! AdjustPrewarmedContainer
-    // Make sure adjustPrewarmContainer run finished
-    Thread.sleep(2.seconds.toMillis)
 
-    // Because already removed expired prewarmed containrs, so currentCount should equal with 0
-    stream.toString should include(s"currentCount: 0 prewarmed container")
-
-    // in spite of the cold start number > maxCount, but the desiredCount can't be greater than maxCount
-    stream.toString should include(s"needs ${maxCount} desired prewarmed container")
+    eventually {
+      // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+      stream.toString should include(s"currentCount: 0 prewarmed container")
+      // in spite of the cold start number > maxCount, but the desiredCount can't be greater than maxCount
+      stream.toString should include(s"needs ${maxCount} desired prewarmed container")
+    }
 
     containers(11).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(12).expectMsg(Start(exec, memoryLimit, Some(ttl)))
