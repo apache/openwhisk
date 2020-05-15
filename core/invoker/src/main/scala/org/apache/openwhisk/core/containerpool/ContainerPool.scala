@@ -90,7 +90,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   adjustPrewarmedContainer(true, false)
 
   // check periodically, adjust prewarmed container(delete if unused for some time and create some increment containers)
-  context.system.scheduler.schedule(10.seconds, poolConfig.prewarmExpiredCheckPeriod, self, AdjustPrewarmedContainer)
+  context.system.scheduler.schedule(
+    10.seconds,
+    poolConfig.prewarmExpirationCheckInterval,
+    self,
+    AdjustPrewarmedContainer)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name

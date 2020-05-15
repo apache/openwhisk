@@ -47,12 +47,12 @@ case class ContainerArgsConfig(network: String,
 case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
                                akkaClient: Boolean,
-                               prewarmExpiredCheckPeriod: FiniteDuration) {
+                               prewarmExpirationCheckInterval: FiniteDuration) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
     s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
 
-  require(prewarmExpiredCheckPeriod.toSeconds > 0, "prewarmExpiredCheckPeriod must be > 0")
+  require(prewarmExpirationCheckInterval.toSeconds > 0, "prewarmExpirationCheckInterval must be > 0")
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.
