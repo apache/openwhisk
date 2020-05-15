@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.entity.test
 
+import java.util.concurrent.TimeUnit
+
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -28,6 +30,7 @@ import org.apache.openwhisk.core.entity.ExecManifest._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.ByteSize
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
@@ -262,7 +265,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     }
   }
 
-  it should "parse manifest from JSON string" in {
+  it should "parse manifest without reactive from JSON string" in {
     val json = """
                  |{ "runtimes": {
                  |    "nodef": [
@@ -318,7 +321,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |}
                  |""".stripMargin.parseJson.asJsObject
 
-    val js6 = RuntimeManifest(
+    val js10 = RuntimeManifest(
       "nodejs:10",
       ImageName("nodejsaction"),
       deprecated = Some(true),
@@ -336,16 +339,12 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     mf shouldBe {
       Runtimes(
         Set(
-          RuntimeFamily("nodef", Set(js6, js8)),
+          RuntimeFamily("nodef", Set(js10, js8)),
           RuntimeFamily("pythonf", Set(py)),
           RuntimeFamily("swiftf", Set(sw)),
           RuntimeFamily("phpf", Set(ph))),
         Set.empty,
         None)
-    }
-
-    def stemCellFactory(m: RuntimeManifest, cells: List[StemCell]) = cells.map { c =>
-      (m.kind, m.image, c.initialCount, c.memory)
     }
 
     mf.stemcells.flatMap {
@@ -354,7 +353,130 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
-      (js6.kind, js6.image, 1, 128.MB),
+      (js10.kind, js10.image, 1, 128.MB),
+      (js8.kind, js8.image, 1, 128.MB),
+      (js8.kind, js8.image, 1, 256.MB),
+      (py.kind, py.image, 2, 256.MB))
+  }
+
+  it should "parse manifest with reactive from JSON string" in {
+    val json = """
+                 |{ "runtimes": {
+                 |    "nodef": [
+                 |      {
+                 |        "kind": "nodejs:10",
+                 |        "deprecated": true,
+                 |        "image": {
+                 |          "name": "nodejsaction"
+                 |        },
+                 |        "stemCells": [{
+                 |          "initialCount": 1,
+                 |          "memory": "128 MB",
+                 |          "reactive": {
+                 |            "minCount": 1,
+                 |            "maxCount": 4,
+                 |            "ttl": "2 minutes",
+                 |            "threshold": 1,
+                 |            "increment": 1
+                 |           }
+                 |        }]
+                 |      }, {
+                 |        "kind": "nodejs:8",
+                 |        "default": true,
+                 |        "image": {
+                 |          "name": "nodejsaction"
+                 |        },
+                 |        "stemCells": [{
+                 |          "initialCount": 1,
+                 |          "memory": "128 MB",
+                 |          "reactive": {
+                 |            "minCount": 1,
+                 |            "maxCount": 4,
+                 |            "ttl": "2 minutes",
+                 |            "threshold": 1,
+                 |            "increment": 1
+                 |          }
+                 |        }, {
+                 |          "initialCount": 1,
+                 |          "memory": "256 MB",
+                 |          "reactive": {
+                 |            "minCount": 1,
+                 |            "maxCount": 4,
+                 |            "ttl": "2 minutes",
+                 |            "threshold": 1,
+                 |            "increment": 1
+                 |           }
+                 |        }]
+                 |      }
+                 |    ],
+                 |    "pythonf": [{
+                 |      "kind": "python",
+                 |      "image": {
+                 |        "name": "pythonaction"
+                 |      },
+                 |      "stemCells": [{
+                 |        "initialCount": 2,
+                 |        "memory": "256 MB",
+                 |        "reactive": {
+                 |           "minCount": 1,
+                 |           "maxCount": 4,
+                 |           "ttl": "2 minutes",
+                 |           "threshold": 1,
+                 |           "increment": 1
+                 |          }
+                 |      }]
+                 |    }],
+                 |    "swiftf": [{
+                 |      "kind": "swift",
+                 |      "image": {
+                 |        "name": "swiftaction"
+                 |      },
+                 |      "stemCells": []
+                 |    }],
+                 |    "phpf": [{
+                 |      "kind": "php",
+                 |      "image": {
+                 |        "name": "phpaction"
+                 |      }
+                 |    }]
+                 |  }
+                 |}
+                 |""".stripMargin.parseJson.asJsObject
+
+    val reactive = Some(ReactivePrewarmingConfig(1, 4, FiniteDuration(2, TimeUnit.MINUTES), 1, 1))
+    val js10 = RuntimeManifest(
+      "nodejs:10",
+      ImageName("nodejsaction"),
+      deprecated = Some(true),
+      stemCells = Some(List(StemCell(1, 128.MB, reactive))))
+    val js8 = RuntimeManifest(
+      "nodejs:8",
+      ImageName("nodejsaction"),
+      default = Some(true),
+      stemCells = Some(List(StemCell(1, 128.MB, reactive), StemCell(1, 256.MB, reactive))))
+    val py = RuntimeManifest("python", ImageName("pythonaction"), stemCells = Some(List(StemCell(2, 256.MB, reactive))))
+    val sw = RuntimeManifest("swift", ImageName("swiftaction"), stemCells = Some(List.empty))
+    val ph = RuntimeManifest("php", ImageName("phpaction"))
+    val mf = ExecManifest.runtimes(json, RuntimeManifestConfig()).get
+
+    mf shouldBe {
+      Runtimes(
+        Set(
+          RuntimeFamily("nodef", Set(js10, js8)),
+          RuntimeFamily("pythonf", Set(py)),
+          RuntimeFamily("swiftf", Set(sw)),
+          RuntimeFamily("phpf", Set(ph))),
+        Set.empty,
+        None)
+    }
+
+    mf.stemcells.flatMap {
+      case (m, cells) =>
+        cells.map { c =>
+          (m.kind, m.image, c.initialCount, c.memory)
+        }
+    }.toList should contain theSameElementsAs List(
+      (js10.kind, js10.image, 1, 128.MB),
       (js8.kind, js8.image, 1, 128.MB),
       (js8.kind, js8.image, 1, 256.MB),
       (py.kind, py.image, 2, 256.MB))
