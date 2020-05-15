@@ -393,15 +393,22 @@ protected[core] object ExecManifest {
     val defaultSerdes = jsonFormat3(StemCell.apply)
     override def read(value: JsValue): StemCell = {
       val fields = value.asJsObject.fields
-      val initialCount =
+      val initialCount: Option[Int] =
         fields
           .get("initialCount")
           .orElse(fields.get("count"))
           .map(_.convertTo[Int])
-          .get
-      val memory = fields.get("memory").map(_.convertTo[ByteSize]).get
+      val memory: Option[ByteSize] = fields.get("memory").map(_.convertTo[ByteSize])
       val config = fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
-      StemCell(initialCount, memory, config)
+
+      (initialCount, memory) match {
+        case (Some(c), Some(m)) => StemCell(c, m, config)
+        case (Some(c), None) =>
+          throw new IllegalArgumentException(s"memory is required, just provide initialCount: ${c}")
+        case (None, Some(m)) =>
+          throw new IllegalArgumentException(s"initialCount is required, just provide memory: ${m.toString}")
+        case _ => throw new IllegalArgumentException("both initialCount and memory are required")
+      }
     }
 
     override def write(s: StemCell) = defaultSerdes.write(s)
