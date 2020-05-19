@@ -91,7 +91,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   // check periodically, adjust prewarmed container(delete if unused for some time and create some increment containers)
   context.system.scheduler.schedule(
-    10.seconds,
+    2.seconds,
     poolConfig.prewarmExpirationCheckInterval,
     self,
     AdjustPrewarmedContainer)
@@ -281,7 +281,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
       //in case this was a prewarm
       prewarmedPool.get(sender()).foreach { data =>
-        logging.info(this, s"[kind: ${data.kind} memory: ${data.memoryLimit.toString}] prewarmed container is deleted")
         prewarmedPool = prewarmedPool - sender()
       }
       //in case this was a starting prewarm
@@ -329,90 +328,32 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     }
   }
 
-  /** Install prewarm containers up to the configured requirements for each kind/memory combination. */
+  /** adjust prewarm containers up to the configured requirements for each kind/memory combination. */
   def adjustPrewarmedContainer(init: Boolean, scheduled: Boolean): Unit = {
-    prewarmConfig.foreach { config =>
-      // Delete unused prewarmed container until minCount is reached
-      val kind = config.exec.kind
-      val memory = config.memoryLimit
-
-      val runningCount = prewarmedPool.count {
-        // done starting, and not expired
-        case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if !p.isExpired() => true
-        // started but not finished starting (or expired)
-        case _ => false
-      }
-      val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
-      val currentCount = runningCount + startingCount
-
-      logging.info(
-        this,
-        s"[kind: ${kind} memory: ${memory.toString}] currentCount: ${currentCount} prewarmed container")
-
-      // determine how many are needed
-      val desiredCount: Int =
-        if (init) config.initialCount
-        else {
-          if (scheduled) {
-            // scheduled/reactive config backfill
-            config.reactive
-              .map(c => getReactiveCold(c, kind, memory).getOrElse(c.minCount)) //reactive -> desired is either cold start driven, or minCount
-              .getOrElse(config.initialCount) //not reactive -> desired is always initial count
-          } else {
-            // normal backfill after removal - make sure at least minCount or initialCount is started
-            config.reactive.map(_.minCount).getOrElse(config.initialCount)
+    //fill in missing prewarms
+    ContainerPool
+      .increasePrewarms(init, scheduled, coldStartCount, prewarmConfig, prewarmedPool, prewarmStartingPool)
+      .foreach { c =>
+        val config = c._1
+        val currentCount = c._2._1
+        val desiredCount = c._2._2
+        if (currentCount < desiredCount) {
+          (currentCount until desiredCount).foreach { _ =>
+            prewarmContainer(config.exec, config.memoryLimit, config.reactive.map(_.ttl))
           }
         }
-
-      logging.info(
-        this,
-        s"[kind: ${kind} memory: ${memory.toString}] needs ${desiredCount} desired prewarmed container")
-
-      // remove expired
-      config.reactive.foreach { _ =>
-        val expiredPrewarmedContainer = prewarmedPool
-          .filter { warmInfo =>
-            warmInfo match {
-              case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
-              case _                                                                  => false
-            }
-          }
-        // emit expired container counter metric with memory + kind
-        MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
-        logging.info(
-          this,
-          s"[kind: ${kind} memory: ${memory.toString}] removed ${expiredPrewarmedContainer.size} expired prewarmed container")
-        expiredPrewarmedContainer.map(_._1 ! Remove)
       }
-
-      if (currentCount < desiredCount) {
-        logging.info(
-          this,
-          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${desiredCount - currentCount} pre-warms to desired count: ${desiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
-          TransactionId.invokerWarmup)
-        (currentCount until desiredCount).foreach { _ =>
-          prewarmContainer(config.exec, config.memoryLimit, config.reactive.map(_.ttl))
-        }
-      }
-    }
     if (scheduled) {
-      // emit cold start counter metric with memory + kind
+      //on scheduled time, remove expired prewarms
+      ContainerPool.removeExpired(prewarmConfig, prewarmedPool).foreach(_ ! Remove)
+      //on scheduled time, emit cold start counter metric with memory + kind
       coldStartCount foreach { coldStart =>
         val coldStartKey = coldStart._1
         MetricEmitter.emitCounterMetric(
           LoggingMarkers.CONTAINER_POOL_PREWARM_COLDSTART(coldStartKey.memory.toString, coldStartKey.kind))
       }
-      // clear coldStartCounts each time scheduled event is processed to reset counts
+      //   then clear coldStartCounts each time scheduled event is processed to reset counts
       coldStartCount = immutable.Map.empty[ColdStartKey, Int]
-    }
-  }
-
-  def getReactiveCold(config: ReactivePrewarmingConfig, kind: String, memory: ByteSize): Option[Int] = {
-    coldStartCount.get(ColdStartKey(kind, memory)).map { value =>
-      // Let's assume that threshold is `2`, increment is `1` in runtimes.json
-      // if cold start number in previous minute is `2`, requireCount is `2/2 * 1 = 1`
-      // if cold start number in previous minute is `4`, requireCount is `4/2 * 1 = 2`
-      math.min(math.max(config.minCount, (value / config.threshold) * config.increment), config.maxCount)
     }
   }
 
@@ -608,6 +549,115 @@ object ContainerPool {
       // Or, if this is one of the recursions: Enough containers are found to get the memory, that is
       // necessary. -> Abort recursion
       toRemove
+    }
+  }
+
+  /**
+   * Find the expired actor in prewarmedPool
+   *
+   * @param prewarmConfig
+   * @param prewarmedPool
+   * @param logging
+   * @return a list of expired actor
+   */
+  def removeExpired(prewarmConfig: List[PrewarmingConfig], prewarmedPool: Map[ActorRef, PreWarmedData])(
+    implicit logging: Logging): List[ActorRef] = {
+    prewarmConfig.flatMap { config =>
+      val kind = config.exec.kind
+      val memory = config.memoryLimit
+      config.reactive
+        .map { _ =>
+          val expiredPrewarmedContainer = prewarmedPool
+            .filter { warmInfo =>
+              warmInfo match {
+                case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
+                case _                                                                  => false
+              }
+            }
+          // emit expired container counter metric with memory + kind
+          MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
+          logging.info(
+            this,
+            s"[kind: ${kind} memory: ${memory.toString}] removed ${expiredPrewarmedContainer.size} expired prewarmed container")
+          expiredPrewarmedContainer.keys
+        }
+        .getOrElse(List.empty)
+    }
+  }
+
+  /**
+   * Find the increased number for the prewarmed kind
+   *
+   * @param init
+   * @param scheduled
+   * @param coldStartCount
+   * @param prewarmConfig
+   * @param prewarmedPool
+   * @param prewarmStartingPool
+   * @param logging
+   * @return the current number and increased number for the kind in the Map
+   */
+  def increasePrewarms(init: Boolean,
+                       scheduled: Boolean,
+                       coldStartCount: Map[ColdStartKey, Int],
+                       prewarmConfig: List[PrewarmingConfig],
+                       prewarmedPool: Map[ActorRef, PreWarmedData],
+                       prewarmStartingPool: Map[ActorRef, (String, ByteSize)])(
+    implicit logging: Logging): Map[PrewarmingConfig, (Int, Int)] = {
+    prewarmConfig.map { config =>
+      val kind = config.exec.kind
+      val memory = config.memoryLimit
+
+      val runningCount = prewarmedPool.count {
+        // done starting, and not expired
+        case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if !p.isExpired() => true
+        // started but not finished starting (or expired)
+        case _ => false
+      }
+      val startingCount = prewarmStartingPool.count(p => p._2._1 == kind && p._2._2 == memory)
+      val currentCount = runningCount + startingCount
+
+      // determine how many are needed
+      val desiredCount: Int =
+        if (init) config.initialCount
+        else {
+          if (scheduled) {
+            // scheduled/reactive config backfill
+            config.reactive
+              .map(c => getReactiveCold(coldStartCount, c, kind, memory).getOrElse(c.minCount)) //reactive -> desired is either cold start driven, or minCount
+              .getOrElse(config.initialCount) //not reactive -> desired is always initial count
+          } else {
+            // normal backfill after removal - make sure at least minCount or initialCount is started
+            config.reactive.map(_.minCount).getOrElse(config.initialCount)
+          }
+        }
+
+      logging.info(
+        this,
+        s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${desiredCount - currentCount} pre-warms to desired count: ${desiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+        TransactionId.invokerWarmup)
+      (config, (currentCount, desiredCount))
+    }.toMap
+  }
+
+  /**
+   * Get the required prewarmed container number according to the cold start happened in previous minute
+   *
+   * @param coldStartCount
+   * @param config
+   * @param kind
+   * @param memory
+   * @return the required prewarmed container number
+   */
+  def getReactiveCold(coldStartCount: Map[ColdStartKey, Int],
+                      config: ReactivePrewarmingConfig,
+                      kind: String,
+                      memory: ByteSize): Option[Int] = {
+    coldStartCount.get(ColdStartKey(kind, memory)).map { value =>
+      // Let's assume that threshold is `2`, increment is `1` in runtimes.json
+      // if cold start number in previous minute is `2`, requireCount is `2/2 * 1 = 1`
+      // if cold start number in previous minute is `4`, requireCount is `4/2 * 1 = 2`
+      math.min(math.max(config.minCount, (value / config.threshold) * config.increment), config.maxCount)
     }
   }
 
