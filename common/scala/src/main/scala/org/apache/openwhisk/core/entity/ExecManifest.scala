@@ -26,7 +26,10 @@ import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.Attachments.Attached._
-import fastparse._, NoWhitespace._
+import fastparse._
+import NoWhitespace._
+
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -135,11 +138,37 @@ protected[core] object ExecManifest {
   /**
    * A stemcell configuration read from the manifest for a container image to be initialized by the container pool.
    *
-   * @param count  the number of stemcell containers to create
+   * @param initialCount  the initial number of stemcell containers to create
    * @param memory the max memory this stemcell will allocate
+   * @param reactive the reactive prewarming prewarmed config, which is disabled by default
    */
-  protected[entity] case class StemCell(count: Int, memory: ByteSize) {
-    require(count > 0, "count must be positive")
+  protected[entity] case class StemCell(initialCount: Int,
+                                        memory: ByteSize,
+                                        reactive: Option[ReactivePrewarmingConfig] = None) {
+    require(initialCount > 0, "initialCount must be positive")
+  }
+
+  /**
+   * A stemcell's ReactivePrewarmingConfig configuration
+   *
+   * @param minCount the max number of stemcell containers to exist
+   * @param maxCount  the max number of stemcell containers to create
+   * @param ttl time to live of the prewarmed container
+   * @param threshold the executed activation number of cold start in previous one minute
+   * @param increment increase per increment prewarmed number under per threshold activations
+   */
+  protected[core] case class ReactivePrewarmingConfig(minCount: Int,
+                                                      maxCount: Int,
+                                                      ttl: FiniteDuration,
+                                                      threshold: Int,
+                                                      increment: Int) {
+    require(
+      minCount >= 0 && minCount <= maxCount,
+      "minCount must be be greater than 0 and less than or equal to maxCount")
+    require(maxCount > 0, "maxCount must be positive")
+    require(ttl.toMillis > 0, "ttl must be positive")
+    require(threshold > 0, "threshold must be positive")
+    require(increment > 0 && increment <= maxCount, "increment must be positive and less than or equal to maxCount")
   }
 
   /**
@@ -344,9 +373,45 @@ protected[core] object ExecManifest {
 
   protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat4(ImageName.apply)
 
-  protected[entity] implicit val stemCellSerdes: RootJsonFormat[StemCell] = {
+  protected[entity] implicit val ttlSerdes: RootJsonFormat[FiniteDuration] = new RootJsonFormat[FiniteDuration] {
+    override def write(finiteDuration: FiniteDuration): JsValue = JsString(finiteDuration.toString)
+
+    override def read(value: JsValue): FiniteDuration = value match {
+      case JsString(s) =>
+        val duration = Duration(s)
+        FiniteDuration(duration.length, duration.unit)
+      case _ =>
+        deserializationError("time unit not supported. Only milliseconds, seconds, minutes, hours, days are supported")
+    }
+  }
+
+  protected[entity] implicit val reactivePrewarmingConfigSerdes: RootJsonFormat[ReactivePrewarmingConfig] = jsonFormat5(
+    ReactivePrewarmingConfig.apply)
+
+  protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
     import org.apache.openwhisk.core.entity.size.serdes
-    jsonFormat2(StemCell.apply)
+    val defaultSerdes = jsonFormat3(StemCell.apply)
+    override def read(value: JsValue): StemCell = {
+      val fields = value.asJsObject.fields
+      val initialCount: Option[Int] =
+        fields
+          .get("initialCount")
+          .orElse(fields.get("count"))
+          .map(_.convertTo[Int])
+      val memory: Option[ByteSize] = fields.get("memory").map(_.convertTo[ByteSize])
+      val config = fields.get("reactive").map(_.convertTo[ReactivePrewarmingConfig])
+
+      (initialCount, memory) match {
+        case (Some(c), Some(m)) => StemCell(c, m, config)
+        case (Some(c), None) =>
+          throw new IllegalArgumentException(s"memory is required, just provide initialCount: ${c}")
+        case (None, Some(m)) =>
+          throw new IllegalArgumentException(s"initialCount is required, just provide memory: ${m.toString}")
+        case _ => throw new IllegalArgumentException("both initialCount and memory are required")
+      }
+    }
+
+    override def write(s: StemCell) = defaultSerdes.write(s)
   }
 
   protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)

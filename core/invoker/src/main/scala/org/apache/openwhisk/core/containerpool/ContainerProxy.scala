@@ -145,12 +145,14 @@ case class MemoryData(override val memoryLimit: ByteSize, override val activeAct
 case class PreWarmedData(override val container: Container,
                          kind: String,
                          override val memoryLimit: ByteSize,
-                         override val activeActivationCount: Int = 0)
+                         override val activeActivationCount: Int = 0,
+                         expires: Option[Deadline] = None)
     extends ContainerStarted(container, Instant.EPOCH, memoryLimit, activeActivationCount)
     with ContainerNotInUse {
   override val initingState = "prewarmed"
   override def nextRun(r: Run) =
     WarmingData(container, r.msg.user.namespace.name, r.action, Instant.now, 1)
+  def isExpired(): Boolean = expires.exists(_.isOverdue())
 }
 
 /** type representing a prewarm (running, but not used) container that is being initialized (for a specific action + invocation namespace) */
@@ -193,7 +195,7 @@ case class WarmedData(override val container: Container,
 }
 
 // Events received by the actor
-case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
+case class Start(exec: CodeExec[_], memoryLimit: ByteSize, ttl: Option[FiniteDuration] = None)
 case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
 case object Remove
 case class HealthPingEnabled(enabled: Boolean)
@@ -201,7 +203,7 @@ case class HealthPingEnabled(enabled: Boolean)
 // Events sent by the actor
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
-case object ContainerRemoved // when container is destroyed
+case class ContainerRemoved(replacePrewarm: Boolean) // when container is destroyed
 case object RescheduleJob // job is sent back to parent and could not be processed because container is being destroyed
 case class PreWarmCompleted(data: PreWarmedData)
 case class InitCompleted(data: WarmedData)
@@ -288,7 +290,8 @@ class ContainerProxy(factory: (TransactionId,
         job.memoryLimit,
         poolConfig.cpuShare(job.memoryLimit),
         None)
-        .map(container => PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit)))
+        .map(container =>
+          PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit, expires = job.ttl.map(_.fromNow))))
         .pipeTo(self)
 
       goto(Starting)
@@ -316,7 +319,7 @@ class ContainerProxy(factory: (TransactionId,
             // the container is ready to accept an activation; register it as PreWarmed; this
             // normalizes the life cycle for containers and their cleanup when activations fail
             self ! PreWarmCompleted(
-              PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB, 1))
+              PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB, 1, expires = None))
 
           case Failure(t) =>
             // the container did not come up cleanly, so disambiguate the failure mode and then cleanup
@@ -359,7 +362,7 @@ class ContainerProxy(factory: (TransactionId,
 
     // container creation failed
     case Event(_: FailureMessage, _) =>
-      context.parent ! ContainerRemoved
+      context.parent ! ContainerRemoved(true)
       stop()
 
     case _ => delay
@@ -372,14 +375,14 @@ class ContainerProxy(factory: (TransactionId,
       initializeAndRun(data.container, job)
         .map(_ => RunCompleted)
         .pipeTo(self)
-      goto(Running) using PreWarmedData(data.container, data.kind, data.memoryLimit, 1)
+      goto(Running) using PreWarmedData(data.container, data.kind, data.memoryLimit, 1, data.expires)
 
-    case Event(Remove, data: PreWarmedData) => destroyContainer(data)
+    case Event(Remove, data: PreWarmedData) => destroyContainer(data, false)
 
     // prewarm container failed
     case Event(_: FailureMessage, data: PreWarmedData) =>
       MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_CONTAINER_HEALTH_FAILED_PREWARM)
-      destroyContainer(data)
+      destroyContainer(data, true)
   }
 
   when(Running) {
@@ -452,22 +455,22 @@ class ContainerProxy(factory: (TransactionId,
         .getOrElse(data)
       rescheduleJob = true
       rejectBuffered()
-      destroyContainer(newData)
+      destroyContainer(newData, true)
 
     // Failed after /init (the first run failed)
     case Event(_: FailureMessage, data: PreWarmedData) =>
       activeCount -= 1
-      destroyContainer(data)
+      destroyContainer(data, true)
 
     // Failed for a subsequent /run
     case Event(_: FailureMessage, data: WarmedData) =>
       activeCount -= 1
-      destroyContainer(data)
+      destroyContainer(data, true)
 
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
       activeCount -= 1
-      context.parent ! ContainerRemoved
+      context.parent ! ContainerRemoved(true)
       rejectBuffered()
       stop()
 
@@ -490,16 +493,16 @@ class ContainerProxy(factory: (TransactionId,
       data.container.suspend()(TransactionId.invokerNanny).map(_ => ContainerPaused).pipeTo(self)
       goto(Pausing)
 
-    case Event(Remove, data: WarmedData) => destroyContainer(data)
+    case Event(Remove, data: WarmedData) => destroyContainer(data, true)
 
     // warm container failed
     case Event(_: FailureMessage, data: WarmedData) =>
-      destroyContainer(data)
+      destroyContainer(data, true)
   }
 
   when(Pausing) {
     case Event(ContainerPaused, data: WarmedData)   => goto(Paused)
-    case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data)
+    case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data, true)
     case _                                          => delay
   }
 
@@ -526,7 +529,7 @@ class ContainerProxy(factory: (TransactionId,
     // container is reclaimed by the pool or it has become too old
     case Event(StateTimeout | Remove, data: WarmedData) =>
       rescheduleJob = true // to supress sending message to the pool and not double count
-      destroyContainer(data)
+      destroyContainer(data, true)
   }
 
   when(Removing) {
@@ -534,8 +537,8 @@ class ContainerProxy(factory: (TransactionId,
       // Send the job back to the pool to be rescheduled
       context.parent ! job
       stay
-    case Event(ContainerRemoved, _)  => stop()
-    case Event(_: FailureMessage, _) => stop()
+    case Event(ContainerRemoved(_), _) => stop()
+    case Event(_: FailureMessage, _)   => stop()
   }
 
   // Unstash all messages stashed while in intermediate state
@@ -614,10 +617,10 @@ class ContainerProxy(factory: (TransactionId,
    *
    * @param newData the ContainerStarted which container will be destroyed
    */
-  def destroyContainer(newData: ContainerStarted) = {
+  def destroyContainer(newData: ContainerStarted, replacePrewarm: Boolean) = {
     val container = newData.container
     if (!rescheduleJob) {
-      context.parent ! ContainerRemoved
+      context.parent ! ContainerRemoved(replacePrewarm)
     } else {
       context.parent ! RescheduleJob
     }
@@ -631,7 +634,7 @@ class ContainerProxy(factory: (TransactionId,
 
     unpause
       .flatMap(_ => container.destroy()(TransactionId.invokerNanny))
-      .map(_ => ContainerRemoved)
+      .map(_ => ContainerRemoved(replacePrewarm))
       .pipeTo(self)
     goto(Removing) using newData
   }

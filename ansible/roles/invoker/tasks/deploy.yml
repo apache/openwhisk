@@ -278,6 +278,7 @@
       "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
       "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
       "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
+      "CONFIG_whisk_containerPool_prewarmExpirationCheckInterval": "{{ container_pool_prewarm_expirationCheckInterval | default('1 minute') }}"
 
 - name: extend invoker dns env
   set_fact:

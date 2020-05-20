@@ -152,7 +152,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
         |        },
         |        "deprecated": false,
         |        "stemCells": [{
-        |          "count": 2,
+        |          "initialCount": 2,
         |          "memory": "256 MB"
         |        }]
         |      }

@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -33,15 +34,15 @@ import akka.actor.ActorSystem
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import common.WhiskProperties
+import common.{StreamLogging, WhiskProperties}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.ExecManifest.RuntimeManifest
-import org.apache.openwhisk.core.entity.ExecManifest.ImageName
+import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, ReactivePrewarmingConfig, RuntimeManifest}
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.connector.MessageFeed
+import org.scalatest.concurrent.Eventually
 
 /**
  * Behavior tests for the ContainerPool
@@ -55,7 +56,9 @@ class ContainerPoolTests
     with FlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with MockFactory {
+    with MockFactory
+    with Eventually
+    with StreamLogging {
 
   override def afterAll = TestKit.shutdownActorSystem(system)
 
@@ -67,6 +70,9 @@ class ContainerPoolTests
   // the values is done properly.
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val memoryLimit = 256.MB
+  val ttl = FiniteDuration(500, TimeUnit.MILLISECONDS)
+  val threshold = 1
+  val increment = 1
 
   /** Creates a `Run` message */
   def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
@@ -109,8 +115,8 @@ class ContainerPoolTests
   val runMessageConcurrentDifferentNamespace = createRunMessage(concurrentAction, differentInvocationNamespace)
 
   /** Helper to create PreWarmedData */
-  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) =
-    PreWarmedData(stub[MockableContainer], kind, memoryLimit)
+  def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit, expires: Option[Deadline] = None) =
+    PreWarmedData(stub[MockableContainer], kind, memoryLimit, expires = expires)
 
   /** Helper to create WarmedData */
   def warmedData(run: Run, lastUsed: Instant = Instant.now) = {
@@ -125,7 +131,8 @@ class ContainerPoolTests
     (containers, factory)
   }
 
-  def poolConfig(userMemory: ByteSize) = ContainerPoolConfig(userMemory, 0.5, false)
+  def poolConfig(userMemory: ByteSize) =
+    ContainerPoolConfig(userMemory, 0.5, false, FiniteDuration(1, TimeUnit.MINUTES))
 
   behavior of "ContainerPool"
 
@@ -388,7 +395,7 @@ class ContainerPoolTests
     containers(0).send(pool, NeedWork(warmedData(runMessage)))
 
     // container0 is deleted
-    containers(0).send(pool, ContainerRemoved)
+    containers(0).send(pool, ContainerRemoved(true))
 
     // container1 is created and used
     pool ! runMessage
@@ -597,7 +604,7 @@ class ContainerPoolTests
     containers(0).send(pool, RescheduleJob)
 
     //trigger buffer processing by ContainerRemoved message
-    pool ! ContainerRemoved
+    pool ! ContainerRemoved(true)
 
     //start second run
     containers(1).expectMsgPF() {
@@ -627,9 +634,9 @@ class ContainerPoolTests
     containers(1).expectNoMessage(100.milliseconds)
 
     //ContainerRemoved triggers buffer processing - if we don't prevent duplicates, this will cause the buffer head to be resent!
-    pool ! ContainerRemoved
-    pool ! ContainerRemoved
-    pool ! ContainerRemoved
+    pool ! ContainerRemoved(true)
+    pool ! ContainerRemoved(true)
+    pool ! ContainerRemoved(true)
 
     //complete processing of first run
     containers(0).send(pool, NeedWork(warmedData(run1)))
@@ -753,13 +760,168 @@ class ContainerPoolTests
     containers(1).expectMsg(Start(exec, memoryLimit))
 
     //removing 2 prewarm containers will start 2 containers via backfill
-    containers(0).send(pool, ContainerRemoved)
-    containers(1).send(pool, ContainerRemoved)
+    containers(0).send(pool, ContainerRemoved(true))
+    containers(1).send(pool, ContainerRemoved(true))
     containers(2).expectMsg(Start(exec, memoryLimit))
     containers(3).expectMsg(Start(exec, memoryLimit))
     //make sure extra prewarms are not started
     containers(4).expectNoMessage(100.milliseconds)
     containers(5).expectNoMessage(100.milliseconds)
+  }
+
+  it should "adjust prewarm container run well without reactive config" in {
+    val (containers, factory) = testContainers(4)
+    val feed = TestProbe()
+
+    stream.reset()
+    val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
+    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel)
+    val initialCount = 2
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(factory, poolConfig, feed.ref, List(PrewarmingConfig(initialCount, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(1).expectMsg(Start(exec, memoryLimit))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind)))
+
+    // when invoker starts, include 0 prewarm container at the very beginning
+    stream.toString should include(s"found 0 started")
+
+    // the desiredCount should equal with initialCount when invoker starts
+    stream.toString should include(s"desired count: ${initialCount}")
+
+    stream.reset()
+
+    // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
+    Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
+
+    // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
+    eventually {
+      stream.toString should include(s"found ${initialCount} started")
+    }
+  }
+
+  it should "adjust prewarm container run well with reactive config" in {
+    val (containers, factory) = testContainers(15)
+    val feed = TestProbe()
+
+    stream.reset()
+    val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
+    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel)
+    val minCount = 0
+    val initialCount = 2
+    val maxCount = 4
+    val deadline: Option[Deadline] = Some(ttl.fromNow)
+    val reactive: Option[ReactivePrewarmingConfig] =
+      Some(ReactivePrewarmingConfig(minCount, maxCount, ttl, threshold, increment))
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(factory, poolConfig, feed.ref, List(PrewarmingConfig(initialCount, exec, memoryLimit, reactive))))
+    containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(1).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+
+    // when invoker starts, include 0 prewarm container at the very beginning
+    stream.toString should include(s"found 0 started")
+
+    // the desiredCount should equal with initialCount when invoker starts
+    stream.toString should include(s"desired count: ${initialCount}")
+
+    stream.reset()
+
+    // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
+    Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
+
+    containers(0).expectMsg(Remove)
+    containers(1).expectMsg(Remove)
+    containers(0).send(pool, ContainerRemoved(false))
+    containers(1).send(pool, ContainerRemoved(false))
+
+    // currentCount should equal with 0 due to these 2 prewarmed containers are expired
+    stream.toString should include(s"found 0 started")
+
+    // the desiredCount should equal with minCount because cold start didn't happen
+    stream.toString should include(s"desired count: ${minCount}")
+    // Previously created prewarmed containers should be removed
+    stream.toString should include(s"removed ${initialCount} expired prewarmed container")
+
+    stream.reset()
+    val action = ExecutableWhiskAction(
+      EntityPath("actionSpace"),
+      EntityName("actionName"),
+      exec,
+      limits = ActionLimits(memory = MemoryLimit(memoryLimit)))
+    val run = createRunMessage(action, invocationNamespace)
+    // 2 code start happened
+    pool ! run
+    pool ! run
+    containers(2).expectMsg(run)
+    containers(3).expectMsg(run)
+
+    // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
+    Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
+
+    eventually {
+      // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+      stream.toString should include(s"found 0 started")
+      // the desiredCount should equal with 2 due to cold start happened
+      stream.toString should include(s"desired count: 2")
+    }
+
+    containers(4).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(5).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(4).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(5).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+
+    stream.reset()
+
+    // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
+    Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
+
+    containers(4).expectMsg(Remove)
+    containers(5).expectMsg(Remove)
+    containers(4).send(pool, ContainerRemoved(false))
+    containers(5).send(pool, ContainerRemoved(false))
+
+    // removed previous 2 prewarmed container due to expired
+    stream.toString should include(s"removed 2 expired prewarmed container")
+
+    stream.reset()
+    // 5 code start happened(5 > maxCount)
+    pool ! run
+    pool ! run
+    pool ! run
+    pool ! run
+    pool ! run
+
+    containers(6).expectMsg(run)
+    containers(7).expectMsg(run)
+    containers(8).expectMsg(run)
+    containers(9).expectMsg(run)
+    containers(10).expectMsg(run)
+
+    // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
+    Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
+
+    eventually {
+      // Because already removed expired prewarmed containrs, so currentCount should equal with 0
+      stream.toString should include(s"found 0 started")
+      // in spite of the cold start number > maxCount, but the desiredCount can't be greater than maxCount
+      stream.toString should include(s"desired count: ${maxCount}")
+    }
+
+    containers(11).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(12).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(13).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(14).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(11).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(12).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(13).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
+    containers(14).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
   }
 }
 abstract class MockableContainer extends Container {
