@@ -220,12 +220,19 @@ class DockerContainer(protected val id: ContainerId,
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
-        new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
+        new AkkaContainerClient(
+          addr.host,
+          addr.port,
+          timeout,
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
+          1024)
       } else {
         new ApacheBlockingContainerClient(
           s"${addr.host}:${addr.port}",
           timeout,
           ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
           maxConcurrent)
       }
       httpConnection = Some(conn)

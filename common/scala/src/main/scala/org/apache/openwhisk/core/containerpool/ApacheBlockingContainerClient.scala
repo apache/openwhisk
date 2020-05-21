@@ -67,6 +67,7 @@ protected[containerpool] case class RetryableConnectionError(t: Throwable) exten
 protected class ApacheBlockingContainerClient(hostname: String,
                                               timeout: FiniteDuration,
                                               maxResponse: ByteSize,
+                                              truncation: ByteSize,
                                               maxConcurrent: Int = 1)(implicit logging: Logging, ec: ExecutionContext)
     extends ContainerClient {
 
@@ -129,7 +130,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
               Right(ContainerResponse(statusCode, str, None))
             } else {
               // only consume a bounded number of bytes according to the system limits
-              val str = new String(IOUtils.toByteArray(entity.getContent, maxResponseBytes), StandardCharsets.UTF_8)
+              val str = new String(IOUtils.toByteArray(entity.getContent, truncationBytes), StandardCharsets.UTF_8)
               EntityUtils.consumeQuietly(entity) // consume the rest of the stream to free the connection
               Right(ContainerResponse(statusCode, str, Some(contentLength.B, maxResponse)))
             }
@@ -180,6 +181,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
   }
 
   private val maxResponseBytes = maxResponse.toBytes
+  private val truncationBytes = truncation.toBytes
 
   private val baseUri = new URIBuilder()
     .setScheme("http")
@@ -227,7 +229,7 @@ object ApacheBlockingContainerClient {
     tid: TransactionId,
     ec: ExecutionContext): (Int, Option[JsObject]) = {
     val timeout = 90.seconds
-    val connection = new ApacheBlockingContainerClient(s"$host:$port", timeout, 1.MB)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", timeout, 1.MB, 1.MB)
     val response = executeRequest(connection, endPoint, content)
     val result = Await.result(response, timeout)
     connection.close()
@@ -239,7 +241,7 @@ object ApacheBlockingContainerClient {
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new ApacheBlockingContainerClient(s"$host:$port", 90.seconds, 1.MB, contents.size)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", 90.seconds, 1.MB, 1.MB, contents.size)
     val futureResults = contents.map { content =>
       executeRequest(connection, endPoint, content)
     }
