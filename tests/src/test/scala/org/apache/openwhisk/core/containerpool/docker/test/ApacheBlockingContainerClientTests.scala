@@ -100,7 +100,7 @@ class ApacheBlockingContainerClientTests
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B, 1.B)
     testHang = timeout * 2
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
@@ -114,7 +114,7 @@ class ApacheBlockingContainerClientTests
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B, 1.B)
     testStatusCode = 204
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
@@ -123,7 +123,7 @@ class ApacheBlockingContainerClientTests
   it should "retry till timeout on HttpHostConnectException" in {
     val timeout = 5.seconds
     val badHostAndPort = "0.0.0.0:12345"
-    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B, 1.B)
     testStatusCode = 204
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
@@ -142,7 +142,7 @@ class ApacheBlockingContainerClientTests
   it should "throw ContainerHealthError on HttpHostConnectException if reschedule==true" in {
     val timeout = 5.seconds
     val badHostAndPort = "0.0.0.0:12345"
-    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B)
+    val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B, 1.B)
     assertThrows[ContainerHealthError] {
       Await.result(connection.post("/run", JsObject.empty, retry = false, reschedule = true), 10.seconds)
     }
@@ -150,7 +150,7 @@ class ApacheBlockingContainerClientTests
 
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, 50.B)
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, 50.B, 50.B)
     Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
@@ -165,16 +165,16 @@ class ApacheBlockingContainerClientTests
 
   it should "truncate responses that exceed limit" in {
     val timeout = 1.minute.toMillis
-    val limit = 1.B
-    val excess = limit + 1.B
-    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, limit)
+    val limit = 2.B
+    val truncationLimit = 1.B
+    val connection = new ApacheBlockingContainerClient(hostWithPort, timeout.millis, limit, truncationLimit)
     Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
         val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
         result shouldBe Right {
-          ContainerResponse(okStatus = success, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+          ContainerResponse(okStatus = success, r.take(truncationLimit.toBytes.toInt), Some((r.length.B, limit)))
         }
       }
     }
