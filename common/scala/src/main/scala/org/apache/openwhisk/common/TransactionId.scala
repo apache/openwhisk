@@ -28,8 +28,6 @@ import pureconfig.generic.auto._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.WhiskInstants._
 
-import scala.annotation.tailrec
-
 import scala.util.Try
 
 /**
@@ -188,9 +186,11 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   /**
    * Find root transaction metadata
    */
-  @tailrec
   private def findRoot(meta: TransactionMetadata): TransactionMetadata =
-    if (meta.parent.isDefined) findRoot(meta.parent.get) else meta
+    meta.parent match {
+      case Some(parent) => findRoot(parent)
+      case _            => meta
+    }
 }
 
 /**
@@ -268,7 +268,10 @@ object TransactionId {
     private def writeMetadata(meta: TransactionMetadata): JsArray = {
       val base = Vector(JsString(meta.id), JsNumber(meta.start.toEpochMilli))
       val extraLogging = if (meta.extraLogging) Vector(JsBoolean(meta.extraLogging)) else Vector.empty
-      val parent = if (meta.parent.isDefined) Vector(writeMetadata(meta.parent.get)) else Vector.empty
+      val parent = meta.parent match {
+        case Some(p) => Vector(writeMetadata(p))
+        case _       => Vector.empty
+      }
       JsArray(base ++ extraLogging ++ parent)
     }
 
