@@ -412,10 +412,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           // Create a new prewarm container
           // NOTE: prewarming ignores the action code in exec, but this is dangerous as the field is accessible to the
           // factory
-          val ttl = data.expires match {
-            case Some(value) => Some(value.time)
-            case None        => None
-          }
+
+          //get the appropriate ttl from prewarm configs
+          val ttl =
+            prewarmConfig.find(pc => pc.memoryLimit == memory && pc.exec.kind == kind).flatMap(_.reactive.map(_.ttl))
           prewarmContainer(action.exec, memory, ttl)
           (ref, data)
       }
