@@ -345,7 +345,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       }
     if (scheduled) {
       //on scheduled time, remove expired prewarms
-      ContainerPool.removeExpired(prewarmConfig, prewarmedPool).foreach(_ ! Remove)
+      ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool).foreach(_ ! Remove)
       //on scheduled time, emit cold start counter metric with memory + kind
       coldStartCount foreach { coldStart =>
         val coldStartKey = coldStart._1
@@ -555,14 +555,16 @@ object ContainerPool {
   /**
    * Find the expired actor in prewarmedPool
    *
+   * @param poolConfig
    * @param prewarmConfig
    * @param prewarmedPool
    * @param logging
    * @return a list of expired actor
    */
-  def removeExpired(prewarmConfig: List[PrewarmingConfig], prewarmedPool: Map[ActorRef, PreWarmedData])(
-    implicit logging: Logging): List[ActorRef] = {
-    prewarmConfig.flatMap { config =>
+  def removeExpired(poolConfig: ContainerPoolConfig,
+                    prewarmConfig: List[PrewarmingConfig],
+                    prewarmedPool: Map[ActorRef, PreWarmedData])(implicit logging: Logging): List[ActorRef] = {
+    val expireds = prewarmConfig.flatMap { config =>
       val kind = config.exec.kind
       val memory = config.memoryLimit
       config.reactive
@@ -576,13 +578,19 @@ object ContainerPool {
             }
           // emit expired container counter metric with memory + kind
           MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
-          logging.info(
-            this,
-            s"[kind: ${kind} memory: ${memory.toString}] removed ${expiredPrewarmedContainer.size} expired prewarmed container")
+          if (expiredPrewarmedContainer.nonEmpty) {
+            logging.info(
+              this,
+              s"[kind: ${kind} memory: ${memory.toString}] ${expiredPrewarmedContainer.size} expired prewarmed containers")
+          }
           expiredPrewarmedContainer.keys
         }
         .getOrElse(List.empty)
     }
+    if (expireds.nonEmpty) {
+      logging.info(this, s"removing up to ${poolConfig.prewarmExpirationLimit} of ${expireds.size} expired containers")
+    }
+    expireds.take(poolConfig.prewarmExpirationLimit)
   }
 
   /**
@@ -632,10 +640,12 @@ object ContainerPool {
           }
         }
 
-      logging.info(
-        this,
-        s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${desiredCount - currentCount} pre-warms to desired count: ${desiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
-        TransactionId.invokerWarmup)
+      if (currentCount < desiredCount) {
+        logging.info(
+          this,
+          s"found ${currentCount} started and ${startingCount} starting; ${if (init) "initing" else "backfilling"} ${desiredCount - currentCount} pre-warms to desired count: ${desiredCount} for kind:${config.exec.kind} mem:${config.memoryLimit.toString}")(
+          TransactionId.invokerWarmup)
+      }
       (config, (currentCount, desiredCount))
     }.toMap
   }
