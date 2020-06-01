@@ -398,13 +398,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     resolvedComponents
   }
 
-  /** Replaces default namespaces in an action sequence with appropriate namespace. */
-  private def resolveDefaultNamespace(seq: SequenceExec, user: Identity): SequenceExec = {
-    // if components are part of the default namespace, they contain `_`; replace it!
-    val resolvedComponents = resolveDefaultNamespace(seq.components, user)
-    new SequenceExec(resolvedComponents)
-  }
-
   /**
    * Creates a WhiskAction instance from the PUT request.
    */
