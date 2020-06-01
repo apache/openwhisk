@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.entity
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.entity.size.SizeLong
+import org.apache.openwhisk.core.entity.size._
 
-case class ActivationEntityPayload(max: ByteSize)
+case class ActivationEntityPayload(max: ByteSize, truncation: ByteSize)
 case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: ActivationEntityPayload)
 
 /**
@@ -31,9 +31,9 @@ case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: Activati
  * parameters for triggers.
  */
 protected[core] object ActivationEntityLimit {
-  private implicit val pureconfigLongReader: ConfigReader[ByteSize] = ConfigReader[Long].map(_.bytes)
   private val config = loadConfigOrThrow[ActivationEntityLimitConf](ConfigKeys.activation)
 
   protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.payload.max
+  protected[core] val MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT: ByteSize = config.payload.truncation
   protected[core] val MAX_ACTIVATION_LIMIT: ByteSize = config.payload.max + config.serdesOverhead
 }

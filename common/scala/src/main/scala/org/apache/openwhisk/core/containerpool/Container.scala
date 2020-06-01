@@ -220,12 +220,19 @@ trait Container {
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
     if (Container.config.akkaClient) {
-      new AkkaContainerClient(addr.host, addr.port, timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, 1024)
+      new AkkaContainerClient(
+        addr.host,
+        addr.port,
+        timeout,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
+        1024)
     } else {
       new ApacheBlockingContainerClient(
         s"${addr.host}:${addr.port}",
         timeout,
         ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
         maxConcurrent)
     }
   }

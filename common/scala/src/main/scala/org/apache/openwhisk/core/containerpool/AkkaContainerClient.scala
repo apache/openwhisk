@@ -70,6 +70,7 @@ protected class AkkaContainerClient(
   port: Int,
   timeout: FiniteDuration,
   maxResponse: ByteSize,
+  truncation: ByteSize,
   queueSize: Int,
   retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
     extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
@@ -174,12 +175,12 @@ protected class AkkaContainerClient(
         tail.runWith(Sink.ignore).map(_ => previouslyCaptured.utf8String)
       case (Seq(prefix), tail) =>
         val truncatedResponse = previouslyCaptured ++ prefix
-        if (truncatedResponse.size < maxResponse.toBytes) {
+        if (truncatedResponse.size < truncation.toBytes) {
           truncated(tail, truncatedResponse)
         } else {
           //ignore the tail (MUST CONSUME ENTIRE ENTITY!)
-          //captured string MAY be larger than the max response, so take only maxResponse bytes to get the exact length
-          tail.runWith(Sink.ignore).map(_ => truncatedResponse.take(maxResponse.toBytes.toInt).utf8String)
+          //captured string MAY be larger than the truncation size, so take only truncation bytes to get the exact length
+          tail.runWith(Sink.ignore).map(_ => truncatedResponse.take(truncation.toBytes.toInt).utf8String)
         }
     }
   }
@@ -193,7 +194,7 @@ object AkkaContainerClient {
     as: ActorSystem,
     ec: ExecutionContext,
     tid: TransactionId): (Int, Option[JsObject]) = {
-    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1)
+    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1.MB, 1)
     val response = executeRequest(connection, endPoint, content)
     val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
@@ -206,7 +207,7 @@ object AkkaContainerClient {
     tid: TransactionId,
     as: ActorSystem,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1)
+    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1.MB, 1)
     val futureResults = contents.map { executeRequest(connection, endPoint, _) }
     val results = Await.result(Future.sequence(futureResults), timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
