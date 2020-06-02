@@ -84,7 +84,7 @@ class MesosContainerFactoryTest
   }
 
   // 80 slots, each 265MB
-  val poolConfig = ContainerPoolConfig(21200.MB, 0.5, false, 1.minute, 1.minute, 100)
+  val poolConfig = ContainerPoolConfig(21200.MB, 0.5, false, 1.minute, None, 100)
   val actionMemory = 265.MB
   val mesosCpus = poolConfig.cpuShare(actionMemory) / 1024.0
 

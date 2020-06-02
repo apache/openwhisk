@@ -133,7 +133,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, 1.minute, 100)
+    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, None, 100)
 
   behavior of "ContainerPool"
 
@@ -793,13 +793,8 @@ class ContainerPoolTests
 
     stream.reset()
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(
-      MemoryLimit.STD_MEMORY * 4,
-      0.5,
-      false,
-      prewarmExpirationCheckIntervel,
-      prewarmExpirationCheckIntervel,
-      100)
+    val poolConfig =
+      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
     val initialCount = 2
     val pool =
       system.actorOf(
@@ -823,7 +818,7 @@ class ContainerPoolTests
 
     // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
     eventually {
-      stream.toString should include(s"found ${initialCount} started")
+      stream.toString should not include ("started")
     }
   }
 
@@ -832,15 +827,10 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
-    val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(
-      MemoryLimit.STD_MEMORY * 8,
-      0.5,
-      false,
-      prewarmExpirationCheckIntervel,
-      prewarmExpirationCheckIntervel,
-      100)
-    val minCount = 0
+    val prewarmExpirationCheckIntervel = 2.seconds
+    val poolConfig =
+      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+    val minCount = 1
     val initialCount = 2
     val maxCount = 4
     val deadline: Option[Deadline] = Some(ttl.fromNow)
@@ -872,12 +862,12 @@ class ContainerPoolTests
     containers(1).send(pool, ContainerRemoved(false))
 
     // currentCount should equal with 0 due to these 2 prewarmed containers are expired
-    stream.toString should include(s"found 0 started")
+    stream.toString should not include (s"found 0 started")
 
     // the desiredCount should equal with minCount because cold start didn't happen
-    stream.toString should include(s"desired count: ${minCount}")
+    stream.toString should not include (s"desired count: ${minCount}")
     // Previously created prewarmed containers should be removed
-    stream.toString should include(s"removed ${initialCount} expired prewarmed container")
+    stream.toString should not include (s"removed ${initialCount} expired prewarmed container")
 
     stream.reset()
     val action = ExecutableWhiskAction(
@@ -918,7 +908,7 @@ class ContainerPoolTests
     containers(5).send(pool, ContainerRemoved(false))
 
     // removed previous 2 prewarmed container due to expired
-    stream.toString should include(s"removed 2 expired prewarmed container")
+    stream.toString should include(s"removing up to ${poolConfig.prewarmExpirationLimit} of 2 expired containers")
 
     stream.reset()
     // 5 code start happened(5 > maxCount)
@@ -1211,7 +1201,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "remove expired in order of expiration" in {
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, 10.seconds, 1)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 1)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     val prewarmConfig =
@@ -1219,7 +1209,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val oldestDeadline = Deadline.now - 1.seconds
     val newerDeadline = Deadline.now
     val newestDeadline = Deadline.now + 1.seconds
-    println(s"deadline ${oldestDeadline.isOverdue()}")
     val prewarmedPool = Map(
       'newest -> preWarmedData("actionKind", Some(newestDeadline)),
       'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
@@ -1227,8 +1216,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     lazy val stream = new ByteArrayOutputStream
     lazy val printstream = new PrintStream(stream)
     lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
-    println(s"pool ${prewarmedPool}")
-    println(s"configs ${prewarmConfig}")
     ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest))
   }
 

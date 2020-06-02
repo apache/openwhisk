@@ -90,13 +90,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   adjustPrewarmedContainer(true, false)
 
   // check periodically, adjust prewarmed container(delete if unused for some time and create some increment containers)
-  context.system.scheduler.schedule(
-    2.seconds,
-    poolConfig.prewarmExpirationCheckInterval + Random
-      .nextInt(poolConfig.prewarmExpirationCheckIntervalVariance.toSeconds.toInt)
-      .seconds, //add some random amount to this schedule to avoid a herd of container creation
-    self,
-    AdjustPrewarmedContainer)
+  // add some random amount to this schedule to avoid a herd of container removal + creation
+  val interval = poolConfig.prewarmExpirationCheckInterval + poolConfig.prewarmExpirationCheckIntervalVariance
+    .map(v =>
+      Random
+        .nextInt(v.toSeconds.toInt))
+    .getOrElse(0)
+    .seconds
+  context.system.scheduler.schedule(2.seconds, interval, self, AdjustPrewarmedContainer)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -332,6 +333,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   /** adjust prewarm containers up to the configured requirements for each kind/memory combination. */
   def adjustPrewarmedContainer(init: Boolean, scheduled: Boolean): Unit = {
+    println("adjusting...")
     //fill in missing prewarms
     ContainerPool
       .increasePrewarms(init, scheduled, coldStartCount, prewarmConfig, prewarmedPool, prewarmStartingPool)
@@ -582,7 +584,6 @@ object ContainerPool {
             .toSeq
             .sortBy(_._2.expires.getOrElse(now)) //need to sort these so that if the results are limited, we take the oldest
           // emit expired container counter metric with memory + kind
-          println(s"found ${expiredPrewarmedContainer.map(_._1)}")
           MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
           if (expiredPrewarmedContainer.nonEmpty) {
             logging.info(
