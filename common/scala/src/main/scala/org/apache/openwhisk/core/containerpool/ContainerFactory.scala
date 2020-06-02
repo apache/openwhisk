@@ -48,7 +48,7 @@ case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
                                akkaClient: Boolean,
                                prewarmExpirationCheckInterval: FiniteDuration,
-                               prewarmExpirationCheckIntervalVariance: FiniteDuration,
+                               prewarmExpirationCheckIntervalVariance: Option[FiniteDuration],
                                prewarmExpirationLimit: Int) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
