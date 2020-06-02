@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.test
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -35,7 +36,7 @@ import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{Logging, PrintStreamLogging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity._
@@ -132,7 +133,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, FiniteDuration(1, TimeUnit.MINUTES))
+    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, 1.minute, 100)
 
   behavior of "ContainerPool"
 
@@ -792,7 +793,13 @@ class ContainerPoolTests
 
     stream.reset()
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel)
+    val poolConfig = ContainerPoolConfig(
+      MemoryLimit.STD_MEMORY * 4,
+      0.5,
+      false,
+      prewarmExpirationCheckIntervel,
+      prewarmExpirationCheckIntervel,
+      100)
     val initialCount = 2
     val pool =
       system.actorOf(
@@ -826,7 +833,13 @@ class ContainerPoolTests
 
     stream.reset()
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel)
+    val poolConfig = ContainerPoolConfig(
+      MemoryLimit.STD_MEMORY * 8,
+      0.5,
+      false,
+      prewarmExpirationCheckIntervel,
+      prewarmExpirationCheckIntervel,
+      100)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
@@ -984,7 +997,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
-  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[MockableContainer], kind, 256.MB)
+  def preWarmedData(kind: String = "anyKind", expires: Option[Deadline] = None) =
+    PreWarmedData(stub[MockableContainer], kind, 256.MB, expires = expires)
 
   /** Helper to create NoData */
   def noData() = NoData()
@@ -1195,4 +1209,27 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     pool = pool - 'first
     ContainerPool.remove(pool, MemoryLimit.STD_MEMORY) shouldBe List('second)
   }
+
+  it should "remove expired in order of expiration" in {
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, 10.seconds, 1)
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val memoryLimit = 256.MB
+    val prewarmConfig =
+      List(PrewarmingConfig(1, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
+    val oldestDeadline = Deadline.now - 1.seconds
+    val newerDeadline = Deadline.now
+    val newestDeadline = Deadline.now + 1.seconds
+    println(s"deadline ${oldestDeadline.isOverdue()}")
+    val prewarmedPool = Map(
+      'newest -> preWarmedData("actionKind", Some(newestDeadline)),
+      'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
+      'newer -> preWarmedData("actionKind", Some(newerDeadline)))
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
+    println(s"pool ${prewarmedPool}")
+    println(s"configs ${prewarmConfig}")
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest))
+  }
+
 }

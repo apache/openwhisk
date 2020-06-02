@@ -27,7 +27,7 @@ import org.apache.openwhisk.core.entity.size._
 import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.concurrent.duration._
-import scala.util.Try
+import scala.util.{Random, Try}
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -92,7 +92,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   // check periodically, adjust prewarmed container(delete if unused for some time and create some increment containers)
   context.system.scheduler.schedule(
     2.seconds,
-    poolConfig.prewarmExpirationCheckInterval,
+    poolConfig.prewarmExpirationCheckInterval + Random
+      .nextInt(poolConfig.prewarmExpirationCheckIntervalVariance.toSeconds.toInt)
+      .seconds, //add some random amount to this schedule to avoid a herd of container creation
     self,
     AdjustPrewarmedContainer)
 
@@ -561,12 +563,13 @@ object ContainerPool {
    * @param logging
    * @return a list of expired actor
    */
-  def removeExpired(poolConfig: ContainerPoolConfig,
-                    prewarmConfig: List[PrewarmingConfig],
-                    prewarmedPool: Map[ActorRef, PreWarmedData])(implicit logging: Logging): List[ActorRef] = {
+  def removeExpired[A](poolConfig: ContainerPoolConfig,
+                       prewarmConfig: List[PrewarmingConfig],
+                       prewarmedPool: Map[A, PreWarmedData])(implicit logging: Logging): List[A] = {
     val expireds = prewarmConfig.flatMap { config =>
       val kind = config.exec.kind
       val memory = config.memoryLimit
+      val now = Deadline.now
       config.reactive
         .map { _ =>
           val expiredPrewarmedContainer = prewarmedPool
@@ -576,14 +579,17 @@ object ContainerPool {
                 case _                                                                  => false
               }
             }
+            .toSeq
+            .sortBy(_._2.expires.getOrElse(now)) //need to sort these so that if the results are limited, we take the oldest
           // emit expired container counter metric with memory + kind
+          println(s"found ${expiredPrewarmedContainer.map(_._1)}")
           MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
           if (expiredPrewarmedContainer.nonEmpty) {
             logging.info(
               this,
               s"[kind: ${kind} memory: ${memory.toString}] ${expiredPrewarmedContainer.size} expired prewarmed containers")
           }
-          expiredPrewarmedContainer.keys
+          expiredPrewarmedContainer.map(_._1)
         }
         .getOrElse(List.empty)
     }
@@ -617,8 +623,8 @@ object ContainerPool {
       val memory = config.memoryLimit
 
       val runningCount = prewarmedPool.count {
-        // done starting, and not expired
-        case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if !p.isExpired() => true
+        // done starting (include expired, since they may not have been removed yet)
+        case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) => true
         // started but not finished starting (or expired)
         case _ => false
       }
