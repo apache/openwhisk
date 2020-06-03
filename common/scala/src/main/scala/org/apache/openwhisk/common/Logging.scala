@@ -100,7 +100,10 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
     }
   }
 
-  protected def format(id: TransactionId, name: String, logmsg: String) = s"[$id] [$name] $logmsg"
+  protected def format(id: TransactionId, name: String, logmsg: String) = {
+    val currentId = if (id.hasParent) id else ""
+    s"[${id.root}] [$currentId] [$name] $logmsg"
+  }
 }
 
 /**
@@ -124,8 +127,9 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
       case msg if msg.nonEmpty =>
         msg.split('\n').map(_.trim).mkString(" ")
     }
+    val currentId = if (id.hasParent) id else ""
 
-    val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage
+    val parts = Seq(s"[$time]", s"[$level]", s"[${id.root}]", s"[$currentId]") ++ Seq(s"[$name]") ++ logMessage
     outputStream.println(parts.mkString(" "))
   }
 }
