@@ -148,7 +148,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     activationSlots.getOrElseUpdate(
       msg.activationId, {
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(completionAckTimeout) {
-          processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, invoker = instance)
+          processCompletion(msg.activationId, msg.transid, forced = true, isSystemError = false, instance = instance)
         }
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
@@ -206,13 +206,13 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     val raw = new String(bytes, StandardCharsets.UTF_8)
     AcknowledegmentMessage.parse(raw) match {
       case Success(acknowledegment) =>
-        acknowledegment.isSlotFree.foreach { invoker =>
+        acknowledegment.isSlotFree.foreach { instance =>
           processCompletion(
             acknowledegment.activationId,
             acknowledegment.transid,
             forced = false,
             isSystemError = acknowledegment.isSystemError.getOrElse(false),
-            invoker)
+            instance)
         }
 
         acknowledegment.result.foreach { response =>
@@ -261,7 +261,12 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
                                                 tid: TransactionId,
                                                 forced: Boolean,
                                                 isSystemError: Boolean,
-                                                invoker: InvokerInstanceId): Unit = {
+                                                instance: InstanceId): Unit = {
+
+    val invoker = instance match {
+      case i: InvokerInstanceId => Some(i)
+      case _                    => None
+    }
 
     val invocationResult = if (forced) {
       InvocationFinishedResult.Timeout
@@ -283,7 +288,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         totalActivationMemory.add(entry.memoryLimit.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
 
-        releaseInvoker(invoker, entry)
+        invoker.foreach(releaseInvoker(_, entry))
 
         if (!forced) {
           entry.timeoutHandler.cancel()
@@ -305,7 +310,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           val completionAckTimeout = calculateCompletionAckTimeout(entry.timeLimit)
           logging.warn(
             this,
-            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $invoker")(
+            s"forced completion ack for '$aid', action '${entry.fullyQualifiedEntityName}' ($actionType), $blockingType, mem limit ${entry.memoryLimit.toMB} MB, time limit ${entry.timeLimit.toMillis} ms, completion ack timeout $completionAckTimeout from $instance")(
             tid)
 
           MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_FORCED)
@@ -314,17 +319,17 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // Completion acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         // guard this
-        invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
+        invoker.foreach(invokerPool ! InvocationFinishedMessage(_, invocationResult))
       case None if tid == TransactionId.invokerHealth =>
         // Health actions do not have an ActivationEntry as they are written on the message bus directly. Their result
         // is important to pass to the invokerPool because they are used to determine if the invoker can be considered
         // healthy again.
-        logging.info(this, s"received completion ack for health action on $invoker")(tid)
+        logging.info(this, s"received completion ack for health action on $instance")(tid)
 
         MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_HEALTHCHECK)
 
         // guard this
-        invokerPool ! InvocationFinishedMessage(invoker, invocationResult)
+        invoker.foreach(invokerPool ! InvocationFinishedMessage(_, invocationResult))
       case None if !forced =>
         // Received a completion ack that has already been taken out of the state because of a timeout (forced ack).
         // The result is ignored because a timeout has already been reported to the invokerPool per the force.
@@ -332,7 +337,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // message - but not in time.
         logging.warn(
           this,
-          s"received completion ack for '$aid' from $invoker which has no entry, system error=$isSystemError")(tid)
+          s"received completion ack for '$aid' from $instance which has no entry, system error=$isSystemError")(tid)
 
         MetricEmitter.emitCounterMetric(LOADBALANCER_COMPLETION_ACK_REGULAR_AFTER_FORCED)
       case None =>

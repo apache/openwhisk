@@ -83,7 +83,7 @@ abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Me
   def messageType: String
 
   /** Does message indicate slot is free? */
-  def isSlotFree: Option[InvokerInstanceId]
+  def isSlotFree: Option[InstanceId]
 
   /** Does message contain a result? */
   def result: Option[Either[ActivationId, WhiskActivation]]
@@ -117,11 +117,11 @@ abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Me
 case class CombinedCompletionAndResultMessage private (override val transid: TransactionId,
                                                        response: Either[ActivationId, WhiskActivation],
                                                        override val isSystemError: Option[Boolean],
-                                                       invoker: InvokerInstanceId)
+                                                       instance: InstanceId)
     extends AcknowledegmentMessage(transid) {
   override def messageType = "combined"
   override def result = Some(response)
-  override def isSlotFree = Some(invoker)
+  override def isSlotFree = Some(instance)
   override def activationId = response.fold(identity, _.activationId)
   override def toJson = CombinedCompletionAndResultMessage.serdes.write(this)
   override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
@@ -137,11 +137,11 @@ case class CombinedCompletionAndResultMessage private (override val transid: Tra
 case class CompletionMessage private (override val transid: TransactionId,
                                       override val activationId: ActivationId,
                                       override val isSystemError: Option[Boolean],
-                                      invoker: InvokerInstanceId)
+                                      instance: InstanceId)
     extends AcknowledegmentMessage(transid) {
   override def messageType = "completion"
   override def result = None
-  override def isSlotFree = Some(invoker)
+  override def isSlotFree = Some(instance)
   override def toJson = CompletionMessage.serdes.write(this)
   override def shrink = this
   override def toString = activationId.asString
@@ -179,18 +179,18 @@ object CombinedCompletionAndResultMessage extends DefaultJsonProtocol {
   private def apply(transid: TransactionId,
                     activation: Either[ActivationId, WhiskActivation],
                     isSystemError: Option[Boolean],
-                    invoker: InvokerInstanceId): CombinedCompletionAndResultMessage =
-    new CombinedCompletionAndResultMessage(transid, activation, isSystemError, invoker)
+                    instance: InstanceId): CombinedCompletionAndResultMessage =
+    new CombinedCompletionAndResultMessage(transid, activation, isSystemError, instance)
 
   def apply(transid: TransactionId,
             activation: WhiskActivation,
-            invoker: InvokerInstanceId): CombinedCompletionAndResultMessage =
-    new CombinedCompletionAndResultMessage(transid, Right(activation), Some(activation.response.isWhiskError), invoker)
+            instance: InstanceId): CombinedCompletionAndResultMessage =
+    new CombinedCompletionAndResultMessage(transid, Right(activation), Some(activation.response.isWhiskError), instance)
 
   implicit private val eitherSerdes = AcknowledegmentMessage.eitherResponse
   implicit val serdes = jsonFormat4(
     CombinedCompletionAndResultMessage
-      .apply(_: TransactionId, _: Either[ActivationId, WhiskActivation], _: Option[Boolean], _: InvokerInstanceId))
+      .apply(_: TransactionId, _: Either[ActivationId, WhiskActivation], _: Option[Boolean], _: InstanceId))
 }
 
 object CompletionMessage extends DefaultJsonProtocol {
@@ -198,15 +198,15 @@ object CompletionMessage extends DefaultJsonProtocol {
   private def apply(transid: TransactionId,
                     activation: WhiskActivation,
                     isSystemError: Option[Boolean],
-                    invoker: InvokerInstanceId): CompletionMessage =
-    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
+                    instance: InstanceId): CompletionMessage =
+    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), instance)
 
-  def apply(transid: TransactionId, activation: WhiskActivation, invoker: InvokerInstanceId): CompletionMessage = {
-    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), invoker)
+  def apply(transid: TransactionId, activation: WhiskActivation, instance: InstanceId): CompletionMessage = {
+    new CompletionMessage(transid, activation.activationId, Some(activation.response.isWhiskError), instance)
   }
 
   implicit val serdes = jsonFormat4(
-    CompletionMessage.apply(_: TransactionId, _: ActivationId, _: Option[Boolean], _: InvokerInstanceId))
+    CompletionMessage.apply(_: TransactionId, _: ActivationId, _: Option[Boolean], _: InstanceId))
 }
 
 object ResultMessage extends DefaultJsonProtocol {
@@ -245,7 +245,7 @@ object AcknowledegmentMessage extends DefaultJsonProtocol {
     // and otherwise to a ResultMessage. If all conversions fail, an error will be thrown that needs to be handled.
     override def read(json: JsValue): AcknowledegmentMessage = {
       val JsObject(fields) = json
-      val completion = fields.contains("invoker")
+      val completion = fields.contains("instance")
       val result = fields.contains("response")
       if (completion && result) {
         json.convertTo[CombinedCompletionAndResultMessage]
