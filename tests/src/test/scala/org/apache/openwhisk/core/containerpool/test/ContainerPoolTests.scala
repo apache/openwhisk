@@ -336,6 +336,23 @@ class ContainerPoolTests
     containers(1).expectMsg(Start(exec, memoryLimit))
   }
 
+  it should "use a prewarmed container with ttl and create a new one to fill its place" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val ttl = 5.seconds //make sure replaced prewarm has ttl
+    val pool =
+      system.actorOf(
+        ContainerPool
+          .props(
+            factory,
+            poolConfig(MemoryLimit.STD_MEMORY * 2),
+            feed.ref,
+            List(PrewarmingConfig(1, exec, memoryLimit, Some(ReactivePrewarmingConfig(1, 1, ttl, 1, 1))))))
+    containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = Some(ttl.fromNow))))
+    pool ! runMessage
+    containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
+  }
   it should "not use a prewarmed container if it doesn't fit the kind" in within(timeout) {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
