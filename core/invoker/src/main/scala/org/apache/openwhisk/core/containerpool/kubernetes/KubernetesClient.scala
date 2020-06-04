@@ -70,6 +70,12 @@ case class KubernetesClientTimeoutConfig(run: FiniteDuration, logs: FiniteDurati
 case class KubernetesCpuScalingConfig(millicpus: Int, memory: ByteSize, maxMillicpus: Int)
 
 /**
+ * Configuration for kubernetes cpu resource request/limit scaling based on action memory limit
+ */
+case class KubernetesEphemeralStorageConfig(request: ByteSize, limit: ByteSize)
+
+
+/**
  * Exception to indicate a pod took too long to become ready.
  */
 case class KubernetesPodReadyTimeoutException(timeout: FiniteDuration)
@@ -93,7 +99,8 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   podTemplate: Option[ConfigMapValue],
                                   cpuScaling: Option[KubernetesCpuScalingConfig],
                                   pdbEnabled: Boolean,
-                                  fieldRefEnvironment: Option[Map[String, String]])
+                                  fieldRefEnvironment: Option[Map[String, String]],
+                                  ephmeralStorage: Option[KubernetesEphemeralStorageConfig])
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
