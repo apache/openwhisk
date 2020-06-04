@@ -333,7 +333,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   /** adjust prewarm containers up to the configured requirements for each kind/memory combination. */
   def adjustPrewarmedContainer(init: Boolean, scheduled: Boolean): Unit = {
-    println("adjusting...")
     //fill in missing prewarms
     ContainerPool
       .increasePrewarms(init, scheduled, coldStartCount, prewarmConfig, prewarmedPool, prewarmStartingPool)
