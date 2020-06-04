@@ -133,13 +133,13 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
       false,
       None,
-      Some(KubernetesEphemeralStorageConfig(1.GB, 2.GB)))
+      Some(KubernetesEphemeralStorageConfig(1.GB)))
     val builder = new WhiskPodBuilder(kubeClient, config)
 
     val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
-      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2048Mi")
+      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
       c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
     }
   }

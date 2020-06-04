@@ -107,11 +107,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
       .map(cpuConfig => Map("cpu" -> new Quantity(calculateCpu(cpuConfig, memory) + "m")))
       .getOrElse(Map.empty)
 
-    val diskRequest = config.ephmeralStorage
-        .map(diskConfig => Map("ephemeral-storage"-> new Quantity(diskConfig.request.toMB + "Mi")))
-        .getOrElse(Map.empty)
     val diskLimit = config.ephmeralStorage
-      .map(diskConfig => Map("ephemeral-storage"-> new Quantity(diskConfig.limit.toMB + "Mi")))
+      .map(diskConfig => Map("ephemeral-storage" -> new Quantity(diskConfig.limit.toMB + "Mi")))
       .getOrElse(Map.empty)
 
     //In container its assumed that env, port, resource limits are set explicitly
@@ -120,7 +117,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
       .withNewResources()
       //explicitly set requests and limits to same values
       .withLimits((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu ++ diskLimit).asJava)
-      .withRequests((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu ++ diskRequest).asJava)
+      .withRequests((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu ++ diskLimit).asJava)
       .endResources()
       .withName("user-action")
       .withImage(image)

@@ -70,10 +70,9 @@ case class KubernetesClientTimeoutConfig(run: FiniteDuration, logs: FiniteDurati
 case class KubernetesCpuScalingConfig(millicpus: Int, memory: ByteSize, maxMillicpus: Int)
 
 /**
- * Configuration for kubernetes cpu resource request/limit scaling based on action memory limit
+ * Configuration for kubernetes ephemeral storage limit for the action container
  */
-case class KubernetesEphemeralStorageConfig(request: ByteSize, limit: ByteSize)
-
+case class KubernetesEphemeralStorageConfig(limit: ByteSize)
 
 /**
  * Exception to indicate a pod took too long to become ready.
