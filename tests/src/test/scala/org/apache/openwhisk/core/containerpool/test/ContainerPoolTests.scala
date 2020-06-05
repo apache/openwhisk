@@ -1219,4 +1219,30 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest))
   }
 
+  it should "remove only the prewarmExpirationLimit of expired prewarms" in {
+    //limit prewarm removal to 2
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 2)
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val memoryLimit = 256.MB
+    val prewarmConfig =
+      List(PrewarmingConfig(3, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
+    //all are overdue, with different expiration times
+    val oldestDeadline = Deadline.now - 5.seconds
+    val newerDeadline = Deadline.now - 4.seconds
+    //the newest* ones are expired, but not the oldest, and not within the limit of 2 prewarms, so won't be removed
+    val newestDeadline = Deadline.now - 3.seconds
+    val newestDeadline2 = Deadline.now - 2.seconds
+    val newestDeadline3 = Deadline.now - 1.seconds
+    val prewarmedPool = Map(
+      'newest -> preWarmedData("actionKind", Some(newestDeadline)),
+      'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
+      'newest3 -> preWarmedData("actionKind", Some(newestDeadline3)),
+      'newer -> preWarmedData("actionKind", Some(newerDeadline)),
+      'newest2 -> preWarmedData("actionKind", Some(newestDeadline2)))
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest, 'newer))
+  }
+
 }
