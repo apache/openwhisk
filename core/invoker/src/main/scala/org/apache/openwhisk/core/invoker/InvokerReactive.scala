@@ -23,7 +23,11 @@ import java.time.Instant
 import akka.Done
 import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import akka.pattern.ask
+import akka.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
@@ -221,38 +225,46 @@ class InvokerReactive(
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
-    Future(ActivationMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
+    Future(
+      ActivationMessage
+        .parse(new String(bytes, StandardCharsets.UTF_8))
+        .orElse(UserMemoryMessage.parse(new String(bytes, StandardCharsets.UTF_8))))
       .flatMap(Future.fromTry)
-      .flatMap { msg =>
-        // The message has been parsed correctly, thus the following code needs to *always* produce at least an
-        // active-ack.
+      .flatMap {
+        case msg: ActivationMessage =>
+          // The message has been parsed correctly, thus the following code needs to *always* produce at least an
+          // active-ack.
 
-        implicit val transid: TransactionId = msg.transid
+          implicit val transid: TransactionId = msg.transid
 
-        //set trace context to continue tracing
-        WhiskTracerProvider.tracer.setTraceContext(transid, msg.traceContext)
+          //set trace context to continue tracing
+          WhiskTracerProvider.tracer.setTraceContext(transid, msg.traceContext)
 
-        if (!namespaceBlacklist.isBlacklisted(msg.user)) {
-          val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
-          handleActivationMessage(msg)
-        } else {
-          // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol
-          // Due to the protective nature of the blacklist, a database entry is not written.
+          if (!namespaceBlacklist.isBlacklisted(msg.user)) {
+            val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
+            handleActivationMessage(msg)
+          } else {
+            // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol
+            // Due to the protective nature of the blacklist, a database entry is not written.
+            activationFeed ! MessageFeed.Processed
+
+            val activation =
+              generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
+            ack(
+              msg.transid,
+              activation,
+              false,
+              msg.rootControllerIndex,
+              msg.user.namespace.uuid,
+              CombinedCompletionAndResultMessage(transid, activation, instance))
+
+            logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
+            Future.successful(())
+          }
+        case msg: UserMemoryMessage =>
+          pool ! msg
           activationFeed ! MessageFeed.Processed
-
-          val activation =
-            generateFallbackActivation(msg, ActivationResponse.applicationError(Messages.namespacesBlacklisted))
-          ack(
-            msg.transid,
-            activation,
-            false,
-            msg.rootControllerIndex,
-            msg.user.namespace.uuid,
-            CombinedCompletionAndResultMessage(transid, activation, instance))
-
-          logging.warn(this, s"namespace ${msg.user.namespace.name} was blocked in invoker.")
           Future.successful(())
-        }
       }
       .recoverWith {
         case t =>
@@ -299,4 +311,11 @@ class InvokerReactive(
     }
   })
 
+  override def getUserMemory(): Route = {
+    complete {
+      pool
+        .ask(UserMemoryQuery)(Timeout(5.seconds))
+        .mapTo[String]
+    }
+  }
 }

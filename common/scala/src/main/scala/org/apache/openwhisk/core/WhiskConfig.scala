@@ -291,4 +291,9 @@ object ConfigKeys {
   val azBlob = "whisk.azure-blob"
 
   val whiskClusterName = "whisk.cluster.name"
+
+  val whiskControllerUsername = "whisk.controller.username"
+  val whiskControllerPassword = "whisk.controller.password"
+  val whiskInvokerUsername = "whisk.invoker.username"
+  val whiskInvokerPassword = "whisk.invoker.password"
 }
