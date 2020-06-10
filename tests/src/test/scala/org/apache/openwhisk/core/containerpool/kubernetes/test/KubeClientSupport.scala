@@ -19,7 +19,9 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 
 import common.StreamLogging
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer
+import io.fabric8.kubernetes.client.utils.HttpClientUtils.createHttpClientForMockServer
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
+import okhttp3.TlsVersion.TLS_1_0
 import org.scalatest.{BeforeAndAfterAll, Suite, TestSuite}
 
 import scala.concurrent.duration._
@@ -29,11 +31,21 @@ trait KubeClientSupport extends TestSuite with BeforeAndAfterAll with StreamLogg
 
   protected def useMockServer = true
 
+  val server = new KubernetesMockServer(false)
+
   protected lazy val (kubeClient, closeable) = {
     if (useMockServer) {
-      val server = new KubernetesMockServer(false)
       server.init()
-      (server.createClient(), () => server.destroy())
+      def defaultClient = {
+        val config = new ConfigBuilder()
+          .withMasterUrl(server.url("/"))
+          .withTrustCerts(true)
+          .withTlsVersions(TLS_1_0)
+          .withNamespace("test")
+          .build
+        new DefaultKubernetesClient(createHttpClientForMockServer(config), config)
+      }
+      (defaultClient, () => server.destroy())
     } else {
       val client = new DefaultKubernetesClient(
         new ConfigBuilder()
@@ -53,7 +65,7 @@ trait KubeClientSupport extends TestSuite with BeforeAndAfterAll with StreamLogg
     super.beforeAll()
   }
 
-  override protected def afterAll(): Unit = {
+  override def afterAll(): Unit = {
     super.afterAll()
     closeable.apply()
   }
