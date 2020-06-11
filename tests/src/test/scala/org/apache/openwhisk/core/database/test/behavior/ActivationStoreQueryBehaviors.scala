@@ -196,6 +196,23 @@ trait ActivationStoreQueryBehaviors extends ActivationStoreBehaviorBase {
     checkQueryActivations(namespace, Some(action1), context = context, expected = activations)
   }
 
+  it should "find all binding entities matching name" in {
+    implicit val tid: TransactionId = transId()
+    val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
+    val package1 = s"package1_${Random.alphanumeric.take(4).mkString}"
+    val action1 = s"action1_${Random.alphanumeric.take(4).mkString}"
+
+    val binding = s"$namespace/$package1"
+
+    val activations = (1000 until 1100 by 10).map(newBindingActivation(namespace, action1, binding, _))
+    activations foreach (store(_, context))
+
+    val activations2 = (1000 until 1100 by 10).map(newActivation(namespace, action1, _))
+    activations2 foreach (store(_, context))
+
+    checkQueryActivations(namespace, Some(s"$package1/$action1"), context = context, expected = activations)
+  }
+
   it should "support since and upto filters" in {
     implicit val tid: TransactionId = transId()
     val namespace = s"ns_${Random.alphanumeric.take(4).mkString}"
