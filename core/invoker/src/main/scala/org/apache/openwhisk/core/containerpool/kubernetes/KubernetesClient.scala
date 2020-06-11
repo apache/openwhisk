@@ -81,6 +81,11 @@ case class KubernetesPodReadyTimeoutException(timeout: FiniteDuration)
     extends Exception(s"Pod readiness timed out after ${timeout.toSeconds}s")
 
 /**
+ * Exception to indicate a pod could not be created at the apiserver.
+ */
+case class KubernetesPodApiException(e: Throwable) extends Exception(s"Pod was not created at apiserver: ${e}")
+
+/**
  * Configuration for node affinity for the pods that execute user action containers
  * The key,value pair should match the <key,value> pair with which the invoker worker nodes
  * are labeled in the Kubernetes cluster.  The default pair is <openwhisk-role,invoker>,
@@ -110,14 +115,15 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
  * You only need one instance (and you shouldn't get more).
  */
 class KubernetesClient(
-  config: KubernetesClientConfig = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes))(
-  executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
+  config: KubernetesClientConfig = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes),
+  testClient: Option[DefaultKubernetesClient] = None)(executionContext: ExecutionContext)(implicit log: Logging,
+                                                                                          as: ActorSystem)
     extends KubernetesApi
     with ProcessRunner {
   implicit protected val ec = executionContext
   implicit protected val am = ActorMaterializer()
   implicit protected val scheduler = as.scheduler
-  implicit protected val kubeRestClient = {
+  implicit protected val kubeRestClient = testClient.getOrElse {
     val configBuilder = new ConfigBuilder()
       .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
@@ -145,7 +151,7 @@ class KubernetesClient(
       logLevel = akka.event.Logging.InfoLevel)
 
     //create the pod; catch any failure to end the transaction timer
-    val createdPod = try {
+    Try {
       val created = kubeRestClient.pods.inNamespace(namespace).create(pod)
       pdb.map(
         p =>
@@ -154,36 +160,41 @@ class KubernetesClient(
             .withName(name)
             .create(p))
       created
-    } catch {
-      case e: Throwable =>
+    } match {
+      case Failure(e) =>
+        //call to api-server failed
         transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
-        throw e
-    }
-    //wait for the pod to become ready; catch any failure to end the transaction timer
-    waitForPod(namespace, createdPod, start.start, config.timeouts.run)
-      .map { readyPod =>
-        transid.finished(this, start, logLevel = InfoLevel)
-        toContainer(readyPod)
-      }
-      .recoverWith {
-        case e =>
-          transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
-          //log pod events to diagnose pod readiness failures
-          val podEvents = kubeRestClient.events
-            .inNamespace(namespace)
-            .withField("involvedObject.name", name)
-            .list()
-            .getItems
-            .asScala
-          if (podEvents.isEmpty) {
-            log.info(this, s"No pod events for failed pod '$name'")
-          } else {
-            podEvents.foreach { podEvent =>
-              log.info(this, s"Pod event for failed pod '$name' ${podEvent.getLastTimestamp}: ${podEvent.getMessage}")
-            }
+        Future.failed(KubernetesPodApiException(e))
+      case Success(createdPod) => {
+        //call to api-server succeeded; wait for the pod to become ready; catch any failure to end the transaction timer
+        waitForPod(namespace, createdPod, start.start, config.timeouts.run)
+          .map { readyPod =>
+            transid.finished(this, start, logLevel = InfoLevel)
+            toContainer(readyPod)
           }
-          Future.failed(new Exception(s"Failed to create pod '$name'"))
+          .recoverWith {
+            case e =>
+              transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
+              //log pod events to diagnose pod readiness failures
+              val podEvents = kubeRestClient.events
+                .inNamespace(namespace)
+                .withField("involvedObject.name", name)
+                .list()
+                .getItems
+                .asScala
+              if (podEvents.isEmpty) {
+                log.info(this, s"No pod events for failed pod '$name'")
+              } else {
+                podEvents.foreach { podEvent =>
+                  log.info(
+                    this,
+                    s"Pod event for failed pod '$name' ${podEvent.getLastTimestamp}: ${podEvent.getMessage}")
+                }
+              }
+              Future.failed(e)
+          }
       }
+    }
   }
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {

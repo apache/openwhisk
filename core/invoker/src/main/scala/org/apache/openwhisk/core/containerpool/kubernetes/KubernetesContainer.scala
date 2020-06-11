@@ -70,6 +70,9 @@ object KubernetesContainer {
 
     for {
       container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
+        case _: KubernetesPodApiException =>
+          //apiserver call failed - this will expose a different error to users
+          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
         case _ =>
           kubernetes
             .rm(podName)
