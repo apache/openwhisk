@@ -38,8 +38,8 @@ First, multiple actions share the same `homeInvoker`. This is because the `homeI
 While scheduling, resource status in the invoker side is not considered and this introduces busy hotspot invokers while the others are idle.
 This is generally a good idea to increase the probability of container reuse, but it becomes bad in the real scene because of slow container operation.
 When all resources in an invoker are taken by one action(busy/warm), an activation for another action will remove one of the existing containers and create a new one for it.
-If actions run for a long time this would be a good approach in terms of bin-packing. But when actions run for short time(most of the serverless cases), 
-it severely increases the response time because container operations take one to two orders of magnitude longer time than invocation and it results in bad performance.  
+If actions run for a long time this would be a good approach in terms of bin-packing. But when actions run for short time(most of the serverless cases),
+it severely increases the response time because container operations take one to two orders of magnitude longer time than invocation and it results in bad performance.
 
 Second, since controllers schedule activations to invokers in a distributed environment, controllers are assigned resource fraction of invokers.
 It's not feasible to collect the status of invokers, scheduling decisions made by all controllers and schedule based on them in real time so that controllers schedule activations within their own partial invoker resources.
@@ -55,13 +55,13 @@ It can just create more containers in invokers with enough resources. And this e
 Controllers no longer schedule activation requests. They are in charge of creating action queues and forwarding activation requests to the queues.
 The action queue is a dedicated queue for the given action and dynamically created/deleted in schedulers. Each action has its own queue, so there is no interference among actions because of
 a shared queue.
- 
- 
-ETCD, a distributed and reliable key-value store is used for a transaction, health-check, cluster information sharing, etc.  
+
+
+ETCD, a distributed and reliable key-value store is used for a transaction, health-check, cluster information sharing, etc.
 Each scheduler performs a transaction via ETCD when scheduling. The health status of each component(scheduler, invoker) is managed by [Lease](https://help.compose.com/docs/etcd-using-etcd3-features#leases) in ETCD.
 Whenever a component is failed, it no longer sends keepalive requests, and its health data is removed by lease timeout.
 Cluster-wide information such as scheduler endpoints, queue endpoints, containers in a namespace, and throttling is stored in ETCD and referred by corresponding components.
-Controllers throttle namespaces based on the throttling data in ETCD. So all controllers share the same view against the resources and manage them in the same way.  
+Controllers throttle namespaces based on the throttling data in ETCD. So all controllers share the same view against the resources and manage them in the same way.
 
 One more benefit of having our own component for routing rather than utilizing open-source components such as Kafka is we can extend and implement any routing logic.
 We would want various routing policies at some point. For example, when we utilize multiple versions of an action in-flight in the future we might want to control the traffic ratio between the two versions,
@@ -74,7 +74,7 @@ The design document along architecture diagram is already shared in [OpenWhisk W
 * [Design Consideration](https://cwiki.apache.org/confluence/display/OPENWHISK/Design+consideration?src=contextnavpagetreemode)
 * [Architecture](https://cwiki.apache.org/confluence/display/OPENWHISK/System+Architecture)
 * [Component Design](https://cwiki.apache.org/confluence/display/OPENWHISK/Component+Design)
- 
+
 ### Implementation details
 
 For the record, we(Naver) are already operating OpenWhisk with this scheduler in a production environment.
@@ -96,18 +96,18 @@ We store data in ETCD, there are many relevant components such as `EtcdClient`, 
 In an abstract view, schedulers provide queueing, container scheduling, and activation routing.
 
 * `QueueManager`: The main entry point for queue creation request. It has references to all queues.
-* `MemoryQueue`: Dynamically created/deleted for each action. It watches the incoming/outgoing requests and triggers container creation.   
+* `MemoryQueue`: Dynamically created/deleted for each action. It watches the incoming/outgoing requests and triggers container creation.
 * `ContainerManager`: Schedule container creation requests to appropriate invokers.
 * `ActivationServiceImpl`: Provide API for containers to fetch activations via Akka-grpc. It works in a long-poll way to avoid busy-waiting.
 
 #### Controller components
-* `FPCPoolBalancer`: Create queues if not exist, and forward messages to them.  
+* `FPCPoolBalancer`: Create queues if not exist, and forward messages to them.
 * `FPCEntitlementProvider`: Throttle activations based on throttling information in ETCD.
 
 #### Invoker components.
 
 * `FunctionPullingContainerPool`: A container pool for function pulling container. It handles the container creation requests.
-* `FunctionPullingContainerProxy`: A proxy for a container. It repeatedly fetches activations and invokes them. 
+* `FunctionPullingContainerProxy`: A proxy for a container. It repeatedly fetches activations and invokes them.
 * `ActivationClientProxy`: The Akka-grpc client. It communicates with `ActivationServiceImpl` in schedulers.
 * `InvokerHealthManager`: Manages the health and resources information of invokers. The data is stored in ETCD. If an invoker becomes unhealthy, it invokes health activations.
 
@@ -115,7 +115,7 @@ In an abstract view, schedulers provide queueing, container scheduling, and acti
 
 #### Persistence
 
-We reached a conclusion that the persistence of activation requests is not that mandatory requirement along with the at-most-once nature and circuit-breaking of OpenWhisk. 
+We reached a conclusion that the persistence of activation requests is not that mandatory requirement along with the at-most-once nature and circuit-breaking of OpenWhisk.
 But if it is desired, we can implement a persistent queue rather than an in-memory queue.
 
 #### Multiple partitions
