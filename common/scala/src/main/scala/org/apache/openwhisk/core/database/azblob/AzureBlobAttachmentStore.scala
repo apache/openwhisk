@@ -17,8 +17,6 @@
 
 package org.apache.openwhisk.core.database.azblob
 
-import java.util.function.Consumer
-
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.event.Logging.InfoLevel
@@ -26,13 +24,12 @@ import akka.http.scaladsl.model.ContentType
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
-import com.azure.storage.blob.models.BlobItem
 import com.azure.storage.blob.{BlobContainerAsyncClient, BlobContainerClientBuilder}
 import com.azure.storage.common.StorageSharedKeyCredential
+import com.azure.storage.common.policy.{RequestRetryOptions, RetryPolicyType}
 import com.typesafe.config.Config
 import org.apache.openwhisk.common.LoggingMarkers.{
   DATABASE_ATTS_DELETE,
-  DATABASE_ATTS_LIST,
   DATABASE_ATT_DELETE,
   DATABASE_ATT_GET,
   DATABASE_ATT_SAVE
@@ -53,6 +50,7 @@ import pureconfig.generic.auto._
 import reactor.core.publisher.Flux
 
 import scala.compat.java8.FutureConverters._
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.util.Success
@@ -62,13 +60,14 @@ case class AzBlobConfig(endpoint: String,
                         containerName: String,
                         accountName: String,
                         connectionString: Option[String],
-                        prefix: Option[String]) {
+                        prefix: Option[String],
+                        retryConfig: AzBlobRetryConfig) {
   def prefixFor[D](implicit tag: ClassTag[D]): String = {
     val className = tag.runtimeClass.getSimpleName.toLowerCase
     prefix.map(p => s"$p/$className").getOrElse(className)
   }
 }
-
+case class AzBlobRetryConfig(maxTries: Int, tryTimeout: FiniteDuration, retryDelay: FiniteDuration)
 object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                               logging: Logging,
@@ -98,6 +97,13 @@ object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
 
     builder
       .containerName(config.containerName)
+      .retryOptions(new RequestRetryOptions(
+        RetryPolicyType.FIXED,
+        config.retryConfig.maxTries,
+        config.retryConfig.tryTimeout.toSeconds.toInt,
+        config.retryConfig.retryDelay.toMillis,
+        config.retryConfig.retryDelay.toMillis,
+        null))
       .buildAsyncClient()
   }
 }
@@ -180,32 +186,6 @@ class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String)
   }
 
   override protected[core] def deleteAttachments(docId: DocId)(implicit transid: TransactionId): Future[Boolean] = {
-    def toHandler[P](f: (P) => Unit): Consumer[P] = (t: P) => f(t)
-    val startList =
-      transid.started(
-        this,
-        DATABASE_ATTS_LIST,
-        s"[ATTS_LIST] listing attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
-
-    val blobs = client.listBlobsByHierarchy(objectKeyPrefix(docId))
-    var listCount = 0
-    blobs.subscribe(
-      toHandler { b: BlobItem =>
-        listCount += 1
-      },
-      toHandler { b: Throwable =>
-        transid.failed(
-          this,
-          startList,
-          s"[ATTS_LIST] failed: listing attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}")
-      },
-      () =>
-        transid.finished(
-          this,
-          startList,
-          s"[ATTS_LIST] completed: listing ${listCount} attachments of document 'id: $docId' with prefix ${objectKeyPrefix(docId)}",
-          InfoLevel))
-
     val start =
       transid.started(
         this,
