@@ -104,7 +104,7 @@ case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig,
                                   cpuScaling: Option[KubernetesCpuScalingConfig],
                                   pdbEnabled: Boolean,
                                   fieldRefEnvironment: Option[Map[String, String]],
-                                  ephmeralStorage: Option[KubernetesEphemeralStorageConfig])
+                                  ephemeralStorage: Option[KubernetesEphemeralStorageConfig])
 
 /**
  * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.

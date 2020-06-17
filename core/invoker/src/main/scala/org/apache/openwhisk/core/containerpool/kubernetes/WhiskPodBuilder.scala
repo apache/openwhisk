@@ -107,7 +107,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
       .map(cpuConfig => Map("cpu" -> new Quantity(calculateCpu(cpuConfig, memory) + "m")))
       .getOrElse(Map.empty)
 
-    val diskLimit = config.ephmeralStorage
+    val diskLimit = config.ephemeralStorage
       .map(diskConfig => Map("ephemeral-storage" -> new Quantity(diskConfig.limit.toMB + "Mi")))
       .getOrElse(Map.empty)
 
