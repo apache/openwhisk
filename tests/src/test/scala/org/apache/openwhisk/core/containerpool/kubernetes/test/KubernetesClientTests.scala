@@ -233,5 +233,9 @@ object KubernetesClientTests {
       logCalls += ((container.id, sinceTime))
       Source(List.empty[TypedLogLine])
     }
+
+    override def addLabel(container: KubernetesContainer, labels: Map[String, String]): Future[Unit] = {
+      Future.successful({})
+    }
   }
 }

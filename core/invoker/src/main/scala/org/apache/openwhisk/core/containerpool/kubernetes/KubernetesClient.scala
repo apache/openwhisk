@@ -201,6 +201,7 @@ class KubernetesClient(
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
     deleteByName(container.id.asString)
   }
+
   def rm(podName: String)(implicit transid: TransactionId): Future[Unit] = {
     deleteByName(podName)
   }
@@ -235,6 +236,7 @@ class KubernetesClient(
             ErrorLevel)
       }
   }
+
   private def deleteByName(podName: String)(implicit transid: TransactionId) = {
     val start = transid.started(
       this,
@@ -265,6 +267,7 @@ class KubernetesClient(
             ErrorLevel)
       }
   }
+
   // suspend is a no-op with the basic KubernetesClient
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = Future.successful({})
 
@@ -299,6 +302,7 @@ class KubernetesClient(
     implicit val kubernetes = this
     new KubernetesContainer(id, addr, workerIP, nativeContainerId, portFwd)
   }
+
   // check for ready status every 1 second until timeout (minus the start time, which is the time for the pod create call) has past
   private def waitForPod(namespace: String,
                          pod: Pod,
@@ -322,8 +326,22 @@ class KubernetesClient(
       Future.successful(readyPod.get())
     }
   }
-}
 
+  def addLabel(container: KubernetesContainer, labels: Map[String, String]): Future[Unit] =
+    try {
+      kubeRestClient
+        .pods()
+        .withName(container.id.asString)
+        .edit()
+        .editMetadata()
+        .addToLabels(labels.asJava)
+        .endMetadata()
+        .done()
+      Future.successful({})
+    } catch {
+      case e: Throwable => Future.failed(e)
+    }
+}
 object KubernetesClient {
 
   // Necessary, as Kubernetes uses nanosecond precision in logs, but java.time.Instant toString uses milliseconds
@@ -363,6 +381,8 @@ trait KubernetesApi {
 
   def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any]
+
+  def addLabel(container: KubernetesContainer, labels: Map[String, String]): Future[Unit]
 }
 
 object KubernetesRestLogSourceStage {
