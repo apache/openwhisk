@@ -101,8 +101,8 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
   }
 
   protected def format(id: TransactionId, name: String, logmsg: String) = {
-    val currentId = if (id.hasParent) id else ""
-    s"[${id.root}] [$currentId] [$name] $logmsg"
+    val currentId = if (id.hasParent) s"[$id] " else ""
+    s"[${id.root}] $currentId[$name] $logmsg"
   }
 }
 
