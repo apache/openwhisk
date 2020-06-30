@@ -57,8 +57,8 @@ Sample output
             - logCleanup-byDateWithLogs.js
     Processing whisks_design_document_for_all_entities_db_v2.1.0.json
             - all-whisks.v2.1.0-all.js
-    Processing whisks_design_document_for_activations_db_filters_v2.1.0.json
-            - whisks-filters.v2.1.0-activations.js
+    Processing whisks_design_document_for_activations_db_filters_v2.1.1.json
+            - whisks-filters.v2.1.1-activations.js
     Generated view json files in /path/too/tools/build/views
 
 ## IntelliJ Run Config Generator

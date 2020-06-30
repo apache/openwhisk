@@ -124,7 +124,7 @@ object ActivationHandler extends SimpleHandler {
   private val fieldsForView = commonFields ++ Seq("end", "response.statusCode")
 
   protected val supportedTables =
-    Set("activations/byDate", "whisks-filters.v2.1.0/activations", "whisks.v2.1.0/activations")
+    Set("activations/byDate", "whisks-filters.v2.1.1/activations", "whisks.v2.1.0/activations")
 
   override def computedFields(js: JsObject): JsObject = {
     val path = js.fields.get("namespace") match {
