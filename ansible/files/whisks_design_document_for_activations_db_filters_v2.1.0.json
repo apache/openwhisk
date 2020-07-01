@@ -1,0 +1,10 @@
+{
+  "_id": "_design/whisks-filters.v2.1.0",
+  "language": "javascript",
+  "views": {
+    "activations": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n  var summarize = function (doc) {\n    var endtime = doc.end !== 0 ? doc.end : undefined;\n    return {\n        namespace: doc.namespace,\n        name: doc.name,\n        version: doc.version,\n        publish: doc.publish,\n        annotations: doc.annotations,\n        activationId: doc.activationId,\n        start: doc.start,\n        end: endtime,\n        duration: endtime !== undefined ? endtime - doc.start : undefined,\n        cause: doc.cause,\n        statusCode: (endtime !== undefined && doc.response !== undefined && doc.response.statusCode !== undefined) ? doc.response.statusCode : undefined\n      }\n  };\n\n  var pathFilter = function(doc) {\n    for (i = 0; i < doc.annotations.length; i++) {\n      var a = doc.annotations[i];\n      if (a.key == \"path\") try {\n          var p = a.value.split(PATHSEP);\n          if (p.length == 3) {\n            return p[1] + PATHSEP + doc.name;\n          } else return doc.name;\n      } catch (e) {\n        return doc.name;\n      }\n    }\n    return doc.name;\n  }\n\n  if (isActivation(doc)) try {\n    var value = summarize(doc)\n    emit([doc.namespace+PATHSEP+pathFilter(doc), doc.start], value);\n  } catch (e) {}\n}\n",
+      "reduce": "_count"
+    }
+  }
+}
