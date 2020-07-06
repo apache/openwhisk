@@ -67,7 +67,11 @@ case class AzBlobConfig(endpoint: String,
     prefix.map(p => s"$p/$className").getOrElse(className)
   }
 }
-case class AzBlobRetryConfig(maxTries: Int, tryTimeout: FiniteDuration, retryDelay: FiniteDuration)
+case class AzBlobRetryConfig(retryPolicyType: RetryPolicyType,
+                             maxTries: Int,
+                             tryTimeout: FiniteDuration,
+                             retryDelay: FiniteDuration,
+                             secondaryHost: Option[String])
 object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                               logging: Logging,
@@ -98,12 +102,12 @@ object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
     builder
       .containerName(config.containerName)
       .retryOptions(new RequestRetryOptions(
-        RetryPolicyType.FIXED,
+        config.retryConfig.retryPolicyType,
         config.retryConfig.maxTries,
         config.retryConfig.tryTimeout.toSeconds.toInt,
         config.retryConfig.retryDelay.toMillis,
         config.retryConfig.retryDelay.toMillis,
-        null))
+        config.retryConfig.secondaryHost.orNull))
       .buildAsyncClient()
   }
 }
