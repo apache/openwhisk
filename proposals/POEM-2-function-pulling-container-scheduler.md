@@ -21,7 +21,7 @@
 Function Pulling Container Scheduler (FPCScheduler)
 
 ## Status
-* Current state: Draft
+* Current state: In-progress
 * Author(s): @style95, @ningyougang, @keonhee, @jiangpengcheng, @upgle
 
 ## Summary and Motivation
