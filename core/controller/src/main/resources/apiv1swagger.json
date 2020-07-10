@@ -1930,7 +1930,6 @@
             "blackbox",
             "java:8",
             "java:default",
-            "nodejs:8",
             "nodejs:10",
             "nodejs:12",
             "nodejs:14",

@@ -61,7 +61,7 @@ Further, you should automate and pass the following test suites:
 Actions when created specify the desired runtime for the function via a property called "kind".
 When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is typically
 a string describing the language (e.g., `nodejs`) followed by a colon and the version for the runtime
-as in `nodejs:8` or `php:7.4`.
+as in `nodejs:10` or `php:7.4`.
 
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
 schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).
@@ -113,7 +113,7 @@ new language and added to the [test artifacts directory](../tests/dat/actions/un
 with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
 a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
 runtime manifest entry, replacing `:` in the kind with a `-`.
-For example, a plain text function for `nodejs:8` becomes `nodejs-8.txt`.
+For example, a plain text function for `nodejs:10` becomes `nodejs-10.txt`.
 
 ```js
 function main(args) {

@@ -270,7 +270,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:8",
+                 |        "kind": "nodejs:10",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -283,7 +283,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |          "memory": "256 MB"
                  |        }]
                  |      }, {
-                 |        "kind": "nodejs:10",
+                 |        "kind": "nodejs:12",
                  |        "deprecated": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -321,13 +321,13 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |}
                  |""".stripMargin.parseJson.asJsObject
 
-    val js8 = RuntimeManifest(
-      "nodejs:8",
+    val js10 = RuntimeManifest(
+      "nodejs:10",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB), StemCell(1, 256.MB))))
-    val js10 = RuntimeManifest(
-      "nodejs:10",
+    val js12 = RuntimeManifest(
+      "nodejs:12",
       ImageName("nodejsaction"),
       deprecated = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB))))
@@ -339,7 +339,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     mf shouldBe {
       Runtimes(
         Set(
-          RuntimeFamily("nodef", Set(js8, js10)),
+          RuntimeFamily("nodef", Set(js10, js12)),
           RuntimeFamily("pythonf", Set(py)),
           RuntimeFamily("swiftf", Set(sw)),
           RuntimeFamily("phpf", Set(ph))),
@@ -353,9 +353,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
-      (js8.kind, js8.image, 1, 128.MB),
-      (js8.kind, js8.image, 1, 256.MB),
       (js10.kind, js10.image, 1, 128.MB),
+      (js10.kind, js10.image, 1, 256.MB),
+      (js12.kind, js12.image, 1, 128.MB),
       (py.kind, py.image, 2, 256.MB))
   }
 
@@ -364,7 +364,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:8",
+                 |        "kind": "nodejs:10",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -391,7 +391,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |           }
                  |        }]
                  |      }, {
-                 |        "kind": "nodejs:10",
+                 |        "kind": "nodejs:12",
                  |        "deprecated": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -444,13 +444,13 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |""".stripMargin.parseJson.asJsObject
 
     val reactive = Some(ReactivePrewarmingConfig(1, 4, FiniteDuration(2, TimeUnit.MINUTES), 1, 1))
-    val js8 = RuntimeManifest(
-      "nodejs:8",
+    val js10 = RuntimeManifest(
+      "nodejs:10",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB, reactive), StemCell(1, 256.MB, reactive))))
-    val js10 = RuntimeManifest(
-      "nodejs:10",
+    val js12 = RuntimeManifest(
+      "nodejs:12",
       ImageName("nodejsaction"),
       deprecated = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB, reactive))))
@@ -462,7 +462,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     mf shouldBe {
       Runtimes(
         Set(
-          RuntimeFamily("nodef", Set(js8, js10)),
+          RuntimeFamily("nodef", Set(js10, js12)),
           RuntimeFamily("pythonf", Set(py)),
           RuntimeFamily("swiftf", Set(sw)),
           RuntimeFamily("phpf", Set(ph))),
@@ -476,9 +476,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
-      (js8.kind, js8.image, 1, 128.MB),
-      (js8.kind, js8.image, 1, 256.MB),
       (js10.kind, js10.image, 1, 128.MB),
+      (js10.kind, js10.image, 1, 256.MB),
+      (js12.kind, js12.image, 1, 128.MB),
       (py.kind, py.image, 2, 256.MB))
   }
 }
