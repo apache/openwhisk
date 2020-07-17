@@ -16,8 +16,8 @@
  */
 
 package org.apache.openwhisk.core.controller
-import scala.language.postfixOps
-import scala.concurrent.{Await, Future}
+
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import org.apache.kafka.common.errors.RecordTooLargeException
@@ -44,7 +44,8 @@ import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.core.entitlement.Resource
 import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
-
+import pureconfig._
+import org.apache.openwhisk.core.ConfigKeys
 /**
  * A singleton object which defines the properties that must be present in a configuration
  * in order to implement the actions API.
@@ -102,6 +103,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Database service to get activations. */
   protected val activationStore: ActivationStore
+
+  /** Config flag for Execute Only for Actions in Shared Packages */
+  protected def configureExecuteOnly = executeOnly
+  protected val executeOnly = {
+    Try({loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)}).getOrElse(false)
+  }
 
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
@@ -168,6 +175,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   if (right == Privilege.READ || right == Privilege.ACTIVATE) { wp: WhiskPackage =>
                     val actionResource = Resource(wp.fullPath, collection, Some(innername))
                     dispatchOp(user, right, actionResource)
+
                   } else {
                     // these packaged action operations do not need merging with the package,
                     // but may not be permitted if this is a binding, or if the subject does
@@ -233,7 +241,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 502 Bad Gateway
    * - 500 Internal Server Error
    */
-
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     parameter(
@@ -252,10 +259,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
                   // incoming parameters may not override final parameters (i.e., parameters with already defined values)
                   // on an action once its parameters are resolved across package and binding
-
                   val allowInvoke = payload
                     .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
                     .getOrElse(true)
+
                   if (allowInvoke) {
                     doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
                   } else {
@@ -331,16 +338,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
   }
 
-  /** Load Config Option "packageExecuteOnly" as a boolean variable*/
-private val executeOnly = {
-    import pureconfig._
-    import org.apache.openwhisk.core.ConfigKeys
-    try {
-      loadConfigOrThrow[Boolean](ConfigKeys.packageExecuteOnly)
-    }catch{
-      case ex: Exception => false
-    }
-}
+
 
   /**
    * Gets action. The action name is prefixed with the namespace to create the primary index key.
@@ -349,90 +347,61 @@ private val executeOnly = {
    * - 200 WhiskAction has JSON
    * - 404 Not Found
    * - 500 Internal Server Error
-   *
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     parameter('code ? true) { code =>
-      code match {
-        case true =>
-          //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
-          //and that of the entity we are trying to fetch
-          if (executeOnly == true && user.namespace.name.toString != entityName.namespace.toString) {
-            val value = entityName.path
-            terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's an action in a shared package not owned by the current user")
-          } else {
-
-            //Resolve Binding(Package) of the action
-            val pkgDocid = entityName.path.toDocId
-            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
-
-            var originalPackageLocation = ""
-
-            //Retrieve the root package of the action(if there's a binding, then this will retrieve the original package
-            Try(Await.result(wp, 10 seconds)) match{
-              case Success(pkg) => {
-                originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace.toString
+      //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
+      //and that of the entity we are trying to fetch
+     if (executeOnly && user.namespace.name.toString != entityName.namespace.toString) {
+        val value = entityName.path
+        terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's an action in a shared package")
+      } else {
+        code match {
+          case true =>
+              //Resolve Binding(Package) of the action
+              getEntity(
+                WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
+                Some {pkg: WhiskPackage =>
+                  val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+                  if (executeOnly && originalPackageLocation != entityName.namespace){
+                    terminate(StatusCode.int2StatusCode(403),
+                      s"GET not permitted for '${entityName.toDocId}'. Resource does not exist or an action in a shared package binding")
+                  }else{
+                    getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                      action: WhiskAction =>
+                        val mergedAction = env map {
+                          action inherit _
+                        } getOrElse action
+                        complete(OK, mergedAction)
+                    })
+                  }
+                }
+              )
+          case false =>
+            getEntity(
+              WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
+              Some {pkg: WhiskPackage =>
+                val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+                if (executeOnly && originalPackageLocation != entityName.namespace){
+                  terminate(StatusCode.int2StatusCode(403),
+                    s"GET not permitted for '${entityName.toDocId}'. Resource does not exist or an action in a shared package binding")
+                }else{
+                  getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                    action: WhiskActionMetaData =>
+                      val mergedAction = env map {
+                        action inherit _
+                      } getOrElse action
+                      complete(OK, mergedAction)
+                  })
+                }
               }
-              case Failure(e) => {
-                terminate(StatusCode.int2StatusCode(500), "Failed to resolve package binding")
-              }
-            }
-
-            //check the following conditions: execute only enabled, original entity location same as that of our entity now
-            //and do we have a binding here in the first place.
-            if (executeOnly == true && originalPackageLocation != entityName.namespace.toString && !entityName.path.defaultPackage) {
-              val value = entityName.toDocId
-              terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value'. The resource either does not exist or it's an action in a package binding, and the original package is not owned by the current user")
-            } else {
-              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some { action: WhiskAction =>
-                val mergedAction = env map {
-                  action inherit _
-                } getOrElse action
-                complete(OK, mergedAction)
-              })
-            }
-          }
-
-        case false =>
-          //and that of the entity we are trying to fetch
-          if (executeOnly == true && user.namespace.name.toString != entityName.namespace.toString) {
-            val value = entityName.toString
-            terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's an action in a shared package not owned by the current user")
-          } else {
-            //Resolve Binding(Package) of the action
-            val pkgDocid = entityName.path.toDocId
-            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
-            var originalPackageLocation = ""
-
-            //Retrieve the root package of the action(if there's a binding, then this will retrieve the original package
-            Try(Await.result(wp, 10 seconds)) match{
-              case Success(pkg) => {
-                originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace.toString
-              }
-              case Failure(e) => {
-                terminate(StatusCode.int2StatusCode(500), "Failed to resolve package binding")
-              }
-            }
-
-            //check the following conditions: execute only enabled, original entity location same as that of our entity now
-            //and do we have a binding here in the first place.
-            if (executeOnly == true && originalPackageLocation != entityName.namespace.toString && !entityName.path.defaultPackage) {
-              val value = entityName.toDocId
-              terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value'. The resource either does not exist or it's an action in a package binding, and the original package is not owned by the current user")
-            } else {
-              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-                action: WhiskActionMetaData =>
-                  val mergedAction = env map {
-                    action inherit _
-                  } getOrElse action
-                  complete(OK, mergedAction)
-              })
-            }
-          }
-       }
+            )
+         }
      }
+    }
   }
+
 
   /**
    * Gets all actions in a path.

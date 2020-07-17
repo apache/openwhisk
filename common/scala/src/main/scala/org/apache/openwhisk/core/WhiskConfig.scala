@@ -106,6 +106,7 @@ object WhiskConfig {
           propfile(base.getParent, true)
         else null
       } else null
+
     val dir = sys.props.get("user.dir")
     if (dir.isDefined) {
       propfile(dir.get, true)
@@ -263,7 +264,7 @@ object ConfigKeys {
   val featureFlags = "whisk.feature-flags"
 
   val whiskConfig = "whisk.config"
-  val packageExecuteOnly = s"whisk.packages-execute-only"
+  val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
   val swaggerUi = "whisk.swagger-ui"
 
   val disableStoreResult = s"$activation.disable-store-result"
@@ -272,5 +273,4 @@ object ConfigKeys {
   val apacheClientConfig = "whisk.apache-client"
 
   val parameterStorage = "whisk.parameter-storage"
-
 }

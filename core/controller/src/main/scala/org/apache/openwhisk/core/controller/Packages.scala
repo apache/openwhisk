@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes._
@@ -32,8 +32,8 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types.EntityStore
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
-
-import scala.collection.immutable.Set
+import pureconfig._
+import org.apache.openwhisk.core.ConfigKeys
 
 trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   services: WhiskServices =>
@@ -42,6 +42,14 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Database service to CRUD packages. */
   protected val entityStore: EntityStore
+
+  /** Config flag for Execute Only for Shared Packages */
+  protected def configureExecuteOnly = executeOnly
+  private val executeOnly = {
+    Try({
+      loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
+    }).getOrElse(false)
+  }
 
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
@@ -99,13 +107,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
     }
   }
+
   /**
    * Activating a package is not supported. This method is not permitted and is not reachable.
    *
    * Responses are one of (Code, Message)
    * - 405 Not Allowed
    */
-
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     logging.error(this, "activate is not permitted on packages")
@@ -146,16 +154,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         }
       })
   }
-  private val executeOnly = {
-    import pureconfig._
-    import pureconfig.generic.auto._
-    import org.apache.openwhisk.core.ConfigKeys
-    try {
-      loadConfigOrThrow[Boolean](ConfigKeys.packageExecuteOnly)
-    }catch{
-      case ex: Exception => false
-    }
-  }
+
+
   /**
    * Gets package/binding.
    * The package/binding name is prefixed with the namespace to create the primary index key.
@@ -165,20 +165,20 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-
   //get method that also checks for execute only to deny access to shared package, but package binding is handled
   //within the mergePackageWithBinding() method
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    if (executeOnly == true && user.namespace.name.toString != entityName.namespace.toString) {
+    if (executeOnly && user.namespace.name.toString != entityName.namespace.toString) {
         val value = entityName.toString
-        terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's a shared package not owned by the current user")
+        terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's a shared package")
     }else {
       getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some {
         mergePackageWithBinding() _
       })
     }
   }
+
   /**
    * Gets all packages/bindings in namespace.
    *
@@ -211,6 +211,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
     }
   }
+
   /**
    * Validates that a referenced binding exists.
    */
@@ -228,6 +229,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       case _ => Future.successful({})
     }
   }
+
   /**
    * Creates a WhiskPackage from PUT content, generating default values where necessary.
    * If this is a binding, confirm the referenced package exists.
@@ -237,6 +239,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     val validateBinding = content.binding map { b =>
       checkBinding(b.fullyQualifiedName)
     } getOrElse Future.successful({})
+
     validateBinding map { _ =>
       WhiskPackage(
         pkgName.path,
@@ -251,6 +254,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           ++ bindingAnnotation(content.binding))
     }
   }
+
   /** Updates a WhiskPackage from PUT content, merging old package/binding where necessary. */
   private def update(content: WhiskPackagePut)(wp: WhiskPackage)(
     implicit transid: TransactionId): Future[WhiskPackage] = {
@@ -289,6 +293,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       case _                          => super.handleEntitlementFailure(failure)
     }
   }
+
   /**
    * Constructs a "binding" annotation. This is redundant with the binding
    * information available in WhiskPackage but necessary for some clients which
@@ -301,6 +306,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(b))
     } getOrElse Parameters()
   }
+
   /**
    * Constructs a WhiskPackage that is a merger of a package with its packing binding (if any).
    * If this is a binding, fetch package for binding, merge parameters then emit.
@@ -311,7 +317,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     wp.binding map {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
-
         logging.debug(this, s"fetching package '$docid' for reference")
         if (docid == wp.docid) {
           logging.error(this, s"unexpected package binding refers to itself: $docid")
@@ -321,8 +326,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           val packagePath = wp.namespace.toString()
           val bindingPath = wp.binding.iterator.next().toString()
           val indexOfSlash = bindingPath.indexOf('/')
-          if (executeOnly == true && packagePath != bindingPath.take(indexOfSlash)){
-            terminate(StatusCode.int2StatusCode(403), s"GET not permitted since ${wp.name.toString} is a binding of a shared package that does not belong to the current user")
+          if (executeOnly && packagePath != bindingPath.take(indexOfSlash)){
+            terminate(StatusCode.int2StatusCode(403), s"GET not permitted since ${wp.name.toString} is a binding of a shared package")
           }else {
             getEntity(WhiskPackage.get(entityStore, docid), Some {
               mergePackageWithBinding(Some {
@@ -347,6 +352,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
             new IllegalStateException(s"unexpected result in package action lookup: $t")
           }
       }
+
       onComplete(actions) {
         case Success(p) =>
           logging.debug(this, s"[GET] entity success")
