@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.containerpool.kubernetes
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 import java.time.{Instant, ZoneId}
 
 import akka.actor.ActorSystem
@@ -331,7 +332,8 @@ object KubernetesClient {
     .parseCaseInsensitive()
     .appendPattern("u-MM-dd")
     .appendLiteral('T')
-    .appendPattern("HH:mm:ss[.n]")
+    .appendPattern("HH:mm:ss")
+    .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
     .appendLiteral('Z')
     .toFormatter()
     .withZone(ZoneId.of("UTC"))
@@ -401,7 +403,7 @@ object KubernetesRestLogSourceStage {
         TypedLogLine(timestamp, stream, msg)
       }) match {
         case Some(logLine) =>
-          readLines(src, Option(logLine.time), lines :+ logLine)
+          readLines(src, lastTimestamp, lines :+ logLine)
         case None =>
           // we may have skipped a line for filtering conditions only; keep going
           readLines(src, lastTimestamp, lines)
