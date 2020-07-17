@@ -58,7 +58,7 @@ function remove_assets() {
 function deploy_assets() {
 
 	# Create action
-	wsk action create testAction testAction.js --kind nodejs:8 $@
+	wsk action create testAction testAction.js --kind nodejs:default $@
 
 	# Create trigger after deleting it
 	wsk trigger create testTrigger $@

@@ -493,7 +493,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "initialize exec manifest" in {
     val runtimes = ExecManifest.runtimesManifest
     val kind = runtimes.resolveDefaultRuntime("nodejs:default").get.kind
-    Some(kind) should contain oneOf ("nodejs:6", "nodejs:8", "nodejs:10")
+    Some(kind) should contain oneOf ("nodejs:10", "nodejs:12")
   }
 
   it should "properly deserialize and reserialize JSON" in {
