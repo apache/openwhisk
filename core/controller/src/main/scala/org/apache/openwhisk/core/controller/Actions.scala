@@ -26,7 +26,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -46,6 +45,7 @@ import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
 import pureconfig._
 import org.apache.openwhisk.core.ConfigKeys
+
 /**
  * A singleton object which defines the properties that must be present in a configuration
  * in order to implement the actions API.
@@ -105,9 +105,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   protected val activationStore: ActivationStore
 
   /** Config flag for Execute Only for Actions in Shared Packages */
-  protected def executeOnly = Try({
-    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
-  }).getOrElse(false)
+  protected def executeOnly =
+    Try({
+      loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
+    }).getOrElse(false)
 
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
@@ -337,8 +338,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
   }
 
-
-
   /**
    * Gets action. The action name is prefixed with the namespace to create the primary index key.
    *
@@ -352,55 +351,59 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('code ? true) { code =>
       //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
       //and that of the entity we are trying to fetch
-     if (executeOnly && user.namespace.name.toString != entityName.namespace.toString) {
-        val value = entityName.path
-        terminate(StatusCode.int2StatusCode(403), s"GET not permitted for '$value' since it's an action in a shared package")
+
+      if (executeOnly && user.namespace.name != entityName.namespace) {
+        terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
       } else {
-        code match {
-          case true =>
-              //Resolve Binding(Package) of the action
-              getEntity(
-                WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
-                Some {pkg: WhiskPackage =>
-                  val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
-                  if (executeOnly && originalPackageLocation != entityName.namespace){
-                    terminate(StatusCode.int2StatusCode(403),
-                      s"GET not permitted for '${entityName.toDocId}'. Resource does not exist or an action in a shared package binding")
-                  }else{
-                    getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
-                      action: WhiskAction =>
-                        val mergedAction = env map {
-                          action inherit _
-                        } getOrElse action
-                        complete(OK, mergedAction)
-                    })
-                  }
-                }
-              )
-          case false =>
+        val getEntityWhiskActionCase =
+          getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some { action: WhiskAction =>
+            val mergedAction = env map {
+              action inherit _
+            } getOrElse action
+            complete(OK, mergedAction)
+          })
+        val getEntityWhiskMetaDataCase =
+          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+            action: WhiskActionMetaData =>
+              val mergedAction = env map {
+                action inherit _
+              } getOrElse action
+              complete(OK, mergedAction)
+          })
+        if (code) {
+          if (entityName.path.defaultPackage) {
+            getEntityWhiskActionCase
+          } else {
             getEntity(
               WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
-              Some {pkg: WhiskPackage =>
+              Some { pkg: WhiskPackage =>
                 val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
-                if (executeOnly && originalPackageLocation != entityName.namespace){
-                  terminate(StatusCode.int2StatusCode(403),
-                    s"GET not permitted for '${entityName.toDocId}'. Resource does not exist or an action in a shared package binding")
-                }else{
-                  getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-                    action: WhiskActionMetaData =>
-                      val mergedAction = env map {
-                        action inherit _
-                      } getOrElse action
-                      complete(OK, mergedAction)
-                  })
+                if (executeOnly && originalPackageLocation != entityName.namespace) {
+                  terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
+                } else {
+                  getEntityWhiskActionCase
                 }
-              }
-            )
-         }
-     }
+              })
+          }
+        } else {
+          if (entityName.path.defaultPackage) {
+            getEntityWhiskMetaDataCase
+          } else {
+            getEntity(
+              WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
+              Some { pkg: WhiskPackage =>
+                val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+                if (executeOnly && originalPackageLocation != entityName.namespace) {
+                  terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
+                } else {
+                  getEntityWhiskMetaDataCase
+                }
+              })
+          }
+        }
+      }
     }
   }
-
 
   /**
    * Gets all actions in a path.

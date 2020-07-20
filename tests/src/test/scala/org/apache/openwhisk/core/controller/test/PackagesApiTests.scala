@@ -888,54 +888,54 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
   var testExecuteOnly = false
   override def executeOnly = testExecuteOnly
 
-  it should("allow access to get of shared package binding when config option is disabled") in {
-      testExecuteOnly = false
-      implicit val tid = transid()
-      val auser = WhiskAuthHelpers.newIdentity()
-      val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
-      val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
-      put(entityStore, provider)
-      put(entityStore, binding)
-      Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
-        status should be(OK)
-      }
+  it should ("allow access to get of shared package binding when config option is disabled") in {
+    testExecuteOnly = false
+    implicit val tid = transid()
+    val auser = WhiskAuthHelpers.newIdentity()
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    put(entityStore, provider)
+    put(entityStore, binding)
+    Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
+      status should be(OK)
+    }
   }
 
-  it should("allow access to get of shared package when config option is disabled") in {
-      testExecuteOnly = false
-      implicit val tid = transid()
-      val auser = WhiskAuthHelpers.newIdentity()
-      val provider = WhiskPackage(namespace, aname(), None, publish = true)
-      put(entityStore, provider)
+  it should ("allow access to get of shared package when config option is disabled") in {
+    testExecuteOnly = false
+    implicit val tid = transid()
+    val auser = WhiskAuthHelpers.newIdentity()
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    put(entityStore, provider)
 
-      Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
-        status should be(OK)
-      }
+    Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
+      status should be(OK)
+    }
   }
 
   it should ("deny access to get of shared package binding when config option is enabled") in {
-      testExecuteOnly = true
-      implicit val tid = transid()
-      val auser = WhiskAuthHelpers.newIdentity()
-      val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
-      val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
-      put(entityStore, provider)
-      put(entityStore, binding)
-      Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
-        status should be(Forbidden)
-      }
+    testExecuteOnly = true
+    implicit val tid = transid()
+    val auser = WhiskAuthHelpers.newIdentity()
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    put(entityStore, provider)
+    put(entityStore, binding)
+    Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
+      status should be(Forbidden)
+    }
 
   }
 
-  it should("deny access to get of shared package when config option is enabled") in {
-      testExecuteOnly = true
-      implicit val tid = transid()
-      val auser = WhiskAuthHelpers.newIdentity()
-      val provider = WhiskPackage(namespace, aname(), None, publish = true)
-      put(entityStore, provider)
+  it should ("deny access to get of shared package when config option is enabled") in {
+    testExecuteOnly = true
+    implicit val tid = transid()
+    val auser = WhiskAuthHelpers.newIdentity()
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    put(entityStore, provider)
 
-      Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
-        status should be(Forbidden)
-      }
+    Get(s"/$namespace/${collection.path}/${provider.name}") ~> Route.seal(routes(auser)) ~> check {
+      status should be(Forbidden)
+    }
   }
 }

@@ -639,7 +639,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   var testExecuteOnly = false
   override def executeOnly = testExecuteOnly
 
-  it should("allow access to get of action in binding of shared package when config option is disabled") in {
+  it should ("allow access to get of action in binding of shared package when config option is disabled") in {
     testExecuteOnly = false
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
@@ -654,18 +654,18 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-  it should("deny access to get of action in binding of shared package when config option is enabled") in {
-      testExecuteOnly = true
-      implicit val tid = transid()
-      val auser = WhiskAuthHelpers.newIdentity()
-      val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
-      val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
-      val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
-      put(entityStore, provider)
-      put(entityStore, binding)
-      put(entityStore, action)
-      Get(s"$collectionPath/${binding.name}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
-        status should be(Forbidden)
-      }
+  it should ("deny access to get of action in binding of shared package when config option is enabled") in {
+    testExecuteOnly = true
+    implicit val tid = transid()
+    val auser = WhiskAuthHelpers.newIdentity()
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
+    put(entityStore, provider)
+    put(entityStore, binding)
+    put(entityStore, action)
+    Get(s"$collectionPath/${binding.name}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
+      status should be(Forbidden)
+    }
   }
 }
