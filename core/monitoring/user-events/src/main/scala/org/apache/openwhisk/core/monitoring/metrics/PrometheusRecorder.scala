@@ -61,7 +61,9 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
   private val promMetrics = PrometheusMetrics()
 
   override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
-    lookup(activation, initiator).record(activation, initiator, metricConfig)
+    if (!metricConfig.ignoredNamespaces.contains(activation.namespace)) {
+      lookup(activation, initiator).record(activation, initiator, metricConfig)
+    }
   }
 
   override def processMetric(metric: Metric, initiator: String): Unit = {
