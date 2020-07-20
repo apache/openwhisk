@@ -44,12 +44,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   protected val entityStore: EntityStore
 
   /** Config flag for Execute Only for Shared Packages */
-  protected def configureExecuteOnly = executeOnly
-  private val executeOnly = {
-    Try({
-      loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
-    }).getOrElse(false)
-  }
+
+  protected def executeOnly = Try({
+    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
+  }).getOrElse(false)
 
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]

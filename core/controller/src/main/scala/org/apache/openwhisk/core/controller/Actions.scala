@@ -105,10 +105,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   protected val activationStore: ActivationStore
 
   /** Config flag for Execute Only for Actions in Shared Packages */
-  protected def configureExecuteOnly = executeOnly
-  protected val executeOnly = {
-    Try({loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)}).getOrElse(false)
-  }
+  protected def executeOnly = Try({
+    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
+  }).getOrElse(false)
 
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
