@@ -48,52 +48,74 @@ class ChangeFeedConsumer(collName: String, config: CacheInvalidatorConfig, obser
   import ChangeFeedConsumer._
 
   log.info(this, s"Watching changes in $collName with lease managed in ${config.feedConfig.leaseCollection}")
+  val clients = scala.collection.mutable.Map[ConnectionInfo, CosmosClient]().withDefault(createCosmosClient)
 
-  private val clients = scala.collection.mutable.Map[ConnectionInfo, CosmosClient]().withDefault(createCosmosClient)
-  private val targetContainer = getContainer(collName)
-  private val leaseContainer = getContainer(config.feedConfig.leaseCollection, createIfNotExist = true)
-  private val (processor, startFuture) = {
-    val clusterId = config.invalidatorConfig.clusterId
-    val prefix = clusterId.map(id => s"$id-$collName").getOrElse(collName)
+  var processor: Option[ChangeFeedProcessor] = None
+  def start: Future[Done] = {
 
-    val feedOpts = new ChangeFeedProcessorOptions
-    feedOpts.leasePrefix(prefix)
-    feedOpts.startFromBeginning(config.feedConfig.startFromBeginning)
+    def getContainer(name: String, createIfNotExist: Boolean = false): CosmosContainer = {
+      val info = config.getCollectionInfo(name)
+      val client = clients(info)
+      val db = client.getDatabase(info.db)
+      val container = db.getContainer(name)
 
-    val builder = ChangeFeedProcessor.Builder
-      .hostName(config.feedConfig.hostname)
-      .feedContainer(targetContainer)
-      .leaseContainer(leaseContainer)
-      .options(feedOpts)
-      .asInstanceOf[ChangeFeedProcessorBuilderImpl] //observerFactory is not exposed hence need to cast to impl
+      val resp = if (createIfNotExist) {
+        db.createContainerIfNotExists(name, "/id", info.throughput)
+      } else container.read()
 
-    builder.observerFactory(() => ObserverBridge)
-    val p = builder.build()
-    (p, p.start().toFuture.toScala.map(_ => Done))
+      resp.block().container()
+    }
+    try {
+      val targetContainer = getContainer(collName)
+      val leaseContainer = getContainer(config.feedConfig.leaseCollection, createIfNotExist = true)
+
+      val clusterId = config.invalidatorConfig.clusterId
+      val prefix = clusterId.map(id => s"$id-$collName").getOrElse(collName)
+
+      val feedOpts = new ChangeFeedProcessorOptions
+      feedOpts.leasePrefix(prefix)
+      feedOpts.startFromBeginning(config.feedConfig.startFromBeginning)
+
+      val builder = ChangeFeedProcessor.Builder
+        .hostName(config.feedConfig.hostname)
+        .feedContainer(targetContainer)
+        .leaseContainer(leaseContainer)
+        .options(feedOpts)
+        .asInstanceOf[ChangeFeedProcessorBuilderImpl] //observerFactory is not exposed hence need to cast to impl
+
+      builder.observerFactory(() => ObserverBridge)
+      val p = builder.build()
+
+      processor = Some(p)
+      p.start().toFuture.toScala.map(_ => Done)
+    } catch {
+      case t: Throwable => Future.failed(t)
+    }
+
   }
-
-  def isStarted: Future[Done] = startFuture
 
   def close(): Future[Done] = {
-    val f = processor.stop().toFuture.toScala.map(_ => Done)
-    f.andThen {
-      case _ =>
-        clients.values.foreach(c => c.close())
-        Future.successful(Done)
-    }
-  }
 
-  private def getContainer(name: String, createIfNotExist: Boolean = false): CosmosContainer = {
-    val info = config.getCollectionInfo(name)
-    val client = clients(info)
-    val db = client.getDatabase(info.db)
-    val container = db.getContainer(name)
+    processor
+      .map { p =>
+        // be careful about exceptions thrown during ChangeFeedProcessor.stop()
+        // e.g. calling stop() before start() completed, etc will throw exceptions
+        try {
+          p.stop().toFuture.toScala.map(_ => Done)
+        } catch {
+          case t: Throwable =>
+            log.warn(this, s"Failed to stop processor ${t}")
+            Future.failed(t)
+        }
+      }
+      .getOrElse(Future.successful(Done))
+      .andThen {
+        case _ =>
+          log.info(this, "Closing cosmos clients.")
+          clients.values.foreach(c => c.close())
+          Future.successful(Done)
+      }
 
-    val resp = if (createIfNotExist) {
-      db.createContainerIfNotExists(name, "/id", info.throughput)
-    } else container.read()
-
-    resp.block().container()
   }
 
   private object ObserverBridge extends com.azure.data.cosmos.internal.changefeed.ChangeFeedObserver {

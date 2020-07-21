@@ -20,40 +20,77 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.kafka.ProducerSettings
 import akka.stream.ActorMaterializer
-import com.google.common.base.Throwables
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.RemoteCacheInvalidation.cacheInvalidationTopic
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.Success
 
-object CacheInvalidator {
-
+class CacheInvalidator(globalConfig: Config)(implicit system: ActorSystem,
+                                             materializer: ActorMaterializer,
+                                             log: Logging) {
+  import CacheInvalidator._
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"
+  implicit val ec: ExecutionContext = system.dispatcher
 
-  def start(
-    globalConfig: Config)(implicit system: ActorSystem, materializer: ActorMaterializer, log: Logging): Future[Done] = {
-    implicit val ec: ExecutionContext = system.dispatcher
-    val config = CacheInvalidatorConfig(globalConfig)
-    val producer =
-      KafkaEventProducer(
-        kafkaProducerSettings(defaultProducerConfig(globalConfig)),
-        cacheInvalidationTopic,
-        config.eventProducerConfig)
-    val observer = new WhiskChangeEventObserver(config.invalidatorConfig, producer)
-    val feedConsumer = new ChangeFeedConsumer(whisksCollection, config, observer)
-    feedConsumer.isStarted.andThen {
-      case Success(_) =>
+  val config = CacheInvalidatorConfig(globalConfig)
+  val producer =
+    KafkaEventProducer(
+      kafkaProducerSettings(defaultProducerConfig(globalConfig)),
+      cacheInvalidationTopic,
+      config.eventProducerConfig)
+  val observer = new WhiskChangeEventObserver(config.invalidatorConfig, producer)
+  val feedConsumer: ChangeFeedConsumer = new ChangeFeedConsumer(whisksCollection, config, observer)
+  val running = Promise[Done]
+
+  def start(): (Future[Done], Future[Done]) = {
+    //If there is a failure at feedConsumer.start, stop everything
+    val startFuture = feedConsumer.start
+    startFuture
+      .map { _ =>
         registerShutdownTasks(system, feedConsumer, producer)
         log.info(this, s"Started the Cache invalidator service. ClusterId [${config.invalidatorConfig.clusterId}]")
-      case Failure(t) =>
-        log.error(this, "Error occurred while starting the Consumer" + Throwables.getStackTraceAsString(t))
+      }
+      .recover {
+        case t: Throwable =>
+          log.error(this, s"Shutdown after failure to start invalidator: ${t}")
+          stop(Some(t))
+      }
+
+    //If the producer stream fails, stop everything.
+    producer
+      .getStreamFuture()
+      .map(_ => log.info(this, "Successfully completed producer"))
+      .recover {
+        case t: Throwable =>
+          log.error(this, s"Shutdown after producer failure: ${t}")
+          stop(Some(t))
+      }
+
+    (startFuture, running.future)
+  }
+  def stop(error: Option[Throwable])(implicit system: ActorSystem, ec: ExecutionContext, log: Logging): Future[Done] = {
+    feedConsumer
+      .close()
+      .andThen {
+        case _ =>
+          producer.close().andThen {
+            case _ =>
+              terminate(error)
+          }
+      }
+  }
+  def terminate(error: Option[Throwable]): Unit = {
+    //make sure that the tracking future is only completed once, even though it may be called for various types of failures
+    synchronized {
+      if (!running.isCompleted) {
+        error.map(running.failure).getOrElse(running.success(Done))
+      }
     }
   }
-
   private def registerShutdownTasks(system: ActorSystem,
                                     feedConsumer: ChangeFeedConsumer,
                                     producer: KafkaEventProducer)(implicit ec: ExecutionContext, log: Logging): Unit = {
@@ -68,7 +105,8 @@ object CacheInvalidator {
         }
     }
   }
-
+}
+object CacheInvalidator {
   def kafkaProducerSettings(config: Config): ProducerSettings[String, String] =
     ProducerSettings(config, new StringSerializer, new StringSerializer)
 
