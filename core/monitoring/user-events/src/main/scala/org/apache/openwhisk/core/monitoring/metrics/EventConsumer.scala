@@ -55,7 +55,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
-  private val activationNamespaceCounter = Kamon.counter("openwhisk.namespace.activations.total")
+  private val activationNamespaceCounter = Kamon.counter("openwhisk.namespace.activations")
   private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations").withoutTags()
   private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric").withoutTags()
 
