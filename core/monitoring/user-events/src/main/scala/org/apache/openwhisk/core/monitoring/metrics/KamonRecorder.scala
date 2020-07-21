@@ -22,7 +22,6 @@ import org.apache.openwhisk.core.connector.{Activation, Metric}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 import kamon.tag.TagSet
-import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 import scala.collection.concurrent.TrieMap
 
@@ -45,8 +44,8 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
   private val activationMetrics = new TrieMap[String, ActivationKamonMetrics]
   private val limitMetrics = new TrieMap[String, LimitKamonMetrics]
 
-  override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
-    lookup(activation, initiator).record(activation, metricConfig)
+  override def processActivation(activation: Activation, initiator: String): Unit = {
+    lookup(activation, initiator).record(activation)
   }
 
   override def processMetric(metric: Metric, initiator: String): Unit = {
@@ -97,7 +96,6 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     private val tags =
       TagSet.from(Map(`actionNamespace` -> namespace, `initiatorNamespace` -> initiator, `actionName` -> action))
 
-    private val namespaceActivations = Kamon.counter(namespaceActivationMetric).withTags(namespaceActivationsTags)
     private val activations = Kamon.counter(activationMetric).withTags(activationTags)
     private val coldStarts = Kamon.counter(coldStartMetric).withTags(tags)
     private val waitTime = Kamon.histogram(waitTimeMetric, MeasurementUnit.time.milliseconds).withTags(tags)
@@ -106,13 +104,8 @@ object KamonRecorder extends MetricRecorder with KamonMetricNames with SLF4JLogg
     private val responseSize = Kamon.histogram(responseSizeMetric, MeasurementUnit.information.bytes).withTags(tags)
     private val userDefinedStatusCode = Kamon.counter(userDefinedStatusCodeMetric).withTags(tags)
 
-    def record(a: Activation, metricConfig: MetricConfig): Unit = {
-      namespaceActivations.increment()
-
-      // only record activation if not executed in an ignored namespace
-      if (!metricConfig.ignoredNamespaces.contains(a.namespace)) {
-        recordActivation(a)
-      }
+    def record(a: Activation): Unit = {
+      recordActivation(a)
     }
 
     def recordActivation(a: Activation): Unit = {
