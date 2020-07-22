@@ -21,7 +21,7 @@
 Process for introducing an OpenWhisk Enhancement (POEM)
 
 ## Status
-* Current state: Draft
+* Current state: Completed
 * Author: @style95
 
 ## Summary
