@@ -30,6 +30,7 @@ import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
+import kamon.tag.TagSet
 import org.apache.kafka.common
 import org.apache.kafka.common.MetricName
 import org.apache.openwhisk.connector.kafka.{KafkaMetricsProvider, KamonMetricsReporter}
@@ -41,7 +42,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 
 trait MetricRecorder {
-  def processActivation(activation: Activation, initiatorNamespace: String, metricConfig: MetricConfig): Unit
+  def processActivation(activation: Activation, initiatorNamespace: String): Unit
   def processMetric(metric: Metric, initiatorNamespace: String): Unit
 }
 
@@ -54,6 +55,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
   private implicit val ec: ExecutionContext = system.dispatcher
 
   //Record the rate of events received
+  private val activationNamespaceCounter = Kamon.counter("openwhisk.namespace.activations")
   private val activationCounter = Kamon.counter("openwhisk.userevents.global.activations").withoutTags()
   private val metricCounter = Kamon.counter("openwhisk.userevents.global.metric").withoutTags()
 
@@ -122,15 +124,22 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
       .foreach { e =>
         e.body match {
           case a: Activation =>
-            recorders.foreach(_.processActivation(a, e.namespace, metricConfig))
-            updateGlobalMetrics(a)
+            // only record activation if not executed in an ignored namespace
+            if (!metricConfig.ignoredNamespaces.contains(e.namespace)) {
+              recorders.foreach(_.processActivation(a, e.namespace))
+            }
+            updateGlobalMetrics(a, e.namespace)
           case m: Metric =>
             recorders.foreach(_.processMetric(m, e.namespace))
         }
       }
   }
 
-  private def updateGlobalMetrics(a: Activation): Unit = {
+  private def updateGlobalMetrics(a: Activation, e: String): Unit = {
+    val namespaceTag: String = metricConfig.renameTags.getOrElse("namespace", "namespace")
+    val initiatorTag: String = metricConfig.renameTags.getOrElse("initiator", "initiator")
+    val tagSet = TagSet.from(Map(initiatorTag -> e, namespaceTag -> e))
+    activationNamespaceCounter.withTags(tagSet).increment()
     a.status match {
       case ActivationResponse.statusSuccess          => statusSuccess.increment()
       case ActivationResponse.statusApplicationError => statusApplicationError.increment()

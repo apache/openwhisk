@@ -37,7 +37,6 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 
 trait PrometheusMetricNames extends MetricNames {
-  val namespaceMetric = "openwhisk_namespace_activations_total"
   val activationMetric = "openwhisk_action_activations_total"
   val coldStartMetric = "openwhisk_action_coldStarts_total"
   val waitTimeMetric = "openwhisk_action_waitTime_seconds"
@@ -60,8 +59,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
   private val limitMetrics = new TrieMap[String, LimitPromMetrics]
   private val promMetrics = PrometheusMetrics()
 
-  override def processActivation(activation: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
-    lookup(activation, initiator).record(activation, initiator, metricConfig)
+  override def processActivation(activation: Activation, initiator: String): Unit = {
+    lookup(activation, initiator).record(activation, initiator)
   }
 
   override def processMetric(metric: Metric, initiator: String): Unit = {
@@ -104,7 +103,6 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
                                    memory: String,
                                    initiatorNamespace: String) {
 
-    private val namespaceActivations = promMetrics.namespaceActivationCounter.labels(namespace, initiatorNamespace)
     private val activations = promMetrics.activationCounter.labels(namespace, initiatorNamespace, action, kind, memory)
     private val coldStarts = promMetrics.coldStartCounter.labels(namespace, initiatorNamespace, action)
     private val waitTime = promMetrics.waitTimeHisto.labels(namespace, initiatorNamespace, action)
@@ -123,13 +121,8 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
     private val statusInternalError =
       promMetrics.statusCounter.labels(namespace, initiatorNamespace, action, ActivationResponse.statusWhiskError)
 
-    def record(a: Activation, initiator: String, metricConfig: MetricConfig): Unit = {
-      namespaceActivations.inc()
-
-      // only record activation if not executed in an ignored namespace
-      if (!metricConfig.ignoredNamespaces.contains(a.namespace)) {
-        recordActivation(a, initiator)
-      }
+    def record(a: Activation, initiator: String): Unit = {
+      recordActivation(a, initiator)
     }
 
     def recordActivation(a: Activation, initiator: String): Unit = {
@@ -169,9 +162,6 @@ case class PrometheusRecorder(kamon: PrometheusReporter, config: MetricConfig)
     private val memory = config.renameTags.getOrElse(actionMemory, actionMemory)
     private val status = config.renameTags.getOrElse(actionStatus, actionStatus)
     private val statusCode = config.renameTags.getOrElse(userDefinedStatusCode, userDefinedStatusCode)
-
-    val namespaceActivationCounter =
-      counter(namespaceMetric, "Namespace activations Count", namespace, initiator)
 
     val activationCounter =
       counter(activationMetric, "Activation Count", namespace, initiator, action, kind, memory)

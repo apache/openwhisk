@@ -58,7 +58,6 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
 
   behavior of "KamonConsumer"
 
-  val initiator = "initiatorTest"
   val namespaceDemo = "demo"
   val namespaceGuest = "guest"
   val actionWithCustomPackage = "apimgmt/createApi"
@@ -109,10 +108,8 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
     TestReporter.histogram(durationMetric, namespaceDemo, actionWithDefaultPackage).size shouldBe 1
 
     // Blacklisted namespace should not be tracked
-    TestReporter.counter(activationMetric, namespaceGuest, actionWithDefaultPackage)(0).value shouldBe 0
+    TestReporter.counter(activationMetric, namespaceGuest, actionWithDefaultPackage) shouldBe empty
 
-    // Blacklisted should be counted in "openwhisk.namespace.activations" metric
-    TestReporter.namespaceCounter(namespaceActivationMetric, namespaceGuest)(0).value shouldBe 1
   }
 
   private def newActivationEvent(actionPath: String) =
@@ -130,7 +127,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
         memory,
         None),
       Subject("testuser"),
-      initiator,
+      actionPath.split("/")(0),
       UUID("test"),
       Activation.typeName)
 
@@ -154,7 +151,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
         .filter(_.name == metricName)
         .flatMap(_.instruments)
         .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
-        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == namespace)
         .filter(_.tags.get(Lookups.plain(actionName)) == action)
     }
 
@@ -165,7 +162,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
         .filter(_.name == metricName)
         .flatMap(_.instruments)
         .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
-        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == namespace)
     }
 
     def histogram(metricName: String, namespace: String, action: String) = {
@@ -175,7 +172,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
         .filter(_.name == metricName)
         .flatMap(_.instruments)
         .filter(_.tags.get(Lookups.plain(actionNamespace)) == namespace)
-        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == initiator)
+        .filter(_.tags.get(Lookups.plain(initiatorNamespace)) == namespace)
         .filter(_.tags.get(Lookups.plain(actionName)) == action)
     }
   }

@@ -34,7 +34,6 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with PrometheusMetricNames {
   behavior of "PrometheusConsumer"
-  val initiator = "initiatorTest"
   val namespaceDemo = "demo"
   val namespaceGuest = "guest"
   val actionWithCustomPackage = "apimgmt/createApiOne"
@@ -81,10 +80,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     counterTotal(activationMetric, namespaceDemo, actionWithDefaultPackage) shouldBe 1
 
     // Blacklisted namespace should not be tracked
-    counterTotal(activationMetric, namespaceGuest, actionWithDefaultPackage) shouldBe 0
-
-    // Blacklisted should be counted in "openwhisk_namespace_activations_total" metric
-    namespaceCounterTotal(namespaceMetric, namespaceGuest) shouldBe 1
+    counterTotal(activationMetric, namespaceGuest, actionWithDefaultPackage) shouldBe (null)
   }
 
   it should "push user event to kamon with prometheus metrics tags relabel" in {
@@ -122,7 +118,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     CollectorRegistry.defaultRegistry.getSampleValue(
       activationMetric,
       Array("ow_namespace", "initiator", "action", "kind", "memory"),
-      Array(namespaceDemo, initiator, actionWithCustomPackage, kind, memory)) shouldBe 1
+      Array(namespaceDemo, namespaceDemo, actionWithCustomPackage, kind, memory)) shouldBe 1
   }
   private def newActivationEvent(actionPath: String, kind: String, memory: String) =
     EventMessage(
@@ -139,7 +135,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
         memory.toInt,
         None),
       Subject("testuser"),
-      initiator,
+      actionPath.split("/")(0),
       UUID("test"),
       Activation.typeName)
 
@@ -147,43 +143,37 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     CollectorRegistry.defaultRegistry.getSampleValue(
       metricName,
       Array("namespace", "initiator", "action"),
-      Array(namespace, initiator, action))
+      Array(namespace, namespace, action))
 
   private def counter(metricName: String, namespace: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       metricName,
       Array("namespace", "initiator", "action"),
-      Array(namespace, initiator, action))
+      Array(namespace, namespace, action))
 
   private def counterTotal(metricName: String, namespace: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       metricName,
       Array("namespace", "initiator", "action", "kind", "memory"),
-      Array(namespace, initiator, action, kind, memory))
-
-  private def namespaceCounterTotal(metricName: String, namespace: String) =
-    CollectorRegistry.defaultRegistry.getSampleValue(
-      metricName,
-      Array("namespace", "initiator"),
-      Array(namespace, initiator))
+      Array(namespace, namespace, action, kind, memory))
 
   private def counterStatus(metricName: String, namespace: String, action: String, status: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       metricName,
       Array("namespace", "initiator", "action", "status"),
-      Array(namespace, initiator, action, status))
+      Array(namespace, namespace, action, status))
 
   private def histogramCount(metricName: String, namespace: String, action: String) =
     CollectorRegistry.defaultRegistry.getSampleValue(
       s"${metricName}_count",
       Array("namespace", "initiator", "action"),
-      Array(namespace, initiator, action))
+      Array(namespace, namespace, action))
 
   private def histogramSum(metricName: String, namespace: String, action: String) =
     CollectorRegistry.defaultRegistry
       .getSampleValue(
         s"${metricName}_sum",
         Array("namespace", "initiator", "action"),
-        Array(namespace, initiator, action))
+        Array(namespace, namespace, action))
       .doubleValue()
 }
