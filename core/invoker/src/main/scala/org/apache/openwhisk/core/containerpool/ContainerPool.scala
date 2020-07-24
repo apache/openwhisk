@@ -567,32 +567,32 @@ object ContainerPool {
   def removeExpired[A](poolConfig: ContainerPoolConfig,
                        prewarmConfig: List[PrewarmingConfig],
                        prewarmedPool: Map[A, PreWarmedData])(implicit logging: Logging): List[A] = {
-    val expireds = prewarmConfig.flatMap { config =>
-      val kind = config.exec.kind
-      val memory = config.memoryLimit
-      val now = Deadline.now
-      config.reactive
-        .map { _ =>
-          val expiredPrewarmedContainer = prewarmedPool
-            .filter { warmInfo =>
+    val expireds = prewarmConfig
+      .flatMap { config =>
+        val kind = config.exec.kind
+        val memory = config.memoryLimit
+        val now = Deadline.now
+        config.reactive
+          .map { _ =>
+            val expiredPrewarmedContainer = prewarmedPool.filter { warmInfo =>
               warmInfo match {
                 case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
                 case _                                                                  => false
               }
+            }.toSeq
+            // emit expired container counter metric with memory + kind
+            MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
+            if (expiredPrewarmedContainer.nonEmpty) {
+              logging.info(
+                this,
+                s"[kind: ${kind} memory: ${memory.toString}] ${expiredPrewarmedContainer.size} expired prewarmed containers")
             }
-            .toSeq
-            .sortBy(_._2.expires.getOrElse(now)) //need to sort these so that if the results are limited, we take the oldest
-          // emit expired container counter metric with memory + kind
-          MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
-          if (expiredPrewarmedContainer.nonEmpty) {
-            logging.info(
-              this,
-              s"[kind: ${kind} memory: ${memory.toString}] ${expiredPrewarmedContainer.size} expired prewarmed containers")
+            expiredPrewarmedContainer.map(e => (e._1, e._2.expires.getOrElse(now)))
           }
-          expiredPrewarmedContainer.map(_._1)
-        }
-        .getOrElse(List.empty)
-    }
+          .getOrElse(List.empty)
+      }
+      .sortBy(_._2) //sort these so that if the results are limited, we take the oldest
+      .map(_._1)
     if (expireds.nonEmpty) {
       logging.info(this, s"removing up to ${poolConfig.prewarmExpirationLimit} of ${expireds.size} expired containers")
     }

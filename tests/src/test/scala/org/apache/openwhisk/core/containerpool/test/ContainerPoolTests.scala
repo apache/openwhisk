@@ -1203,15 +1203,19 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   it should "remove expired in order of expiration" in {
     val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 1)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    //use a second kind so that we know sorting is not isolated to the expired of each kind
+    val exec2 = CodeExecAsString(RuntimeManifest("actionKind2", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     val prewarmConfig =
-      List(PrewarmingConfig(1, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
+      List(
+        PrewarmingConfig(1, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))),
+        PrewarmingConfig(1, exec2, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
     val oldestDeadline = Deadline.now - 1.seconds
     val newerDeadline = Deadline.now
     val newestDeadline = Deadline.now + 1.seconds
     val prewarmedPool = Map(
       'newest -> preWarmedData("actionKind", Some(newestDeadline)),
-      'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
+      'oldest -> preWarmedData("actionKind2", Some(oldestDeadline)),
       'newer -> preWarmedData("actionKind", Some(newerDeadline)))
     lazy val stream = new ByteArrayOutputStream
     lazy val printstream = new PrintStream(stream)
