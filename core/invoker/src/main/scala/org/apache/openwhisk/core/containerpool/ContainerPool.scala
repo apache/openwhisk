@@ -573,13 +573,17 @@ object ContainerPool {
         val memory = config.memoryLimit
         val now = Deadline.now
         config.reactive
-          .map { _ =>
-            val expiredPrewarmedContainer = prewarmedPool.filter { warmInfo =>
-              warmInfo match {
-                case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
-                case _                                                                  => false
+          .map { c =>
+            val expiredPrewarmedContainer = prewarmedPool.toSeq
+              .sortBy(_._2.expires.getOrElse(now))
+              .dropRight(c.minCount) //ignore the newest prewarms up to minCount, even if they are expired (don't remove expired if they will drop us below minCount)
+              .filter { warmInfo =>
+                warmInfo match {
+                  case (_, p @ PreWarmedData(_, `kind`, `memory`, _, _)) if p.isExpired() => true
+                  case _                                                                  => false
+                }
               }
-            }.toSeq
+
             // emit expired container counter metric with memory + kind
             MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
             if (expiredPrewarmedContainer.nonEmpty) {
