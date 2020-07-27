@@ -830,7 +830,7 @@ class ContainerPoolTests
     val prewarmExpirationCheckIntervel = 2.seconds
     val poolConfig =
       ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
-    val minCount = 1
+    val minCount = 0
     val initialCount = 2
     val maxCount = 4
     val deadline: Option[Deadline] = Some(ttl.fromNow)
