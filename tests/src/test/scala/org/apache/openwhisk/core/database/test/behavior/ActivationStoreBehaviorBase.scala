@@ -90,6 +90,17 @@ trait ActivationStoreBehaviorBase
       Instant.ofEpochMilli(start + 1000))
   }
 
+  protected def newBindingActivation(ns: String, actionName: String, binding: String, start: Long): WhiskActivation = {
+    WhiskActivation(
+      EntityPath(ns),
+      EntityName(actionName),
+      Subject(),
+      ActivationId.generate(),
+      Instant.ofEpochMilli(start),
+      Instant.ofEpochMilli(start + 1000),
+      annotations = Parameters(WhiskActivation.bindingAnnotation, binding))
+  }
+
   /**
    * Deletes all documents added to gc queue.
    */

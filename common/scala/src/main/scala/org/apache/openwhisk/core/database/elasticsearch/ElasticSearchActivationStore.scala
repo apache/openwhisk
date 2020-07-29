@@ -100,9 +100,16 @@ class ElasticSearchActivationStore(
     val start =
       transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] 'activations' document: '${activation.docid}'")
 
-    val path = activation.annotations
-      .getAs[String](WhiskActivation.pathAnnotation)
-      .getOrElse(s"${activation.namespace}/${activation.name}")
+    val bindingPath = activation.annotations
+      .getAs[String](WhiskActivation.bindingAnnotation)
+      .toOption
+      .map(binding => s"$binding/${activation.name}")
+
+    val path = bindingPath.getOrElse(
+      activation.annotations
+        .getAs[String](WhiskActivation.pathAnnotation)
+        .getOrElse(s"${activation.namespace}/${activation.name}"))
+
     // Escape `_id` field as it's not permitted in ElasticSearch, add `path` field for search, and
     // convert annotations to JsObject as ElasticSearch doesn't support array with mixed types
     // response.result can be any type ElasticSearch also doesn't support that, so convert it to a string
