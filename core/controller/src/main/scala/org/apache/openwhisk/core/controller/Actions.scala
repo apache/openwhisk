@@ -355,51 +355,62 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       if (executeOnly && user.namespace.name != entityName.namespace) {
         terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
       } else {
-        val getEntityWhiskActionCase =
-          getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some { action: WhiskAction =>
-            val mergedAction = env map {
-              action inherit _
-            } getOrElse action
-            complete(OK, mergedAction)
-          })
-        val getEntityWhiskMetaDataCase =
-          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-            action: WhiskActionMetaData =>
-              val mergedAction = env map {
-                action inherit _
-              } getOrElse action
-              complete(OK, mergedAction)
-          })
-        if (code) {
-          if (entityName.path.defaultPackage) {
-            getEntityWhiskActionCase
-          } else {
-            getEntity(
-              WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
-              Some { pkg: WhiskPackage =>
-                val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
-                if (executeOnly && originalPackageLocation != entityName.namespace) {
-                  terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
-                } else {
-                  getEntityWhiskActionCase
-                }
+        code match {
+          case true =>
+            //Resolve Binding(Package) of the action
+            if (entityName.path.defaultPackage) {
+              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                action: WhiskAction =>
+                  val mergedAction = env map {
+                    action inherit _
+                  } getOrElse action
+                  complete(OK, mergedAction)
               })
-          }
-        } else {
-          if (entityName.path.defaultPackage) {
-            getEntityWhiskMetaDataCase
-          } else {
-            getEntity(
-              WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
-              Some { pkg: WhiskPackage =>
-                val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
-                if (executeOnly && originalPackageLocation != entityName.namespace) {
-                  terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
-                } else {
-                  getEntityWhiskMetaDataCase
-                }
+            } else {
+              getEntity(
+                WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
+                Some { pkg: WhiskPackage =>
+                  val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+                  if (executeOnly && originalPackageLocation != entityName.namespace) {
+                    terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
+                  } else {
+                    getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                      action: WhiskAction =>
+                        val mergedAction = env map {
+                          action inherit _
+                        } getOrElse action
+                        complete(OK, mergedAction)
+                    })
+                  }
+                })
+            }
+          case false =>
+            if (entityName.path.defaultPackage) {
+              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                action: WhiskActionMetaData =>
+                  val mergedAction = env map {
+                    action inherit _
+                  } getOrElse action
+                  complete(OK, mergedAction)
               })
-          }
+            } else {
+              getEntity(
+                WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true),
+                Some { pkg: WhiskPackage =>
+                  val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+                  if (executeOnly && originalPackageLocation != entityName.namespace) {
+                    terminate(Forbidden, forbiddenGetActionBinding(entityName.toDocId.asString))
+                  } else {
+                    getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                      action: WhiskActionMetaData =>
+                        val mergedAction = env map {
+                          action inherit _
+                        } getOrElse action
+                        complete(OK, mergedAction)
+                    })
+                  }
+                })
+            }
         }
       }
     }
