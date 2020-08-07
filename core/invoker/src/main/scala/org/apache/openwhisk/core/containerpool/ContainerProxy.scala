@@ -465,7 +465,13 @@ class ContainerProxy(factory: (TransactionId,
     // Failed for a subsequent /run
     case Event(_: FailureMessage, data: WarmedData) =>
       activeCount -= 1
-      destroyContainer(data, true)
+      if (activeCount == 0) {
+        destroyContainer(data, true)
+      } else {
+        //signal that this container is going away (but don't remove it yet...)
+        rescheduleJob = true
+        goto(Removing)
+      }
 
     // Failed at getting a container for a cold-start run
     case Event(_: FailureMessage, _) =>
@@ -537,8 +543,27 @@ class ContainerProxy(factory: (TransactionId,
       // Send the job back to the pool to be rescheduled
       context.parent ! job
       stay
-    case Event(ContainerRemoved(_), _) => stop()
-    case Event(_: FailureMessage, _)   => stop()
+    // Run was successful, after another failed concurrent Run
+    case Event(RunCompleted, data: WarmedData) =>
+      activeCount -= 1
+      val newData = data.withoutResumeRun()
+      //if there are items in runbuffer, process them if there is capacity, and stay; otherwise if we have any pending activations, also stay
+      if (activeCount == 0) {
+        destroyContainer(newData, true)
+      } else {
+        stay using newData
+      }
+    case Event(ContainerRemoved(_), _) =>
+      stop()
+    // Run failed, after another failed concurrent Run
+    case Event(_: FailureMessage, data: WarmedData) =>
+      activeCount -= 1
+      val newData = data.withoutResumeRun()
+      if (activeCount == 0) {
+        destroyContainer(newData, true)
+      } else {
+        stay using newData
+      }
   }
 
   // Unstash all messages stashed while in intermediate state
@@ -636,7 +661,11 @@ class ContainerProxy(factory: (TransactionId,
       .flatMap(_ => container.destroy()(TransactionId.invokerNanny))
       .map(_ => ContainerRemoved(replacePrewarm))
       .pipeTo(self)
-    goto(Removing) using newData
+    if (stateName != Removing) {
+      goto(Removing) using newData
+    } else {
+      stay using newData
+    }
   }
 
   /**
@@ -844,9 +873,30 @@ class ContainerProxy(factory: (TransactionId,
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
       case Right(act) if !act.response.isSuccess && !act.response.isApplicationError =>
+        val truncatedResult = truncatedError(act)
+        logging.info(
+          this,
+          s"Activation ${act.activationId} was unsuccessful at container ${stateData.getContainer} (with ${activeCount} still active) due to ${truncatedResult}")
         Future.failed(ActivationUnsuccessfulError(act))
       case Left(error) => Future.failed(error)
-      case Right(act)  => Future.successful(act)
+      case Right(act) =>
+        if (act.response.isApplicationError) {
+          val truncatedResult = truncatedError(act)
+          logging.error(
+            this,
+            s"Activation ${act.activationId} at container ${stateData.getContainer} (with ${activeCount} still active) returned an error ${truncatedResult}")
+        }
+        Future.successful(act)
+    }
+  }
+  //to ensure we don't blow up logs with potentially large activation response error
+  private def truncatedError(act: WhiskActivation) = {
+    val truncate = 1024
+    val resultString = act.response.result.map(_.compactPrint).getOrElse("[no result]")
+    if (resultString.length > truncate) {
+      s"${resultString.take(truncate)}..."
+    } else {
+      resultString
     }
   }
 }

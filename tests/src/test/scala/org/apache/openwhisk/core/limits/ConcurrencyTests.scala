@@ -17,22 +17,23 @@
 
 package org.apache.openwhisk.core.limits
 
+import akka.http.scaladsl.model.StatusCodes
 import common._
 import common.rest.WskRestOperations
-import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
-import org.apache.openwhisk.core.entity.MemoryLimit
+//import org.apache.openwhisk.core.ConfigKeys
+//import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
+//import org.apache.openwhisk.core.entity.MemoryLimit
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import pureconfig._
-import pureconfig.generic.auto._
+//import pureconfig._
+//import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
+//import spray.json.JsObject
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
@@ -51,102 +52,166 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
   behavior of "Action concurrency limits"
 
-  //This tests generates a concurrent load against the concurrent.js action with concurrency set to 5
-  it should "execute activations concurrently when concurrency > 1 " in withAssetCleaner(wskprops) {
-    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+//  //This tests generates a concurrent load against the concurrent.js action with concurrency set to 5
+//  it should "execute activations concurrently when concurrency > 1 " in withAssetCleaner(wskprops) {
+//    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
+//
+//    (wp, assetHelper) =>
+//      val name = "TestConcurrentAction"
+//      assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+//        val actionName = TestUtils.getTestActionFilename("concurrent.js")
+//        (action, _) =>
+//          //disable log collection since concurrent activation requires specialized log processing
+//          // (at action runtime and using specialized LogStore)
+//          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(5))
+//      }
+//      //warm the container (concurrent activations with no warmed container, will cause multiple containers to be used - so we force one to warm up)
+//      val run = wsk.action.invoke(name, Map("warm" -> 1.toJson), blocking = true)
+//      withActivation(wsk.activation, run) { response =>
+//        val logs = response.logs.get
+//        withClue(logs) { logs.size shouldBe 0 }
+//
+//        response.response.status shouldBe "success"
+//        response.response.result shouldBe Some(JsObject("warm" -> 1.toJson))
+//      }
+//
+//      //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
+//      val busyThreshold =
+//        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
+//
+//      //run maximum allowed concurrent actions via Futures
+//      val requestCount = busyThreshold
+//      println(s"executing $requestCount activations")
+//      val runs = (1 to requestCount).map { _ =>
+//        Future {
+//          //within the action, return (Promise.resolve) only after receiving $requestCount activations
+//          wsk.action.invoke(name, Map("requestCount" -> requestCount.toJson), blocking = true)
+//        }
+//      }
+//
+//      //none of the actions will complete till the requestCount is reached
+//      Await.result(Future.sequence(runs), 30.seconds).foreach { run =>
+//        withActivation(wsk.activation, run) { response =>
+//          val logs = response.logs.get
+//          withClue(logs) { logs.size shouldBe 0 }
+//          response.response.status shouldBe "success"
+//          //expect exactly $requestCount activations concurrently
+//          response.response.result shouldBe Some(JsObject("msg" -> s"Received $requestCount activations.".toJson))
+//        }
+//      }
+//  }
+//
+//  //This tests generates the same load against the same action as previous test, BUT with concurrency set to 1
+//  it should "execute activations sequentially when concurrency = 1 " in withAssetCleaner(wskprops) {
+//    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
+//
+//    (wp, assetHelper) =>
+//      val name = "TestNonConcurrentAction"
+//      assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+//        val actionName = TestUtils.getTestActionFilename("concurrent.js")
+//        (action, _) =>
+//          //disable log collection since concurrent activation requires specialized log processing
+//          // (at action runtime and using specialized LogStore)
+//          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(1))
+//      }
+//      //warm the container (concurrent activations with no warmed container, will cause multiple containers to be used - so we force one to warm up)
+//      val run = wsk.action.invoke(name, Map("warm" -> 1.toJson), blocking = true)
+//      withActivation(wsk.activation, run) { response =>
+//        val logs = response.logs.get
+//        withClue(logs) { logs.size shouldBe 0 }
+//
+//        response.response.status shouldBe "success"
+//        response.response.result shouldBe Some(JsObject("warm" -> 1.toJson))
+//      }
+//
+//      //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
+//      val busyThreshold =
+//        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
+//
+//      //run maximum allowed concurrent actions via Futures
+//      val requestCount = busyThreshold
+//      println(s"executing $requestCount activations")
+//      val runs = (1 to requestCount).map { _ =>
+//        Future {
+//          //expect only 1 activation concurrently (within the 1 second timeout implemented in concurrent.js)
+//          wsk.action.invoke(name, Map("requestCount" -> 1.toJson), blocking = true)
+//        }
+//      }
+//
+//      //none of the actions will complete till the requestCount is reached
+//      Await.result(Future.sequence(runs), 50.seconds).foreach { run =>
+//        withActivation(wsk.activation, run) { response =>
+//          val logs = response.logs.get
+//          withClue(logs) { logs.size shouldBe 0 }
+//          response.response.status shouldBe "success"
+//          //expect only 1 activation concurrently
+//          response.response.result shouldBe Some(JsObject("msg" -> s"Received 1 activations.".toJson))
+//        }
+//      }
+//  }
 
+  it should "allow concurrent activations to gracefully complete when one fails" in withAssetCleaner(wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
     (wp, assetHelper) =>
-      val name = "TestConcurrentAction"
+      val name = "TestFailingConcurrentAction1"
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
-        val actionName = TestUtils.getTestActionFilename("concurrent.js")
+        //this action fails by returning an empty promise
+        val actionName = TestUtils.getTestActionFilename("concurrentFail1.js")
         (action, _) =>
           //disable log collection since concurrent activation requires specialized log processing
           // (at action runtime and using specialized LogStore)
-          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(5))
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(10))
       }
-      //warm the container (concurrent activations with no warmed container, will cause multiple containers to be used - so we force one to warm up)
-      val run = wsk.action.invoke(name, Map("warm" -> 1.toJson), blocking = true)
-      withActivation(wsk.activation, run) { response =>
-        val logs = response.logs.get
-        withClue(logs) { logs.size shouldBe 0 }
-
-        response.response.status shouldBe "success"
-        response.response.result shouldBe Some(JsObject("warm" -> 1.toJson))
-      }
-
-      //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
-      val busyThreshold =
-        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
-
-      //run maximum allowed concurrent actions via Futures
-      val requestCount = busyThreshold
+      //with concurrency 10, and the action fails on the 5th activation
+      val requestCount = 15
       println(s"executing $requestCount activations")
       val runs = (1 to requestCount).map { _ =>
         Future {
           //within the action, return (Promise.resolve) only after receiving $requestCount activations
-          wsk.action.invoke(name, Map("requestCount" -> requestCount.toJson), blocking = true)
+          val result = wsk.action.invoke(
+            name,
+            Map("requestCount" -> requestCount.toJson),
+            blocking = true,
+            expectedExitCode = TestUtils.DONTCARE_EXIT)
+          result
         }
       }
-
-      //none of the actions will complete till the requestCount is reached
-      Await.result(Future.sequence(runs), 30.seconds).foreach { run =>
-        withActivation(wsk.activation, run) { response =>
-          val logs = response.logs.get
-          withClue(logs) { logs.size shouldBe 0 }
-          response.response.status shouldBe "success"
-          //expect exactly $requestCount activations concurrently
-          response.response.result shouldBe Some(JsObject("msg" -> s"Received $requestCount activations.".toJson))
-        }
-      }
+      val results = Await.result(Future.sequence(runs), 30.seconds)
+      //some will be 200, some will be 400, but all should be completed (no forced acks that take > 30s)
+      results.count(_.statusCode == StatusCodes.OK) should be > 0
+      results.count(_.statusCode == StatusCodes.BadGateway) should be > 0
   }
-
-  //This tests generates the same load against the same action as previous test, BUT with concurrency set to 1
-  it should "execute activations sequentially when concurrency = 1 " in withAssetCleaner(wskprops) {
-    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
-
+  it should "allow concurrent activations to gracefully complete when one fails catastrophically" in withAssetCleaner(
+    wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
     (wp, assetHelper) =>
-      val name = "TestNonConcurrentAction"
+      val name = "TestFailingConcurrentAction2"
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
-        val actionName = TestUtils.getTestActionFilename("concurrent.js")
+        //this action does a process.exit() on the 5th activation
+        val actionName = TestUtils.getTestActionFilename("concurrentFail2.js")
         (action, _) =>
           //disable log collection since concurrent activation requires specialized log processing
           // (at action runtime and using specialized LogStore)
-          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(1))
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(10))
       }
-      //warm the container (concurrent activations with no warmed container, will cause multiple containers to be used - so we force one to warm up)
-      val run = wsk.action.invoke(name, Map("warm" -> 1.toJson), blocking = true)
-      withActivation(wsk.activation, run) { response =>
-        val logs = response.logs.get
-        withClue(logs) { logs.size shouldBe 0 }
-
-        response.response.status shouldBe "success"
-        response.response.result shouldBe Some(JsObject("warm" -> 1.toJson))
-      }
-
-      //read configs to determine max concurrency support - currently based on single invoker and invokerUserMemory config
-      val busyThreshold =
-        (loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool).userMemory / MemoryLimit.STD_MEMORY).toInt
-
-      //run maximum allowed concurrent actions via Futures
-      val requestCount = busyThreshold
+      //with concurrency 10, and the action fails on the 5th activation
+      val requestCount = 15
       println(s"executing $requestCount activations")
       val runs = (1 to requestCount).map { _ =>
         Future {
-          //expect only 1 activation concurrently (within the 1 second timeout implemented in concurrent.js)
-          wsk.action.invoke(name, Map("requestCount" -> 1.toJson), blocking = true)
+          //within the action, return (Promise.resolve) only after receiving $requestCount activations
+          val result = wsk.action.invoke(
+            name,
+            Map("requestCount" -> requestCount.toJson),
+            blocking = true,
+            expectedExitCode = TestUtils.DONTCARE_EXIT)
+          result
         }
       }
-
-      //none of the actions will complete till the requestCount is reached
-      Await.result(Future.sequence(runs), 50.seconds).foreach { run =>
-        withActivation(wsk.activation, run) { response =>
-          val logs = response.logs.get
-          withClue(logs) { logs.size shouldBe 0 }
-          response.response.status shouldBe "success"
-          //expect only 1 activation concurrently
-          response.response.result shouldBe Some(JsObject("msg" -> s"Received 1 activations.".toJson))
-        }
-      }
+      val results = Await.result(Future.sequence(runs), 30.seconds)
+      //some will no 200, since each each container gets at least 5 concurrent activations,
+      //and each container crashes on the 5 activation.
+      results.count(_.statusCode == StatusCodes.OK) shouldBe 0
+      results.count(_.statusCode == StatusCodes.BadGateway) shouldBe 15
   }
-
 }
