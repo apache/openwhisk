@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.test
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -35,7 +36,7 @@ import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{Logging, PrintStreamLogging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity._
@@ -132,7 +133,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, FiniteDuration(1, TimeUnit.MINUTES))
+    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, None, 100)
 
   behavior of "ContainerPool"
 
@@ -792,7 +793,8 @@ class ContainerPoolTests
 
     stream.reset()
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel)
+    val poolConfig =
+      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
     val initialCount = 2
     val pool =
       system.actorOf(
@@ -816,7 +818,7 @@ class ContainerPoolTests
 
     // Because already supplemented the prewarmed container, so currentCount should equal with initialCount
     eventually {
-      stream.toString should include(s"found ${initialCount} started")
+      stream.toString should not include ("started")
     }
   }
 
@@ -825,8 +827,9 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
-    val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
-    val poolConfig = ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel)
+    val prewarmExpirationCheckIntervel = 2.seconds
+    val poolConfig =
+      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
@@ -837,6 +840,7 @@ class ContainerPoolTests
       system.actorOf(
         ContainerPool
           .props(factory, poolConfig, feed.ref, List(PrewarmingConfig(initialCount, exec, memoryLimit, reactive))))
+    //start 2 prewarms
     containers(0).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(1).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
@@ -852,19 +856,19 @@ class ContainerPoolTests
 
     // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
     Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
-
+    //expire 2 prewarms
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(Remove)
     containers(0).send(pool, ContainerRemoved(false))
     containers(1).send(pool, ContainerRemoved(false))
 
     // currentCount should equal with 0 due to these 2 prewarmed containers are expired
-    stream.toString should include(s"found 0 started")
+    stream.toString should not include (s"found 0 started")
 
     // the desiredCount should equal with minCount because cold start didn't happen
-    stream.toString should include(s"desired count: ${minCount}")
+    stream.toString should not include (s"desired count: ${minCount}")
     // Previously created prewarmed containers should be removed
-    stream.toString should include(s"removed ${initialCount} expired prewarmed container")
+    stream.toString should not include (s"removed ${initialCount} expired prewarmed container")
 
     stream.reset()
     val action = ExecutableWhiskAction(
@@ -873,7 +877,7 @@ class ContainerPoolTests
       exec,
       limits = ActionLimits(memory = MemoryLimit(memoryLimit)))
     val run = createRunMessage(action, invocationNamespace)
-    // 2 code start happened
+    // 2 cold start happened
     pool ! run
     pool ! run
     containers(2).expectMsg(run)
@@ -888,7 +892,7 @@ class ContainerPoolTests
       // the desiredCount should equal with 2 due to cold start happened
       stream.toString should include(s"desired count: 2")
     }
-
+    //add 2 prewarms due to increments
     containers(4).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(5).expectMsg(Start(exec, memoryLimit, Some(ttl)))
     containers(4).send(pool, NeedWork(preWarmedData(exec.kind, expires = deadline)))
@@ -905,7 +909,7 @@ class ContainerPoolTests
     containers(5).send(pool, ContainerRemoved(false))
 
     // removed previous 2 prewarmed container due to expired
-    stream.toString should include(s"removed 2 expired prewarmed container")
+    stream.toString should include(s"removing up to ${poolConfig.prewarmExpirationLimit} of 2 expired containers")
 
     stream.reset()
     // 5 code start happened(5 > maxCount)
@@ -984,7 +988,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     WarmingColdData(EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
-  def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[MockableContainer], kind, 256.MB)
+  def preWarmedData(kind: String = "anyKind", expires: Option[Deadline] = None) =
+    PreWarmedData(stub[MockableContainer], kind, 256.MB, expires = expires)
 
   /** Helper to create NoData */
   def noData() = NoData()
@@ -1194,5 +1199,86 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     ContainerPool.remove(pool, MemoryLimit.STD_MEMORY) shouldBe List('first)
     pool = pool - 'first
     ContainerPool.remove(pool, MemoryLimit.STD_MEMORY) shouldBe List('second)
+  }
+
+  it should "remove expired in order of expiration" in {
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 1)
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    //use a second kind so that we know sorting is not isolated to the expired of each kind
+    val exec2 = CodeExecAsString(RuntimeManifest("actionKind2", ImageName("testImage")), "testCode", None)
+    val memoryLimit = 256.MB
+    val prewarmConfig =
+      List(
+        PrewarmingConfig(1, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))),
+        PrewarmingConfig(1, exec2, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
+    val oldestDeadline = Deadline.now - 1.seconds
+    val newerDeadline = Deadline.now
+    val newestDeadline = Deadline.now + 1.seconds
+    val prewarmedPool = Map(
+      'newest -> preWarmedData("actionKind", Some(newestDeadline)),
+      'oldest -> preWarmedData("actionKind2", Some(oldestDeadline)),
+      'newer -> preWarmedData("actionKind", Some(newerDeadline)))
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest))
+  }
+
+  it should "remove only the prewarmExpirationLimit of expired prewarms" in {
+    //limit prewarm removal to 2
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 2)
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val memoryLimit = 256.MB
+    val prewarmConfig =
+      List(PrewarmingConfig(3, exec, memoryLimit, Some(ReactivePrewarmingConfig(0, 10, 10.seconds, 1, 1))))
+    //all are overdue, with different expiration times
+    val oldestDeadline = Deadline.now - 5.seconds
+    val newerDeadline = Deadline.now - 4.seconds
+    //the newest* ones are expired, but not the oldest, and not within the limit of 2 prewarms, so won't be removed
+    val newestDeadline = Deadline.now - 3.seconds
+    val newestDeadline2 = Deadline.now - 2.seconds
+    val newestDeadline3 = Deadline.now - 1.seconds
+    val prewarmedPool = Map(
+      'newest -> preWarmedData("actionKind", Some(newestDeadline)),
+      'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
+      'newest3 -> preWarmedData("actionKind", Some(newestDeadline3)),
+      'newer -> preWarmedData("actionKind", Some(newerDeadline)),
+      'newest2 -> preWarmedData("actionKind", Some(newestDeadline2)))
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest, 'newer))
+  }
+
+  it should "remove only the expired prewarms regardless of minCount" in {
+    //limit prewarm removal to 100
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 100)
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val memoryLimit = 256.MB
+    //minCount is 2 - should leave at least 2 prewarms when removing expired
+    val prewarmConfig =
+      List(PrewarmingConfig(3, exec, memoryLimit, Some(ReactivePrewarmingConfig(2, 10, 10.seconds, 1, 1))))
+    //all are overdue, with different expiration times
+    val oldestDeadline = Deadline.now - 5.seconds
+    val newerDeadline = Deadline.now - 4.seconds
+    //the newest* ones are expired, but not the oldest, and not within the limit of 2 prewarms, so won't be removed
+    val newestDeadline = Deadline.now - 3.seconds
+    val newestDeadline2 = Deadline.now - 2.seconds
+    val newestDeadline3 = Deadline.now - 1.seconds
+    val prewarmedPool = Map(
+      'newest -> preWarmedData("actionKind", Some(newestDeadline)),
+      'oldest -> preWarmedData("actionKind", Some(oldestDeadline)),
+      'newest3 -> preWarmedData("actionKind", Some(newestDeadline3)),
+      'newer -> preWarmedData("actionKind", Some(newerDeadline)),
+      'newest2 -> preWarmedData("actionKind", Some(newestDeadline2)))
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List(
+      'oldest,
+      'newer,
+      'newest,
+      'newest2,
+      'newest3))
   }
 }
