@@ -160,19 +160,20 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
         (action, _) =>
           //disable log collection since concurrent activation requires specialized log processing
           // (at action runtime and using specialized LogStore)
-          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(10))
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(2))
       }
-      //with concurrency 10, and the action fails on the 5th activation
-      val requestCount = 15
+      //with concurrency 2, at least some of the 3 activations will fail, but not all
+      val requestCount = 3
       println(s"executing $requestCount activations")
-      val runs = (1 to requestCount).map { _ =>
+      val runs = (1 to requestCount).map { i =>
         Future {
-          //within the action, return (Promise.resolve) only after receiving $requestCount activations
-          val result = wsk.action.invoke(
-            name,
-            Map("requestCount" -> requestCount.toJson),
-            blocking = true,
-            expectedExitCode = TestUtils.DONTCARE_EXIT)
+          //within the action, return empty promise on one specific invocation
+          val params: Map[String, JsValue] = if (i == 2) {
+            Map("fail" -> true.toJson)
+          } else {
+            Map.empty
+          }
+          val result = wsk.action.invoke(name, params, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
           result
         }
       }
@@ -192,19 +193,20 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
         (action, _) =>
           //disable log collection since concurrent activation requires specialized log processing
           // (at action runtime and using specialized LogStore)
-          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(10))
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(2))
       }
-      //with concurrency 10, and the action fails on the 5th activation
-      val requestCount = 15
+      //we'll make every container fail every other activation, so with at least 2 to each container, all will fail
+      val requestCount = 4
       println(s"executing $requestCount activations")
-      val runs = (1 to requestCount).map { _ =>
+      val runs = (1 to requestCount).map { i =>
         Future {
-          //within the action, return (Promise.resolve) only after receiving $requestCount activations
-          val result = wsk.action.invoke(
-            name,
-            Map("requestCount" -> requestCount.toJson),
-            blocking = true,
-            expectedExitCode = TestUtils.DONTCARE_EXIT)
+          //within the action, exite the nodejs process on second invocation
+          val params: Map[String, JsValue] = if (i % 2 == 0) {
+            Map("fail" -> true.toJson)
+          } else {
+            Map.empty
+          }
+          val result = wsk.action.invoke(name, params, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
           result
         }
       }
@@ -212,6 +214,6 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       //some will no 200, since each each container gets at least 5 concurrent activations,
       //and each container crashes on the 5 activation.
       results.count(_.statusCode == StatusCodes.OK) shouldBe 0
-      results.count(_.statusCode == StatusCodes.BadGateway) shouldBe 15
+      results.count(_.statusCode == StatusCodes.BadGateway) shouldBe 4
   }
 }

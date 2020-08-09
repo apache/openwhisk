@@ -19,8 +19,9 @@ let count=0;
 function main(args) {
     console.log("sleeping for "+(args.time||1000));
     var sleepTime = args.time||1000;
+    var shouldFail = args.fail||false;
     count = count+1;
-    if (count==5) {
+    if (shouldFail) {
         console.log("a catastrophic failure..");
         process.exit(123);
     } else {

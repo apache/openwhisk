@@ -18,9 +18,10 @@
 let count=0;
 function main(args) {
     console.log("sleeping for "+(args.time||1000));
+    var shouldFail = args.fail||false;
     var sleepTime = args.time||1000;
     count = count+1;
-    if (count==5) {
+    if (shouldFail) {
         console.log("skipping the return..");
         return new Promise();
     } else {
