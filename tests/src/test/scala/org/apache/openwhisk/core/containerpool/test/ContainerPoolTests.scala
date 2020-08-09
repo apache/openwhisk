@@ -1250,7 +1250,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest, 'newer))
   }
 
-  it should "remove only the expired prewarms up to minCount" in {
+  it should "remove only the expired prewarms regardless of minCount" in {
     //limit prewarm removal to 100
     val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 100)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
@@ -1274,6 +1274,11 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     lazy val stream = new ByteArrayOutputStream
     lazy val printstream = new PrintStream(stream)
     lazy implicit val logging: Logging = new PrintStreamLogging(printstream)
-    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List('oldest, 'newer, 'newest))
+    ContainerPool.removeExpired(poolConfig, prewarmConfig, prewarmedPool) shouldBe (List(
+      'oldest,
+      'newer,
+      'newest,
+      'newest2,
+      'newest3))
   }
 }
