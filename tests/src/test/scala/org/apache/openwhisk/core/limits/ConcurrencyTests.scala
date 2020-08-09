@@ -201,12 +201,8 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       val runs = (1 to requestCount).map { i =>
         Future {
           //within the action, exite the nodejs process on second invocation
-          val params: Map[String, JsValue] = if (i % 2 == 0) {
-            Map("fail" -> true.toJson)
-          } else {
-            Map.empty
-          }
-          val result = wsk.action.invoke(name, params, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
+          //use default params
+          val result = wsk.action.invoke(name, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
           result
         }
       }

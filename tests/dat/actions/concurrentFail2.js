@@ -19,7 +19,7 @@ let count=0;
 function main(args) {
     console.log("sleeping for "+(args.time||1000));
     var sleepTime = args.time||1000;
-    var shouldFail = args.fail||false;
+    var shouldFail = count % 2 === 0;
     count = count+1;
     if (shouldFail) {
         console.log("a catastrophic failure..");
