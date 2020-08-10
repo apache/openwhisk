@@ -231,7 +231,7 @@ object Messages {
   val resourceProvisionError = "Failed to provision resources to run the action."
 
   def forbiddenGetActionBinding(entityDocId: String) =
-    s"GET not permitted for '$entityDocId'. Resource does not exist or an action in a shared package binding."
+    s"GET not permitted for '$entityDocId'. Resource does not exist or is an action in a shared package binding."
   def forbiddenGetAction(entityPath: String) =
     s"GET not permitted for '$entityPath' since it's an action in a shared package"
   def forbiddenGetPackageBinding(packageName: String) =

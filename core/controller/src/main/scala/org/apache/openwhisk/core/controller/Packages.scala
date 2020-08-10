@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
@@ -45,9 +45,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Config flag for Execute Only for Shared Packages */
   protected def executeOnly =
-    Try({
-      loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
-    }).getOrElse(false)
+    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
 
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
@@ -162,8 +160,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  //get method that also checks for execute only to deny access to shared package, but package binding is handled
-  //within the mergePackageWithBinding() method
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     if (executeOnly && user.namespace.name != entityName.namespace) {
@@ -321,10 +317,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         } else {
 
           /** Here's where I check package execute only case with package binding. */
-          val packagePath = wp.namespace.asString
-          val bindingPath = wp.binding.iterator.next().toString
-          val indexOfSlash = bindingPath.indexOf('/')
-          if (executeOnly && packagePath != bindingPath.take(indexOfSlash)) {
+          if (executeOnly && wp.namespace.asString != b.namespace.asString) {
             terminate(Forbidden, forbiddenGetPackageBinding(wp.name.asString))
           } else {
             getEntity(WhiskPackage.get(entityStore, docid), Some {
