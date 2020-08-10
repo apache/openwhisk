@@ -127,6 +127,8 @@ trait AttachmentStoreBehaviors
     //Make sure doc2 attachments are left untouched
     if (!lazyDeletes) attachmentBytes(docId2, "c21").futureValue.result() shouldBe ByteString(b1)
     if (!lazyDeletes) attachmentBytes(docId2, "c22").futureValue.result() shouldBe ByteString(b2)
+
+    attachmentsToDelete += docId2.asString
   }
 
   it should "throw NoDocumentException on reading non existing attachment" in {
