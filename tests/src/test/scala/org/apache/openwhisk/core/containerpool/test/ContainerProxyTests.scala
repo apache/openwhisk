@@ -53,6 +53,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.entity.ActivationResponse.ContainerResponse
 import org.apache.openwhisk.core.invoker.Invoker
 
 import scala.collection.mutable
@@ -1051,6 +1052,235 @@ class ContainerProxyTests
         .get(WhiskActivation.initTimeAnnotation)
         .get
         .convertTo[Int] shouldBe initInterval.duration.toMillis
+    }
+  }
+  it should "terminate buffered concurrent activations when prewarm init fails with an error" in {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
+    val initPromise = Promise[Interval]()
+    val container = new TestContainer(Some(initPromise))
+    val factory = createFactory(Future.successful(container))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
+    registerCallback(machine)
+    preWarm(machine) //ends in Started state
+
+    machine ! Run(concurrentAction, message) //first in Started state
+    machine ! Run(concurrentAction, message) //second in Started or Running state
+
+    //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
+    //second message will be delayed until we get to Running state with WarmedData
+    //   (and will produce 1 NeedWork message after run)
+    expectMsg(Transition(machine, Started, Running))
+
+    //complete the init
+    initPromise.failure(
+      InitializationError(
+        initInterval,
+        ActivationResponse
+          .processInitResponseContent(Right(ContainerResponse(false, "some bad init response...")), logging)))
+
+    expectMsg(ContainerRemoved(true))
+    //go to Removing state when a failure happens while others are in flight
+    expectMsg(Transition(machine, Running, Removing))
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 0
+      container.atomicLogsCount.get() shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 2
+
+      store.calls should have size 2
+
+      //we should have 2 activations that are container error
+      acker.calls.filter(_._2.response.isContainerError) should have size 2
+    }
+  }
+
+  it should "terminate buffered concurrent activations when prewarm init fails unexpectedly" in {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
+    val initPromise = Promise[Interval]()
+    val container = new TestContainer(Some(initPromise))
+    val factory = createFactory(Future.successful(container))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
+    registerCallback(machine)
+    preWarm(machine) //ends in Started state
+
+    machine ! Run(concurrentAction, message) //first in Started state
+    machine ! Run(concurrentAction, message) //second in Started or Running state
+
+    //first message go from Started -> Running -> Ready, with 2 NeedWork messages (1 for init, 1 for run)
+    //second message will be delayed until we get to Running state with WarmedData
+    //   (and will produce 1 NeedWork message after run)
+    expectMsg(Transition(machine, Started, Running))
+
+    //complete the init
+    initPromise.failure(new IllegalStateException("intentional failure during init test"))
+
+    expectMsg(ContainerRemoved(true))
+    //go to Removing state when a failure happens while others are in flight
+    expectMsg(Transition(machine, Running, Removing))
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 0
+      container.atomicLogsCount.get() shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 2
+
+      store.calls should have size 2
+
+      //we should have 2 activations that are whisk error
+      acker.calls.filter(_._2.response.isWhiskError) should have size 2
+    }
+  }
+
+  it should "terminate buffered concurrent activations when cold init fails with an error" in {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
+    val initPromise = Promise[Interval]()
+    val container = new TestContainer(Some(initPromise))
+    val factory = createFactory(Future.successful(container))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
+    registerCallback(machine)
+    //no prewarming
+
+    machine ! Run(concurrentAction, message) //first in Uninitialized state
+    machine ! Run(concurrentAction, message) //second in Uninitialized or Running state
+
+    expectMsg(Transition(machine, Uninitialized, Running))
+
+    //complete the init
+    initPromise.failure(
+      InitializationError(
+        initInterval,
+        ActivationResponse
+          .processInitResponseContent(Right(ContainerResponse(false, "some bad init response...")), logging)))
+
+    expectMsg(ContainerRemoved(true))
+    //go to Removing state when a failure happens while others are in flight
+    expectMsg(Transition(machine, Running, Removing))
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 0
+      container.atomicLogsCount.get() shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 2
+
+      store.calls should have size 2
+
+      //we should have 2 activations that are container error
+      acker.calls.filter(_._2.response.isContainerError) should have size 2
+    }
+  }
+
+  it should "terminate buffered concurrent activations when cold init fails unexpectedly" in {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
+    val initPromise = Promise[Interval]()
+    val container = new TestContainer(Some(initPromise))
+    val factory = createFactory(Future.successful(container))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
+    registerCallback(machine)
+    //no prewarming
+
+    machine ! Run(concurrentAction, message) //first in Uninitialized state
+    machine ! Run(concurrentAction, message) //second in Uninitialized or Running state
+
+    expectMsg(Transition(machine, Uninitialized, Running))
+
+    //complete the init
+    initPromise.failure(new IllegalStateException("intentional failure during init test"))
+
+    expectMsg(ContainerRemoved(true))
+    //go to Removing state when a failure happens while others are in flight
+    expectMsg(Transition(machine, Running, Removing))
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 0
+      container.atomicLogsCount.get() shouldBe 1
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 2
+
+      store.calls should have size 2
+
+      //we should have 2 activations that are whisk error
+      acker.calls.filter(_._2.response.isWhiskError) should have size 2
     }
   }
 

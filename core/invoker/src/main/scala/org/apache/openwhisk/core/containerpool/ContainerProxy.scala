@@ -457,10 +457,15 @@ class ContainerProxy(factory: (TransactionId,
       rejectBuffered()
       destroyContainer(newData, true)
 
-    // Failed after /init (the first run failed)
-    case Event(_: FailureMessage, data: PreWarmedData) =>
+    // Failed after /init (the first run failed) on prewarmed or cold start
+    case Event(f: FailureMessage, data: PreWarmedData) =>
       activeCount -= 1
-      destroyContainer(data, true)
+      //reuse an existing init failure for any buffered activations that will be aborted
+      val r = f.cause match {
+        case ActivationUnsuccessfulError(r) => Some(r.response)
+        case _                              => None
+      }
+      destroyContainer(data, true, true, r)
 
     // Failed for a subsequent /run
     case Event(_: FailureMessage, data: WarmedData) =>
@@ -642,15 +647,39 @@ class ContainerProxy(factory: (TransactionId,
    *
    * @param newData the ContainerStarted which container will be destroyed
    */
-  def destroyContainer(newData: ContainerStarted, replacePrewarm: Boolean) = {
+  def destroyContainer(newData: ContainerStarted,
+                       replacePrewarm: Boolean,
+                       abortBuffered: Boolean = false,
+                       abortResponse: Option[ActivationResponse] = None) = {
     val container = newData.container
     if (!rescheduleJob) {
       context.parent ! ContainerRemoved(replacePrewarm)
     } else {
       context.parent ! RescheduleJob
     }
-
-    rejectBuffered()
+    if (abortBuffered && runBuffer.length > 0) {
+      logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init")
+      runBuffer.foreach { job =>
+        implicit val tid = job.msg.transid
+        logging.info(this, s"aborting activation ${job.msg.activationId} after failed init with ${abortResponse}")
+        val result = ContainerProxy.constructWhiskActivation(
+          job,
+          None,
+          Interval.zero,
+          false,
+          abortResponse.getOrElse(ActivationResponse.whiskError(Messages.abnormalRun)))
+        val context = UserContext(job.msg.user)
+        val msg = if (job.msg.blocking) {
+          CombinedCompletionAndResultMessage(tid, result, instance)
+        } else {
+          CompletionMessage(tid, result, instance)
+        }
+        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+        storeActivation(tid, result, job.msg.blocking, context)
+      }
+    } else {
+      rejectBuffered()
+    }
 
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
