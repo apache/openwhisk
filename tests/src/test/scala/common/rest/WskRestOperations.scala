@@ -264,6 +264,7 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     docker: Option[String] = None,
     parameters: Map[String, JsValue] = Map.empty,
     annotations: Map[String, JsValue] = Map.empty,
+    delAnnotations: Array[String] = Array(),
     parameterFile: Option[String] = None,
     annotationFile: Option[String] = None,
     timeout: Option[Duration] = None,
@@ -364,6 +365,8 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
         content = content + ("annotations" -> annos.toJson)
       if (limits.nonEmpty)
         content = content + ("limits" -> limits.toJson)
+      if (delAnnotations.nonEmpty)
+        content = content + ("delAnnotations" -> delAnnotations.toJson)
       content
     }
 
