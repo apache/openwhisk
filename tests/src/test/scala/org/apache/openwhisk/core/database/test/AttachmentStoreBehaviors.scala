@@ -104,6 +104,7 @@ trait AttachmentStoreBehaviors
     r21.length shouldBe 1000
     r22.length shouldBe 2000
 
+    println(s"creating doc ${docId}")
     attachmentBytes(docId, "c1").futureValue.result() shouldBe ByteString(b1)
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
     attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)
@@ -114,6 +115,7 @@ trait AttachmentStoreBehaviors
     store.deleteAttachment(docId, "c1").futureValue shouldBe true
 
     //Non deleted attachments related to same docId must still be accessible
+    println(s"read missing doc ${docId}")
     if (!lazyDeletes) attachmentBytes(docId, "c1").failed.futureValue shouldBe a[NoDocumentException]
     attachmentBytes(docId, "c2").futureValue.result() shouldBe ByteString(b2)
     attachmentBytes(docId, "c3").futureValue.result() shouldBe ByteString(b3)

@@ -27,6 +27,8 @@ import org.scalatest.FlatSpec
 import scala.reflect.ClassTag
 
 trait AzureBlob extends FlatSpec {
+  def azureCdnConfig: String = ""
+
   def makeAzureStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                           logging: Logging,
                                                           materializer: ActorMaterializer): AttachmentStore = {
@@ -38,6 +40,7 @@ trait AzureBlob extends FlatSpec {
         |    container-name = "$containerName"
         |    account-key = "$accountKey"
         |    prefix = $prefix
+        |    $azureCdnConfig
         |  }
         |}""".stripMargin).withFallback(ConfigFactory.load()).resolve()
     AzureBlobAttachmentStoreProvider.makeStore[D](config)
