@@ -45,19 +45,19 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Success
 
-class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](protected val collName: String,
-                                                                       protected val config: CosmosDBConfig,
-                                                                       clientRef: DocumentClientRef,
-                                                                       documentHandler: DocumentHandler,
-                                                                       protected val viewMapper: CosmosDBViewMapper,
-                                                                       val inliningConfig: InliningConfig,
-                                                                       val attachmentStore: Option[AttachmentStore],
-                                                                       val legacyAttachmentStore: Option[AttachmentStore])(
-  implicit system: ActorSystem,
-  val logging: Logging,
-  jsonFormat: RootJsonFormat[DocumentAbstraction],
-  val materializer: ActorMaterializer,
-  docReader: DocumentReader)
+class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
+  protected val collName: String,
+  protected val config: CosmosDBConfig,
+  clientRef: DocumentClientRef,
+  documentHandler: DocumentHandler,
+  protected val viewMapper: CosmosDBViewMapper,
+  val inliningConfig: InliningConfig,
+  val attachmentStore: Option[AttachmentStore],
+  val legacyAttachmentStore: Option[AttachmentStore])(implicit system: ActorSystem,
+                                                      val logging: Logging,
+                                                      jsonFormat: RootJsonFormat[DocumentAbstraction],
+                                                      val materializer: ActorMaterializer,
+                                                      docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
@@ -356,9 +356,17 @@ class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
       .mapConcat(asVector)
       .drop(skip)
       .map(queryResultToWhiskJsonDoc)
-      .map(js =>
-        documentHandler
-          .transformViewResult(ddoc, viewName, startKey, endKey, realIncludeDocs, js, CosmosDBMigrationArtifactStore.this))
+      .map(
+        js =>
+          documentHandler
+            .transformViewResult(
+              ddoc,
+              viewName,
+              startKey,
+              endKey,
+              realIncludeDocs,
+              js,
+              CosmosDBMigrationArtifactStore.this))
       .mapAsync(1)(identity)
       .mapConcat(identity)
       .runWith(Sink.seq)
