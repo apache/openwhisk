@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-node('openwhisk1||openwhisk2||openwhisk3') {
+node('ubuntu') {
   sh "env"
   sh "docker version"
   sh "docker info"
