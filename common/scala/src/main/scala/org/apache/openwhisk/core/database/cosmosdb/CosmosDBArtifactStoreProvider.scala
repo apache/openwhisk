@@ -17,11 +17,8 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import java.io.Closeable
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
@@ -33,10 +30,6 @@ import pureconfig.generic.auto._
 import spray.json.RootJsonFormat
 
 import scala.reflect.ClassTag
-
-case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
-  override def close(): Unit = client.close()
-}
 
 object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference

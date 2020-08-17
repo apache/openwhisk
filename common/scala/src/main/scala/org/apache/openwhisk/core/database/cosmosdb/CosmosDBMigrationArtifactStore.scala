@@ -27,7 +27,6 @@ import akka.util.ByteString
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
-import com.typesafe.config.ConfigFactory
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils._
@@ -37,7 +36,6 @@ import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
-import org.apache.openwhisk.spi.SpiLoader
 import spray.json._
 
 import scala.collection.JavaConverters._
