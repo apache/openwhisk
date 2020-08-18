@@ -537,13 +537,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
     val exec = content.exec getOrElse action.exec
 
-    var newAnnotations = action.annotations
-    content.delAnnotations.map { annotationArray =>
-      annotationArray.foreach { annotation =>
-        newAnnotations -= annotation
+    val newAnnotations = content.delAnnotations
+      .map { annotationArray =>
+        annotationArray.foldRight(action.annotations)((a: String, b: Parameters) => b - a)
       }
-    }
-    newAnnotations = newAnnotations ++ content.annotations
+      .map(_ ++ content.annotations)
+      .getOrElse(action.annotations ++ content.annotations)
 
     WhiskAction(
       action.namespace,

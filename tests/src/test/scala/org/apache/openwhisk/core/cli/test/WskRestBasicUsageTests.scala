@@ -131,7 +131,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
   }
 
-  it should "update an action via passing delAnnotations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "delete the given annotations using delAnnotations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "hello"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>

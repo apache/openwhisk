@@ -357,7 +357,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     }
   }
 
-  it should "not delete previous annotation when update action with new annotation" in withAssetCleaner(wskprops) {
+  it should "not delete existing annotations when updating action with new annotation" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val name = "hello"
 

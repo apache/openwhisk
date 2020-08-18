@@ -1915,7 +1915,7 @@
           "items": {
             "type": "string"
           },
-          "description": "del annotations on the item"
+          "description": "The list of annotations to be deleted from the item"
         },
         "parameters": {
           "type": "array",
