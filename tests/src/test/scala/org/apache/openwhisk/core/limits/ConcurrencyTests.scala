@@ -17,6 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
+import akka.http.scaladsl.model.StatusCodes
 import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.ConfigKeys
@@ -53,7 +54,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
   //This tests generates a concurrent load against the concurrent.js action with concurrency set to 5
   it should "execute activations concurrently when concurrency > 1 " in withAssetCleaner(wskprops) {
-    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
 
     (wp, assetHelper) =>
       val name = "TestConcurrentAction"
@@ -102,7 +103,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
 
   //This tests generates the same load against the same action as previous test, BUT with concurrency set to 1
   it should "execute activations sequentially when concurrency = 1 " in withAssetCleaner(wskprops) {
-    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
 
     (wp, assetHelper) =>
       val name = "TestNonConcurrentAction"
@@ -149,4 +150,66 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       }
   }
 
+  it should "allow concurrent activations to gracefully complete when one fails" in withAssetCleaner(wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
+    (wp, assetHelper) =>
+      val name = "TestFailingConcurrentAction1"
+      assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+        //this action fails by returning an empty promise
+        val actionName = TestUtils.getTestActionFilename("concurrentFail1.js")
+        (action, _) =>
+          //disable log collection since concurrent activation requires specialized log processing
+          // (at action runtime and using specialized LogStore)
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(2))
+      }
+      //with concurrency 2, at least some of the 3 activations will fail, but not all
+      val requestCount = 3
+      println(s"executing $requestCount activations")
+      val runs = (1 to requestCount).map { i =>
+        Future {
+          //within the action, return empty promise on one specific invocation
+          val params: Map[String, JsValue] = if (i == 2) {
+            Map("fail" -> true.toJson)
+          } else {
+            Map.empty
+          }
+          val result = wsk.action.invoke(name, params, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
+          result
+        }
+      }
+      val results = Await.result(Future.sequence(runs), 30.seconds)
+      //some will be 200, some will be 400, but all should be completed (no forced acks that take > 30s)
+      results.count(_.statusCode == StatusCodes.OK) should be > 0
+      results.count(_.statusCode == StatusCodes.BadGateway) should be > 0
+  }
+  it should "allow concurrent activations to gracefully complete when one fails catastrophically" in withAssetCleaner(
+    wskprops) {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency", "False")).exists(_.toBoolean))
+    (wp, assetHelper) =>
+      val name = "TestFailingConcurrentAction2"
+      assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+        //this action does a process.exit() on the 5th activation
+        val actionName = TestUtils.getTestActionFilename("concurrentFail2.js")
+        (action, _) =>
+          //disable log collection since concurrent activation requires specialized log processing
+          // (at action runtime and using specialized LogStore)
+          action.create(name, Some(actionName), logsize = Some(0.bytes), concurrency = Some(2))
+      }
+      //we'll make every container fail every other activation, so with at least 2 to each container, all will fail
+      val requestCount = 4
+      println(s"executing $requestCount activations")
+      val runs = (1 to requestCount).map { i =>
+        Future {
+          //within the action, exite the nodejs process on second invocation
+          //use default params
+          val result = wsk.action.invoke(name, blocking = true, expectedExitCode = TestUtils.DONTCARE_EXIT)
+          result
+        }
+      }
+      val results = Await.result(Future.sequence(runs), 30.seconds)
+      //some will no 200, since each each container gets at least 5 concurrent activations,
+      //and each container crashes on the 5 activation.
+      results.count(_.statusCode == StatusCodes.OK) shouldBe 0
+      results.count(_.statusCode == StatusCodes.BadGateway) shouldBe 4
+  }
 }

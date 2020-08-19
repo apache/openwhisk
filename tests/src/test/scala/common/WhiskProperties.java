@@ -408,7 +408,7 @@ public class WhiskProperties {
         return getPropFromSystemOrEnv(WHISK_SERVER) == null;
     }
 
-    private static String getProperty(String key, String defaultValue) {
+    public static String getProperty(String key, String defaultValue) {
         String value = getPropFromSystemOrEnv(key);
         if (value == null) {
             value = whiskProperties.getProperty(key, defaultValue);
