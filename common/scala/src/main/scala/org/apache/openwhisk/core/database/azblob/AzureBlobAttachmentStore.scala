@@ -17,14 +17,20 @@
 
 package org.apache.openwhisk.core.database.azblob
 
+import java.time.OffsetDateTime
+
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.event.Logging.InfoLevel
-import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes.NotFound
+import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
-import com.azure.storage.blob.{BlobContainerAsyncClient, BlobContainerClientBuilder}
+import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
+import com.azure.storage.blob.{BlobContainerAsyncClient, BlobContainerClientBuilder, BlobUrlParts}
 import com.azure.storage.common.StorageSharedKeyCredential
 import com.azure.storage.common.policy.{RequestRetryOptions, RetryPolicyType}
 import com.typesafe.config.Config
@@ -37,13 +43,7 @@ import org.apache.openwhisk.common.LoggingMarkers.{
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.StoreUtils.{combinedSink, reportFailure}
-import org.apache.openwhisk.core.database.{
-  AttachResult,
-  AttachmentStore,
-  AttachmentStoreProvider,
-  DocumentSerializer,
-  NoDocumentException
-}
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.DocId
 import pureconfig._
 import pureconfig.generic.auto._
@@ -53,15 +53,16 @@ import scala.compat.java8.FutureConverters._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
-import scala.util.Success
 
+case class AzureCDNConfig(domainName: String)
 case class AzBlobConfig(endpoint: String,
                         accountKey: String,
                         containerName: String,
                         accountName: String,
                         connectionString: Option[String],
                         prefix: Option[String],
-                        retryConfig: AzBlobRetryConfig) {
+                        retryConfig: AzBlobRetryConfig,
+                        azureCdnConfig: Option[AzureCDNConfig] = None) {
   def prefixFor[D](implicit tag: ClassTag[D]): String = {
     val className = tag.runtimeClass.getSimpleName.toLowerCase
     prefix.map(p => s"$p/$className").getOrElse(className)
@@ -83,7 +84,7 @@ object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
                                                                    logging: Logging,
                                                                    materializer: ActorMaterializer): AttachmentStore = {
     val azConfig = loadConfigOrThrow[AzBlobConfig](config, ConfigKeys.azBlob)
-    new AzureBlobAttachmentStore(createClient(azConfig), azConfig.prefixFor[D])
+    new AzureBlobAttachmentStore(createClient(azConfig), azConfig.prefixFor[D], azConfig)
   }
 
   def createClient(config: AzBlobConfig): BlobContainerAsyncClient = {
@@ -112,9 +113,10 @@ object AzureBlobAttachmentStoreProvider extends AttachmentStoreProvider {
   }
 }
 
-class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String)(implicit system: ActorSystem,
-                                                                                 logging: Logging,
-                                                                                 materializer: ActorMaterializer)
+class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String, config: AzBlobConfig)(
+  implicit system: ActorSystem,
+  logging: Logging,
+  materializer: ActorMaterializer)
     extends AttachmentStore {
   override protected[core] def scheme: String = "az"
 
@@ -158,32 +160,32 @@ class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String)
         this,
         DATABASE_ATT_GET,
         s"[ATT_GET] '$prefix' finding attachment '$name' of document 'id: $docId'")
-    val blobClient = getBlobClient(docId, name)
-    val f = blobClient.exists().toFuture.toScala.flatMap { exists =>
-      if (exists) {
-        val bbFlux = blobClient.download()
-        val rf = Source.fromPublisher(bbFlux).map(ByteString(_)).runWith(sink)
-        rf.andThen {
-          case Success(_) =>
-            transid
-              .finished(
-                this,
-                start,
-                s"[ATT_GET] '$prefix' completed: found attachment '$name' of document 'id: $docId'")
-        }
-      } else {
-        transid
-          .finished(
-            this,
-            start,
-            s"[ATT_GET] '$prefix', retrieving attachment '$name' of document 'id: $docId'; not found.",
-            logLevel = Logging.ErrorLevel)
-        Future.failed(NoDocumentException("Not found on 'readAttachment'."))
-      }
+    val source = getAttachmentSource(objectKey(docId, name), config)
+
+    val f = source.flatMap {
+      case Some(x) => x.runWith(sink)
+      case None    => Future.failed(NoDocumentException("Not found on 'readAttachment'."))
     }
 
+    val g = f.transform(
+      { s =>
+        transid
+          .finished(this, start, s"[ATT_GET] '$prefix' completed: found attachment '$name' of document 'id: $docId'")
+        s
+      }, {
+        case e: NoDocumentException =>
+          transid
+            .finished(
+              this,
+              start,
+              s"[ATT_GET] '$prefix', retrieving attachment '$name' of document 'id: $docId'; not found.",
+              logLevel = Logging.ErrorLevel)
+          e
+        case e => e
+      })
+
     reportFailure(
-      f,
+      g,
       start,
       failure =>
         s"[ATT_GET] '$prefix' internal error, name: '$name', doc: 'id: $docId', failure: '${failure.getMessage}'")
@@ -273,4 +275,54 @@ class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String)
 
   private def getBlobClient(docId: DocId, name: String) =
     client.getBlobAsyncClient(objectKey(docId, name)).getBlockBlobAsyncClient
+
+  private def getAttachmentSource(objectKey: String, config: AzBlobConfig)(
+    implicit tid: TransactionId): Future[Option[Source[ByteString, Any]]] = {
+    val blobClient = client.getBlobAsyncClient(objectKey).getBlockBlobAsyncClient
+
+    config.azureCdnConfig match {
+      case Some(cdnConfig) =>
+        //setup sas token
+        def expiryTime = OffsetDateTime.now().plusDays(1)
+        def permissions =
+          new BlobContainerSasPermission()
+            .setReadPermission(true)
+        val sigValues = new BlobServiceSasSignatureValues(expiryTime, permissions)
+        val sas = blobClient.generateSas(sigValues)
+        //parse the url, and reset the host
+        val parts = BlobUrlParts.parse(blobClient.getBlobUrl)
+        val url = parts.setHost(cdnConfig.domainName)
+        logging.info(
+          this,
+          s"[ATT_GET] '$prefix' downloading attachment from azure cdn '$objectKey' with url (sas params not displayed) ${url}")
+        //append the sas params to the url before downloading
+        val cdnUrlWithSas = s"${url.toUrl.toString}?$sas"
+        getUrlContent(cdnUrlWithSas)
+      case None =>
+        blobClient.exists().toFuture.toScala.map { exists =>
+          if (exists) {
+            val bbFlux = blobClient.download()
+            Some(Source.fromPublisher(bbFlux).map(ByteString.fromByteBuffer))
+          } else {
+            throw NoDocumentException("Not found on 'readAttachment'.")
+          }
+        }
+    }
+  }
+  private def getUrlContent(uri: Uri): Future[Option[Source[ByteString, Any]]] = {
+    val future = Http().singleRequest(HttpRequest(uri = uri))
+    future.flatMap {
+      case HttpResponse(status, _, entity, _) if status.isSuccess() && !status.isRedirection() =>
+        Future.successful(Some(entity.dataBytes))
+      case HttpResponse(status, _, entity, _) =>
+        if (status == NotFound) {
+          entity.discardBytes()
+          throw NoDocumentException("Not found on 'readAttachment'.")
+        } else {
+          Unmarshal(entity).to[String].map { err =>
+            throw new Exception(s"failed to download ${uri} status was ${status} response was ${err}")
+          }
+        }
+    }
+  }
 }
