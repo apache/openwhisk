@@ -136,21 +136,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
             // may only delete a package if all its ingredients are deleted already or force flag is set
             WhiskAction
               .listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), includeDocs = true, skip = 0, limit = 0) flatMap {
-              case Right(list) if list.nonEmpty =>
-                if (force) {
-                  Future sequence {
-                    list.map(action => {
-                      WhiskAction.get(entityStore, wp.fullyQualifiedName(false).add(action.fullyQualifiedName(false).name).toDocId) flatMap { actionWithRevision =>
-                        WhiskAction.del(entityStore, actionWithRevision.docinfo)
-                      }
-                    })
-                  } flatMap { _ => Future.successful({}) }
-                } else {
-                  Future failed {
-                    RejectRequest(
-                      Conflict,
-                      s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"}). Set force param or delete package contents.")
-                  }
+              case Right(list) if list.nonEmpty && force =>
+                Future sequence {
+                  list.map(action => {
+                    WhiskAction.get(entityStore, wp.fullyQualifiedName(false).add(action.fullyQualifiedName(false).name).toDocId) flatMap { actionWithRevision =>
+                      WhiskAction.del(entityStore, actionWithRevision.docinfo)
+                    }
+                  })
+                } flatMap { _ => Future.successful({}) }
+              case Right(list) if list.nonEmpty && !force =>
+                Future failed {
+                  RejectRequest(
+                    Conflict,
+                    s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"}). Set force param or delete package contents.")
                 }
               case _ =>
                 Future.successful({})
