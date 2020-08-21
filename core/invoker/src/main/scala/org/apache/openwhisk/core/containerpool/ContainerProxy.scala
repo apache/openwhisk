@@ -778,7 +778,8 @@ class ContainerProxy(factory: (TransactionId,
           .initialize(
             job.action.containerInitializer(env ++ owEnv),
             actionTimeout,
-            job.action.limits.concurrency.maxConcurrent)
+            job.action.limits.concurrency.maxConcurrent,
+            Some(job.action.toWhiskAction))
           .map(Some(_))
     }
 

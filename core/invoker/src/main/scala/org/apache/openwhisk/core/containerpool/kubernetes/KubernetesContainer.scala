@@ -34,9 +34,10 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.docker.{CompleteAfterOccurrences, OccurrencesNotFoundException}
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ByteSize, WhiskAction}
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import spray.json.JsObject
 
 import scala.util.Failure
 
@@ -127,6 +128,20 @@ class KubernetesContainer(protected[core] val id: ContainerId,
     super.destroy()
     portForward.foreach(_.close())
     kubernetes.rm(this)
+  }
+
+  override def initialize(initializer: JsObject,
+                          timeout: FiniteDuration,
+                          maxConcurrent: Int,
+                          entity: Option[WhiskAction] = None)(implicit transid: TransactionId): Future[Interval] = {
+    entity match {
+      case Some(e) => {
+        kubernetes
+          .addLabel(this, Map("openwhisk/action" -> e.name.toString, "openwhisk/namespace" -> e.namespace.toString))
+          .map(return super.initialize(initializer, timeout, maxConcurrent, entity))
+      }
+      case None => super.initialize(initializer, timeout, maxConcurrent, entity)
+    }
   }
 
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {

@@ -1405,7 +1405,8 @@ class ContainerProxyTests
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
                               timeout: FiniteDuration,
-                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
+                              concurrent: Int,
+                              entity: Option[WhiskAction] = None)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         Future.failed(InitializationError(initInterval, ActivationResponse.developerError("boom")))
       }
@@ -1806,7 +1807,8 @@ class ContainerProxyTests
     val container = new TestContainer {
       override def initialize(initializer: JsObject,
                               timeout: FiniteDuration,
-                              concurrent: Int)(implicit transid: TransactionId): Future[Interval] = {
+                              concurrent: Int,
+                              entity: Option[WhiskAction] = None)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
         initPromise.future
       }
@@ -2055,8 +2057,10 @@ class ContainerProxyTests
       destroyCount += 1
       super.destroy()
     }
-    override def initialize(initializer: JsObject, timeout: FiniteDuration, concurrent: Int)(
-      implicit transid: TransactionId): Future[Interval] = {
+    override def initialize(initializer: JsObject,
+                            timeout: FiniteDuration,
+                            concurrent: Int,
+                            entity: Option[WhiskAction] = None)(implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
 
       val envField = "env"
