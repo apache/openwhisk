@@ -73,9 +73,9 @@ The runtime `action-golang-v1.11` accepts:
 - executable binaries in Linux ELF executable compiled for the AMD64 architecture
 - zip files containing a binary executable named `exec` at the top level, again a Linux ELF executable compiled for the AMD64 architecture
 - a single source file in Go, that will be compiled
-- a zip file not containing in the top level a binary file `exec`, it will be interpreted as a collection of zip files, and compiled
+- a zip file not containing in the top level a binary file `exec`, it will be interpreted as a collection of source files in Go, and compiled
 
-You can create a binary in the correct format on any GO platform cross-compiling with `GOOS=Linux` and `GOARCH=amd64`. However it is recommended you use the compiler embedded in the Docker image for this purpose using the precompilation feature, as described below.
+You can create a binary in the correct format on any Go platform cross-compiling with `GOOS=Linux` and `GOARCH=amd64`. However it is recommended you use the compiler embedded in the Docker image for this purpose using the precompilation feature, as described below.
 
 ## Using packages and vendor folder
 
