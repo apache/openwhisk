@@ -56,7 +56,8 @@ case class WhiskActionPut(exec: Option[Exec] = None,
                           limits: Option[ActionLimitsOption] = None,
                           version: Option[SemVer] = None,
                           publish: Option[Boolean] = None,
-                          annotations: Option[Parameters] = None) {
+                          annotations: Option[Parameters] = None,
+                          delAnnotations: Option[Array[String]] = None) {
 
   protected[core] def replace(exec: Exec) = {
     WhiskActionPut(Some(exec), parameters, limits, version, publish, annotations)
@@ -643,5 +644,5 @@ object ActionLimitsOption extends DefaultJsonProtocol {
 }
 
 object WhiskActionPut extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat6(WhiskActionPut.apply)
+  implicit val serdes = jsonFormat7(WhiskActionPut.apply)
 }

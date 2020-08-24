@@ -131,6 +131,38 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       }
   }
 
+  it should "delete the given annotations using delAnnotations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "hello"
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      val annotations = Map("key1" -> "value1".toJson, "key2" -> "value2".toJson)
+      action.create(name, Some(TestUtils.getTestActionFilename("hello.js")), annotations = annotations)
+      val annotationString = wsk.parseJsonString(wsk.action.get(name).stdout).fields("annotations").toString
+
+      annotationString should include(""""key":"key1"""")
+      annotationString should include(""""value":"value1"""")
+      annotationString should include(""""key":"key2"""")
+      annotationString should include(""""value":"value2"""")
+
+      //Delete key1 only
+      val delAnnotations = Array("key1")
+
+      action.create(
+        name,
+        Some(TestUtils.getTestActionFilename("hello.js")),
+        delAnnotations = delAnnotations,
+        update = true)
+      val newAnnotationString = wsk.parseJsonString(wsk.action.get(name).stdout).fields("annotations").toString
+
+      newAnnotationString should not include (""""key":"key1"""")
+      newAnnotationString should not include (""""value":"value1"""")
+      newAnnotationString should include(""""key":"key2"""")
+      newAnnotationString should include(""""value":"value2"""")
+
+      action.create(name, Some(TestUtils.getTestActionFilename("hello.js")), update = true)
+    }
+  }
+
   it should "create, and get an action to verify file parameter and annotation parsing" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val name = "actionAnnotAndParamParsing"

@@ -1910,6 +1910,13 @@
           },
           "description": "annotations on the item"
         },
+        "delAnnotations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The list of annotations to be deleted from the item"
+        },
         "parameters": {
           "type": "array",
           "items": {

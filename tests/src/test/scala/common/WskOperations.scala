@@ -234,6 +234,7 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              docker: Option[String] = None,
              parameters: Map[String, JsValue] = Map.empty,
              annotations: Map[String, JsValue] = Map.empty,
+             delAnnotations: Array[String] = Array(),
              parameterFile: Option[String] = None,
              annotationFile: Option[String] = None,
              timeout: Option[Duration] = None,

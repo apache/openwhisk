@@ -537,6 +537,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
     val exec = content.exec getOrElse action.exec
 
+    val newAnnotations = content.delAnnotations
+      .map { annotationArray =>
+        annotationArray.foldRight(action.annotations)((a: String, b: Parameters) => b - a)
+      }
+      .map(_ ++ content.annotations)
+      .getOrElse(action.annotations ++ content.annotations)
+
     WhiskAction(
       action.namespace,
       action.name,
@@ -545,7 +552,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
-      WhiskActionsApi.amendAnnotations(content.annotations getOrElse action.annotations, exec, create = false))
+      WhiskActionsApi.amendAnnotations(newAnnotations, exec, create = false))
       .revision[WhiskAction](action.docinfo.rev)
   }
 
