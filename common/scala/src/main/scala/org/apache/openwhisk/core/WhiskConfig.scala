@@ -264,6 +264,7 @@ object ConfigKeys {
   val featureFlags = "whisk.feature-flags"
 
   val whiskConfig = "whisk.config"
+  val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
   val swaggerUi = "whisk.swagger-ui"
 
   val disableStoreResult = s"$activation.disable-store-result"

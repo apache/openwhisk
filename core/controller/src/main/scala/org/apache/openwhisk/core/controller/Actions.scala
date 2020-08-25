@@ -43,6 +43,8 @@ import org.apache.openwhisk.http.Messages._
 import org.apache.openwhisk.core.entitlement.Resource
 import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
+import pureconfig._
+import org.apache.openwhisk.core.ConfigKeys
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -101,6 +103,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Database service to get activations. */
   protected val activationStore: ActivationStore
+
+  /** Config flag for Execute Only for Actions in Shared Packages */
+  protected def executeOnly =
+    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
 
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
@@ -330,6 +336,50 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
   }
 
+  /** Checks for package binding case. we don't want to allow get for a package binding in shared package */
+  private def fetchEntity(entityName: FullyQualifiedEntityName, env: Option[Parameters], code: Boolean)(
+    implicit transid: TransactionId) = {
+    val resolvedPkg: Future[Either[String, FullyQualifiedEntityName]] = if (entityName.path.defaultPackage) {
+      Future.successful(Right(entityName))
+    } else {
+      WhiskPackage.resolveBinding(entityStore, entityName.path.toDocId, mergeParameters = true).map { pkg =>
+        val originalPackageLocation = pkg.fullyQualifiedName(withVersion = false).namespace
+        if (executeOnly && originalPackageLocation != entityName.namespace) {
+          Left(forbiddenGetActionBinding(entityName.toDocId.asString))
+        } else {
+          Right(entityName)
+        }
+      }
+    }
+    onComplete(resolvedPkg) {
+      case Success(pkgFuture) =>
+        pkgFuture match {
+          case Left(f) => terminate(Forbidden, f)
+          case Right(_) =>
+            if (code) {
+              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                action: WhiskAction =>
+                  val mergedAction = env map {
+                    action inherit _
+                  } getOrElse action
+                  complete(OK, mergedAction)
+              })
+            } else {
+              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+                action: WhiskActionMetaData =>
+                  val mergedAction = env map {
+                    action inherit _
+                  } getOrElse action
+                  complete(OK, mergedAction)
+              })
+            }
+        }
+      case Failure(t: Throwable) =>
+        logging.error(this, s"[GET] package ${entityName.path.toDocId} failed: ${t.getMessage}")
+        terminate(InternalServerError)
+    }
+  }
+
   /**
    * Gets action. The action name is prefixed with the namespace to create the primary index key.
    *
@@ -341,22 +391,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     parameter('code ? true) { code =>
-      code match {
-        case true =>
-          getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some { action: WhiskAction =>
-            val mergedAction = env map {
-              action inherit _
-            } getOrElse action
-            complete(OK, mergedAction)
-          })
-        case false =>
-          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
-            action: WhiskActionMetaData =>
-              val mergedAction = env map {
-                action inherit _
-              } getOrElse action
-              complete(OK, mergedAction)
-          })
+      //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
+      //and that of the entity we are trying to fetch
+      if (executeOnly && user.namespace.name != entityName.namespace) {
+        terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
+      } else {
+        fetchEntity(entityName, env, code)
       }
     }
   }

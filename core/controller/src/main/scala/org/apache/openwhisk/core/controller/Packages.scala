@@ -19,12 +19,10 @@ package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
-
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import org.apache.openwhisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}
@@ -33,6 +31,9 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types.EntityStore
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.http.Messages._
+import pureconfig._
+import org.apache.openwhisk.core.ConfigKeys
 
 trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   services: WhiskServices =>
@@ -41,6 +42,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Database service to CRUD packages. */
   protected val entityStore: EntityStore
+
+  /** Config flag for Execute Only for Shared Packages */
+  protected def executeOnly =
+    loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
 
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
@@ -157,7 +162,14 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some { mergePackageWithBinding() _ })
+    if (executeOnly && user.namespace.name != entityName.namespace) {
+      val value = entityName.toString
+      terminate(Forbidden, forbiddenGetPackage(entityName.asString))
+    } else {
+      getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some {
+        mergePackageWithBinding() _
+      })
+    }
   }
 
   /**
@@ -303,9 +315,17 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           logging.error(this, s"unexpected package binding refers to itself: $docid")
           terminate(UnprocessableEntity, Messages.packageBindingCircularReference(b.fullyQualifiedName.toString))
         } else {
-          getEntity(WhiskPackage.get(entityStore, docid), Some {
-            mergePackageWithBinding(Some { wp }) _
-          })
+
+          /** Here's where I check package execute only case with package binding. */
+          if (executeOnly && wp.namespace.asString != b.namespace.asString) {
+            terminate(Forbidden, forbiddenGetPackageBinding(wp.name.asString))
+          } else {
+            getEntity(WhiskPackage.get(entityStore, docid), Some {
+              mergePackageWithBinding(Some {
+                wp
+              }) _
+            })
+          }
         }
     } getOrElse {
       val pkg = ref map { _ inherit wp.parameters } getOrElse wp
