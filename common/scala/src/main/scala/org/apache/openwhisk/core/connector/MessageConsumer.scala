@@ -213,7 +213,13 @@ class MessageFeed(description: String,
       outstandingMessages = outstandingMessages.tail
 
       if (logHandoff) logging.debug(this, s"processing $topic[$partition][$offset] ($occupancy/$handlerCapacity)")
-      handler(bytes)
+      handler(bytes).andThen {
+        {
+          case Failure(e) =>
+            logging.error(this, s"Failed to process message for topic $topic : $e  (stack trace included)")
+            e.printStackTrace()
+        }
+      }
       handlerCapacity -= 1
 
       sendOutstandingMessages()
