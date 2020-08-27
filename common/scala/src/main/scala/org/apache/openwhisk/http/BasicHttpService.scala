@@ -126,7 +126,7 @@ trait BasicHttpService extends Directives {
         req.uri.query().toString
       } catch {
         case _: IllegalUriException => s"Bad query parameters:${req.uri.toString()}"
-        case e: Exception => s"Query parsing error: ${e.getMessage}"
+        case e: Exception           => s"Query parsing error: ${e.getMessage}"
       }
     }
     val l = loglevelForRoute(p)
