@@ -832,10 +832,11 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       }
     }
 
+    val exceptionString = "Package not empty (contains 1 entity). Set force param or delete package contents."
     Delete(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(Conflict)
       val response = responseAs[ErrorResponse]
-      response.error should include("Package not empty (contains 1 entity). Set force param or delete package contents.")
+      response.error should include(exceptionString)
       response.code.id should not be empty
     }
   }
