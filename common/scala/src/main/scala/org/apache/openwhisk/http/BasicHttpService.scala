@@ -120,7 +120,15 @@ trait BasicHttpService extends Directives {
   protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
     val m = req.method.name
     val p = req.uri.path.toString
-    val q = req.uri.query().toString
+
+    val q: String = {
+      try {
+        req.uri.query().toString
+      } catch {
+        case _: IllegalUriException => s"Bad query parameters:${req.uri.toString()}"
+        case e: Exception => s"Query parsing error: ${e.getMessage}"
+      }
+    }
     val l = loglevelForRoute(p)
     LogEntry(s"[$tid] $m $p $q", l)
   }
