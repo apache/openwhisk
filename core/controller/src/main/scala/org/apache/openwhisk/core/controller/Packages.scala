@@ -135,15 +135,26 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           } getOrElse {
             // may only delete a package if all its ingredients are deleted already or force flag is set
             WhiskAction
-              .listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), includeDocs = true, skip = 0, limit = 0) flatMap {
+              .listCollectionInNamespace(
+                entityStore,
+                wp.namespace.addPath(wp.name),
+                includeDocs = true,
+                skip = 0,
+                limit = 0) flatMap {
               case Right(list) if list.nonEmpty && force =>
                 Future sequence {
                   list.map(action => {
-                    WhiskAction.get(entityStore, wp.fullyQualifiedName(false).add(action.fullyQualifiedName(false).name).toDocId) flatMap { actionWithRevision =>
+                    WhiskAction.get(
+                      entityStore,
+                      wp.fullyQualifiedName(false)
+                        .add(action.fullyQualifiedName(false).name)
+                        .toDocId) flatMap { actionWithRevision =>
                       WhiskAction.del(entityStore, actionWithRevision.docinfo)
                     }
                   })
-                } flatMap { _ => Future.successful({}) }
+                } flatMap { _ =>
+                  Future.successful({})
+                }
               case Right(list) if list.nonEmpty && !force =>
                 Future failed {
                   RejectRequest(
