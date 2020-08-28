@@ -74,7 +74,10 @@ private[database] object StoreUtils {
     val deserialized = asFormat.asInstanceOf[A]
 
     val responseRev = js.fields("_rev").convertTo[String]
-    assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
+    if (doc.rev.rev != null && doc.rev.rev != responseRev) {
+      throw DocumentRevisionMismatchException(
+        s"Returned revision should match original argument ${doc.rev.rev} ${responseRev}")
+    }
     // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
     deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
   }

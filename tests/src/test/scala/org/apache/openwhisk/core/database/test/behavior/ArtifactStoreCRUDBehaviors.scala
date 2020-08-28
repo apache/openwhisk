@@ -20,7 +20,12 @@ package org.apache.openwhisk.core.database.test.behavior
 import java.time.Instant
 
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.{DocumentConflictException, DocumentProvider, NoDocumentException}
+import org.apache.openwhisk.core.database.{
+  DocumentConflictException,
+  DocumentProvider,
+  DocumentRevisionMismatchException,
+  NoDocumentException
+}
 import org.apache.openwhisk.core.entity._
 
 trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
@@ -171,7 +176,7 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
     activationFromDb shouldBe activation
   }
 
-  it should "throws NoDocumentException when document revision does not match" in {
+  it should "throws DocumentRevisionMismatchException when document revision does not match" in {
     implicit val tid: TransactionId = transid()
     val auth = newAuth()
     val doc = put(authStore, auth)
@@ -179,7 +184,7 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
     val auth2 = getWhiskAuth(doc).copy(namespaces = Set(wskNS("foo1"))).revision[WhiskAuth](doc.rev)
     val doc2 = put(authStore, auth2)
 
-    authStore.get[WhiskAuth](doc).failed.futureValue.getCause shouldBe a[AssertionError]
+    authStore.get[WhiskAuth](doc).failed.futureValue shouldBe a[DocumentRevisionMismatchException]
 
     val authFromGet = getWhiskAuth(doc2)
     authFromGet shouldBe auth2
