@@ -194,7 +194,8 @@ object Invoker {
     val invokerServer = SpiLoader.get[InvokerServerProvider].instance(invoker)
     BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(
       actorSystem,
-      ActorMaterializer.create(actorSystem))
+      ActorMaterializer.create(actorSystem),
+      logger)
   }
 }
 

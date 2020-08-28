@@ -18,15 +18,16 @@
 package org.apache.openwhisk.http
 
 import akka.event.Logging
-import org.apache.openwhisk.common.{MetricsRoute, TransactionId}
+import akka.http.scaladsl.model.StatusCodes
+import org.apache.openwhisk.common.{Logging, MetricsRoute, TransactionId}
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which
  * responds to health queries, intended for monitoring.
  */
-trait BasicRasService extends BasicHttpService {
+class BasicRasService(implicit val logging: Logging) extends BasicHttpService {
 
-  override def routes(implicit transid: TransactionId) = ping ~ MetricsRoute()
+  override def routes(implicit transid: TransactionId) = ping ~ ready ~ MetricsRoute()
 
   override def loglevelForRoute(route: String): Logging.LogLevel = {
     if (route == "/ping" || route == "/metrics") {
@@ -38,5 +39,15 @@ trait BasicRasService extends BasicHttpService {
 
   val ping = path("ping") {
     get { complete("pong") }
+  }
+  val ready = path("ready") {
+    get {
+      if (BasicHttpService.ready) {
+        complete("ok")
+      } else {
+        logging.warn(this, "not ready...")
+        complete(StatusCodes.ServiceUnavailable, "notready")
+      }
+    }
   }
 }

@@ -77,7 +77,7 @@ class Controller(val instance: ControllerInstanceId,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
                  implicit val materializer: ActorMaterializer,
-                 implicit val logging: Logging)
+                 override implicit val logging: Logging)
     extends BasicRasService {
 
   TransactionId.controller.mark(
@@ -288,7 +288,8 @@ object Controller {
 
         BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
           actorSystem,
-          controller.materializer)
+          controller.materializer,
+          logger)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")
