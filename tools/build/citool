@@ -220,6 +220,7 @@ def validateResponse(res):
     body = res.read()
 
     if res.status != OK:
+        body = body.decode('utf-8')
         if body.startswith('<'):
             dom = minidom.parseString(body)
             print(dom.toprettyxml()),
