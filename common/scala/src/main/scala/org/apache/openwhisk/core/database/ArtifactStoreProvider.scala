@@ -48,15 +48,4 @@ trait ArtifactStoreProvider extends Spi {
       None
     }
   }
-
-  protected def getLegacyAttachmentStore[D <: DocumentSerializer: ClassTag]()(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): Option[AttachmentStore] = {
-    if (ConfigFactory.load().hasPath("whisk.spi.LegacyAttachmentStoreProvider")) {
-      Some(SpiLoader.get[AttachmentStoreProvider].makeStore[D]())
-    } else {
-      None
-    }
-  }
 }

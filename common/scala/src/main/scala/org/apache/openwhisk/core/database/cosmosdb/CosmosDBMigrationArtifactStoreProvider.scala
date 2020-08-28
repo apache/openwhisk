@@ -45,7 +45,7 @@ object CosmosDBMigrationArtifactStoreProvider extends ArtifactStoreProvider {
     materializer: ActorMaterializer): ArtifactStore[D] = {
     val tag = implicitly[ClassTag[D]]
     val config = CosmosDBConfig(ConfigFactory.load(), tag.runtimeClass.getSimpleName)
-    makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore(), getLegacyAttachmentStore())
+    makeStoreForClient(config, getOrCreateReference(config))
   }
 
   def makeArtifactStore[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
@@ -56,13 +56,11 @@ object CosmosDBMigrationArtifactStoreProvider extends ArtifactStoreProvider {
     logging: Logging,
     materializer: ActorMaterializer): CosmosDBMigrationArtifactStore[D] = {
 
-    makeStoreForClient(config, createReference(config).reference(), attachmentStore, None)
+    makeStoreForClient(config, createReference(config).reference())
   }
 
   private def makeStoreForClient[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
-                                                                    clientRef: DocumentClientRef,
-                                                                    attachmentStore: Option[AttachmentStore],
-                                                                    legacyAttachmentStore: Option[AttachmentStore])(
+                                                                    clientRef: DocumentClientRef)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
@@ -78,9 +76,7 @@ object CosmosDBMigrationArtifactStoreProvider extends ArtifactStoreProvider {
       clientRef,
       handler,
       viewMapper,
-      loadConfigOrThrow[InliningConfig](ConfigKeys.db),
-      attachmentStore,
-      legacyAttachmentStore)
+      loadConfigOrThrow[InliningConfig](ConfigKeys.db))
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(

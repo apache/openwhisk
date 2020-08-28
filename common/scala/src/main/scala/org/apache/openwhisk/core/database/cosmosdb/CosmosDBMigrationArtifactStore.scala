@@ -30,6 +30,8 @@ import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, Scheduler, TransactionId}
 import org.apache.openwhisk.core.database.StoreUtils._
+import org.apache.openwhisk.core.database.s3._
+import org.apache.openwhisk.core.database.azblob._
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants._
@@ -41,21 +43,20 @@ import spray.json._
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 import scala.util.Success
 
-class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
+class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer: ClassTag](
   protected val collName: String,
   protected val config: CosmosDBConfig,
   clientRef: DocumentClientRef,
   documentHandler: DocumentHandler,
   protected val viewMapper: CosmosDBViewMapper,
-  val inliningConfig: InliningConfig,
-  val attachmentStore: Option[AttachmentStore],
-  val legacyAttachmentStore: Option[AttachmentStore])(implicit system: ActorSystem,
-                                                      val logging: Logging,
-                                                      jsonFormat: RootJsonFormat[DocumentAbstraction],
-                                                      val materializer: ActorMaterializer,
-                                                      docReader: DocumentReader)
+  val inliningConfig: InliningConfig)(implicit system: ActorSystem,
+                                      val logging: Logging,
+                                      jsonFormat: RootJsonFormat[DocumentAbstraction],
+                                      val materializer: ActorMaterializer,
+                                      docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
@@ -63,7 +64,10 @@ class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
     with AttachmentSupport[DocumentAbstraction] {
 
   private val cosmosScheme = "cosmos"
-  val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(cosmosScheme)
+  private val attachmentS3Store = S3AttachmentStoreProvider.makeStore()
+  private val attachmentAzureStore = AzureBlobAttachmentStoreProvider.makeStore()
+
+  val attachmentScheme: String = attachmentAzureStore.scheme
 
   protected val client: AsyncDocumentClient = clientRef.get.client
   private[cosmosdb] val (database, collection) = initialize()
@@ -85,7 +89,7 @@ class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
 
   logging.info(
     this,
-    s"Initializing CosmosDBArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
+    s"Initializing CosmosDBMigrationArtifactStore for collection [$collName]. Service endpoint [${client.getServiceEndpoint}], " +
       s"Read endpoint [${client.getReadEndpoint}], Write endpoint [${client.getWriteEndpoint}], Connection Policy [${client.getConnectionPolicy}], " +
       s"Time to live [${collection.getDefaultTimeToLive} secs, clusterId [${config.clusterId}], soft delete TTL [${config.softDeleteTTL}], " +
       s"Consistency Level [${config.consistencyLevel}], Usage Metric Frequency [${config.recordUsageFrequency}]")
@@ -421,13 +425,7 @@ class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
     contentType: ContentType,
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
-    attachmentStore match {
-      case Some(as) =>
-        attachToExternalStore(doc, update, contentType, docStream, oldAttachment, as)
-      case None =>
-        Future.failed(new IllegalArgumentException(
-          s" '$cosmosScheme' is now not supported. You must configure an external AttachmentStore for storing attachments"))
-    }
+    attachToExternalStore(doc, update, contentType, docStream, oldAttachment, attachmentAzureStore)
   }
 
   override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
@@ -442,24 +440,23 @@ class CosmosDBMigrationArtifactStore[DocumentAbstraction <: DocumentSerializer](
         //Compared to current approach of '<scheme>:<name>'
         Future.failed(new IllegalArgumentException(
           s" '$cosmosScheme' is now not supported. You must configure an external AttachmentStore for storing attachments"))
-      case s if attachmentStore.isDefined && attachmentStore.get.scheme == s =>
-        attachmentStore.get.readAttachment(doc.id, attachmentUri.path.toString, sink)
-      case s if legacyAttachmentStore.isDefined && legacyAttachmentStore.get.scheme == s =>
-        legacyAttachmentStore.get.readAttachment(doc.id, attachmentUri.path.toString, sink)
+      case s if attachmentS3Store.scheme == s =>
+        attachmentS3Store.readAttachment(doc.id, attachmentUri.path.toString, sink)
+      case s if attachmentAzureStore.scheme == s =>
+        attachmentAzureStore.readAttachment(doc.id, attachmentUri.path.toString, sink)
       case _ =>
         throw new IllegalArgumentException(s"Unknown attachment scheme in attachment uri $attachmentUri")
     }
   }
 
   override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
-    attachmentStore
-      .map(as => as.deleteAttachments(doc.id))
-      .getOrElse(Future.successful(true)) // For CosmosDB it is expected that the entire document is deleted.
+    attachmentAzureStore.deleteAttachments(doc.id)
 
   override def shutdown(): Unit = {
     //Its async so a chance exist for next scheduled job to still trigger
     usageMetricRecorder.foreach(system.stop)
-    attachmentStore.foreach(_.shutdown())
+    attachmentS3Store.shutdown()
+    attachmentAzureStore.shutdown()
     clientRef.close()
   }
 
