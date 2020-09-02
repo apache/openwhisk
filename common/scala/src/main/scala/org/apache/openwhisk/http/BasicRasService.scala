@@ -42,7 +42,7 @@ class BasicRasService(implicit val logging: Logging) extends BasicHttpService {
   }
   val ready = path("ready") {
     get {
-      if (BasicHttpService.ready) {
+      if (readyState) {
         complete("ok")
       } else {
         logging.warn(this, "not ready...")

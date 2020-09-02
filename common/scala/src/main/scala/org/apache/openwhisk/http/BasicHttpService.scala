@@ -47,6 +47,10 @@ case class BasicHttpServiceConfig(shutdownUnreadyDelay: FiniteDuration, shutdown
  */
 trait BasicHttpService extends Directives {
   implicit val logging: Logging
+
+  //start with ready true
+  protected var readyState = true
+
   val OW_EXTRA_LOGGING_HEADER = "X-OW-EXTRA-LOGGING"
 
   /**
@@ -164,23 +168,24 @@ trait BasicHttpService extends Directives {
 
 object BasicHttpService {
   implicit val tid = TransactionId(systemPrefix + "http_service")
-  //start with ready true
-  protected[http] var ready = true
 
   /**
    * Starts an HTTP(S) route handler on given port and registers a shutdown hook.
    */
-  def startHttpService(route: Route, port: Int, httpsConfig: Option[HttpsConfig] = None, interface: String = "0.0.0.0")(
-    implicit actorSystem: ActorSystem,
-    materializer: ActorMaterializer,
-    logging: Logging): Unit = {
+  def startHttpService(service: BasicHttpService,
+                       port: Int,
+                       httpsConfig: Option[HttpsConfig] = None,
+                       interface: String = "0.0.0.0")(implicit actorSystem: ActorSystem,
+                                                      materializer: ActorMaterializer,
+                                                      logging: Logging): Unit = {
     val connectionContext = httpsConfig.map(Https.connectionContext(_)).getOrElse(HttpConnectionContext)
-    val httpBinding = Http().bindAndHandle(route, interface, port, connectionContext = connectionContext)
+    val httpBinding = Http().bindAndHandle(service.route, interface, port, connectionContext = connectionContext)
     logging.info(this, "starting http service...")
-    addShutdownHook(httpBinding)
+    addShutdownHook(service, httpBinding)
   }
 
-  def addShutdownHook(binding: Future[Http.ServerBinding],
+  def addShutdownHook(service: BasicHttpService,
+                      binding: Future[Http.ServerBinding],
                       httpServiceConfig: BasicHttpServiceConfig =
                         loadConfigOrThrow[BasicHttpServiceConfig]("whisk.http"))(implicit actorSystem: ActorSystem,
                                                                                  materializer: ActorMaterializer,
@@ -190,7 +195,7 @@ object BasicHttpService {
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "http_unready") { () =>
       logging.info(this, "shutdown unready...")
       //return 503 status at /ready endpoint for some time before actual termination begins
-      ready = false
+      service.readyState = false
       after(httpServiceConfig.shutdownUnreadyDelay, actorSystem.scheduler) {
         logging.info(this, "shutdown unready complete...")
         Future.successful(Done)
