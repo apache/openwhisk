@@ -1443,7 +1443,7 @@
           },
           {
             "name": "force",
-            "in": "path",
+            "in": "query",
             "description": "Force delete a package if it contains entities removing everything in it. Default is false.",
             "required": false,
             "type": "string",
