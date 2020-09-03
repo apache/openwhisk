@@ -78,6 +78,7 @@ def parseArgs():
 
     subparser = subparsers.add_parser('monitor', help='report passing or failing tests (only failing tests by default)')
     subparser.add_argument('-a', '--all', help='show all tests suites, passing and failing', action='store_true')
+    subparser.add_argument('-r', '--relax', help='relax regex match to include failed ansible tasks', action='store_true')
     subparser.add_argument('-p', '--poll', help='repeat monitor every 10 seconds', action='store_true')
 
     subparser = subparsers.add_parser('cat', help='concatenate logs from build (limited to Jenkins)')
@@ -241,7 +242,11 @@ def grepForFailingTests(args, body):
         print('No tests detected.')
     # no tests: either build failure or task not yet reached, skip further check
     else:
-        cmd = 'grep -E "^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
+        if args.relax:
+            # this will match failed ansible tasks as well
+            cmd = 'grep -E "^> Task *.* FAILED|^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
+        else:
+            cmd = 'grep -E "^> Task *.* FAILED|^[\w.]+\s*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
         (time, output, error) = shell(cmd, body, args.verbose)
         if output == '':
             print('All tests passing.')
