@@ -71,23 +71,30 @@ object KubernetesContainer {
 
     for {
       container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
-        case _: KubernetesPodApiException =>
+        case e: KubernetesPodApiException =>
           //apiserver call failed - this will expose a different error to users
-          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
-        case _ =>
-          kubernetes
-            .rm(podName)
-            .andThen {
-              case Failure(e) =>
-                log.error(this, s"Failed delete pod for '$name': ${e.getClass} - ${e.getMessage}")
-            }
-            .transformWith { _ =>
-              Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
-            }
+          cleanupFailedPod(e, podName, WhiskContainerStartupError(Messages.resourceProvisionError))
+        case e: Throwable =>
+          cleanupFailedPod(e, podName, WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
     } yield container
   }
-
+  private def cleanupFailedPod(e: Throwable, podName: String, failureCause: Exception)(
+    implicit kubernetes: KubernetesApi,
+    ec: ExecutionContext,
+    tid: TransactionId,
+    log: Logging) = {
+    log.info(this, s"Deleting failed pod '$podName' after: ${e.getClass} - ${e.getMessage}")
+    kubernetes
+      .rm(podName)
+      .andThen {
+        case Failure(e) =>
+          log.error(this, s"Failed delete pod for '$podName': ${e.getClass} - ${e.getMessage}")
+      }
+      .transformWith { _ =>
+        Future.failed(failureCause)
+      }
+  }
 }
 
 /**

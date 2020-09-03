@@ -50,6 +50,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse.Timeout
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.containerpool.docker.test.DockerContainerTests._
+import org.scalatest.concurrent.ScalaFutures
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable
@@ -65,7 +66,8 @@ class KubernetesContainerTests
     with StreamLogging
     with BeforeAndAfterEach
     with WskActorSystem
-    with TimingHelpers {
+    with TimingHelpers
+    with ScalaFutures {
 
   import KubernetesClientTests.TestKubernetesClient
   import KubernetesContainerTests._
@@ -483,6 +485,45 @@ class KubernetesContainerTests
     processedLogsFalse(0) shouldBe expectedLogEntry.rawString
   }
 
+  it should "delete a pod that failed to start due to KubernetesPodApiException" in {
+    implicit val kubernetes = new TestKubernetesClient {
+      override def run(
+        name: String,
+        image: String,
+        memory: ByteSize = 256.MB,
+        env: Map[String, String] = Map.empty,
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        Future.failed(KubernetesPodApiException(new Exception("faking fabric8 failure...")))
+      }
+    }
+
+    val container =
+      KubernetesContainer.create(transid = transid, name = "name", image = "image", userProvidedImage = true)
+    container.failed.futureValue shouldBe WhiskContainerStartupError(Messages.resourceProvisionError)
+
+    kubernetes.runs should have size 0
+    kubernetes.rms should have size 1
+  }
+
+  it should "delete a pod that failed to start due to some other Exception" in {
+    implicit val kubernetes = new TestKubernetesClient {
+      override def run(
+        name: String,
+        image: String,
+        memory: ByteSize = 256.MB,
+        env: Map[String, String] = Map.empty,
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        Future.failed(new Exception("faking fabric8 failure..."))
+      }
+    }
+
+    val container =
+      KubernetesContainer.create(transid = transid, name = "name", image = "image", userProvidedImage = true)
+    container.failed.futureValue shouldBe a[WhiskContainerStartupError]
+
+    kubernetes.runs should have size 0
+    kubernetes.rms should have size 1
+  }
   def currentTsp: Instant = Instant.now
 
 }

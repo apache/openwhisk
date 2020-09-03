@@ -40,6 +40,7 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.openwhisk.common.LoggingMarkers
 import org.apache.openwhisk.common.{ConfigMapValue, Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
@@ -84,7 +85,7 @@ case class KubernetesPodReadyTimeoutException(timeout: FiniteDuration)
 /**
  * Exception to indicate a pod could not be created at the apiserver.
  */
-case class KubernetesPodApiException(e: Throwable) extends Exception(s"Pod was not created at apiserver: ${e}")
+case class KubernetesPodApiException(e: Throwable) extends Exception(s"Pod was not created at apiserver: ${e}", e)
 
 /**
  * Configuration for node affinity for the pods that execute user action containers
@@ -164,7 +165,12 @@ class KubernetesClient(
     } match {
       case Failure(e) =>
         //call to api-server failed
-        transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
+        val stackTrace = ExceptionUtils.getStackTrace(e)
+        transid.failed(
+          this,
+          start,
+          s"Failed create pod for '$name': ${e.getClass} (Caused by: ${e.getCause}) - ${e.getMessage}; stacktrace: $stackTrace",
+          ErrorLevel)
         Future.failed(KubernetesPodApiException(e))
       case Success(createdPod) => {
         //call to api-server succeeded; wait for the pod to become ready; catch any failure to end the transaction timer
