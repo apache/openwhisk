@@ -26,6 +26,7 @@ import scala.util.Failure
 import org.apache.kafka.clients.consumer.CommitFailedException
 import akka.actor.FSM
 import akka.pattern.pipe
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 
@@ -216,7 +217,8 @@ class MessageFeed(description: String,
       handler(bytes).andThen {
         {
           case Failure(e) =>
-            logging.error(this, s"Failed to process message for topic $topic : $e  (stack trace included)")
+            val stacktrace = ExceptionUtils.getStackTrace(e)
+            logging.error(this, s"Failed to process message for topic $topic : $e : stacktrace: $stacktrace")
             e.printStackTrace()
         }
       }
