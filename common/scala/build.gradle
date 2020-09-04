@@ -91,7 +91,7 @@ dependencies {
 
     compile "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
     //for mongo
-    compile "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.6.0"
+    compile "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
 
     compile ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
