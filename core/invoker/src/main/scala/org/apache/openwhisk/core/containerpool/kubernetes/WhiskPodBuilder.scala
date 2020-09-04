@@ -40,7 +40,7 @@ import scala.collection.JavaConverters._
 
 class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClientConfig) {
   private val template = config.podTemplate.map(_.value.getBytes(UTF_8))
-  private val actionContainerName = "user-action"
+  private val actionContainerName = KubernetesRestLogSourceStage.actionContainerName
   private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
 
   def affinityEnabled: Boolean = config.userPodNodeAffinity.enabled
@@ -119,7 +119,7 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
       .withLimits((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu ++ diskLimit).asJava)
       .withRequests((Map("memory" -> new Quantity(memory.toMB + "Mi")) ++ cpu ++ diskLimit).asJava)
       .endResources()
-      .withName("user-action")
+      .withName(actionContainerName)
       .withImage(image)
       .withEnv(envVars.asJava)
       .addNewPort()
