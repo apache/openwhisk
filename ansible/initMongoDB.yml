@@ -1,0 +1,25 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This playbook will initialize the immortal DBs in the database account.
+# This step is usually done only once per deployment.
+
+- hosts: ansible
+  tasks:
+  - name: create necessary auth keys
+    mongodb:
+      connect_string: "{{ db.mongodb.connect_string }}"
+      database: "{{ db.mongodb.database }}"
+      collection: "whiskauth"
+      doc:
+        _id: "{{ item }}"
+        subject: "{{ item }}"
+        namespaces:
+          - name: "{{ item }}"
+            uuid: "{{ key.split(':')[0] }}"
+            key: "{{ key.split(':')[1] }}"
+      mode: "doc"
+      force_update: True
+    vars:
+      key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
+    with_items: "{{ db.authkeys }}"

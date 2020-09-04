@@ -1,0 +1,22 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This playbook deploys a MongoDB for Openwhisk.
+
+- hosts: localhost
+  tasks:
+  - name: check if db_local.ini exists?
+    tags: ini
+    stat: path="{{ playbook_dir }}/db_local.ini"
+    register: db_check
+
+  - name: prepare db_local.ini
+    tags: ini
+    local_action: template src="db_local.ini.j2" dest="{{ playbook_dir }}/db_local.ini"
+    when: not db_check.stat.exists
+
+# This is for test, only deploy it on the first node, please use a shard cluster mongodb for
+# production env
+- hosts: db[0]
+  roles:
+    - mongodb

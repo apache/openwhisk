@@ -63,6 +63,11 @@ whisk {
         throughput = 400
     }
 
+    mongodb {
+        uri         = ${?MONGODB_CONNECT_STRING}
+        database    = ${?MONGODB_DATABASE}
+    }
+
     controller {
       protocol = {{ controller.protocol }}
       https {

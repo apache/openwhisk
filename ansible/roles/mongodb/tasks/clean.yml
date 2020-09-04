@@ -1,0 +1,15 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# Remove MongoDB server
+
+- name: remove MongoDB
+  docker_container:
+    name: mongodb
+    state: absent
+    keep_volumes: False
+
+- name: remove MongoDB data volume
+  docker_volume:
+    name: "{{ db.mongodb.data_volume }}"
+    state: absent

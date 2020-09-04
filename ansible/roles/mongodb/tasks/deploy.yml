@@ -1,0 +1,24 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This role will run a MongoDB server on the db group, this is only for test, please use
+# shared cluster for production env
+
+- name: (re)start mongodb
+  vars:
+    mongodb_image: "{{ mongodb.docker_image | default('mongo:' ~ mongodb.version ) }}"
+  docker_container:
+    name: mongodb
+    image: "{{ mongodb_image }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "mongodb"
+    user: "mongodb"
+    volumes:
+      - "{{ db.mongodb.data_volume }}:/data/db"
+    ports:
+      - "27017:27017"
+
+- name: wait until the MongoDB in this host is up and running
+  local_action: wait_for host={{ ansible_host }} port=27017 state=started delay=5 timeout=60

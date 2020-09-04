@@ -292,6 +292,11 @@
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
 
+- name: merge mongodb env variables
+  set_fact:
+    env: "{{ env | combine(mongodb.commonEnv) }}"
+  when: db.backend == "MongoDB"
+
 - name: populate volumes for controller
   set_fact:
     controller_volumes:

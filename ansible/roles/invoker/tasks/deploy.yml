@@ -307,6 +307,11 @@
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
 
+- name: merge mongodb env variables
+  set_fact:
+    env: "{{ env | combine(mongodb.commonEnv) }}"
+  when: db.backend == "MongoDB"
+
 - name: include plugins
   include_tasks: "{{ inv_item }}.yml"
   with_items: "{{ invoker_plugins | default([]) }}"
