@@ -297,7 +297,7 @@ db:
         username: "{{ elastic_username | default('admin') }}"
         password: "{{ elastic_password | default('admin') }}"
   mongodb:
-    connect_string: "{{ mongodb_connect_string }}"
+    connect_string: "{{ mongodb_connect_string | default('mongodb://172.17.0.1:27017') }}"
     database: "{{ mongodb_database | default('whisks') }}"
     data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
 
