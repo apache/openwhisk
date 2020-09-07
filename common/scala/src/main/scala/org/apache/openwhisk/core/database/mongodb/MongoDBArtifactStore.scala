@@ -595,9 +595,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
               case Right(ct) => ct
               case Left(_)   => ContentTypes.NoContentType //Should not happen
             }
-            attachmentHandler(
-              doc,
-              Attached(getAttachmentName(name), contentType, Some(length.longValue()), Some(digest)))
+            attachmentHandler(doc, Attached(getAttachmentName(name), contentType, Some(length.longValue), Some(digest)))
           case x =>
             throw DeserializationException("Attachment json does not have required fields" + x)
         }
