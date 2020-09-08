@@ -219,7 +219,6 @@ class MessageFeed(description: String,
           case Failure(e) =>
             val stacktrace = ExceptionUtils.getStackTrace(e)
             logging.error(this, s"Failed to process message for topic $topic : $e : stacktrace: $stacktrace")
-            e.printStackTrace()
         }
       }
       handlerCapacity -= 1

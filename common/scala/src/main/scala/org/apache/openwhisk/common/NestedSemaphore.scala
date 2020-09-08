@@ -101,18 +101,16 @@ class NestedSemaphore[T](memoryPermits: Int) extends ForcibleSemaphore(memoryPer
       super.release(memoryPermits)
     } else {
       //This map may be recreated (multiple times) due to cluster membership events, so don't assume the entry exists...
+      //(this case can occur if one or more cluster members is restarted, resetting the state of the outstanding activations)
       actionConcurrentSlotsMap.get(actionid).foreach { concurrentSlots =>
-        case Some(concurrentSlots) =>
-          val (memoryRelease, actionRelease) = concurrentSlots.release(1, true)
-          //concurrent slots
-          if (memoryRelease) {
-            super.release(memoryPermits)
-          }
-          if (actionRelease) {
-            actionConcurrentSlotsMap.remove(actionid)
-          }
-        case None =>
-        //this case can occur if one or more cluster members is restarted, resetting the state of the outstanding activations
+        val (memoryRelease, actionRelease) = concurrentSlots.release(1, true)
+        //concurrent slots
+        if (memoryRelease) {
+          super.release(memoryPermits)
+        }
+        if (actionRelease) {
+          actionConcurrentSlotsMap.remove(actionid)
+        }
       }
     }
   }
