@@ -117,7 +117,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
   }
 
   /**
-   * Deletes package/binding. If a package, may only be deleted if there are no entities in the package.
+   * Deletes package/binding. If a package, may only be deleted if there are no entities in the package
+   * or force parameter is set to true, which will delete all contents of the package before deleting.
    *
    * Responses are one of (Code, Message)
    * - 200 WhiskPackage as JSON
@@ -126,29 +127,51 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    deleteEntity(
-      WhiskPackage,
-      entityStore,
-      entityName.toDocId,
-      (wp: WhiskPackage) => {
-        wp.binding map {
-          // this is a binding, it is safe to remove
-          _ =>
-            Future.successful({})
-        } getOrElse {
-          // may only delete a package if all its ingredients are deleted already
-          WhiskAction
-            .listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), skip = 0, limit = 0) flatMap {
-            case Left(list) if (list.size != 0) =>
-              Future failed {
-                RejectRequest(
-                  Conflict,
-                  s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"})")
-              }
-            case _ => Future.successful({})
+    parameter('force ? false) { force =>
+      deleteEntity(
+        WhiskPackage,
+        entityStore,
+        entityName.toDocId,
+        (wp: WhiskPackage) => {
+          wp.binding map {
+            // this is a binding, it is safe to remove
+            _ =>
+              Future.successful({})
+          } getOrElse {
+            // may only delete a package if all its ingredients are deleted already or force flag is set
+            WhiskAction
+              .listCollectionInNamespace(
+                entityStore,
+                wp.namespace.addPath(wp.name),
+                includeDocs = true,
+                skip = 0,
+                limit = 0) flatMap {
+              case Right(list) if list.nonEmpty && force =>
+                Future sequence {
+                  list.map(action => {
+                    WhiskAction.get(
+                      entityStore,
+                      wp.fullyQualifiedName(false)
+                        .add(action.fullyQualifiedName(false).name)
+                        .toDocId) flatMap { actionWithRevision =>
+                      WhiskAction.del(entityStore, actionWithRevision.docinfo)
+                    }
+                  })
+                } flatMap { _ =>
+                  Future.successful({})
+                }
+              case Right(list) if list.nonEmpty && !force =>
+                Future failed {
+                  RejectRequest(
+                    Conflict,
+                    s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"}). Set force param or delete package contents.")
+                }
+              case _ =>
+                Future.successful({})
+            }
           }
-        }
-      })
+        })
+    }
   }
 
   /**

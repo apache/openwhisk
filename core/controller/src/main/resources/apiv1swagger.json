@@ -1440,6 +1440,17 @@
             "description": "Name of package",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "description": "Force delete a package if it contains entities removing everything in it. Default is false.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
           }
         ],
         "responses": {
