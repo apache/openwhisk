@@ -335,6 +335,8 @@ class ContainerProxy(factory: (TransactionId,
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
             val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, false, response)
+            println("ack4")
+
             sendActiveAck(
               transid,
               activation,
@@ -497,7 +499,7 @@ class ContainerProxy(factory: (TransactionId,
       activeCount -= 1
       context.parent ! ContainerRemoved(true)
       abortBuffered()
-      stop()
+      stay()
 
     case _ => delay
   }
@@ -694,6 +696,7 @@ class ContainerProxy(factory: (TransactionId,
   }
 
   def abortBuffered(abortResponse: Option[ActivationResponse] = None) = {
+    println("aborting...")
     logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init or failed cold start")
     runBuffer.foreach { job =>
       implicit val tid = job.msg.transid
@@ -712,6 +715,7 @@ class ContainerProxy(factory: (TransactionId,
       } else {
         CompletionMessage(tid, result, instance)
       }
+      println("acking...")
       sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
         .andThen {
           case Failure(e) => logging.error(this, s"failed to send abort ack $e")
@@ -869,6 +873,7 @@ class ContainerProxy(factory: (TransactionId,
         val msg =
           if (splitAckMessagesPendingLogCollection) ResultMessage(tid, result)
           else CombinedCompletionAndResultMessage(tid, result, instance)
+        println("ack2")
         sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
       }
     } else {
@@ -877,6 +882,7 @@ class ContainerProxy(factory: (TransactionId,
       else
         activation.map { result =>
           val msg = CompletionMessage(tid, result, instance)
+          println("ack1")
           sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
         }
     }
@@ -912,6 +918,7 @@ class ContainerProxy(factory: (TransactionId,
         // Sending the completion message to the controller after the active ack ensures proper ordering
         // (result is received before the completion message for blocking invokes).
         if (splitAckMessagesPendingLogCollection) {
+          println("ack3")
           sendResult.onComplete(
             _ =>
               sendActiveAck(
