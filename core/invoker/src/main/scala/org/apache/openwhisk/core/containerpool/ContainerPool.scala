@@ -100,7 +100,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   context.system.scheduler.schedule(2.seconds, interval, self, AdjustPrewarmedContainer)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
-    val namespaceName = r.msg.user.namespace.name.toString
+    val namespaceName = r.msg.user.namespace.name.asString
     val actionName = r.action.name.name
     val actionNamespace = r.action.namespace.namespace
     val maxConcurrent = r.action.limits.concurrency.maxConcurrent
