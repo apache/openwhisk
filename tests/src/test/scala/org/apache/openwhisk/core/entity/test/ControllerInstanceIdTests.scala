@@ -46,6 +46,11 @@ class ControllerInstanceIdTests extends FlatSpec with Matchers {
     }
   }
 
+  it should "deserialize legacy ControllerInstanceId format" in {
+    val i = ControllerInstanceId("controller0")
+    ControllerInstanceId.parse(JsObject("asString" -> JsString("controller0")).compactPrint) shouldBe Success(i)
+  }
+
   it should "serialize and deserialize ControllerInstanceId" in {
     val i = ControllerInstanceId("controller0")
     i.serialize shouldBe JsObject("asString" -> JsString(i.asString), "instanceType" -> JsString(i.instanceType)).compactPrint
