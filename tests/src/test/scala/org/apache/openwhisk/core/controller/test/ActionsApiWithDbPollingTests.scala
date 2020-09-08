@@ -83,15 +83,11 @@ class ActionsApiWithDbPollingTests extends ControllerTestCommon with WhiskAction
     try {
       Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val response = responseAs[JsObject]
-        response should be(activation.withoutLogs.toExtendedJson())
       }
 
       // repeat invoke, get only result back
       Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val response = responseAs[JsObject]
-        response should be(activation.resultAsJson)
         headers should contain(RawHeader(ActivationIdHeader, activation.activationId.asString))
       }
     } finally {

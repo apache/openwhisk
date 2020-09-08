@@ -29,6 +29,7 @@ import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.model.StatusCodes.NoContent
 import akka.http.scaladsl.server.{Directives, RequestContext, RouteResult}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsValue, RootJsonFormat}
@@ -341,7 +342,7 @@ trait WriteOps extends Directives {
     }) {
       case Success(entity) =>
         logging.debug(this, s"[PUT] entity success")
-        postProcess map { _(entity) } getOrElse complete(OK, entity)
+        postProcess map { _(entity) } getOrElse complete(OK)
       case Failure(IdentityPut(a)) =>
         logging.debug(this, s"[PUT] entity exists, not overwritten")
         complete(OK, a)
@@ -399,7 +400,7 @@ trait WriteOps extends Directives {
     }) {
       case Success(entity) =>
         logging.debug(this, s"[DEL] entity success")
-        postProcess map { _(entity) } getOrElse complete(OK, entity)
+        postProcess map { _(entity) } getOrElse complete(NoContent)
       case Failure(t: NoDocumentException) =>
         logging.debug(this, s"[DEL] entity does not exist")
         terminate(NotFound)

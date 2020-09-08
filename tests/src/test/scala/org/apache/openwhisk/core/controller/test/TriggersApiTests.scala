@@ -218,9 +218,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     put(entityStore, trigger)
     Delete(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskTrigger]
-      response should be(trigger)
+      status should be(NoContent)
     }
   }
 

@@ -436,8 +436,6 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Put(s"$collectionPath/${provider.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(provider.docid)
       status should be(OK)
-      val response = responseAs[WhiskPackage]
-      checkWhiskEntityResponse(response, provider)
     }
   }
 
@@ -479,7 +477,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         responseAs[WhiskPackage] shouldBe provider
       }
       Delete(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
+        status should be(NoContent)
       }
     }
   }
@@ -506,8 +504,6 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Put(s"/$namespace/${collection.path}/${reference.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(reference.docid)
       status should be(OK)
-      val response = responseAs[WhiskPackage]
-      checkWhiskEntityResponse(response, reference)
     }
   }
 
@@ -536,14 +532,6 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Put(s"$collectionPath/${reference.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(reference.docid)
       status should be(OK)
-      val response = responseAs[WhiskPackage]
-      checkWhiskEntityResponse(
-        response,
-        WhiskPackage(
-          reference.namespace,
-          reference.name,
-          provider.bind,
-          annotations = bindingAnnotation(provider.bind.get)))
     }
   }
 
@@ -646,10 +634,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deletePackage(provider.docid)
-      val response = responseAs[WhiskPackage]
-      checkWhiskEntityResponse(
-        response,
-        WhiskPackage(namespace, provider.name, None, version = provider.version.upPatch, publish = true))
+      status should be(OK)
     }
   }
 
@@ -772,9 +757,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
 
     Delete(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskPackage]
-      response should be(provider)
+      status should be(NoContent)
     }
   }
 
@@ -791,9 +774,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
 
     Delete(s"$collectionPath/${reference.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskPackage]
-      response should be(reference)
+      status should be(NoContent)
     }
   }
 
