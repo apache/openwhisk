@@ -1273,6 +1273,57 @@ class ContainerProxyTests
     }
   }
 
+  it should "terminate buffered concurrent activations when cold init fails to launch container" in {
+    assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
+
+    val initPromise = Promise[Interval]()
+    val container = new TestContainer(Some(initPromise))
+    val factory = createFactory(Future.failed(new Exception("simulating a container creation failure")))
+    val acker = createSyncAcker(concurrentAction)
+    val store = createSyncStore
+    val collector =
+      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+
+    val machine =
+      childActorOf(
+        ContainerProxy
+          .props(
+            factory,
+            acker,
+            store,
+            collector,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            poolConfig,
+            healthchecksConfig(),
+            pauseGrace = pauseGrace)
+          .withDispatcher(CallingThreadDispatcher.Id))
+    registerCallback(machine)
+    //no prewarming
+
+    machine ! Run(concurrentAction, message) //first in Uninitialized state
+    machine ! Run(concurrentAction, message) //second in Uninitialized or Running state
+
+    expectMsg(Transition(machine, Uninitialized, Running))
+
+    expectMsg(ContainerRemoved(true))
+    //go to Removing state when a failure happens while others are in flight
+    expectNoMessage(100.milliseconds)
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 0
+      container.runCount shouldBe 0
+      container.atomicLogsCount.get() shouldBe 0
+      container.suspendCount shouldBe 0
+      container.resumeCount shouldBe 0
+      acker.calls should have size 2
+
+      store.calls should have size 2
+
+      //we should have 2 activations that are whisk error
+      acker.calls.filter(_._2.response.isWhiskError) should have size 2
+    }
+  }
+
   it should "complete the transaction and reuse the container on a failed run IFF failure was applicationError" in within(
     timeout) {
     val container = new TestContainer {

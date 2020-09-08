@@ -458,7 +458,13 @@ class ContainerProxy(factory: (TransactionId,
       destroyContainer(newData, true)
 
     // Failed after /init (the first run failed) on prewarmed or cold start
+    // - container will be destroyed
+    // - buffered will be aborted (if init fails, we assume it will always fail)
     case Event(f: FailureMessage, data: PreWarmedData) =>
+      logging.error(
+        this,
+        s"Failed during init of cold container ${data.getContainer}, queued activations will be aborted.")
+
       activeCount -= 1
       //reuse an existing init failure for any buffered activations that will be aborted
       val r = f.cause match {
@@ -468,7 +474,12 @@ class ContainerProxy(factory: (TransactionId,
       destroyContainer(data, true, true, r)
 
     // Failed for a subsequent /run
+    // - container will be destroyed
+    // - buffered will be resent (at least 1 has completed, so others are given a chance to complete)
     case Event(_: FailureMessage, data: WarmedData) =>
+      logging.error(
+        this,
+        s"Failed during use of warm container ${data.getContainer}, queued activations will be resent.")
       activeCount -= 1
       if (activeCount == 0) {
         destroyContainer(data, true)
@@ -479,10 +490,13 @@ class ContainerProxy(factory: (TransactionId,
       }
 
     // Failed at getting a container for a cold-start run
+    // - container will be destroyed
+    // - buffered will be aborted (if cold start container fails to start, we assume it will continue to fail)
     case Event(_: FailureMessage, _) =>
+      logging.error(this, "Failed to start cold container, queued activations will be aborted.")
       activeCount -= 1
       context.parent ! ContainerRemoved(true)
-      rejectBuffered()
+      abortBuffered()
       stop()
 
     case _ => delay
@@ -649,7 +663,7 @@ class ContainerProxy(factory: (TransactionId,
    */
   def destroyContainer(newData: ContainerStarted,
                        replacePrewarm: Boolean,
-                       abortBuffered: Boolean = false,
+                       abort: Boolean = false,
                        abortResponse: Option[ActivationResponse] = None) = {
     val container = newData.container
     if (!rescheduleJob) {
@@ -657,26 +671,8 @@ class ContainerProxy(factory: (TransactionId,
     } else {
       context.parent ! RescheduleJob
     }
-    if (abortBuffered && runBuffer.length > 0) {
-      logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init")
-      runBuffer.foreach { job =>
-        implicit val tid = job.msg.transid
-        logging.info(this, s"aborting activation ${job.msg.activationId} after failed init with ${abortResponse}")
-        val result = ContainerProxy.constructWhiskActivation(
-          job,
-          None,
-          Interval.zero,
-          false,
-          abortResponse.getOrElse(ActivationResponse.whiskError(Messages.abnormalRun)))
-        val context = UserContext(job.msg.user)
-        val msg = if (job.msg.blocking) {
-          CombinedCompletionAndResultMessage(tid, result, instance)
-        } else {
-          CompletionMessage(tid, result, instance)
-        }
-        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
-        storeActivation(tid, result, job.msg.blocking, context)
-      }
+    if (abort && runBuffer.nonEmpty) {
+      abortBuffered(abortResponse)
     } else {
       rejectBuffered()
     }
@@ -694,6 +690,35 @@ class ContainerProxy(factory: (TransactionId,
       goto(Removing) using newData
     } else {
       stay using newData
+    }
+  }
+
+  def abortBuffered(abortResponse: Option[ActivationResponse] = None) = {
+    logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init or failed cold start")
+    runBuffer.foreach { job =>
+      implicit val tid = job.msg.transid
+      logging.info(
+        this,
+        s"aborting activation ${job.msg.activationId} after failed init or cold start with ${abortResponse}")
+      val result = ContainerProxy.constructWhiskActivation(
+        job,
+        None,
+        Interval.zero,
+        false,
+        abortResponse.getOrElse(ActivationResponse.whiskError(Messages.abnormalRun)))
+      val context = UserContext(job.msg.user)
+      val msg = if (job.msg.blocking) {
+        CombinedCompletionAndResultMessage(tid, result, instance)
+      } else {
+        CompletionMessage(tid, result, instance)
+      }
+      sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+        .andThen {
+          case Failure(e) => logging.error(this, s"failed to send abort ack $e")
+        }
+      storeActivation(tid, result, job.msg.blocking, context).andThen {
+        case Failure(e) => logging.error(this, s"failed to store aborted activation $e")
+      }
     }
   }
 
