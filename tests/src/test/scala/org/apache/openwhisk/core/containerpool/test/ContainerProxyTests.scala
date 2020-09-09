@@ -1307,7 +1307,7 @@ class ContainerProxyTests
 
     expectMsg(ContainerRemoved(true))
     //go to Removing state when a failure happens while others are in flight
-    expectNoMessage(100.milliseconds)
+    expectMsg(Transition(machine, Running, Removing))
     awaitAssert {
       factory.calls should have size 1
       container.initializeCount shouldBe 0
@@ -1437,7 +1437,7 @@ class ContainerProxyTests
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
     expectMsg(ContainerRemoved(true))
-
+    expectMsg(Transition(machine, Running, Removing))
     awaitAssert {
       factory.calls should have size 1
       container.initializeCount shouldBe 0

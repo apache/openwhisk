@@ -335,6 +335,7 @@ class ContainerProxy(factory: (TransactionId,
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
             val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, false, response)
+
             sendActiveAck(
               transid,
               activation,
@@ -497,7 +498,8 @@ class ContainerProxy(factory: (TransactionId,
       activeCount -= 1
       context.parent ! ContainerRemoved(true)
       abortBuffered()
-      stop()
+      rescheduleJob = true
+      goto(Removing)
 
     case _ => delay
   }
