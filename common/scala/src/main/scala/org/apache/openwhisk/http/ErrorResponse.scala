@@ -72,7 +72,7 @@ object Messages {
 
   /** Standard message for too many concurrent activation requests within a time window. */
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
-    s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
+    s"Too many concurrent requests in flight (currently running: $count, allowed per controller: $allowed)."
 
   /** System overload message. */
   val systemOverloaded = "System is overloaded, try again later."
