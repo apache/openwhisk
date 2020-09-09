@@ -696,9 +696,9 @@ class ContainerProxy(factory: (TransactionId,
     }
   }
 
-  def abortBuffered(abortResponse: Option[ActivationResponse] = None) = {
+  def abortBuffered(abortResponse: Option[ActivationResponse] = None): Future[Any] = {
     logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init or failed cold start")
-    Future.sequence(runBuffer.map { job =>
+    val f = runBuffer.flatMap { job =>
       implicit val tid = job.msg.transid
       logging.info(
         this,
@@ -717,17 +717,17 @@ class ContainerProxy(factory: (TransactionId,
       }
       val ack =
         sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
-          .recover {
-            case e: Throwable => logging.error(this, s"failed to send abort ack $e")
+          .andThen {
+            case Failure(e) => logging.error(this, s"failed to send abort ack $e")
           }
-
-      val store = storeActivation(tid, result, job.msg.blocking, context).recover {
-        case e: Throwable => logging.error(this, s"failed to store aborted activation $e")
-      }
-
-      //create a future of both the ack and store
-      Future.sequence(Seq(ack, store))
-    })
+      val store = storeActivation(tid, result, job.msg.blocking, context)
+        .andThen {
+          case Failure(e) => logging.error(this, s"failed to store aborted activation $e")
+        }
+      //return both futures
+      Seq(ack, store)
+    }
+    Future.sequence(f)
   }
 
   /**
