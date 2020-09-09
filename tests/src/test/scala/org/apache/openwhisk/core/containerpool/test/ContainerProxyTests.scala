@@ -1369,6 +1369,9 @@ class ContainerProxyTests
     //second one will succeed
     run(machine, Ready)
 
+    timeout(machine) // times out Ready state so container suspends
+    expectMsg(Transition(machine, Ready, Pausing))
+    expectMsg(Transition(machine, Pausing, Paused))
     //With exception of the error on first run, the assertions should be the same as in
     //         `run an action and continue with a next run without pausing the container`
     awaitAssert {
@@ -1376,7 +1379,7 @@ class ContainerProxyTests
       container.initializeCount shouldBe 1
       container.runCount shouldBe 2
       collector.calls should have size 2
-      container.suspendCount shouldBe 0
+      container.suspendCount shouldBe 1
       container.destroyCount shouldBe 0
       acker.calls should have size 2
 
