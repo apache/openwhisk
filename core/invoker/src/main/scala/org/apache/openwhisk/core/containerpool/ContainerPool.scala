@@ -128,15 +128,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         val kind = r.action.exec.kind
         val memory = r.action.limits.memory.megabytes.MB
 
-        val prewarmedPoolForOtherKind = prewarmedPool.filter { info =>
-          info match {
-            case (_, PreWarmedData(_, `kind`, `memory`, _, _)) => false
-            case _                                             => true
-          }
-        }
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
-          if (hasPoolSpaceFor(busyPool ++ prewarmedPoolForOtherKind, memory)) {
+          if (hasPoolSpaceFor(busyPool ++ prewarmedPool, memory)) {
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
@@ -145,7 +139,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
-                if (hasPoolSpaceFor(busyPool ++ freePool ++ prewarmedPoolForOtherKind, memory)) {
+                if (hasPoolSpaceFor(busyPool ++ freePool ++ prewarmedPool, memory)) {
                   takePrewarmContainer(r.action)
                     .map(container => (container, "prewarmed"))
                     .orElse {
