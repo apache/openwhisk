@@ -1281,7 +1281,7 @@ class ContainerProxyTests
     val acker = createSyncAcker(concurrentAction)
     val store = createSyncStore
     val collector =
-      createCollector(Future.successful(ActivationLogs()), () => Unit)
+      createCollector(Future.successful(ActivationLogs()), () => ())
 
     val machine =
       childActorOf(
