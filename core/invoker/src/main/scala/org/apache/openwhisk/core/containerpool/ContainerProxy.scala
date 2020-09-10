@@ -335,7 +335,6 @@ class ContainerProxy(factory: (TransactionId,
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
             val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, false, response)
-
             sendActiveAck(
               transid,
               activation,
@@ -673,10 +672,11 @@ class ContainerProxy(factory: (TransactionId,
     } else {
       context.parent ! RescheduleJob
     }
-    if (abort && runBuffer.nonEmpty) {
+    val abortProcess = if (abort && runBuffer.nonEmpty) {
       abortBuffered(abortResponse)
     } else {
       rejectBuffered()
+      Future.successful(())
     }
 
     val unpause = stateName match {
@@ -686,6 +686,7 @@ class ContainerProxy(factory: (TransactionId,
 
     unpause
       .flatMap(_ => container.destroy()(TransactionId.invokerNanny))
+      .flatMap(_ => abortProcess)
       .map(_ => ContainerRemoved(replacePrewarm))
       .pipeTo(self)
     if (stateName != Removing) {
@@ -695,9 +696,9 @@ class ContainerProxy(factory: (TransactionId,
     }
   }
 
-  def abortBuffered(abortResponse: Option[ActivationResponse] = None) = {
+  def abortBuffered(abortResponse: Option[ActivationResponse] = None): Future[Any] = {
     logging.info(this, s"aborting ${runBuffer.length} queued activations after failed init or failed cold start")
-    runBuffer.foreach { job =>
+    val f = runBuffer.flatMap { job =>
       implicit val tid = job.msg.transid
       logging.info(
         this,
@@ -714,14 +715,19 @@ class ContainerProxy(factory: (TransactionId,
       } else {
         CompletionMessage(tid, result, instance)
       }
-      sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+      val ack =
+        sendActiveAck(tid, result, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid, msg)
+          .andThen {
+            case Failure(e) => logging.error(this, s"failed to send abort ack $e")
+          }
+      val store = storeActivation(tid, result, job.msg.blocking, context)
         .andThen {
-          case Failure(e) => logging.error(this, s"failed to send abort ack $e")
+          case Failure(e) => logging.error(this, s"failed to store aborted activation $e")
         }
-      storeActivation(tid, result, job.msg.blocking, context).andThen {
-        case Failure(e) => logging.error(this, s"failed to store aborted activation $e")
-      }
+      //return both futures
+      Seq(ack, store)
     }
+    Future.sequence(f)
   }
 
   /**

@@ -1276,13 +1276,12 @@ class ContainerProxyTests
   it should "terminate buffered concurrent activations when cold init fails to launch container" in {
     assume(Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean))
 
-    val initPromise = Promise[Interval]()
-    val container = new TestContainer(Some(initPromise))
-    val factory = createFactory(Future.failed(new Exception("simulating a container creation failure")))
+    val containerPromise = Promise[Container]
+    val factory = createFactory(containerPromise.future)
     val acker = createSyncAcker(concurrentAction)
     val store = createSyncStore
     val collector =
-      createCollector(Future.successful(ActivationLogs()), () => container.logs(0.MB, false)(TransactionId.testing))
+      createCollector(Future.successful(ActivationLogs()), () => ())
 
     val machine =
       childActorOf(
@@ -1303,6 +1302,9 @@ class ContainerProxyTests
     machine ! Run(concurrentAction, message) //first in Uninitialized state
     machine ! Run(concurrentAction, message) //second in Uninitialized or Running state
 
+    //wait for buffering before failing the container
+    containerPromise.failure(new Exception("simulating a container creation failure"))
+
     expectMsg(Transition(machine, Uninitialized, Running))
 
     expectMsg(ContainerRemoved(true))
@@ -1310,11 +1312,6 @@ class ContainerProxyTests
     expectMsg(Transition(machine, Running, Removing))
     awaitAssert {
       factory.calls should have size 1
-      container.initializeCount shouldBe 0
-      container.runCount shouldBe 0
-      container.atomicLogsCount.get() shouldBe 0
-      container.suspendCount shouldBe 0
-      container.resumeCount shouldBe 0
       acker.calls should have size 2
 
       store.calls should have size 2
@@ -1369,6 +1366,9 @@ class ContainerProxyTests
     //second one will succeed
     run(machine, Ready)
 
+    timeout(machine) // times out Ready state so container suspends
+    expectMsg(Transition(machine, Ready, Pausing))
+    expectMsg(Transition(machine, Pausing, Paused))
     //With exception of the error on first run, the assertions should be the same as in
     //         `run an action and continue with a next run without pausing the container`
     awaitAssert {
@@ -1376,7 +1376,7 @@ class ContainerProxyTests
       container.initializeCount shouldBe 1
       container.runCount shouldBe 2
       collector.calls should have size 2
-      container.suspendCount shouldBe 0
+      container.suspendCount shouldBe 1
       container.destroyCount shouldBe 0
       acker.calls should have size 2
 
