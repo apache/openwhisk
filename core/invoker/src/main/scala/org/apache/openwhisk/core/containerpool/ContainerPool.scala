@@ -100,18 +100,15 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   context.system.scheduler.schedule(2.seconds, interval, self, AdjustPrewarmedContainer)
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
-    val namespaceName = r.msg.user.namespace.name
+    val namespaceName = r.msg.user.namespace.name.asString
     val actionName = r.action.name.name
+    val actionNamespace = r.action.namespace.namespace
     val maxConcurrent = r.action.limits.concurrency.maxConcurrent
     val activationId = r.msg.activationId.toString
 
     r.msg.transid.mark(
       this,
-      LoggingMarkers.INVOKER_CONTAINER_START(
-        containerState,
-        r.msg.user.namespace.toString,
-        r.msg.action.namespace.toString,
-        r.msg.action.name.toString),
+      LoggingMarkers.INVOKER_CONTAINER_START(containerState, namespaceName, actionNamespace, actionName),
       s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
       akka.event.Logging.InfoLevel)
   }
