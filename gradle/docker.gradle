@@ -46,6 +46,7 @@ ext {
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
+    dockerDockerfileSuffix = ""
 }
 ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
 
@@ -59,10 +60,21 @@ if(project.hasProperty('dockerBuildArgs')) {
     }
 }
 
+if(project.hasProperty('dockerfileSuffix')) {
+    dockerDockerfileSuffix = project.dockerfileSuffix
+}
+
 task distDocker {
     doLast {
         def start = new Date()
-        def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        String dockerFileDir = project.buildscript.sourceFile.getParentFile().getAbsolutePath()
+        String dockerFile = dockerFileDir + "/Dockerfile" + dockerDockerfileSuffix
+        if (!new File(dockerFile).exists()){
+            println("Using default Dockerfile since '${dockerFile}' does not exist")
+            dockerFile = dockerFileDir + "/Dockerfile"
+        }
+
+        def cmd = dockerBinary + dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
         retry(cmd, dockerRetries, dockerTimeout)
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
