@@ -103,6 +103,8 @@ object ControllerInstanceId extends DefaultJsonProtocol {
           } else {
             deserializationError("could not read ControllerInstanceId")
           }
+        case Seq(JsString(asString)) =>
+          new ControllerInstanceId(asString)
         case _ =>
           deserializationError("could not read ControllerInstanceId")
       }
