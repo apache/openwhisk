@@ -467,7 +467,7 @@ class NamespaceSpecificThrottleTests
     }
 
     wsk.action.invoke(actionName, expectedExitCode = TooManyRequests.intValue).stderr should {
-      include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed: 0")
+      include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed per controller: 0")
     }
   }
 
