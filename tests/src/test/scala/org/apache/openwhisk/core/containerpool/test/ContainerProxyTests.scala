@@ -84,13 +84,18 @@ class ContainerProxyTests
   val memoryLimit = 256.MB
 
   val invocationNamespace = EntityName("invocationSpace")
-  val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val action = ExecutableWhiskAction(
+    EntityPath("actionSpace"),
+    EntityName("actionName"),
+    DocId("actionSpace/actionName@0.0.1"),
+    exec)
 
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency", "false")).exists(_.toBoolean)
   val testConcurrencyLimit = if (concurrencyEnabled) ConcurrencyLimit(2) else ConcurrencyLimit(1)
   val concurrentAction = ExecutableWhiskAction(
     EntityPath("actionSpace"),
     EntityName("actionName"),
+    DocId("actionSpace/actionName@0.0.1"),
     exec,
     limits = ActionLimits(concurrency = testConcurrencyLimit))
 
@@ -122,6 +127,7 @@ class ContainerProxyTests
     action.rev,
     Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret())),
     ActivationId.generate(),
+    DocId("asd"),
     ControllerInstanceId("0"),
     blocking = false,
     content = Some(activationArguments),
@@ -2009,7 +2015,12 @@ class ContainerProxyTests
 
     val keyFalsyAnnotation = Parameters(Annotations.ProvideApiKeyAnnotationName, JsFalse)
     val actionWithFalsyKeyAnnotation =
-      ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec, annotations = keyFalsyAnnotation)
+      ExecutableWhiskAction(
+        EntityPath("actionSpace"),
+        EntityName("actionName"),
+        DocId("actionSpace/actionName@0.0.1"),
+        exec,
+        annotations = keyFalsyAnnotation)
 
     machine ! Run(actionWithFalsyKeyAnnotation, message)
     expectMsg(Transition(machine, Started, Running))

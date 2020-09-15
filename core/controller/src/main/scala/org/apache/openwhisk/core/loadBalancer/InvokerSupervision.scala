@@ -416,6 +416,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         user = InvokerPool.healthActionIdentity,
         // Create a new Activation ID for this activation
         activationId = new ActivationIdGenerator {}.make(),
+        actionId = action.docid,
         rootControllerIndex = controllerInstance,
         blocking = false,
         content = None,

@@ -252,6 +252,7 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              parameterFile: Option[String] = None,
              blocking: Boolean = false,
              result: Boolean = false,
+             version: Option[String] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 

@@ -78,7 +78,7 @@ protected[core] object SemVer {
    * @return SemVer instance
    * @thrown IllegalArgumentException if string is not a valid semantic version
    */
-  protected[entity] def apply(str: String): SemVer = {
+  protected[core] def apply(str: String): SemVer = {
     try {
       val parts = if (str != null && str.nonEmpty) str.split('.') else Array[String]()
       val major = if (parts.size >= 1) parts(0).toInt else 0

@@ -83,33 +83,42 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskRulePut]) { content =>
         val request = content.resolve(entityName.namespace)
+        // To avoid using same entity name with action
+        val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
+          result.matchedDocId(None).getOrElse(entityName.toDocId)
+        }
         onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
           case Success(_) =>
-            putEntity(
-              WhiskRule,
-              entityStore,
-              entityName.toDocId,
-              overwrite,
-              update(request) _,
-              () => {
-                create(request, entityName)
-              },
-              postProcess = Some { rule: WhiskRule =>
-                if (overwrite == true) {
-                  val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
-                    getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
-                  } map { status =>
-                    rule.withStatus(status)
-                  }
+            onComplete(latestDocId) {
+              case Success(docId) =>
+                putEntity(
+                  WhiskRule,
+                  entityStore,
+                  docId,
+                  overwrite,
+                  update(request) _,
+                  () => {
+                    create(request, entityName)
+                  },
+                  postProcess = Some { rule: WhiskRule =>
+                    if (overwrite == true) {
+                      val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
+                        getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
+                      } map { status =>
+                        rule.withStatus(status)
+                      }
 
-                  onComplete(getRuleWithStatus) {
-                    case Success(r) => completeAsRuleResponse(rule, r.status)
-                    case Failure(t) => terminate(InternalServerError)
-                  }
-                } else {
-                  completeAsRuleResponse(rule, Status.ACTIVE)
-                }
-              })
+                      onComplete(getRuleWithStatus) {
+                        case Success(r) => completeAsRuleResponse(rule, r.status)
+                        case Failure(t) => terminate(InternalServerError)
+                      }
+                    } else {
+                      completeAsRuleResponse(rule, Status.ACTIVE)
+                    }
+                  })
+              case Failure(f) =>
+                terminate(InternalServerError)
+            }
           case Failure(f) =>
             handleEntitlementFailure(f)
         }
@@ -408,7 +417,16 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
 
       actionExists <- WhiskAction.resolveAction(entityStore, action) flatMap { resolvedName =>
-        WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
+        WhiskActionVersionList.get(resolvedName, entityStore).flatMap { versions =>
+          versions
+            .matchedDocId(resolvedName.version)
+            .map { docId =>
+              WhiskActionMetaData.get(entityStore, docId)
+            }
+            .getOrElse {
+              WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
+            }
+        }
       } recoverWith {
         case _: NoDocumentException =>
           Future.failed {

@@ -190,6 +190,7 @@ class InvokerSupervisionTests
         Namespace(EntityName("unhealthyInvokerCheck"), uuid),
         BasicAuthenticationAuthKey(uuid, Secret())),
       activationId = new ActivationIdGenerator {}.make(),
+      DocId("asd"),
       rootControllerIndex = ControllerInstanceId("0"),
       blocking = false,
       content = None,

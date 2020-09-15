@@ -395,7 +395,7 @@ trait WriteOps extends Directives {
     onComplete(factory.get(datastore, docid) flatMap { entity =>
       confirm(entity) flatMap {
         case _ =>
-          factory.del(datastore, entity.docinfo) map { _ =>
+          factory.del(datastore, docid.asDocInfo(entity.rev)) map { _ =>
             entity
           }
       }

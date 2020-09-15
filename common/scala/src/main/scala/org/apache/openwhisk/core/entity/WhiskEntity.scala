@@ -58,7 +58,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
     FullyQualifiedEntityName(namespace, en, if (withVersion) Some(version) else None)
 
   /** The primary key for the entity in the datastore */
-  override final def docid = fullyQualifiedName(false).toDocId
+  override def docid = fullyQualifiedName(false).toDocId
 
   /**
    * Returns a JSON object with the fields specific to this abstract class.

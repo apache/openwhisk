@@ -286,6 +286,7 @@ class CliActionOperations(override val wsk: RunCliCmd)
                       parameterFile: Option[String] = None,
                       blocking: Boolean = false,
                       result: Boolean = false,
+                      version: Option[String] = None,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "invoke", "--auth", wp.authKey, fqn(name)) ++ {
       parameters flatMap { p =>

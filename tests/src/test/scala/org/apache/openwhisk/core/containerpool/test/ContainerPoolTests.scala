@@ -84,6 +84,7 @@ class ContainerPoolTests
       action.rev,
       Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret())),
       ActivationId.generate(),
+      DocId("asd"),
       ControllerInstanceId("0"),
       blocking = false,
       content = None,
@@ -94,11 +95,16 @@ class ContainerPoolTests
 
   val invocationNamespace = EntityName("invocationSpace")
   val differentInvocationNamespace = EntityName("invocationSpace2")
-  val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val action = ExecutableWhiskAction(
+    EntityPath("actionSpace"),
+    EntityName("actionName"),
+    DocId("actionSpace/actionName@0.0.1"),
+    exec)
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
   val concurrentAction = ExecutableWhiskAction(
     EntityPath("actionSpace"),
     EntityName("actionName"),
+    DocId("actionSpace/actionName@0.0.1"),
     exec,
     limits = ActionLimits(concurrency = ConcurrencyLimit(if (concurrencyEnabled) 3 else 1)))
   val differentAction = action.copy(name = EntityName("actionName2"))
@@ -909,6 +915,7 @@ class ContainerPoolTests
     val action = ExecutableWhiskAction(
       EntityPath("actionSpace"),
       EntityName("actionName"),
+      DocId("actionSpace/actionName@0.0.1"),
       exec,
       limits = ActionLimits(memory = MemoryLimit(memoryLimit)))
     val run = createRunMessage(action, invocationNamespace)
@@ -999,7 +1006,12 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   /** Helper to create a new action from String representations */
   def createAction(namespace: String = "actionNS", name: String = "actionName", limits: ActionLimits = ActionLimits()) =
-    ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec, limits = limits)
+    ExecutableWhiskAction(
+      EntityPath(namespace),
+      EntityName(name),
+      DocId(s"$namespace/$name@0.0.1"),
+      actionExec,
+      limits = limits)
 
   /** Helper to create WarmedData with sensible defaults */
   def warmedData(action: ExecutableWhiskAction = createAction(),

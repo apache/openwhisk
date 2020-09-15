@@ -282,19 +282,6 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     actions.exists(action => RestResult.getField(action, "name") == name) shouldBe true
   }
 
-  it should "reject create of an action that already exists" in withAssetCleaner(wskprops) {
-    val name = "dupeAction"
-    val file = Some(TestUtils.getTestActionFilename("echo.js"))
-
-    (wp, assetHelper) =>
-      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file)
-      }
-
-      val stderr = wsk.action.create(name, file, expectedExitCode = Conflict.intValue).stderr
-      stderr should include("resource already exists")
-  }
-
   it should "reject delete of action that does not exist" in {
     val name = "nonexistentAction"
     val stderr = wsk.action.delete(name, expectedExitCode = NotFound.intValue).stderr

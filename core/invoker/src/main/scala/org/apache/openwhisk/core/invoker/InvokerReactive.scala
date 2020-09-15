@@ -169,18 +169,17 @@ class InvokerReactive(
   def handleActivationMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[Unit] = {
     val namespace = msg.action.path
     val name = msg.action.name
-    val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
     val subject = msg.user.subject
 
-    logging.debug(this, s"${actionid.id} $subject ${msg.activationId}")
+    logging.debug(this, s"${msg.actionId} $subject ${msg.activationId}")
 
     // caching is enabled since actions have revision id and an updated
     // action will not hit in the cache due to change in the revision id;
     // if the doc revision is missing, then bypass cache
-    if (actionid.rev == DocRevision.empty) logging.warn(this, s"revision was not provided for ${actionid.id}")
+    if (msg.revision == DocRevision.empty) logging.warn(this, s"revision was not provided for ${msg.actionId}")
 
     WhiskAction
-      .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
+      .get(entityStore, msg.actionId, msg.revision, fromCache = msg.revision != DocRevision.empty)
       .flatMap(action => {
         action.toExecutableWhiskAction match {
           case Some(executable) =>
