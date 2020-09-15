@@ -37,7 +37,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
-class AsyncStreamGraphTests
+class MongoDBAsyncStreamGraphTests
     extends FlatSpec
     with Matchers
     with ScalaFutures
@@ -47,13 +47,13 @@ class AsyncStreamGraphTests
 
   implicit val mat = ActorMaterializer()
 
-  behavior of "AsyncStreamSource"
+  behavior of "MongoDBAsyncStreamSource"
 
   it should "read all bytes" in {
     val bytes = randomBytes(4000)
     val asyncStream = AsyncStreamHelper.toAsyncInputStream(bytes)
 
-    val readStream = AsyncStreamSource(asyncStream, 42).runWith(StreamConverters.asInputStream())
+    val readStream = MongoDBAsyncStreamSource(asyncStream, 42).runWith(StreamConverters.asInputStream())
     val readBytes = IOUtils.toByteArray(readStream)
 
     bytes shouldBe readBytes
@@ -65,7 +65,7 @@ class AsyncStreamGraphTests
     val spiedStream = spy(inputStream)
     val asyncStream = AsyncStreamHelper.toAsyncInputStream(spiedStream)
 
-    val readStream = AsyncStreamSource(asyncStream, 42).runWith(StreamConverters.asInputStream())
+    val readStream = MongoDBAsyncStreamSource(asyncStream, 42).runWith(StreamConverters.asInputStream())
     val readBytes = IOUtils.toByteArray(readStream)
 
     bytes shouldBe readBytes
@@ -79,7 +79,7 @@ class AsyncStreamGraphTests
     doThrow(exception).when(inputStream).read(any())
     val asyncStream = AsyncStreamHelper.toAsyncInputStream(inputStream)
 
-    val (ioResult, p) = AsyncStreamSource(asyncStream).toMat(Sink.asPublisher(false))(Keep.both).run()
+    val (ioResult, p) = MongoDBAsyncStreamSource(asyncStream).toMat(Sink.asPublisher(false))(Keep.both).run()
     val c = TestSubscriber.manualProbe[ByteString]()
     p.subscribe(c)
 
@@ -92,7 +92,7 @@ class AsyncStreamGraphTests
     ioResult.futureValue.status.isFailure shouldBe true
   }
 
-  behavior of "AsyncStreamSink"
+  behavior of "MongoDBAsyncStreamSink"
 
   it should "write all bytes" in {
     val bytes = randomBytes(4000)
@@ -101,7 +101,7 @@ class AsyncStreamGraphTests
     val os = new ByteArrayOutputStream()
     val asyncStream = AsyncStreamHelper.toAsyncOutputStream(os)
 
-    val sink = AsyncStreamSink(asyncStream)
+    val sink = MongoDBAsyncStreamSink(asyncStream)
     val ioResult = source.toMat(sink)(Keep.right).run()
 
     ioResult.futureValue.count shouldBe bytes.length
@@ -117,7 +117,7 @@ class AsyncStreamGraphTests
     val outputStream = new CloseRecordingStream()
     val asyncStream = AsyncStreamHelper.toAsyncOutputStream(outputStream)
 
-    val sink = AsyncStreamSink(asyncStream)
+    val sink = MongoDBAsyncStreamSink(asyncStream)
     val ioResult = source.toMat(sink)(Keep.right).run()
 
     ioResult.futureValue.count shouldBe 4000
@@ -129,7 +129,7 @@ class AsyncStreamGraphTests
     val os = new ByteArrayOutputStream()
     val asyncStream = AsyncStreamHelper.toAsyncOutputStream(os)
 
-    val sink = AsyncStreamSink(asyncStream)
+    val sink = MongoDBAsyncStreamSink(asyncStream)
     val ioResult = Source(1 to 10)
       .map { n ⇒
         if (n == 7) throw new Error("bees!")

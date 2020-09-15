@@ -40,7 +40,7 @@ import scala.util.Success
 import scala.util.Try
 import scala.util.Failure
 
-class AsyncStreamSource(stream: AsyncInputStream, chunkSize: Int)(implicit ec: ExecutionContext)
+class MongoDBAsyncStreamSource(stream: AsyncInputStream, chunkSize: Int)(implicit ec: ExecutionContext)
     extends GraphStageWithMaterializedValue[SourceShape[ByteString], Future[IOResult]] {
   require(chunkSize > 0, "chunkSize must be greater than 0")
   val out: Outlet[ByteString] = Outlet("AsyncStream.out")
@@ -96,9 +96,9 @@ class AsyncStreamSource(stream: AsyncInputStream, chunkSize: Int)(implicit ec: E
   }
 }
 
-object AsyncStreamSource {
+object MongoDBAsyncStreamSource {
   def apply(stream: AsyncInputStream, chunkSize: Int = 512 * 1024)(
     implicit ec: ExecutionContext): Source[ByteString, Future[IOResult]] = {
-    Source.fromGraph(new AsyncStreamSource(stream, chunkSize))
+    Source.fromGraph(new MongoDBAsyncStreamSource(stream, chunkSize))
   }
 }

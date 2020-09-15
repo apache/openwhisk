@@ -30,7 +30,7 @@ import org.mongodb.scala.gridfs.{AsyncOutputStream}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-class AsyncStreamSink(stream: AsyncOutputStream)(implicit ec: ExecutionContext)
+class MongoDBAsyncStreamSink(stream: AsyncOutputStream)(implicit ec: ExecutionContext)
     extends GraphStageWithMaterializedValue[SinkShape[ByteString], Future[IOResult]] {
   val in: Inlet[ByteString] = Inlet("AsyncStream.in")
 
@@ -115,8 +115,8 @@ class AsyncStreamSink(stream: AsyncOutputStream)(implicit ec: ExecutionContext)
   }
 }
 
-object AsyncStreamSink {
+object MongoDBAsyncStreamSink {
   def apply(stream: AsyncOutputStream)(implicit ec: ExecutionContext): Sink[ByteString, Future[IOResult]] = {
-    Sink.fromGraph(new AsyncStreamSink(stream))
+    Sink.fromGraph(new MongoDBAsyncStreamSink(stream))
   }
 }

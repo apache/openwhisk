@@ -434,7 +434,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     val option = new GridFSUploadOptions().metadata(document)
 
     val uploadStream = gridFSBucket.openUploadStream(BsonString(s"$id/$name"), name, option)
-    val sink = AsyncStreamSink(uploadStream)
+    val sink = MongoDBAsyncStreamSink(uploadStream)
 
     val f = docStream
       .runWith(combinedSink(sink))
@@ -498,7 +498,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     val downloadStream = gridFSBucket.openDownloadStream(BsonString(s"${doc.id.id}/$attachmentName"))
 
     def readStream(file: GridFSFile) = {
-      val source = AsyncStreamSource(downloadStream)
+      val source = MongoDBAsyncStreamSource(downloadStream)
       source
         .runWith(sink)
         .map { result =>
