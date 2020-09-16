@@ -172,7 +172,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           } else None
 
         createdContainer match {
-          case None | Some((_, "cold")) =>
+          case None =>
             // None can happen if createContainer fails to start a new container, or
             // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
             // (and a new container would over commit the pool)
@@ -197,6 +197,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
             }
           //buffered items will be processed via processBufferOrFeed()
+
+          case Some(((actor, data), "cold")) =>
+            // Initialize the container and re-queue the activation
+            // This avoids blocking (with respect to the current activation) while the container is starting up.
+            // Instead, the activation will be handled by the next available container that sends NeedWork
+            actor ! PreRun(r.action, r.msg, r.retryLogDeadline)
+            busyPool = busyPool + (actor -> data)
+            runBuffer = runBuffer.enqueue(r)
 
           case Some(((actor, data), containerState)) =>
             //increment active count before storing in pool map
