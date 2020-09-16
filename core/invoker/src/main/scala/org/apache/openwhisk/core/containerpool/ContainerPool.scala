@@ -172,6 +172,32 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           } else None
 
         createdContainer match {
+          case None | Some((_, "cold")) =>
+            // None can happen if createContainer fails to start a new container, or
+            // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
+            // (and a new container would over commit the pool)
+            val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
+            val retryLogDeadline = if (isErrorLogged) {
+              logging.warn(
+                this,
+                s"Rescheduling Run message, too many message in the pool, " +
+                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
+                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
+                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
+                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
+                  s"waiting messages: ${runBuffer.size}")(r.msg.transid)
+              MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_RESCHEDULED_ACTIVATION)
+              Some(logMessageInterval.fromNow)
+            } else {
+              r.retryLogDeadline
+            }
+            if (!isResentFromBuffer) {
+              // Add this request to the buffer, as it is not there yet.
+              runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
+            }
+          //buffered items will be processed via processBufferOrFeed()
+
           case Some(((actor, data), containerState)) =>
             //increment active count before storing in pool map
             val newData = data.nextRun(r)
@@ -205,31 +231,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             }
             actor ! r // forwards the run request to the container
             logContainerStart(r, containerState, newData.activeActivationCount, container)
-          case None =>
-            // this can also happen if createContainer fails to start a new container, or
-            // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
-            // (and a new container would over commit the pool)
-            val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
-            val retryLogDeadline = if (isErrorLogged) {
-              logging.warn(
-                this,
-                s"Rescheduling Run message, too many message in the pool, " +
-                  s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
-                  s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
-                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
-                  s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
-                  s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
-                  s"waiting messages: ${runBuffer.size}")(r.msg.transid)
-              MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_RESCHEDULED_ACTIVATION)
-              Some(logMessageInterval.fromNow)
-            } else {
-              r.retryLogDeadline
-            }
-            if (!isResentFromBuffer) {
-              // Add this request to the buffer, as it is not there yet.
-              runBuffer = runBuffer.enqueue(Run(r.action, r.msg, retryLogDeadline))
-            }
-          //buffered items will be processed via processBufferOrFeed()
         }
       } else {
         // There are currently actions waiting to be executed before this action gets executed.
