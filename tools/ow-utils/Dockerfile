@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-FROM adoptopenjdk/openjdk8:jdk8u191-b12
+FROM adoptopenjdk/openjdk8:jdk8u262-b10
 
 ENV DOCKER_VERSION 1.12.0
 ENV KUBECTL_VERSION v1.16.3
