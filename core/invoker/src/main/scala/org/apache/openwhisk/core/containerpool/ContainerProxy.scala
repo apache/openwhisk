@@ -937,7 +937,7 @@ class ContainerProxy(factory: (TransactionId,
     activationWithLogs.flatMap {
       case Right(act) if !act.response.isSuccess && !act.response.isApplicationError =>
         val truncatedResult = truncatedError(act)
-        logging.info(
+        logging.warn(
           this,
           s"Activation ${act.activationId} was unsuccessful at container ${stateData.getContainer} (with ${activeCount} still active) due to ${truncatedResult}")
         Future.failed(ActivationUnsuccessfulError(act))
@@ -945,7 +945,7 @@ class ContainerProxy(factory: (TransactionId,
       case Right(act) =>
         if (act.response.isApplicationError) {
           val truncatedResult = truncatedError(act)
-          logging.error(
+          logging.info(
             this,
             s"Activation ${act.activationId} at container ${stateData.getContainer} (with ${activeCount} still active) returned an error ${truncatedResult}")
         }
