@@ -113,7 +113,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Action"
+                "$ref": "#/definitions/ActionMeta"
               }
             }
           },
@@ -718,7 +718,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Rule"
+                "$ref": "#/definitions/RuleMeta"
               }
             }
           },
@@ -1000,7 +1000,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Trigger"
+                "$ref": "#/definitions/TriggerMeta"
               }
             }
           },
@@ -1889,6 +1889,54 @@
         }
       }
     },
+    "ActionMeta": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "exec",
+        "limits"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "exec": {
+          "$ref": "#/definitions/ActionExecMeta"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
+        },
+        "limits": {
+          "$ref": "#/definitions/ActionLimits"
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the action was updated"
+        }
+      }
+    },
     "ActionPut": {
       "description": "A restricted Action view used when updating an Action",
       "properties": {
@@ -2002,6 +2050,15 @@
       },
       "description": "definition of the action, such as javascript code or the name of a container"
     },
+    "ActionExecMeta": {
+      "properties": {
+        "binary": {
+          "type": "boolean",
+          "description": "Whether the action has a binary attachment or not. This attribute is ignored when creating or updating an action."
+        }
+      },
+      "description": "definition of the action, such as javascript code or the name of a container"
+    },
     "ActionPayload": {
       "required": [
         "payload"
@@ -2058,6 +2115,54 @@
             "activating",
             "deactivating"
           ]
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the rule was updated"
+        },
+        "trigger": {
+          "$ref": "#/definitions/PathName"
+        },
+        "action": {
+          "$ref": "#/definitions/PathName"
+        }
+      }
+    },
+    "RuleMeta": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish",
+        "trigger",
+        "action"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
         },
         "updated": {
           "type": "integer",
@@ -2163,6 +2268,46 @@
         "rules": {
           "type": "object",
           "description": "rules associated with the trigger"
+        },
+        "updated": {
+          "type": "integer",
+          "description": "Time when the trigger was updated"
+        }
+      }
+    },
+    "TriggerMeta": {
+      "required": [
+        "namespace",
+        "name",
+        "version",
+        "publish"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the item",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the item",
+          "minLength": 1
+        },
+        "publish": {
+          "type": "boolean",
+          "description": "Whether to publish the item or not"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KeyValue"
+          },
+          "description": "annotations on the item"
         },
         "updated": {
           "type": "integer",
