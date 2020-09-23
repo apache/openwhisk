@@ -258,6 +258,7 @@ class ContainerProxy(factory: (TransactionId,
                      instance: InvokerInstanceId,
                      poolConfig: ContainerPoolConfig,
                      healtCheckConfig: ContainerProxyHealthCheckConfig,
+                     activationErrorLoggingConfig: ContainerProxyActivationErrorLogConfig,
                      unusedTimeout: FiniteDuration,
                      pauseGrace: FiniteDuration,
                      testTcp: Option[ActorRef])
@@ -935,37 +936,41 @@ class ContainerProxy(factory: (TransactionId,
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
-      case Right(act) if !act.response.isSuccess && !act.response.isApplicationError =>
-        val truncatedResult = truncatedError(act)
-        logging.warn(
-          this,
-          s"Activation ${act.activationId} was unsuccessful at container ${stateData.getContainer} (with ${activeCount} still active) due to ${truncatedResult}")
-        Future.failed(ActivationUnsuccessfulError(act))
-      case Left(error) => Future.failed(error)
-      case Right(act) =>
-        if (act.response.isApplicationError) {
-          val truncatedResult = truncatedError(act)
-          logging.info(
-            this,
-            s"Activation ${act.activationId} at container ${stateData.getContainer} (with ${activeCount} still active) returned an error ${truncatedResult}")
+      case Right(act) if act.response.isSuccess || act.response.isApplicationError =>
+        if (act.response.isApplicationError && activationErrorLoggingConfig.applicationErrors) {
+          logTruncatedError(act)
         }
         Future.successful(act)
+      case Right(act) =>
+        if ((act.response.isContainerError && activationErrorLoggingConfig.developerErrors) ||
+            (act.response.isWhiskError && activationErrorLoggingConfig.whiskErrors)) {
+          logTruncatedError(act)
+        }
+        Future.failed(ActivationUnsuccessfulError(act))
+      case Left(error) => Future.failed(error)
     }
   }
   //to ensure we don't blow up logs with potentially large activation response error
-  private def truncatedError(act: WhiskActivation) = {
+  private def logTruncatedError(act: WhiskActivation) = {
     val truncate = 1024
     val resultString = act.response.result.map(_.compactPrint).getOrElse("[no result]")
-    if (resultString.length > truncate) {
+    val truncatedResult = if (resultString.length > truncate) {
       s"${resultString.take(truncate)}..."
     } else {
       resultString
     }
+    val errorTypeMessage = ActivationResponse.messageForCode(act.response.statusCode)
+    logging.warn(
+      this,
+      s"Activation ${act.activationId} at container ${stateData.getContainer} (with $activeCount still active) returned a $errorTypeMessage: $truncatedResult")
   }
 }
 
 final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
 final case class ContainerProxyHealthCheckConfig(enabled: Boolean, checkPeriod: FiniteDuration, maxFails: Int)
+final case class ContainerProxyActivationErrorLogConfig(applicationErrors: Boolean,
+                                                        developerErrors: Boolean,
+                                                        whiskErrors: Boolean)
 
 object ContainerProxy {
   def props(factory: (TransactionId,
@@ -982,6 +987,7 @@ object ContainerProxy {
             poolConfig: ContainerPoolConfig,
             healthCheckConfig: ContainerProxyHealthCheckConfig =
               loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
+            activationErrorLogConfig: ContainerProxyActivationErrorLogConfig = activationErrorLogging,
             unusedTimeout: FiniteDuration = timeouts.idleContainer,
             pauseGrace: FiniteDuration = timeouts.pauseGrace,
             tcp: Option[ActorRef] = None) =
@@ -994,6 +1000,7 @@ object ContainerProxy {
         instance,
         poolConfig,
         healthCheckConfig,
+        activationErrorLogConfig,
         unusedTimeout,
         pauseGrace,
         tcp))
@@ -1002,6 +1009,8 @@ object ContainerProxy {
   private val containerCount = new Counter
 
   val timeouts = loadConfigOrThrow[ContainerProxyTimeoutConfig](ConfigKeys.containerProxyTimeouts)
+  val activationErrorLogging =
+    loadConfigOrThrow[ContainerProxyActivationErrorLogConfig](ConfigKeys.containerProxyActivationErrorLogs)
 
   /**
    * Generates a unique container name.
