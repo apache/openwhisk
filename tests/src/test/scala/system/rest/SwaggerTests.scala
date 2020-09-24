@@ -46,6 +46,20 @@ class SwaggerTests extends FlatSpec with Matchers with RestUtil {
     response.body().asString().contains("\"swagger\":") should be(true)
   }
 
+  it should "respond to /api-docs including ActionMeta/ActionExecMeta/RuleMeta/TriggerMeta" in {
+    val response = RestAssured.given().config(sslconfig).get(getServiceURL() + "/api/v1/api-docs")
+
+    response.statusCode() should be(200)
+    response.body().asString().contains("\"#/definitions/ActionMeta\"") should be(true)
+    response.body().asString().contains("\"#/definitions/ActionExecMeta\"") should be(true)
+    response.body().asString().contains("\"#/definitions/RuleMeta\"") should be(true)
+    response.body().asString().contains("\"#/definitions/TriggerMeta\"") should be(true)
+    response.body().asString().contains("\"ActionMeta\"") should be(true)
+    response.body().asString().contains("\"ActionExecMeta\"") should be(true)
+    response.body().asString().contains("\"RuleMeta\"") should be(true)
+    response.body().asString().contains("\"TriggerMeta\"") should be(true)
+  }
+
   it should "respond to invalid URI with status code 404" in {
     val auth = WhiskProperties.getBasicAuth
     val response =
