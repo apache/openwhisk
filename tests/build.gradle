@@ -40,6 +40,7 @@ def leanExcludes = [
 def projectsWithCoverage = [
     ':common:scala',
     ':core:controller',
+    ':core:scheduler',
     ':core:invoker',
     ':tools:admin',
     ':core:cosmosdb:cache-invalidator'
@@ -221,6 +222,7 @@ dependencies {
 
     compile project(':common:scala')
     compile project(':core:controller')
+    compile project(':core:scheduler')
     compile project(':core:invoker')
     compile project(':core:cosmosdb:cache-invalidator')
     compile project(':core:monitoring:user-events')
