@@ -426,3 +426,16 @@ object EventMessage extends DefaultJsonProtocol {
 
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
+
+object StatusQuery
+case class StatusData(invocationNamespace: String, fqn: String, waitingActivation: Int, status: String, data: String)
+    extends Message {
+
+  override def serialize: String = StatusData.serdes.write(this).compactPrint
+
+}
+object StatusData extends DefaultJsonProtocol {
+
+  implicit val serdes =
+    jsonFormat(StatusData.apply _, "invocationNamespace", "fqn", "waitingActivation", "status", "data")
+}

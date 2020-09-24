@@ -57,6 +57,17 @@ case class ControllerInstanceId(asString: String) extends InstanceId {
   override val toJson: JsValue = ControllerInstanceId.serdes.write(this)
 }
 
+case class SchedulerInstanceId(val asString: String) extends InstanceId {
+  validate(asString)
+  override val instanceType = "scheduler"
+
+  override val source = s"$instanceType$asString"
+
+  override val toString: String = source
+
+  override val toJson: JsValue = SchedulerInstanceId.serdes.write(this)
+}
+
 object InvokerInstanceId extends DefaultJsonProtocol {
   def parse(c: String): Try[InvokerInstanceId] = Try(serdes.read(c.parseJson))
 
@@ -110,6 +121,10 @@ object ControllerInstanceId extends DefaultJsonProtocol {
       }
     }
   }
+}
+
+object SchedulerInstanceId extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat(SchedulerInstanceId.apply _, "asString")
 }
 
 trait InstanceId {

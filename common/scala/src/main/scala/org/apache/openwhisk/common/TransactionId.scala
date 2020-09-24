@@ -232,6 +232,7 @@ object TransactionId {
 
   val systemPrefix = "sid_"
 
+  var containerCreation = TransactionId(systemPrefix + "containerCreation")
   val unknown = TransactionId(systemPrefix + "unknown")
   val testing = TransactionId(systemPrefix + "testing") // Common id for for unit testing
   val invoker = TransactionId(systemPrefix + "invoker") // Invoker startup/shutdown or GC activity
