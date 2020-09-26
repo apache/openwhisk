@@ -20,8 +20,9 @@ import pureconfig._
 import pureconfig.generic.auto._
 
 object FeatureFlags {
-  private case class FeatureFlagConfig(requireApiKeyAnnotation: Boolean)
+  private case class FeatureFlagConfig(requireApiKeyAnnotation: Boolean, requireResponsePayload: Boolean)
   private val config = loadConfigOrThrow[FeatureFlagConfig](ConfigKeys.featureFlags)
 
   val requireApiKeyAnnotation: Boolean = config.requireApiKeyAnnotation
+  val requireResponsePayload: Boolean = config.requireResponsePayload
 }

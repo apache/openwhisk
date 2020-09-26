@@ -35,6 +35,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsValue, RootJsonFormat}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.FeatureFlags
 import org.apache.openwhisk.core.controller.PostProcess.PostProcessEntity
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, DocId, WhiskActivation, WhiskDocument}
@@ -342,7 +343,8 @@ trait WriteOps extends Directives {
     }) {
       case Success(entity) =>
         logging.debug(this, s"[PUT] entity success")
-        postProcess map { _(entity) } getOrElse complete(OK)
+        if (FeatureFlags.requireResponsePayload) postProcess map { _(entity) } getOrElse complete(OK, entity)
+        else postProcess map { _(entity) } getOrElse complete(OK)
       case Failure(IdentityPut(a)) =>
         logging.debug(this, s"[PUT] entity exists, not overwritten")
         complete(OK, a)
@@ -400,7 +402,8 @@ trait WriteOps extends Directives {
     }) {
       case Success(entity) =>
         logging.debug(this, s"[DEL] entity success")
-        postProcess map { _(entity) } getOrElse complete(NoContent)
+        if (FeatureFlags.requireResponsePayload) postProcess map { _(entity) } getOrElse complete(OK, entity)
+        else postProcess map { _(entity) } getOrElse complete(NoContent)
       case Failure(t: NoDocumentException) =>
         logging.debug(this, s"[DEL] entity does not exist")
         terminate(NotFound)
