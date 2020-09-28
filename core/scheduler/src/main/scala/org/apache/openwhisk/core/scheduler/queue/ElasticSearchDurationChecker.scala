@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.scheduler.queue
 import akka.actor.ActorSystem
 import com.sksamuel.elastic4s.http.ElasticDsl._
 import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
+import com.sksamuel.elastic4s.searches.queries.Query
 import com.sksamuel.elastic4s.{ElasticDate, ElasticDateMath, Seconds}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
@@ -31,6 +32,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.{Failure, Try}
+import pureconfig.generic.auto._
 
 trait DurationChecker {
   def checkAverageDuration(invocationNamespace: String, actionMetaData: WhiskActionMetaData)(
@@ -68,50 +70,40 @@ class ElasticSearchDurationChecker(private val client: ElasticClient, val timeWi
 
     actionMetaData.binding match {
       case Some(binding) =>
-        client
-          .execute {
-            (search(index) query {
-              boolQuery must {
-                List(
-                  matchQuery("annotations.binding", s"$binding"),
-                  matchQuery("name", actionMetaData.name),
-                  rangeQuery("@timestamp").gte(fromDate))
-              }
-            } aggregations
-              avgAgg(AverageAggregationName, "duration")).size(0)
-          }
-          .map { res =>
-            logging.debug(this, s"ElasticSearch query results: $res")
-            Try(serde.read(res.body.getOrElse("").parseJson))
-          }
-          .flatMap(Future.fromTry)
-          .map(callback(_))
-          .andThen {
-            case Failure(t) =>
-              logging.error(this, s"failed to check the average duration: ${t}")
-          }
+        val boolQueryResult = List(
+          matchQuery("annotations.binding", s"$binding"),
+          matchQuery("name", actionMetaData.name),
+          rangeQuery("@timestamp").gte(fromDate))
+
+        executeQuery(boolQueryResult, callback, index)
 
       case None =>
-        client
-          .execute {
-            (search(index) query {
-              boolQuery must {
-                List(matchQuery("path.keyword", fqn.toString), rangeQuery("@timestamp").gte(fromDate))
-              }
-            } aggregations
-              avgAgg(AverageAggregationName, "duration")).size(0)
-          }
-          .map { res =>
-            logging.debug(this, s"ElasticSearch query results: $res")
-            Try(serde.read(res.body.getOrElse("").parseJson))
-          }
-          .flatMap(Future.fromTry)
-          .map(callback(_))
-          .andThen {
-            case Failure(t) =>
-              logging.error(this, s"failed to check the average duration: ${t}")
-          }
+        val queryResult = List(matchQuery("path.keyword", fqn.toString), rangeQuery("@timestamp").gte(fromDate))
+
+        executeQuery(queryResult, callback, index)
     }
+  }
+
+  private def executeQuery(boolQueryResult: List[Query], callback: DurationCheckResult => DurationCheckResult, index: String) = {
+    client
+      .execute {
+        (search(index) query {
+          boolQuery must {
+            boolQueryResult
+          }
+        } aggregations
+          avgAgg(AverageAggregationName, "duration")).size(0)
+      }
+      .map { res =>
+        logging.debug(this, s"ElasticSearch query results: $res")
+        Try(serde.read(res.body.getOrElse("").parseJson))
+      }
+      .flatMap(Future.fromTry)
+      .map(callback(_))
+      .andThen {
+        case Failure(t) =>
+          logging.error(this, s"failed to check the average duration: ${t}")
+      }
   }
 }
 
@@ -133,7 +125,6 @@ object ElasticSearchDurationCheckerProvider extends DurationCheckerProvider {
 }
 
 trait DurationCheckerProvider extends Spi {
-  import pureconfig.generic.auto._
 
   val durationCheckerConfig: DurationCheckerConfig =
     loadConfigOrThrow[DurationCheckerConfig](ConfigKeys.durationChecker)
