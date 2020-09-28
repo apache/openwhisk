@@ -62,8 +62,11 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
         case Privilege.READ =>
           // must determine if this is a public or owned package
           // or, for a binding, that it references a public or owned package
-          val docid = FullyQualifiedEntityName(resource.namespace.root.toPath, EntityName(pkgname)).toDocId
-          checkPackageReadPermission(namespaces, isOwner, docid)
+          val entityName = FullyQualifiedEntityName(resource.namespace.root.toPath, EntityName(pkgname))
+          WhiskActionVersionList.get(entityName, entityStore).flatMap { result =>
+            val docid = result.matchedDocId(None).getOrElse(entityName.toDocId)
+            checkPackageReadPermission(namespaces, isOwner, docid)
+          }
         case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
       }
     } getOrElse {

@@ -85,15 +85,25 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           }
           val referencedentities = referencedEntities(request)
 
+          // To avoid using same entity name with action
+          val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
+            result.matchedDocId(None).getOrElse(entityName.toDocId)
+          }
+
           onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
             case Success(_) =>
-              putEntity(
-                WhiskPackage,
-                entityStore,
-                entityName.toDocId,
-                overwrite,
-                update(request) _,
-                () => create(request, entityName))
+              onComplete(latestDocId) {
+                case Success(docId) =>
+                  putEntity(
+                    WhiskPackage,
+                    entityStore,
+                    docId,
+                    overwrite,
+                    update(request) _,
+                    () => create(request, entityName))
+                case Failure(f) =>
+                  terminate(InternalServerError)
+              }
             case Failure(f) =>
               rewriteEntitlementFailure(f)
           }
@@ -149,14 +159,15 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
               case Right(list) if list.nonEmpty && force =>
                 Future sequence {
                   list.map(action => {
-                    WhiskAction.get(
-                      entityStore,
-                      wp.fullyQualifiedName(false)
-                        .add(action.fullyQualifiedName(false).name)
-                        .toDocId) flatMap { actionWithRevision =>
+                    WhiskAction.get(entityStore, action.docid) flatMap { actionWithRevision =>
                       WhiskAction.del(entityStore, actionWithRevision.docinfo)
                     }
                   })
+                } andThen {
+                  case _ =>
+                    list.foreach { action =>
+                      WhiskActionVersionList.deleteCache(action.fullyQualifiedName(false))
+                    }
                 } flatMap { _ =>
                   Future.successful({})
                 }

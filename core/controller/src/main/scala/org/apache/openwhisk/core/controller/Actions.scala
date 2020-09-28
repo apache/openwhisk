@@ -234,6 +234,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
               case Success(id) =>
                 putEntity(WhiskAction, entityStore, id, true, update(user, request) _, () => {
                   make(user, entityName, request)
+                }, postProcess = Some { action: WhiskAction =>
+                  WhiskActionVersionList.deleteCache(entityName)
+                  complete(OK, action)
                 })
               case Failure(f) =>
                 terminate(InternalServerError)
@@ -354,11 +357,18 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('version.as[SemVer] ?) { version =>
       onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
         case Success(results) =>
-          WhiskActionVersionList.deleteCache(entityName) // invalidate version list cache at all cases
           version match {
             case Some(_) =>
               val docId = results.matchedDocId(version).getOrElse(entityName.toDocId)
-              deleteEntity(WhiskAction, entityStore, docId, (a: WhiskAction) => Future.successful({}))
+              deleteEntity(
+                WhiskAction,
+                entityStore,
+                docId,
+                (a: WhiskAction) => Future.successful({}),
+                postProcess = Some { action: WhiskAction =>
+                  WhiskActionVersionList.deleteCache(entityName)
+                  complete(OK, action)
+                })
             case None =>
               val fs =
                 if (results.versions.isEmpty)
@@ -372,7 +382,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                         WhiskAction.del(entityStore, entity.docinfo).map(_ => entity)
                       }
                     }
-              onComplete(Future.sequence(fs)) {
+              val deleteFuture = Future.sequence(fs).andThen {
+                case _ =>
+                  WhiskActionVersionList
+                    .deleteCache(entityName) // invalidate version list cache after all deletion completed
+              }
+
+              onComplete(deleteFuture) {
                 case Success(entities) =>
                   complete(OK, entities.last)
                 case Failure(t: NoDocumentException) =>

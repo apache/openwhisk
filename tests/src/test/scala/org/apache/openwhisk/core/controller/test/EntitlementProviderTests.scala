@@ -335,15 +335,15 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       (REJECT, guestUser, Right(false)))
 
     // this forces a doc mismatch error
-    val trigger = WhiskTrigger(someUser.namespace.name.toPath, MakeName.next())
-    put(entityStore, trigger)
+    val action = WhiskAction(someUser.namespace.name.toPath, MakeName.next(), jsDefault(""))
+    put(entityStore, action)
     paths foreach {
       case (priv, who, expected) =>
         val check = new PackageCollection(entityStore).implicitRights(
           who,
           Set(who.namespace.name.asString),
           priv,
-          Resource(someUser.namespace.name.toPath, PACKAGES, Some(trigger.name.asString)))
+          Resource(someUser.namespace.name.toPath, PACKAGES, Some(action.name.asString)))
         Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
     }
   }

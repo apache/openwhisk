@@ -862,11 +862,11 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
   it should "reject bind to non-package" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname())
-    val reference = WhiskPackage(namespace, aname(), Some(Binding(trigger.namespace.root, trigger.name)))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
+    val reference = WhiskPackage(namespace, aname(), Some(Binding(action.namespace.root, action.name)))
     val content = WhiskPackagePut(reference.binding)
 
-    put(entityStore, trigger)
+    put(entityStore, action)
 
     Put(s"$collectionPath/${reference.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(Conflict)

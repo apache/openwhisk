@@ -495,11 +495,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
             old)
       }
     } match {
-      case Success(f) =>
-        implicit val ec = db.executionContext
-        implicit val logger = db.logging
-        WhiskActionVersionList.deleteCache(doc.fullyQualifiedName(false))
-        f
+      case Success(f) => f
       case Failure(f) => Future.failed(f)
     }
   }
