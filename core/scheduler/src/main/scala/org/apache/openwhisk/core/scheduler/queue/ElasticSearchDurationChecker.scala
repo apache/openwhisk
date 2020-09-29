@@ -84,7 +84,9 @@ class ElasticSearchDurationChecker(private val client: ElasticClient, val timeWi
     }
   }
 
-  private def executeQuery(boolQueryResult: List[Query], callback: DurationCheckResult => DurationCheckResult, index: String) = {
+  private def executeQuery(boolQueryResult: List[Query],
+                           callback: DurationCheckResult => DurationCheckResult,
+                           index: String) = {
     client
       .execute {
         (search(index) query {
