@@ -189,8 +189,19 @@ object Scheduler {
       Kamon.stopModules().map(_ => Done)
     }
 
+    def abort(message: String) = {
+      logger.error(this, message)
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
+      sys.exit(1)
+    }
+
     // extract configuration data from the environment
     implicit val config = new WhiskConfig(requiredProperties)
+    if (!config.isValid) {
+      abort("Bad configuration, cannot start.")
+    }
+
     val port = config.servicePort.toInt
     val host = config.schedulerHost
     val rpcPort = config.schedulerRpcPort.toInt
@@ -213,17 +224,6 @@ object Scheduler {
             abort(s"failure during msgProvider.ensureTopic for topic $topic")
           }
       }
-
-    def abort(message: String) = {
-      logger.error(this, message)
-      actorSystem.terminate()
-      Await.result(actorSystem.whenTerminated, 30.seconds)
-      sys.exit(1)
-    }
-
-    if (!config.isValid) {
-      abort("Bad configuration, cannot start.")
-    }
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
