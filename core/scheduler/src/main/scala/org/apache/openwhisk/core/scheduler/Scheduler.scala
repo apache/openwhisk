@@ -196,28 +196,11 @@ object Scheduler {
     val rpcPort = config.schedulerRpcPort.toInt
     val akkaPort = config.schedulerAkkaPort.toInt
 
-    // if deploying multiple instances (scale out), must pass the instance number as the
-    require(args.length >= 1, "controller instance required")
+    // if deploying multiple instances (scale out), must pass the instance number as they need to be uniquely identified.
+    require(args.length >= 1, "scheduler instance required")
     val instanceId = SchedulerInstanceId(args(0))
 
     initKamon(instanceId)
-
-    def abort(message: String) = {
-      logger.error(this, message)
-      actorSystem.terminate()
-      Await.result(actorSystem.whenTerminated, 30.seconds)
-      sys.exit(1)
-    }
-
-    if (!config.isValid) {
-      abort("Bad configuration, cannot start.")
-    }
-
-    val execManifest = ExecManifest.initialize(config)
-    if (execManifest.isFailure) {
-      logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
-      abort("Bad configuration, cannot start.")
-    }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
 
@@ -231,17 +214,34 @@ object Scheduler {
           }
       }
 
-    val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, akkaPort)
-    // Create scheduler
-    val scheduler = new Scheduler(instanceId, schedulerEndpoints)
+    def abort(message: String) = {
+      logger.error(this, message)
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
+      sys.exit(1)
+    }
 
-    // TODO: Add Akka-grpc handler
-    val httpsConfig =
-      if (Scheduler.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
+    if (!config.isValid) {
+      abort("Bad configuration, cannot start.")
+    }
 
-    BasicHttpService.startHttpService(SchedulerServer.instance(scheduler).route, port, httpsConfig)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    ExecManifest.initialize(config) match {
+      case Success(_) =>
+        val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, akkaPort)
+        // Create scheduler
+        val scheduler = new Scheduler(instanceId, schedulerEndpoints)
+
+        // TODO: Add Akka-grpc handler
+        val httpsConfig =
+          if (Scheduler.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
+
+        BasicHttpService.startHttpService(SchedulerServer.instance(scheduler).route, port, httpsConfig)(
+          actorSystem,
+          ActorMaterializer.create(actorSystem))
+
+      case Failure(t) =>
+        abort(s"Invalid runtimes manifest: $t")
+    }
   }
 }
 case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
