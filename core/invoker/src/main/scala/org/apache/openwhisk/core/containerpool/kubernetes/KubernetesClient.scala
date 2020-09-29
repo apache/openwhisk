@@ -397,6 +397,8 @@ object KubernetesRestLogSourceStage {
 
   val retryDelay = 100.milliseconds
 
+  val actionContainerName = "user-action"
+
   sealed trait K8SRestLogTimingEvent
 
   case object K8SRestLogRetry extends K8SRestLogTimingEvent
@@ -408,7 +410,8 @@ object KubernetesRestLogSourceStage {
 
     val sinceTimestamp = sinceTime.flatMap(time => formatK8STimestamp(time).toOption)
 
-    Query(Map("timestamps" -> "true") ++ sinceTimestamp.map(time => "sinceTime" -> time))
+    Query(Map("timestamps" -> "true", "container" -> actionContainerName) ++ sinceTimestamp.map(time =>
+      "sinceTime" -> time))
 
   }
 
