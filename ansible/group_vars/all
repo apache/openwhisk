@@ -421,3 +421,6 @@ metrics:
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
 user_events: "{{ user_events_enabled | default(false) | lower }}"
+
+durationChecker:
+    timeWindow: "{{ duration_checker_time_window | default('1 d') }}"
