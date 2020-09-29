@@ -370,7 +370,7 @@ case class WhiskActionVersionList(namespace: EntityPath, name: EntityName, versi
       case Some(ver) =>
         versions.get(ver).map(DocId(_))
       case None if versions.nonEmpty =>
-        Some(DocId(versions.maxBy(_._1.toString)._2))
+        Some(DocId(versions.maxBy(_._1)._2))
       case _ =>
         None
     }
