@@ -152,6 +152,18 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Put(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(
+        WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version,
+          action.publish,
+          action.annotations ++ systemAnnotations(NODEJS10),
+          updated = response.updated))
     }
   }
 
@@ -212,7 +224,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
 
     Delete(s"$collectionPath/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(NoContent)
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
     }
   }
 
@@ -428,6 +442,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     put(entityStore, action)
     Post(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
     }
   }
 
@@ -441,6 +457,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     put(entityStore, action)
     Post(s"/$namespace/${collection.path}/${provider.name}/${action.name}", content) ~> Route.seal(routes(auser)) ~> check {
       status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
     }
   }
 
@@ -456,6 +474,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     put(entityStore, action)
     Post(s"$collectionPath/${reference.name}/${action.name}", content) ~> Route.seal(routes(auser)) ~> check {
       status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
     }
   }
 
@@ -475,6 +495,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     Await.result(entitlementProvider.grant(auser, ACTIVATE, pkgaccess), 1 second)
     Post(s"$collectionPath/${reference.name}/${action.name}", content) ~> Route.seal(routes(auser)) ~> check {
       status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
     }
   }
 

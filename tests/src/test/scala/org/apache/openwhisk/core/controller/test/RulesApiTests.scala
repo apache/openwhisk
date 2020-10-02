@@ -293,7 +293,10 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     Delete(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       deleteTrigger(trigger.docid)
-      status should be(NoContent)
+
+      status should be(OK)
+      val response = responseAs[WhiskRuleResponse]
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -318,8 +321,10 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       val t = get(entityStore, trigger.docid, WhiskTrigger)
       deleteTrigger(t.docid)
 
-      status should be(NoContent)
+      status should be(OK)
       t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe None
+      val response = responseAs[WhiskRuleResponse]
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -335,7 +340,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     put(entityStore, rule)
 
     Delete(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
-      status should be(NoContent)
+      status should be(OK)
+      val response = responseAs[WhiskRuleResponse]
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -352,7 +359,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     Delete(s"$collectionPath/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       deleteTrigger(trigger.docid)
 
-      status should be(NoContent)
+      status should be(OK)
+      val response = responseAs[WhiskRuleResponse]
+      checkResponse(response, rule.withStatus(Status.INACTIVE))
     }
   }
 
@@ -1031,6 +1040,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       deleteTrigger(t.docid)
 
       status should be(OK)
+
       t.rules.get(ruleNameQualified).status should be(Status.ACTIVE)
     }
   }

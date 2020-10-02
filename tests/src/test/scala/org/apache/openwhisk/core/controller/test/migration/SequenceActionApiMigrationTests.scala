@@ -97,6 +97,9 @@ class SequenceActionApiMigrationTests
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)
+      val response = responseAs[WhiskAction]
+      response.exec.kind should be(NODEJS10)
+      response.parameters should be(Parameters("a", "A"))
     }
   }
 
@@ -113,6 +116,9 @@ class SequenceActionApiMigrationTests
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)
+      val response = responseAs[WhiskAction]
+      response.exec.kind should be(NODEJS10)
+      response.parameters shouldBe Parameters()
     }
   }
 
@@ -128,6 +134,14 @@ class SequenceActionApiMigrationTests
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
       status should be(OK)
+      val response = responseAs[String]
+      // contains the action
+      components map { c =>
+        response should include(c)
+      }
+      // contains the annotations
+      response should include("old")
+      response should include("new")
     }
   }
 
@@ -154,6 +168,12 @@ class SequenceActionApiMigrationTests
     Put(s"$collectionPath/${seqName}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(seqAction.docid)
       status should be(OK)
+
+      val response = responseAs[WhiskAction]
+      response.exec.kind should be(Exec.SEQUENCE)
+      response.limits should be(seqAction.limits)
+      response.publish should be(seqAction.publish)
+      response.version should be(seqAction.version.upPatch)
     }
   }
 }
