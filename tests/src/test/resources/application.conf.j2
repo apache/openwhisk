@@ -18,6 +18,7 @@ akka.jvm-exit-on-fatal-error = off
 whisk {
     feature-flags {
       require-api-key-annotation = {{ whisk.feature_flags.require_api_key_annotation | default(true) }}
+      require-response-payload = {{ whisk.feature_flags.require_response_payload | default(true) }}
     }
     # kafka related configuration
     kafka {
