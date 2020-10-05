@@ -212,9 +212,11 @@ object KubernetesClientTests {
       rms += ContainerId(podName)
       Future.successful(())
     }
-    def rm(key: String, value: String, ensureUnpause: Boolean = false)(
+    def rm(labels: Map[String, String], ensureUnpause: Boolean = false)(
       implicit transid: TransactionId): Future[Unit] = {
-      rmByLabels += ((key, value))
+      labels.foreach { label =>
+        rmByLabels += ((label._1, label._2))
+      }
       Future.successful(())
     }
 

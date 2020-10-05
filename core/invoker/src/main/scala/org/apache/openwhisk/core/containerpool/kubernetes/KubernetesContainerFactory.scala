@@ -62,7 +62,8 @@ class KubernetesContainerFactory(
 
   override def cleanup() = {
     logging.info(this, "Cleaning up function runtimes")
-    val cleaning = kubernetes.rm("invoker", label, true)(TransactionId.invokerNanny)
+    val labels = Map("invoker" -> label, "release" -> KubernetesContainerFactoryProvider.release)
+    val cleaning = kubernetes.rm(labels, true)(TransactionId.invokerNanny)
     Await.ready(cleaning, 30.seconds)
   }
 
@@ -82,11 +83,14 @@ class KubernetesContainerFactory(
       userProvidedImage,
       memory,
       environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,
-      labels = Map("invoker" -> label))
+      labels = Map("invoker" -> label, "release" -> KubernetesContainerFactoryProvider.release))
   }
 }
 
 object KubernetesContainerFactoryProvider extends ContainerFactoryProvider {
+
+  val release = loadConfigOrThrow[String]("whisk.helm.release")
+
   override def instance(actorSystem: ActorSystem,
                         logging: Logging,
                         config: WhiskConfig,

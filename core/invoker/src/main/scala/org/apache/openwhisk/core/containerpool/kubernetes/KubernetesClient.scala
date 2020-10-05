@@ -212,23 +212,24 @@ class KubernetesClient(
     deleteByName(podName)
   }
 
-  def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
+  def rm(labels: Map[String, String], ensureUnpaused: Boolean = false)(
+    implicit transid: TransactionId): Future[Unit] = {
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
-      s"Deleting pods with label $key = $value",
+      s"Deleting pods with label $labels",
       logLevel = akka.event.Logging.InfoLevel)
     Future {
       blocking {
         kubeRestClient
           .inNamespace(kubeRestClient.getNamespace)
           .pods()
-          .withLabel(key, value)
+          .withLabels(labels.asJava)
           .delete()
         if (config.pdbEnabled) {
           kubeRestClient.policy.podDisruptionBudget
             .inNamespace(kubeRestClient.getNamespace)
-            .withLabel(key, value)
+            .withLabels(labels.asJava)
             .delete()
         }
       }
@@ -238,7 +239,7 @@ class KubernetesClient(
           transid.failed(
             this,
             start,
-            s"Failed delete pods with label $key = $value: ${e.getClass} - ${e.getMessage}",
+            s"Failed delete pods with label $labels: ${e.getClass} - ${e.getMessage}",
             ErrorLevel)
       }
   }
@@ -379,7 +380,7 @@ trait KubernetesApi {
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
   def rm(podName: String)(implicit transid: TransactionId): Future[Unit]
-  def rm(key: String, value: String, ensureUnpaused: Boolean)(implicit transid: TransactionId): Future[Unit]
+  def rm(labels: Map[String, String], ensureUnpaused: Boolean)(implicit transid: TransactionId): Future[Unit]
 
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 
