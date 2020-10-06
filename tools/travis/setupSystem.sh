@@ -26,7 +26,7 @@ RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 
 cd $ROOTDIR/ansible
 
-$ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST"
+$ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST" -e db_activation_backend=ElasticSearch
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD routemgmt.yml
 
