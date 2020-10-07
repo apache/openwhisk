@@ -163,7 +163,6 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
       val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
       unauthorizedResponse.statusCode shouldBe 200
-      unauthorizedResponse.body.asString.parseJson.asJsObject.fields("__ow_user").convertTo[String] shouldBe namespace
   }
 
   it should "ensure that CORS header is preserved for custom options" in withAssetCleaner(wskprops) {
