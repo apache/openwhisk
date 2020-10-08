@@ -43,7 +43,7 @@ class SchedulerServer(scheduler: SchedulerCore, systemUsername: String, systemPa
       case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
         (path("disable") & post) {
           logger.warn(this, "Scheduler is disabled")
-          scheduler.shutdown()
+          scheduler.disable()
           complete("scheduler disabled")
         }
       case _ =>

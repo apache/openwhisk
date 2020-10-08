@@ -93,7 +93,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   }
 
   // other components don't need to shutdown gracefully
-  override def shutdown(): Unit = {
+  override def disable(): Unit = {
     logging.info(this, s"Gracefully shutting down the scheduler")
     // TODO: TBD, gracefully shut down the container manager and queue manager
   }
@@ -116,12 +116,24 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
 
   private val etcdWorkerFactory = "" // TODO: TBD
 
+  /**
+   * This component is in charge of storing data to ETCD.
+   * Even if any error happens we can assume the data will be eventually available in the ETCD by this component.
+   */
   val dataManagementService = "" // TODO: TBD
 
   val creationJobManagerFactory = "" // TODO: TBD
 
+  /**
+   * This component is responsible for creating containers for a given action.
+   * It relies on the creationJobManager to manage the container creation job.
+   */
   val containerManager = "" // TODO: TBD
 
+  /**
+   * This is a factory to create memory queues.
+   * In the new architecture, each action is given its own dedicated queue.
+   */
   val memoryQueueFactory = "" // TODO: TBD
 
   val schedulerConsumer = msgProvider.getConsumer(
@@ -133,6 +145,9 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
 
   implicit val trasnid = TransactionId.containerCreation
 
+  /**
+   * This is one of the major components which take charge of managing queues and coordinating requests among the scheduler, controllers, and invokers.
+   */
   val queueManager = "" // TODO: TBD
 
   //val serviceHandlers: HttpRequest => Future[HttpResponse] = ActivationServiceHandler.apply(ActivationServiceImpl())  TODO: TBD
@@ -147,13 +162,16 @@ trait SchedulerCore {
 
   def getQueueStatusData: Future[List[String]] // TODO: Change to the real data class other than just string
 
-  def shutdown(): Unit
+  def disable(): Unit
 }
 
 object Scheduler {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.scheduler.protocol")
 
+  /**
+   * The scheduler has two ports, one for akka-remote and the other for akka-grpc.
+   */
   def requiredProperties =
     Map(
       servicePort -> 8080.toString,

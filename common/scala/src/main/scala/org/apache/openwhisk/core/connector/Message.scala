@@ -427,6 +427,23 @@ object EventMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
 
+/**
+ * This case class is used when retrieving the snapshot of the queue status from the scheduler at a certain moment.
+ * This is useful to figure out the internal status when any issue happens.
+ * The following would be an example result.
+ *
+ * [
+ * ...
+ *    {
+ *       "data": "RunningData",
+ *       "fqn": "whisk.system/elasticsearch/status-alarm@0.0.2",
+ *       "invocationNamespace": "style95",
+ *       "status": "Running",
+ *       "waitingActivation": 1
+ *    },
+ * ...
+ * ]
+ */
 object StatusQuery
 case class StatusData(invocationNamespace: String, fqn: String, waitingActivation: Int, status: String, data: String)
     extends Message {
