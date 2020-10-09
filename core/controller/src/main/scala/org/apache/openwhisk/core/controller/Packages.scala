@@ -85,19 +85,14 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
           }
           val referencedentities = referencedEntities(request)
 
-          // To avoid using same entity name with action
-          val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
-            result.matchedDocId(None).getOrElse(entityName.toDocId)
-          }
-
           onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
             case Success(_) =>
-              onComplete(latestDocId) {
+              onComplete(WhiskActionVersionList.getMatchedDocId(entityName, None, entityStore)) {
                 case Success(docId) =>
                   putEntity(
                     WhiskPackage,
                     entityStore,
-                    docId,
+                    docId.getOrElse(entityName.toDocId),
                     overwrite,
                     update(request) _,
                     () => create(request, entityName))

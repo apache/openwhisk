@@ -120,18 +120,20 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskTriggerPut]) { content =>
-        // To avoid using same entity name with action
-        val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
-          result.matchedDocId(None).getOrElse(entityName.toDocId)
-        }
-
-        onComplete(latestDocId) {
+        onComplete(WhiskActionVersionList.getMatchedDocId(entityName, None, entityStore)) {
           case Success(docId) =>
-            putEntity(WhiskTrigger, entityStore, docId, overwrite, update(content) _, () => {
-              create(content, entityName)
-            }, postProcess = Some { trigger =>
-              completeAsTriggerResponse(trigger)
-            })
+            putEntity(
+              WhiskTrigger,
+              entityStore,
+              docId.getOrElse(entityName.toDocId),
+              overwrite,
+              update(content) _,
+              () => {
+                create(content, entityName)
+              },
+              postProcess = Some { trigger =>
+                completeAsTriggerResponse(trigger)
+              })
           case Failure(f) =>
             terminate(InternalServerError)
         }

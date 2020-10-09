@@ -358,10 +358,10 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 }
 
-case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer)
+case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer, publish: Boolean)
 
 object WhiskActionVersion {
-  val serdes = jsonFormat4(WhiskActionVersion.apply)
+  val serdes = jsonFormat5(WhiskActionVersion.apply)
 }
 
 case class WhiskActionVersionList(namespace: EntityPath, name: EntityName, versions: Map[SemVer, String]) {
@@ -384,7 +384,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
     CacheKey(action.fullPath.asString)
   }
 
-  def get(action: FullyQualifiedEntityName, datastore: EntityStore)(
+  def get(action: FullyQualifiedEntityName, datastore: EntityStore, fetchAll: Boolean = true)(
     implicit transId: TransactionId): Future[WhiskActionVersionList] = {
     implicit val logger: Logging = datastore.logging
     implicit val ec = datastore.executionContext
@@ -409,12 +409,28 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
           }
           val mappings = values
             .map(WhiskActionVersion.serdes.read(_))
+            .filter(_.publish || fetchAll)
             .map { actionVersion =>
               (actionVersion.version, actionVersion.id)
             }
             .toMap
           WhiskActionVersionList(action.namespace.toPath, action.name, mappings)
         })
+  }
+
+  def getMatchedDocId(action: FullyQualifiedEntityName, version: Option[SemVer], datastore: EntityStore)(
+    implicit transId: TransactionId,
+    ec: ExecutionContext): Future[Option[DocId]] = {
+    get(action, datastore, version.nonEmpty).map { res =>
+      version match {
+        case Some(ver) =>
+          res.versions.get(ver).map(DocId(_))
+        case None if res.versions.nonEmpty =>
+          Some(DocId(res.versions.maxBy(_._1)._2))
+        case _ =>
+          None
+      }
+    }
   }
 
   // delete cache
@@ -625,9 +641,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     val entityPath = fullyQualifiedName.path
     if (entityPath.defaultPackage) {
       // this is the default package, nothing to resolve
-      WhiskActionVersionList.get(fullyQualifiedName, entityStore).flatMap { result =>
-        val docId = result.matchedDocId(version).getOrElse(fullyQualifiedName.toDocId)
-        WhiskAction.get(entityStore, docId)
+      WhiskActionVersionList.getMatchedDocId(fullyQualifiedName, version, entityStore).flatMap { docId =>
+        WhiskAction.get(entityStore, docId.getOrElse(fullyQualifiedName.toDocId))
       }
     } else {
       // there is a package to be resolved
@@ -637,9 +652,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       wp flatMap { resolvedPkg =>
         // fully resolved name for the action
         val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
-        val action = WhiskActionVersionList.get(fqnAction, entityStore).flatMap { result =>
-          val docId = result.matchedDocId(version).getOrElse(fqnAction.toDocId)
-          WhiskAction.get(entityStore, docId)
+        val action = WhiskActionVersionList.getMatchedDocId(fqnAction, version, entityStore).flatMap { docId =>
+          WhiskAction.get(entityStore, docId.getOrElse(fqnAction.toDocId))
         }
         // get the whisk action associate with it and inherit the parameters from the package/binding
         action map {
@@ -714,9 +728,8 @@ object WhiskActionMetaData
     val entityPath = fullyQualifiedName.path
     if (entityPath.defaultPackage) {
       // this is the default package, nothing to resolve
-      WhiskActionVersionList.get(fullyQualifiedName, entityStore).flatMap { result =>
-        val docId = result.matchedDocId(version).getOrElse(fullyQualifiedName.toDocId)
-        WhiskActionMetaData.get(entityStore, docId)
+      WhiskActionVersionList.getMatchedDocId(fullyQualifiedName, version, entityStore).flatMap { docId =>
+        WhiskActionMetaData.get(entityStore, docId.getOrElse(fullyQualifiedName.toDocId))
       }
     } else {
       // there is a package to be resolved
@@ -726,9 +739,8 @@ object WhiskActionMetaData
       wp flatMap { resolvedPkg =>
         // fully resolved name for the action
         val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
-        val action = WhiskActionVersionList.get(fqnAction, entityStore).flatMap { result =>
-          val docId = result.matchedDocId(version).getOrElse(fqnAction.toDocId)
-          WhiskActionMetaData.get(entityStore, docId)
+        val action = WhiskActionVersionList.getMatchedDocId(fqnAction, version, entityStore).flatMap { docId =>
+          WhiskActionMetaData.get(entityStore, docId.getOrElse(fqnAction.toDocId))
         }
         // get the whisk action associate with it and inherit the parameters from the package/binding
         action map {

@@ -83,18 +83,14 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskRulePut]) { content =>
         val request = content.resolve(entityName.namespace)
-        // To avoid using same entity name with action
-        val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
-          result.matchedDocId(None).getOrElse(entityName.toDocId)
-        }
         onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
           case Success(_) =>
-            onComplete(latestDocId) {
+            onComplete(WhiskActionVersionList.getMatchedDocId(entityName, None, entityStore)) {
               case Success(docId) =>
                 putEntity(
                   WhiskRule,
                   entityStore,
-                  docId,
+                  docId.getOrElse(entityName.toDocId),
                   overwrite,
                   update(request) _,
                   () => {
@@ -417,15 +413,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
 
       actionExists <- WhiskAction.resolveAction(entityStore, action) flatMap { resolvedName =>
-        WhiskActionVersionList.get(resolvedName, entityStore).flatMap { versions =>
-          versions
-            .matchedDocId(resolvedName.version)
-            .map { docId =>
-              WhiskActionMetaData.get(entityStore, docId)
-            }
-            .getOrElse {
-              WhiskActionMetaData.get(entityStore, resolvedName.toDocId)
-            }
+        WhiskActionVersionList.getMatchedDocId(resolvedName, resolvedName.version, entityStore).flatMap { docId =>
+          WhiskActionMetaData.get(entityStore, docId.getOrElse(resolvedName.toDocId))
         }
       } recoverWith {
         case _: NoDocumentException =>

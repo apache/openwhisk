@@ -283,6 +283,7 @@ object ConfigKeys {
 
   val whiskConfig = "whisk.config"
   val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
+  val actionVersionLimit = "whisk.action-maximum-versions"
   val swaggerUi = "whisk.swagger-ui"
 
   val disableStoreResult = s"$activation.disable-store-result"

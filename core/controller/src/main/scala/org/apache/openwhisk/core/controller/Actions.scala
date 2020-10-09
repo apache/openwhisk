@@ -116,6 +116,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   protected def executeOnly =
     loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
 
+  private val actionMaxVersionLimit =
+    loadConfigOrThrow[Int](ConfigKeys.actionVersionLimit)
+
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
 
@@ -224,20 +227,35 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           case _ => entitlementProvider.check(user, content.exec)
         }
 
-        val latestDocId = WhiskActionVersionList.get(entityName, entityStore).map { result =>
-          result.matchedDocId(None).getOrElse(entityName.toDocId)
-        }
-
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
-            onComplete(latestDocId) {
-              case Success(id) =>
-                putEntity(WhiskAction, entityStore, id, true, update(user, request) _, () => {
-                  make(user, entityName, request)
-                }, postProcess = Some { action: WhiskAction =>
-                  WhiskActionVersionList.deleteCache(entityName)
-                  complete(OK, action)
-                })
+            onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
+              case Success(result) =>
+                val id = result.matchedDocId(None).getOrElse(entityName.toDocId)
+                putEntity(
+                  WhiskAction,
+                  entityStore,
+                  id,
+                  true,
+                  update(user, request) _,
+                  () => {
+                    make(user, entityName, request)
+                  },
+                  postProcess = Some { action: WhiskAction =>
+                    // delete oldest version when created successfully
+                    if (result.versions.size >= actionMaxVersionLimit) {
+                      val id = result.versions.minBy(_._1)._2
+                      WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
+                        WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
+                      } andThen {
+                        case _ =>
+                          WhiskActionVersionList.deleteCache(entityName)
+                      }
+                    } else {
+                      WhiskActionVersionList.deleteCache(entityName)
+                    }
+                    complete(OK, action)
+                  })
               case Failure(f) =>
                 terminate(InternalServerError)
             }
@@ -379,7 +397,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   results.versions.values
                     .map { id =>
                       WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
-                        WhiskAction.del(entityStore, entity.docinfo).map(_ => entity)
+                        WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
                       }
                     }
               val deleteFuture = Future.sequence(fs).andThen {
@@ -775,16 +793,16 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           } else {
             // check whether component is a sequence or an atomic action
             // if the component does not exist, the future will fail with appropriate error
-            WhiskActionVersionList.get(resolvedComponent, entityStore) flatMap { versions =>
-              val docId = versions.matchedDocId(resolvedComponent.version).getOrElse(resolvedComponent.toDocId)
-              WhiskAction.get(entityStore, docId) flatMap { wskComponent =>
-                wskComponent.exec match {
-                  case SequenceExec(seqComponents) =>
-                    // sequence action, count the number of atomic actions in this sequence
-                    countAtomicActionsAndCheckCycle(origSequence, seqComponents)
-                  case _ => Future successful 1 // atomic action count is one
+            WhiskActionVersionList.getMatchedDocId(resolvedComponent, resolvedComponent.version, entityStore) flatMap {
+              docId =>
+                WhiskAction.get(entityStore, docId.getOrElse(resolvedComponent.toDocId)) flatMap { wskComponent =>
+                  wskComponent.exec match {
+                    case SequenceExec(seqComponents) =>
+                      // sequence action, count the number of atomic actions in this sequence
+                      countAtomicActionsAndCheckCycle(origSequence, seqComponents)
+                    case _ => Future successful 1 // atomic action count is one
+                  }
                 }
-              }
             }
           }
         }

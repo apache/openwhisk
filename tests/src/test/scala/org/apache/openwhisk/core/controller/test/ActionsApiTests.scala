@@ -29,6 +29,9 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmars
 import akka.http.scaladsl.server.Route
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import org.apache.commons.lang3.StringUtils
+import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.controller.WhiskActionsApi
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -37,11 +40,12 @@ import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 import akka.http.scaladsl.model.headers.RawHeader
-import org.apache.commons.lang3.StringUtils
-import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.entity.Attachments.Inline
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.scalatest.{FlatSpec, Matchers}
+import pureconfig.loadConfigOrThrow
+
+import scala.language.postfixOps
 
 /**
  * Tests Actions API.
@@ -238,6 +242,40 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     Get(s"$collectionPath/${action.name}?version=0.0.3") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
+    }
+  }
+
+  it should "not get unpublished version" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
+    put(entityStore, action)
+
+    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
+    }
+
+    val action2 = action.copy(version = action.version.upPatch, annotations = Parameters("publish", JsFalse))
+    put(entityStore, action2)
+    WhiskActionVersionList.deleteCache(action.fullyQualifiedName(false))
+
+    // the action2 should not be returned
+    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
+    }
+
+    val action3 = action.copy(version = action2.version.upPatch)
+    put(entityStore, action3)
+    WhiskActionVersionList.deleteCache(action.fullyQualifiedName(false))
+
+    // the action3 should be returned
+    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action3)
     }
   }
 
@@ -1488,6 +1526,36 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[WhiskAction]
       checkWhiskEntityResponse(response, action3)
       >>>>>>> Implement action versioning
+    }
+  }
+
+  it should "delete old action if its versions exceed the limit" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
+    put(entityStore, action)
+    var version = action.version
+
+    val limit = loadConfigOrThrow[Int](ConfigKeys.actionVersionLimit)
+    (1 until limit) foreach { _ =>
+      version = version.upPatch
+      val actionN = action.copy(version = version)
+      put(entityStore, actionN)
+    }
+
+    // the first version should be still there
+    Get(s"$collectionPath/${action.name}?version=0.0.1") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
+    }
+
+    val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
+    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+    }
+    // the first version should be deleted automatically
+    Get(s"$collectionPath/${action.name}?version=0.0.1") ~> Route.seal(routes(creds)) ~> check {
+      status should be(NotFound)
     }
   }
 
