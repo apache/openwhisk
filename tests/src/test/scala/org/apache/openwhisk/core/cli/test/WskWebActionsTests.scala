@@ -147,6 +147,24 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       authorizedResponse.body.asString.parseJson.asJsObject.fields("__ow_user").convertTo[String] shouldBe namespace
   }
 
+  /**
+   * Tests web action not requiring authentication.
+   */
+  it should "create a web action not requiring authentication accessible via HTTPS" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "webaction"
+      val file = Some(TestUtils.getTestActionFilename("echo.js"))
+      val host = getServiceURL()
+      val url = s"$host$testRoutePath/$namespace/default/$name.json"
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> false.toJson))
+      }
+
+      val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
+      unauthorizedResponse.statusCode shouldBe 200
+  }
+
   it should "ensure that CORS header is preserved for custom options" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val name = "webaction"

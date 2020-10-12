@@ -784,10 +784,11 @@ trait WhiskWebActionsApi
     annotations
       .get(Annotations.RequireWhiskAuthAnnotation)
       .map {
-        case JsString(auth)           => checkAuthHeader(auth) // allowed if auth matches header
-        case JsNumber(auth)           => checkAuthHeader(auth.toString) // allowed if auth matches header
-        case JsTrue | JsBoolean(true) => authenticatedUser.isDefined // allowed if user already authenticated
-        case _                        => false // not allowed, something is not right
+        case JsString(auth)             => checkAuthHeader(auth) // allowed if auth matches header
+        case JsNumber(auth)             => checkAuthHeader(auth.toString) // allowed if auth matches header
+        case JsTrue | JsBoolean(true)   => authenticatedUser.isDefined // allowed if user already authenticated
+        case JsFalse | JsBoolean(false) => true // allowed if the require-whisk-auth is specified as false
+        case _                          => false // not allowed, something is not right
       }
   }
 
