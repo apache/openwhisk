@@ -361,7 +361,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer, publish: Boolean)
 
 object WhiskActionVersion {
-  val serdes = jsonFormat5(WhiskActionVersion.apply)
+  val serdes = jsonFormat(WhiskActionVersion.apply, "_id", "namespace", "name", "version", "publish")
 }
 
 case class WhiskActionVersionList(namespace: EntityPath, name: EntityName, versions: Map[SemVer, String]) {
@@ -389,14 +389,15 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
     implicit val logger: Logging = datastore.logging
     implicit val ec = datastore.executionContext
 
-    val key = List(action.fullPath.asString)
+    val startKey = List(action.fullPath.asString)
+    val endKey = List(action.fullPath.asString, WhiskQueries.TOP)
     cacheLookup(
       cacheKey(action),
       datastore
         .query(
           viewName,
-          startKey = key,
-          endKey = key,
+          startKey = startKey,
+          endKey = endKey,
           skip = 0,
           limit = 0,
           includeDocs = false,
