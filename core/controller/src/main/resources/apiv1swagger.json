@@ -2009,6 +2009,7 @@
             "ruby:2.5",
             "ruby:default",
             "go:1.11",
+            "go:1.15",
             "go:default",
             "sequence",
             "swift:4.2",
