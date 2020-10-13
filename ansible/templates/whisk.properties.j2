@@ -33,6 +33,7 @@ whisk.api.vanity.subdomain.parts=1
 
 whisk.action.concurrency={{ runtimes_enable_concurrency | default(false) }}
 whisk.feature.requireApiKeyAnnotation={{ whisk.feature_flags.require_api_key_annotation | default(true) }}
+whisk.feature.requireResponsePayload={{ whisk.feature_flags.require_response_payload | default(true) }}
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 
