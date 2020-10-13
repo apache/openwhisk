@@ -79,7 +79,7 @@
                     "name": "python2action",
                     "tag": "1.13.0-incubating"
                 },
-                "deprecated": false,
+                "deprecated": true,
                 "attached": {
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
