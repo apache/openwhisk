@@ -367,30 +367,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   val defaultPermissions = "rwxr-x"
 
-  // notes on users, just have 2 type users,
-  // 1. the action's owner
-  // 2. the user (not the owner) who used the shared action directly(e.g. get, invoke), we call it "the shared user"
-  //
-  // Notes on permission control
-  // 1. the owner has read(or download) permission on any situation, but for the shared user,
-  //    in spite of has read permission on any situation, but can set it undownloadable or downloadable
-  // 2. the shared user can't update/delete the action on any situation.
-  // 3. the owner's permission can affect the shared user's permission, e.g
-  //    if the owner is not given execute permission, the shared user can't have execute permission as well.
-  //
-  // Notes on permission values, include below permission value
-  //  1. permission code:rwxr-x: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(yes)/write(no)/execute(yes), this is default
-  //  2. permission code:rwxr--: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(yes)/write(no)/execute(no)
-  //  3. permission code:r-xr-x: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(yes)/write(no)/execute(yes)
-  //  4. permission code:r-xr--: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(yes)/write(no)/execute(no)
-  //  5. permission code:r--r--: owner:read(yes)/write(no)/execute(no)|the shared action's user:download(yes)/write(no)/execute(no)
-  //  6. permission code:rw-r--: owner:read(yes)/write(yes)/execute(no)|the shared action's user:download(yes)/write(no)/execute(no)
-  //  7. permission code:rwx--x: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(no)/write(no)/execute(yes)
-  //  8. permission code:rwx---: owner:read(yes)/write(yes)/execute(yes)|the shared action's user:download(no)/write(no)/execute(no)
-  //  9. permission code:r-x--x: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(no)/write(no)/execute(yes)
-  // 10. permission code:r-x---: owner:read(yes)/write(no)/execute(yes)|the shared action's user:download(no)/write(no)/execute(no)
-  // 11. permission code:r-----: owner:read(yes)/write(no)/execute(no)|the shared action's user:download(no)/write(no)/execute(no)
-  // 12. permission code:rw----: owner:read(yes)/write(yes)/execute(no)|the shared action's user:download(no)/write(no)/execute(no)
+  // For more information about permission, please refer to the online manual at
+  // https://github.com/apache/openwhisk/blob/master/docs/actions.md#action-permission-management
   val permissionList = List(
     defaultPermissions,
     "rwxr--",
