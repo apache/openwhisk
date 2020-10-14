@@ -26,79 +26,85 @@ import javax.crypto.spec.{GCMParameterSpec, SecretKeySpec}
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig.loadConfig
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsNull, JsString}
+import spray.json._
 import pureconfig.generic.auto._
 import spray.json._
-case class ParameterStorageConfig(current: String = "", aes128: String = "", aes256: String = "")
 
-object ParameterEncryption {
-  private val storageConfigLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
-  var storageConfig = storageConfigLoader.getOrElse(ParameterStorageConfig.apply())
-  def lock(params: Parameters): Parameters = {
-    val configuredEncryptors = new encrypters(storageConfig)
-    new Parameters(
-      params.getMap
-        .map(({
-          case (paramName, paramValue) if paramValue.encryption == JsNull =>
-            paramName -> configuredEncryptors.getCurrentEncrypter().encrypt(paramValue)
-          case (paramName, paramValue) => paramName -> paramValue
-        })))
+protected[core] case class ParameterStorageConfig(current: String = ParameterEncryption.NO_ENCRYPTION,
+                                                  aes128: Option[String] = None,
+                                                  aes256: Option[String] = None)
+
+protected[core] class ParameterEncryption(val default: Option[Encrypter], encryptors: Map[String, Encrypter]) {
+
+  /**
+   * Gets the coder for the given scheme name.
+   *
+   * @param name the name of the encryption algorithm (defaults to current from last configuration)
+   * @return the coder if there is one else no-op encryptor
+   */
+  def encryptor(name: String): Encrypter = {
+    encryptors.get(name).getOrElse(ParameterEncryption.noop)
   }
-  def unlock(params: Parameters): Parameters = {
-    val configuredEncryptors = new encrypters(storageConfig)
-    new Parameters(
-      params.getMap
-        .map(({
-          case (paramName, paramValue)
-              if paramValue.encryption != JsNull && !configuredEncryptors
-                .getEncrypter(paramValue.encryption.convertTo[String])
-                .isEmpty =>
-            paramName -> configuredEncryptors
-              .getEncrypter(paramValue.encryption.convertTo[String])
-              .get
-              .decrypt(paramValue)
-          case (paramName, paramValue) => paramName -> paramValue
-        })))
+
+}
+
+protected[core] object ParameterEncryption {
+
+  val NO_ENCRYPTION = "noop"
+  val AES128_ENCRYPTION = "aes-128"
+  val AES256_ENCRYPTION = "aes-256"
+
+  val noop = new Encrypter {
+    override val name = NO_ENCRYPTION
+  }
+
+  val singleton: ParameterEncryption = {
+    val configLoader = loadConfig[ParameterStorageConfig](ConfigKeys.parameterStorage)
+    val config = configLoader.getOrElse(ParameterStorageConfig(noop.name))
+    ParameterEncryption(config)
+  }
+
+  def apply(config: ParameterStorageConfig): ParameterEncryption = {
+    val availableEncoders = Map(noop.name -> noop) ++
+      config.aes128.map(k => AES128_ENCRYPTION -> new Aes128(k)) ++
+      config.aes256.map(k => AES256_ENCRYPTION -> new Aes256(k))
+
+    val current = config.current.toLowerCase match {
+      case "" | "off" | NO_ENCRYPTION => NO_ENCRYPTION
+      case s                          => s
+    }
+
+    val defaultEncoder: Encrypter = availableEncoders.get(current).getOrElse(noop)
+    new ParameterEncryption(Option(defaultEncoder).filter(_ != noop), availableEncoders)
   }
 }
 
-private trait encrypter {
-  def encrypt(p: ParameterValue): ParameterValue
-  def decrypt(p: ParameterValue): ParameterValue
+protected[core] trait Encrypter {
   val name: String
+  def encrypt(p: ParameterValue): ParameterValue = p
+  def decrypt(p: ParameterValue): ParameterValue = p
+  def decrypt(v: JsString): JsValue = v
 }
 
-private class encrypters(val storageConfig: ParameterStorageConfig) {
-  private val availableEncrypters = Map("" -> new NoopCrypt()) ++
-    (if (!storageConfig.aes256.isEmpty) Some(Aes256.name -> new Aes256(getKeyBytes(storageConfig.aes256))) else None) ++
-    (if (!storageConfig.aes128.isEmpty) Some(Aes128.name -> new Aes128(getKeyBytes(storageConfig.aes128))) else None)
-
-  protected[entity] def getCurrentEncrypter(): encrypter = {
-    availableEncrypters.get(ParameterEncryption.storageConfig.current).get
-  }
-  protected[entity] def getEncrypter(name: String) = {
-    availableEncrypters.get(name)
-  }
-
-  def getKeyBytes(key: String): Array[Byte] = {
+protected[core] object Encrypter {
+  protected[entity] def getKeyBytes(key: String): Array[Byte] = {
     if (key.length == 0) {
-      Array[Byte]()
+      Array.empty
     } else {
-      Base64.getDecoder().decode(key)
+      Base64.getDecoder.decode(key)
     }
   }
 }
 
-private trait AesEncryption extends encrypter {
+protected[core] trait AesEncryption extends Encrypter {
   val key: Array[Byte]
   val ivLen: Int
   val name: String
   private val tLen = 128
-  private val secretKey = new SecretKeySpec(key, "AES")
-
   private val secureRandom = new SecureRandom()
+  private lazy val secretKey = new SecretKeySpec(key, "AES")
 
-  def encrypt(value: ParameterValue): ParameterValue = {
+  override def encrypt(value: ParameterValue): ParameterValue = {
     val iv = new Array[Byte](ivLen)
     secureRandom.nextBytes(iv)
     val gcmSpec = new GCMParameterSpec(tLen, iv)
@@ -112,11 +118,18 @@ private trait AesEncryption extends encrypter {
     byteBuffer.put(iv)
     byteBuffer.put(cipherText)
     val cipherMessage = byteBuffer.array
-    ParameterValue(JsString(Base64.getEncoder.encodeToString(cipherMessage)), value.init, Some(JsString(name)))
+    ParameterValue(JsString(Base64.getEncoder.encodeToString(cipherMessage)), value.init, Some(name))
   }
 
-  def decrypt(value: ParameterValue): ParameterValue = {
-    val cipherMessage = value.value.convertTo[String].getBytes(StandardCharsets.UTF_8)
+  override def decrypt(p: ParameterValue): ParameterValue = {
+    p.value match {
+      case s: JsString => p.copy(v = decrypt(s), encryption = None)
+      case _           => p
+    }
+  }
+
+  override def decrypt(value: JsString): JsValue = {
+    val cipherMessage = value.convertTo[String].getBytes(StandardCharsets.UTF_8)
     val byteBuffer = ByteBuffer.wrap(Base64.getDecoder.decode(cipherMessage))
     val ivLength = byteBuffer.getInt
     if (ivLength != ivLen) {
@@ -132,32 +145,19 @@ private trait AesEncryption extends encrypter {
     cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec)
     val plainTextBytes = cipher.doFinal(cipherText)
     val plainText = new String(plainTextBytes, StandardCharsets.UTF_8)
-    ParameterValue(plainText.parseJson, value.init)
+    plainText.parseJson
   }
 
 }
 
-private object Aes128 {
-  val name: String = "aes-128"
+protected[core] class Aes128(val k: String) extends AesEncryption with Encrypter {
+  override val key = Encrypter.getKeyBytes(k)
+  override val name = ParameterEncryption.AES128_ENCRYPTION
+  override val ivLen = 12
 }
-private case class Aes128(val key: Array[Byte], val ivLen: Int = 12, val name: String = Aes128.name)
-    extends AesEncryption
-    with encrypter
 
-private object Aes256 {
-  val name: String = "aes-256"
-}
-private case class Aes256(val key: Array[Byte], val ivLen: Int = 128, val name: String = Aes256.name)
-    extends AesEncryption
-    with encrypter
-
-private class NoopCrypt extends encrypter {
-  val name = ""
-  def encrypt(p: ParameterValue): ParameterValue = {
-    p
-  }
-
-  def decrypt(p: ParameterValue): ParameterValue = {
-    p
-  }
+protected[core] class Aes256(val k: String) extends AesEncryption with Encrypter {
+  override val key = Encrypter.getKeyBytes(k)
+  override val name = ParameterEncryption.AES256_ENCRYPTION
+  override val ivLen = 128
 }

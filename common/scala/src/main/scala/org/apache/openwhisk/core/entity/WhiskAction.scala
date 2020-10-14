@@ -348,6 +348,7 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
   import WhiskActivation.instantSerdes
+
   val execFieldName = "exec"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 
@@ -384,7 +385,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       val stream = new ByteArrayInputStream(bytes)
       super.putAndAttach(
         db,
-        doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
+        doc
+          .copy(parameters = doc.parameters.lock(ParameterEncryption.singleton.default))
+          .revision[WhiskAction](doc.rev),
         attachmentUpdater,
         attachmentType,
         stream,
@@ -406,7 +409,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         case _ =>
           super.put(
             db,
-            doc.copy(parameters = ParameterEncryption.lock(doc.parameters)).revision[WhiskAction](doc.rev),
+            doc
+              .copy(parameters = doc.parameters.lock(ParameterEncryption.singleton.default))
+              .revision[WhiskAction](doc.rev),
             old)
       }
     } match {

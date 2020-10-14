@@ -49,8 +49,8 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
   feature_flags:
-    require_api_key_annotation: "{{ require_api_key_annotation | default(true) | lower  }}"
-    require_response_payload: "{{ require_response_payload | default(true) | lower  }}"
+    require_api_key_annotation: "{{ require_api_key_annotation | default(true) | lower }}"
+    require_response_payload: "{{ require_response_payload | default(true) | lower }}"
 
 ##
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).

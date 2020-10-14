@@ -195,7 +195,8 @@ class InvokerSupervisionTests
       rootControllerIndex = ControllerInstanceId("0"),
       blocking = false,
       content = None,
-      initArgs = Set.empty)
+      initArgs = Set.empty,
+      lockedArgs = Map.empty)
     val msg = ActivationRequest(activationMessage, invokerInstance)
 
     supervisor ! msg

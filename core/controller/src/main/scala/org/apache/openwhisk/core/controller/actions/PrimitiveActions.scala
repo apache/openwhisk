@@ -179,6 +179,7 @@ protected[actions] trait PrimitiveActions {
       waitForResponse.isDefined,
       args,
       action.parameters.initParameters,
+      action.parameters.lockedParameters(payload.map(_.fields.keySet).getOrElse(Set.empty)),
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 
