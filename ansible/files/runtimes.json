@@ -20,7 +20,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v10",
-                    "tag": "nightly"
+                    "tag": "nightly" // TODO: This would be changed to a fixed tag
                 },
                 "deprecated": false,
                 "attached": {
