@@ -18,8 +18,8 @@ FROM scala
 ARG OPENWHISK_JAR
 ENV DOCKER_VERSION=18.06.3-ce
 ENV WSK_VERSION=1.0.0
-ADD init /
-ADD stop waitready /bin/
+ADD bin/init /
+ADD bin/stop bin/waitready /bin/
 RUN chmod +x /bin/stop /bin/waitready ;\
   curl -sL \
   https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz \
