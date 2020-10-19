@@ -248,7 +248,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-ballerina-v0.990.2",
-                    "tag": "nightly" // Todo: Need to use a fixed tag after releasing the runtime
+                    "tag": "nightly"
                 },
                 "deprecated": false,
                 "attached": {
