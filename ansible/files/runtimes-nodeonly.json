@@ -21,7 +21,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v10",
-                    "tag": "nightly"
+                    "tag": "1.16.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -40,7 +40,7 @@
         {
             "prefix": "openwhisk",
             "name": "dockerskeleton",
-            "tag": "nightly"
+            "tag": "1.14.0"
         }
     ]
 }
