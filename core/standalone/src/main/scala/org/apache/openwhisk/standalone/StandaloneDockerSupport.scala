@@ -148,12 +148,12 @@ object StandaloneDockerSupport {
   }
 
   def prePullImage(imageName: String)(implicit logging: Logging): Unit = {
-    //docker images openwhisk/action-nodejs-v10:nightly
+    //docker images openwhisk/action-nodejs-v10:1.16.0
     //REPOSITORY                    TAG                 IMAGE ID            CREATED             SIZE
-    //openwhisk/action-nodejs-v10   nightly             dbb0f8e1a050        5 days ago          967MB
+    //openwhisk/action-nodejs-v10   1.16.0              dbb0f8e1a050        5 days ago          967MB
     val imageResult = s"$dockerCmd images $imageName".!!
     val imageExist = imageResult.linesIterator.toList.size > 1
-    if (!imageExist || imageName.contains(":nightly")) {
+    if (!imageExist || imageName.contains(":1.16.0")) {
       logging.info(this, s"Docker Pre pulling $imageName")
       s"$dockerCmd pull $imageName".!!
     }

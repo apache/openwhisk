@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-IMAGE="${1:-openwhisk/standalone:nightly}"
+IMAGE="${1:-openwhisk/standalone:1.0.0}"
 shift
 docker run --rm -d \
   -h openwhisk --name openwhisk \
