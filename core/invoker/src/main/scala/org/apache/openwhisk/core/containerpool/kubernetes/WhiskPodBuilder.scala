@@ -108,7 +108,12 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
       .getOrElse(Map.empty)
 
     val diskLimit = config.ephemeralStorage
-      .map(diskConfig => Map("ephemeral-storage" -> new Quantity(diskConfig.limit.toMB + "Mi")))
+      .map(diskConfig =>
+        if (diskConfig.scaleFactor > 0) {
+          Map("ephemeral-storage" -> new Quantity(diskConfig.scaleFactor * memory.toMB + "Mi"))
+        } else {
+          Map("ephemeral-storage" -> new Quantity(diskConfig.limit.toMB + "Mi"))
+      })
       .getOrElse(Map.empty)
 
     //In container its assumed that env, port, resource limits are set explicitly
