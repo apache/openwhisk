@@ -109,7 +109,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
 
     val diskLimit = config.ephemeralStorage
       .map(diskConfig =>
-        if (diskConfig.scaleFactor > 0) {
+        // Scale the ephemeral storage unless it exceeds the limit, if it exceeds the limit use the limit.
+        if ((diskConfig.scaleFactor > 0) && (diskConfig.scaleFactor * memory.toMB < diskConfig.limit.toMB)) {
           Map("ephemeral-storage" -> new Quantity(diskConfig.scaleFactor * memory.toMB + "Mi"))
         } else {
           Map("ephemeral-storage" -> new Quantity(diskConfig.limit.toMB + "Mi"))
