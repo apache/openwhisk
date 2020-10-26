@@ -21,8 +21,9 @@
 
 ## Apache 1.0.0
 Branch: [1.0.0](https://github.com/apache/openwhisk/tree/1.0.0)
-Changes:
-- WIP
+Notable changes:
+- Add support for PHP 7.2 runtime (#3736, @akrabat)
+
 
 ## Incubating 0.9.0
 Branch: [0.9.0-incubating](https://github.com/apache/openwhisk/tree/0.9.0-incubating)
