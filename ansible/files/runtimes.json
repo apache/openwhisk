@@ -181,20 +181,6 @@
         ],
         "go": [
             {
-                "kind": "go:1.11",
-                "default": false,
-                "deprecated": true,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                },
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-golang-v1.11",
-                    "tag": "1.16.0"
-                }
-            },
-            {
                 "kind": "go:1.15",
                 "default": true,
                 "deprecated": false,
