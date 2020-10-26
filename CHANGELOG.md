@@ -20,8 +20,8 @@
 # OpenWhisk Core
 
 ## Apache 1.0.0
-Branch: [1.0.0](https://github.com/apache/openwhisk/tree/1.0.0)
-Notable changes:
+### Branch: [1.0.0](https://github.com/apache/openwhisk/tree/1.0.0)
+### Notable changes
 - Improvements to parameter encryption to support per-namespace keys. ([#4855](https://github.com/apache/openwhisk/pull/4855), [@rabbah](https://github.com/rabbah))
 - Use latest code if action's revision is mismatched. ([#4954](https://github.com/apache/openwhisk/pull/4954), [@upgle](https://github.com/upgle))
 - Do not delete previous annotation and support delete annotation via CLI. ([#4940](https://github.com/apache/openwhisk/pull/4940), [@ningyougang](https://github.com/ningyougang))
@@ -30,7 +30,7 @@ Notable changes:
 - Allow parent/child transaction ids. ([#4819](https://github.com/apache/openwhisk/pull/4819), [@upgle](https://github.com/upgle))
 - Adjust prewarm container dynamically. ([#4871](https://github.com/apache/openwhisk/pull/4871), [@ningyougang](https://github.com/ningyougang))
 - Add nodejs:14. ([#4902](https://github.com/apache/openwhisk/pull/4902), [@rabbah](https://github.com/rabbah))
-- Create AES128 and AES256 encryption for parameters. ([#4756](https://github.com/apache/openwhisk/pull/4756), [@mcdan](https://github.com/mcdan)) 
+- Create AES128 and AES256 encryption for parameters. ([#4756](https://github.com/apache/openwhisk/pull/4756), [@mcdan](https://github.com/mcdan))
 - Implement an ElasticSearchActivationStore. ([#4724](https://github.com/apache/openwhisk/pull/4724), [@jiangpengcheng](https://github.com/jiangpengcheng))
 - Add swift:5.1 kind to runtimes.json. ([#4803](https://github.com/apache/openwhisk/pull/4803), [@dgrove-oss](https://github.com/dgrove-oss))
 - Add volume mapping for Docker credentials. ([#4791](https://github.com/apache/openwhisk/pull/4791), [@style95](https://github.com/style95))
@@ -88,6 +88,6 @@ Notable changes:
 
 
 ## Incubating 0.9.0
-Branch: [0.9.0-incubating](https://github.com/apache/openwhisk/tree/0.9.0-incubating)
-Changes:
+### Branch: [0.9.0-incubating](https://github.com/apache/openwhisk/tree/0.9.0-incubating)
+### Notable changes
 - Initial version for the release
