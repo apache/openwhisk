@@ -85,8 +85,6 @@
 - ArtifactStore implementation for CosmosDB. ([#3562](https://github.com/apache/openwhisk/pull/3562), [@chetanmeh](https://github.com/chetanmeh))
 - Add support for PHP 7.2 runtime. ([#3736](https://github.com/apache/openwhisk/pull/3736), [@akrabat](https://github.com/akrabat))
 
-
-
 ## Incubating 0.9.0
 ### Branch: [0.9.0-incubating](https://github.com/apache/openwhisk/tree/0.9.0-incubating)
 ### Notable changes
