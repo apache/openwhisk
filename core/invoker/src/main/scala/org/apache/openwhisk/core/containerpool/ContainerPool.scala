@@ -29,13 +29,7 @@ import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
-sealed trait WorkerState
-case object Busy extends WorkerState
-case object Free extends WorkerState
-
 case class ColdStartKey(kind: String, memory: ByteSize)
-
-case class WorkerData(data: ContainerData, state: WorkerState)
 
 case object EmitMetrics
 
