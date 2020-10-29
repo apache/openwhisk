@@ -419,11 +419,13 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
         })
   }
 
-  def getMatchedDocId(action: FullyQualifiedEntityName, version: Option[SemVer], datastore: EntityStore)(
-    implicit transId: TransactionId,
-    ec: ExecutionContext): Future[Option[DocId]] = {
-    get(action, datastore, version.nonEmpty).map { res =>
-      version match {
+  def getMatchedDocId(
+    action: FullyQualifiedEntityName,
+    version: Option[SemVer],
+    datastore: EntityStore,
+    tryAgain: Boolean = true)(implicit transId: TransactionId, ec: ExecutionContext): Future[Option[DocId]] = {
+    get(action, datastore, version.nonEmpty).flatMap { res =>
+      val docId = version match {
         case Some(ver) =>
           res.versions.get(ver).map(DocId(_))
         case None if res.versions.nonEmpty =>
@@ -431,6 +433,12 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
         case _ =>
           None
       }
+      // there may be a chance that database is updated while cache is not, we need to invalidate cache and try again
+      if (docId.isEmpty && tryAgain) {
+        WhiskActionVersionList.removeId(cacheKey(action))
+        getMatchedDocId(action, version, datastore, false)
+      } else
+        Future.successful(docId)
     }
   }
 

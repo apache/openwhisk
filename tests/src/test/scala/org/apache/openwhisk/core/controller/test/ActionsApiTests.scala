@@ -245,6 +245,34 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "ensure the data consistency" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
+    put(entityStore, action)
+
+    Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
+    }
+
+    // put entity to database directly with the cache in memory for version list untouched
+    val action2 = action.copy(version = action.version.upPatch)
+    put(entityStore, action2)
+
+    Get(s"$collectionPath/${action.name}?version=0.0.1") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action)
+    }
+
+    Get(s"$collectionPath/${action.name}?version=0.0.2") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[WhiskAction]
+      response should be(action2)
+    }
+  }
+
   it should "not get unpublished version" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
