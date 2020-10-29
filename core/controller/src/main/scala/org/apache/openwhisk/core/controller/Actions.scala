@@ -372,7 +372,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    parameter('version.as[SemVer] ?) { version =>
+    parameter('version.as[SemVer] ?, 'deleteAll ? false) { (version, deleteAll) =>
       onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
         case Success(results) =>
           version match {
@@ -387,6 +387,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   WhiskActionVersionList.deleteCache(entityName)
                   complete(OK, action)
                 })
+            case None if (!deleteAll && results.versions.size > 1) =>
+              terminate(
+                Forbidden,
+                s"[DEL] entity version not provided, you need to specify deleteAll=true to delete all versions for action $entityName")
             case None =>
               val fs =
                 if (results.versions.isEmpty)

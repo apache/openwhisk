@@ -378,7 +378,8 @@ case class WhiskActionVersionList(namespace: EntityPath, name: EntityName, versi
 }
 
 object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActionVersionList, DocInfo] {
-  lazy val viewName = WhiskQueries.entitiesView(collection = "action-versions").name
+  val collectionName = "action-versions"
+  lazy val viewName = WhiskQueries.entitiesView(collection = collectionName).name
 
   def cacheKey(action: FullyQualifiedEntityName): CacheKey = {
     CacheKey(action.fullPath.asString)

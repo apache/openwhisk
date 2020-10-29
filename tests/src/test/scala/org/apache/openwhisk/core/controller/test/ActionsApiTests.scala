@@ -575,8 +575,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       response should be(action3)
     }
 
-    // it should delete all actions if version is not specified
+    // it should return 403 error when try to delete multi versions without specify deleteAll=true
     Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
+    }
+
+    // it should delete all actions if version is not specified and deleteAll is passed as true
+    Delete(s"$collectionPath/${action.name}?deleteAll=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskAction]
       response should be(action3)
@@ -951,7 +956,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               Some(action.limits.timeout),
               Some(action.limits.memory),
               Some(action.limits.logs),
-              Some(action.limits.concurrency))))
+              Some(action.limits.concurrency))),
+          Some(action.version))
 
         // first request invalidates any previous entries and caches new result
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
@@ -1004,12 +1010,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.exec,
               action.parameters,
               action.limits,
-              action.version.upPatch,
+              action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"entity exists, will try to update '$action'")
-        stream.toString should include(s"caching ${CacheKey(action.copy(version = action.version.upPatch))}")
+        stream.toString should include(s"caching ${CacheKey(action)}")
         stream.reset()
 
         // delete should invalidate cache for all versions
@@ -1024,12 +1030,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.exec,
               action.parameters,
               action.limits,
-              action.version.upPatch,
+              action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind)))
         }
         stream.toString should include(s"invalidating ${CacheKey(action)}")
-        stream.toString should include(s"invalidating ${CacheKey(action.copy(version = action.version.upPatch))}")
         stream.reset()
     }
   }
@@ -1343,7 +1348,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               Some(action.limits.timeout),
               Some(action.limits.memory),
               Some(action.limits.logs),
-              Some(action.limits.concurrency))))
+              Some(action.limits.concurrency))),
+          Some(action.version))
         val name = action.name
         val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
         val expectedPutLog =
@@ -1369,7 +1375,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.exec,
               action.parameters,
               action.limits,
-              action.version.upPatch,
+              action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind)))
         }
@@ -1388,7 +1394,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.exec,
               action.parameters,
               action.limits,
-              action.version.upPatch,
+              action.version,
               action.publish,
               action.annotations ++ systemAnnotations(kind)))
         }
@@ -1410,7 +1416,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(actionOldSchema.limits.timeout),
           Some(actionOldSchema.limits.memory),
           Some(actionOldSchema.limits.logs),
-          Some(actionOldSchema.limits.concurrency))))
+          Some(actionOldSchema.limits.concurrency))),
+      Some(actionOldSchema.version))
     val expectedPutLog =
       Seq(s"uploading attachment '[\\w-/:]+' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}")
         .mkString("(?s).*")
@@ -1436,7 +1443,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionNewSchema.exec,
           actionOldSchema.parameters,
           actionOldSchema.limits,
-          actionOldSchema.version.upPatch,
+          actionOldSchema.version,
           actionOldSchema.publish,
           actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
@@ -1461,7 +1468,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionNewSchema.exec,
           actionOldSchema.parameters,
           actionOldSchema.limits,
-          actionOldSchema.version.upPatch,
+          actionOldSchema.version,
           actionOldSchema.publish,
           actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
