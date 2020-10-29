@@ -77,6 +77,6 @@ def checkRequiredProperties(requiredPropertiesByName, properties):
 
 def getPropertyValue(key, properties):
     evalue = os.environ.get(key)
-    value = (evalue if evalue is not None and evalue is not ''
+    value = (evalue if evalue != None and evalue != ''
              else properties[key] if key in properties else None)
     return value
