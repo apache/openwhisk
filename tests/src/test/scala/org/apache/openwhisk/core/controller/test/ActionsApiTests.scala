@@ -1628,6 +1628,10 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
+    }
+
+    Put(s"$collectionPath/${action.name}?deleteOld=true", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
     }
     // the first version should be deleted automatically

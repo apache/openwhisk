@@ -220,7 +220,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    parameter('overwrite ? false) { overwrite =>
+    parameter('overwrite ? false, 'deleteOld ? false) { (overwrite, deleteOld) =>
       entity(as[WhiskActionPut]) { content =>
         val request = content.resolve(user.namespace)
         val checkAdditionalPrivileges = entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap {
@@ -230,6 +230,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
             onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
+              case Success(result) if (result.versions.size >= actionMaxVersionLimit && !deleteOld) =>
+                terminate(
+                  Forbidden,
+                  s"[PUT] entity has ${result.versions.size} versions exist which exceed $actionMaxVersionLimit, delete one of them before create new one or pass deleteOld=true to delete oldest version automatically")
               case Success(result) =>
                 val id = result.matchedDocId(content.version).getOrElse(entityName.toDocId)
                 putEntity(
