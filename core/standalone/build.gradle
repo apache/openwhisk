@@ -146,6 +146,11 @@ bootJar {
     finalizedBy copyBootJarToBin
 }
 
+// Support building standalone from source release (no .git)
+gitProperties {
+    failOnNoGitDirectory = false
+}
+
 // Gradle boot disables the default jar task. So need to now make
 // install task depend on bootJar such that it finds the required jar file
 // https://github.com/spring-projects/spring-boot/issues/13187
