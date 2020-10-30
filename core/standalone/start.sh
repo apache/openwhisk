@@ -20,7 +20,7 @@ shift
 docker run --rm -d \
   -h openwhisk --name openwhisk \
   -p 3233:3233 -p 3232:3232 \
-  -v //var/run/docker.sock:/var/run/docker.sock \
+  -v /var/run/docker.sock:/var/run/docker.sock \
  "$IMAGE" "$@"
 docker exec openwhisk waitready
 case "$(uname)" in
