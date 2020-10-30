@@ -103,7 +103,7 @@
         "swift": [
             {
                 "kind": "swift:4.2",
-                "default": true,
+                "default": false,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v4.2",
@@ -121,6 +121,20 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v5.1",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "swift:5.3",
+                "default": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v5.3",
                     "tag": "nightly"
                 },
                 "deprecated": false,
