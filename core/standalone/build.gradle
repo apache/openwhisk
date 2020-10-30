@@ -22,7 +22,6 @@ plugins {
     id 'org.scoverage'
     id 'org.springframework.boot' version '2.1.6.RELEASE'
     id 'scala'
-    id 'com.gorylenko.gradle-git-properties' version '2.0.0'
 }
 
 ext.dockerImageName = 'standalone'

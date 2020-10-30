@@ -48,7 +48,6 @@ class Conf(arguments: Seq[String]) extends ScallopConf(Conf.expandAllMode(argume
   import StandaloneOpenWhisk.preferredPgPort
   banner(StandaloneOpenWhisk.banner)
   footer("\nOpenWhisk standalone server")
-  StandaloneOpenWhisk.gitInfo.foreach(g => version(s"Git Commit - ${g.commitId}"))
 
   this.printedName = "openwhisk"
   val configFile =
@@ -200,8 +199,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
      |}
      |""".stripMargin
 
-  val gitInfo: Option[GitInfo] = loadGitInfo()
-
   val defaultWorkDir = new File(FilenameUtils.concat(FileUtils.getUserDirectoryPath, ".openwhisk/standalone"))
 
   val wskPath = System.getProperty("whisk.standalone.wsk", "wsk")
@@ -265,7 +262,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   def initialize(conf: Conf): Unit = {
-    configureBuildInfo()
     configureServerPort(conf)
     configureOSSpecificOpts()
     initConfigLocation(conf)
@@ -358,25 +354,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setSysProp("whisk.controller.interface", StandaloneDockerSupport.getLocalHostName())
   }
 
-  private def loadGitInfo() = {
-    val info = loadPropResource("git.properties")
-    for {
-      commit <- info.get("git.commit.id.abbrev")
-      time <- info.get("git.commit.time")
-    } yield GitInfo(commit, time)
-  }
-
   private def printBanner(conf: Conf): Unit = {
     val bannerTxt = clr(banner, AnsiColor.CYAN, conf.colorEnabled)
     println(bannerTxt)
-    gitInfo.foreach(g => println(s"Git Commit: ${g.commitId}, Build Date: ${g.commitTime}"))
-  }
-
-  private def configureBuildInfo(): Unit = {
-    gitInfo.foreach { g =>
-      setSysProp("whisk.info.build-no", g.commitId)
-      setSysProp("whisk.info.date", g.commitTime)
-    }
   }
 
   private def setSysProp(key: String, value: String): Unit = {
