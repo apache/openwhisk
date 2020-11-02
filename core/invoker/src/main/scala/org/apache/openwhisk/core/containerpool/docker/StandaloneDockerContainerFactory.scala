@@ -100,7 +100,9 @@ trait WindowsDockerClient {
 
   override protected def executableAlternatives: List[String] = {
     val executable = loadConfig[String]("whisk.docker.executable").toOption
-    List("""C:\Program Files\Docker\Docker\resources\bin\docker.exe""") ++ executable
+    List(
+      """C:\Program Files\Docker\Docker\resources\bin\docker.exe""",
+      """C:\Program Files\Docker\Docker\resources\docker.exe""") ++ executable
   }
 }
 
