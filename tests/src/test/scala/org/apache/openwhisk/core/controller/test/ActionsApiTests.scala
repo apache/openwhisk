@@ -1564,48 +1564,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-  it should "replace old action if version is provided" in {
-    implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
-    put(entityStore, action)
-    val action2 = action.copy(
-      parameters = content.parameters.get,
-      version = action.version.upPatch,
-      annotations = action.annotations ++ systemAnnotations(NODEJS10, false))
-    Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      checkWhiskEntityResponse(response, action2)
-    }
-
-    // the first version should not be replaced
-    Get(s"$collectionPath/${action.name}?version=0.0.1") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(action)
-    }
-
-    // it should update based on the given version, action1 here, and replace it in database
-    val content2 = WhiskActionPut(version = Some(action.version), annotations = Some(Parameters("x", "X")))
-    val action3 =
-      action.copy(annotations = action.annotations ++ content2.annotations ++ systemAnnotations(NODEJS10, false))
-    Put(s"$collectionPath/${action.name}", content2) ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      checkWhiskEntityResponse(response, action3)
-    }
-
-    // the first version should be replaced with action3
-    Get(s"$collectionPath/${action.name}?version=0.0.1") ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(action.docid)
-      deleteAction(action2.docid)
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      checkWhiskEntityResponse(response, action3)
-    }
-  }
-
   it should "delete old action if its versions exceed the limit" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault("??"))

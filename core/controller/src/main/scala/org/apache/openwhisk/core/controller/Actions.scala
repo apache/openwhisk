@@ -235,7 +235,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   Forbidden,
                   s"[PUT] entity has ${result.versions.size} versions exist which exceed $actionMaxVersionLimit, delete one of them before create new one or pass deleteOld=true to delete oldest version automatically")
               case Success(result) =>
-                val id = result.matchedDocId(content.version).getOrElse(entityName.toDocId)
+                val id = result.matchedDocId(None).getOrElse(entityName.toDocId)
                 putEntity(
                   WhiskAction,
                   entityStore,
@@ -693,9 +693,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       .map(_ ++ content.annotations)
       .getOrElse(action.annotations ++ content.annotations)
 
-    // if content provided a `version`, then new action should overwrite old entity in database
-    val newRev = content.version.map(_ => action.rev).getOrElse(DocRevision.empty)
-
     WhiskAction(
       action.namespace,
       action.name,
@@ -704,7 +701,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       limits,
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
-      WhiskActionsApi.amendAnnotations(newAnnotations, exec, create = false)).revision[WhiskAction](newRev)
+      WhiskActionsApi.amendAnnotations(newAnnotations, exec, create = false))
   }
 
   /**
