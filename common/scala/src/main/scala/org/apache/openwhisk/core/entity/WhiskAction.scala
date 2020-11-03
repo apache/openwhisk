@@ -361,14 +361,19 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer, publish: Boolean)
 
 object WhiskActionVersion {
-  val serdes = jsonFormat(WhiskActionVersion.apply, "_id", "namespace", "name", "version", "publish")
+  val serdes = jsonFormat(WhiskActionVersion.apply, "id", "namespace", "name", "version", "publish")
 }
 
-case class WhiskActionVersionList(namespace: EntityPath, name: EntityName, versions: Map[SemVer, String]) {
+case class WhiskActionVersionList(namespace: EntityPath,
+                                  name: EntityName,
+                                  versions: Map[SemVer, String],
+                                  defaultVersion: Option[String]) {
   def matchedDocId(version: Option[SemVer]): Option[DocId] = {
     version match {
       case Some(ver) =>
         versions.get(ver).map(DocId(_))
+      case None if defaultVersion.nonEmpty =>
+        versions.get(SemVer(defaultVersion.get)).map(DocId(_))
       case None if versions.nonEmpty =>
         Some(DocId(versions.maxBy(_._1)._2))
       case _ =>
@@ -385,7 +390,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
     CacheKey(action.fullPath.asString)
   }
 
-  def get(action: FullyQualifiedEntityName, datastore: EntityStore, fetchAll: Boolean = true)(
+  def get(action: FullyQualifiedEntityName, datastore: EntityStore, fromCache: Boolean = true)(
     implicit transId: TransactionId): Future[WhiskActionVersionList] = {
     implicit val logger: Logging = datastore.logging
     implicit val ec = datastore.executionContext
@@ -401,7 +406,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
           endKey = endKey,
           skip = 0,
           limit = 0,
-          includeDocs = false,
+          includeDocs = true,
           descending = false,
           reduce = false,
           stale = StaleParameter.No)
@@ -411,13 +416,19 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
           }
           val mappings = values
             .map(WhiskActionVersion.serdes.read(_))
-            .filter(_.publish || fetchAll)
             .map { actionVersion =>
               (actionVersion.version, actionVersion.id)
             }
             .toMap
-          WhiskActionVersionList(action.namespace.toPath, action.name, mappings)
-        })
+          val defaultVersion = if (result.nonEmpty) {
+            val doc = result.head.fields.getOrElse("doc", JsNull)
+            if (doc != JsNull) doc.asJsObject.fields.get("default").map(_.convertTo[String])
+            else
+              None
+          } else None
+          WhiskActionVersionList(action.namespace.toPath, action.name, mappings, defaultVersion)
+        },
+      fromCache)
   }
 
   def getMatchedDocId(
@@ -425,10 +436,12 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
     version: Option[SemVer],
     datastore: EntityStore,
     tryAgain: Boolean = true)(implicit transId: TransactionId, ec: ExecutionContext): Future[Option[DocId]] = {
-    get(action, datastore, version.nonEmpty).flatMap { res =>
+    get(action, datastore).flatMap { res =>
       val docId = version match {
         case Some(ver) =>
           res.versions.get(ver).map(DocId(_))
+        case None if res.defaultVersion.nonEmpty =>
+          res.versions.get(SemVer(res.defaultVersion.get)).map(DocId(_))
         case None if res.versions.nonEmpty =>
           Some(DocId(res.versions.maxBy(_._1)._2))
         case _ =>

@@ -229,7 +229,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
-            onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
+            onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
               case Success(result) if (result.versions.size >= actionMaxVersionLimit && !deleteOld) =>
                 terminate(
                   Forbidden,
@@ -377,7 +377,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('version.as[SemVer] ?, 'deleteAll ? false) { (version, deleteAll) =>
-      onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
+      onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
         case Success(results) =>
           version match {
             case Some(_) =>

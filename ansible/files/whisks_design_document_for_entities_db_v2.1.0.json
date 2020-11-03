@@ -23,7 +23,7 @@
       "reduce": "_count"
     },
     "action-versions": {
-      "map": "function (doc) {\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  if (isAction(doc)) try {\n    var published = true;\n    doc.annotations.forEach(function(anno) {\n      if(anno[\"key\"] == \"publish\")\n        published = anno[\"value\"]\n    });\n    \n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      _id: doc._id,\n      version: doc.version,\n      publish: published,\n    };\n    var versions = doc.version.split(\".\")\n    emit([doc.namespace + \"/\" + doc.name], value);\n  } catch (e) {}\n}"
+      "map": "function (doc) {\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  if (isAction(doc)) try {\n    var value = {\n      _id: doc.namespace + \"/\" + doc.name + \"/default\",\n      namespace: doc.namespace,\n      name: doc.name,\n      id: doc._id,\n      version: doc.version\n    };\n    emit([doc.namespace + \"/\" + doc.name], value);\n  } catch (e) {}\n}"
     }
   }
 }
