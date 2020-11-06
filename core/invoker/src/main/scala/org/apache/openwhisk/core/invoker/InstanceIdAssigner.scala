@@ -29,7 +29,7 @@ import org.apache.openwhisk.common.Logging
  */
 private[invoker] class InstanceIdAssigner(connectionString: String)(implicit logger: Logging) {
 
-  def getId(name: String): Int = {
+  def setAndGetId(name: String, overwriteId: Option[Int] = None): Int = {
     logger.info(this, s"invokerReg: creating zkClient to $connectionString")
     val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
     val zkClient = CuratorFrameworkFactory.newClient(connectionString, retryPolicy)
@@ -38,34 +38,41 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
     logger.info(this, "invokerReg: connected to zookeeper")
 
     val myIdPath = "/invokers/idAssignment/mapping/" + name
-    val assignedId = Option(zkClient.checkExists().forPath(myIdPath)) match {
-      case None =>
-        // path doesn't exist -> no previous mapping for this invoker
-        logger.info(this, s"invokerReg: no prior assignment of id for invoker $name")
-        val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
-        idCounter.start()
+    val assignedId = if (overwriteId.isEmpty) {
+      Option(zkClient.checkExists().forPath(myIdPath)) match {
+        case None =>
+          // path doesn't exist -> no previous mapping for this invoker
+          logger.info(this, s"invokerReg: no prior assignment of id for invoker $name")
+          val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
+          idCounter.start()
 
-        def assignId(): Int = {
-          val current = idCounter.getVersionedValue()
-          if (idCounter.trySetCount(current, current.getValue() + 1)) {
-            current.getValue()
-          } else {
-            assignId()
+          def assignId(): Int = {
+            val current = idCounter.getVersionedValue()
+            if (idCounter.trySetCount(current, current.getValue() + 1)) {
+              current.getValue()
+            } else {
+              assignId()
+            }
           }
-        }
 
-        val newId = assignId()
-        idCounter.close()
-        zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
-        logger.info(this, s"invokerReg: invoker $name was assigned invokerId $newId")
-        newId
+          val newId = assignId()
+          idCounter.close()
+          zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
+          logger.info(this, s"invokerReg: invoker $name was assigned invokerId $newId")
+          newId
 
-      case Some(_) =>
-        // path already exists -> there is a previous mapping for this invoker we should use
-        val rawOldId = zkClient.getData().forPath(myIdPath)
-        val oldId = BigInt(rawOldId).intValue
-        logger.info(this, s"invokerReg: invoker $name was assigned its previous invokerId $oldId")
-        oldId
+        case Some(_) =>
+          // path already exists -> there is a previous mapping for this invoker we should use
+          val rawOldId = zkClient.getData().forPath(myIdPath)
+          val oldId = BigInt(rawOldId).intValue
+          logger.info(this, s"invokerReg: invoker $name was assigned its previous invokerId $oldId")
+          oldId
+      }
+    } else {
+      val newId = overwriteId.get
+      zkClient.create().orSetData().forPath(myIdPath, BigInt(newId).toByteArray)
+      logger.info(this, s"invokerReg: invoker $name was assigned invokerId $newId")
+      newId
     }
 
     zkClient.close()

@@ -40,7 +40,10 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
 
-case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
+case class CmdLineArgs(uniqueName: Option[String] = None,
+                       id: Option[Int] = None,
+                       displayedName: Option[String] = None,
+                       overwriteId: Option[Int] = None)
 
 object Invoker {
 
@@ -133,6 +136,8 @@ object Invoker {
     //    --uniqueName <value>   a unique name to dynamically assign Kafka topics from Zookeeper
     //    --displayedName <value> a name to identify this invoker via invoker health protocol
     //    --id <value>     proposed invokerId
+    //    --overwriteId <value> proposed invokerId to re-write with uniqueName in Zookeeper,
+    //    DO NOT USE overwriteId unless sure invokerId does not exist for other uniqueName
     def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
       ls match {
         case "--uniqueName" :: uniqueName :: tail =>
@@ -141,6 +146,8 @@ object Invoker {
           parse(tail, c.copy(displayedName = nonEmptyString(displayedName)))
         case "--id" :: id :: tail if Try(id.toInt).isSuccess =>
           parse(tail, c.copy(id = Some(id.toInt)))
+        case "--overwriteId" :: overwriteId :: tail if Try(overwriteId.toInt).isSuccess =>
+          parse(tail, c.copy(overwriteId = Some(overwriteId.toInt)))
         case Nil => c
         case _   => abort(s"Error processing command line arguments $ls")
       }
@@ -150,16 +157,16 @@ object Invoker {
 
     val assignedInvokerId = cmdLineArgs match {
       // --id is defined with a valid value, use this id directly.
-      case CmdLineArgs(_, Some(id), _) =>
+      case CmdLineArgs(_, Some(id), _, _) =>
         logger.info(this, s"invokerReg: using proposedInvokerId $id")
         id
 
       // --uniqueName is defined with a valid value, id is empty, assign an id via zookeeper
-      case CmdLineArgs(Some(unique), None, _) =>
+      case CmdLineArgs(Some(unique), None, _, overwriteId) =>
         if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
-        new InstanceIdAssigner(config.zookeeperHosts).getId(unique)
+        new InstanceIdAssigner(config.zookeeperHosts).setAndGetId(unique, overwriteId)
 
       case _ => abort(s"Either --id or --uniqueName must be configured with correct values")
     }
