@@ -287,7 +287,7 @@ class InvokerReactive(
       duration = Some(0),
       response = response,
       annotations = {
-        Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++
+        Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.copy(version = None).asString)) ++
           Parameters(WhiskActivation.kindAnnotation, JsString(Exec.UNKNOWN)) ++ causedBy
       })
   }
