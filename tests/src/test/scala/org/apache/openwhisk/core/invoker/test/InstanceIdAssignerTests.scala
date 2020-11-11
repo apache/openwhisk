@@ -55,4 +55,11 @@ class InstanceIdAssignerTests extends FlatSpec with Matchers with StreamLogging 
     assigner.setAndGetId("foo") shouldBe 0
     assigner.setAndGetId("foo", Some(2)) shouldBe 2
   }
+
+  it should "fail to overwrite an id for unique name that already exists" in {
+    val assigner = new InstanceIdAssigner(zkServer.getConnectString)
+    assigner.setAndGetId("foo") shouldBe 0
+    assigner.setAndGetId("bar") shouldBe 1
+    assertThrows[IllegalArgumentException](assigner.setAndGetId("bar", Some(1)))
+  }
 }

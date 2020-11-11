@@ -22,6 +22,8 @@ import org.apache.curator.framework.recipes.shared.SharedCount
 import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.openwhisk.common.Logging
 
+import scala.collection.JavaConverters._
+
 /**
  * Computes the instanceId for invoker
  *
@@ -37,7 +39,8 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
     zkClient.blockUntilConnected()
     logger.info(this, "invokerReg: connected to zookeeper")
 
-    val myIdPath = "/invokers/idAssignment/mapping/" + name
+    val rootPath = "/invokers/idAssignment/mapping"
+    val myIdPath = rootPath + s"/$name"
     val assignedId = if (overwriteId.isEmpty) {
       Option(zkClient.checkExists().forPath(myIdPath)) match {
         case None =>
@@ -70,6 +73,22 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
       }
     } else {
       val newId = overwriteId.get
+
+      //check if the invokerId already exists for another unique name
+      val instanceIdExists = zkClient
+        .getChildren()
+        .forPath(rootPath)
+        .asScala
+        .map(uniqueName => {
+          val idPath = rootPath + s"/$uniqueName"
+          BigInt(zkClient.getData().forPath(idPath)).intValue
+        })
+        .find(_ == newId)
+
+      if (instanceIdExists.nonEmpty) {
+        throw new IllegalArgumentException(s"invokerReg: an invoker with id $newId already exists in zookeeper")
+      }
+
       zkClient.create().orSetData().forPath(myIdPath, BigInt(newId).toByteArray)
       logger.info(this, s"invokerReg: invoker $name was assigned invokerId $newId")
       newId
