@@ -85,6 +85,10 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
   val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
+
+  val schedulerHost = this(WhiskConfig.schedulerHost)
+  val schedulerRpcPort = this(WhiskConfig.schedulerRpcPort)
+  val schedulerAkkaPort = this(WhiskConfig.schedulerAkkaPort)
 }
 
 object WhiskConfig {
@@ -190,6 +194,10 @@ object WhiskConfig {
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
   val controllerSeedNodes = "akka.cluster.seed.nodes"
+
+  val schedulerHost = "whisk.scheduler.endpoints.host"
+  val schedulerRpcPort = "whisk.scheduler.endpoints.rpcPort"
+  val schedulerAkkaPort = "whisk.scheduler.endpoints.akkaPort"
 }
 
 object ConfigKeys {
