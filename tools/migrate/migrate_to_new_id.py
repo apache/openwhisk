@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument("--dbUrl", required=True, help="Server URL of the database, that has to be cleaned of old activations. E.g. 'https://xxx:yyy@domain.couch.com:443'")
     parser.add_argument("--dbName", required=True, help="Name of the Database of the actions to be migration.")
     parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 200.")
- 
+
     args = parser.parse_args()
 
     db = couchdb.client.Server(args.dbUrl)[args.dbName]
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     while len(actions) != 0:
         for action in actions:
             actionName = "%s/%s" % (action.value["namespace"], action.value["name"])
-            newId = "%s@%s" % (actionName, action.value["version"]) 
+            newId = "%s@%s" % (actionName, action.value["version"])
             # this action is using old style id, copy it with new id which append `@version` to it
             if(action.id != newId):
                 print("Copy %s to %s:...........\n" % (action.id, newId))
