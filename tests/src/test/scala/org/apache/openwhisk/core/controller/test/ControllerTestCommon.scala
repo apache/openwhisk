@@ -89,10 +89,11 @@ protected trait ControllerTestCommon
     // Used to ignore `updated` field because timestamp is not known before inserting into the DB
     // If you use this method, test case that checks timestamp must be added
     val r = response match {
-      case whiskAction: WhiskAction                 => whiskAction.copy(updated = expected.updated)
-      case whiskActionMetaData: WhiskActionMetaData => whiskActionMetaData.copy(updated = expected.updated)
-      case whiskTrigger: WhiskTrigger               => whiskTrigger.copy(updated = expected.updated)
-      case whiskPackage: WhiskPackage               => whiskPackage.copy(updated = expected.updated)
+      case whiskAction: WhiskAction                  => whiskAction.copy(updated = expected.updated)
+      case defaultVersion: WhiskActionDefaultVersion => defaultVersion.copy(updated = expected.updated)
+      case whiskActionMetaData: WhiskActionMetaData  => whiskActionMetaData.copy(updated = expected.updated)
+      case whiskTrigger: WhiskTrigger                => whiskTrigger.copy(updated = expected.updated)
+      case whiskPackage: WhiskPackage                => whiskPackage.copy(updated = expected.updated)
     }
     r should be(expected)
   }
@@ -122,6 +123,13 @@ protected trait ControllerTestCommon
     implicit transid: TransactionId,
     timeout: Duration = 10 seconds): WhiskActivation = {
     Await.result(activationStore.get(activationId, context), timeout)
+  }
+
+  def deleteActionDefaultVersion(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskActionDefaultVersion.get(entityStore, doc) flatMap { doc =>
+      logging.debug(this, s"deleting ${doc.docinfo}")
+      WhiskActionDefaultVersion.del(entityStore, doc.docinfo)
+    }, dbOpTimeout)
   }
 
   def storeActivation(

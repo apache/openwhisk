@@ -53,13 +53,13 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
   }
 
   it should "save multi versions for an action and invoke them" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "hello"
+    val name = "multiVersion"
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
       action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
     }
 
-    // invoke the latest version
+    // invoke the default version
     var run = wsk.action.invoke(name, Map("payload" -> "world".toJson))
     withActivation(wsk.activation, run) { activation =>
       activation.response.status shouldBe "success"
@@ -81,6 +81,26 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       Map("payload" -> "world".toJson),
       version = Some("0.0.3"),
       expectedExitCode = NotFound.intValue)
+  }
+
+  it should "invoke the default version of an action if version parameter is not provided" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "defaultVersion"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
+        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+
+      // set the default version
+      wsk.action.create(name, None, defaultVersion = Some("0.0.2"))
+
+      // invoke the default version
+      val run = wsk.action.invoke(name, Map("payload" -> "world".toJson))
+      withActivation(wsk.activation, run) { activation =>
+        activation.response.status shouldBe "success"
+        activation.response.result shouldBe Some(JsObject("payload" -> "world".toJson))
+        activation.logs.get.mkString(" ") shouldBe empty
+      }
   }
 
   it should "invoke an action returning a promise" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

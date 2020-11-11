@@ -162,6 +162,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                   case _ =>
                     list.foreach { action =>
                       WhiskActionVersionList.deleteCache(action.fullyQualifiedName(false))
+                      val version = WhiskActionDefaultVersion(action.namespace, action.name, None)
+                      WhiskActionDefaultVersion.get(entityStore, version.docid) foreach { versionWithRevision =>
+                        WhiskActionDefaultVersion.del(entityStore, versionWithRevision.docinfo)
+                      }
                     }
                 } flatMap { _ =>
                   Future.successful({})

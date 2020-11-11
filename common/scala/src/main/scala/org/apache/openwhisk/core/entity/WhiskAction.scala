@@ -34,8 +34,10 @@ import org.apache.openwhisk.core.database.{
   ArtifactStore,
   CacheChangeNotification,
   DocumentFactory,
+  EvictionPolicy,
   MultipleReadersSingleWriterCache,
-  StaleParameter
+  StaleParameter,
+  WriteTime
 }
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.types.EntityStore
@@ -358,22 +360,22 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 }
 
-case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer, publish: Boolean)
+case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer)
 
 object WhiskActionVersion {
-  val serdes = jsonFormat(WhiskActionVersion.apply, "id", "namespace", "name", "version", "publish")
+  val serdes = jsonFormat(WhiskActionVersion.apply, "id", "namespace", "name", "version")
 }
 
 case class WhiskActionVersionList(namespace: EntityPath,
                                   name: EntityName,
                                   versions: Map[SemVer, String],
-                                  defaultVersion: Option[String]) {
+                                  defaultVersion: Option[SemVer]) {
   def matchedDocId(version: Option[SemVer]): Option[DocId] = {
     version match {
       case Some(ver) =>
-        versions.get(ver).map(DocId(_))
+        Some(DocId(s"$namespace/$name@$ver"))
       case None if defaultVersion.nonEmpty =>
-        versions.get(SemVer(defaultVersion.get)).map(DocId(_))
+        Some(DocId(s"$namespace/$name@${defaultVersion.get}"))
       case None if versions.nonEmpty =>
         Some(DocId(versions.maxBy(_._1)._2))
       case _ =>
@@ -383,8 +385,10 @@ case class WhiskActionVersionList(namespace: EntityPath,
 }
 
 object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActionVersionList, DocInfo] {
+  override val evictionPolicy: EvictionPolicy = WriteTime
   val collectionName = "action-versions"
   lazy val viewName = WhiskQueries.entitiesView(collection = collectionName).name
+  implicit val serdes = jsonFormat(WhiskActionVersionList.apply, "namespace", "name", "versions", "defaultVersion")
 
   def cacheKey(action: FullyQualifiedEntityName): CacheKey = {
     CacheKey(action.fullPath.asString)
@@ -421,38 +425,30 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
             }
             .toMap
           val defaultVersion = if (result.nonEmpty) {
-            val doc = result.head.fields.getOrElse("doc", JsNull)
-            if (doc != JsNull) doc.asJsObject.fields.get("default").map(_.convertTo[String])
-            else
-              None
+            result.head.fields.get("doc") match {
+              case Some(value) => Try { value.asJsObject.fields.get("default").map(_.convertTo[SemVer]) } getOrElse None
+              case None        => None
+            }
           } else None
           WhiskActionVersionList(action.namespace.toPath, action.name, mappings, defaultVersion)
         },
       fromCache)
   }
 
-  def getMatchedDocId(
-    action: FullyQualifiedEntityName,
-    version: Option[SemVer],
-    datastore: EntityStore,
-    tryAgain: Boolean = true)(implicit transId: TransactionId, ec: ExecutionContext): Future[Option[DocId]] = {
-    get(action, datastore).flatMap { res =>
-      val docId = version match {
-        case Some(ver) =>
-          res.versions.get(ver).map(DocId(_))
+  def getMatchedDocId(action: FullyQualifiedEntityName, version: Option[SemVer], datastore: EntityStore)(
+    implicit transId: TransactionId,
+    ec: ExecutionContext): Future[Option[DocId]] = {
+    get(action, datastore).map { res =>
+      version match {
+        case Some(_) =>
+          Some(DocId(action.copy(version = version).asString))
         case None if res.defaultVersion.nonEmpty =>
-          res.versions.get(SemVer(res.defaultVersion.get)).map(DocId(_))
+          Some(DocId(action.copy(version = res.defaultVersion).asString))
         case None if res.versions.nonEmpty =>
           Some(DocId(res.versions.maxBy(_._1)._2))
         case _ =>
           None
       }
-      // there may be a chance that database is updated while cache is not, we need to invalidate cache and try again
-      if (docId.isEmpty && tryAgain) {
-        WhiskActionVersionList.removeId(cacheKey(action))
-        getMatchedDocId(action, version, datastore, false)
-      } else
-        Future.successful(docId)
     }
   }
 
@@ -463,6 +459,32 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
                                                     notifier: Option[CacheChangeNotification]) = {
     cacheInvalidate(cacheKey(action), Future.successful(()))
   }
+}
+
+object WhiskActionDefaultVersion extends DocumentFactory[WhiskActionDefaultVersion] {
+  import WhiskActivation.instantSerdes
+  implicit val serdes = jsonFormat(WhiskActionDefaultVersion.apply, "namespace", "name", "default", "updated")
+}
+
+case class WhiskActionDefaultVersion(namespace: EntityPath,
+                                     override val name: EntityName,
+                                     default: Option[SemVer] = None,
+                                     override val updated: Instant = WhiskEntity.currentMillis())
+    extends WhiskEntity(name, "action-default-version") {
+
+  /**
+   * The representation as JSON, e.g. for REST calls. Does not include id/rev.
+   */
+  override def toJson: JsObject = WhiskActionDefaultVersion.serdes.write(this).asJsObject
+
+  /**
+   * Gets unique document identifier for the document.
+   */
+  override def docid: DocId = new DocId(namespace + EntityPath.PATHSEP + name + "/default")
+
+  override val version: SemVer = SemVer()
+  override val publish: Boolean = true
+  override val annotations: Parameters = Parameters()
 }
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {

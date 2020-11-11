@@ -204,7 +204,7 @@ trait RestDeleteFromCollectionOperations extends DeleteFromCollectionOperations 
   override def delete(name: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, entityName) = getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$entityName")
-    val resp = requestEntity(DELETE, path)(wp)
+    val resp = requestEntity(DELETE, path, Map("deleteAll" -> "true"))(wp)
     val rr = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
     rr
@@ -275,6 +275,8 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     update: Boolean = false,
     web: Option[String] = None,
     websecure: Option[String] = None,
+    deleteOld: Boolean = true,
+    defaultVersion: Option[String] = None,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actionName) = getNamespaceEntityName(name)
@@ -371,8 +373,11 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     }
 
     val path = Path(s"$basePath/namespaces/$namespace/$noun/$actionName")
+    val paramemters =
+      Map("overwrite" -> update.toString, "deleteOld" -> deleteOld.toString) ++ defaultVersion.map(version =>
+        ("defaultVersion" -> version))
     val resp =
-      if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(body).toString))
+      if (update) requestEntity(PUT, path, paramemters, Some(JsObject(body).toString))
       else requestEntity(PUT, path, body = Some(JsObject(body).toString))
     val rr = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
