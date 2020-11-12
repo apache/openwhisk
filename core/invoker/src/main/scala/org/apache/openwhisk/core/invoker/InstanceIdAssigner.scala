@@ -80,7 +80,7 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
         .forPath(rootPath)
         .asScala
         .map(uniqueName => {
-          val idPath = rootPath + s"/$uniqueName"
+          val idPath = s"$rootPath/$uniqueName"
           BigInt(zkClient.getData().forPath(idPath)).intValue
         })
         .find(_ == newId)
