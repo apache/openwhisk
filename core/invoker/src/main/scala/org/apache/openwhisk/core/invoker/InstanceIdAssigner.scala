@@ -40,7 +40,7 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
     logger.info(this, "invokerReg: connected to zookeeper")
 
     val rootPath = "/invokers/idAssignment/mapping"
-    val myIdPath = rootPath + s"/$name"
+    val myIdPath = s"$rootPath/$name"
     val assignedId = if (overwriteId.isEmpty) {
       Option(zkClient.checkExists().forPath(myIdPath)) match {
         case None =>
