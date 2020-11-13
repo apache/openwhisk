@@ -92,7 +92,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
       }
 
       // set the default version
-      wsk.action.create(name, None, defaultVersion = Some("0.0.2"))
+      wsk.action.create(name, Some(TestUtils.getTestActionFilename("hello.js")), defaultVersion = Some("0.0.2"))
 
       // invoke the default version
       val run = wsk.action.invoke(name, Map("payload" -> "world".toJson))

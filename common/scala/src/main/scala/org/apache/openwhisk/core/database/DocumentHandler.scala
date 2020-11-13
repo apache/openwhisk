@@ -96,13 +96,17 @@ abstract class SimpleHandler extends DocumentHandler {
     provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]] = {
     //Query result from CouchDB have below object structure with actual result in `value` key
     //So transform the result to confirm to that structure
-    val viewResult = JsObject(
-      "id" -> js.fields("_id"),
-      "key" -> createKey(ddoc, view, startKey, js),
-      "value" -> computeView(ddoc, view, js))
+    val value = computeView(ddoc, view, js)
+    val viewResult = JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey, js), "value" -> value)
 
-    val result = if (includeDocs) JsObject(viewResult.fields + ("doc" -> js)) else viewResult
-    Future.successful(Seq(result))
+    if (includeDocs) value.fields.get("_id") match {
+      case Some(JsString(id)) if id != js.fields("_id") =>
+        provider.get(DocId(id)).map { doc =>
+          Seq(JsObject(viewResult.fields + ("doc" -> doc.getOrElse(js))))
+        }
+      case _ =>
+        Future.successful(Seq(JsObject(viewResult.fields + ("doc" -> js))))
+    } else Future.successful(Seq(viewResult))
   }
 
   /**
@@ -207,7 +211,7 @@ object WhisksHandler extends SimpleHandler {
   val FULL_NAME = "fullname"
   private val commonFields = Set("namespace", "name", "version", "publish", "annotations", "updated")
   private val actionFields = commonFields ++ Set("limits", "exec.binary")
-  private val actionVersionFields = commonFields ++ Set("_id")
+  private val actionVersionFields = commonFields ++ Set("_id", "id")
   private val packageFields = commonFields ++ Set("binding")
   private val packagePublicFields = commonFields
   private val ruleFields = commonFields
@@ -302,12 +306,9 @@ object WhisksHandler extends SimpleHandler {
   }
 
   private def computeActionVersionsView(js: JsObject): JsObject = {
-    val publish = annotationValue(js, "publish", { v =>
-      v.convertTo[Boolean]
-    }, true)
-
     val base = js.fields.filterKeys(actionVersionFields).toMap
-    JsObject(base + ("publish" -> publish.toJson))
+    val defaultId = js.fields("namespace") + "/" + js.fields("name") + "/default"
+    JsObject(base + ("_id" -> JsString(defaultId), "id" -> js.fields("_id")))
   }
 }
 
