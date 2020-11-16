@@ -422,11 +422,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
               case None        => None
             }
           } else None
-          WhiskActionVersionList(
-            action.namespace.toPath,
-            action.name,
-            versions.filter(_.nonEmpty).map(_.get),
-            defaultVersion)
+          WhiskActionVersionList(action.path, action.name, versions.filter(_.nonEmpty).map(_.get), defaultVersion)
         },
       fromCache)
   }
