@@ -246,7 +246,6 @@ trait ActionOperations extends DeleteFromCollectionOperations with ListOrGetFrom
              web: Option[String] = None,
              websecure: Option[String] = None,
              deleteOld: Boolean = true,
-             defaultVersion: Option[String] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def invoke(name: String,

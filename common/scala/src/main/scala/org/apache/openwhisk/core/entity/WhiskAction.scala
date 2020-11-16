@@ -360,15 +360,9 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 }
 
-case class WhiskActionVersion(id: String, namespace: EntityPath, name: EntityName, version: SemVer)
-
-object WhiskActionVersion {
-  val serdes = jsonFormat(WhiskActionVersion.apply, "id", "namespace", "name", "version")
-}
-
 case class WhiskActionVersionList(namespace: EntityPath,
                                   name: EntityName,
-                                  versions: Map[SemVer, String],
+                                  versions: List[SemVer],
                                   defaultVersion: Option[SemVer]) {
   def matchedDocId(version: Option[SemVer]): Option[DocId] = {
     version match {
@@ -377,7 +371,7 @@ case class WhiskActionVersionList(namespace: EntityPath,
       case None if defaultVersion.nonEmpty =>
         Some(DocId(s"$namespace/$name@${defaultVersion.get}"))
       case None if versions.nonEmpty =>
-        Some(DocId(versions.maxBy(_._1)._2))
+        Some(DocId(s"$namespace/$name@${versions.max}"))
       case _ =>
         None
     }
@@ -418,19 +412,21 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
           val values = result.map { row =>
             row.fields("value").asJsObject()
           }
-          val mappings = values
-            .map(WhiskActionVersion.serdes.read(_))
-            .map { actionVersion =>
-              (actionVersion.version, actionVersion.id)
-            }
-            .toMap
+          val versions = values.map { value =>
+            Try { value.fields.get("version").map(_.convertTo[SemVer]) } getOrElse None
+          }
+
           val defaultVersion = if (result.nonEmpty) {
             result.head.fields.get("doc") match {
               case Some(value) => Try { value.asJsObject.fields.get("default").map(_.convertTo[SemVer]) } getOrElse None
               case None        => None
             }
           } else None
-          WhiskActionVersionList(action.namespace.toPath, action.name, mappings, defaultVersion)
+          WhiskActionVersionList(
+            action.namespace.toPath,
+            action.name,
+            versions.filter(_.nonEmpty).map(_.get),
+            defaultVersion)
         },
       fromCache)
   }
@@ -445,7 +441,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
         case None if res.defaultVersion.nonEmpty =>
           Some(DocId(action.copy(version = res.defaultVersion).asString))
         case None if res.versions.nonEmpty =>
-          Some(DocId(res.versions.maxBy(_._1)._2))
+          Some(DocId(action.copy(version = Some(res.versions.max)).asString))
         case _ =>
           None
       }

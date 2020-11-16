@@ -228,7 +228,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           } match {
             case Success(version) =>
               onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
-                case Success(result) if (result.versions.keys.toVector.contains(version)) =>
+                case Success(result) if (result.versions.contains(version)) =>
                   val dv = WhiskActionDefaultVersion(entityName.path, entityName.name, Some(version))
                   putEntity(
                     WhiskActionDefaultVersion,
@@ -274,7 +274,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                         postProcess = Some { action: WhiskAction =>
                           // delete oldest version when created successfully
                           if (result.versions.size >= actionMaxVersionLimit) {
-                            val id = result.versions.minBy(_._1)._2
+                            val id = entityName.copy(version = Some(result.versions.min)).asString
                             WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
                               WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
                             } andThen {
@@ -433,12 +433,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                     WhiskAction.del(entityStore, entity.docinfo).map(_ => entity)
                   })
                 else
-                  results.versions.values
-                    .map { id =>
-                      WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
-                        WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
-                      }
+                  results.versions.map { version =>
+                    val id = entityName.copy(version = Some(version)).asString
+                    WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
+                      WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
                     }
+                  }
               val deleteFuture = Future.sequence(fs).andThen {
                 case _ =>
                   WhiskActionVersionList

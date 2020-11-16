@@ -207,7 +207,6 @@ class CliActionOperations(override val wsk: RunCliCmd)
     web: Option[String] = None,
     websecure: Option[String] = None,
     deleteOld: Boolean = true,
-    defaultVersion: Option[String] = None,
     expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++ {
       artifact map { Seq(_) } getOrElse Seq.empty

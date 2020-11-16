@@ -211,7 +211,7 @@ object WhisksHandler extends SimpleHandler {
   val FULL_NAME = "fullname"
   private val commonFields = Set("namespace", "name", "version", "publish", "annotations", "updated")
   private val actionFields = commonFields ++ Set("limits", "exec.binary")
-  private val actionVersionFields = commonFields ++ Set("_id", "id")
+  private val actionVersionFields = commonFields ++ Set("_id")
   private val packageFields = commonFields ++ Set("binding")
   private val packagePublicFields = commonFields
   private val ruleFields = commonFields
@@ -308,7 +308,7 @@ object WhisksHandler extends SimpleHandler {
   private def computeActionVersionsView(js: JsObject): JsObject = {
     val base = js.fields.filterKeys(actionVersionFields).toMap
     val defaultId = js.fields("namespace") + "/" + js.fields("name") + "/default"
-    JsObject(base + ("_id" -> JsString(defaultId), "id" -> js.fields("_id")))
+    JsObject(base + ("_id" -> JsString(defaultId)))
   }
 }
 
