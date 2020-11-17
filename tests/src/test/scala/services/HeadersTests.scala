@@ -83,7 +83,7 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
     Http().singleRequest(httpRequest, connectionContext = connectionContext)
   }
 
-  implicit val config = PatienceConfig(10 seconds, 0 milliseconds)
+  implicit val config = PatienceConfig(10 seconds, 100 milliseconds)
 
   val basePath = Path("/api/v1")
   implicit val wskprops = WskProps()
