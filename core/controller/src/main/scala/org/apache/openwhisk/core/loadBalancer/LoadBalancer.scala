@@ -75,6 +75,9 @@ trait LoadBalancer {
 
   /** Gets the size of the cluster all loadbalancers are acting in */
   def clusterSize: Int = 1
+
+  /** Gets the throttling for given action. */
+  def checkThrottle(namespace: EntityPath, action: String): Boolean = false
 }
 
 /**
