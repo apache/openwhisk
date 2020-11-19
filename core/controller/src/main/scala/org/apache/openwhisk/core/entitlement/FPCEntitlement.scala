@@ -20,8 +20,9 @@ package org.apache.openwhisk.core.entitlement
 import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
 import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.connector.{EventMessage, Metric}
 import org.apache.openwhisk.core.controller.RejectRequest
 import org.apache.openwhisk.core.entitlement.Privilege.ACTIVATE
 import org.apache.openwhisk.core.entity.{ControllerInstanceId, Identity}
@@ -40,6 +41,16 @@ protected[core] class FPCEntitlementProvider(
         loadBalancer.checkThrottle(user.namespace.name.toPath, res.fqname)
       }
       if (checks.contains(true)) {
+        val metric = Metric("ConcurrentRateLimit", 1)
+        UserEvents.send(
+          eventProducer,
+          EventMessage(
+            s"controller${controllerInstance.asString}",
+            metric,
+            user.subject,
+            user.namespace.name.toString,
+            user.namespace.uuid,
+            metric.typeName))
         Future.failed(RejectRequest(TooManyRequests, "Too many requests"))
       } else Future.successful(())
     } else Future.successful(())
