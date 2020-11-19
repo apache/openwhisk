@@ -81,21 +81,20 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   val durationChecker = "" // TODO: TBD
 
   override def getState: Future[(List[(SchedulerInstanceId, Int)], Int)] = {
-    Future.successful((List((schedulerId, 0)), 0)) // TODO: TBD
+    Future.successful((List((schedulerId, 0)), 0)) // TODO: TBD, after etcdClient is ready, can implement it
   }
 
   override def getQueueSize: Future[Int] = {
-    Future.successful(0) // TODO: TBD
+    Future.successful(0) // TODO: TBD, after queueManager is ready, can implement it
   }
 
-  override def getQueueStatusData: Future[List[String]] = {
-    Future.successful(List("")) // TODO: TBD
+  override def getQueueStatusData: Future[List[StatusData]] = {
+    Future.successful(List(StatusData("ns", "fqn", 0, "Running", "data"))) // TODO: TBD, after queueManager is ready, can implement it
   }
 
-  // other components don't need to shutdown gracefully
   override def disable(): Unit = {
     logging.info(this, s"Gracefully shutting down the scheduler")
-    // TODO: TBD, gracefully shut down the container manager and queue manager
+    // TODO: TBD, after containerManager and queueManager are ready, can implement it
   }
 
   private def getUserLimit(invocationNamespace: String): Future[Int] = {
@@ -160,7 +159,7 @@ trait SchedulerCore {
 
   def getQueueSize: Future[Int]
 
-  def getQueueStatusData: Future[List[String]] // TODO: Change to the real data class other than just string
+  def getQueueStatusData: Future[List[StatusData]]
 
   def disable(): Unit
 }
@@ -253,7 +252,7 @@ object Scheduler {
         val httpsConfig =
           if (Scheduler.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(SchedulerServer.instance(scheduler).route, port, httpsConfig)(
+        BasicHttpService.startHttpService(FPCSchedulerServer.instance(scheduler).route, port, httpsConfig)(
           actorSystem,
           ActorMaterializer.create(actorSystem))
 
