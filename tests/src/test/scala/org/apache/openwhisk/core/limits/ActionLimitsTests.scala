@@ -51,9 +51,15 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
-class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem with TimingHelpers {
+class ActionLimitsTests
+    extends TestHelpers
+    with WskTestHelpers
+    with WskActorSystem
+    with TimingHelpers
+    with BeforeAndAfterAll {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations
@@ -76,6 +82,10 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
   //   "openFileLimit - 20".
   // * With Docker 18.09.3, we observed test failures and changed to "openFileLimit - 24".
   val minExpectedOpenFiles = openFileLimit - 24
+
+  override protected def beforeAll(): Unit = {
+    Thread.sleep(60000);
+  }
 
   behavior of "Action limits"
 
