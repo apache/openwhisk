@@ -103,6 +103,7 @@ whisk {
     }
 
     helm.release = "release"
+    runtime.delete.timeout = "30 seconds"
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
