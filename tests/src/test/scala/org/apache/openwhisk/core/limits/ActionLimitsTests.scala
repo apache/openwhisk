@@ -51,7 +51,6 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
-import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
 class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem with TimingHelpers {
