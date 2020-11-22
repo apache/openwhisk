@@ -54,12 +54,7 @@ import org.apache.openwhisk.http.Messages
 import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
-class ActionLimitsTests
-    extends TestHelpers
-    with WskTestHelpers
-    with WskActorSystem
-    with TimingHelpers
-    with BeforeAndAfterAll {
+class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem with TimingHelpers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRestOperations
@@ -82,10 +77,6 @@ class ActionLimitsTests
   //   "openFileLimit - 20".
   // * With Docker 18.09.3, we observed test failures and changed to "openFileLimit - 24".
   val minExpectedOpenFiles = openFileLimit - 24
-
-  override protected def beforeAll(): Unit = {
-    Thread.sleep(60000);
-  }
 
   behavior of "Action limits"
 
@@ -445,7 +436,7 @@ class ActionLimitsTests
     }
 
     for (a <- 1 to 10) {
-      val run = wsk.action.invoke(name, Map("payload" -> "128".toJson))
+      val run = wsk.action.invoke(name, Map("payload" -> "128".toJson), blocking = true)
       withActivation(wsk.activation, run) { response =>
         response.response.status shouldBe "success"
         response.response.result shouldBe Some(JsObject("msg" -> "OK, buffer of size 128 MB has been filled.".toJson))
