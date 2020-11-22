@@ -17,41 +17,23 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes.PayloadTooLarge
-import akka.http.scaladsl.model.StatusCodes.BadGateway
-import java.io.File
-import java.io.PrintWriter
+import java.io.{File, PrintWriter}
 import java.time.Instant
+
+import akka.http.scaladsl.model.StatusCodes.{BadGateway, PayloadTooLarge}
+import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
+import common._
+import common.rest.WskRestOperations
+import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.entity.{ActivationResponse => _, _}
+import org.apache.openwhisk.http.Messages
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import common.ActivationResult
-import common.TestHelpers
-import common.TestUtils
-import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
-import common.TimingHelpers
-import common.WhiskProperties
-import common.rest.WskRestOperations
-import common.WskProps
-import common.WskTestHelpers
-import common.WskActorSystem
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import org.apache.openwhisk.core.entity.{
-  ActivationEntityLimit,
-  ActivationResponse,
-  ByteSize,
-  ConcurrencyLimit,
-  Exec,
-  LogLimit,
-  MemoryLimit,
-  TimeLimit
-}
-import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.http.Messages
-import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
 class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSystem with TimingHelpers {
