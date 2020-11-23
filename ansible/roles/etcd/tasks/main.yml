@@ -1,0 +1,12 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+# This role will install etcd in group 'etcd' in the environment inventory
+# In deploy mode it will deploy etcd containers.
+# In clean mode it will remove etcd containers.
+
+- import_tasks: deploy.yml
+  when: mode == "deploy"
+
+- import_tasks: clean.yml
+  when: mode == "clean"

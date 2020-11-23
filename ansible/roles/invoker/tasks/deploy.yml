@@ -279,6 +279,10 @@
       "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
       "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
       "CONFIG_whisk_containerPool_prewarmExpirationCheckInterval": "{{ container_pool_prewarm_expirationCheckInterval | default('1 minute') }}"
+      "CONFIG_whisk_etcd_hosts": "{{ etcd_connect_string }}"
+      "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
+      "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
 
 - name: extend invoker dns env
   set_fact:

@@ -99,6 +99,12 @@ object Messages {
     s"${error.field} length is ${error.is.toBytes} but must be ${error.allowed.toBytes}."
   }
 
+  /** Standard error for malformed creation id. */
+  val creationIdIllegal = "The creation id is not valid."
+  def creationIdLengthError(error: SizeError) = {
+    s"${error.field} length is ${error.is.toBytes} but must be ${error.allowed.toBytes}."
+  }
+
   /** Error messages for sequence actions. */
   val sequenceIsTooLong = "Too many actions in the sequence."
   val sequenceNoComponent = "No component specified for the sequence."

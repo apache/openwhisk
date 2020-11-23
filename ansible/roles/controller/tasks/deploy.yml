@@ -272,6 +272,11 @@
 
       "CONFIG_whisk_controller_activation_pollingFromDb": "{{ controller_activation_pollingFromDb | default(true) | lower }}"
 
+      "CONFIG_whisk_etcd_hosts": "{{ etcd_connect_string }}"
+      "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
+      "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
+
 - name: merge extra env variables
   set_fact:
     env: "{{ env | combine(controller.extraEnv) }}"

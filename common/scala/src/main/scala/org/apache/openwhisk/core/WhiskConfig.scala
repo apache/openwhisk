@@ -265,6 +265,9 @@ object ConfigKeys {
   val controller = s"whisk.controller"
   val controllerActivation = s"$controller.activation"
 
+  val etcd = "whisk.etcd"
+  val etcdPoolThreads = "whisk.etcd.pool.threads"
+
   val activationStore = "whisk.activation-store"
   val elasticSearchActivationStore = s"$activationStore.elasticsearch"
   val activationStoreWithFileStorage = s"$activationStore.with-file-storage"
@@ -286,4 +289,6 @@ object ConfigKeys {
   val parameterStorage = "whisk.parameter-storage"
 
   val azBlob = "whisk.azure-blob"
+
+  val whiskClusterName = "whisk.cluster.name"
 }

@@ -424,3 +424,28 @@ user_events: "{{ user_events_enabled | default(false) | lower }}"
 
 durationChecker:
     timeWindow: "{{ duration_checker_time_window | default('1 d') }}"
+
+etcd:
+  version: "{{ etcd_version | default('v3.4.0') }}"
+  client:
+    port: 2379
+  server:
+    port: 2480
+  cluster:
+    token: "{{ etcd_cluster_token | default('openwhisk-etcd-token') }}"
+  dir:
+    data: "{{ etcd_data_dir | default('') }}"
+  lease:
+    timeout: "{{ etcd_lease_timeout | default(1) }}"
+  loglevel: "{{ etcd_log_level | default('info') }}"
+  quota_backend_bytes: "{{ etcd_quota_backend_bytes | default(0) }}"
+  snapshot_count: "{{ etcd_snapshot_count | default(100000) }}"
+  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default(1) }}"
+  auto_compaction_mode: "{{ etcd_auto_compaction_mode | default('periodic') }}"
+  pool_threads: "{{ etcd_pool_threads | default(10) }}"
+
+etcd_connect_string: "{% set ret = [] %}\
+                      {% for host in groups['etcd'] %}\
+                        {{ ret.append( hostvars[host].ansible_host + ':' + ((etcd.client.port+loop.index-1)|string) ) }}\
+                      {% endfor %}\
+                      {{ ret | join(',') }}"
