@@ -67,7 +67,7 @@ class ElasticSearchDurationCheckerTests
   }
   implicit val mt: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContextExecutor = actorSystem.dispatcher
-  implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.seconds)
+  implicit val timeoutConfig: PatienceConfig = PatienceConfig(5 seconds, 15 milliseconds)
 
   private val auth = BasicAuthenticationAuthKey()
   implicit val wskprops: WskProps = WskProps(authKey = auth.compact, namespace = namespace)
