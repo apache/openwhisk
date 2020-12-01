@@ -22,6 +22,7 @@ http {
 {# needed to enable keepalive to upstream controllers #}
     proxy_http_version 1.1;
     proxy_set_header Connection "";
+    proxy_buffers 16 4k;
 
 {% if controller.protocol == 'https' %}
     proxy_ssl_session_reuse on;
