@@ -41,6 +41,7 @@ import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import scala.language.postfixOps
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
