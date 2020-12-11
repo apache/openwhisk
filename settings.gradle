@@ -68,3 +68,6 @@ gradle.ext.akka_management = [version : '1.0.5']
 
 gradle.ext.curator = [version : '4.0.0']
 gradle.ext.kube_client = [version: '4.4.2']
+
+gradle.ext.netty = [version : '4.1.55.Final']
+gradle.ext.protobuf = [version : '3.14.0']

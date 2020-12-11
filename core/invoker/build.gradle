@@ -41,7 +41,9 @@ dependencies {
     compile ("org.apache.curator:curator-recipes:${gradle.curator.version}") {
         exclude group: 'org.apache.zookeeper', module:'zookeeper'
     }
-    compile ("org.apache.zookeeper:zookeeper:3.4.11") {
+
+    // https://nvd.nist.gov/vuln/detail/CVE-2019-0201
+    compile ("org.apache.zookeeper:zookeeper:3.4.14") {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
         exclude group: 'jline'
