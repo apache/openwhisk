@@ -19,12 +19,6 @@ os: linux
 dist: xenial
 language: java
 jdk: openjdk11
-addons:
-  apt:
-    sources:
-      - deadsnakes
-    packages:
-      - python3.8
 
 services:
   - docker
@@ -60,13 +54,10 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
+  - ./tools/travis/docker.sh
   - sudo apt-get install -y python3-pip
   - pip install --user --upgrade pip setuptools six
   - pip3 install --user --upgrade pip setuptools six
-  - export PYTHONPATH=$PYTHONPATH:$(pwd)
-  - python3 --version && which python3
-  - python3.8 --version && which python3.8
-  - ./tools/travis/docker.sh
 
 install:
   - ./tools/travis/setup.sh
