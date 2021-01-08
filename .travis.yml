@@ -16,7 +16,7 @@
 #
 
 os: linux
-dist: xenial
+dist: focal
 language: java
 jdk: openjdk11
 
@@ -54,6 +54,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 before_install:
+  - sudo systemctl stop epmd.socket epmd.service
   - ./tools/travis/docker.sh
   - sudo apt-get install -y python3-pip
   - pip install --user --upgrade pip setuptools six
