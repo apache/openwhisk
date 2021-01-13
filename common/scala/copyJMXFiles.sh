@@ -18,6 +18,11 @@
 
 if [[ $( ls /conf/jmxremote.* 2> /dev/null ) ]]
 then
-  mv /conf/jmxremote.* /home/owuser
+  # JMX auth files would be mounted as a symbolic link (read-only mode)
+  # with `root` privileges by the k8s secret.
+  cp -rL /conf/jmxremote.* /home/owuser
+  rm -f /conf/jmxremote.* 2>/dev/null || true
+
+  # The owner must be `owuser` and the file only have read permission.
   chmod 600 /home/owuser/jmxremote.*
 fi
