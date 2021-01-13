@@ -34,13 +34,13 @@ function retry() {
 python -m pip install --user couchdb
 
 # Ansible
-pip install --user ansible==2.5.2
+python -m pip install --user ansible==2.5.2
 
 # Azure CosmosDB
-pip install --user pydocumentdb
+python -m pip install --user pydocumentdb
 
 # Support the revises log upload script
-pip install --user humanize requests
+python -m pip install --user humanize requests
 
 # Basic check that all code compiles and depdendencies are downloaded correctly.
 # Compiling the tests will compile all components as well.
