@@ -44,6 +44,7 @@ kind create cluster --wait 5m
 export KUBECONFIG="$(kind get kubeconfig-path)"
 kubectl config set-context --current --namespace=default
 
+# This is required because it is timed out to pull the image during the test.
 docker pull openwhisk/action-nodejs-v10:nightly
 
 cd $ROOTDIR
