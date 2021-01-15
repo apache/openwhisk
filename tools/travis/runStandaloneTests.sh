@@ -45,6 +45,7 @@ export KUBECONFIG="$(kind get kubeconfig-path)"
 kubectl config set-context --current --namespace=default
 
 docker pull openwhisk/action-nodejs-v10:nightly
+docker pull openwhisk/dockerskeleton:nightly
 
 cd $ROOTDIR
 TERM=dumb ./gradlew :core:standalone:build \
