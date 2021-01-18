@@ -97,13 +97,27 @@ whisk {
     parameter-storage {
         current = "off"
     }
-    
+
     elasticsearch {
         docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
     }
 
     helm.release = "release"
     runtime.delete.timeout = "30 seconds"
+
+    duration-checker {
+        time-window = "{{ durationChecker.timeWindow }}"
+    }
+
+    activation-store {
+        elasticsearch {
+            protocol      = "{{ db.elasticsearch.protocol }}"
+            hosts         = "{{ elasticsearch_connect_string }}"
+            index-pattern = "{{ db.elasticsearch.index_pattern }}"
+            username      = "{{ db.elasticsearch.auth.admin.username }}"
+            password      = "{{ db.elasticsearch.auth.admin.password }}"
+        }
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)

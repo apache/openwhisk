@@ -40,6 +40,7 @@ def leanExcludes = [
 def projectsWithCoverage = [
     ':common:scala',
     ':core:controller',
+    ':core:scheduler',
     ':core:invoker',
     ':tools:admin',
     ':core:cosmosdb:cache-invalidator'
@@ -52,6 +53,7 @@ def systemIncludes = [
             "org/apache/openwhisk/core/apigw/actions/test/**",
             "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
             "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
+            "org/apache/openwhisk/core/scheduler/queue/test/ElasticSearchDurationCheck*",
             "apigw/healthtests/**",
             "ha/**",
             "services/**",
@@ -70,6 +72,7 @@ ext.testSets = [
             "org/apache/openwhisk/standalone/**",
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/scheduler/queue/test/ElasticSearchDurationCheck*",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
@@ -221,6 +224,7 @@ dependencies {
 
     compile project(':common:scala')
     compile project(':core:controller')
+    compile project(':core:scheduler')
     compile project(':core:invoker')
     compile project(':core:cosmosdb:cache-invalidator')
     compile project(':core:monitoring:user-events')

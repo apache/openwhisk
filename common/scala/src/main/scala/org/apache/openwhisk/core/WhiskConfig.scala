@@ -272,6 +272,8 @@ object ConfigKeys {
   val metrics = "whisk.metrics"
   val featureFlags = "whisk.feature-flags"
 
+  val durationChecker = s"whisk.duration-checker"
+
   val whiskConfig = "whisk.config"
   val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
   val swaggerUi = "whisk.swagger-ui"
