@@ -150,7 +150,7 @@ kafka:
     protocols:
     - TLSv1.2
   protocol: "{{ kafka_protocol_for_setup }}"
-  version: 2.12-2.3.1
+  version: "{{ kafka_version | default('2.13-2.7.0') }}"
   port: 9072
   advertisedPort: 9093
   ras:
