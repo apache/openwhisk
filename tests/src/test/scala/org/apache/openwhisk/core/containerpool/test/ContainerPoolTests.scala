@@ -329,9 +329,8 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     val pool =
-      system.actorOf(
-        ContainerPool
-          .props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 2), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
     pool ! runMessage
@@ -365,7 +364,7 @@ class ContainerPoolTests
       ContainerPool
         .props(
           factory,
-          poolConfig(MemoryLimit.STD_MEMORY),
+          poolConfig(MemoryLimit.STD_MEMORY * 2),
           feed.ref,
           List(PrewarmingConfig(1, alternativeExec, memoryLimit))))
     containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
@@ -385,7 +384,7 @@ class ContainerPoolTests
         ContainerPool
           .props(
             factory,
-            poolConfig(MemoryLimit.STD_MEMORY),
+            poolConfig(MemoryLimit.STD_MEMORY * 2),
             feed.ref,
             List(PrewarmingConfig(1, exec, alternativeLimit))))
     containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed

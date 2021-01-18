@@ -125,9 +125,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           //remove from resent tracking - it may get resent again, or get processed
           resent = None
         }
+        val kind = r.action.exec.kind
+        val memory = r.action.limits.memory.megabytes.MB
+
         val createdContainer =
           // Is there enough space on the invoker for this action to be executed.
-          if (hasPoolSpaceFor(busyPool, r.action.limits.memory.megabytes.MB)) {
+          if (hasPoolSpaceFor(busyPool ++ prewarmedPool, memory)) {
             // Schedule a job to a warm container
             ContainerPool
               .schedule(r.action, r.msg.user.namespace.name, freePool)
@@ -136,12 +139,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
 
                 // Is there enough space to create a new container or do other containers have to be removed?
-                if (hasPoolSpaceFor(busyPool ++ freePool, r.action.limits.memory.megabytes.MB)) {
+                if (hasPoolSpaceFor(busyPool ++ freePool ++ prewarmedPool, memory)) {
                   takePrewarmContainer(r.action)
                     .map(container => (container, "prewarmed"))
                     .orElse {
-                      val container = Some(createContainer(r.action.limits.memory.megabytes.MB), "cold")
-                      incrementColdStartCount(r.action.exec.kind, r.action.limits.memory.megabytes.MB)
+                      val container = Some(createContainer(memory), "cold")
+                      incrementColdStartCount(kind, memory)
                       container
                     }
                 } else None)
@@ -158,8 +161,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                     takePrewarmContainer(r.action)
                       .map(container => (container, "recreatedPrewarm"))
                       .getOrElse {
-                        val container = (createContainer(r.action.limits.memory.megabytes.MB), "recreated")
-                        incrementColdStartCount(r.action.exec.kind, r.action.limits.memory.megabytes.MB)
+                        val container = (createContainer(memory), "recreated")
+                        incrementColdStartCount(kind, memory)
                         container
                     }))
 
