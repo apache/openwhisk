@@ -435,7 +435,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
 
     for (a <- 1 to 10) {
-      val run = wsk.action.invoke(name, Map("payload" -> "128".toJson))
+      val run = wsk.action.invoke(name, Map("payload" -> "128".toJson), blocking = true)
       withActivation(wsk.activation, run) { response =>
         response.response.status shouldBe "success"
         response.response.result shouldBe Some(JsObject("msg" -> "OK, buffer of size 128 MB has been filled.".toJson))
