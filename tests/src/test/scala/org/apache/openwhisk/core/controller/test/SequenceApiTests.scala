@@ -71,7 +71,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
     Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
       deleteAction(DocId(s"$namespace/$seqName"))
       deleteAction(DocId(s"$namespace/$compName1"))
-      status should be(BadGateway)
+      status should be(MultiStatus)
       val response = responseAs[JsObject]
       response.fields("response") shouldBe ActivationResponse.applicationError(sequenceComponentNotFound).toExtendedJson
       val logs = response.fields("logs").convertTo[JsArray]

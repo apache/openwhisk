@@ -333,6 +333,12 @@
           "202": {
             "$ref": "#/responses/AcceptedActivation"
           },
+          "207": {
+            "$ref": "#/responses/ApplicationError"
+          },
+          "400": {
+            "$ref": "#/responses/DeveloperError"
+          },
           "401": {
             "$ref": "#/responses/UnauthorizedRequest"
           },
@@ -570,6 +576,12 @@
           },
           "202": {
             "$ref": "#/responses/AcceptedActivation"
+          },
+          "207": {
+            "$ref": "#/responses/ApplicationError"
+          },
+          "400": {
+            "$ref": "#/responses/DeveloperError",
           },
           "401": {
             "$ref": "#/responses/UnauthorizedRequest"
@@ -2902,6 +2914,12 @@
     },
     "AcceptedRuleStateChange": {
       "description": "Rule has been enabled or disabled"
+    },
+    "ApplicationError": {
+      "description": "Activation failed with an application error"
+    },
+    "DeveloperError": {
+      "description": "Activation failed with a developer error"
     },
     "RequestEntityTooLarge": {
       "description": "Request entity too large",

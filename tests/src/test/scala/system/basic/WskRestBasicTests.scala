@@ -18,7 +18,7 @@
 package system.basic
 
 import akka.http.scaladsl.model.StatusCodes.Accepted
-import akka.http.scaladsl.model.StatusCodes.BadGateway
+import akka.http.scaladsl.model.StatusCodes.MultiStatus
 import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.Unauthorized
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -450,7 +450,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
 
     Seq(strErrInput, numErrInput, boolErrInput) foreach { input =>
-      val result = wsk.action.invoke(name, parameters = input, blocking = true, expectedExitCode = BadGateway.intValue)
+      val result = wsk.action.invoke(name, parameters = input, blocking = true, expectedExitCode = MultiStatus.intValue)
       val response = result.getFieldJsObject("response")
       val res = RestResult.getFieldJsObject(response, "result")
       res shouldBe input.toJson.asJsObject
@@ -460,7 +460,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
           parameters = input,
           blocking = true,
           result = true,
-          expectedExitCode = BadGateway.intValue)
+          expectedExitCode = MultiStatus.intValue)
       resultTrue.respData shouldBe input.toJson.asJsObject.toString()
     }
   }
@@ -472,7 +472,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers with WskActorSys
         action.create(name, Some(TestUtils.getTestActionFilename("asyncError.js")))
       }
 
-      val result = wsk.action.invoke(name, blocking = true, expectedExitCode = BadGateway.intValue)
+      val result = wsk.action.invoke(name, blocking = true, expectedExitCode = MultiStatus.intValue)
       val response = result.getFieldJsObject("response")
       val res = RestResult.getFieldJsObject(response, "result")
       res shouldBe JsObject("error" -> JsObject("msg" -> "failed activation on purpose".toJson))

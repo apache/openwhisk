@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.limits
 
 import akka.http.scaladsl.model.StatusCodes.PayloadTooLarge
-import akka.http.scaladsl.model.StatusCodes.BadGateway
+import akka.http.scaladsl.model.StatusCodes.MultiStatus
 import java.io.File
 import java.io.PrintWriter
 import java.time.Instant
@@ -324,7 +324,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
 
       // this tests an active ack failure to post from invoker
       val args = Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson)
-      val code = if (blocking) BadGateway.intValue else TestUtils.ACCEPTED
+      val code = if (blocking) MultiStatus.intValue else TestUtils.ACCEPTED
       if (blocking) {
         val start = Instant.now
         val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)

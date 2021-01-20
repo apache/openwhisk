@@ -296,14 +296,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             complete(OK, response)
           } else if (activation.response.isApplicationError) {
             // actions that result is ApplicationError status are considered a 'success'
-            // and will have an 'error' property in the result - the HTTP status is OK
+            // and will have an 'error' property in the result - the HTTP status is MultiStatus
             // and clients must check the response status if it exists
             // NOTE: response status will not exist in the JSON object if ?result == true
             // and instead clients must check if 'error' is in the JSON
-            // PRESERVING OLD BEHAVIOR and will address defect in separate change
-            complete(BadGateway, response)
+            complete(MultiStatus, response)
           } else if (activation.response.isContainerError) {
-            complete(BadGateway, response)
+            complete(BadRequest, response)
           } else {
             complete(InternalServerError, response)
           }
