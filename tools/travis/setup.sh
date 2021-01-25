@@ -34,7 +34,7 @@ function retry() {
 python -m pip install --user couchdb
 
 # Ansible
-python -m pip install --user ansible==2.5.2
+python -m pip install --user ansible==2.8.18
 
 # Azure CosmosDB
 python -m pip install --user pydocumentdb
