@@ -24,6 +24,9 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 RUNTIMES_MANIFEST=${1:-"/ansible/files/runtimes.json"}
 
+# This is required because it is timed out to pull the image during the test.
+docker pull openwhisk/example
+
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD openwhisk.yml -e manifest_file="$RUNTIMES_MANIFEST" -e db_activation_backend=ElasticSearch
