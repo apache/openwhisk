@@ -270,19 +270,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool.get(sender()).foreach { f =>
         freePool = freePool - sender()
       }
+
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
       }
       processBufferOrFeed()
 
-      //in case this was a prewarm
+      // in case this was a prewarm
       prewarmedPool.get(sender()).foreach { data =>
         prewarmedPool = prewarmedPool - sender()
       }
-      //in case this was a starting prewarm
+
+      // in case this was a starting prewarm
       prewarmStartingPool.get(sender()).foreach { _ =>
-        logging.info(this, "failed starting prewarm removed")
+        logging.info(this, "failed starting prewarm, removed")
         prewarmStartingPool = prewarmStartingPool - sender()
       }
 
