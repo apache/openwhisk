@@ -581,7 +581,7 @@
             "$ref": "#/responses/ApplicationError"
           },
           "400": {
-            "$ref": "#/responses/DeveloperError",
+            "$ref": "#/responses/DeveloperError"
           },
           "401": {
             "$ref": "#/responses/UnauthorizedRequest"
