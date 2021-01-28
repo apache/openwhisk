@@ -135,17 +135,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             .map(container => (container, container._2.initingState)) //warmed, warming, and warmingCold always know their state
             .orElse(
               // There was no warm/warming/warmingCold container. Try to take a prewarm container or a cold container.
-
-              // Is there enough space to create a new container or do other containers have to be removed?
-              if (hasPoolSpaceFor(busyPool ++ freePool ++ prewarmedPool, prewarmStartingPool, memory)) {
-                takePrewarmContainer(r.action)
-                  .map(container => (container, "prewarmed"))
-                  .orElse {
+              // When take prewarm container, has no need to judge whether user memory is enough
+              takePrewarmContainer(r.action)
+                .map(container => (container, "prewarmed"))
+                .orElse {
+                  // Is there enough space to create a new container or do other containers have to be removed?
+                  if (hasPoolSpaceFor(busyPool ++ freePool ++ prewarmedPool, prewarmStartingPool, memory)) {
                     val container = Some(createContainer(memory), "cold")
                     incrementColdStartCount(kind, memory)
                     container
-                  }
-              } else None)
+                  } else None
+                })
             .orElse(
               // Remove a container and create a new one for the given job
               ContainerPool
@@ -444,7 +444,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def hasPoolSpaceFor[A](pool: Map[A, ContainerData],
                          prewarmStartingPool: Map[A, (String, ByteSize)],
                          memory: ByteSize): Boolean = {
-    memoryConsumptionOf(pool) + +prewarmStartingPool.map(_._2._2.toMB).sum + memory.toMB <= poolConfig.userMemory.toMB
+    memoryConsumptionOf(pool) + prewarmStartingPool.map(_._2._2.toMB).sum + memory.toMB <= poolConfig.userMemory.toMB
   }
 
   /**
