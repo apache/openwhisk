@@ -97,6 +97,7 @@ class ShardingContainerPoolBalancerTests
 
   def lbConfig(blackboxFraction: Double, managedFraction: Option[Double] = None) =
     ShardingContainerPoolBalancerConfig(
+      ActivationStrategy("org.apache.openwhisk.core.loadBalancer.LeanBalancer", Map()),
       managedFraction.getOrElse(1.0 - blackboxFraction),
       blackboxFraction,
       1,
