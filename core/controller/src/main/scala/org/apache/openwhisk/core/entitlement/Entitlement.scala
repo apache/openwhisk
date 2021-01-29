@@ -153,7 +153,7 @@ protected[core] abstract class EntitlementProvider(
       activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations))
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val eventProducer = messagingProvider.getProducer(this.config)
+  protected val eventProducer = messagingProvider.getProducer(this.config)
 
   /**
    * Grants a subject the right to access a resources.
@@ -199,6 +199,19 @@ protected[core] abstract class EntitlementProvider(
     logging.debug(this, s"checking user '${user.subject}' has not exceeded activation quota")
     checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user)
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user), user))
+  }
+
+  /**
+   * Checks action activation rate throttles for an identity.
+   *
+   * @param user      the identity to check rate throttles for
+   * @param right     the privilege the subject is requesting
+   * @param resources the set of resource the subject requests access to
+   * @return a promise that completes with success iff the user is within their activation quota
+   */
+  protected[core] def checkThrottles(user: Identity, right: Privilege, resources: Set[Resource])(
+    implicit transid: TransactionId): Future[Unit] = {
+    checkUserThrottle(user, right, resources).flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
   }
 
   private val kindRestrictor = {
@@ -284,11 +297,7 @@ protected[core] abstract class EntitlementProvider(
     val entitlementCheck: Future[Unit] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
         logging.debug(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
-        val throttleCheck =
-          if (noThrottle) Future.successful(())
-          else
-            checkUserThrottle(user, right, resources)
-              .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
+        val throttleCheck = if (noThrottle) Future.successful(()) else checkThrottles(user, right, resources)
         throttleCheck
           .flatMap(_ => checkPrivilege(user, right, resources))
           .flatMap(checkedResources => {
