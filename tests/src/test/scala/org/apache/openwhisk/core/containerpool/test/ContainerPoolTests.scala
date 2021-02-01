@@ -310,6 +310,19 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
   }
 
+  it should "not create prewarm container when used memory reaches the limit" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool =
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref, List(PrewarmingConfig(2, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+
+    containers(1).expectNoMessage(100.milliseconds)
+  }
+
   /*
    * CONTAINER PREWARMING
    */
@@ -320,7 +333,7 @@ class ContainerPoolTests
     val pool =
       system.actorOf(
         ContainerPool
-          .props(factory, poolConfig(0.MB), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+          .props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
   }
 
@@ -829,7 +842,7 @@ class ContainerPoolTests
     stream.reset()
     val prewarmExpirationCheckIntervel = 2.seconds
     val poolConfig =
-      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 12, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
