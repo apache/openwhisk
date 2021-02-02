@@ -180,7 +180,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       val results = Await.result(Future.sequence(runs), 30.seconds)
       //some will be 200, some will be 400, but all should be completed (no forced acks that take > 30s)
       results.count(_.statusCode == StatusCodes.OK) should be > 0
-      results.count(_.statusCode == StatusCodes.BadGateway) should be > 0
+      results.count(_.statusCode == StatusCodes.BadRequest) should be > 0
   }
   it should "allow concurrent activations to gracefully complete when one fails catastrophically" in withAssetCleaner(
     wskprops) {
@@ -210,6 +210,6 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
       //some will no 200, since each each container gets at least 5 concurrent activations,
       //and each container crashes on the 5 activation.
       results.count(_.statusCode == StatusCodes.OK) shouldBe 0
-      results.count(_.statusCode == StatusCodes.BadGateway) shouldBe 4
+      results.count(_.statusCode == StatusCodes.BadRequest) shouldBe 4
   }
 }
