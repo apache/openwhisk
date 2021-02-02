@@ -325,6 +325,7 @@ task copyMeasurementFiles() {
     doLast{
         Project common = project(":common:scala")
         Project controller = project(":core:controller")
+        Project scheduler = project(":core:scheduler")
         Project invoker = project(":core:invoker")
 
         Properties wskProps = loadWhiskProps()
@@ -335,6 +336,8 @@ task copyMeasurementFiles() {
 
         copyAndRenameMeasurementFile(covLogs, 'controller', "common", common)
         copyAndRenameMeasurementFile(covLogs, 'controller', "controller", controller)
+        copyAndRenameMeasurementFile(covLogs, 'scheduler', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'scheduler', "scheduler", scheduler)
         copyAndRenameMeasurementFile(covLogs, 'invoker', "common", common)
         copyAndRenameMeasurementFile(covLogs, 'invoker', "invoker", invoker)
     }
