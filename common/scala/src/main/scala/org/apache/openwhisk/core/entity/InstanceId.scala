@@ -29,11 +29,18 @@ import scala.util.Try
  * @param instance a numeric value used for the load balancing and Kafka topic creation
  * @param uniqueName an identifier required for dynamic instance assignment by Zookeeper
  * @param displayedName an identifier that is required for the health protocol to correlate Kafka topics with invoker container names
+ * @param userMemory invoker user memory
+ * @param busyMemory invoker busy memory
+ * @param tags actions which included specified annotation tags can be run on this invoker
+ * @param dedicatedNamespaces only dedicatedNamespaces's actions can be run on this invoker
  */
 case class InvokerInstanceId(val instance: Int,
                              uniqueName: Option[String] = None,
                              displayedName: Option[String] = None,
-                             val userMemory: ByteSize)
+                             val userMemory: ByteSize,
+                             val busyMemory: Option[ByteSize] = None,
+                             val tags: Seq[String] = Seq.empty[String],
+                             val dedicatedNamespaces: Seq[String] = Seq.empty)
     extends InstanceId {
   def toInt: Int = instance
 
@@ -76,7 +83,12 @@ object InvokerInstanceId extends DefaultJsonProtocol {
       val fields = new ListBuffer[(String, JsValue)]
       fields ++= List("instance" -> JsNumber(i.instance))
       fields ++= List("userMemory" -> JsString(i.userMemory.toString))
+      i.busyMemory.foreach { busyMemory =>
+        fields ++= List("busyMemory" -> JsString(busyMemory.toString))
+      }
       fields ++= List("instanceType" -> JsString(i.instanceType))
+      fields ++= List("tags" -> JsArray(i.tags.map(_.toJson): _*))
+      fields ++= List("dedicatedNamespaces" -> JsArray(i.dedicatedNamespaces.map(_.toJson): _*))
       i.uniqueName.foreach(uniqueName => fields ++= List("uniqueName" -> JsString(uniqueName)))
       i.displayedName.foreach(displayedName => fields ++= List("displayedName" -> JsString(displayedName)))
       JsObject(fields.toSeq: _*)
@@ -87,10 +99,20 @@ object InvokerInstanceId extends DefaultJsonProtocol {
       val uniqueName = fromField[Option[String]](json, "uniqueName")
       val displayedName = fromField[Option[String]](json, "displayedName")
       val userMemory = fromField[String](json, "userMemory")
+      val busyMemory = fromField[Option[String]](json, "busyMemory")
       val instanceType = fromField[String](json, "instanceType")
+      val tags = fromField[Seq[String]](json, "tags")
+      val dedicatedNamespaces = fromField[Seq[String]](json, "dedicatedNamespaces")
 
       if (instanceType == "invoker") {
-        new InvokerInstanceId(instance, uniqueName, displayedName, ByteSize.fromString(userMemory))
+        new InvokerInstanceId(
+          instance,
+          uniqueName,
+          displayedName,
+          ByteSize.fromString(userMemory),
+          busyMemory.map(ByteSize.fromString(_)),
+          tags,
+          dedicatedNamespaces)
       } else {
         deserializationError("could not read InvokerInstanceId")
       }

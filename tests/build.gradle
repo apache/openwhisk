@@ -89,6 +89,7 @@ ext.testSets = [
     "REQUIRE_SCHEDULER" : [
         "includes" : [
             "org/apache/openwhisk/common/etcd/**",
+            "org/apache/openwhisk/core/containerpool/v2/test/**",
             "org/apache/openwhisk/core/scheduler/**",
             "org/apache/openwhisk/core/service/**",
         ]

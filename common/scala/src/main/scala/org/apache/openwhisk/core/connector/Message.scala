@@ -428,6 +428,33 @@ object EventMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
 
+case class InvokerResourceMessage(status: String,
+                                  freeMemory: Long,
+                                  busyMemory: Long,
+                                  inProgressMemory: Long,
+                                  tags: Seq[String],
+                                  dedicatedNamespaces: Seq[String])
+    extends Message {
+
+  /**
+   * Serializes message to string. Must be idempotent.
+   */
+  override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
+}
+
+object InvokerResourceMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[InvokerResourceMessage] = Try(serdes.read(msg.parseJson))
+  implicit val serdes =
+    jsonFormat(
+      InvokerResourceMessage.apply _,
+      "status",
+      "freeMemory",
+      "busyMemory",
+      "inProgressMemory",
+      "tags",
+      "dedicatedNamespaces")
+}
+
 /**
  * This case class is used when retrieving the snapshot of the queue status from the scheduler at a certain moment.
  * This is useful to figure out the internal status when any issue happens.
