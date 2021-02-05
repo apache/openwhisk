@@ -73,10 +73,11 @@ ext.testSets = [
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
             "org/apache/openwhisk/core/scheduler/queue/test/ElasticSearchDurationCheck*",
+            "org/apache/openwhisk/common/etcd/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
-            'invokerShoot/**'
+            "invokerShoot/**"
         ]
     ],
     "REQUIRE_SYSTEM" : [
@@ -195,6 +196,14 @@ task testUnit(type: Test) {
     ]
 
     exclude couchDbExcludes
+}
+
+task testUnitEtcd(type: Test) {
+    def etcdUnitIncludes = [
+        "org/apache/openwhisk/common/etcd/**"
+    ]
+
+    include etcdUnitIncludes
 }
 
 dependencies {
