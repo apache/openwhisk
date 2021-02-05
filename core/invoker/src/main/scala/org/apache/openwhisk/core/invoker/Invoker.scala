@@ -72,6 +72,8 @@ object Invoker {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+
   /**
    * An object which records the environment variables required for this component to run.
    */
@@ -174,7 +176,7 @@ object Invoker {
     initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
-    val topicName = topicBaseName + assignedInvokerId
+    val topicName = topicPrefix + topicBaseName + assignedInvokerId
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance =

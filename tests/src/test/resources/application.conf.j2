@@ -29,6 +29,10 @@ whisk {
                 retention-bytes = 1073741824
                 retention-ms    = 3600000
             }
+            prefix = "{{ kafka.topicsPrefix }}"
+            user-event {
+                prefix = "{{ kafka.topicsUserEventPrefix }}"
+            }
         }
         common {
           security-protocol: {{ kafka.protocol }}

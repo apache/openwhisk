@@ -30,6 +30,7 @@ import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -177,7 +178,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
                                         invoker: InvokerInstanceId): Future[RecordMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
-    val topic = s"invoker${invoker.toInt}"
+    val topic = s"${Controller.topicPrefix}invoker${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(

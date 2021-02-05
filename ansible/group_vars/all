@@ -139,6 +139,8 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  topicsPrefix: "{{ kafka_topics_prefix | default('') }}"
+  topicsUserEventPrefix: "{{ kafka_topics_userEvent_prefix | default(kafka_topics_prefix) | default('') }}"
   ssl:
     client_authentication: required
     keystore:

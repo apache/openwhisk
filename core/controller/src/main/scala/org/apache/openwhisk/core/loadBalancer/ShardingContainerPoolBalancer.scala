@@ -36,6 +36,7 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.common.LoggingMarkers._
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
@@ -352,7 +353,11 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           InvokerPool.props(
             (f, i) => f.actorOf(InvokerActor.props(i, instance)),
             (m, i) => sendActivationToInvoker(messagingProducer, m, i),
-            messagingProvider.getConsumer(whiskConfig, s"health${instance.asString}", "health", maxPeek = 128),
+            messagingProvider.getConsumer(
+              whiskConfig,
+              s"${Controller.topicPrefix}health${instance.asString}",
+              s"${Controller.topicPrefix}health",
+              maxPeek = 128),
             monitor))
       }
 
