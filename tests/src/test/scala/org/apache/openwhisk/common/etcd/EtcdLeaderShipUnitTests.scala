@@ -114,7 +114,8 @@ class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers w
             .newBuilder()
             .setKey(key)
             .setValue(value)
-            .build()) build ()
+            .build())
+        .build()
       onNext(new mockWatchUpdate().addEvents(event))
     }
   }
