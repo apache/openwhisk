@@ -51,6 +51,7 @@ whisk:
   feature_flags:
     require_api_key_annotation: "{{ require_api_key_annotation | default(true) | lower }}"
     require_response_payload: "{{ require_response_payload | default(true) | lower }}"
+  cluster_name: "{{ whisk_cluster_name | default('whisk') }}"
 
 ##
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).
