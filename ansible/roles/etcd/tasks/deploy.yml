@@ -1,0 +1,70 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# This role will install etcd in group 'etcd' in the environment inventory
+
+- name: "Set the name of the etcd node"
+  set_fact:
+    name: "etcd{{ groups['etcd'].index(inventory_hostname) }}"
+
+- name: "set the volume_dir"
+  set_fact:
+    volume_dir: "{{ etcd.dir.data }}/etcd{{ groups['etcd'].index(inventory_hostname) }}:/etcd-data"
+  when: etcd_data_dir is defined
+
+
+- name: "Set the cluster of the etcd cluster"
+  set_fact:
+    cluster: "{% set etcdhosts = [] %}
+              {% for host in groups['etcd'] %}
+                  {{ etcdhosts.append('etcd' + ((loop.index-1)|string) + '=' + 'http://' + hostvars[host].ansible_host + ':' + ((2480+loop.index-1)|string) ) }}
+              {% endfor %}
+              {{ etcdhosts | join(',') }}"
+
+- name: (re)start etcd
+  docker_container:
+    name: etcd{{ groups['etcd'].index(inventory_hostname) }}
+    image: quay.io/coreos/etcd:{{ etcd.version }}
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    volumes: "{{volume_dir | default([])}}"
+    command: "/usr/local/bin/etcd \
+               --data-dir=/etcd-data --name '{{ name }}' \
+               --initial-advertise-peer-urls http://{{ ansible_host }}:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }} \
+               --advertise-client-urls http://{{ ansible_host }}:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }} \
+               --listen-peer-urls http://0.0.0.0:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }} \
+               --listen-client-urls http://0.0.0.0:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }} \
+               --initial-cluster {{ cluster }} \
+               --initial-cluster-state new --initial-cluster-token {{ etcd.cluster.token }} \
+               --quota-backend-bytes {{ etcd.quota_backend_bytes }} \
+               --snapshot-count {{ etcd.snapshot_count }} \
+               --auto-compaction-retention {{ etcd.auto_compaction_retention }} \
+               --auto-compaction-mode {{ etcd.auto_compaction_mode }} \
+               --log-level {{ etcd.loglevel }}"
+    ports:
+      - "{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }}:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }}"
+      - "{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }}:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }}"
+    pull: "{{ etcd.pull_etcd | default(true) }}"
+
+- name: wait until etcd in this host is up and running
+  uri:
+    url: "http://{{ ansible_host }}:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }}/health"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

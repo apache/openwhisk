@@ -118,6 +118,16 @@ whisk {
             password      = "{{ db.elasticsearch.auth.admin.password }}"
         }
     }
+
+    etcd {
+        hosts = "{{ etcd_connect_string }}"
+        lease {
+            timeout = "{{ etcd.lease.timeout }}"
+        }
+        pool {
+            threads = "{{ etcd.pool_threads }}"
+        }
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
