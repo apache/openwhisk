@@ -34,7 +34,7 @@ case class AlreadyExist()
 
 /**
  * This service is in charge of storing given data to ETCD.
- * In case there is any issue occurred while storing data, it keeps trying until the data is stored.
+ * In the event any issue occurs while storing data, the actor keeps trying until the data is stored guaranteeing delivery to ETCD.
  * So it guarantees the data is eventually stored.
  */
 class DataManagementService(watcherService: ActorRef, workerFactory: ActorRefFactory => ActorRef)(
