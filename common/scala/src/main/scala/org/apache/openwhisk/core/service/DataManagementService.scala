@@ -60,7 +60,7 @@ class DataManagementService(watcherService: ActorRef, workerFactory: ActorRefFac
         worker ! operation
       } else {
         inProgressKeys = inProgressKeys - key
-        operations.remove(key) // remove empty queue from the map to free memories
+        operations.remove(key) // remove empty queue from the map to free memory
       }
 
     // normally these messages will be sent when queues are created.
@@ -86,7 +86,7 @@ class DataManagementService(watcherService: ActorRef, workerFactory: ActorRefFac
       }
 
     case request: RegisterData =>
-      // send WatchEndpoint first as the put operation will be retry until success if failed
+      // send WatchEndpoint first as the put operation will be retried until success if failed
       if (request.failoverEnabled)
         watcherService ! WatchEndpoint(request.key, request.value, isPrefix = false, watcherName, Set(DeleteEvent))
       if (inProgressKeys.contains(request.key)) {
@@ -132,7 +132,7 @@ class DataManagementService(watcherService: ActorRef, workerFactory: ActorRefFac
     case WatchEndpointRemoved(_, key, value, false) =>
       self ! RegisterInitialData(key, value, failoverEnabled = false) // the watcher is already setup
 
-    // it is supposed not to receive "prefixed" data
+    // It should not receive "prefixed" data
     case WatchEndpointRemoved(_, key, value, true) =>
       logging.error(this, s"unexpected data received: ${WatchEndpoint(key, value, isPrefix = true, watcherName)}")
 
