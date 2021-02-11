@@ -450,3 +450,8 @@ etcd_connect_string: "{% set ret = [] %}\
                         {{ ret.append( hostvars[host].ansible_host + ':' + ((etcd.client.port+loop.index-1)|string) ) }}\
                       {% endfor %}\
                       {{ ret | join(',') }}"
+
+scheduler:
+  dataManagementService:
+    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default(1 second) }}"
+

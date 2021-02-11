@@ -294,4 +294,6 @@ object ConfigKeys {
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
 
   val whiskClusterName = "whisk.cluster.name"
+
+  val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retryInterval"
 }
