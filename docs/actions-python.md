@@ -45,8 +45,6 @@ wsk action create helloPython hello.py
 ```
 The CLI automatically infers the type of the action from the source file extension.
 For `.py` source files, the action runs using a Python 3.6 runtime.
-You can also create an action that runs with Python 2.7 by explicitly specifying the parameter
-`--kind python:2`.
 
 Action invocation is the same for Python actions as it is for any other actions:
 
@@ -83,7 +81,7 @@ wsk action create helloPython --kind python:3 helloPython.zip
 Another way of packaging Python dependencies is using a virtual environment (`virtualenv`). This allows you to link additional packages
 that may be installed via [`pip`](https://packaging.python.org/installing/) for example.
 To ensure compatibility with the OpenWhisk container, package installations inside a virtualenv must be done in the target environment.
-So the docker image `openwhisk/python2action` or `openwhisk/python3action` should be used to create a virtualenv directory for your action.
+So the docker image `openwhisk/python3action` should be used to create a virtualenv directory for your action.
 
 As with basic zip file support, the name of the source file containing the main entry point must be `__main__.py`. In addition, the virtualenv directory must be named `virtualenv`.
 Below is an example scenario for installing dependencies, packaging them in a virtualenv, and creating a compatible OpenWhisk action.
@@ -103,8 +101,6 @@ Below is an example scenario for installing dependencies, packaging them in a vi
 ```bash
 wsk action create helloPython --kind python:3 helloPython.zip
 ```
-
-While the steps above are shown for Python 3.6, you can do the same for Python 2.7 as well.
 
 ## Python 3 actions
 
@@ -152,49 +148,4 @@ The following packages are available for use by Python actions, in addition to t
 - w3lib v1.17.0
 - Werkzeug v0.12
 - yarl v0.9.8
-- zope.interface v4.3.3
-
-## Python 2 actions
-
-Python 2 actions are executed using Python 2.7.12. To use this runtime, specify the `wsk` CLI parameter `--kind python:2` when creating or updating an action. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
-
-- appdirs v1.4.3
-- asn1crypto v0.21.1
-- attrs v16.3.0
-- beautifulsoup4 v4.5.1
-- cffi v1.9.1
-- click v6.7
-- cryptography v1.8.1
-- cssselect v1.0.1
-- enum34 v1.1.6
-- Flask v0.11.1
-- gevent v1.1.2
-- greenlet v0.4.12
-- httplib2 v0.9.2
-- idna v2.5
-- ipaddress v1.0.18
-- itsdangerous v0.24
-- Jinja2 v2.9.5
-- kafka-python v1.3.1
-- lxml v3.6.4
-- MarkupSafe v1.0
-- packaging v16.8
-- parsel v1.1.0
-- pyasn1 v0.2.3
-- pyasn1-modules v0.0.8
-- pycparser v2.17
-- PyDispatcher v2.0.5
-- pyOpenSSL v16.2.0
-- pyparsing v2.2.0
-- python-dateutil v2.5.3
-- queuelib v1.4.2
-- requests v2.11.1
-- Scrapy v1.1.2
-- service-identity v16.0.0
-- simplejson v3.8.2
-- six v1.10.0
-- Twisted v16.4.0
-- virtualenv v15.1.0
-- w3lib v1.17.0
-- Werkzeug v0.12
 - zope.interface v4.3.3

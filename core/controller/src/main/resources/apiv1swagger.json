@@ -2003,7 +2003,6 @@
             "php:7.3",
             "php:7.4",
             "php:default",
-            "python:2",
             "python:3",
             "python:default",
             "ruby:2.5",
