@@ -15,8 +15,12 @@
  * limitations under the License.
  */
 
-function main(args) {
-    var str = args.delimiter + " ☃ " + args.delimiter;
-    console.log(str);
-    return { "winter": str };
+func main(args: [String:Any]) -> [String:Any] {
+    if let str = args["delimiter"] as? String {
+        let msg = "\(str) ☃ \(str)"
+        print(msg)
+        return [ "winter" : msg ]
+    } else {
+        return [ "error" : "no delimiter" ]
+    }
 }

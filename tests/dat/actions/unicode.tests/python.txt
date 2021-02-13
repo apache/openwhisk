@@ -1,4 +1,4 @@
-"""Python 2 Unicode test.
+"""Python 3 Unicode test.
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -19,6 +19,6 @@
 
 def main(args):
     sep = args['delimiter']
-    str = sep + " ☃ ".decode('utf-8') + sep
-    print(str.encode('utf-8'))
+    str = sep + " ☃ " + sep
+    print(str)
     return {"winter": str}
