@@ -266,6 +266,7 @@ object ConfigKeys {
   val controllerActivation = s"$controller.activation"
 
   val etcd = "whisk.etcd"
+  val etcdLeaseTimeout = "whisk.etcd.lease.timeout"
   val etcdPoolThreads = "whisk.etcd.pool.threads"
 
   val activationStore = "whisk.activation-store"
