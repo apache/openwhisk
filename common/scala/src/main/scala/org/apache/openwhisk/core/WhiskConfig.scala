@@ -291,5 +291,7 @@ object ConfigKeys {
 
   val azBlob = "whisk.azure-blob"
 
+  val schedulerMaxPeek = "whisk.scheduler.max-peek"
+
   val whiskClusterName = "whisk.cluster.name"
 }
