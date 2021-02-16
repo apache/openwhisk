@@ -100,3 +100,7 @@ jobs:
         - OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
         - ./tools/travis/checkAndUploadLogs.sh perf
       name: "Performance Tests"
+    - script:
+        - ./tools/travis/runSchedulerTests.sh
+        - ./tools/travis/checkAndUploadLogs.sh scheduler
+      name: "Scheduler Tests"
