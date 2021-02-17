@@ -16,6 +16,7 @@
 - [ ] Controller
 - [ ] Message Bus (e.g., Kafka)
 - [ ] Loadbalancer
+- [ ] Scheduler
 - [ ] Invoker
 - [ ] Intrinsic actions (e.g., sequences, conductors)
 - [ ] Data stores (e.g., CouchDB)
