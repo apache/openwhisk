@@ -166,8 +166,8 @@ object DataManagementService {
 }
 
 private[service] class EtcdWorker(etcdClient: EtcdClient, leaseService: ActorRef)(implicit val ec: ExecutionContext,
-                                                                 actorSystem: ActorSystem,
-                                                                 logging: Logging)
+                                                                                  actorSystem: ActorSystem,
+                                                                                  logging: Logging)
     extends Actor {
 
   private val dataManagementService = context.parent
