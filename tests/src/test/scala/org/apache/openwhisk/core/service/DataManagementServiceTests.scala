@@ -5,7 +5,6 @@ import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe
 import akka.util.Timeout
 import common.StreamLogging
 import org.apache.openwhisk.core.entity.SchedulerInstanceId
-import org.apache.openwhisk.core.etcd.EtcdClient
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -52,7 +51,6 @@ class DataManagementServiceTests
   behavior of "DataManagementService"
 
   it should "distribute work to etcd worker" in {
-    val etcdClient = mock[EtcdClient]
     val watcherService = TestProbe()
     val worker = TestProbe()
 
@@ -77,7 +75,6 @@ class DataManagementServiceTests
 
   it should "handle request sequentially for a same key" in {
     val queue = mutable.Queue.empty[String]
-    val etcdClient = mock[EtcdClient]
     val watcherService = TestProbe()
     val workerFactory = (f: ActorRefFactory) =>
       f.actorOf(Props(new Actor {
@@ -116,7 +113,6 @@ class DataManagementServiceTests
 
   it should "handle request concurrently for different keys" in {
     val queue = mutable.Queue.empty[String]
-    val etcdClient = mock[EtcdClient]
     val watcherService = TestProbe()
     val workerFactory = (f: ActorRefFactory) =>
       f.actorOf(Props(new Actor {
@@ -153,7 +149,6 @@ class DataManagementServiceTests
   }
 
   it should "remove unnecessary operation" in {
-    val etcdClient = mock[EtcdClient]
     val watcherService = TestProbe()
     val worker = TestProbe()
 
@@ -181,8 +176,6 @@ class DataManagementServiceTests
   }
 
   it should "register data when the target endpoint is removed" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     val key = "testKey"
@@ -196,8 +189,6 @@ class DataManagementServiceTests
   }
 
   it should "ignore prefixed endpoint-removed results" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     val key = "testKey"
@@ -210,8 +201,6 @@ class DataManagementServiceTests
   }
 
   it should "deregister data" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     watcherService.setAutoPilot((sender, msg) => {
@@ -231,8 +220,6 @@ class DataManagementServiceTests
   }
 
   it should "store the resource data" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     val key = "testKey"
@@ -246,8 +233,6 @@ class DataManagementServiceTests
   }
 
   it should "not store the resource data if there is no change from the last one" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     val key = "testKey"
@@ -265,8 +250,6 @@ class DataManagementServiceTests
   }
 
   it should "store the resource data if there is change from the last one" in {
-    val etcdClient = mock[EtcdClient]
-
     val watcherService = TestProbe()
     val worker = TestProbe()
     val key = "testKey"
