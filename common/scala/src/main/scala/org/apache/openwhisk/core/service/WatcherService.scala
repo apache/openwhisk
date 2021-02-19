@@ -32,7 +32,7 @@ case class WatchEndpoint(key: String,
                          isPrefix: Boolean,
                          name: String,
                          listenEvents: Set[EtcdEvent] = Set.empty)
-case class UnWatchEndpoint(watchKey: String, isPrefix: Boolean, watchName: String, needFeedback: Boolean = false)
+case class UnwatchEndpoint(watchKey: String, isPrefix: Boolean, watchName: String, needFeedback: Boolean = false)
 
 // the watchKey is the string user want to watch, it can be a prefix, the key is a record's key in Etcd
 // so if `isPrefix = true`, the `watchKey != key`, else the `watchKey == key`
@@ -126,7 +126,7 @@ class WatcherService(etcdClient: EtcdClient)(implicit logging: Logging, actorSys
         else
           deleteWatchers.update(watcherKey, sender())
 
-    case request: UnWatchEndpoint =>
+    case request: UnwatchEndpoint =>
       val watcherKey = WatcherKey(request.watchKey, request.watchName)
       if (request.isPrefix) {
         prefixPutWatchers.remove(watcherKey)

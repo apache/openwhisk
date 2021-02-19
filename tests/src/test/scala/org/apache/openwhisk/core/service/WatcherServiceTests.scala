@@ -135,10 +135,10 @@ class WatcherServiceTests
     service ! WatchEndpoint(key, value, isPrefix = false, watchName + "1", Set(DeleteEvent))
     service.underlyingActor.deleteWatchers.size shouldBe 2
 
-    service ! UnWatchEndpoint(key, isPrefix = false, watchName)
+    service ! UnwatchEndpoint(key, isPrefix = false, watchName)
     service.underlyingActor.deleteWatchers.size shouldBe 1
 
-    service ! UnWatchEndpoint(key, isPrefix = false, watchName + "1")
+    service ! UnwatchEndpoint(key, isPrefix = false, watchName + "1")
     service.underlyingActor.deleteWatchers.size shouldBe 0
   }
 
@@ -164,7 +164,7 @@ class WatcherServiceTests
     etcdClient.publishEvents(EventType.PUT, key, value)
     probe.expectMsg(WatchEndpointInserted(request.key, key, value, request.isPrefix))
 
-    service ! UnWatchEndpoint(key, false, watchName)
+    service ! UnwatchEndpoint(key, false, watchName)
 
     val request2 = WatchEndpoint("test", "", isPrefix = true, watchName, Set(DeleteEvent, PutEvent))
     probe.send(service, request2)
@@ -193,7 +193,7 @@ class WatcherServiceTests
 
     etcdClient.publishEvents(EventType.PUT, key, value)
     probe.expectNoMessage()
-    service ! UnWatchEndpoint(key, false, watchName) // close the watcher for delete event
+    service ! UnwatchEndpoint(key, false, watchName) // close the watcher for delete event
 
     val request2 = WatchEndpoint(key, value, isPrefix = false, watchName, Set(PutEvent))
 
