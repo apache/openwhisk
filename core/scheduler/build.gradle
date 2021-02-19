@@ -20,6 +20,7 @@ apply plugin: 'application'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
+apply plugin: 'com.lightbend.akka.grpc.gradle'
 
 ext.dockerImageName = 'scheduler'
 apply from: '../../gradle/docker.gradle'
@@ -32,6 +33,20 @@ ext.coverageDirs = [
         "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
 ]
 distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
+        // for the currently latest version.
+        classpath 'gradle.plugin.com.lightbend.akka.grpc:akka-grpc-gradle-plugin:0.7.2'
+    }
+}
 
 // Define a separate configuration for managing the dependency on Jetty ALPN agent.
 configurations {
@@ -51,7 +66,21 @@ dependencies {
 
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
+}
 
+// workaround for akka-grpc
+// https://github.com/akka/akka-grpc/issues/786
+printProtocLogs.doFirst {
+    mkdir "$buildDir"
+    file("$buildDir/akka-grpc-gradle-plugin.log").text = "x"
+    mkdir "$project.rootDir/build"
+    file("$project.rootDir/build/akka-grpc-gradle-plugin.log").text = "x"
+}
+printProtocLogs.configure {
+    mkdir "$buildDir"
+    file("$buildDir/akka-grpc-gradle-plugin.log").text = "x"
+    mkdir "$project.rootDir/build"
+    file("$project.rootDir/build/akka-grpc-gradle-plugin.log").text = "x"
 }
 
 mainClassName = "org.apache.openwhisk.core.scheduler.Scheduler"

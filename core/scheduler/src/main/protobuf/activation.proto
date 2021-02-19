@@ -1,0 +1,51 @@
+syntax = "proto3";
+import "google/protobuf/wrappers.proto";
+
+//#options
+option java_multiple_files = true;
+option java_package = "org.apache.openwhisk.grpc";
+option java_outer_classname = "ActivationProto";
+
+package activation;
+//#options
+
+//#services
+service ActivationService {
+
+    rpc FetchActivation (FetchRequest) returns (FetchResponse) {}
+
+    rpc RescheduleActivation (RescheduleRequest) returns (RescheduleResponse) {}
+
+}
+//#services
+
+//#messages
+// The request message
+message FetchRequest {
+    string invocationNamespace = 1;
+    string fqn = 2;
+    string rev = 3;
+    string containerId = 4;
+    bool warmed = 5;
+    // This allows optional value
+    google.protobuf.Int64Value lastDuration = 6;
+    bool alive = 7;
+}
+
+// The response message
+message FetchResponse {
+    string activationMessage = 1;
+}
+
+message RescheduleRequest {
+    string invocationNamespace = 1;
+    string fqn = 2;
+    string rev = 3;
+    string activationMessage = 4;
+}
+
+message RescheduleResponse {
+    // if reschedule request is failed, then it will be `false`
+    bool isRescheduled = 1;
+}
+
