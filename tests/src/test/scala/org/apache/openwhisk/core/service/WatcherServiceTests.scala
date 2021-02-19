@@ -299,7 +299,8 @@ class MockWatchClient(client: Client)(ece: ExecutionContextExecutor) extends Etc
           .newBuilder()
           .setKey(ByteString.copyFromUtf8(key))
           .setValue(ByteString.copyFromUtf8(value))
-          .build()) build ()
+          .build())
+      .build()
     onNext(new mockWatchUpdate().addEvents(event))
   }
 }
