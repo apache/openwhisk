@@ -29,6 +29,7 @@ message FetchRequest {
     bool warmed = 5;
     // This allows optional value
     google.protobuf.Int64Value lastDuration = 6;
+    // to record alive containers
     bool alive = 7;
 }
 
