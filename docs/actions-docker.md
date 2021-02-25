@@ -65,7 +65,7 @@ Here are some of the more common runtime images...
 - `openwhisk/python3action` - [Python 3](https://hub.docker.com/r/openwhisk/python3action) ([Source](https://github.com/apache/openwhisk-runtime-python/blob/master/core/pythonAction/Dockerfile))
 - `openwhisk/java8action` - [Java 8](https://hub.docker.com/r/openwhisk/java8action) ([Source](https://github.com/apache/openwhisk-runtime-java/blob/master/core/java8/Dockerfile))
 - `openwhisk/action-swift-v4.2` - [Swift 4.2](https://hub.docker.com/r/openwhisk/action-swift-v4.2) ([Source](https://github.com/apache/openwhisk-runtime-swift/blob/master/core/swift42Action/Dockerfile))
-- `openwhisk/action-php-v7.3` - [PHP 7.3](https://hub.docker.com/r/openwhisk/action-php-v7.3) ([Source](https://github.com/apache/openwhisk-runtime-php/blob/master/core/php7.3Action/Dockerfile))
+- `openwhisk/action-php-v7.4` - [PHP 7.4](https://hub.docker.com/r/openwhisk/action-php-v7.4) ([Source](https://github.com/apache/openwhisk-runtime-php/blob/master/core/php7.4Action/Dockerfile))
 - `openwhisk/action-ruby-v2.5` - [Ruby 2.5](https://hub.docker.com/r/openwhisk/action-ruby-v2.5) ([Source](https://github.com/apache/openwhisk-runtime-ruby/blob/master/core/ruby2.5Action/Dockerfile))
 
 ## Extending Existing Runtimes
