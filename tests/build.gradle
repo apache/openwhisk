@@ -90,6 +90,7 @@ ext.testSets = [
         "includes" : [
             "org/apache/openwhisk/common/etcd/**",
             "org/apache/openwhisk/core/scheduler/**",
+            "org/apache/openwhisk/core/service/**",
         ]
     ],
     "REQUIRE_MULTI_RUNTIME" : [
