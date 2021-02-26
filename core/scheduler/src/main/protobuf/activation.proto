@@ -11,11 +11,8 @@ package activation;
 
 //#services
 service ActivationService {
-
     rpc FetchActivation (FetchRequest) returns (FetchResponse) {}
-
     rpc RescheduleActivation (RescheduleRequest) returns (RescheduleResponse) {}
-
 }
 //#services
 
