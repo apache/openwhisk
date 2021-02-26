@@ -42,7 +42,7 @@ case object NoData extends KeepAliveServiceData
 case class Lease(id: Long, ttl: Long) extends KeepAliveServiceData
 
 // Events received by the actor
-case object ReGrantLease
+case object RegrantLease
 case object GetLease
 case object GrantLease
 
@@ -98,7 +98,7 @@ class LeaseKeepAliveService(etcdClient: EtcdClient, instanceId: InstanceId, watc
       logging.info(this, s"endpoint ie removed so recreate a lease")
       recreateLease(lease)
 
-    case Event(ReGrantLease, lease: Lease) =>
+    case Event(RegrantLease, lease: Lease) =>
       logging.info(this, s"ReGrant a lease, old lease:${lease}")
       recreateLease(lease)
 
@@ -135,7 +135,7 @@ class LeaseKeepAliveService(etcdClient: EtcdClient, instanceId: InstanceId, watc
         case Success(_) => MetricEmitter.emitCounterMetric(LoggingMarkers.SCHEDULER_KEEP_ALIVE(lease.id))
         case Failure(t) =>
           logging.warn(this, s"Failed to keep-alive of ${lease.id} caused by ${t}")
-          self ! ReGrantLease
+          self ! RegrantLease
       }
   }
 
