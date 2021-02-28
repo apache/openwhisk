@@ -101,7 +101,11 @@ class LeaseKeepAliveServiceTests
 
     Thread.sleep(1000)
     service.stateName shouldBe Active
-    service.stateData shouldBe testLease
+    service.stateData shouldBe a[ActiveStates]
+    service.stateData match {
+      case ActiveStates(_, lease) => lease shouldBe testLease
+      case _                      => fail()
+    }
     watcher.expectMsg(WatchEndpoint(testKey, testLease.id.toString, false, watcherName, Set(DeleteEvent)))
 
   }
@@ -134,7 +138,11 @@ class LeaseKeepAliveServiceTests
     val service = TestFSMRef(new LeaseKeepAliveService(mockEtcd, testInstanceId, watcher.ref))
 
     service.stateName shouldBe Active
-    service.stateData shouldBe testLease
+    service.stateData shouldBe a[ActiveStates]
+    service.stateData match {
+      case ActiveStates(_, lease) => lease shouldBe testLease
+      case _                      => fail()
+    }
     watcher.expectMsg(WatchEndpoint(testKey, testLease.id.toString, false, watcherName, Set(DeleteEvent)))
 
     service ! WatchEndpointRemoved(testKey, testKey, testLease.id.toString, false)
@@ -143,7 +151,11 @@ class LeaseKeepAliveServiceTests
     Thread.sleep(500) //wait for the lease to be granted
 
     service.stateName shouldBe Active
-    service.stateData shouldBe newTestLease
+    service.stateData shouldBe a[ActiveStates]
+    service.stateData match {
+      case ActiveStates(_, lease) => lease shouldBe newTestLease
+      case _                      => fail()
+    }
     watcher.expectMsg(WatchEndpoint(newTestKey, newTestLease.id.toString, false, watcherName, Set(DeleteEvent)))
   }
 
@@ -198,14 +210,22 @@ class LeaseKeepAliveServiceTests
     val watcher = TestProbe()
     val service = TestFSMRef(new LeaseKeepAliveService(mockEtcd, testInstanceId, watcher.ref))
     service.stateName shouldBe Active
-    service.stateData shouldBe testLease
+    service.stateData shouldBe a[ActiveStates]
+    service.stateData match {
+      case ActiveStates(_, lease) => lease shouldBe testLease
+      case _                      => fail()
+    }
     watcher.expectMsg(WatchEndpoint(testKey, testLease.id.toString, false, watcherName, Set(DeleteEvent)))
 
     watcher.expectMsg(UnwatchEndpoint(testKey, false, watcherName))
     Thread.sleep(1500) //wait for the lease to be granted
 
     service.stateName shouldBe Active
-    service.stateData shouldBe newTestLease
+    service.stateData shouldBe a[ActiveStates]
+    service.stateData match {
+      case ActiveStates(_, lease) => lease shouldBe newTestLease
+      case _                      => fail()
+    }
     watcher.expectMsg(WatchEndpoint(newTestKey, newTestLease.id.toString, false, watcherName, Set(DeleteEvent)))
   }
 
