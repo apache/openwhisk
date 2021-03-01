@@ -73,7 +73,7 @@ class ContainerCounterTests
   private val revision2 = DocRevision("1-testRev2")
   private val fqn3 = FullyQualifiedEntityName(EntityPath(namespace2), EntityName(action2))
   private val revision3 = DocRevision("1-testRev3")
-  private val watcherName = s"namespace-container-count-$namespace"
+  private val watcherName = s"container-counter-$namespace"
   private val inProgressContainerPrefixKeyByNamespace =
     ContainerKeys.inProgressContainerPrefixByNamespace(namespace)
   private val existingContainerPrefixKeyByNamespace =
