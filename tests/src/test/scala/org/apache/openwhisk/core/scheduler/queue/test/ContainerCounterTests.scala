@@ -332,7 +332,8 @@ class ContainerCounterTests
             .newBuilder()
             .setKey(ByteString.copyFromUtf8(key))
             .setValue(ByteString.copyFromUtf8(value))
-            .build()) build ()
+            .build())
+        .build()
 
       // find the callbacks which has the proper prefix for the given key
       watchCallbackMap.filter(callback => key.startsWith(callback._1)).foreach { callback =>
