@@ -646,3 +646,60 @@ object ContainerCreationAckMessage extends DefaultJsonProtocol {
   private implicit val byteSizeSerdes = size.serdes
   implicit val serdes = jsonFormat12(ContainerCreationAckMessage.apply)
 }
+
+case class InvokerResourceMessage(status: String,
+                                  freeMemory: Long,
+                                  busyMemory: Long,
+                                  inProgressMemory: Long,
+                                  tags: Seq[String],
+                                  dedicatedNamespaces: Seq[String])
+  extends Message {
+
+  /**
+   * Serializes message to string. Must be idempotent.
+   */
+  override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
+
+  def canEqual(a: Any) = a.isInstanceOf[InvokerResourceMessage]
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: InvokerResourceMessage => {
+        that.canEqual(this) &&
+          this.status == that.status &&
+          this.freeMemory == that.freeMemory &&
+          this.busyMemory == that.busyMemory &&
+          this.inProgressMemory == that.inProgressMemory &&
+          this.tags.toSet == that.tags.toSet
+        this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
+      }
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1;
+    val prime = 31
+    result = prime * result + status.hashCode()
+    result = prime * result + freeMemory.hashCode()
+    result = prime * result + busyMemory.hashCode()
+    result = prime * result + inProgressMemory.hashCode()
+    result = prime * result + tags.hashCode()
+    result = prime * result + dedicatedNamespaces.hashCode()
+    result
+  }
+}
+
+object InvokerResourceMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[InvokerResourceMessage] = Try(serdes.read(msg.parseJson))
+  implicit val serdes =
+    jsonFormat(
+      InvokerResourceMessage.apply _,
+      "status",
+      "freeMemory",
+      "busyMemory",
+      "inProgressMemory",
+      "tags",
+      "dedicatedNamespaces")
+}
+
+case object GracefulShutdown
