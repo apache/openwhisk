@@ -15,7 +15,7 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.Try
 
 class ActivationServiceImpl()(implicit actorSystem: ActorSystem, logging: Logging) extends ActivationService {
-  implicit val requestTimeout: Timeout = Timeout(50.seconds)
+  implicit val requestTimeout: Timeout = Timeout(5.seconds)
   implicit val ec: ExecutionContextExecutor = actorSystem.dispatcher
 
   override def rescheduleActivation(request: RescheduleRequest): Future[RescheduleResponse] = {
