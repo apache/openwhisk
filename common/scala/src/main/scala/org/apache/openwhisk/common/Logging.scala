@@ -107,7 +107,7 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
 }
 
 /**
- * Implementaion of Logging, that uses the output stream.
+ * Implementation of Logging, that uses the output stream.
  */
 class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Logging {
   override def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {

@@ -349,7 +349,7 @@ class ReplicatorTests
 
   it should "continuously update a database" in {
     // Create a database to backup
-    val dbName = testDbPrefix + "database_for_continous_replication"
+    val dbName = testDbPrefix + "database_for_continuous_replication"
     val backupDbName = s"continuous_$dbName"
 
     // Pre-test cleanup of previously created entities

@@ -42,6 +42,6 @@ class S3AttachmentStoreCloudFrontTests extends S3AttachmentStoreBehaviorBase wit
     super.withFixture(test)
   }
 
-  //With CloudFront deletes are not immediate and instead the objects may live in CDN cache untill TTL
+  //With CloudFront deletes are not immediate and instead the objects may live in CDN cache until TTL
   override protected val lazyDeletes = true
 }
