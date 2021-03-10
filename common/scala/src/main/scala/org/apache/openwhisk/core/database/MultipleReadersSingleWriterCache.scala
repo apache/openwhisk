@@ -94,6 +94,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
   /** Subclasses: Toggle this to enable/disable caching for your entity type. */
   protected val cacheEnabled = true
   protected val evictionPolicy: EvictionPolicy = AccessTime
+  protected val cacheExpirationTime: Long = 5
+  protected val cacheExpirationTimeUnit: TimeUnit = TimeUnit.MINUTES
   protected val fixedCacheSize = 0
 
   private object Entry {
@@ -452,8 +454,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
       .softValues()
 
     evictionPolicy match {
-      case AccessTime => b.expireAfterAccess(5, TimeUnit.MINUTES)
-      case _          => b.expireAfterWrite(5, TimeUnit.MINUTES)
+      case AccessTime => b.expireAfterAccess(cacheExpirationTime, cacheExpirationTimeUnit)
+      case _          => b.expireAfterWrite(cacheExpirationTime, cacheExpirationTimeUnit)
     }
 
     if (fixedCacheSize > 0) b.maximumSize(fixedCacheSize)
