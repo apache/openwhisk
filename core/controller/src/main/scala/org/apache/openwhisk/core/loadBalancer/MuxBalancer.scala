@@ -17,12 +17,14 @@ class MuxBalancer(config: WhiskConfig,
                   controllerInstance: ControllerInstanceId,
                   implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging)
+  logging: Logging,
+  materializer: ActorMaterializer)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
-  private val balancers = lbConfig.strategy.foldLeft(Map.empty[String, LoadBalancer]) {
-    case (result, (name, lbClass)) => result + (name -> getClass(lbClass))
-  }
+  private val balancers: Map[String, LoadBalancer] =
+    lbConfig.strategy.custom.foldLeft(Map("default" -> getClass(lbConfig.strategy.default))) {
+      case (result, (name, strategyConfig)) => result + (name -> getClass[LoadBalancer](strategyConfig.className))
+    }
 
   def getClass[A](name: String): A = {
     logging.info(this, "'" + name + "'$")
@@ -37,9 +39,9 @@ class MuxBalancer(config: WhiskConfig,
   override protected val invokerPool: ActorRef = actorSystem.actorOf(Props.empty)
 
   /**
-    * Publish a message to the loadbalancer
-    *
-    * Select the LoadBalancer based on the annotation, if available, otherwise use the default one
+   * Publish a message to the loadbalancer
+   *
+   * Select the LoadBalancer based on the annotation, if available, otherwise use the default one
     **/
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -53,7 +55,7 @@ class MuxBalancer(config: WhiskConfig,
           balancers("default").publish(action, msg)
         }
       }
-      case Some(_)  =>  balancers("default").publish(action, msg)
+      case Some(_) => balancers("default").publish(action, msg)
     }
   }
 }
@@ -62,7 +64,8 @@ object MuxBalancer extends LoadBalancerProvider {
 
   override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
     implicit actorSystem: ActorSystem,
-    logging: Logging): LoadBalancer = {
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer = {
 
     new MuxBalancer(whiskConfig, createFeedFactory(whiskConfig, instance), instance)
   }
