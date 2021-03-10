@@ -12,13 +12,12 @@ import spray.json._
 
 import scala.concurrent.Future
 
-class KindBasedLoadBalancer(config: WhiskConfig,
-                            feedFactory: FeedFactory,
-                            controllerInstance: ControllerInstanceId,
-                            implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
+class MuxBalancer(config: WhiskConfig,
+                  feedFactory: FeedFactory,
+                  controllerInstance: ControllerInstanceId,
+                  implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   private val balancers = lbConfig.strategy.foldLeft(Map.empty[String, LoadBalancer]) {
@@ -37,10 +36,13 @@ class KindBasedLoadBalancer(config: WhiskConfig,
   }
   override protected val invokerPool: ActorRef = actorSystem.actorOf(Props.empty)
 
-  /** 1. Publish a message to the loadbalancer */
+  /**
+    * Publish a message to the loadbalancer
+    *
+    * Select the LoadBalancer based on the annotation, if available, otherwise use the default one
+    **/
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-    logging.info(this, "We are here")
     action.annotations.get("activationStrategy") match {
       case None =>
         balancers("default").publish(action, msg)
@@ -51,26 +53,18 @@ class KindBasedLoadBalancer(config: WhiskConfig,
           balancers("default").publish(action, msg)
         }
       }
-      case (Some(_))  =>  balancers("default").publish(action, msg)
+      case Some(_)  =>  balancers("default").publish(action, msg)
     }
-
-//    if (action.annotations.get("activationStrategy").isDefined && balancers.contains(action.annotations.get("activationStrategy").get.toString.)
-//    {
-//      balancers().publish(action, msg)
-//    } else {
-//      balancers("default").publish(action, msg)
-//    }
   }
 }
 
-object KindBasedLoadBalancer extends LoadBalancerProvider {
+object MuxBalancer extends LoadBalancerProvider {
 
   override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
     implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = {
+    logging: Logging): LoadBalancer = {
 
-    new KindBasedLoadBalancer(whiskConfig, createFeedFactory(whiskConfig, instance), instance)
+    new MuxBalancer(whiskConfig, createFeedFactory(whiskConfig, instance), instance)
   }
 
   def requiredProperties =
