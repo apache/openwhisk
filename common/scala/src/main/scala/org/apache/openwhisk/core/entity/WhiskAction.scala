@@ -367,7 +367,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     "annotations",
     "updated")
 
-  // overriden to store attached code
+  // overridden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
@@ -420,7 +420,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
     }
   }
 
-  // overriden to retrieve attached code
+  // overridden to retrieve attached code
   override def get[A >: WhiskAction](
     db: ArtifactStore[A],
     doc: DocId,

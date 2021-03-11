@@ -416,7 +416,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
           case _ =>
             // At steady state, the state of the buffer superceded and we hold the current state
-            // until enough events have occured to transition to a new state.
+            // until enough events have occurred to transition to a new state.
             stay
         }
       }

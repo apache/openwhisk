@@ -38,7 +38,7 @@ function main(parm) {
     }
 
     if((parm.sleepTimeInMs < 0) || !Number.isFinite(parm.sleepTimeInMs)) {
-        const result = { error: "Parameter 'sleepTimeInMs' must be finite, postive integer value." }
+        const result = { error: "Parameter 'sleepTimeInMs' must be finite, positive integer value." }
         console.error(result.error)
         return result
     }

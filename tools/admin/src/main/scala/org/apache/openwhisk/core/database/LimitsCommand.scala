@@ -42,7 +42,7 @@ class LimitsCommand extends Subcommand("limits") with WhiskCommand {
 
     val namespace = trailArg[String](descr = "the namespace to set limits for")
 
-    //name is explicitly mentioned for backward compatability
+    //name is explicitly mentioned for backward compatibility
     //otherwise scallop would convert it to - separated names
     val invocationsPerMinute =
       opt[Int](

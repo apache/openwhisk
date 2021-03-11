@@ -283,7 +283,7 @@ The OpenWhisk platform will perform a generic integration test as part of its ba
 system tests. This integration test will require a [test function](#the-test-action) to
 be available so that the test harness can create, invoke, and delete the action.
 
-### Supporting Additonal Execution Environments
+### Supporting Additional Execution Environments
 
 There are now several runtimes that support execution environments in addition to OpenWhisk. Currently only an interface for single entrypoint execution environments has been defined, but more could be defined in the future.
 

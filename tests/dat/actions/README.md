@@ -23,7 +23,7 @@ Some test artifacts should be build ahead of actually running the tests.
 These test artifacts compile source code into binaries, generate JAR files,
 install modules and package functions into zip files.
 
-A `build.sh` script is availble as a convenience and will run ahead of tests
+A `build.sh` script is available as a convenience and will run ahead of tests
 when using `gradle`. However this script will not work on Windows as it currently
 assumes Bash is available.
 

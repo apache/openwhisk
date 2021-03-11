@@ -94,7 +94,7 @@ protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevisio
  *
  * @param id the document id
  * @param rev the document revision, optional; this is an opaque value determined by the datastore
- * @param error the error, that occured on trying to put this document into CouchDB
+ * @param error the error, that occurred on trying to put this document into CouchDB
  * @param reason the error message that correspands to the error
  */
 case class BulkEntityResult(id: String, rev: Option[DocRevision], error: Option[String], reason: Option[String]) {

@@ -32,7 +32,7 @@ class ConfigTests extends FlatSpec with Matchers with StreamLogging {
     assert(config.isValid && config("a") == "A")
   }
 
-  it should "get value from environemnt" in {
+  it should "get value from environment" in {
     val config = new Config(Map("a" -> null, "b" -> ""))(Map("A" -> "xyz"))
     assert(config.isValid && config("a") == "xyz" && config("b") == "")
   }

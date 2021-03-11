@@ -81,7 +81,7 @@ In the following example:
 }
 ```
 
-The underlying function would recieve a parameters map with the keys `name` and `location` with the values `Alan Turing` and `England` respectively.
+The underlying function would receive a parameters map with the keys `name` and `location` with the values `Alan Turing` and `England` respectively.
 
 ## Init/Run
 

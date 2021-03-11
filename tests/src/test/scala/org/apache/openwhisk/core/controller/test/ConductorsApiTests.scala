@@ -368,7 +368,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
               }
               Future(Right(respond(action, msg, result)))
             case _ =>
-              Future.failed(new IllegalArgumentException("Unkown action invoked in conductor test"))
+              Future.failed(new IllegalArgumentException("Unknown action invoked in conductor test"))
           }
         }
       } getOrElse Future.failed(new IllegalArgumentException("No invocation parameters in conductor test"))

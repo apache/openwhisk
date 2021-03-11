@@ -151,7 +151,7 @@ object ActionContainer {
         throw new RuntimeException(s"""
               |Unable to connect to docker host using $dockerCmdString as command string.
               |The docker host is determined using the Java property 'docker.host' or
-              |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+              |the environment variable 'DOCKER_HOST'. Please verify that one or the
               |other is set for your build/test process.""".stripMargin)
       case Success((v, _, _)) if v == 0 => // Do nothing
       case Failure(t)                   => throw t

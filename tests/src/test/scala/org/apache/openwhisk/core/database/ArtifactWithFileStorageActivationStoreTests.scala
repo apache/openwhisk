@@ -294,7 +294,7 @@ class ArtifactWithFileStorageActivationStoreTests()
 
       // END - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
 
-      // writeResultToFile is defined with the inverted value of includeResult and should be overriden by the test
+      // writeResultToFile is defined with the inverted value of includeResult and should be overridden by the test
       val config =
         ArtifactWithFileStorageActivationStoreConfigExtendedTest("userlogs", "logs", "namespaceId", !includeResult)
 

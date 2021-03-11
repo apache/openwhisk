@@ -114,7 +114,7 @@ import scala.concurrent.duration.FiniteDuration
  * no ping is seen for a defined amount of time, the invoker is considered "Offline".
  *
  * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
- * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
+ * errors, the invoker is considered "Unhealthy". If an invoker is unhealthy, no user workload is sent to it, but
  * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
  * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
  *

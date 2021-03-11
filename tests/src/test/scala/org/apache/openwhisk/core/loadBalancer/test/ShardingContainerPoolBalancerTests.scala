@@ -127,7 +127,7 @@ class ShardingContainerPoolBalancerTests
     state.managedStepSizes shouldBe Seq(1)
     state.blackboxStepSizes shouldBe Seq(1)
 
-    // aquire a slot to alter invoker state
+    // acquire a slot to alter invoker state
     state.invokerSlots.head.tryAcquire(memoryPerSlot.toMB.toInt)
     state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB.toInt
 

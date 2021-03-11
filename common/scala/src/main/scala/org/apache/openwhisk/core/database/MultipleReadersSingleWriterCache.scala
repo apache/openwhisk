@@ -378,7 +378,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
       case Failure(t) =>
         // oops, the datastore read failed. invalidate the cache entry
         // note: that this might be a perfectly legitimate failure,
-        // e.g. a lookup for a non-existant key; we need to pass the particular t through
+        // e.g. a lookup for a non-existent key; we need to pass the particular t through
         invalidateEntry(key, entry)
         promise.failure(t)
     }
