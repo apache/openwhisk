@@ -18,19 +18,21 @@
 package org.apache.openwhisk.core.scheduler
 
 import akka.Done
-import akka.actor.{ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.WhiskConfig.{servicePort, _}
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, NoDocumentException, UserContext}
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
+import org.apache.openwhisk.core.service.{LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.http.BasicHttpService
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
@@ -55,10 +57,11 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   val msgProvider = SpiLoader.get[MessagingProvider]
   val producer = msgProvider.getProducer(config, Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT))
 
-  val maxPeek = "" // TODO: TBD
-  val etcdClient = "" // TODO: TBD
-  val watcherService = "" // TODO: TBD
-  val leaseService = "" // TODO: TBD
+  val maxPeek = loadConfigOrThrow[Int](ConfigKeys.schedulerMaxPeek)
+  val etcdClient = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd).hosts)
+  val watcherService: ActorRef = actorSystem.actorOf(WatcherService.props(etcdClient))
+  val leaseService =
+    actorSystem.actorOf(LeaseKeepAliveService.props(etcdClient, schedulerId, watcherService))
 
   implicit val entityStore = WhiskEntityStore.datastore()
   private val activationStore =
@@ -139,7 +142,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
     config,
     s"scheduler${schedulerId.asString}",
     s"scheduler${schedulerId.asString}",
-    500, // TODO: to be updated with maxPeek variable
+    maxPeek,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   implicit val trasnid = TransactionId.containerCreation

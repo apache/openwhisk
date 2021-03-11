@@ -338,6 +338,7 @@ object LoggingMarkers {
   val timeout = "timeout"
 
   private val controller = "controller"
+  private val scheduler = "scheduler"
   private val invoker = "invoker"
   private val database = "database"
   private val activation = "activation"
@@ -554,6 +555,9 @@ object LoggingMarkers {
     if (TransactionId.metricsKamonTags)
       LogMarkerToken(kafka, "topic", start, Some("delay"), Map("topic" -> topic))(MeasurementUnit.time.milliseconds)
     else LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
+
+  def SCHEDULER_KEEP_ALIVE(leaseId: Long) =
+    LogMarkerToken(scheduler, "keepAlive", counter, None, Map("leaseId" -> leaseId.toString))(MeasurementUnit.none)
 
   /*
    * General markers
