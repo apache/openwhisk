@@ -47,7 +47,7 @@ brew tap homebrew/cask
 # install for AdoptOpenJDK (java10)
 brew tap AdoptOpenJDK/openjdk
 # install java 10
-brew cask install adoptopenjdk10
+brew install --cask adoptopenjdk10
 # install scala
 brew install scala
 # install gnu tar
