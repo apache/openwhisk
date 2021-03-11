@@ -44,7 +44,7 @@ def upload_file(local_file, remote_file):
         remote_file = remote_file[1:]
 
     url = "http://DamCYhF8.mybluemix.net/upload?%s" % \
-        urllib.urlencode({"name": remote_file})
+        urllib.parse.urlencode({"name": remote_file})
 
     r = requests.post(url,
             headers={"Content-Type": "application/gzip"},
