@@ -75,7 +75,7 @@ object KubernetesContainer {
           //apiserver call failed - this will expose a different error to users
           cleanupFailedPod(e, podName, WhiskContainerStartupError(Messages.resourceProvisionError))
         case e: Throwable =>
-          cleanupFailedPod(e, podName, WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+          cleanupFailedPod(e, podName, WhiskContainerStartupError(s"Failed to run container with image '$image'."))
       }
     } yield container
   }
@@ -142,11 +142,10 @@ class KubernetesContainer(protected[core] val id: ContainerId,
                           maxConcurrent: Int,
                           entity: Option[WhiskAction] = None)(implicit transid: TransactionId): Future[Interval] = {
     entity match {
-      case Some(e) => {
+      case Some(e) =>
         kubernetes
           .addLabel(this, Map("openwhisk/action" -> e.name.toString, "openwhisk/namespace" -> e.namespace.toString))
           .map(return super.initialize(initializer, timeout, maxConcurrent, entity))
-      }
       case None => super.initialize(initializer, timeout, maxConcurrent, entity)
     }
   }

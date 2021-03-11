@@ -41,7 +41,7 @@ import scala.collection.JavaConverters._
 class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClientConfig) {
   private val template = config.podTemplate.map(_.value.getBytes(UTF_8))
   private val actionContainerName = KubernetesRestLogSourceStage.actionContainerName
-  private val actionContainerPredicate: Predicate[ContainerBuilder] = (cb) => cb.getName == actionContainerName
+  private val actionContainerPredicate: Predicate[ContainerBuilder] = cb => cb.getName == actionContainerName
 
   def affinityEnabled: Boolean = config.userPodNodeAffinity.enabled
 
