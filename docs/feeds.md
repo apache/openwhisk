@@ -122,4 +122,3 @@ The Cloudant *changes* feed is the canonical example -- it stands up a `cloudant
 The *alarm* feed is implemented with a similar pattern.
 
 The connection-based architecture is the highest performance option, but imposes more overhead on operations compared to the polling and hook architectures.
-

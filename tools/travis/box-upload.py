@@ -25,30 +25,31 @@ Compresses the contents of a folder and upload the result to Box.
  * limitations under the License.
  */
 """
-
 from __future__ import print_function
 
+import hashlib
 import os
 import subprocess
 import sys
 import tempfile
 import urllib
+
 import humanize
 import requests
-import hashlib
 
 
 def upload_file(local_file, remote_file):
     """Upload file."""
-    if remote_file[0] == '/':
+    if remote_file[0] == "/":
         remote_file = remote_file[1:]
 
-    url = "http://DamCYhF8.mybluemix.net/upload?%s" % \
-        urllib.parse.urlencode({"name": remote_file})
+    url = "http://DamCYhF8.mybluemix.net/upload?%s" % urllib.parse.urlencode(
+        {"name": remote_file}
+    )
 
-    r = requests.post(url,
-            headers={"Content-Type": "application/gzip"},
-            data=open(local_file, 'rb'))
+    r = requests.post(
+        url, headers={"Content-Type": "application/gzip"}, data=open(local_file, "rb")
+    )
 
     print("Posting result", r)
     print(r.text)

@@ -23,7 +23,6 @@ Add docker daemon configuration options in /etc/docker/daemon.json
  * limitations under the License.
  */
 """
-
 from __future__ import print_function
 
 import json
@@ -34,12 +33,9 @@ DOCKER_DAEMON_FILE = "/etc/docker/daemon.json"
 # Read the file.
 
 DOCKER_OPTS = {
-    "hosts": [
-        "tcp://0.0.0.0:4243",
-        "unix:///var/run/docker.sock"
-    ],
+    "hosts": ["tcp://0.0.0.0:4243", "unix:///var/run/docker.sock"],
     "storage-driver": "overlay",
-    "userns-remap": "default"
+    "userns-remap": "default",
 }
 
 
@@ -61,7 +57,7 @@ def add_content(data):
 
 def write_to_daemon_conf(data):
     try:
-        with open(DOCKER_DAEMON_FILE, 'w') as fp:
+        with open(DOCKER_DAEMON_FILE, "w") as fp:
             json.dump(data, fp)
     except Exception as e:
         print("Failed to write to daemon file")

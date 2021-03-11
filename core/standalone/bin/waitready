@@ -22,6 +22,6 @@ do sleep 1 ; echo server still not ready - retrying
 done
 wsk action update testme <(echo 'function main(){return {"ready":true}}') --kind nodejs:10
 until wsk action invoke testme -r 2>/dev/null | grep 'ready'
-do sleep 1 ; echo server initializing... 
+do sleep 1 ; echo server initializing...
 done
 wsk action delete testme

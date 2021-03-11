@@ -15,9 +15,10 @@
 # limitations under the License.
 #
 
+
 def main(dict):
-    if 'text' in dict:
-        text = dict['text']
+    if "text" in dict:
+        text = dict["text"]
     else:
         text = "stranger"
     greeting = "Hello " + text + "!"

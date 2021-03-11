@@ -33,9 +33,9 @@
     src: "{{ nginx.ssl.path }}/{{ item }}"
     dest: "{{ nginx.confdir }}"
   with_items:
-        - "{{ nginx.ssl.cert }}"
-        - "{{ nginx.ssl.key }}"
-        - "{{ nginx.ssl.client_ca_cert }}"
+    - "{{ nginx.ssl.cert }}"
+    - "{{ nginx.ssl.key }}"
+    - "{{ nginx.ssl.client_ca_cert }}"
 
 - name: copy password files for cert from local to remote in nginx config directory
   copy:
@@ -48,8 +48,8 @@
     src: "{{ openwhisk_home }}/ansible/roles/controller/files/{{ item }}"
     dest: "{{ nginx.confdir }}"
   with_items:
-        - "{{ controller.ssl.cert }}"
-        - "{{ controller.ssl.key }}"
+    - "{{ controller.ssl.cert }}"
+    - "{{ controller.ssl.key }}"
   when: controller.protocol == 'https'
 
 - name: ensure nginx log directory is created with permissions

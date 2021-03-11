@@ -134,7 +134,7 @@
 
 - name: Load config from template
   set_fact:
-      openwhisk_config: "{{ lookup('template', 'config.j2') | b64encode }}"
+    openwhisk_config: "{{ lookup('template', 'config.j2') | b64encode }}"
 
 - name: populate environment variables for controller
   set_fact:
@@ -295,8 +295,8 @@
 - name: populate volumes for controller
   set_fact:
     controller_volumes:
-       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
-       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
+      - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
+      - "{{ controller.confdir }}/{{ controller_name }}:/conf"
 
 - name: check if coverage collection is enabled
   set_fact:

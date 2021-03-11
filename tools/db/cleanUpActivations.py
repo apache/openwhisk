@@ -18,13 +18,13 @@
  * limitations under the License.
  */
 """
-
 import argparse
 import time
+
 import couchdb.client
 
 try:
-    long        # Python 2
+    long  # Python 2
 except NameError:
     long = int  # Python 3
 
@@ -37,18 +37,46 @@ def deleteOldActivations(args):
     db = couchdb.client.Server(args.dbUrl)[args.dbName]
     endkey = long(time.time() * 1000) - args.days * DAY
     while True:
-        activationIds = db.view("activations/byDate", limit=args.docsPerRequest, start_key=0, end_key=endkey)
+        activationIds = db.view(
+            "activations/byDate", limit=args.docsPerRequest, start_key=0, end_key=endkey
+        )
         if activationIds:
-            documentsToDelete = [couchdb.client.Document(_id=entry.value[0], _rev=entry.value[1], _deleted=True) for entry in activationIds]
+            documentsToDelete = [
+                couchdb.client.Document(
+                    _id=entry.value[0], _rev=entry.value[1], _deleted=True
+                )
+                for entry in activationIds
+            ]
             db.update(documentsToDelete)
         else:
             return
 
-parser = argparse.ArgumentParser(description="Utility to delete old activations older than x days in given database.")
-parser.add_argument("--dbUrl", required=True, help="Server URL of the database, that has to be cleaned of old activations. E.g. 'https://xxx:yyy@domain.couch.com:443'")
-parser.add_argument("--dbName", required=True, help="Name of the Database of the activations to be truncated.")
-parser.add_argument("--days", required=True, type=int, help="How many days of the activations to be kept.")
-parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 200.")
+
+parser = argparse.ArgumentParser(
+    description="Utility to delete old activations older than x days in given database."
+)
+parser.add_argument(
+    "--dbUrl",
+    required=True,
+    help="Server URL of the database, that has to be cleaned of old activations. E.g. 'https://xxx:yyy@domain.couch.com:443'",
+)
+parser.add_argument(
+    "--dbName",
+    required=True,
+    help="Name of the Database of the activations to be truncated.",
+)
+parser.add_argument(
+    "--days",
+    required=True,
+    type=int,
+    help="How many days of the activations to be kept.",
+)
+parser.add_argument(
+    "--docsPerRequest",
+    type=int,
+    default=200,
+    help="Number of documents handled on each CouchDb Request. Default is 200.",
+)
 args = parser.parse_args()
 
 deleteOldActivations(args)

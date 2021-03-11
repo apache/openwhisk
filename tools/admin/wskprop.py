@@ -22,35 +22,38 @@ import os
 
 
 def propfile(base):
-    if base != '':
-        filename = '%s/whisk.properties' % base
+    if base != "":
+        filename = "%s/whisk.properties" % base
         if os.path.isfile(filename) and os.path.exists(filename):
             return filename
         else:
             parent = os.path.dirname(base)
-            return propfile(parent) if parent != base else ''
+            return propfile(parent) if parent != base else ""
     else:
-        return ''
+        return ""
 
 
 def importPropsIfAvailable(filename):
-    thefile = (open(filename, 'r') if os.path.isfile(filename) and
-               os.path.exists(filename) else [])
+    thefile = (
+        open(filename, "r")
+        if os.path.isfile(filename) and os.path.exists(filename)
+        else []
+    )
     return importProps(thefile)
 
 
 def importProps(stream):
     props = {}
     for line in stream:
-        parts = line.split('=')
+        parts = line.split("=")
         if len(parts) >= 1:
             key = parts[0].strip()
         if len(parts) >= 2:
             val = parts[1].strip()
-        if key != '' and val != '':
-            props[key.upper().replace('.', '_')] = val
-        elif key != '':
-            props[key.upper().replace('.', '_')] = ''
+        if key != "" and val != "":
+            props[key.upper().replace(".", "_")] = val
+        elif key != "":
+            props[key.upper().replace(".", "_")] = ""
     return props
 
 
@@ -58,25 +61,29 @@ def importProps(stream):
 # deferredInfo) prints a message if a required property is not found
 def checkRequiredProperties(requiredPropertiesByName, properties):
     """Return a tuple describing the requested required properties."""
-    requiredPropertiesByValue = [getPropertyValue(key, properties) for key
-                                 in requiredPropertiesByName]
-    requiredProperties = dict(zip(requiredPropertiesByName,
-                                  requiredPropertiesByValue))
-    invalidProperties = [key for key in requiredPropertiesByName if
-                         requiredProperties[key] is None]
-    deferredInfo = ''
+    requiredPropertiesByValue = [
+        getPropertyValue(key, properties) for key in requiredPropertiesByName
+    ]
+    requiredProperties = dict(zip(requiredPropertiesByName, requiredPropertiesByValue))
+    invalidProperties = [
+        key for key in requiredPropertiesByName if requiredProperties[key] is None
+    ]
+    deferredInfo = ""
     for key, value in requiredProperties.items():
-        if value in (None, ''):
-            print('property "%s" not found in environment or '
-                  'property file' % key)
+        if value in (None, ""):
+            print('property "%s" not found in environment or ' "property file" % key)
         else:
-            deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key,
-                                                             'value': value}
+            deferredInfo += "using %(key)s = %(value)s\n" % {"key": key, "value": value}
     return (len(invalidProperties) == 0, requiredProperties, deferredInfo)
 
 
 def getPropertyValue(key, properties):
     evalue = os.environ.get(key)
-    value = (evalue if evalue != None and evalue != ''
-             else properties[key] if key in properties else None)
+    value = (
+        evalue
+        if evalue != None and evalue != ""
+        else properties[key]
+        if key in properties
+        else None
+    )
     return value

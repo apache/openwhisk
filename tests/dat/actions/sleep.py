@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 #
 # Python based OpenWhisk action that sleeps for the specified number
 # of milliseconds before returning.
@@ -30,9 +29,11 @@ def main(parm):
     sleepTimeInMs = parm.get("sleepTimeInMs", 1)
     print("Specified sleep time is {} ms.".format(sleepTimeInMs))
 
-    result = {"msg": "Terminated successfully after around {} ms.".format(sleepTimeInMs)}
+    result = {
+        "msg": "Terminated successfully after around {} ms.".format(sleepTimeInMs)
+    }
 
     time.sleep(sleepTimeInMs / 1000.0)
 
-    print(result['msg'])
+    print(result["msg"])
     return result

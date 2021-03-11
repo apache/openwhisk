@@ -38,4 +38,3 @@ task cleanup(type: Delete) {
     delete 'genssl.sh'
     delete 'openwhisk-server-key.pem'
 }
-

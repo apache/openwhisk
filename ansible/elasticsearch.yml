@@ -31,4 +31,4 @@
     # 'host_group' above) to name host/elasticsearcher.
     name_prefix: "elasticsearch"
   roles:
-  - elasticsearch
+    - elasticsearch

@@ -22,7 +22,7 @@ the initial donation:
     * JavaScript (JS) client library for the OpenWhisk platform.
 * openwhisk-client-swift:
     * Swift-based client SDK for OpenWhisk compatible with Swift 2.x and runs on iOS 9, WatchOS 2, and Darwin.
-* openwhisk-sdk-docker: 
+* openwhisk-sdk-docker:
     * SDK that shows how to create “Black box” Docker containers that can run Action (code).
 * openwhisk-client-go:
     * API Framework written in GoLang (in-progress)
@@ -56,7 +56,7 @@ the initial donation:
     * Collection of OpenWhisk tools for OS X implemented in Swift 3.
 * openwhisk-debugger
     * The OpenWhisk debugger project
-* openwhisk-podspecs: 
+* openwhisk-podspecs:
     * CocoaPods Podspecs repository for ‘openwhisk-client-swift’ subproject.
 * openwhisk-devtools:
     * Development tools for building and deploying Apache OpenWhisk
@@ -68,7 +68,7 @@ the initial donation:
     * Sample application with Message Hub and Object Store.
 * openwhisk-sample-slackbot:
     * A proof-of-concept Slackbot to invoke OpenWhisk actions.
-    
+
 The API Gateway code was a collaboration project jointly developed by both IBM Corporation
 and Adobe Systems Incorporated (http://www.adobe.com/) and a donation to the Apache OpenWhisk
 project by both companies.

@@ -17,11 +17,10 @@
  * limitations under the License.
  */
 """
-
-
-import os
 import json
+import os
 import sys
+
 if sys.version_info.major >= 3:
     from http.client import HTTPConnection, HTTPSConnection, IncompleteRead
     from urllib.parse import urlparse
@@ -36,39 +35,58 @@ import socket
 # global configurations, can control whether to allow untrusted certificates
 # on HTTPS connections
 
-verify_cert = os.getenv('DB_VERIFY_CERT') is None or os.getenv('DB_VERIFY_CERT').lower() != 'false'
-httpRequestProps = {'secure': verify_cert}
+verify_cert = (
+    os.getenv("DB_VERIFY_CERT") is None
+    or os.getenv("DB_VERIFY_CERT").lower() != "false"
+)
+httpRequestProps = {"secure": verify_cert}
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 60):
+
+def request(
+    method,
+    urlString,
+    body="",
+    headers={},
+    auth=None,
+    verbose=False,
+    https_proxy=os.getenv("https_proxy", None),
+    timeout=60,
+):
     url = urlparse(urlString)
-    if url.scheme == 'http':
-        conn = HTTPConnection(url.netloc, timeout = timeout)
+    if url.scheme == "http":
+        conn = HTTPConnection(url.netloc, timeout=timeout)
     else:
-        if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
-            conn = HTTPSConnection(url.netloc if https_proxy is None else https_proxy, timeout = timeout)
+        if httpRequestProps["secure"] or not hasattr(ssl, "_create_unverified_context"):
+            conn = HTTPSConnection(
+                url.netloc if https_proxy is None else https_proxy, timeout=timeout
+            )
         else:
-            conn = HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context(), timeout = timeout)
+            conn = HTTPSConnection(
+                url.netloc if https_proxy is None else https_proxy,
+                context=ssl._create_unverified_context(),
+                timeout=timeout,
+            )
         if https_proxy:
             conn.set_tunnel(url.netloc)
 
     if auth is not None:
         auth = base64.b64encode(auth.encode()).decode()
-        headers['Authorization'] = 'Basic %s' % auth
+        headers["Authorization"] = "Basic %s" % auth
 
     if verbose:
-        print('========')
-        print('REQUEST:')
-        print('%s %s' % (method, urlString))
-        print('Headers sent:')
+        print("========")
+        print("REQUEST:")
+        print("%s %s" % (method, urlString))
+        print("Headers sent:")
         print(getPrettyJson(headers))
-        if body != '':
-            print('Body sent:')
+        if body != "":
+            print("Body sent:")
             print(body)
 
     try:
         conn.request(method, urlString, body, headers)
         res = conn.getresponse()
-        body = ''
+        body = ""
         try:
             body = res.read()
         except IncompleteRead as e:
@@ -79,21 +97,23 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         res.read = lambda: body
 
         if verbose:
-            print('--------')
-            print('RESPONSE:')
-            print('Got response with code %s' % res.status)
-            print('Body received:')
+            print("--------")
+            print("RESPONSE:")
+            print("Got response with code %s" % res.status)
+            print("Body received:")
             print(res.read())
-            print('========')
+            print("========")
         return res
     except socket.timeout:
-        return ErrorResponse(status = 500, error = 'request timed out at %d seconds' % timeout)
+        return ErrorResponse(
+            status=500, error="request timed out at %d seconds" % timeout
+        )
     except Exception as e:
-        return ErrorResponse(status = 500, error = str(e))
+        return ErrorResponse(status=500, error=str(e))
 
 
 def getPrettyJson(obj):
-    return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
+    return json.dumps(obj, sort_keys=True, indent=4, separators=(",", ": "))
 
 
 # class to normalize responses for exceptions with no HTTP response for canonical error handling

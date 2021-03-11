@@ -78,4 +78,3 @@ remove_assets $wskparams
 if [ "$op" = "s" ]; then
 	deploy_assets $wskparams
 fi
-

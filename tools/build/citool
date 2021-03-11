@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 ##
 # Jenkins/Travis tools script, for monitoring and analyzing jobs from CI.
 #
@@ -32,11 +30,11 @@
 # Example use to monitor a jenkins build B with job number N:
 # > citool -u https://jenkins.host:port -b B monitor N
 ##
-
+import argparse
 import sys
 import time
 import traceback
-import argparse
+
 if sys.version_info.major >= 3:
     from http.client import HTTPConnection, HTTPSConnection, TEMPORARY_REDIRECT, OK
     from urllib.parse import urlparse
@@ -49,50 +47,85 @@ import json
 from xml.dom import minidom
 from subprocess import Popen, PIPE, STDOUT
 
+
 def main():
     exitCode = 0
     try:
         args = parseArgs()
-        exitCode = {
-            'monitor' : monitor,
-            'cat': cat
-        }[args.cmd](args)
+        exitCode = {"monitor": monitor, "cat": cat}[args.cmd](args)
     except Exception as e:
-        print('Exception: ', e)
+        print("Exception: ", e)
         if args.verbose:
             traceback.print_exc()
         exitCode = 1
     sys.exit(exitCode)
 
-def parseArgs():
-    parser = argparse.ArgumentParser(description='tool for analyzing logs from CI')
-    subparsers = parser.add_subparsers(title='available commands', dest='cmd')
+    parser.add_argument("-b", "--build", help="build name", default="travis")
+    parser.add_argument("-v", "--verbose", help="verbose output", action="store_true")
+    parser.add_argument(
+        "-i",
+        "--input-file",
+        help="read logs from file rather than CI",
+        action="store_true",
+        dest="ifile",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-file",
+        help="store intermediate buffer to a file (e.g., jenkins console or component logs)",
+        action="store_true",
+        dest="ofile",
+    )
+    parser.add_argument(
+        "-u",
+        "--url",
+        help="URL for CI build job (default is Travis CI)",
+        default="https://api.travis-ci.com",
+    )
 
-    parser.add_argument('job', help='job number; for matrix jobs add the matrix index after a period (e.g., 401881768.2)')
+    subparser = subparsers.add_parser(
+        "monitor",
+        help="report passing or failing tests (only failing tests by default)",
+    )
+    subparser.add_argument(
+        "-a",
+        "--all",
+        help="show all tests suites, passing and failing",
+        action="store_true",
+    )
+    subparser.add_argument(
+        "-r",
+        "--relax",
+        help="relax regex match to include failed ansible tasks",
+        action="store_true",
+    )
+    subparser.add_argument(
+        "-p", "--poll", help="repeat monitor every 10 seconds", action="store_true"
+    )
 
-    parser.add_argument('-b', '--build', help='build name', default='travis')
-    parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
-    parser.add_argument('-i', '--input-file', help='read logs from file rather than CI', action='store_true', dest='ifile')
-    parser.add_argument('-o', '--output-file', help='store intermediate buffer to a file (e.g., jenkins console or component logs)', action='store_true', dest='ofile')
-    parser.add_argument('-u', '--url', help='URL for CI build job (default is Travis CI)', default='https://api.travis-ci.com')
-
-    subparser = subparsers.add_parser('monitor', help='report passing or failing tests (only failing tests by default)')
-    subparser.add_argument('-a', '--all', help='show all tests suites, passing and failing', action='store_true')
-    subparser.add_argument('-r', '--relax', help='relax regex match to include failed ansible tasks', action='store_true')
-    subparser.add_argument('-p', '--poll', help='repeat monitor every 10 seconds', action='store_true')
-
-    subparser = subparsers.add_parser('cat', help='concatenate logs from build (limited to Jenkins)')
-    subparser.add_argument('artifactPath', help='path to artifacts store')
-    subparser.add_argument('-g', '--grep', help='run grep against logs using provided value')
-    subparser.add_argument('-s', '--sort', help='sort logs by timestamp', action='store_true')
-    subparser.add_argument('-n', '--invokers', help='number of invokers', type=int, default=3)
-    subparser.add_argument('-c', '--controllers', help='number of controllers', type=int, default=1)
+    subparser = subparsers.add_parser(
+        "cat", help="concatenate logs from build (limited to Jenkins)"
+    )
+    subparser.add_argument("artifactPath", help="path to artifacts store")
+    subparser.add_argument(
+        "-g", "--grep", help="run grep against logs using provided value"
+    )
+    subparser.add_argument(
+        "-s", "--sort", help="sort logs by timestamp", action="store_true"
+    )
+    subparser.add_argument(
+        "-n", "--invokers", help="number of invokers", type=int, default=3
+    )
+    subparser.add_argument(
+        "-c", "--controllers", help="number of controllers", type=int, default=1
+    )
 
     return parser.parse_args()
 
-def request(method, urlString, body = "", headers = {}, auth = None, verbose = False):
+
+def request(method, urlString, body="", headers={}, auth=None, verbose=False):
     url = urlparse(urlString)
-    if url.scheme == 'http':
+    if url.scheme == "http":
         conn = HTTPConnection(url.netloc)
     else:
         conn = HTTPSConnection(url.netloc)
@@ -100,39 +133,43 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
     if verbose:
         print("%s %s" % (method, urlString))
 
-    conn.request(method.upper(), urlString, body, headers = headers)
+    conn.request(method.upper(), urlString, body, headers=headers)
     res = conn.getresponse()
 
     if verbose:
-        print('Got response with code %s' % res.status)
+        print("Got response with code %s" % res.status)
     return res
 
-def shell(cmd, data = None, verbose = False):
+
+def shell(cmd, data=None, verbose=False):
     start = time.time()
 
     if verbose:
-        print('%s%s' % (cmd, ' <stdin>' if (data) else ''))
+        print("%s%s" % (cmd, " <stdin>" if (data) else ""))
 
-    p = Popen(cmd, shell = True, stdout = PIPE, stderr = STDOUT, stdin = PIPE)
-    out, err = p.communicate(input = data)
+    p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
+    out, err = p.communicate(input=data)
 
     p.wait()
     # stdout/stderr may be either text or bytes, depending on Python
     # version.   In the latter case, decode to text.
     if isinstance(out, bytes):
-        out = out.decode('utf-8')
+        out = out.decode("utf-8")
     if isinstance(err, bytes):
-        err = err.decode('utf-8')
+        err = err.decode("utf-8")
 
     end = time.time()
     delta = end - start
     return (delta, out, err)
 
+
 def getTravisHeaders():
-    return {'User-Agent': 'wsk citool/0.0.1',
-            'Travis-API-Version': 3,
-            'Accept': 'application/vnd.travis-ci.2+json'
+    return {
+        "User-Agent": "wsk citool/0.0.1",
+        "Travis-API-Version": 3,
+        "Accept": "application/vnd.travis-ci.2+json",
     }
+
 
 def getTravisMatrixId(parts, values):
     N = len(values)
@@ -140,41 +177,49 @@ def getTravisMatrixId(parts, values):
         return -1
     else:
         try:
-            matrix = int(parts[1]) -1
+            matrix = int(parts[1]) - 1
             if matrix < 0:
-                print('Matrix id must be positive. Valid values are [1..%s].' % N)
+                print("Matrix id must be positive. Valid values are [1..%s]." % N)
                 exit(-1)
             if matrix >= N:
-                print('Matrix id is out of bounds. Valid values are [1..%s].' % N)
+                print("Matrix id is out of bounds. Valid values are [1..%s]." % N)
                 exit(-1)
             return matrix
         except Exception:
-            print('Matrix id is not an integer as expected. Valid values are [1..%s].' % N)
+            print(
+                "Matrix id is not an integer as expected. Valid values are [1..%s]." % N
+            )
             exit(-1)
+
 
 def getJobUrl(args):
-    if args.build.lower() == 'travis':
+    if args.build.lower() == "travis":
         # Get build information
-        parts = args.job.split('.')
+        parts = args.job.split(".")
         jobid = parts[0]
         if len(parts) > 2:
-            print('Job is malformed')
+            print("Job is malformed")
             exit(-1)
 
-        buildUrl = '%s/build/%s' % (args.url, jobid)
-        buildRes = request('get', buildUrl, headers = getTravisHeaders(), verbose = args.verbose)
+        buildUrl = "%s/build/%s" % (args.url, jobid)
+        buildRes = request(
+            "get", buildUrl, headers=getTravisHeaders(), verbose=args.verbose
+        )
         body = validateResponse(buildRes)
         try:
             body = json.loads(body)
-            index = getTravisMatrixId(parts, body['jobs'])
-            job = body['jobs'][index]['id']
+            index = getTravisMatrixId(parts, body["jobs"])
+            job = body["jobs"][index]["id"]
         except Exception:
-            print('Expected response to contain build and job-ids properties in %s' % body)
+            print(
+                "Expected response to contain build and job-ids properties in %s" % body
+            )
             exit(-1)
-        url = '%s/job/%s' % (args.url, job)
-    else: # assume jenkins
-        url = '%s/job/%s/%s' % (args.url, args.build, args.job)
+        url = "%s/job/%s" % (args.url, job)
+    else:  # assume jenkins
+        url = "%s/job/%s/%s" % (args.url, args.build, args.job)
     return url
+
 
 def monitor(args):
     def poll():
@@ -188,26 +233,29 @@ def monitor(args):
         (ex, finished) = monitorOnce(args)
         return ex
 
+
 def monitorOnce(args):
     if args.ifile:
-        file = open('%s' % args.job, 'r')
+        file = open("%s" % args.job, "r")
         body = file.read()
         file.close()
     else:
-        if args.build.lower() == 'travis':
-            url = '%s/log.txt' % getJobUrl(args)
-            res = request('get', url, headers = getTravisHeaders(), verbose = args.verbose)
+        if args.build.lower() == "travis":
+            url = "%s/log.txt" % getJobUrl(args)
+            res = request("get", url, headers=getTravisHeaders(), verbose=args.verbose)
             if res.status == TEMPORARY_REDIRECT:
-                url = res.getheader('location')
-                res = request('get', url, headers = getTravisHeaders(), verbose = args.verbose)
-        else: # assume jenkins
-            url = '%s/logText/progressiveHtml' % getJobUrl(args)
-            res = request('get', url, verbose = args.verbose)
+                url = res.getheader("location")
+                res = request(
+                    "get", url, headers=getTravisHeaders(), verbose=args.verbose
+                )
+        else:  # assume jenkins
+            url = "%s/logText/progressiveHtml" % getJobUrl(args)
+            res = request("get", url, verbose=args.verbose)
 
         body = validateResponse(res)
 
     if args.ofile:
-        file = open('%s-console.log' % args.job, 'wb')
+        file = open("%s-console.log" % args.job, "wb")
         file.write(body)
         file.close()
     if args.ifile or res.status == OK:
@@ -217,85 +265,105 @@ def monitorOnce(args):
         print(body)
         return res.status
 
+
 def validateResponse(res):
     body = res.read()
 
     if res.status != OK:
-        body = body.decode('utf-8')
-        if body.startswith('<'):
+        body = body.decode("utf-8")
+        if body.startswith("<"):
             dom = minidom.parseString(body)
             print(dom.toprettyxml()),
         else:
             print(body)
         exit(res.status)
     elif not body:
-        print('Build log is empty.')
+        print("Build log is empty.")
         exit(-1)
     else:
         return body
 
+
 def grepForFailingTests(args, body):
-    cmd = 'grep :tests:test'
+    cmd = "grep :tests:test"
     # check that tests ran
     (time, output, error) = shell(cmd, body, args.verbose)
-    if output == '':
-        print('No tests detected.')
+    if output == "":
+        print("No tests detected.")
     # no tests: either build failure or task not yet reached, skip further check
     else:
         if args.relax:
             # this will match failed ansible tasks as well
-            cmd = 'grep -E "^> Task *.* FAILED|^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
+            cmd = 'grep -E "^> Task *.* FAILED|^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % (
+                "|PASSED" if args.all else ""
+            )
         else:
-            cmd = 'grep -E "^> Task *.* FAILED|^[\w.]+\s*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
+            cmd = 'grep -E "^> Task *.* FAILED|^[\w.]+\s*[&gt;|>] \w*.* FAILED%s"' % (
+                "|PASSED" if args.all else ""
+            )
         (time, output, error) = shell(cmd, body, args.verbose)
-        if output == '':
-            print('All tests passing.')
+        if output == "":
+            print("All tests passing.")
         else:
-            print(output.replace('&gt;', '>')),
+            print(output.replace("&gt;", ">")),
+
 
 def reportBuildStatus(args, body):
-    lines = body.decode('utf8').rstrip('\n').rsplit('\n', 1)
+    lines = body.decode("utf8").rstrip("\n").rsplit("\n", 1)
 
     if len(lines) == 2:
         output = lines[1]
-        output = re.sub('<[^<]+?>', '', output).strip()
+        output = re.sub("<[^<]+?>", "", output).strip()
     else:
         output = None
 
-    if output and ('Finished: ' in output or output.startswith('Done.') or ('exceeded' in output and 'terminated' in output)):
+    if output and (
+        "Finished: " in output
+        or output.startswith("Done.")
+        or ("exceeded" in output and "terminated" in output)
+    ):
         print(output)
         return (0, True)
     else:
-        print('Build: ONGOING')
+        print("Build: ONGOING")
         if output:
             print(output)
         return (0, False)
 
+
 def cat(args):
     def getComponentList(components):
         list = []
-        for k,v in components.items():
+        for k, v in components.items():
             if v > 1:
                 for i in range(v):
-                    list.append('%s%d' % (k, i))
+                    list.append("%s%d" % (k, i))
             else:
                 list.append(k)
         return list
 
     def getComponentLogs(component):
-        url = '%s/artifact/%s/%s/%s_logs.log' % (getJobUrl(args), args.artifactPath, component, component)
-        res = request('get', url, verbose = args.verbose)
+        url = "%s/artifact/%s/%s/%s_logs.log" % (
+            getJobUrl(args),
+            args.artifactPath,
+            component,
+            component,
+        )
+        res = request("get", url, verbose=args.verbose)
         body = res.read()
         if res.status == OK:
             return body
         else:
-            return ''
+            return ""
 
     def unzip(iterable):
         return zip(*iterable)
 
     def extractDate(line):
-        matches = re.search(r'\d{4}-[01]{1}\d{1}-[0-3]{1}\d{1}T[0-2]{1}\d{1}:[0-6]{1}\d{1}:[0-6]{1}\d{1}.\d{3}Z', line)
+        matches = re.search(
+            r"\d{4}-[01]{1}\d{1}-[0-3]{1}\d{1}T[0-2]{1}\d{1}:[0-6]{1}\d{1}:[0-6]{1}\d{1}.\d{3}Z",
+            line,
+        )
         if matches is not None:
             date = matches.group(0)
             return date
@@ -303,21 +371,18 @@ def cat(args):
             return None
 
     if args.ifile:
-        file = open('%s-build.log' % args.job, 'r')
+        file = open("%s-build.log" % args.job, "r")
         joined = file.read()
         file.close()
-    elif args.build.lower == 'travis':
-        print('Feature not yet supported for Travis builds.')
+    elif args.build.lower == "travis":
+        print("Feature not yet supported for Travis builds.")
         return 2
     else:
-        components = {
-            'controller': args.controllers,
-            'invoker': args.invokers
-        }
+        components = {"controller": args.controllers, "invoker": args.invokers}
         logs = map(getComponentLogs, getComponentList(components))
-        joined = ''.join(logs)
+        joined = "".join(logs)
     if args.ofile:
-        file = open('%s-build.log' % args.job, 'w')
+        file = open("%s-build.log" % args.job, "w")
         file.write(joined)
         file.close()
 
@@ -326,13 +391,13 @@ def cat(args):
         (time, output, error) = shell(cmd, joined, args.verbose)
         output = output.strip()
         if args.sort:
-            parts = output.split('\n')
-            filter = [p for p in parts if p != '']
+            parts = output.split("\n")
+            filter = [p for p in parts if p != ""]
             date = map(extractDate, filter)
             keyed = zip(date, parts)
             sort = sorted(keyed, key=lambda t: t[1])
             msgs = unzip(sort)[1]
-            print('\n'.join(msgs))
+            print("\n".join(msgs))
             return 0
         else:
             print(output)
@@ -341,5 +406,6 @@ def cat(args):
         print(joined)
         return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

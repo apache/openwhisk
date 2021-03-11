@@ -20,35 +20,38 @@ CI/CD tool to assert that logs and databases are in certain bounds.
  * limitations under the License.
  */
 """
-
 ##
 # CI/CD tool to assert that logs and databases are in certain bounds
 ##
-
 import collections
 import itertools
+import json
 import os
 import platform
 import sys
-import json
 from functools import partial
+
 
 def file_has_at_most_x_bytes(x, file):
     size = os.path.getsize(file)
-    if(size > x):
-        return [ (0, "file has %d bytes, expected %d bytes" % (size, x)) ]
+    if size > x:
+        return [(0, "file has %d bytes, expected %d bytes" % (size, x))]
     else:
-        return [ ]
+        return []
+
 
 # Checks that the database dump contains at most x entries
 def database_has_at_most_x_entries(x, file):
     with open(file) as db_file:
         data = json.load(db_file)
-        entries = len(data['rows'])
-        if(entries > x):
-            return [ (0, "found %d database entries, expected %d entries" % (entries, x)) ]
+        entries = len(data["rows"])
+        if entries > x:
+            return [
+                (0, "found %d database entries, expected %d entries" % (entries, x))
+            ]
         else:
-            return [ ]
+            return []
+
 
 # Runs a series of file-by-file checks.
 def run_file_checks(file_path, checks):
@@ -61,18 +64,20 @@ def run_file_checks(file_path, checks):
 
     return errors
 
+
 # Helpers, rather than non-standard modules.
 def colors():
     ansi = hasattr(sys.stderr, "isatty") and platform.system() != "Windows"
 
     def colorize(code, string):
-        return "%s%s%s" % (code, string, '\033[0m') if ansi else string
+        return "%s%s%s" % (code, string, "\033[0m") if ansi else string
 
-    blue  = lambda s: colorize('\033[94m', s)
-    green = lambda s: colorize('\033[92m', s)
-    red   = lambda s: colorize('\033[91m', s)
+    blue = lambda s: colorize("\033[94m", s)
+    green = lambda s: colorize("\033[92m", s)
+    red = lambda s: colorize("\033[91m", s)
 
     return collections.namedtuple("Colorizer", "blue green red")(blue, green, red)
+
 
 # Script entrypoint.
 if __name__ == "__main__":
@@ -84,7 +89,7 @@ if __name__ == "__main__":
 
     tags_to_check = []
     if len(sys.argv) == 3:
-        tags_to_check = {x.strip() for x in sys.argv[2].split(',')}
+        tags_to_check = {x.strip() for x in sys.argv[2].split(",")}
 
     col = colors()
 
@@ -92,11 +97,11 @@ if __name__ == "__main__":
         sys.stderr.write("%s: %s is not a directory.\n" % (sys.argv[0], root_dir))
 
     file_checks = [
-        ("db-rules.log", {"db"}, [ partial(database_has_at_most_x_entries, 0) ]),
-        ("db-triggers.log", {"db"}, [ partial(database_has_at_most_x_entries, 0) ]),
+        ("db-rules.log", {"db"}, [partial(database_has_at_most_x_entries, 0)]),
+        ("db-triggers.log", {"db"}, [partial(database_has_at_most_x_entries, 0)]),
         # Assert that stdout of the container is correctly piped and empty
-        ("controller0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ]),
-        ("invoker0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ])
+        ("controller0.log", {"system"}, [partial(file_has_at_most_x_bytes, 0)]),
+        ("invoker0.log", {"system"}, [partial(file_has_at_most_x_bytes, 0)]),
     ]
 
     all_errors = []
@@ -112,11 +117,13 @@ if __name__ == "__main__":
 
     if all_errors:
         files_with_errors = 0
-        for path, triples in itertools.groupby(sorted(all_errors, key=sort_key), key=sort_key):
+        for path, triples in itertools.groupby(
+            sorted(all_errors, key=sort_key), key=sort_key
+        ):
             files_with_errors += 1
             sys.stderr.write("%s:\n" % col.blue(path))
 
-            pairs = sorted(map(lambda t: (t[1],t[2]), triples), key=lambda p: p[0])
+            pairs = sorted(map(lambda t: (t[1], t[2]), triples), key=lambda p: p[0])
             for line, msg in pairs:
                 sys.stderr.write("    %4d: %s\n" % (line, msg))
 
@@ -127,7 +134,10 @@ if __name__ == "__main__":
             if files_with_errors == 1:
                 message = "There were %d errors in a file." % len(all_errors)
             else:
-                message = "There were %d errors in %d files." % (len(all_errors), files_with_errors)
+                message = "There were %d errors in %d files." % (
+                    len(all_errors),
+                    files_with_errors,
+                )
 
         sys.stderr.write(col.red(message) + "\n")
         sys.exit(1)

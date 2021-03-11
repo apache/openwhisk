@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,21 +15,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 ##
 # Whisk Admin command line interface
 ##
-
 import argparse
 import json
 import os
 import random
 import re
-from subprocess import Popen, PIPE, STDOUT
 import string
 import sys
 import traceback
 import uuid
+from subprocess import PIPE
+from subprocess import Popen
+from subprocess import STDOUT
+
 import wskprop
 if sys.version_info.major >= 3:
     from urllib.parse import quote_plus
