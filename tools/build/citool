@@ -74,7 +74,7 @@ def parseArgs():
     parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
     parser.add_argument('-i', '--input-file', help='read logs from file rather than CI', action='store_true', dest='ifile')
     parser.add_argument('-o', '--output-file', help='store intermediate buffer to a file (e.g., jenkins console or component logs)', action='store_true', dest='ofile')
-    parser.add_argument('-u', '--url', help='URL for CI build job (default is Travis CI)', default='https://api.travis-ci.org')
+    parser.add_argument('-u', '--url', help='URL for CI build job (default is Travis CI)', default='https://api.travis-ci.com')
 
     subparser = subparsers.add_parser('monitor', help='report passing or failing tests (only failing tests by default)')
     subparser.add_argument('-a', '--all', help='show all tests suites, passing and failing', action='store_true')
@@ -207,7 +207,7 @@ def monitorOnce(args):
         body = validateResponse(res)
 
     if args.ofile:
-        file = open('%s-console.log' % args.job, 'w')
+        file = open('%s-console.log' % args.job, 'wb')
         file.write(body)
         file.close()
     if args.ifile or res.status == OK:
