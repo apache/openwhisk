@@ -19,7 +19,7 @@
 
 # Setting up OpenWhisk with Docker-machine
 
-OpenWhisk can on a Mac using a virtual machine in which Docker daemon is running.
+OpenWhisk can run on a Mac using a virtual machine in which Docker daemon is running.
 You will make provision of a virtual machine with Docker-machine and communicate with them via Docker remote API.
 
 # Prerequisites
@@ -43,15 +43,15 @@ echo '
 # install homebrew
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install cask
-brew tap caskroom/cask
+brew tap homebrew/cask
 # install virtualbox
-brew cask install virtualbox
+brew install --cask virtualbox
 # install docker 1.12.0
 brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/33301827c3d770bfd49f0e50d84e0b125b06b0b7/Formula/docker.rb
 # install docker-machine
 brew install docker-machine
 # install java 8
-brew cask install java
+brew install --cask java
 # install scala
 brew install scala
 # install gnu tar
