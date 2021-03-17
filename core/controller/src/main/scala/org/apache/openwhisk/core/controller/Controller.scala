@@ -21,8 +21,9 @@ import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import kamon.Kamon
@@ -32,7 +33,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, CacheChangeNotification, RemoteCacheInvalidation}
@@ -97,7 +98,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ configRuntime
   }
 
   // initialize datastores
@@ -176,6 +177,59 @@ class Controller(val instance: ControllerInstanceId,
     LogLimit.config,
     runtimes,
     List(apiV1.basepath()))
+
+  private val controllerUsername = loadConfigOrThrow[String](ConfigKeys.whiskControllerUsername)
+  private val controllerPassword = loadConfigOrThrow[String](ConfigKeys.whiskControllerPassword)
+
+  /**
+   * config runtime
+   */
+  private val configRuntime = {
+    implicit val executionContext = actorSystem.dispatcher
+    (path("config" / "runtime") & post) {
+      extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) =>
+          if (username == controllerUsername && password == controllerPassword) {
+            entity(as[String]) { runtime =>
+              val execManifest = ExecManifest.initialize(whiskConfig, Some(runtime))
+              if (execManifest.isFailure) {
+                logging.info(this, s"received invalid runtimes manifest")
+                complete(StatusCodes.BadRequest)
+              } else {
+                parameter('limit.?) { limit =>
+                  limit match {
+                    case Some(targetValue) =>
+                      val pattern = """\d+:\d"""
+                      if (targetValue.matches(pattern)) {
+                        val invokerArray = targetValue.split(":")
+                        val beginIndex = invokerArray(0).toInt
+                        val finishIndex = invokerArray(1).toInt
+                        if (finishIndex < beginIndex) {
+                          complete(StatusCodes.BadRequest, "finishIndex can't be less than beginIndex")
+                        } else {
+                          val targetInvokers = (beginIndex to finishIndex).toList
+                          loadBalancer.sendRuntimeToInvokers(runtime, Some(targetInvokers))
+                          logging.info(this, "config runtime request is already sent to target invokers")
+                          complete(StatusCodes.Accepted)
+                        }
+                      } else {
+                        complete(StatusCodes.BadRequest, "limit value can't match [beginIndex:finishIndex]")
+                      }
+                    case None =>
+                      loadBalancer.sendRuntimeToInvokers(runtime, None)
+                      logging.info(this, "config runtime request is already sent to all managed invokers")
+                      complete(StatusCodes.Accepted)
+                  }
+                }
+              }
+            }
+          } else {
+            complete(StatusCodes.Unauthorized, "username or password is wrong")
+          }
+        case _ => complete(StatusCodes.Unauthorized)
+      }
+    }
+  }
 }
 
 /**

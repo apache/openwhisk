@@ -294,4 +294,9 @@ object ConfigKeys {
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
 
   val whiskClusterName = "whisk.cluster.name"
+
+  val whiskControllerUsername = "whisk.controller.username"
+  val whiskControllerPassword = "whisk.controller.password"
+  val whiskInvokerUsername = "whisk.invoker.username"
+  val whiskInvokerPassword = "whisk.invoker.password"
 }

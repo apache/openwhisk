@@ -43,6 +43,7 @@ import org.apache.openwhisk.spi.SpiLoader
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success}
 
 /**
  * A loadbalancer that schedules workload based on a hashing-algorithm.
@@ -314,6 +315,22 @@ class ShardingContainerPoolBalancer(
           s"failed to schedule activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}' - invokers to use: $invokerStates")
         Future.failed(LoadBalancerException("No invokers available"))
       }
+  }
+
+  /** send runtime to invokers*/
+  override def sendRuntimeToInvokers(runtime: String, targetInvokers: Option[List[Int]]): Unit = {
+    val runtimeMessage = RuntimeMessage(runtime)
+    schedulingState.managedInvokers.filter { manageInvoker =>
+      targetInvokers.getOrElse(schedulingState.managedInvokers.map(_.id.instance)).contains(manageInvoker.id.instance)
+    } foreach { invokerHealth =>
+      val topic = s"invoker${invokerHealth.id.toInt}"
+      messageProducer.send(topic, runtimeMessage).andThen {
+        case Success(_) =>
+          logging.info(this, s"Successfully posted runtime to topic $topic")
+        case Failure(_) =>
+          logging.error(this, s"Failed posted runtime to topic $topic")
+      }
+    }
   }
 
   override val invokerPool =
