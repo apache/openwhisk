@@ -43,6 +43,7 @@ import org.apache.openwhisk.spi.SpiLoader
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success}
 
 /**
  * A loadbalancer that schedules workload based on a hashing-algorithm.
@@ -314,6 +315,21 @@ class ShardingContainerPoolBalancer(
           s"failed to schedule activation ${msg.activationId}, action '${msg.action.asString}' ($actionType), ns '${msg.user.namespace.name.asString}' - invokers to use: $invokerStates")
         Future.failed(LoadBalancerException("No invokers available"))
       }
+  }
+
+  /** send user memory to invokers */
+  override def sendChangeRequestToInvoker(userMemoryMessage: UserMemoryMessage, targetInvoker: Int): Unit = {
+    schedulingState.invokers.filter { invoker =>
+      invoker.id.instance == targetInvoker
+    } foreach { invokerHealth =>
+      val topic = s"invoker${invokerHealth.id.toInt}"
+      messageProducer.send(topic, userMemoryMessage).andThen {
+        case Success(_) =>
+          logging.info(this, s"successfully posted user memory configuration to topic $topic")
+        case Failure(_) =>
+          logging.error(this, s"failed posted user memory configuration to topic $topic")
+      }
+    }
   }
 
   override val invokerPool =

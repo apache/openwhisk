@@ -457,3 +457,42 @@ object StatusData extends DefaultJsonProtocol {
   implicit val serdes =
     jsonFormat(StatusData.apply _, "invocationNamespace", "fqn", "waitingActivation", "status", "data")
 }
+
+case class UserMemoryMessage(userMemory: ByteSize) extends Message {
+  override def serialize = UserMemoryMessage.serdes.write(this).compactPrint
+}
+
+object UserMemoryMessage extends DefaultJsonProtocol {
+  implicit val serdes = new RootJsonFormat[UserMemoryMessage] {
+    override def write(message: UserMemoryMessage): JsValue = {
+      JsObject("userMemory" -> JsString(message.userMemory.toString))
+    }
+
+    override def read(json: JsValue): UserMemoryMessage = {
+      val userMemory = fromField[String](json, "userMemory")
+      new UserMemoryMessage(ByteSize.fromString(userMemory))
+    }
+  }
+
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+}
+
+case class InvokerConfiguration(invoker: Int, memory: ByteSize)
+
+object InvokerConfigurationProtocol extends DefaultJsonProtocol {
+  implicit val serdes = new RootJsonFormat[ByteSize] {
+    override def write(obj: ByteSize): JsValue = JsObject("memory" -> JsString(obj.toString))
+
+    override def read(json: JsValue): ByteSize = {
+      json match {
+        case JsString(memory) => ByteSize.fromString(memory)
+        case _                => throw new DeserializationException("Could not deserialize ByteSize")
+      }
+    }
+  }
+  implicit val invokerConfigurationFormat = jsonFormat2(InvokerConfiguration)
+  implicit val invokerConfigurationListJsonFormat = new RootJsonFormat[List[InvokerConfiguration]] {
+    def read(value: JsValue) = value.convertTo[List[InvokerConfiguration]]
+    def write(f: List[InvokerConfiguration]) = ???
+  }
+}

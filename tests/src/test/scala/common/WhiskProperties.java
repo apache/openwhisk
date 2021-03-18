@@ -262,6 +262,10 @@ public class WhiskProperties {
         return getControllerHosts().split(",")[0];
     }
 
+    public static String getBaseInvokerAddress(){
+        return getInvokerHosts()[0] + ":" + whiskProperties.getProperty("invoker.hosts.basePort");
+    }
+
     public static String getBaseDBHost() {
         return getDBHosts().split(",")[0];
     }

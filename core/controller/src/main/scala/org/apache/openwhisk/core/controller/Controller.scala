@@ -22,7 +22,8 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import kamon.Kamon
@@ -32,8 +33,8 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.connector.MessagingProvider
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
+import org.apache.openwhisk.core.connector.{InvokerConfiguration, MessagingProvider, UserMemoryMessage}
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, CacheChangeNotification, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.entitlement._
@@ -97,7 +98,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ configMemory
   }
 
   // initialize datastores
@@ -176,6 +177,41 @@ class Controller(val instance: ControllerInstanceId,
     LogLimit.config,
     runtimes,
     List(apiV1.basepath()))
+
+  private val controllerUsername = loadConfigOrThrow[String](ConfigKeys.whiskControllerUsername)
+  private val controllerPassword = loadConfigOrThrow[String](ConfigKeys.whiskControllerPassword)
+
+  /**
+   * config user memory of ContainerPool
+   */
+  import org.apache.openwhisk.core.connector.InvokerConfigurationProtocol._
+  private val configMemory = {
+    implicit val executionContext = actorSystem.dispatcher
+    (path("config" / "memory") & post) {
+      extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) =>
+          if (username == controllerUsername && password == controllerPassword) {
+            entity(as[String]) { memory =>
+              val configMemoryList = memory.parseJson.convertTo[List[InvokerConfiguration]]
+              configMemoryList.find(config => MemoryLimit.MIN_MEMORY.compare(config.memory) > 0) match {
+                case Some(_) =>
+                  complete(StatusCodes.BadRequest, s"user memory can't be less than ${MemoryLimit.MIN_MEMORY}")
+                case None =>
+                  configMemoryList.foreach { config =>
+                    val invoker = config.invoker
+                    val userMemoryMessage = UserMemoryMessage(config.memory)
+                    loadBalancer.sendChangeRequestToInvoker(userMemoryMessage, invoker)
+                  }
+                  complete(StatusCodes.Accepted)
+              }
+            }
+          } else {
+            complete(StatusCodes.Unauthorized, "username or password is wrong")
+          }
+        case _ => complete(StatusCodes.Unauthorized)
+      }
+    }
+  }
 }
 
 /**

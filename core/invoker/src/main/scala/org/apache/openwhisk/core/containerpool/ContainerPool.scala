@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.containerpool
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
-import org.apache.openwhisk.core.connector.MessageFeed
+import org.apache.openwhisk.core.connector.{MessageFeed, UserMemoryMessage}
 import org.apache.openwhisk.core.entity.ExecManifest.ReactivePrewarmingConfig
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -30,6 +30,8 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
 case class ColdStartKey(kind: String, memory: ByteSize)
+
+object UserMemoryQuery
 
 case object EmitMetrics
 
@@ -68,6 +70,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmedData]
   var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
+  var latestUserMemory = poolConfig.userMemory
   // If all memory slots are occupied and if there is currently no container to be removed, than the actions will be
   // buffered here to keep order of computation.
   // Otherwise actions with small memory-limits could block actions with large memory limits.
@@ -209,7 +212,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                 s"Rescheduling Run message, too many message in the pool, " +
                   s"freePoolSize: ${freePool.size} containers and ${memoryConsumptionOf(freePool)} MB, " +
                   s"busyPoolSize: ${busyPool.size} containers and ${memoryConsumptionOf(busyPool)} MB, " +
-                  s"maxContainersMemory ${poolConfig.userMemory.toMB} MB, " +
+                  s"maxContainersMemory ${latestUserMemory.toMB} MB, " +
                   s"userNamespace: ${r.msg.user.namespace.name}, action: ${r.action}, " +
                   s"needed memory: ${r.action.limits.memory.megabytes} MB, " +
                   s"waiting messages: ${runBuffer.size}")(r.msg.transid)
@@ -297,6 +300,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case RescheduleJob =>
       freePool = freePool - sender()
       busyPool = busyPool - sender()
+    case userMemoryMessage: UserMemoryMessage =>
+      logging.info(
+        this,
+        s"user memory is reconfigured from ${latestUserMemory.toString} to ${userMemoryMessage.userMemory.toString}")
+      latestUserMemory = userMemoryMessage.userMemory
+    case UserMemoryQuery =>
+      sender() ! latestUserMemory.toString
     case EmitMetrics =>
       emitMetrics()
 
@@ -444,7 +454,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def hasPoolSpaceFor[A](pool: Map[A, ContainerData],
                          prewarmStartingPool: Map[A, (String, ByteSize)],
                          memory: ByteSize): Boolean = {
-    memoryConsumptionOf(pool) + prewarmStartingPool.map(_._2._2.toMB).sum + memory.toMB <= poolConfig.userMemory.toMB
+    memoryConsumptionOf(pool) + prewarmStartingPool.map(_._2._2.toMB).sum + memory.toMB <= latestUserMemory.toMB
   }
 
   /**
