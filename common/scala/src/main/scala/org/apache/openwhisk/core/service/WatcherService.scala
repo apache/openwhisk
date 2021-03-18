@@ -52,6 +52,7 @@ case class WatchEndpointInserted(override val watchKey: String,
     extends WatchEndpointOperation(watchKey, key, value, isPrefix)
 case class WatcherClosed(key: String, isPrefix: Boolean)
 
+// These are abstraction for event from ETCD.
 sealed trait EtcdEvent
 case object PutEvent extends EtcdEvent
 case object DeleteEvent extends EtcdEvent
