@@ -23,18 +23,47 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.connector.ContainerCreationError.{NoAvailableInvokersError, NoAvailableResourceInvokersError}
+import org.apache.openwhisk.core.connector.ContainerCreationError.{
+  NoAvailableInvokersError,
+  NoAvailableResourceInvokersError
+}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity.size._
-import org.apache.openwhisk.core.entity.{Annotations, ByteSize, DocInfo, DocRevision, FullyQualifiedEntityName, InvokerInstanceId, MemoryLimit, SchedulerInstanceId}
+import org.apache.openwhisk.core.entity.{
+  Annotations,
+  ByteSize,
+  DocInfo,
+  DocRevision,
+  FullyQualifiedEntityName,
+  InvokerInstanceId,
+  MemoryLimit,
+  SchedulerInstanceId
+}
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, InvokerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.scheduler.Scheduler
-import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, ContainerKeyMeta, CreationJobState, FailedCreationJob, InvokerHealth, RegisterCreationJob, ReschedulingCreationJob, SuccessfulCreationJob}
+import org.apache.openwhisk.core.scheduler.message.{
+  ContainerCreation,
+  ContainerDeletion,
+  ContainerKeyMeta,
+  CreationJobState,
+  FailedCreationJob,
+  InvokerHealth,
+  RegisterCreationJob,
+  ReschedulingCreationJob,
+  SuccessfulCreationJob
+}
 import org.apache.openwhisk.core.scheduler.message.InvokerState.{Healthy, Offline, Unhealthy}
-import org.apache.openwhisk.core.service.{DeleteEvent, PutEvent, UnwatchEndpoint, WatchEndpoint, WatchEndpointInserted, WatchEndpointRemoved}
+import org.apache.openwhisk.core.service.{
+  DeleteEvent,
+  PutEvent,
+  UnwatchEndpoint,
+  WatchEndpoint,
+  WatchEndpointInserted,
+  WatchEndpointRemoved
+}
 import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
 import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
@@ -55,7 +84,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
                        etcdClient: EtcdClient,
                        config: WhiskConfig,
                        watcherService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
-  extends Actor {
+    extends Actor {
   private implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   private val creationJobManager = jobManagerFactory(context)
@@ -435,8 +464,8 @@ object ContainerManager {
       }
       ._1 // pairs
     if (msgs.length > 0 && msgs.head.whiskActionMetaData
-      .fullyQualifiedName(false)
-      .asString == "fe-search/gather-scriptError-action") {
+          .fullyQualifiedName(false)
+          .asString == "fe-search/gather-scriptError-action") {
       for (pair <- list) {
         logging.warn(this, s"action: fe-search/gather-scriptError-action, pair.invokerId: ${pair.invokerId.instance}")
       }
@@ -445,10 +474,10 @@ object ContainerManager {
   }
 
   private def chooseInvokerFromCandidates(
-                                           candidates: List[InvokerHealth],
-                                           wholeInvokers: List[InvokerHealth],
-                                           pairs: List[ScheduledPair],
-                                           msg: ContainerCreationMessage)(implicit logging: Logging): (List[ScheduledPair], List[InvokerHealth]) = {
+    candidates: List[InvokerHealth],
+    wholeInvokers: List[InvokerHealth],
+    pairs: List[ScheduledPair],
+    msg: ContainerCreationMessage)(implicit logging: Logging): (List[ScheduledPair], List[InvokerHealth]) = {
     val idx = rng(mod = candidates.size)
     val instance = candidates(idx)
     // it must be compared to the instance unique id
@@ -572,4 +601,3 @@ object QueuePool {
 }
 case class MemoryQueueKey(invocationNamespace: String, docInfo: DocInfo)
 case class MemoryQueueValue(queue: ActorRef, isLeader: Boolean)
-
