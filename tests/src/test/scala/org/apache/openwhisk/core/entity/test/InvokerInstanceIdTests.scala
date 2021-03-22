@@ -22,7 +22,7 @@ import org.apache.openwhisk.core.entity.{ByteSize, InstanceId, InvokerInstanceId
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
-import spray.json.{JsNumber, JsObject, JsString}
+import spray.json.{JsArray, JsNumber, JsObject, JsString}
 
 import scala.util.Success
 
@@ -37,7 +37,9 @@ class InvokerInstanceIdTests extends FlatSpec with Matchers {
     i.serialize shouldBe JsObject(
       "instance" -> JsNumber(i.instance),
       "userMemory" -> JsString(i.userMemory.toString),
-      "instanceType" -> JsString(i.instanceType)).compactPrint
+      "instanceType" -> JsString(i.instanceType),
+      "tags" -> JsArray.empty,
+      "dedicatedNamespaces" -> JsArray.empty).compactPrint
     i.serialize shouldBe i.toJson.compactPrint
     InstanceId.parse(i.serialize) shouldBe Success(i)
   }
@@ -48,7 +50,9 @@ class InvokerInstanceIdTests extends FlatSpec with Matchers {
       "instance" -> JsNumber(i1.instance),
       "userMemory" -> JsString(i1.userMemory.toString),
       "instanceType" -> JsString(i1.instanceType),
-      "uniqueName" -> JsString(i1.uniqueName.getOrElse(""))).compactPrint
+      "uniqueName" -> JsString(i1.uniqueName.getOrElse("")),
+      "tags" -> JsArray.empty,
+      "dedicatedNamespaces" -> JsArray.empty).compactPrint
     i1.serialize shouldBe i1.toJson.compactPrint
     InstanceId.parse(i1.serialize) shouldBe Success(i1)
 
@@ -62,7 +66,9 @@ class InvokerInstanceIdTests extends FlatSpec with Matchers {
       "userMemory" -> JsString(i2.userMemory.toString),
       "instanceType" -> JsString(i2.instanceType),
       "uniqueName" -> JsString(i2.uniqueName.getOrElse("")),
-      "displayedName" -> JsString(i2.displayedName.getOrElse(""))).compactPrint
+      "displayedName" -> JsString(i2.displayedName.getOrElse("")),
+      "tags" -> JsArray.empty,
+      "dedicatedNamespaces" -> JsArray.empty).compactPrint
     i2.serialize shouldBe i2.toJson.compactPrint
     InstanceId.parse(i2.serialize) shouldBe Success(i2)
   }
