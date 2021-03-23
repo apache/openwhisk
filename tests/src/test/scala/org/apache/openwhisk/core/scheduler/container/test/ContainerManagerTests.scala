@@ -185,7 +185,8 @@ class ContainerManagerTests
               invoker.id.userMemory.toMB,
               invoker.id.userMemory.toMB,
               invoker.id.userMemory.toMB,
-              invoker.id.tags)
+              invoker.id.tags,
+              invoker.id.dedicatedNamespaces)
 
             builder.addKvs(
               KeyValue
@@ -960,7 +961,7 @@ class ContainerManager2Tests
     val clusterName1 = loadConfigOrThrow[String](ConfigKeys.whiskClusterName)
     val clusterName2 = "clusterName2"
     val invokerResourceMessage =
-      InvokerResourceMessage(Healthy.asString, 1024, 0, 0, Seq.empty[String])
+      InvokerResourceMessage(Healthy.asString, 1024, 0, 0, Seq.empty[String], Seq.empty[String])
     etcdClient.put(s"${clusterName1}/invokers/0", invokerResourceMessage.serialize)
     etcdClient.put(s"${clusterName1}/invokers/1", invokerResourceMessage.serialize)
     etcdClient.put(s"${clusterName1}/invokers/2", invokerResourceMessage.serialize)
@@ -985,4 +986,41 @@ class ContainerManager2Tests
       s"${clusterName2}/invokers/5").foreach(etcdClient.del(_))
   }
 
+  it should "load invoker from specified invocation namespace only" in {
+    val clusterName = loadConfigOrThrow[String](ConfigKeys.whiskClusterName)
+    val invokerResourceMessage =
+      InvokerResourceMessage(Healthy.asString, 1024, 0, 0, Seq.empty[String], Seq.empty[String])
+    val invokerResourceMessage2 =
+      InvokerResourceMessage(Healthy.asString, 1024, 0, 0, Seq.empty[String], Seq(testInvocationNamespace))
+    etcdClient.put(s"${clusterName}/invokers/0", invokerResourceMessage.serialize)
+    etcdClient.put(s"${clusterName}/invokers/1", invokerResourceMessage.serialize)
+    etcdClient.put(s"${clusterName}/invokers/2", invokerResourceMessage.serialize)
+    etcdClient.put(s"${clusterName}/invokers/3", invokerResourceMessage2.serialize)
+    etcdClient.put(s"${clusterName}/invokers/4", invokerResourceMessage2.serialize)
+    etcdClient.put(s"${clusterName}/invokers/5", invokerResourceMessage2.serialize)
+    // Make sure store above data in etcd
+    Thread.sleep(5.seconds.toMillis)
+    ContainerManager.getAvailableInvokers(etcdClient, 0.MB, testInvocationNamespace).map { invokers =>
+      invokers.length shouldBe 6
+      invokers.foreach { invokerHealth =>
+        List(0, 1, 2, 3, 4, 5) should contain(invokerHealth.id.instance)
+      }
+    }
+
+    // this new namespace should not use invoker3/4/5
+    ContainerManager.getAvailableInvokers(etcdClient, 0.MB, "new-namespace").map { invokers =>
+      invokers.length shouldBe 3
+      invokers.foreach { invokerHealth =>
+        List(0, 1, 2) should contain(invokerHealth.id.instance)
+      }
+    }
+    // Delete etcd data finally
+    List(
+      s"${clusterName}/invokers/0",
+      s"${clusterName}/invokers/1",
+      s"${clusterName}/invokers/2",
+      s"${clusterName}/invokers/3",
+      s"${clusterName}/invokers/4",
+      s"${clusterName}/invokers/5").foreach(etcdClient.del(_))
+  }
 }
