@@ -463,13 +463,6 @@ object ContainerManager {
         }
       }
       ._1 // pairs
-    if (msgs.length > 0 && msgs.head.whiskActionMetaData
-          .fullyQualifiedName(false)
-          .asString == "fe-search/gather-scriptError-action") {
-      for (pair <- list) {
-        logging.warn(this, s"action: fe-search/gather-scriptError-action, pair.invokerId: ${pair.invokerId.instance}")
-      }
-    }
     list
   }
 
@@ -482,10 +475,6 @@ object ContainerManager {
     val instance = candidates(idx)
     // it must be compared to the instance unique id
     val idxInWhole = wholeInvokers.indexOf(wholeInvokers.filter(p => p.id.instance == instance.id.instance).head)
-
-    if (msg.whiskActionMetaData.fullyQualifiedName(false).asString == "fe-search/gather-scriptError-action") {
-      logging.warn(this, s"action: fe-search/gather-scriptError-action, idx: ${idx}, instance: ${instance.id.instance}")
-    }
     val requiredMemory = msg.whiskActionMetaData.limits.memory.megabytes
     val updated =
       if (instance.id.userMemory.toMB - requiredMemory >= requiredMemory) { // Since ByteSize is negative, it converts to long type and compares.
@@ -577,8 +566,6 @@ object ContainerManager {
 }
 
 case class NoCapacityException(msg: String) extends Exception(msg)
-
-////////////////////////////
 
 object QueuePool {
   private val _queuePool = TrieMap[MemoryQueueKey, MemoryQueueValue]()
