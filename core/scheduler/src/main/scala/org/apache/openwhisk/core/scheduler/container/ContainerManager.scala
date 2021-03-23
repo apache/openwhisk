@@ -520,7 +520,8 @@ object ContainerManager {
                 val invoker = temporalId.copy(
                   userMemory = resourceMessage.freeMemory.MB,
                   busyMemory = Some(resourceMessage.busyMemory.MB),
-                  tags = resourceMessage.tags)
+                  tags = resourceMessage.tags,
+                  dedicatedNamespaces = resourceMessage.dedicatedNamespaces)
 
                 InvokerHealth(invoker, status)
               }
@@ -528,6 +529,9 @@ object ContainerManager {
           }
           .filter(i => i.state.isUsable)
           .filter(_.id.userMemory >= minMemory)
+          .filter { invoker =>
+            invoker.id.dedicatedNamespaces.isEmpty || invoker.id.dedicatedNamespaces.contains(invocationNamespace)
+          }
           .toList
       }
   }
@@ -552,7 +556,8 @@ object ContainerManager {
                 val invoker = temporalId.copy(
                   userMemory = resourceMessage.freeMemory.MB,
                   busyMemory = Some(resourceMessage.busyMemory.MB),
-                  tags = resourceMessage.tags)
+                  tags = resourceMessage.tags,
+                  dedicatedNamespaces = resourceMessage.dedicatedNamespaces)
                 InvokerHealth(invoker, status)
               }
               .getOrElse(InvokerHealth(InvokerInstanceId(kv.getKey, userMemory = 0.MB), Offline))
@@ -567,6 +572,9 @@ object ContainerManager {
 
 case class NoCapacityException(msg: String) extends Exception(msg)
 
+/**
+ * TODO This needs to be moved to the QueueManager component that will be added later.
+ */
 object QueuePool {
   private val _queuePool = TrieMap[MemoryQueueKey, MemoryQueueValue]()
 
