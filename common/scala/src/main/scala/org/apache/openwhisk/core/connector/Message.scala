@@ -60,7 +60,7 @@ case class ActivationMessage(override val transid: TransactionId,
                              lockedArgs: Map[String, String] = Map.empty,
                              cause: Option[ActivationId] = None,
                              traceContext: Option[Map[String, String]] = None)
-    extends Message {
+  extends Message {
 
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
@@ -119,7 +119,7 @@ case class CombinedCompletionAndResultMessage private (override val transid: Tra
                                                        response: Either[ActivationId, WhiskActivation],
                                                        override val isSystemError: Option[Boolean],
                                                        instance: InstanceId)
-    extends AcknowledegmentMessage(transid) {
+  extends AcknowledegmentMessage(transid) {
   override def messageType = "combined"
   override def result = Some(response)
   override def isSlotFree = Some(instance)
@@ -139,7 +139,7 @@ case class CompletionMessage private (override val transid: TransactionId,
                                       override val activationId: ActivationId,
                                       override val isSystemError: Option[Boolean],
                                       instance: InstanceId)
-    extends AcknowledegmentMessage(transid) {
+  extends AcknowledegmentMessage(transid) {
   override def messageType = "completion"
   override def result = None
   override def isSlotFree = Some(instance)
@@ -157,7 +157,7 @@ case class CompletionMessage private (override val transid: TransactionId,
  * Right when this message is created.
  */
 case class ResultMessage private (override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
-    extends AcknowledegmentMessage(transid) {
+  extends AcknowledegmentMessage(transid) {
   override def messageType = "result"
   override def result = Some(response)
   override def isSlotFree = None
@@ -301,7 +301,7 @@ case class Activation(name: String,
                       causedBy: Option[String],
                       size: Option[Int] = None,
                       userDefinedStatusCode: Option[Int] = None)
-    extends EventMessageBody {
+  extends EventMessageBody {
   val typeName = Activation.typeName
   override def serialize = toJson.compactPrint
   def entityPath: FullyQualifiedEntityName = EntityPath(name).toFullyQualifiedEntityName
@@ -411,7 +411,7 @@ case class EventMessage(source: String,
                         userId: UUID,
                         eventType: String,
                         timestamp: Long = System.currentTimeMillis())
-    extends Message {
+  extends Message {
   override def serialize = EventMessage.format.write(this).compactPrint
 }
 
@@ -434,7 +434,7 @@ case class InvokerResourceMessage(status: String,
                                   inProgressMemory: Long,
                                   tags: Seq[String],
                                   dedicatedNamespaces: Seq[String])
-    extends Message {
+  extends Message {
 
   /**
    * Serializes message to string. Must be idempotent.
@@ -474,7 +474,7 @@ object InvokerResourceMessage extends DefaultJsonProtocol {
  */
 object StatusQuery
 case class StatusData(invocationNamespace: String, fqn: String, waitingActivation: Int, status: String, data: String)
-    extends Message {
+  extends Message {
 
   override def serialize: String = StatusData.serdes.write(this).compactPrint
 
@@ -495,7 +495,7 @@ case class ContainerCreationMessage(override val transid: TransactionId,
                                     rpcPort: Int,
                                     retryCount: Int = 0,
                                     creationId: CreationId = CreationId.generate())
-    extends ContainerMessage(transid) {
+  extends ContainerMessage(transid) {
 
   override def toJson: JsValue = ContainerCreationMessage.serdes.write(this)
   override def serialize: String = toJson.compactPrint
@@ -526,7 +526,7 @@ case class ContainerDeletionMessage(override val transid: TransactionId,
                                     action: FullyQualifiedEntityName,
                                     revision: DocRevision,
                                     whiskActionMetaData: WhiskActionMetaData)
-    extends ContainerMessage(transid) {
+  extends ContainerMessage(transid) {
   override def toJson: JsValue = ContainerDeletionMessage.serdes.write(this)
   override def serialize: String = toJson.compactPrint
 }
@@ -632,7 +632,7 @@ case class ContainerCreationAckMessage(override val transid: TransactionId,
                                        retryCount: Int = 0,
                                        error: Option[ContainerCreationError] = None,
                                        reason: Option[String] = None)
-    extends Message {
+  extends Message {
 
   /**
    * Serializes message to string. Must be idempotent.
