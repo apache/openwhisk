@@ -24,7 +24,8 @@ import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{StreamLogging, WskActorSystem}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
+import org.apache.openwhisk.common.{GracefulShutdown, InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
   NoAvailableInvokersError,
   NoAvailableResourceInvokersError
@@ -45,12 +46,10 @@ import org.apache.openwhisk.core.scheduler.message.{
   ContainerCreation,
   ContainerDeletion,
   FailedCreationJob,
-  InvokerHealth,
   RegisterCreationJob,
   ReschedulingCreationJob,
   SuccessfulCreationJob
 }
-import org.apache.openwhisk.core.scheduler.message.InvokerState.{Healthy, Unhealthy}
 import org.apache.openwhisk.core.service.WatchEndpointInserted
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.junit.runner.RunWith
@@ -61,6 +60,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Match
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsBoolean, JsString}
 
+import pureconfig.generic.auto._
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}

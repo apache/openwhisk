@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.loadBalancer
 import scala.concurrent.Future
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{InvokerState, Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.controller.Controller

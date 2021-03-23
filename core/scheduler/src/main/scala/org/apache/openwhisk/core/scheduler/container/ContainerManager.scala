@@ -22,7 +22,8 @@ import java.util.concurrent.ThreadLocalRandom
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
+import org.apache.openwhisk.common.{GracefulShutdown, InvokerHealth, Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
   NoAvailableInvokersError,
   NoAvailableResourceInvokersError
@@ -50,12 +51,10 @@ import org.apache.openwhisk.core.scheduler.message.{
   ContainerKeyMeta,
   CreationJobState,
   FailedCreationJob,
-  InvokerHealth,
   RegisterCreationJob,
   ReschedulingCreationJob,
   SuccessfulCreationJob
 }
-import org.apache.openwhisk.core.scheduler.message.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.core.service.{
   DeleteEvent,
   PutEvent,

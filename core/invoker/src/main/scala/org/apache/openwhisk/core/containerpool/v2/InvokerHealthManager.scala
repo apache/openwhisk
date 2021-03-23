@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.containerpool.v2
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.util.Timeout
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.ContainerRemoved
@@ -348,23 +349,6 @@ object InvokerHealthManager {
             entityStore: ArtifactStore[WhiskEntity])(implicit actorSystem: ActorSystem, logging: Logging): Props = {
     Props(new InvokerHealthManager(instanceId, childFactory, dataManagementService, entityStore))
   }
-}
-
-// States an Invoker can be in
-sealed trait InvokerState {
-  val asString: String
-}
-
-case object Offline extends InvokerState {
-  val asString = "down"
-}
-
-case object Healthy extends InvokerState {
-  val asString = "up"
-}
-
-case object Unhealthy extends InvokerState {
-  val asString = "unhealthy"
 }
 
 //recevied from ContainerProxy actor

@@ -26,12 +26,8 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import kamon.Kamon
-import pureconfig._
-import pureconfig.generic.auto._
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
-import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
@@ -40,13 +36,16 @@ import org.apache.openwhisk.core.entitlement._
 import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.loadBalancer.{InvokerState, LoadBalancerProvider}
+import org.apache.openwhisk.core.loadBalancer.LoadBalancerProvider
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
+import pureconfig._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
 /**

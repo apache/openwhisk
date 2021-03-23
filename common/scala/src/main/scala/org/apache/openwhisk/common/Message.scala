@@ -17,5 +17,31 @@
 
 package org.apache.openwhisk.common
 
+import org.apache.openwhisk.core.entity.InvokerInstanceId
+
 case object GracefulShutdown
 case object Enable
+
+// States an Invoker can be in
+sealed trait InvokerState {
+  val asString: String
+  val isUsable: Boolean
+}
+
+object InvokerState {
+  // Invokers in this state can be used to schedule workload to
+  sealed trait Usable extends InvokerState { val isUsable = true }
+  // No workload should be scheduled to invokers in this state
+  sealed trait Unusable extends InvokerState { val isUsable = false }
+
+  // A completely healthy invoker, pings arriving fine, no system errors
+  case object Healthy extends Usable { val asString = "up" }
+  // The invoker can not create a container
+  case object Unhealthy extends Unusable { val asString = "unhealthy" }
+  // Pings are arriving fine, the invoker does not respond with active-acks in the expected time though
+  case object Unresponsive extends Unusable { val asString = "unresponsive" }
+  // The invoker is down
+  case object Offline extends Unusable { val asString = "down" }
+}
+
+case class InvokerHealth(id: InvokerInstanceId, state: InvokerState)
