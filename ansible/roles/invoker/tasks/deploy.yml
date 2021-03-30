@@ -259,6 +259,8 @@
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      "CONFIG_whisk_spi_InvokerProvider": "{{ invoker.reactiveSpi }}"
+      "CONFIG_whisk_spi_InvokerServerProvider": "{{ invoker.serverSpi }}"
       "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
       "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"

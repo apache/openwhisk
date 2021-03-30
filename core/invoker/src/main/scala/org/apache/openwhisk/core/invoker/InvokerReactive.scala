@@ -23,6 +23,7 @@ import java.time.Instant
 import akka.Done
 import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
@@ -298,5 +299,9 @@ class InvokerReactive(
       case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
     }
   })
+
+  override def enable(): Route = ???
+
+  override def disable(): Route = ???
 
 }

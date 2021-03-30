@@ -219,6 +219,8 @@ invoker:
     keystore:
       password: "{{ invoker_keystore_password | default('openwhisk') }}"
       name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
+  reactiveSpi: "{{ invokerReactive_spi | default('') }}"
+  serverSpi: "{{ invokerServer_spi | default('') }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
