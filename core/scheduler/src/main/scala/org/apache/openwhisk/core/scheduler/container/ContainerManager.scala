@@ -526,7 +526,7 @@ object ContainerManager {
               }
               .getOrElse(InvokerHealth(InvokerInstanceId(kv.getKey, userMemory = 0.MB), Offline))
           }
-          .filter(i => i.state.isUsable)
+          .filter(i => i.status.isUsable)
           .filter(_.id.userMemory >= minMemory)
           .filter { invoker =>
             invoker.id.dedicatedNamespaces.isEmpty || invoker.id.dedicatedNamespaces.contains(invocationNamespace)
@@ -561,7 +561,7 @@ object ContainerManager {
               }
               .getOrElse(InvokerHealth(InvokerInstanceId(kv.getKey, userMemory = 0.MB), Offline))
           }
-          .filter(i => i.state.isUsable)
+          .filter(i => i.status.isUsable)
           .filter(_.id.userMemory >= minMemory)
           .toList
       }

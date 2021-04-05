@@ -44,4 +44,18 @@ object InvokerState {
   case object Offline extends Unusable { val asString = "down" }
 }
 
-case class InvokerHealth(id: InvokerInstanceId, state: InvokerState)
+/**
+ * Describes an abstract invoker. An invoker is a local container pool manager that
+ * is in charge of the container life cycle management.
+ *
+ * @param id a unique instance identifier for the invoker
+ * @param status it status (healthy, unhealthy, unresponsive, offline)
+ */
+case class InvokerHealth(id: InvokerInstanceId, status: InvokerState) {
+  override def equals(obj: scala.Any): Boolean = obj match {
+    case that: InvokerHealth => that.id == this.id && that.status == this.status
+    case _                   => false
+  }
+
+  override def toString = s"InvokerHealth($id, $status)"
+}

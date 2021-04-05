@@ -17,33 +17,17 @@
 
 package org.apache.openwhisk.core.loadBalancer
 
-import scala.concurrent.Future
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import org.apache.openwhisk.common.{InvokerState, Logging, TransactionId}
+import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.spi.Spi
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
-
-/**
- * Describes an abstract invoker. An invoker is a local container pool manager that
- * is in charge of the container life cycle management.
- *
- * @param id a unique instance identifier for the invoker
- * @param status it status (healthy, unhealthy, offline)
- */
-class InvokerHealth(val id: InvokerInstanceId, val status: InvokerState) {
-  override def equals(obj: scala.Any): Boolean = obj match {
-    case that: InvokerHealth => that.id == this.id && that.status == this.status
-    case _                   => false
-  }
-
-  override def toString = s"InvokerHealth($id, $status)"
-}
 
 trait LoadBalancer {
 

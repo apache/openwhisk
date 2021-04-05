@@ -181,7 +181,7 @@ class ContainerManagerTests
         invokers
           .foldLeft(RangeResponse.newBuilder()) { (builder, invoker) =>
             val msg = InvokerResourceMessage(
-              invoker.state.asString,
+              invoker.status.asString,
               invoker.id.userMemory.toMB,
               invoker.id.userMemory.toMB,
               invoker.id.userMemory.toMB,

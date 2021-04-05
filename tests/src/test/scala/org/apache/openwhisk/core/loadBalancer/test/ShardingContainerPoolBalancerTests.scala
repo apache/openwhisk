@@ -37,10 +37,8 @@ import org.scalatest.Matchers
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.common.{InvokerHealth, Logging, NestedSemaphore, TransactionId}
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
-import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.connector.CompletionMessage
