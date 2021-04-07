@@ -198,9 +198,9 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 
 ### Deploying Using MongoDB
 
-You can use MongoDB as the database backend, and there is an ansible task to deploy a single node MongoDB server for testing and developing
+You can choose MongoDB instead of CouchDB as the database backend to store entities and activations.
 
-- Deploy mongodb server(Optional)
+- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production)
 
 ```
 ansible-playbook -i environments/<environment> mongodb.yml -e mongodb_data_volume="/tmp/mongo-data"
