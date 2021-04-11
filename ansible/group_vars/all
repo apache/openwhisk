@@ -453,5 +453,4 @@ etcd_connect_string: "{% set ret = [] %}\
 
 scheduler:
   dataManagementService:
-    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default(1 second) }}"
-
+    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
