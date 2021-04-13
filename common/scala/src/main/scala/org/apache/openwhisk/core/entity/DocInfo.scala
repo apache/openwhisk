@@ -25,6 +25,7 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import spray.json._
 
 import org.apache.openwhisk.core.entity.ArgNormalizer.trim
 
@@ -59,6 +60,7 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
   def asString = rev // to make explicit that this is a string conversion
   def empty = rev == null
   override def toString = rev
+  def serialize = DocRevision.serdes.write(this).compactPrint
 }
 
 /**
@@ -130,6 +132,8 @@ protected[core] object DocRevision {
   protected[core] def apply(s: String): DocRevision = new DocRevision(trim(s))
 
   protected[core] val empty: DocRevision = new DocRevision(null)
+
+  protected[core] def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
   implicit val serdes = new RootJsonFormat[DocRevision] {
     def write(d: DocRevision) = if (d.rev != null) JsString(d.rev) else JsNull
