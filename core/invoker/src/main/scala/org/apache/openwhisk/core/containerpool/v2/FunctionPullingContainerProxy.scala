@@ -25,13 +25,15 @@ import org.apache.openwhisk.core.containerpool.Container
 import org.apache.openwhisk.core.entity.{ByteSize, CodeExec, DocRevision, ExecutableWhiskAction}
 import org.apache.openwhisk.core.entity.size._
 
+import scala.concurrent.duration.{Deadline, FiniteDuration}
+
 // Events received by the actor
 case class Initialize(invocationNamespace: String,
                       action: ExecutableWhiskAction,
                       schedulerHost: String,
                       rpcPort: Int,
                       transId: TransactionId)
-case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
+case class Start(exec: CodeExec[_], memoryLimit: ByteSize, ttl: Option[FiniteDuration] = None)
 
 // Event sent by the actor
 case class ContainerCreationFailed(throwable: Throwable)
@@ -40,12 +42,11 @@ case class ClientCreationFailed(throwable: Throwable,
                                 container: Container,
                                 invocationNamespace: String,
                                 action: ExecutableWhiskAction)
-case class ReadyToWork(data: Data)
+case class ReadyToWork(data: PreWarmData)
 case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
-case object ContainerRemoved // when container is destroyed
 
 // States
 sealed trait ProxyState
@@ -72,9 +73,13 @@ case class MemoryData(override val memoryLimit: ByteSize) extends Data(memoryLim
   override def getContainer = None
 }
 trait WithClient { val clientProxy: ActorRef }
-case class PreWarmData(container: Container, kind: String, override val memoryLimit: ByteSize)
+case class PreWarmData(container: Container,
+                       kind: String,
+                       override val memoryLimit: ByteSize,
+                       expires: Option[Deadline] = None)
     extends Data(memoryLimit) {
   override def getContainer = Some(container)
+  def isExpired(): Boolean = expires.exists(_.isOverdue())
 }
 
 case class ContainerCreatedData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction)

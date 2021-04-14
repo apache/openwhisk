@@ -17,8 +17,9 @@
 
 package org.apache.openwhisk.core.entity
 
-import scala.util.Try
+import org.apache.commons.lang3.StringUtils
 
+import scala.util.Try
 import spray.json.DefaultJsonProtocol
 import spray.json.JsNull
 import spray.json.JsString
@@ -26,7 +27,6 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json._
-
 import org.apache.openwhisk.core.entity.ArgNormalizer.trim
 
 /**
@@ -56,11 +56,27 @@ protected[core] class DocId(val id: String) extends AnyVal {
  *
  * @param rev the document revision, optional
  */
-protected[core] class DocRevision private (val rev: String) extends AnyVal {
+protected[core] class DocRevision private (val rev: String) extends AnyVal with Ordered[DocRevision] {
   def asString = rev // to make explicit that this is a string conversion
   def empty = rev == null
   override def toString = rev
   def serialize = DocRevision.serdes.write(this).compactPrint
+
+  override def compare(that: DocRevision): Int = {
+    if (this.empty && that.empty) {
+      0
+    } else if (this.empty) {
+      -1
+    } else if (that.empty) {
+      1
+    } else {
+      StringUtils.substringBefore(rev, "-").toInt - StringUtils.substringBefore(that.rev, "-").toInt
+    }
+  }
+
+  def ==(that: DocRevision): Boolean = {
+    this.compare(that) == 0
+  }
 }
 
 /**
