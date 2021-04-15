@@ -22,7 +22,6 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.containerpool.v2.InvokerHealthManager
 import org.apache.openwhisk.http.BasicRasService
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import spray.json.PrettyPrinter
@@ -48,8 +47,6 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
           invoker.enable()
         } ~ (path("disable") & post) {
           invoker.disable()
-        } ~ (path("memory") & get) {
-          complete(InvokerHealthManager.useMemory.toString)
         }
       case _ => terminate(StatusCodes.Unauthorized)
     }

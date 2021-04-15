@@ -153,7 +153,6 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
           data.memory.inProgressMemory,
           instanceId.tags,
           instanceId.dedicatedNamespaces)
-        InvokerHealthManager.useMemory = invokerResourceMessage.busyMemory + invokerResourceMessage.inProgressMemory
         dataManagementService ! UpdateDataOnChange(InvokerKeys.health(instanceId), invokerResourceMessage.serialize)
         stay using data.copy(currentInvokerResource = Some(invokerResourceMessage))
 
@@ -270,7 +269,6 @@ object InvokerHealthManager {
   val healthActionNamePrefix = "invokerHealthTestAction"
   val bufferSize = 10
   val bufferErrorTolerance = 3
-  var useMemory = 0l
   val healthActionIdentity: Identity = {
     val whiskSystem = "whisk.system"
     val uuid = UUID()
