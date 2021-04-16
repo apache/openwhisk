@@ -42,6 +42,7 @@ import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+import pureconfig.generic.auto._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits
