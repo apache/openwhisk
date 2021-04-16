@@ -17,8 +17,6 @@
 
 package org.apache.openwhisk.core.database.mongodb
 
-import java.security.MessageDigest
-
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
@@ -81,7 +79,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
   val attachmentScheme: String = attachmentStore.map(_.scheme).getOrElse(mongodbScheme)
 
   private val database = client.getDatabase(dbName)
-  private val collection = getCollectionAndCreateIndexes
+  private val collection = getCollectionAndCreateIndexes()
   private val gridFSBucket = GridFSBucket(database, collName)
 
   private val jsonWriteSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build
@@ -129,6 +127,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
           DocInfo(DocId(id), DocRevision(rev))
         }
         .recover {
+          //  E11000 means a duplicate key error
           case t: MongoException if t.getCode == 11000 =>
             transid.finished(this, start, s"[PUT] '$dbName', document: '$docinfoStr'; conflict.")
             throw DocumentConflictException("conflict on 'put'")
@@ -570,8 +569,9 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
 
   // calculate the revision manually, to be compatible with couchdb's _rev field
   private def revisionCalculate(doc: JsObject): (String, String) = {
-    val md: MessageDigest = MessageDigest.getInstance("MD5")
-    val new_rev = md.digest(doc.toString.getBytes()).map(0xFF & _).map { "%02x".format(_) }.foldLeft("") { _ + _ }
+    val md = StoreUtils.emptyDigest()
+    val new_rev =
+      md.digest(doc.toString.getBytes()).map(0xFF & _).map { "%02x".format(_) }.foldLeft("") { _ + _ }.take(32)
     doc.fields
       .get("_rev")
       .map { value =>
@@ -615,7 +615,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
       .getOrElse(name)
   }
 
-  private def getCollectionAndCreateIndexes: MongoCollection[Document] = {
+  private def getCollectionAndCreateIndexes(): MongoCollection[Document] = {
     val coll = database.getCollection(collName)
     // create indexes in specific collection if they do not exist
     coll.listIndexes().toFuture().map { idxes =>

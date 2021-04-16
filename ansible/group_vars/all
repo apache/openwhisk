@@ -329,10 +329,6 @@ elasticsearch_connect_string: "{% set ret = [] %}\
                                {{ ret | join(',') }}"
 mongodb:
   version: 4.4.0
-  commonEnv:
-    CONFIG_whisk_mongodb_uri: "{{ db.mongodb.connect_string }}"
-    CONFIG_whisk_mongodb_database: "{{ db.mongodb.database }}"
-    CONFIG_whisk_spi_ArtifactStoreProvider: "org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider"
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run

@@ -307,9 +307,17 @@
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
 
-- name: merge mongodb env variables
+- name: setup mongodb artifact store env
   set_fact:
-    env: "{{ env | combine(mongodb.commonEnv) }}"
+    mongodb_env:
+      "CONFIG_whisk_mongodb_uri": "{{ db.mongodb.connect_string }}"
+      "CONFIG_whisk_mongodb_database": "{{ db.mongodb.database }}"
+      "CONFIG_whisk_spi_ArtifactStoreProvider": "org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider"
+  when: db.backend == "MongoDB"
+
+- name: merge mongodb artifact store env
+  set_fact:
+    env: "{{ env | combine(mongodb_env) }}"
   when: db.backend == "MongoDB"
 
 - name: include plugins

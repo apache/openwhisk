@@ -32,7 +32,7 @@ import spray.json.RootJsonFormat
 import scala.reflect.ClassTag
 
 case class MongoDBConfig(uri: String, database: String) {
-  assume(Set(database, uri).forall(_.nonEmpty), "At least one expected property is missing")
+  assume(Set(database, uri).forall(_.trim.nonEmpty), "At least one expected property is missing")
 
   def collectionFor[D](implicit tag: ClassTag[D]) = tag.runtimeClass.getSimpleName.toLowerCase
 }

@@ -198,7 +198,7 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 
 ### Deploying Using MongoDB
 
-You can choose MongoDB instead of CouchDB as the database backend to store entities and activations.
+You can choose MongoDB instead of CouchDB as the database backend to store entities.
 
 - Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production)
 
