@@ -37,6 +37,8 @@ Concurrent activation processing within the same action container can be enabled
 * (optional) enable alternate log retrieve at controller
   * If you want OW api /activations/\<id\>/logs to return logs, you need to have an alternate log collection mechanism for action containers
   * e.g. CONFIG_whisk_spi_LogStoreProvider=org.apache.openwhisk.core.containerpool.logging.SplunkLogStoreProvider
+* set the max concurrency limit config to a value > 1
+  * e.g. CONFIG_whisk_concurrencyLimit_max=4
 * set the concurrency limit > 1 on any action that you want to process activations concurrently.
 
 
