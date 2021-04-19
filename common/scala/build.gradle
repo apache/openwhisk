@@ -60,15 +60,15 @@ dependencies {
     compile "io.fabric8:kubernetes-client:${gradle.kube_client.version}"
 
     //metrics
-    compile ("io.kamon:kamon-core_${gradle.scala.depVersion}:2.0.3") {
+    compile ("io.kamon:kamon-core_${gradle.scala.depVersion}:2.1.12") {
         exclude group: 'com.lihaoyi'
     }
-    compile "io.kamon:kamon-statsd_${gradle.scala.depVersion}:2.0.0"
-    compile ("io.kamon:kamon-system-metrics_${gradle.scala.depVersion}:2.0.1") {
+    compile "io.kamon:kamon-statsd_${gradle.scala.depVersion}:2.1.12"
+    compile ("io.kamon:kamon-system-metrics_${gradle.scala.depVersion}:2.1.12") {
         exclude group: 'io.kamon', module: 'sigar-loader'
     }
-    compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.0.1"
-    compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.0.1"
+    compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
+    compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
     //for mesos
     compile "com.adobe.api.platform.runtime:mesos-actor:0.0.17"
