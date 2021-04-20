@@ -421,7 +421,7 @@ class ShardingContainerPoolBalancerTests
     WhiskActionMetaData(
       namespace,
       name,
-      js10MetaData(Some("jsMain"), false),
+      jsMetaData(Some("jsMain"), false),
       limits = actionLimits(actionMem, concurrency))
   val maxContainers = invokerMem.toMB.toInt / actionMetaData.limits.memory.megabytes
   val numInvokers = 3

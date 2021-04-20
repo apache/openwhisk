@@ -32,7 +32,7 @@ trait CommonVariable {
   val semVer = SemVer(0, 1, 1)
   val testVersion = Some(semVer)
   val testFQN = FullyQualifiedEntityName(testEntityPath, testEntityName, testVersion)
-  val testExec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+  val testExec = CodeExecAsString(RuntimeManifest("nodejs:14", ImageName("testImage")), "testCode", None)
   val testExecMetadata =
     CodeExecMetaDataAsString(testExec.manifest, entryPoint = testExec.entryPoint)
   val testActionMetaData =

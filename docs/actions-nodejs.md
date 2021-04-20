@@ -219,10 +219,10 @@ zip -r action.zip *
 - Create the action from the zip file.
 
 ```
-wsk action create packageAction --kind nodejs:10 action.zip
+wsk action create packageAction --kind nodejs:14 action.zip
 ```
 
-When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:12`, or `nodejs:10`.
+When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:14`, or `nodejs:12`.
 
 - Invoke the action as normal.
 
@@ -268,7 +268,7 @@ zip -r action.zip *
 - Create new action with action archive.
 
 ```
-wsk action create my-action --kind nodejs:10 action.zip
+wsk action create my-action --kind nodejs:14 action.zip
 ```
 
 #### Building custom runtime image
@@ -353,7 +353,7 @@ npx rollup --config
 - Create an action using the bundle source file.
 
 ```
-wsk action create my-action bundle.js --kind nodejs:10
+wsk action create my-action bundle.js --kind nodejs:14
 ```
 
 - Invoke the action as normal. Results should be the same as the example above.
@@ -406,7 +406,7 @@ npx webpack --config webpack.config.js
 - Create an action using the bundle source file.
 
 ```
-wsk action create my-action dist/bundle.js --kind nodejs:10
+wsk action create my-action dist/bundle.js --kind nodejs:14
 ```
 
 - Invoke the action as normal. Results should be the same as the example above.
@@ -447,7 +447,7 @@ npm install parcel-bundler --save-dev
 - Create an action using the bundle source file.
 
 ```
-wsk action create my-action dist/index.js --kind nodejs:10
+wsk action create my-action dist/index.js --kind nodejs:14
 ```
 
 - Invoke the action as normal. Results should be the same as the example above.
@@ -459,8 +459,8 @@ wsk action invoke my-action --result --param lines "[\"and now\", \"for somethin
 
 ## Reference
 
-JavaScript actions can be executed in Node.js version 8, 10, 12 or 14.
-Currently actions are executed by default in a Node.js version 10 environment.
+JavaScript actions can be executed in Node.js version 10, 12 or 14.
+Currently actions are executed by default in a Node.js version 14 environment.
 
 ### Node.js version 10 environment
 The Node.js version 10 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:10' when creating or updating an Action.
@@ -479,6 +479,6 @@ The following packages are pre-installed in the Node.js version 12 environment:
 ### Node.js version 14 environment
 The Node.js version 14 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:14' when creating or updating an Action.
 
-The following packages are pre-installed in the Node.js version 12 environment:
+The following packages are pre-installed in the Node.js version 14 environment:
 
 - [openwhisk](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
