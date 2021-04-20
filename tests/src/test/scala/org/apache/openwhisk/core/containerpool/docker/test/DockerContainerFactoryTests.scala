@@ -68,7 +68,7 @@ class DockerContainerFactoryTests
 
   it should "set the docker run args based on ContainerArgsConfig" in {
 
-    val image = ExecManifest.runtimesManifest.manifests("nodejs:10").image
+    val image = ExecManifest.runtimesManifest.manifests("nodejs:14").image
 
     implicit val tid = TransactionId.testing
     val dockerApiStub = mock[DockerApiWithFileAccess]

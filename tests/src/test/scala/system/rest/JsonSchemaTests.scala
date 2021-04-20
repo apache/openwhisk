@@ -51,7 +51,7 @@ class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema with RestUt
                        | "name":"foo",
                        | "version":"1.1.1",
                        | "publish":false,
-                       | "exec":{ "code": "foo", "kind": "nodejs:10" },
+                       | "exec":{ "code": "foo", "kind": "nodejs:14" },
                        | "parameters":["key1","value1"],
                        | "limits":{ "timeout":1000, "memory":200 } }""".stripMargin
     assert(check(ACTION, schema))

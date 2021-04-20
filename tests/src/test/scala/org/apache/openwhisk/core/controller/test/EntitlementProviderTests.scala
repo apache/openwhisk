@@ -53,7 +53,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
   val adminUser = WhiskAuthHelpers.newIdentity(Subject("admin"))
   val guestUser = WhiskAuthHelpers.newIdentity(Subject("anonym"))
 
-  val allowedKinds = Set("nodejs:10", "python")
+  val allowedKinds = Set("nodejs:14", "python")
   val disallowedKinds = Set("golang", "blackbox")
 
   def getExec(kind: String): Exec = {

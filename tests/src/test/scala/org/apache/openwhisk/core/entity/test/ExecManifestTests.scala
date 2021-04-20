@@ -270,7 +270,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:10",
+                 |        "kind": "nodejs:14",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -321,8 +321,8 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |}
                  |""".stripMargin.parseJson.asJsObject
 
-    val js10 = RuntimeManifest(
-      "nodejs:10",
+    val js14 = RuntimeManifest(
+      "nodejs:14",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB), StemCell(1, 256.MB))))
@@ -339,7 +339,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     mf shouldBe {
       Runtimes(
         Set(
-          RuntimeFamily("nodef", Set(js10, js12)),
+          RuntimeFamily("nodef", Set(js14, js12)),
           RuntimeFamily("pythonf", Set(py)),
           RuntimeFamily("swiftf", Set(sw)),
           RuntimeFamily("phpf", Set(ph))),
@@ -353,8 +353,8 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
-      (js10.kind, js10.image, 1, 128.MB),
-      (js10.kind, js10.image, 1, 256.MB),
+      (js14.kind, js14.image, 1, 128.MB),
+      (js14.kind, js14.image, 1, 256.MB),
       (js12.kind, js12.image, 1, 128.MB),
       (py.kind, py.image, 2, 256.MB))
   }
@@ -364,7 +364,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:10",
+                 |        "kind": "nodejs:14",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -444,8 +444,8 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |""".stripMargin.parseJson.asJsObject
 
     val reactive = Some(ReactivePrewarmingConfig(1, 4, FiniteDuration(2, TimeUnit.MINUTES), 1, 1))
-    val js10 = RuntimeManifest(
-      "nodejs:10",
+    val js14 = RuntimeManifest(
+      "nodejs:14",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB, reactive), StemCell(1, 256.MB, reactive))))
@@ -462,7 +462,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     mf shouldBe {
       Runtimes(
         Set(
-          RuntimeFamily("nodef", Set(js10, js12)),
+          RuntimeFamily("nodef", Set(js14, js12)),
           RuntimeFamily("pythonf", Set(py)),
           RuntimeFamily("swiftf", Set(sw)),
           RuntimeFamily("phpf", Set(ph))),
@@ -476,8 +476,8 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
           (m.kind, m.image, c.initialCount, c.memory)
         }
     }.toList should contain theSameElementsAs List(
-      (js10.kind, js10.image, 1, 128.MB),
-      (js10.kind, js10.image, 1, 256.MB),
+      (js14.kind, js14.image, 1, 128.MB),
+      (js14.kind, js14.image, 1, 256.MB),
       (js12.kind, js12.image, 1, 128.MB),
       (py.kind, py.image, 2, 256.MB))
   }

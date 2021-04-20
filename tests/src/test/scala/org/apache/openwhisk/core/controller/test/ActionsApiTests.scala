@@ -279,23 +279,23 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     // String: binary: true, main: jsMain
     val jsAction1 = WhiskAction(namespace, aname(), jsDefault("RHViZWU=", Some("jsMain")))
     val jsAction1Content =
-      Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction1ExecMetaData = js10MetaData(Some("jsMain"), true)
+      Map("exec" -> Map("kind" -> NODEJS, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction1ExecMetaData = jsMetaData(Some("jsMain"), true)
 
     // String: binary: false, main: jsMain
     val jsAction2 = WhiskAction(namespace, aname(), jsDefault("", Some("jsMain")))
-    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction2ExecMetaData = js10MetaData(Some("jsMain"), false)
+    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction2ExecMetaData = jsMetaData(Some("jsMain"), false)
 
     // String: binary: true, no main
     val jsAction3 = WhiskAction(namespace, aname(), jsDefault("RHViZWU="))
-    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=")).toJson.asJsObject
-    val jsAction3ExecMetaData = js10MetaData(None, true)
+    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "RHViZWU=")).toJson.asJsObject
+    val jsAction3ExecMetaData = jsMetaData(None, true)
 
     // String: binary: false, no main
     val jsAction4 = WhiskAction(namespace, aname(), jsDefault(""))
-    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "")).toJson.asJsObject
-    val jsAction4ExecMetaData = js10MetaData(None, false)
+    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "")).toJson.asJsObject
+    val jsAction4ExecMetaData = jsMetaData(None, false)
 
     // Sequence
     val component = WhiskAction(namespace, aname(), jsDefault("??"))
@@ -578,7 +578,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -695,7 +695,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS10)
+      response.exec.kind should be(NODEJS)
       response.parameters shouldBe Parameters()
     }
   }
@@ -714,7 +714,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS10)
+      response.exec.kind should be(NODEJS)
       response.parameters should be(Parameters("a", "A"))
     }
   }
@@ -744,7 +744,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -785,7 +785,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -794,7 +794,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val javaAction =
       WhiskAction(namespace, aname(), javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
     val nodeAction = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS))
 
     actions.foreach {
       case (action, kind) =>
@@ -899,7 +899,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1076,7 +1076,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1126,7 +1126,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "concurrently get an action with attachment that is not cached" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val kind = NODEJS10
+    val kind = NODEJS
 
     val content = WhiskActionPut(
       Some(action.exec),
@@ -1183,7 +1183,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1252,7 +1252,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "ensure old and new action schemas are supported" in {
     implicit val tid = transid()
     val code = nonInlinedCode(entityStore)
-    val actionOldSchema = WhiskAction(namespace, aname(), js10Old(code))
+    val actionOldSchema = WhiskAction(namespace, aname(), jsOld(code))
     val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(code))
     val content = WhiskActionPut(
       Some(actionOldSchema.exec),
@@ -1290,7 +1290,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1315,7 +1315,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
   }
 
@@ -1361,7 +1361,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.logs.get,
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          annotations = action.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
   }
 
@@ -1382,7 +1382,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.exec,
           content.parameters.get,
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10, false)))
+          annotations = action.annotations ++ systemAnnotations(NODEJS, false)))
     }
   }
 
