@@ -23,6 +23,7 @@ import java.time.Instant
 import akka.Done
 import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
+import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common._
@@ -300,8 +301,12 @@ class InvokerReactive(
     }
   })
 
-  override def enable(): Route = ???
+  override def enable(): Route = {
+    complete("not supported")
+  }
 
-  override def disable(): Route = ???
+  override def disable(): Route = {
+    complete("not supported")
+  }
 
 }
