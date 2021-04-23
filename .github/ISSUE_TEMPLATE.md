@@ -48,5 +48,5 @@ output comes here
 ```
 
 ## Additional information you deem important:
-* issue happens only occasionally or under certain circumstances   
+* issue happens only occasionally or under certain circumstances
 * changes you did or observed in the environment

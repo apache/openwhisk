@@ -51,4 +51,3 @@
     userns_mode: "host"
     pid_mode: "host"
     privileged: "yes"
-

@@ -33,4 +33,3 @@ These unicode tests are checked however in their corresponding runtime build.
 
 For Java artifacts, Java 8 is required. If not found in your path, the build
 script will skip those artifacts and corresponding tests will also be skipped.
-

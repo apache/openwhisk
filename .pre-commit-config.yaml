@@ -1,0 +1,198 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+default_stages: [commit, push]
+default_language_version:
+  # force all unspecified Python hooks to run python3
+  python: python3
+minimum_pre_commit_version: "1.20.0"
+repos:
+  - repo: meta
+    hooks:
+      - id: identity
+      - id: check-hooks-apply
+  # - repo: https://github.com/thlorenz/doctoc.git
+  #   rev: v2.0.0
+  #   hooks:
+  #     - id: doctoc
+  #       name: Add TOC for Markdown files
+  #       files: ^CONTRIBUTING\.md$
+  #       args:
+  #         - "--maxlevel"
+  #         - "3"
+  # - repo: https://github.com/asottile/dead
+  #   rev: v1.4.0
+  #   hooks:
+  #      - id: dead
+  #        name: Dead simple python dead code detection
+  #        exclude: ^tests/dat/actions/malformed\.py$
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v2.4.0
+    hooks:
+      - id: reorder-python-imports
+        exclude: ^tests/dat/actions/malformed\.py$
+  - repo: https://github.com/psf/black
+    rev: 20.8b1
+    hooks:
+      - id: black
+        name: Run black on Python files
+        exclude: ^tools/admin/wskadmin$|^tests/dat/actions/malformed\.py$
+  # - repo: https://github.com/jumanjihouse/pre-commit-hooks
+  #   rev: 2.1.5
+  #   hooks:
+  #     - id: shellcheck
+  - repo: git://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.9
+    hooks:
+      # - id: insert-license
+      #   name: Add license for all other files
+      #   exclude: ^\.github/.*$
+      #   args:
+      #     - --comment-style
+      #     - "|#|"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      #   files: >
+      #     \.cfg$|\.conf$|\.ini$|\.properties$|Dockerfile.*$
+      # - id: insert-license
+      #   name: Add license for all JS/CSS files
+      #   files: \.(js|css)$
+      #   exclude: ^\.github/.*$
+      #   args:
+      #     - --comment-style
+      #     - "/*!| *| */"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      # - id: insert-license
+      #   name: Add license for all Markdown files
+      #   files: ^README\.md$
+      #   exclude: ^\.github/.*$
+      #   args:
+      #     - --comment-style
+      #     - "<!--|| -->"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      # - id: insert-license
+      #   name: Add license for all Shell files
+      #   exclude: ^\.github/.*$
+      #   files: \.(sh|bash)$
+      #   args:
+      #     - --comment-style
+      #     - "|#|"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      # - id: insert-license
+      #   name: Add license for all Python files
+      #   exclude: ^\.github/.*$
+      #   types: [python]
+      #   args:
+      #     - --comment-style
+      #     - "|#|"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      # - id: insert-license
+      #   name: Add license for all XML files
+      #   exclude: ^\.github/.*$
+      #   files: \.xml$
+      #   args:
+      #     - --comment-style
+      #     - "<!--||-->"
+      #     - --license-filepath
+      #     - license-templates/LICENSE.txt
+      #     - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all YAML files
+        exclude: ^\.github/.*$
+        types: [yaml]
+        files: \.(yml|yaml)$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+#   - id: forbid-tabs
+#   - id: remove-tabs
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+        exclude: ^tests/dat/actions/malformed\.py$
+      - id: check-builtin-literals
+        exclude: ^tests/dat/actions/malformed\.py$
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-json
+        exclude: ^tests/dat/actions/invalid.*\.json$
+      - id: check-merge-conflict
+      - id: check-vcs-permalinks
+      - id: check-symlinks
+      - id: check-xml
+      - id: check-yaml
+        exclude: ^tests/dat/apigw/local\.api\.bad\.yaml$
+      - id: debug-statements
+        exclude: ^tests/dat/actions/malformed\.py$
+      - id: destroyed-symlinks
+    # - id: detect-private-key
+      - id: end-of-file-fixer
+        files: \.(bal|bat|cfg|conf|cs|gradle|ini|java|md|properties|py|scala|sh|swift|txt|yml|yaml)$|^Dockerfile$
+      - id: fix-byte-order-marker
+        exclude: ^tests/dat/actions/unicode\.tests/src/dotnet2\.2/openwhisk-unicodetests-dotnet\.sln$
+      - id: fix-encoding-pragma
+        args:
+          - --remove
+      - id: mixed-line-ending
+    # - id: name-tests-test
+    # - id: pretty-format-json
+      - id: trailing-whitespace
+        exclude: ^\.github/ISSUE_TEMPLATE\.md$
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.8.0
+    hooks:
+      - id: python-check-mock-methods
+      - id: python-no-eval
+      - id: python-no-log-warn
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.27.1
+    hooks:
+      - id: markdownlint
+        name: Run markdownlint
+        entry: markdownlint
+        files: \.(md|mdown|markdown)$
+        types: [markdown]
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.26.0
+    hooks:
+      - id: yamllint
+        name: Check YAML files with yamllint
+        entry: yamllint --strict
+        files: \.(yml|yaml)$
+        types: [yaml]
+  # - repo: https://github.com/PyCQA/bandit
+  #   rev: 1.7.0
+  #   hooks:
+  #     - id: bandit
+  # - repo: https://gitlab.com/pycqa/flake8
+  #   rev: 3.8.4
+  #   hooks:
+  #     - id: flake8

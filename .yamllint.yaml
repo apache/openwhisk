@@ -13,14 +13,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
----
-# This playbook cleans all docker containers
 
-- hosts: all:!ansible
-  tasks:
-    - name: kill all docker containers
-      shell: "{{ item }}"
-      with_items:
-        - "RUNNING=$(docker ps -aq); if [ -n \"$RUNNING\" ]; then docker unpause $RUNNING > /dev/null; docker kill $RUNNING > /dev/null; docker rm -f -v $(docker ps -aq); fi"
-        - "DANGLING=$(docker images -q -f dangling=true); if [ -n \"$DANGLING\" ]; then docker rmi -f $DANGLING; fi"
+extends: default
+
+ignore: |
+  /tests/dat/apigw/local.api.yaml
+  /tests/dat/apigw/local.api.bad.yaml
+
+rules:
+  colons: disable
+  comments: disable
+  comments-indentation: disable
+  document-start: disable
+  line-length: disable
+  truthy: disable

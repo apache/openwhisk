@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Python script update actions.
+"""Python script update actions.
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,54 +16,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'''
-
+"""
 import argparse
-import couchdb.client
 import time
+
+import couchdb.client
 from couchdb import ResourceNotFound
+
 
 def updateNonJavaAction(db, doc, id):
     updated = False
-    code = doc['exec']['code']
+    code = doc["exec"]["code"]
 
     if not isinstance(code, dict):
-        db.put_attachment(doc, code, 'codefile', 'text/plain')
+        db.put_attachment(doc, code, "codefile", "text/plain")
         doc = db.get(id)
-        doc['exec']['code'] = {
-            'attachmentName': 'codefile',
-            'attachmentType': 'text/plain'
+        doc["exec"]["code"] = {
+            "attachmentName": "codefile",
+            "attachmentType": "text/plain",
         }
         db.save(doc)
         updated = True
 
     return updated
 
+
 def createNonMigratedDoc(db):
     try:
-        db['_design/nonMigrated']
+        db["_design/nonMigrated"]
     except ResourceNotFound:
-        db.save({
-            '_id': '_design/nonMigrated',
-            'language': 'javascript',
-            'views': {
-                'actions': {
-                    'map': 'function (doc) {   var isAction = function (doc) {     return (doc.exec !== undefined)   };   var isMigrated = function (doc) {     return (doc._attachments !== undefined && doc._attachments.codefile !== undefined && typeof doc.code != \'string\')   };   if (isAction(doc) && !isMigrated(doc)) try {     emit([doc.name]);   } catch (e) {} }'
-                }
+        db.save(
+            {
+                "_id": "_design/nonMigrated",
+                "language": "javascript",
+                "views": {
+                    "actions": {
+                        "map": "function (doc) {   var isAction = function (doc) {     return (doc.exec !== undefined)   };   var isMigrated = function (doc) {     return (doc._attachments !== undefined && doc._attachments.codefile !== undefined && typeof doc.code != 'string')   };   if (isAction(doc) && !isMigrated(doc)) try {     emit([doc.name]);   } catch (e) {} }"
+                    }
+                },
             }
-        })
+        )
+
 
 def deleteNonMigratedDoc(db):
-    del db['_design/nonMigrated']
+    del db["_design/nonMigrated"]
+
 
 def main(args):
     db = couchdb.client.Server(args.dbUrl)[args.dbName]
     createNonMigratedDoc(db)
-    docs = db.view('_design/nonMigrated/_view/actions')
+    docs = db.view("_design/nonMigrated/_view/actions")
     docCount = len(docs)
     docIndex = 1
 
-    print('Number of actions to update: {}'.format(docCount))
+    print("Number of actions to update: {}".format(docCount))
 
     for row in docs:
         id = row.id
@@ -71,15 +77,15 @@ def main(args):
 
         print('Updating action {0}/{1}: "{2}"'.format(docIndex, docCount, id))
 
-        if 'exec' in doc and 'code' in doc['exec']:
-            if doc['exec']['kind'] != 'java':
+        if "exec" in doc and "code" in doc["exec"]:
+            if doc["exec"]["kind"] != "java":
                 updated = updateNonJavaAction(db, doc, id)
             else:
                 updated = False
 
             if updated:
                 print('Updated action: "{0}"'.format(id))
-                time.sleep(.500)
+                time.sleep(0.500)
             else:
                 print('Action already updated: "{0}"'.format(id))
 
@@ -87,9 +93,16 @@ def main(args):
 
     deleteNonMigratedDoc(db)
 
-parser = argparse.ArgumentParser(description='Utility to update database action schema.')
-parser.add_argument('--dbUrl', required=True, help='Server URL of the database. E.g. \"https://xxx:yyy@domain.couch.com:443\"')
-parser.add_argument('--dbName', required=True, help='Name of the Database to update.')
+
+parser = argparse.ArgumentParser(
+    description="Utility to update database action schema."
+)
+parser.add_argument(
+    "--dbUrl",
+    required=True,
+    help='Server URL of the database. E.g. "https://xxx:yyy@domain.couch.com:443"',
+)
+parser.add_argument("--dbName", required=True, help="Name of the Database to update.")
 args = parser.parse_args()
 
 main(args)

@@ -27,8 +27,8 @@
   vars:
     dbName: "{{ db.whisk.auth }}"
     readers:
-    - "{{ db.credentials.controller.user }}"
-    - "{{ db.credentials.invoker.user }}"
+      - "{{ db.credentials.controller.user }}"
+      - "{{ db.credentials.invoker.user }}"
 
 - include_tasks: db/recreateDoc.yml
   vars:

@@ -98,4 +98,3 @@ Aside from that, the tool also counts **errors**. Failed invocations - of action
 
 ## Acknowledgements
 The owperf tool has been developed by IBM Research as part of the [CLASS](https://class-project.eu/) EU project. CLASS aims to integrate OpenWhisk as a foundation for latency-sensitive polyglot event-driven big-data analytics platform running on a compute continuum from the cloud to the edge. CLASS is funded by the European Union's Horizon 2020 Programme grant agreement No. 780622.
-

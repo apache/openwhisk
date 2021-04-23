@@ -21,7 +21,7 @@
 
 def main(args):
     """Main."""
-    name = args.get('name', 'stranger')
-    greeting = 'Hello ' + name + '!'
+    name = args.get("name", "stranger")
+    greeting = "Hello " + name + "!"
     print(greeting)
-    return {'greeting': greeting}
+    return {"greeting": greeting}

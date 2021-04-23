@@ -17,11 +17,16 @@
  * limitations under the License.
  */
 """
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import sys
 import textwrap
+
 from ansible.plugins.callback import CallbackBase
+
 __metaclass__ = type
 
 
@@ -35,15 +40,15 @@ class CallbackModule(CallbackBase):
     def emit(self, host, category, data):
         """Emit colorized output based upon data contents."""
         if type(data) == dict:
-            cmd = data['cmd'] if 'cmd' in data else None
-            msg = data['msg'] if 'msg' in data else None
-            stdout = data['stdout'] if 'stdout' in data else None
-            stderr = data['stderr'] if 'stderr' in data else None
-            reason = data['reason'] if 'reason' in data else None
+            cmd = data["cmd"] if "cmd" in data else None
+            msg = data["msg"] if "msg" in data else None
+            stdout = data["stdout"] if "stdout" in data else None
+            stderr = data["stderr"] if "stderr" in data else None
+            reason = data["reason"] if "reason" in data else None
 
             print()
             if cmd:
-                print(hilite('[%s]\n> %s' % (category, cmd), category, wrap = False))
+                print(hilite("[%s]\n> %s" % (category, cmd), category, wrap=False))
             if reason:
                 print(hilite(reason, category))
             if msg:
@@ -54,39 +59,39 @@ class CallbackModule(CallbackBase):
                 print(hilite(stderr, category))
 
     def runner_on_failed(self, host, res, ignore_errors=False):
-        self.emit(host, 'FAILED', res)
+        self.emit(host, "FAILED", res)
 
     def runner_on_ok(self, host, res):
         pass
 
     def runner_on_skipped(self, host, item=None):
-        self.emit(host, 'SKIPPED', '...')
+        self.emit(host, "SKIPPED", "...")
 
     def runner_on_unreachable(self, host, res):
-        self.emit(host, 'UNREACHABLE', res)
+        self.emit(host, "UNREACHABLE", res)
 
     def runner_on_async_failed(self, host, res, jid):
-        self.emit(host, 'FAILED', res)
+        self.emit(host, "FAILED", res)
 
 
-def hilite(msg, status, wrap = True):
+def hilite(msg, status, wrap=True):
     """Highlight message."""
+
     def supports_color():
-        if ((sys.platform != 'win32' or 'ANSICON' in os.environ) and
-           sys.stdout.isatty()):
+        if (sys.platform != "win32" or "ANSICON" in os.environ) and sys.stdout.isatty():
             return True
         else:
             return False
 
     if supports_color():
         attr = []
-        if status == 'FAILED':
+        if status == "FAILED":
             # red
-            attr.append('31')
+            attr.append("31")
         else:
             # bold
-            attr.append('1')
-        text = '\x1b[%sm%s\x1b[0m' % (';'.join(attr), msg)
+            attr.append("1")
+        text = "\x1b[%sm%s\x1b[0m" % (";".join(attr), msg)
     else:
         text = msg
     return textwrap.fill(text, 80) if wrap else text

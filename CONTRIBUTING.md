@@ -20,7 +20,7 @@
 
 # Contributing to Apache OpenWhisk
 
-Anyone can contribute to the OpenWhisk project and we welcome your contributions.
+Anyone can contribute to the OpenWhisk project, and we welcome your contributions.
 
 There are multiple ways to contribute: report bugs, improve the docs, and
 contribute code, but you must follow these prerequisites and guidelines:
@@ -37,7 +37,7 @@ Instructions on how to do this can be found here:
 [http://www.apache.org/licenses/#clas](http://www.apache.org/licenses/#clas)
 
 Sign the appropriate CLA and submit it to the Apache Software Foundation (ASF) secretary. You will receive a confirmation email from the ASF and be added to
-the following list: http://people.apache.org/unlistedclas.html.  Once your name is on this list, you are done and your PR can be merged.
+the following list: http://people.apache.org/unlistedclas.html.  Once your name is on this list, you are done, and your PR can be merged.
 
 Project committers will use this list to verify pull requests (PRs) come from contributors that have signed a CLA.
 
@@ -49,7 +49,7 @@ Please raise any bug reports or enhancement requests on the respective project r
 list to see if your issue has already been raised.
 
 A good bug report is one that make it easy for us to understand what you were trying to do and what went wrong.
-Provide as much context as possible so we can try to recreate the issue.
+Provide as much context as possible, so we can try to recreate the issue.
 
 A good enhancement request comes with an explanation of what you are trying to do and how that enhancement would help you.
 
@@ -69,3 +69,34 @@ code base. Some basic rules include:
  - all files must have the Apache license in the header.
  - all PRs must have passing builds for all operating systems.
  - the code is correctly formatted as defined in the [Scalariform plugin properties](tools/eclipse/scala.properties). If you use IntelliJ for development this [page](https://plugins.jetbrains.com/plugin/7480-scalariform) describes the setup and configuration of the plugin.
+
+#### Pre-commit
+
+A framework for managing and maintaining multi-language pre-commit hooks.
+Pre-commit can be [installed](https://pre-commit.com/#installation) with `pip`, `curl`, `brew` or `conda`.
+
+You need to first install pre-commit and then install the pre-commit hooks with `pre-commit install`.
+Now pre-commit will run automatically on git commit!
+
+It's usually a good idea to run the hooks against all the files when adding new hooks (usually pre-commit will only run on the changed files during git hooks).
+Use `pre-commit run --all-files` to check all files.
+
+You can run the hook with `id`: `check-hooks-apply` against all files with:
+
+```
+pre-commit run check-hooks-apply --all-files
+```
+
+You can update your hooks to the latest version automatically by running `pre-commit autoupdate`.
+
+##### Hooks
+
+The hooks run:
+
+- [Black](https://github.com/psf/black) - The uncompromising [Python](https://www.python.org/) code formatter.
+- [markdownlint-cli](https://github.com/igorshubovych/markdownlint-cli) - [markdownlint](https://github.com/DavidAnson/markdownlint) Command Line Interface.
+- [yamllint](https://github.com/adrienverge/yamllint) - A linter for [YAML](https://yaml.org/) files.
+
+##### References
+
+- [markdownlint Rules](https://github.com/DavidAnson/markdownlint#rules--aliases)

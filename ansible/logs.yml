@@ -57,25 +57,25 @@
 - hosts: all:!ansible
   serial: 1
   tasks:
-  - name: init var docker_host_flag
-    set_fact:
-      docker_host_flag: ""
-  - name: set host flag when using docker remote API
-    set_fact:
-      docker_host_flag: "--host tcp://{{ ansible_host }}:{{ docker.port }}"
-    when: environmentInformation.type != "local"
-  - name: get all docker containers
-    local_action: shell docker {{ docker_host_flag }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
-    register: container_names
-  - name: get logs from all containers
-    local_action: shell docker {{ docker_host_flag }} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log" 2>&1; exit 0
-    with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
-    when: "'docker' not in exclude_logs_from"
-  - name: workaround to make synchronize work
-    set_fact:
-      ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file }}"
-    when: ansible_ssh_private_key_file is defined
-  - name: fetch logs from all machines
-    synchronize: src="{{ whisk_logs_dir }}/" dest="{{ openwhisk_home }}/logs" mode=pull
-    when: "'machine' not in exclude_logs_from"
-    ignore_errors: true
+    - name: init var docker_host_flag
+      set_fact:
+        docker_host_flag: ""
+    - name: set host flag when using docker remote API
+      set_fact:
+        docker_host_flag: "--host tcp://{{ ansible_host }}:{{ docker.port }}"
+      when: environmentInformation.type != "local"
+    - name: get all docker containers
+      local_action: shell docker {{ docker_host_flag }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
+      register: container_names
+    - name: get logs from all containers
+      local_action: shell docker {{ docker_host_flag }} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log" 2>&1; exit 0
+      with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
+      when: "'docker' not in exclude_logs_from"
+    - name: workaround to make synchronize work
+      set_fact:
+        ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file }}"
+      when: ansible_ssh_private_key_file is defined
+    - name: fetch logs from all machines
+      synchronize: src="{{ whisk_logs_dir }}/" dest="{{ openwhisk_home }}/logs" mode=pull
+      when: "'machine' not in exclude_logs_from"
+      ignore_errors: true

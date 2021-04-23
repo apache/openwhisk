@@ -112,9 +112,9 @@
     dest: "{{ invoker.confdir }}/{{ invoker_name }}"
   become: "{{ invoker.dir.become }}"
   with_items:
-  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
-  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.key }}"
-  - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.cert }}"
+    - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.keystore.name }}"
+    - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.key }}"
+    - "{{ openwhisk_home }}/ansible/roles/invoker/files/{{ invoker.ssl.cert }}"
   loop_control:
     loop_var: inv_item
 
@@ -125,8 +125,8 @@
     dbUser: "{{ db.credentials.invoker.user }}"
     dbPass: "{{ db.credentials.invoker.pass }}"
   with_items:
-  - "{{ db.whisk.actions }}"
-  - "{{ db.whisk.activations }}"
+    - "{{ db.whisk.actions }}"
+    - "{{ db.whisk.activations }}"
   loop_control:
     loop_var: inv_item
 

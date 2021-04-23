@@ -73,12 +73,12 @@ jobs:
         - ./tools/travis/checkAndUploadLogs.sh unit db
       name: "Unit Tests"
     - script:
-      - ./tools/travis/runSystemTests.sh
-      - ./tools/travis/checkAndUploadLogs.sh system
+        - ./tools/travis/runSystemTests.sh
+        - ./tools/travis/checkAndUploadLogs.sh system
       name: "System Tests"
     - script:
-      - ./tools/travis/runMultiRuntimeTests.sh
-      - ./tools/travis/checkAndUploadLogs.sh multi-runtime
+        - ./tools/travis/runMultiRuntimeTests.sh
+        - ./tools/travis/checkAndUploadLogs.sh multi-runtime
       name: "Multi-Runtime Tests"
     - script:
         - ./tools/travis/runStandaloneTests.sh

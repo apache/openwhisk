@@ -25,17 +25,17 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     env:
-        TZ: "{{ docker.timezone }}"
-        ZOO_MY_ID: "{{ groups['zookeepers'].index(inventory_hostname) + 1 }}"
-        ZOO_SERVERS: "{% set zhosts = [] %}
-                      {% for host in groups['zookeepers'] %}
-                        {% if host == inventory_hostname %}
-                          {{ zhosts.append('server.' + (loop.index|string) + '=' + '0.0.0.0:2888:3888') }}
-                        {% else %}
-                          {{ zhosts.append('server.' + (loop.index|string) + '=' + hostvars[host].ansible_host + ':' + ((2888+loop.index-1)|string) + ':' + ((3888+loop.index-1)|string) ) }}
-                        {% endif %}
-                      {% endfor %}
-                      {{ zhosts | join(' ') }}"
+      TZ: "{{ docker.timezone }}"
+      ZOO_MY_ID: "{{ groups['zookeepers'].index(inventory_hostname) + 1 }}"
+      ZOO_SERVERS: "{% set zhosts = [] %}
+                    {% for host in groups['zookeepers'] %}
+                      {% if host == inventory_hostname %}
+                        {{ zhosts.append('server.' + (loop.index|string) + '=' + '0.0.0.0:2888:3888') }}
+                      {% else %}
+                        {{ zhosts.append('server.' + (loop.index|string) + '=' + hostvars[host].ansible_host + ':' + ((2888+loop.index-1)|string) + ':' + ((3888+loop.index-1)|string) ) }}
+                      {% endif %}
+                    {% endfor %}
+                    {{ zhosts | join(' ') }}"
     ports:
       - "{{ zookeeper.port + groups['zookeepers'].index(inventory_hostname) }}:2181"
       - "{{ 2888 + groups['zookeepers'].index(inventory_hostname) }}:2888"

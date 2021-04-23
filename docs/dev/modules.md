@@ -134,5 +134,3 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 | [openwhisk-vscode](https://github.com/apache/openwhisk-vscode) | [DEPRECATED] - Visual Studio Code extension (prototype) for authoring OpenWhisk actions inside the editor. |
 | [openwhisk-workshop](https://github.com/apache/openwhisk-workshop) | [DEPRECATED] - OpenWhisk workshop to help developers learn how to build serverless applications using the platform. |
 | [openwhisk-xcode](https://github.com/apache/openwhisk-xcode) | [DEPRECATED] - Collection of OpenWhisk tools for OS X implemented in Swift 3. |
-
-

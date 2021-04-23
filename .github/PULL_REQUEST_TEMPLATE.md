@@ -40,4 +40,3 @@
 - [ ] I added tests to cover my changes.
 - [ ] My changes require further changes to the documentation.
 - [ ] I updated the documentation where necessary.
-

@@ -183,4 +183,3 @@
     password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2) and (cluster_state.json.state != "cluster_finished")
-

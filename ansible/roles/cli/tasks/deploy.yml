@@ -60,9 +60,9 @@
 
 - name: "Generate a list of individual tarballs to expand"
   find:
-      paths: "{{ openwhisk_cli.nginxdir.name }}"
-      patterns: '*.tgz'
-      recurse: true
+    paths: "{{ openwhisk_cli.nginxdir.name }}"
+    patterns: '*.tgz'
+    recurse: true
   register: individual_tarballs
 
 - name: "Unarchive the individual tarballs"
@@ -74,9 +74,9 @@
 
 - name: "Generate a list of individual zipfiles to expand"
   find:
-      paths: "{{ openwhisk_cli.nginxdir.name }}"
-      patterns: '*.zip'
-      recurse: true
+    paths: "{{ openwhisk_cli.nginxdir.name }}"
+    patterns: '*.zip'
+    recurse: true
   register: individual_zipfiles
 
 - name: "Unarchive the individual zipfiles into binaries"
