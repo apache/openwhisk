@@ -31,7 +31,7 @@ import spray.json.RootJsonFormat
 
 import scala.reflect.ClassTag
 
-object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
+object CosmosDBMigrationArtifactStoreProvider extends ArtifactStoreProvider {
   type DocumentClientRef = ReferenceCounted[ClientHolder]#CountedReference
   private val clients = collection.mutable.Map[CosmosDBConfig, ReferenceCounted[ClientHolder]]()
 
@@ -45,7 +45,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     materializer: ActorMaterializer): ArtifactStore[D] = {
     val tag = implicitly[ClassTag[D]]
     val config = CosmosDBConfig(ConfigFactory.load(), tag.runtimeClass.getSimpleName)
-    makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore())
+    makeStoreForClient(config, getOrCreateReference(config))
   }
 
   def makeArtifactStore[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
@@ -54,31 +54,29 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
-    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
+    materializer: ActorMaterializer): CosmosDBMigrationArtifactStore[D] = {
 
-    makeStoreForClient(config, createReference(config).reference(), attachmentStore)
+    makeStoreForClient(config, createReference(config).reference())
   }
 
   private def makeStoreForClient[D <: DocumentSerializer: ClassTag](config: CosmosDBConfig,
-                                                                    clientRef: DocumentClientRef,
-                                                                    attachmentStore: Option[AttachmentStore])(
+                                                                    clientRef: DocumentClientRef)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
-    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
+    materializer: ActorMaterializer): CosmosDBMigrationArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
 
-    new CosmosDBArtifactStore(
+    new CosmosDBMigrationArtifactStore(
       dbName,
       config,
       clientRef,
       handler,
       viewMapper,
-      loadConfigOrThrow[InliningConfig](ConfigKeys.db),
-      attachmentStore)
+      loadConfigOrThrow[InliningConfig](ConfigKeys.db))
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
