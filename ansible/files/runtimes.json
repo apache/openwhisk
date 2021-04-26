@@ -76,7 +76,7 @@
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "python3action",
+                    "name": "actionloop-python-v3.7",
                     "tag": "nightly"
                 },
                 "deprecated": false,
