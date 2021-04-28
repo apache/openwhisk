@@ -226,12 +226,12 @@ class FunctionPullingContainerPoolTests
           List.empty,
           sendAckToScheduler(producer))))
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -253,19 +253,19 @@ class FunctionPullingContainerPoolTests
           sendAckToScheduler(producer))))
 
     // Start first action
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // Send second action to the pool
-    pool ! Creation(creationMessageLarge.copy(revision = bigDoc.rev), bigWhiskAction) // message is too large to be processed immediately.
+    pool ! CreationContainer(creationMessageLarge.copy(revision = bigDoc.rev), bigWhiskAction) // message is too large to be processed immediately.
     containers(1).expectNoMessage(100.milliseconds)
 
     // First container is removed
     containers(0).send(pool, ContainerRemoved(true)) // pool is empty again.
 
-    pool ! Creation(creationMessageLarge.copy(revision = bigDoc.rev), bigWhiskAction)
+    pool ! CreationContainer(creationMessageLarge.copy(revision = bigDoc.rev), bigWhiskAction)
     // Second container should run now
     containers(1).expectMsgPF() {
       case Initialize(invocationNamespace, bigExecuteAction, schedulerHost, rpcPort, _) => true
@@ -288,7 +288,7 @@ class FunctionPullingContainerPoolTests
           sendAckToScheduler(consumer.getProducer()))))
 
     pool ! GracefulShutdown
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
 
     containers(0).expectNoMessage()
 
@@ -306,7 +306,7 @@ class FunctionPullingContainerPoolTests
 
     // pool should be back to work after enabled again
     pool ! Enable
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -412,7 +412,7 @@ class FunctionPullingContainerPoolTests
     containers(1).send(pool, ReadyToWork(prewarmedData.copy(memoryLimit = biggerMemory)))
 
     // the prewarm container with matched memory should be chose
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -423,7 +423,7 @@ class FunctionPullingContainerPoolTests
     }
 
     // the prewarm container with bigger memory should not be chose
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(3).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -452,7 +452,7 @@ class FunctionPullingContainerPoolTests
     containers(1).send(pool, ReadyToWork(prewarmedData.copy(memoryLimit = biggestMemory)))
 
     // the prewarm container with smallest memory should be chose
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -463,7 +463,7 @@ class FunctionPullingContainerPoolTests
     }
 
     // the prewarm container with bigger memory should be chose
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -475,7 +475,7 @@ class FunctionPullingContainerPoolTests
 
     // now free memory is (6 - 3 - 1) * stdMemory, and required 2 * stdMemory, so both two prewarmed containers are not suitable
     // a new container should be created
-    pool ! Creation(creationMessageLarge.copy(revision = doc.rev), bigWhiskAction)
+    pool ! CreationContainer(creationMessageLarge.copy(revision = doc.rev), bigWhiskAction)
     containers(4).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -502,7 +502,7 @@ class FunctionPullingContainerPoolTests
     containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
     containers(0).send(pool, ReadyToWork(prewarmedData.copy(kind = alternativeExec.kind))) // container0 was started
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -526,7 +526,7 @@ class FunctionPullingContainerPoolTests
     containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed
     containers(0).send(pool, ReadyToWork(prewarmedData.copy(memoryLimit = alternativeLimit))) // container0 was started
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -560,24 +560,24 @@ class FunctionPullingContainerPoolTests
       container.ref)
 
     // the revision doesn't match, create 1 container
-    pool ! Creation(creationMessage, whiskAction)
+    pool ! CreationContainer(creationMessage, whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // the invocation namespace doesn't match, create 1 container
-    pool ! Creation(creationMessage.copy(invocationNamespace = "otherNamespace"), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(invocationNamespace = "otherNamespace"), whiskAction)
     containers(1).expectMsgPF() {
       case Initialize("otherNamespace", executeAction, schedulerHost, rpcPort, _) => true
     }
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // warmed container is occupied, create 1 more container
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(2).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -612,7 +612,7 @@ class FunctionPullingContainerPoolTests
       container.ref)
 
     // choose the warmed container
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -687,7 +687,7 @@ class FunctionPullingContainerPoolTests
       container3.ref)
 
     // now the pool has no free memory, and new job needs 2*stdMemory, so it needs to remove two warmed containers
-    pool ! Creation(creationMessage, bigWhiskAction)
+    pool ! CreationContainer(creationMessage, bigWhiskAction)
     container1.expectMsg(Remove)
     container2.expectMsg(Remove)
     container3.expectNoMessage()
@@ -736,7 +736,7 @@ class FunctionPullingContainerPoolTests
     val actualCreationMessage = creationMessage.copy(revision = doc.rev)
     val ackMessage = createAckMsg(actualCreationMessage, None, None)
 
-    pool ! Creation(actualCreationMessage, whiskAction)
+    pool ! CreationContainer(actualCreationMessage, whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -784,7 +784,7 @@ class FunctionPullingContainerPoolTests
       container.ref)
 
     // choose the warmed container
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -830,7 +830,7 @@ class FunctionPullingContainerPoolTests
     val ackMessage =
       createAckMsg(actualCreationMessageLarge, Some(ResourceNotEnoughError), Some(error))
 
-    pool ! Creation(actualCreationMessageLarge, bigWhiskAction)
+    pool ! CreationContainer(actualCreationMessageLarge, bigWhiskAction)
 
     utilRetry({
       val buffer = consumer.peek(50.millisecond)
@@ -842,7 +842,7 @@ class FunctionPullingContainerPoolTests
     val actualCreationMessage = creationMessage.copy(revision = doc2.rev)
     val rescheduleAckMsg = createAckMsg(actualCreationMessage, Some(UnknownError), Some("ContainerProxy init failed."))
 
-    pool ! Creation(actualCreationMessage, whiskAction)
+    pool ! CreationContainer(actualCreationMessage, whiskAction)
     containers(0).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -883,9 +883,9 @@ class FunctionPullingContainerPoolTests
         sendAckToScheduler(producer))))
     containers(0).expectMsg(Start(exec, memoryLimit))
 
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
 
     awaitAssert {
       count shouldBe 3
@@ -1011,11 +1011,11 @@ class FunctionPullingContainerPoolTests
     stream.toString should not include (s"removed ${initialCount} expired prewarmed container")
 
     // 2 cold start happened
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(2).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(3).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
@@ -1049,23 +1049,23 @@ class FunctionPullingContainerPoolTests
     stream.reset()
 
     // 5 code start happened(5 > maxCount)
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(6).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(7).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(8).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(9).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }
-    pool ! Creation(creationMessage.copy(revision = doc.rev), whiskAction)
+    pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(10).expectMsgPF() {
       case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
     }

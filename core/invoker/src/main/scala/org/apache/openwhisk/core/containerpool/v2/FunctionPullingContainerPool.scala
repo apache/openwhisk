@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.containerpool.v2
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common._
@@ -48,8 +50,8 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 import scala.collection.immutable.Queue
 
-case class Creation(creationMessage: ContainerCreationMessage, action: WhiskAction)
-case class Deletion(deletionMessage: ContainerDeletionMessage)
+case class CreationContainer(creationMessage: ContainerCreationMessage, action: WhiskAction)
+case class DeletionContainer(deletionMessage: ContainerDeletionMessage)
 case object Remove
 case class Keep(timeout: FiniteDuration)
 case class PrewarmContainer(maxConcurrent: Int)
@@ -98,7 +100,7 @@ class FunctionPullingContainerPool(
 
   private var preWarmScheduler: Option[Cancellable] = None
   private var prewarmConfigQueue = Queue.empty[(CodeExec[_], ByteSize, Option[FiniteDuration])]
-  private var prewarmCreateFailedCount = immutable.Map.empty[(String, ByteSize), Int]
+  private val prewarmCreateFailedCount = new AtomicInteger(0)
 
   val logScheduler = context.system.scheduler.schedule(0.seconds, 1.seconds) {
     MetricEmitter.emitHistogramMetric(
@@ -166,7 +168,7 @@ class FunctionPullingContainerPool(
         }
       }
 
-    case Creation(create: ContainerCreationMessage, action: WhiskAction) =>
+    case CreationContainer(create: ContainerCreationMessage, action: WhiskAction) =>
       if (shuttingDown) {
         val message =
           s"creationId: ${create.creationId}, invoker is shutting down, reschedule ${action.fullyQualifiedName(false)}"
@@ -217,7 +219,7 @@ class FunctionPullingContainerPool(
         }
       }
 
-    case Deletion(deletionMessage: ContainerDeletionMessage) =>
+    case DeletionContainer(deletionMessage: ContainerDeletionMessage) =>
       val oldRevision = deletionMessage.revision
       val invocationNamespace = deletionMessage.invocationNamespace
       val fqn = deletionMessage.action.copy(version = None)
@@ -252,7 +254,10 @@ class FunctionPullingContainerPool(
     case ReadyToWork(data) =>
       prewarmStartingPool = prewarmStartingPool - sender()
       prewarmedPool = prewarmedPool + (sender() -> data)
-      prewarmCreateFailedCount = prewarmCreateFailedCount - ((data.kind, data.memoryLimit))
+      // after create prewarm successfully, reset the value to 0
+      if (prewarmCreateFailedCount.get() > 0) {
+        prewarmCreateFailedCount.set(0)
+      }
 
     // Container is initialized
     case Initialized(data) =>
@@ -353,26 +358,13 @@ class FunctionPullingContainerPool(
         logging.info(
           this,
           s"${if (replacePrewarm) "failed" else "expired"} prewarm [kind: ${data.kind}, memory: ${data.memoryLimit.toString}] removed")
-        if (replacePrewarm) {
-          prewarmCreateFailedCount.get(data.kind, data.memoryLimit) match {
-            case Some(retry) =>
-              prewarmCreateFailedCount = prewarmCreateFailedCount + ((data.kind, data.memoryLimit) -> (retry + 1))
-            case _ =>
-              prewarmCreateFailedCount = prewarmCreateFailedCount + ((data.kind, data.memoryLimit) -> 1)
-          }
-        }
       }
 
       //in case this was a starting prewarm
       prewarmStartingPool.get(sender()).foreach { data =>
         logging.info(this, s"failed starting prewarm [kind: ${data._1}, memory: ${data._2.toString}] removed")
         prewarmStartingPool = prewarmStartingPool - sender()
-        prewarmCreateFailedCount.get(data._1, data._2) match {
-          case Some(retry) =>
-            prewarmCreateFailedCount = prewarmCreateFailedCount + ((data._1, data._2) -> (retry + 1))
-          case _ =>
-            prewarmCreateFailedCount = prewarmCreateFailedCount + ((data._1, data._2) -> 1)
-        }
+        prewarmCreateFailedCount.incrementAndGet()
       }
 
       //backfill prewarms on every ContainerRemoved, just in case
@@ -408,7 +400,7 @@ class FunctionPullingContainerPool(
 
     case AdjustPrewarmedContainer =>
       // Reset the prewarmCreateCount value when do expiration check and backfill prewarm if possible
-      prewarmCreateFailedCount = immutable.Map.empty[(String, ByteSize), Int]
+      prewarmCreateFailedCount.set(0)
       adjustPrewarmedContainer(false, true)
   }
 
@@ -442,8 +434,7 @@ class FunctionPullingContainerPool(
           val config = c._1
           val currentCount = c._2._1
           val desiredCount = c._2._2
-          val retry = prewarmCreateFailedCount.get((config.exec.kind, config.memoryLimit)).getOrElse(0)
-          if (retry > poolConfig.prewarmMaxRetryLimit) {
+          if (prewarmCreateFailedCount.get() > poolConfig.prewarmMaxRetryLimit) {
             logging.warn(
               this,
               s"[kind: ${config.exec.kind}, memory: ${config.memoryLimit.toString}] prewarm create failed count exceeds max retry limit: ${poolConfig.prewarmMaxRetryLimit}, currentCount: ${currentCount}, desiredCount: ${desiredCount}")
