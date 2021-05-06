@@ -32,7 +32,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, CacheChangeNotification, RemoteCacheInvalidation}
@@ -187,6 +187,9 @@ object Controller {
   protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction")
 
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+  val userEventTopicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsUserEventPrefix)
+
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
   // no default value specified, so it must appear in the properties file
@@ -263,10 +266,10 @@ object Controller {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Seq(
-      ("completed" + instance.asString, "completed", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
-      ("health", "health", None),
-      ("cacheInvalidation", "cache-invalidation", None),
-      ("events", "events", None)).foreach {
+      (topicPrefix + "completed" + instance.asString, "completed", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      (topicPrefix + "health", "health", None),
+      (topicPrefix + "cacheInvalidation", "cache-invalidation", None),
+      (userEventTopicPrefix + "events", "events", None)).foreach {
       case (topic, topicConfigurationKey, maxMessageBytes) =>
         if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, maxMessageBytes).isFailure) {
           abort(s"failure during msgProvider.ensureTopic for topic $topic")

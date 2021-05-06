@@ -120,7 +120,7 @@ class InvokerReactive(
   }
 
   /** Initialize message consumers */
-  private val topic = s"invoker${instance.toInt}"
+  private val topic = s"${Invoker.topicPrefix}invoker${instance.toInt}"
   private val maximumContainers = (poolConfig.userMemory / MemoryLimit.MIN_MEMORY).toInt
   private val msgProvider = SpiLoader.get[MessagingProvider]
 
@@ -296,7 +296,7 @@ class InvokerReactive(
 
   private val healthProducer = msgProvider.getProducer(config)
   Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-    healthProducer.send("health", PingMessage(instance)).andThen {
+    healthProducer.send(s"${Invoker.topicPrefix}health", PingMessage(instance)).andThen {
       case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
     }
   })

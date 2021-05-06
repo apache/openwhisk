@@ -176,6 +176,10 @@
         "{{ kafka_topics_health_retentionMS | default() }}"
       "CONFIG_whisk_kafka_topics_health_segmentBytes":
         "{{ kafka_topics_health_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_prefix":
+        "{{ kafka.topicsPrefix }}"
+      "CONFIG_whisk_kafka_topics_userEvent_prefix":
+        "{{ kafka.topicsUserEventPrefix }}"
       "CONFIG_whisk_kafka_common_securityProtocol":
         "{{ kafka.protocol }}"
       "CONFIG_whisk_kafka_common_sslTruststoreLocation":

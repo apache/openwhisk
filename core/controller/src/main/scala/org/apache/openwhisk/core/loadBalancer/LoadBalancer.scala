@@ -23,8 +23,10 @@ import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.spi.Spi
+
 import scala.concurrent.duration._
 
 /**
@@ -94,7 +96,7 @@ trait LoadBalancerProvider extends Spi {
   def createFeedFactory(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
                                                                                   logging: Logging): FeedFactory = {
 
-    val activeAckTopic = s"completed${instance.asString}"
+    val activeAckTopic = s"${Controller.topicPrefix}completed${instance.asString}"
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
 

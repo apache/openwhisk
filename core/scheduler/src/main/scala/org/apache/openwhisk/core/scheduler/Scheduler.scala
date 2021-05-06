@@ -138,12 +138,9 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
    */
   val memoryQueueFactory = "" // TODO: TBD
 
-  val schedulerConsumer = msgProvider.getConsumer(
-    config,
-    s"scheduler${schedulerId.asString}",
-    s"scheduler${schedulerId.asString}",
-    maxPeek,
-    maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+  val topic = s"${Scheduler.topicPrefix}scheduler${schedulerId.asString}"
+  val schedulerConsumer =
+    msgProvider.getConsumer(config, topic, topic, maxPeek, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   implicit val trasnid = TransactionId.containerCreation
 
@@ -170,6 +167,8 @@ trait SchedulerCore {
 object Scheduler {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.scheduler.protocol")
+
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
   /**
    * The scheduler has two ports, one for akka-remote and the other for akka-grpc.
@@ -236,8 +235,11 @@ object Scheduler {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Seq(
-      ("scheduler" + instanceId.asString, "actions", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
-      ("creationAck" + instanceId.asString, "creationAck", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)))
+      (topicPrefix + "scheduler" + instanceId.asString, "actions", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      (
+        topicPrefix + "creationAck" + instanceId.asString,
+        "creationAck",
+        Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)))
       .foreach {
         case (topic, topicConfigurationKey, maxMessageBytes) =>
           if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, maxMessageBytes).isFailure) {
