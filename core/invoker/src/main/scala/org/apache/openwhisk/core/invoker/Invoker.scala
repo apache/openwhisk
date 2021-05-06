@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
@@ -217,7 +218,10 @@ trait InvokerProvider extends Spi {
 }
 
 // this trait can be used to add common implementation
-trait InvokerCore {}
+trait InvokerCore {
+  def enable(): Route
+  def disable(): Route
+}
 
 /**
  * An Spi for providing RestAPI implementation for invoker.
@@ -226,10 +230,4 @@ trait InvokerCore {}
 trait InvokerServerProvider extends Spi {
   def instance(
     invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService
-}
-
-object DefaultInvokerServer extends InvokerServerProvider {
-  override def instance(
-    invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService =
-    new BasicRasService {}
 }
