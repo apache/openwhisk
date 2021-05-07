@@ -71,7 +71,6 @@ object Messages {
     s"Too many requests in the last minute (count: $count, allowed: $allowed)."
 
   /** Standard message for too many concurrent activation requests within a time window. */
-  /** Standard message for too many concurrent activation requests within a time window. */
   val tooManyConcurrentRequests = s"Too many concurrent requests in flight."
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
     s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
