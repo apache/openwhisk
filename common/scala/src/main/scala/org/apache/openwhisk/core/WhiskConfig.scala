@@ -296,6 +296,7 @@ object ConfigKeys {
   val azBlob = "whisk.azure-blob"
 
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
+  val schedulerQueue = "whisk.scheduler.queue"
   val schedulerQueueManager = "whisk.scheduler.queue-manager"
   val schedulerInProgressJobRetentionSecond = "whisk.scheduler.in-progress-job-retention"
 

@@ -454,6 +454,141 @@ object EventMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
 
+case class ContainerCreationMessage(override val transid: TransactionId,
+                                    invocationNamespace: String,
+                                    action: FullyQualifiedEntityName,
+                                    revision: DocRevision,
+                                    whiskActionMetaData: WhiskActionMetaData,
+                                    rootSchedulerIndex: SchedulerInstanceId,
+                                    schedulerHost: String,
+                                    rpcPort: Int,
+                                    retryCount: Int = 0,
+                                    creationId: CreationId = CreationId.generate())
+    extends ContainerMessage(transid) {
+
+  override def toJson: JsValue = ContainerCreationMessage.serdes.write(this)
+  override def serialize: String = toJson.compactPrint
+}
+
+object ContainerCreationMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerCreationMessage] = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private implicit val instanceIdSerdes = SchedulerInstanceId.serdes
+  private implicit val byteSizeSerdes = size.serdes
+  implicit val serdes = jsonFormat10(
+    ContainerCreationMessage.apply(
+      _: TransactionId,
+      _: String,
+      _: FullyQualifiedEntityName,
+      _: DocRevision,
+      _: WhiskActionMetaData,
+      _: SchedulerInstanceId,
+      _: String,
+      _: Int,
+      _: Int,
+      _: CreationId))
+}
+
+case class ContainerDeletionMessage(override val transid: TransactionId,
+                                    invocationNamespace: String,
+                                    action: FullyQualifiedEntityName,
+                                    revision: DocRevision,
+                                    whiskActionMetaData: WhiskActionMetaData)
+    extends ContainerMessage(transid) {
+  override def toJson: JsValue = ContainerDeletionMessage.serdes.write(this)
+  override def serialize: String = toJson.compactPrint
+}
+
+object ContainerDeletionMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerDeletionMessage] = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private implicit val instanceIdSerdes = SchedulerInstanceId.serdes
+  private implicit val byteSizeSerdes = size.serdes
+  implicit val serdes = jsonFormat5(
+    ContainerDeletionMessage
+      .apply(_: TransactionId, _: String, _: FullyQualifiedEntityName, _: DocRevision, _: WhiskActionMetaData))
+}
+
+abstract class ContainerMessage(private val tid: TransactionId) extends Message {
+  override val transid: TransactionId = tid
+  override def serialize: String = ContainerMessage.serdes.write(this).compactPrint
+
+  /** Serializes the message to JSON. */
+  def toJson: JsValue
+}
+
+object ContainerMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerMessage] = Try(serdes.read(msg.parseJson))
+
+  implicit val serdes = new RootJsonFormat[ContainerMessage] {
+    override def write(m: ContainerMessage): JsValue = m.toJson
+
+    override def read(json: JsValue): ContainerMessage = {
+      val JsObject(fields) = json
+      val creation = fields.contains("creationId")
+      if (creation) {
+        json.convertTo[ContainerCreationMessage]
+      } else {
+        json.convertTo[ContainerDeletionMessage]
+      }
+    }
+  }
+}
+
+sealed trait ContainerCreationError
+object ContainerCreationError extends Enumeration {
+  case object NoAvailableInvokersError extends ContainerCreationError
+  case object NoAvailableResourceInvokersError extends ContainerCreationError
+  case object ResourceNotEnoughError extends ContainerCreationError
+  case object WhiskError extends ContainerCreationError
+  case object UnknownError extends ContainerCreationError
+  case object TimeoutError extends ContainerCreationError
+  case object ShuttingDownError extends ContainerCreationError
+  case object NonExecutableActionError extends ContainerCreationError
+  case object DBFetchError extends ContainerCreationError
+  case object BlackBoxError extends ContainerCreationError
+  case object ZeroNamespaceLimit extends ContainerCreationError
+  case object TooManyConcurrentRequests extends ContainerCreationError
+
+  val whiskErrors: Set[ContainerCreationError] =
+    Set(
+      NoAvailableInvokersError,
+      NoAvailableResourceInvokersError,
+      ResourceNotEnoughError,
+      WhiskError,
+      ShuttingDownError,
+      UnknownError,
+      TimeoutError,
+      ZeroNamespaceLimit)
+
+  def fromName(name: String) = name.toUpperCase match {
+    case "NOAVAILABLEINVOKERSERROR"         => NoAvailableInvokersError
+    case "NOAVAILABLERESOURCEINVOKERSERROR" => NoAvailableResourceInvokersError
+    case "RESOURCENOTENOUGHERROR"           => ResourceNotEnoughError
+    case "NONEXECUTBLEACTIONERROR"          => NonExecutableActionError
+    case "DBFETCHERROR"                     => DBFetchError
+    case "WHISKERROR"                       => WhiskError
+    case "BLACKBOXERROR"                    => BlackBoxError
+    case "TIMEOUTERROR"                     => TimeoutError
+    case "ZERONAMESPACELIMIT"               => ZeroNamespaceLimit
+    case "TOOMANYCONCURRENTREQUESTS"        => TooManyConcurrentRequests
+    case "UNKNOWNERROR"                     => UnknownError
+  }
+
+  implicit val serds = new RootJsonFormat[ContainerCreationError] {
+    override def write(error: ContainerCreationError): JsValue = JsString(error.toString)
+    override def read(json: JsValue): ContainerCreationError =
+      Try {
+        val JsString(str) = json
+        ContainerCreationError.fromName(str.trim.toUpperCase)
+      } getOrElse {
+        throw deserializationError("ContainerCreationError must be a valid string")
+      }
+  }
+}
+
 case class InvokerResourceMessage(status: String,
                                   freeMemory: Long,
                                   busyMemory: Long,
