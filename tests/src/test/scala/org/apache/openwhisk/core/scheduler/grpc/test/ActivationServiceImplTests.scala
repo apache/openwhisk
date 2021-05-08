@@ -78,6 +78,7 @@ class ActivationServiceImplTests
       BasicAuthenticationAuthKey(uuid, Secret()),
       Set.empty),
     ActivationId.generate(),
+    DocId(s"$testEntityPath/$testEntityName@0.0.1"),
     ControllerInstanceId("0"),
     blocking = false,
     content = None)

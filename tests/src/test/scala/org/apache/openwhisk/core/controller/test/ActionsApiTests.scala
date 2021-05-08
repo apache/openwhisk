@@ -1560,7 +1560,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       exec = content.exec.get,
       parameters = content.parameters.get,
       version = action.version.upPatch,
-      annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false),
+      annotations = action.annotations ++ systemAnnotations(NODEJS, create = false),
       limits = ActionLimits(
         content.limits.get.timeout.get,
         content.limits.get.memory.get,
@@ -1671,7 +1671,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[WhiskAction]
       checkWhiskEntityResponse(response, action3)
-      >>>>>>> Implement action versioning
     }
   }
 
