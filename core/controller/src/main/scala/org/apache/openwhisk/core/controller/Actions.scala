@@ -451,8 +451,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
               onComplete(deleteFuture) {
                 case Success(entities) =>
-                  val versions = entities.map(_.version).mkString(",")
-                  complete(OK, s"[DEL] entity ${entities.last.fullyQualifiedName(false)} for versions $versions")
+                  complete(OK, entities.last)
                 case Failure(t: NoDocumentException) =>
                   logging.debug(this, s"[DEL] entity does not exist")
                   terminate(NotFound)
