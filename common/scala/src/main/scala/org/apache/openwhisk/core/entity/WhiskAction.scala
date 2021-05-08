@@ -365,12 +365,12 @@ case class WhiskActionVersionList(namespace: EntityPath,
                                   versions: List[SemVer],
                                   defaultVersion: Option[SemVer]) {
   def matchedDocId(version: Option[SemVer]): Option[DocId] = {
-    version match {
-      case Some(ver) =>
+    (version, defaultVersion) match {
+      case (Some(ver), _) =>
         Some(DocId(s"$namespace/$name@$ver"))
-      case None if defaultVersion.nonEmpty =>
-        Some(DocId(s"$namespace/$name@${defaultVersion.get}"))
-      case None if versions.nonEmpty =>
+      case (None, Some(default)) =>
+        Some(DocId(s"$namespace/$name@$default"))
+      case (None, None) if versions.nonEmpty =>
         Some(DocId(s"$namespace/$name@${versions.max}"))
       case _ =>
         None
@@ -431,16 +431,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
     implicit transId: TransactionId,
     ec: ExecutionContext): Future[Option[DocId]] = {
     get(action, datastore).map { res =>
-      version match {
-        case Some(_) =>
-          Some(DocId(action.copy(version = version).asString))
-        case None if res.defaultVersion.nonEmpty =>
-          Some(DocId(action.copy(version = res.defaultVersion).asString))
-        case None if res.versions.nonEmpty =>
-          Some(DocId(action.copy(version = Some(res.versions.max)).asString))
-        case _ =>
-          None
-      }
+      res.matchedDocId(version)
     }
   }
 

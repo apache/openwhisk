@@ -324,6 +324,7 @@ object InvokerHealthManager {
             action.rev,
             healthActionIdentity,
             ActivationId.generate(),
+            docInfo.id,
             ControllerInstanceId("health"),
             blocking = false,
             content = None))
