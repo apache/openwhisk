@@ -222,32 +222,32 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false, 'deleteOld ? false, 'defaultVersion.as[String] ? "") {
       (overwrite, deleteOld, defaultVersion) =>
-        entity(as[WhiskActionPut]) { content =>
-          Try {
-            SemVer(defaultVersion)
-          } match {
-            case Success(version) =>
-              onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
-                case Success(result) if (result.versions.contains(version)) =>
-                  val dv = WhiskActionDefaultVersion(entityName.path, entityName.name, Some(version))
-                  putEntity(
-                    WhiskActionDefaultVersion,
-                    entityStore,
-                    dv.docid,
-                    true,
-                    (old: WhiskActionDefaultVersion) =>
-                      Future.successful(dv.revision[WhiskActionDefaultVersion](old.rev)),
-                    () => Future.successful(dv),
-                    postProcess = Some { version: WhiskActionDefaultVersion =>
-                      WhiskActionVersionList.deleteCache(entityName)
-                      complete(OK, version)
-                    })
-                case Success(_) =>
-                  terminate(Forbidden, s"[PUT] entity doesn't has version $version")
-                case Failure(_) =>
-                  terminate(InternalServerError)
-              }
-            case Failure(_) =>
+        Try {
+          SemVer(defaultVersion)
+        } match {
+          case Success(version) =>
+            onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
+              case Success(result) if (result.versionMappings.contains(version)) =>
+                val dv = WhiskActionDefaultVersion(entityName.path, entityName.name, Some(version))
+                putEntity(
+                  WhiskActionDefaultVersion,
+                  entityStore,
+                  dv.docid,
+                  true,
+                  (old: WhiskActionDefaultVersion) =>
+                    Future.successful(dv.revision[WhiskActionDefaultVersion](old.rev)),
+                  () => Future.successful(dv),
+                  postProcess = Some { version: WhiskActionDefaultVersion =>
+                    WhiskActionVersionList.deleteCache(entityName)
+                    complete(OK, version)
+                  })
+              case Success(_) =>
+                terminate(Forbidden, s"[PUT] entity doesn't has version $version")
+              case Failure(_) =>
+                terminate(InternalServerError)
+            }
+          case Failure(_) =>
+            entity(as[WhiskActionPut]) { content =>
               val request = content.resolve(user.namespace)
               val checkAdditionalPrivileges = entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap {
                 case _ => entitlementProvider.check(user, content.exec)
@@ -256,10 +256,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
               onComplete(checkAdditionalPrivileges) {
                 case Success(_) =>
                   onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
-                    case Success(result) if (result.versions.size >= actionMaxVersionLimit && !deleteOld) =>
+                    case Success(result) if (result.versionMappings.size >= actionMaxVersionLimit && !deleteOld) =>
                       terminate(
                         Forbidden,
-                        s"[PUT] entity has ${result.versions.size} versions exist which exceed $actionMaxVersionLimit, delete one of them before create new one or pass deleteOld=true to delete oldest version automatically")
+                        s"[PUT] entity has ${result.versionMappings.size} versions exist which exceed maximum limit, delete one of them before create new one or pass deleteOld=true to delete oldest version automatically")
                     case Success(result) =>
                       val id = result.matchedDocId(None).getOrElse(entityName.toDocId)
                       putEntity(
@@ -273,10 +273,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                         },
                         postProcess = Some { action: WhiskAction =>
                           // delete oldest version when created successfully
-                          if (result.versions.size >= actionMaxVersionLimit) {
-                            val id = entityName.copy(version = Some(result.versions.min)).asString
-                            WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
-                              WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
+                          if (result.versionMappings.size >= actionMaxVersionLimit) {
+                            val docid = result.versionMappings.minBy(_._1)._2
+                            WhiskAction.get(entityStore, docid) flatMap { entity =>
+                              WhiskAction.del(entityStore, DocInfo ! (docid.id, entity.rev.rev)).map(_ => entity)
                             } andThen {
                               case _ =>
                                 WhiskActionVersionList.deleteCache(entityName)
@@ -292,7 +292,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                 case Failure(f) =>
                   super.handleEntitlementFailure(f)
               }
-          }
+            }
         }
     }
   }
@@ -416,27 +416,26 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                 (a: WhiskAction) => Future.successful({}),
                 postProcess = Some { action: WhiskAction =>
                   // when default version is deleted or all versions are deleted, delete the default version entity
-                  if (version == results.defaultVersion || results.versions.size == 1)
+                  if (version == results.defaultVersion || results.versionMappings.size == 1)
                     deleteDefaultVersion(
                       WhiskActionDefaultVersion(entityName.path, entityName.name, results.defaultVersion))
                   WhiskActionVersionList.deleteCache(entityName)
                   complete(OK, action)
                 })
-            case None if !deleteAll && results.versions.size > 1 =>
+            case None if !deleteAll && results.versionMappings.size > 1 =>
               terminate(
                 Forbidden,
                 s"[DEL] entity version not provided, you need to specify deleteAll=true to delete all versions for action $entityName")
             case None =>
               val fs =
-                if (results.versions.isEmpty)
+                if (results.versionMappings.isEmpty)
                   Seq(WhiskAction.get(entityStore, entityName.toDocId) flatMap { entity =>
                     WhiskAction.del(entityStore, entity.docinfo).map(_ => entity)
                   })
                 else
-                  results.versions.map { version =>
-                    val id = entityName.copy(version = Some(version)).asString
-                    WhiskAction.get(entityStore, DocId(id)) flatMap { entity =>
-                      WhiskAction.del(entityStore, DocInfo ! (id, entity.rev.rev)).map(_ => entity)
+                  results.versionMappings.values.map { docid =>
+                    WhiskAction.get(entityStore, docid) flatMap { entity =>
+                      WhiskAction.del(entityStore, DocInfo ! (docid.id, entity.rev.rev)).map(_ => entity)
                     }
                   }
               val deleteFuture = Future.sequence(fs).andThen {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Python script to delete old Activations.
+"""
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -26,7 +26,7 @@ from urllib import quote_plus
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Utility to migrate actions with new ids.")
-    parser.add_argument("--dbUrl", required=True, help="Server URL of the database, that has to be cleaned of old activations. E.g. 'https://xxx:yyy@domain.couch.com:443'")
+    parser.add_argument("--dbUrl", required=True, help="Server URL of the database. E.g. 'https://xxx:yyy@domain.couch.com:443'")
     parser.add_argument("--dbName", required=True, help="Name of the Database of the actions to be migration.")
     parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 200.")
 

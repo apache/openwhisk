@@ -362,16 +362,16 @@ case class ExecutableWhiskActionMetaData(namespace: EntityPath,
 
 case class WhiskActionVersionList(namespace: EntityPath,
                                   name: EntityName,
-                                  versions: List[SemVer],
+                                  versionMappings: Map[SemVer, DocId],
                                   defaultVersion: Option[SemVer]) {
   def matchedDocId(version: Option[SemVer]): Option[DocId] = {
     (version, defaultVersion) match {
       case (Some(ver), _) =>
-        Some(DocId(s"$namespace/$name@$ver"))
+        versionMappings.get(ver)
       case (None, Some(default)) =>
-        Some(DocId(s"$namespace/$name@$default"))
-      case (None, None) if versions.nonEmpty =>
-        Some(DocId(s"$namespace/$name@${versions.max}"))
+        versionMappings.get(default)
+      case (None, None) if versionMappings.nonEmpty =>
+        Some(versionMappings.maxBy(_._1)._2)
       case _ =>
         None
     }
@@ -413,7 +413,14 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
             row.fields("value").asJsObject()
           }
           val versions = values.map { value =>
-            Try { value.fields.get("version").map(_.convertTo[SemVer]) } getOrElse None
+            val docId = value.fields.get("docId").map(_.compactPrint)
+            val version = Try { value.fields.get("version").map(_.convertTo[SemVer]) } getOrElse None
+            (version, docId) match {
+              case (Some(ver), Some(id)) =>
+                Some((ver, DocId(id)))
+              case _ =>
+                None
+            }
           }
 
           val defaultVersion = if (result.nonEmpty) {
@@ -422,7 +429,7 @@ object WhiskActionVersionList extends MultipleReadersSingleWriterCache[WhiskActi
               case None        => None
             }
           } else None
-          WhiskActionVersionList(action.path, action.name, versions.filter(_.nonEmpty).map(_.get), defaultVersion)
+          WhiskActionVersionList(action.path, action.name, versions.filter(_.nonEmpty).map(_.get).toMap, defaultVersion)
         },
       fromCache)
   }
