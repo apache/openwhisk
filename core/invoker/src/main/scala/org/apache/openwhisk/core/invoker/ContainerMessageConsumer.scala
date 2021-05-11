@@ -35,17 +35,17 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class ContainerMessageConsumer(
-  invokerInstanceId: InvokerInstanceId,
-  containerPool: ActorRef,
-  entityStore: ArtifactStore[WhiskEntity],
-  config: WhiskConfig,
-  msgProvider: MessagingProvider,
-  longPollDuration: FiniteDuration,
-  maxPeek: Int,
-  sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[RecordMetadata])(
-  implicit actorSystem: ActorSystem,
-  executionContext: ExecutionContext,
-  logging: Logging) {
+                                invokerInstanceId: InvokerInstanceId,
+                                containerPool: ActorRef,
+                                entityStore: ArtifactStore[WhiskEntity],
+                                config: WhiskConfig,
+                                msgProvider: MessagingProvider,
+                                longPollDuration: FiniteDuration,
+                                maxPeek: Int,
+                                sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[RecordMetadata])(
+                                implicit actorSystem: ActorSystem,
+                                executionContext: ExecutionContext,
+                                logging: Logging) {
 
   private val topic = s"${Invoker.topicPrefix}invoker${invokerInstanceId.toInt}"
   private val consumer =
@@ -56,9 +56,9 @@ class ContainerMessageConsumer(
     ContainerMessage.parse(raw) match {
       case Success(creation: ContainerCreationMessage) =>
         implicit val transid: TransactionId = creation.transid
-        logging.debug(
+        logging.info(
           this,
-          s"creation message: ${creation.creationId} for ${creation.invocationNamespace}/${creation.action} is received")
+          s"container creation message for ${creation.invocationNamespace}/${creation.action} is received (creationId: ${creation.creationId})")
         WhiskAction
           .get(entityStore, creation.action.toDocId, creation.revision, fromCache = true)
           .map { action =>
@@ -78,7 +78,7 @@ class ContainerMessageConsumer(
               }
               logging.error(
                 this,
-                s"creationId: ${creation.creationId}, failed to fetch action ${creation.invocationNamespace}/${creation.action}, error: $message")
+                s"failed to fetch action ${creation.invocationNamespace}/${creation.action}, error: $message (creationId: ${creation.creationId})")
 
               val ack = ContainerCreationAckMessage(
                 creation.transid,
@@ -106,7 +106,7 @@ class ContainerMessageConsumer(
         feed ! MessageFeed.Processed
 
       case _ =>
-        logging.error(this, s"Unexpected Container Message received by InvokerReactive: $raw")
+        logging.error(this, s"Unexpected message received $raw")
         feed ! MessageFeed.Processed
     }
   }

@@ -46,7 +46,7 @@ import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class ContainerMessageConsumerTests
-    extends TestKit(ActorSystem("ContainerMessageConsumer"))
+  extends TestKit(ActorSystem("ContainerMessageConsumer"))
     with FlatSpecLike
     with Matchers
     with BeforeAndAfterEach
