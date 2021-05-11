@@ -163,7 +163,7 @@ object size {
   implicit val pureconfigReader =
     ConfigReader[ConfigValue].map(v => ByteSize(v.atKey("key").getBytes("key"), SizeUnits.BYTE))
 
-  implicit val serdes = new RootJsonFormat[ByteSize] {
+  protected[core] implicit val serdes = new RootJsonFormat[ByteSize] {
     def write(b: ByteSize) = JsString(b.toString)
 
     def read(value: JsValue): ByteSize = value match {

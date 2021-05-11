@@ -495,7 +495,7 @@ case class ContainerCreationMessage(override val transid: TransactionId,
                                     rpcPort: Int,
                                     retryCount: Int = 0,
                                     creationId: CreationId = CreationId.generate())
-    extends ContainerMessage(transid) {
+  extends ContainerMessage(transid) {
 
   override def toJson: JsValue = ContainerCreationMessage.serdes.write(this)
   override def serialize: String = toJson.compactPrint
@@ -526,7 +526,7 @@ case class ContainerDeletionMessage(override val transid: TransactionId,
                                     action: FullyQualifiedEntityName,
                                     revision: DocRevision,
                                     whiskActionMetaData: WhiskActionMetaData)
-    extends ContainerMessage(transid) {
+  extends ContainerMessage(transid) {
   override def toJson: JsValue = ContainerDeletionMessage.serdes.write(this)
   override def serialize: String = toJson.compactPrint
 }
@@ -594,7 +594,7 @@ object ContainerCreationError extends Enumeration {
       TimeoutError,
       ZeroNamespaceLimit)
 
-  def fromName(name: String) = name.toUpperCase match {
+  private def parse(name: String) = name.toUpperCase match {
     case "NOAVAILABLEINVOKERSERROR"         => NoAvailableInvokersError
     case "NOAVAILABLERESOURCEINVOKERSERROR" => NoAvailableResourceInvokersError
     case "RESOURCENOTENOUGHERROR"           => ResourceNotEnoughError
@@ -613,7 +613,7 @@ object ContainerCreationError extends Enumeration {
     override def read(json: JsValue): ContainerCreationError =
       Try {
         val JsString(str) = json
-        ContainerCreationError.fromName(str.trim.toUpperCase)
+        ContainerCreationError.parse(str.trim.toUpperCase)
       } getOrElse {
         throw deserializationError("ContainerCreationError must be a valid string")
       }
@@ -632,7 +632,7 @@ case class ContainerCreationAckMessage(override val transid: TransactionId,
                                        retryCount: Int = 0,
                                        error: Option[ContainerCreationError] = None,
                                        reason: Option[String] = None)
-    extends Message {
+  extends Message {
 
   /**
    * Serializes message to string. Must be idempotent.
