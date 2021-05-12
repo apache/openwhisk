@@ -105,6 +105,7 @@ class FunctionPullingContainerPoolTests
   private val exec = CodeExecAsString(RuntimeManifest(actionKind, ImageName("testImage")), "testCode", None)
   private val memoryLimit = MemoryLimit.STD_MEMORY.toMB.MB
   private val whiskAction = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  private val docId = DocId("actionSpace/actionName@0.0.1")
   private val invocationNamespace = EntityName("invocationSpace")
   private val schedulerHost = "127.17.0.1"
   private val rpcPort = 13001
@@ -114,11 +115,13 @@ class FunctionPullingContainerPoolTests
     EntityName("bigActionName"),
     exec,
     limits = ActionLimits(memory = MemoryLimit(memoryLimit * 2)))
+  private val bigDocId = DocId("actionSpace/actionName@0.0.1")
   private val execMetadata = CodeExecMetaDataAsString(exec.manifest, entryPoint = exec.entryPoint)
   private val actionMetaData =
     WhiskActionMetaData(
       whiskAction.namespace,
       whiskAction.name,
+      docId,
       execMetadata,
       whiskAction.parameters,
       whiskAction.limits,
@@ -129,6 +132,7 @@ class FunctionPullingContainerPoolTests
     WhiskActionMetaData(
       bigWhiskAction.namespace,
       bigWhiskAction.name,
+      bigDocId,
       execMetadata,
       bigWhiskAction.parameters,
       bigWhiskAction.limits,
