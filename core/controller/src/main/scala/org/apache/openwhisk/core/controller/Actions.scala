@@ -242,7 +242,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                     complete(OK, version)
                   })
               case Success(_) =>
-                terminate(Forbidden, s"[PUT] entity doesn't has version $version")
+                terminate(NotFound, s"[PUT] entity doesn't has version $version")
               case Failure(_) =>
                 terminate(InternalServerError)
             }
@@ -551,8 +551,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
           case Success(res) =>
             complete(OK, res)
-          case Failure(t) =>
-            terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
+          case Failure(_) =>
+            terminate(InternalServerError)
         }
         //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
         //and that of the entity we are trying to fetch

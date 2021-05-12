@@ -1616,7 +1616,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     Put(s"$collectionPath/${action.name}?defaultVersion=0.0.2", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
-      status should be(Forbidden)
+      status should be(NotFound)
     }
   }
 
