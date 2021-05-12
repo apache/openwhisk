@@ -22,6 +22,7 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, St
 import akka.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.containerpool.ContainerRemoved
 import org.apache.openwhisk.core.database.{ArtifactStore, NoDocumentException}
 import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.size._
@@ -66,7 +67,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
   }
 
   when(Unhealthy) {
-    case Event(ContainerRemoved, _) =>
+    case Event(ContainerRemoved(_), _) =>
       healthActionProxy = None
       startTestAction(self)
       stay
@@ -90,7 +91,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
       // Initialized messages sent by ContainerProxy for HealthManger
       stay()
 
-    case Event(ContainerRemoved, _) =>
+    case Event(ContainerRemoved(_), _) =>
       // Drop messages sent by ContainerProxy for HealthManger
       healthActionProxy = None
       stay()

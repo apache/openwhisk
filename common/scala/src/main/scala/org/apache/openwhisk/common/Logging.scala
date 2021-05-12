@@ -388,6 +388,10 @@ object LoggingMarkers {
 
   // Time that is needed to produce message in kafka
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)(MeasurementUnit.time.milliseconds)
+  def INVOKER_SHAREDPACKAGE(path: String) =
+    LogMarkerToken(invoker, "sharedPackage", counter, None, Map("path" -> path))(MeasurementUnit.none)
+  def INVOKER_CONTAINERPOOL_MEMORY(state: String) =
+    LogMarkerToken(invoker, "containerPoolMemory", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
 
   // System overload and random invoker assignment
   val MANAGED_SYSTEM_OVERLOAD =
