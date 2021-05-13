@@ -251,7 +251,8 @@ class ContainerProxy(factory: (TransactionId,
                                Boolean,
                                ByteSize,
                                Int,
-                               Option[ExecutableWhiskAction]) => Future[Container],
+                               Option[ExecutableWhiskAction],
+                               Option[List[String]]) => Future[Container],
                      sendActiveAck: ActiveAck,
                      storeActivation: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
                      collectLogs: LogsCollector,
@@ -290,6 +291,7 @@ class ContainerProxy(factory: (TransactionId,
         job.exec.pull,
         job.memoryLimit,
         poolConfig.cpuShare(job.memoryLimit),
+        None,
         None)
         .map(container =>
           PreWarmCompleted(PreWarmedData(container, job.exec.kind, job.memoryLimit, expires = job.ttl.map(_.fromNow))))
@@ -309,7 +311,8 @@ class ContainerProxy(factory: (TransactionId,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
         poolConfig.cpuShare(job.action.limits.memory.megabytes.MB),
-        Some(job.action))
+        Some(job.action),
+        job.action.annotations.get(Annotations.InvokerResourcesAnnotationName).map(_.convertTo[List[String]]))
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting
@@ -963,7 +966,9 @@ class ContainerProxy(factory: (TransactionId,
   }
 }
 
-final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration,
+                                             pauseGrace: FiniteDuration,
+                                             keepingDuration: FiniteDuration)
 final case class ContainerProxyHealthCheckConfig(enabled: Boolean, checkPeriod: FiniteDuration, maxFails: Int)
 final case class ContainerProxyActivationErrorLogConfig(applicationErrors: Boolean,
                                                         developerErrors: Boolean,
@@ -976,7 +981,8 @@ object ContainerProxy {
                       Boolean,
                       ByteSize,
                       Int,
-                      Option[ExecutableWhiskAction]) => Future[Container],
+                      Option[ExecutableWhiskAction],
+                      Option[List[String]]) => Future[Container],
             ack: ActiveAck,
             store: (TransactionId, WhiskActivation, Boolean, UserContext) => Future[Any],
             collectLogs: LogsCollector,

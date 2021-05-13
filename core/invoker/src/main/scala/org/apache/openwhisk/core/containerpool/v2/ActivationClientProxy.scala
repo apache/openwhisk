@@ -18,6 +18,8 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import akka.actor.ActorRef
+import org.apache.openwhisk.core.connector.ActivationMessage
+import org.apache.openwhisk.core.entity.{DocRevision, FullyQualifiedEntityName}
 import org.apache.openwhisk.core.scheduler.SchedulerEndpoints
 
 // Event send by the actor
@@ -28,6 +30,14 @@ case object CloseClientProxy
 // Event received by the actor
 case object StartClient
 case class RequestActivation(lastDuration: Option[Long] = None, newScheduler: Option[SchedulerEndpoints] = None)
+case class RescheduleActivation(invocationNamespace: String,
+                                fqn: FullyQualifiedEntityName,
+                                rev: DocRevision,
+                                msg: ActivationMessage)
+
+case object RetryRequestActivation
+case object ContainerWarmed
+case object StopClientProxy
 
 // TODO, use grpc to fetch activation from memoryQueue
 class ActivationClientProxy {}

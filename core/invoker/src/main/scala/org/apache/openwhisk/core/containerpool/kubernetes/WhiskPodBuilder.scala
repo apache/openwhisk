@@ -51,7 +51,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
     memory: ByteSize,
     environment: Map[String, String],
     labels: Map[String, String],
-    config: KubernetesClientConfig)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
+    config: KubernetesClientConfig,
+    resourceTags: Option[List[String]] = None)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq ++ config.fieldRefEnvironment
@@ -91,6 +92,24 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
         .withKey(config.userPodNodeAffinity.key)
         .withOperator("In")
         .withValues(config.userPodNodeAffinity.value)
+        .endMatchExpression()
+        .endNodeSelectorTerm()
+        .endRequiredDuringSchedulingIgnoredDuringExecution()
+        .endNodeAffinity()
+        .endAffinity()
+    }
+
+    resourceTags.map { tags =>
+      val affinity = specBuilder
+        .editOrNewAffinity()
+        .editOrNewNodeAffinity()
+        .editOrNewRequiredDuringSchedulingIgnoredDuringExecution()
+      affinity
+        .addNewNodeSelectorTerm()
+        .addNewMatchExpression()
+        .withKey(KubernetesClient.OPENWHISK_RUNTIME_RESOURCE_ROLE)
+        .withOperator("In")
+        .withValues(tags.asJava)
         .endMatchExpression()
         .endNodeSelectorTerm()
         .endRequiredDuringSchedulingIgnoredDuringExecution()

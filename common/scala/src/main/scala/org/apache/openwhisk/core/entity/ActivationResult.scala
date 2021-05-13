@@ -18,13 +18,10 @@
 package org.apache.openwhisk.core.entity
 
 import scala.util.Try
-
-import akka.http.scaladsl.model.StatusCodes.OK
-
+import akka.http.scaladsl.model.StatusCodes.{OK, ServiceUnavailable}
 import spray.json._
 import spray.json.DefaultJsonProtocol
-
-import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.http.Messages._
 
 protected[core] case class ActivationResponse private (statusCode: Int,
@@ -139,6 +136,10 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     /** true iff status code is OK (HTTP 200 status code), anything else is considered an error. **/
     val okStatus = statusCode == OK.intValue
     val ok = okStatus && truncated.isEmpty
+
+    /** true iff status code is ServiceUnavailable (HTTP 503 status code) */
+    val shuttingDown = statusCode == ServiceUnavailable.intValue
+
     override def toString = {
       val base = if (okStatus) "ok" else "not ok"
       val rest = truncated.map(e => s", truncated ${e.toString}").getOrElse("")
@@ -195,8 +196,9 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
    * @param response an Option (HTTP Status Code, HTTP response bytes as String)
    * @return appropriate ActivationResponse representing run result
    */
-  protected[core] def processRunResponseContent(response: Either[ContainerConnectionError, ContainerResponse],
-                                                logger: Logging): ActivationResponse = {
+  protected[core] def processRunResponseContent(
+    response: Either[ContainerConnectionError, ContainerResponse],
+    logger: Logging)(implicit id: TransactionId = TransactionId.unknown): ActivationResponse = {
     response match {
       case Right(res @ ContainerResponse(_, str, truncated)) =>
         truncated match {
@@ -240,6 +242,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
 
       case Left(e) =>
         // This indicates a terminal failure in the container (it exited prematurely).
+        logger.error(this, abnormalRun)
         developerError(abnormalRun)
     }
   }

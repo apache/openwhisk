@@ -34,9 +34,8 @@ import org.apache.openwhisk.core.containerpool.{
   ContainerFactoryProvider,
   RuntimesRegistryConfig
 }
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ByteSize, ExecutableWhiskAction, InvokerInstanceId}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
-import org.apache.openwhisk.core.entity.InvokerInstanceId
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 
@@ -67,12 +66,15 @@ class KubernetesContainerFactory(
     Await.ready(cleaning, KubernetesContainerFactoryProvider.runtimeDeleteTimeout)
   }
 
-  override def createContainer(tid: TransactionId,
-                               name: String,
-                               actionImage: ImageName,
-                               userProvidedImage: Boolean,
-                               memory: ByteSize,
-                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+  override def createContainer(
+    tid: TransactionId,
+    name: String,
+    actionImage: ImageName,
+    userProvidedImage: Boolean,
+    memory: ByteSize,
+    cpuShares: Int,
+    action: Option[ExecutableWhiskAction] = None,
+    resourceTags: Option[List[String]] = None)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val image = actionImage.resolveImageName(Some(
       ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig).url))
 
@@ -83,7 +85,8 @@ class KubernetesContainerFactory(
       userProvidedImage,
       memory,
       environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,
-      labels = Map("invoker" -> label, "release" -> KubernetesContainerFactoryProvider.release))
+      labels = Map("invoker" -> label, "release" -> KubernetesContainerFactoryProvider.release),
+      resourceTags)
   }
 }
 

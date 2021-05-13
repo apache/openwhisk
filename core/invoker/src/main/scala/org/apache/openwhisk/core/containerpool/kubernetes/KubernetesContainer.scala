@@ -60,9 +60,10 @@ object KubernetesContainer {
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
              environment: Map[String, String] = Map.empty,
-             labels: Map[String, String] = Map.empty)(implicit kubernetes: KubernetesApi,
-                                                      ec: ExecutionContext,
-                                                      log: Logging): Future[KubernetesContainer] = {
+             labels: Map[String, String] = Map.empty,
+             resourceTags: Option[List[String]] = None)(implicit kubernetes: KubernetesApi,
+                                                        ec: ExecutionContext,
+                                                        log: Logging): Future[KubernetesContainer] = {
     implicit val tid = transid
 
     // Kubernetes naming rule allows maximum length of 63 character and ended with character only.
@@ -70,7 +71,7 @@ object KubernetesContainer {
     val podName = if (origName.endsWith("-")) origName.reverse.dropWhile(_ == '-').reverse else origName
 
     for {
-      container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
+      container <- kubernetes.run(podName, image, memory, environment, labels, resourceTags).recoverWith {
         case e: KubernetesPodApiException =>
           //apiserver call failed - this will expose a different error to users
           cleanupFailedPod(e, podName, WhiskContainerStartupError(Messages.resourceProvisionError))

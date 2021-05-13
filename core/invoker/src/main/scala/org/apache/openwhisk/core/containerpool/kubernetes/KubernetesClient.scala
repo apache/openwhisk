@@ -139,9 +139,11 @@ class KubernetesClient(
           image: String,
           memory: ByteSize = 256.MB,
           environment: Map[String, String] = Map.empty,
-          labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+          labels: Map[String, String] = Map.empty,
+          resourceTags: Option[List[String]],
+          imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
-    val (pod, pdb) = podBuilder.buildPodSpec(name, image, memory, environment, labels, config)
+    val (pod, pdb) = podBuilder.buildPodSpec(name, image, memory, environment, labels, config, resourceTags)
     if (transid.meta.extraLogging) {
       log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
@@ -368,6 +370,8 @@ object KubernetesClient {
 
   def formatK8STimestamp(ts: Instant): Try[String] =
     Try(K8STimestampFormat.format(ts))
+
+  val OPENWHISK_RUNTIME_RESOURCE_ROLE = loadConfigOrThrow[String]("whisk.runtime.resource.role")
 }
 
 trait KubernetesApi {
@@ -376,7 +380,9 @@ trait KubernetesApi {
           image: String,
           memory: ByteSize,
           environment: Map[String, String] = Map.empty,
-          labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer]
+          labels: Map[String, String] = Map.empty,
+          resourceTags: Option[List[String]] = None,
+          imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer]
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
   def rm(podName: String)(implicit transid: TransactionId): Future[Unit]
