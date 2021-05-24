@@ -24,8 +24,8 @@ class CategoryManager {
         [name: "Runtimes", travis: true, archived: false, contains: ['-runtime-']],
         [name: "Deployments", travis: true, archived: false, contains: ['-deploy-']],
         [name: "Packages", travis: true, archived: false, contains: ['-package-', '-provider']],
-        [name: "Samples and Examples", travis: false, archived: false, suffixes: ['workshop', 'slackinvite', 'sample-slackbot', 'sample-matos', 'tutorial', 'GitHubSlackBot']],
-        [name: "Development Tools", travis: false, archived: false, suffixes: ['devtools', 'xcode', 'vscode', 'playground', 'debugger']],
+        [name: "Samples and Examples", travis: false, archived: false, suffixes: ['slackinvite']],
+        [name: "Development Tools", travis: false, archived: false, suffixes: ['devtools', 'wskdebug', '-plugin', '-extension']],
         [name: "Utilities", travis: false, archived: false, suffixes: ['utilities', 'release']],
         [name: "Others", travis: false, archived: false],
         [name: "Archived", travis: false, archived: true]
