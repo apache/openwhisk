@@ -643,6 +643,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   }
 
   private def cleanUpActorsAndGotoRemovedIfPossible(data: RemovingData) = {
+    requestBuffer = requestBuffer.filter(!_.promise.isCompleted)
     if (queue.isEmpty && requestBuffer.isEmpty) {
       logging.info(this, s"[$invocationNamespace:$action:$stateName] No activation exist. Shutdown the queue.")
       // it can be safely called multiple times as it's idempotent
@@ -659,7 +660,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     } else {
       logging.info(
         this,
-        s"[$invocationNamespace:$action:$stateName] Queue is going to stop but there are still ${queue.size} activations and ${requestBuffer.size} requst buffered.")
+        s"[$invocationNamespace:$action:$stateName] Queue is going to stop but there are still ${queue.size} activations and ${requestBuffer.size} request buffered.")
       stay // waiting for next timeout
     }
   }
