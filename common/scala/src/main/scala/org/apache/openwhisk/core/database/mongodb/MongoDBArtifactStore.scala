@@ -106,7 +106,7 @@ class MongoDBArtifactStore[DocumentAbstraction <: DocumentSerializer](client: Mo
     val filters =
       if (rev.startsWith("1-")) {
         // for new document, we should get no matched document and insert new one
-        // if there is a matched document, that one with no _rev filed will be replaced
+        // if there is a matched document, that one with no _rev field will be replaced
         // if there is a document with the same id but has an _rev field, will return en E11000(conflict) error
         Filters.and(Filters.eq("_id", id), Filters.not(Filters.exists("_rev")))
       } else {

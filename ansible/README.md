@@ -200,7 +200,8 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 
 You can choose MongoDB instead of CouchDB as the database backend to store entities.
 
-- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production)
+- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production).
+  You need to execute `pip install pymongo` first
 
 ```
 ansible-playbook -i environments/<environment> mongodb.yml -e mongodb_data_volume="/tmp/mongo-data"
