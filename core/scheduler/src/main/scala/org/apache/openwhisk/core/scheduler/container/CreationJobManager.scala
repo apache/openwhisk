@@ -87,7 +87,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, Int, Array[Byte]
                          dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
     extends Actor {
   private implicit val ec: ExecutionContext = actorSystem.dispatcher
-  private val baseTimeout = loadConfigOrThrow[Int](ConfigKeys.schedulerInProgressJobRetentionSecond).seconds
+  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetentionSecond)
   private val retryLimit = 5
   private val retryDelayTime = 100.milliseconds
 
