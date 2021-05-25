@@ -27,7 +27,6 @@ env:
   global:
     - ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
     - GRADLE_PROJS_SKIP=""
-    - OW_SCALA_VERSION=2.13
 
 notifications:
   email: false
@@ -67,7 +66,7 @@ install:
 jobs:
   include:
     - script:
-        - TERM=dumb ./gradlew :tests:compileTestScala
+        - TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
       name: "Scala 2.13 compilation"
     - script:
         - ./tools/travis/runUnitTests.sh
