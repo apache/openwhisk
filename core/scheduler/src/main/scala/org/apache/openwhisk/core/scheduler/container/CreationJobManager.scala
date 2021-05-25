@@ -32,7 +32,6 @@ import pureconfig.loadConfigOrThrow
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 
 sealed trait CreationJob
 case class RegisterCreationJob(msg: ContainerCreationMessage) extends CreationJob
