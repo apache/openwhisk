@@ -215,7 +215,7 @@ cd <openwhisk_home>
 cd ansible
 ansible-playbook -i environments/<environment> initMongodb.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
 ansible-playbook -i environments/<environment> apigateway.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
-ansible-playbook -i environments/<environment> openwhisk.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017" -e database_backend="MongoDB"
+ansible-playbook -i environments/<environment> openwhisk.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017" -e db_artifact_backend="MongoDB"
 
 # installs a catalog of public packages and actions
 ansible-playbook -i environments/<environment> postdeploy.yml

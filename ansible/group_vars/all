@@ -256,7 +256,6 @@ db:
   port: "{{ db_port | default(lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
   host: "{{ db_host | default(lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
   persist_path: "{{ db_persist_path | default(false) }}"
-  backend: "{{ database_backend | default('CouchDB') }}"
   instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
@@ -275,6 +274,8 @@ db:
     invoker:
       user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
+  artifact_store:
+    backend: "{{ db_artifact_backend | default('CouchDB') }}"
   activation_store:
     backend: "{{ db_activation_backend | default('CouchDB') }}"
   elasticsearch:

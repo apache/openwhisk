@@ -14,7 +14,7 @@ whisk {
       WhiskActivation = "{{ db.whisk.activations }}"
     }
   }
-  {% if db.backend == 'MongoDB' %}
+  {% if db.artifact_store.backend == 'MongoDB' %}
   mongodb {
     uri         = "{{ db.mongodb.connect_string }}"
     database    = "{{ db.mongodb.database }}"
