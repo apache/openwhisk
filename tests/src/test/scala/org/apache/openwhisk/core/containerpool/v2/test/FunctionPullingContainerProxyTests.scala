@@ -2831,7 +2831,7 @@ class FunctionPullingContainerProxyTests
       environment.fields("action_version") shouldBe message.action.version.toJson
       environment.fields("activation_id") shouldBe message.activationId.toJson
       environment.fields("transaction_id") shouldBe transid.id.toJson
-      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains)
+      val authEnvironment = environment.fields.filterKeys(message.user.authkey.toEnvironment.fields.contains).toMap
       message.user.authkey.toEnvironment shouldBe authEnvironment.toJson.asJsObject
       val deadline = Instant.ofEpochMilli(environment.fields("deadline").convertTo[String].toLong)
       val maxDeadline = Instant.now.plusMillis(timeout.toMillis)
