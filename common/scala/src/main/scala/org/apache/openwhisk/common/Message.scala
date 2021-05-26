@@ -17,5 +17,45 @@
 
 package org.apache.openwhisk.common
 
+import org.apache.openwhisk.core.entity.InvokerInstanceId
+
 case object GracefulShutdown
 case object Enable
+
+// States an Invoker can be in
+sealed trait InvokerState {
+  val asString: String
+  val isUsable: Boolean
+}
+
+object InvokerState {
+  // Invokers in this state can be used to schedule workload to
+  sealed trait Usable extends InvokerState { val isUsable = true }
+  // No workload should be scheduled to invokers in this state
+  sealed trait Unusable extends InvokerState { val isUsable = false }
+
+  // A completely healthy invoker, pings arriving fine, no system errors
+  case object Healthy extends Usable { val asString = "up" }
+  // The invoker can not create a container
+  case object Unhealthy extends Unusable { val asString = "unhealthy" }
+  // Pings are arriving fine, the invoker does not respond with active-acks in the expected time though
+  case object Unresponsive extends Unusable { val asString = "unresponsive" }
+  // The invoker is down
+  case object Offline extends Unusable { val asString = "down" }
+}
+
+/**
+ * Describes an abstract invoker. An invoker is a local container pool manager that
+ * is in charge of the container life cycle management.
+ *
+ * @param id a unique instance identifier for the invoker
+ * @param status it status (healthy, unhealthy, unresponsive, offline)
+ */
+case class InvokerHealth(id: InvokerInstanceId, status: InvokerState) {
+  override def equals(obj: scala.Any): Boolean = obj match {
+    case that: InvokerHealth => that.id == this.id && that.status == this.status
+    case _                   => false
+  }
+
+  override def toString = s"InvokerHealth($id, $status)"
+}

@@ -560,9 +560,11 @@ object LoggingMarkers {
       LogMarkerToken(kafka, "topic", start, Some("delay"), Map("topic" -> topic))(MeasurementUnit.time.milliseconds)
     else LogMarkerToken(kafka, topic, start, Some("delay"))(MeasurementUnit.time.milliseconds)
 
+  // Time that is needed to produce message in kafka
+  val SCHEDULER_KAFKA = LogMarkerToken(scheduler, kafka, start)(MeasurementUnit.time.milliseconds)
+
   def SCHEDULER_KEEP_ALIVE(leaseId: Long) =
     LogMarkerToken(scheduler, "keepAlive", counter, None, Map("leaseId" -> leaseId.toString))(MeasurementUnit.none)
-
   /*
    * General markers
    */

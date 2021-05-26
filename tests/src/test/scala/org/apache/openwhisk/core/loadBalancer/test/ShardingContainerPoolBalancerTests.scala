@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets
 
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
@@ -36,10 +37,8 @@ import org.scalatest.Matchers
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.common.{InvokerHealth, Logging, NestedSemaphore, TransactionId}
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
-import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.connector.CompletionMessage
@@ -67,7 +66,6 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.loadBalancer.FeedFactory
 import org.apache.openwhisk.core.loadBalancer.InvokerPoolFactory
-import org.apache.openwhisk.core.loadBalancer.InvokerState._
 import org.apache.openwhisk.core.loadBalancer._
 
 /**

@@ -456,5 +456,6 @@ etcd_connect_string: "{% set ret = [] %}\
                       {{ ret | join(',') }}"
 
 scheduler:
+  protocol: "{{ scheduler_protocol | default('http') }}"
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"

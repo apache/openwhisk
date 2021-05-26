@@ -43,7 +43,8 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.Timeout
 import common.{LoggedFunction, StreamLogging}
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
+import org.apache.openwhisk.common.{InvokerHealth, InvokerState, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.connector.PingMessage
@@ -52,13 +53,10 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.loadBalancer.ActivationRequest
 import org.apache.openwhisk.core.loadBalancer.GetStatus
-import org.apache.openwhisk.core.loadBalancer.InvokerState._
 import org.apache.openwhisk.core.loadBalancer.InvocationFinishedResult
 import org.apache.openwhisk.core.loadBalancer.InvocationFinishedMessage
 import org.apache.openwhisk.core.loadBalancer.InvokerActor
 import org.apache.openwhisk.core.loadBalancer.InvokerPool
-import org.apache.openwhisk.core.loadBalancer.InvokerState
-import org.apache.openwhisk.core.loadBalancer.InvokerHealth
 import org.apache.openwhisk.utils.retry
 import org.apache.openwhisk.core.connector.test.TestConnector
 import org.apache.openwhisk.core.entity.ControllerInstanceId

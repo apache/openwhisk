@@ -28,6 +28,7 @@ import akka.management.scaladsl.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common._
@@ -37,7 +38,6 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.core.controller.Controller
-import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 

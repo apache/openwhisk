@@ -22,6 +22,7 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import common.StreamLogging
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, RingBuffer}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.InvokerResourceMessage

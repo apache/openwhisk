@@ -203,6 +203,7 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  val fraction = "whisk.fraction"
   val buildInformation = "whisk.info"
 
   val couchdb = "whisk.couchdb"
