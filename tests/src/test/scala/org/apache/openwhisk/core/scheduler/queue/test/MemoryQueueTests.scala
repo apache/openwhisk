@@ -27,8 +27,8 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.{existingContainers, inProgressContainer}
 import org.apache.openwhisk.core.etcd._
-import org.apache.openwhisk.core.scheduler.container.{ContainerCreation, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.checkToDropStaleActivation
 import org.apache.openwhisk.core.scheduler.queue._
 import org.apache.openwhisk.core.service._
@@ -1713,7 +1713,8 @@ class MemoryQueueTests
             .newBuilder()
             .setKey(ByteString.copyFromUtf8(key))
             .setValue(ByteString.copyFromUtf8(value))
-            .build()).build()
+            .build())
+        .build()
 
       // find the callbacks which has the proper prefix for the given key
       watchCallbackMap.filter(callback => key.startsWith(callback._1)).foreach { callback =>

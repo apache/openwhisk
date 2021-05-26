@@ -6,16 +6,16 @@ import akka.testkit.{TestActor, TestFSMRef, TestProbe}
 import com.sksamuel.elastic4s.http.{search => _}
 import org.apache.openwhisk.common.GracefulShutdown
 import org.apache.openwhisk.core.connector.ContainerCreationError.{NonExecutableActionError, WhiskError}
-import org.apache.openwhisk.core.connector.{ContainerCreationMessage}
+import org.apache.openwhisk.core.connector.ContainerCreationMessage
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdClient
-import org.apache.openwhisk.core.scheduler.container.{
+import org.apache.openwhisk.core.scheduler.grpc.ActivationResponse
+import org.apache.openwhisk.core.scheduler.message.{
   ContainerCreation,
   ContainerDeletion,
   FailedCreationJob,
   SuccessfulCreationJob
 }
-import org.apache.openwhisk.core.scheduler.grpc.ActivationResponse
 import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.checkToDropStaleActivation
 import org.apache.openwhisk.core.scheduler.queue._
 import org.apache.openwhisk.core.service._
