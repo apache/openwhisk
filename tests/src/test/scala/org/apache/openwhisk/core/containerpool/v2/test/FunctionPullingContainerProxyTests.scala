@@ -327,7 +327,7 @@ class FunctionPullingContainerProxyTests
   }
 
   def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs()),
-                      invokeCallback: () => Unit = () => Unit) =
+                      invokeCallback: () => Unit = () => ()) =
     new LoggedCollector(response, invokeCallback)
 
   /** Expect a NeedWork message with prewarmed data */
