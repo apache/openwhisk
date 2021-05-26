@@ -40,6 +40,7 @@ import org.apache.openwhisk.core.scheduler.message.{
   SuccessfulCreationJob
 }
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -51,7 +52,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
+import scala.concurrent.{ExecutionContextExecutor, Future, Promise, duration}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
