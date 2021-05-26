@@ -52,7 +52,8 @@ class WhiskPodBuilder(client: NamespacedKubernetesClient, config: KubernetesClie
     environment: Map[String, String],
     labels: Map[String, String],
     config: KubernetesClientConfig,
-    resourceTags: Option[List[String]] = None)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
+    resourceTags: Option[List[String]] = None,
+    imagePullSecret: Option[String] = None)(implicit transid: TransactionId): (Pod, Option[PodDisruptionBudget]) = {
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
     }.toSeq ++ config.fieldRefEnvironment

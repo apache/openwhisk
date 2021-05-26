@@ -143,7 +143,8 @@ class KubernetesClient(
           resourceTags: Option[List[String]],
           imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
-    val (pod, pdb) = podBuilder.buildPodSpec(name, image, memory, environment, labels, config, resourceTags)
+    val (pod, pdb) =
+      podBuilder.buildPodSpec(name, image, memory, environment, labels, config, resourceTags, imagePullSecret)
     if (transid.meta.extraLogging) {
       log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
