@@ -65,6 +65,7 @@ dependencies {
     }
 
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile "com.github.romix.akka:akka-kryo-serialization_${gradle.scala.depVersion}:0.5.2"
     compile project(':common:scala')
 }
 
