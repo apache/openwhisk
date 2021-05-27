@@ -1450,8 +1450,10 @@ class FunctionPullingContainerProxyTests
           Some(instanceId),
           Some(testContainerId)),
         ""))
-    probe.expectMsg(Transition(machine, Paused, Running))
-    probe.expectMsgType[Resumed]
+    inAnyOrder {
+      probe.expectMsg(Transition(machine, Paused, Running))
+      probe.expectMsgType[Resumed]
+    }
 
     awaitAssert {
       factory.calls should have size 1
