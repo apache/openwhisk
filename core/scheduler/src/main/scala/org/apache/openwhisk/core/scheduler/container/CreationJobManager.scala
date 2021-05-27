@@ -20,63 +20,25 @@ package org.apache.openwhisk.core.scheduler.container
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, Props}
-import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
+import org.apache.openwhisk.common.{GracefulShutdown, Logging}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.inProgressContainer
-import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, QueuePool}
 import org.apache.openwhisk.core.service.{RegisterData, UnregisterData}
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.core.scheduler.message.{
+  CreationJobState,
+  FailedCreationJob,
+  FinishCreationJob,
+  RegisterCreationJob,
+  ReschedulingCreationJob,
+  SuccessfulCreationJob
+}
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
-sealed trait CreationJob
-case class RegisterCreationJob(msg: ContainerCreationMessage) extends CreationJob
-case class FinishCreationJob(ack: ContainerCreationAckMessage) extends CreationJob
-case class ReschedulingCreationJob(tid: TransactionId,
-                                   creationId: CreationId,
-                                   invocationNamespace: String,
-                                   action: FullyQualifiedEntityName,
-                                   revision: DocRevision,
-                                   actionMetaData: WhiskActionMetaData,
-                                   schedulerHost: String,
-                                   rpcPort: Int,
-                                   retry: Int)
-    extends CreationJob {
-
-  def toCreationMessage(sid: SchedulerInstanceId, retryCount: Int): ContainerCreationMessage =
-    ContainerCreationMessage(
-      tid,
-      invocationNamespace,
-      action,
-      revision,
-      actionMetaData,
-      sid,
-      schedulerHost,
-      rpcPort,
-      retryCount,
-      creationId)
-}
-
-abstract class CreationJobState(val creationId: CreationId,
-                                val invocationNamespace: String,
-                                val action: FullyQualifiedEntityName,
-                                val revision: DocRevision)
-case class FailedCreationJob(override val creationId: CreationId,
-                             override val invocationNamespace: String,
-                             override val action: FullyQualifiedEntityName,
-                             override val revision: DocRevision,
-                             error: ContainerCreationError,
-                             message: String)
-    extends CreationJobState(creationId, invocationNamespace, action, revision)
-case class SuccessfulCreationJob(override val creationId: CreationId,
-                                 override val invocationNamespace: String,
-                                 override val action: FullyQualifiedEntityName,
-                                 override val revision: DocRevision)
-    extends CreationJobState(creationId, invocationNamespace, action, revision)
 
 case object GetPoolStatus
 
