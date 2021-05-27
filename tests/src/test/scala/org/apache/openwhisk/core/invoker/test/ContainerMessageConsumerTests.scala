@@ -24,7 +24,8 @@ import akka.stream.ActorMaterializer
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.{WarmUp, WhiskConfig}
 import org.apache.openwhisk.core.connector.ContainerCreationError._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.connector.test.TestConnector
@@ -34,6 +35,7 @@ import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
+import org.apache.openwhisk.core.invoker.ContainerMessageConsumer
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.{retry => utilRetry}
 import org.junit.runner.RunWith
@@ -43,10 +45,11 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Match
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class ContainerMessageConsumerTests
-  extends TestKit(ActorSystem("ContainerMessageConsumer"))
+    extends TestKit(ActorSystem("ContainerMessageConsumer"))
     with FlatSpecLike
     with Matchers
     with BeforeAndAfterEach
@@ -67,7 +70,16 @@ class ContainerMessageConsumerTests
     super.afterAll()
   }
 
+  private val whiskConfig = new WhiskConfig(
+    Map(
+      WhiskConfig.actionInvokePerMinuteLimit -> null,
+      WhiskConfig.triggerFirePerMinuteLimit -> null,
+      WhiskConfig.actionInvokeConcurrentLimit -> null,
+      WhiskConfig.runtimesManifest -> null,
+      WhiskConfig.actionSequenceMaxLimit -> null))
+
   private val entityStore = WhiskEntityStore.datastore()
+  private val producer = stub[MessageProducer]
 
   private val defaultUserMemory: ByteSize = 1024.MB
   private val invokerInstance = InvokerInstanceId(0, userMemory = defaultUserMemory)
@@ -81,6 +93,27 @@ class ContainerMessageConsumerTests
 
   override def afterEach(): Unit = {
     cleanup()
+  }
+
+  private def fakeMessageProvider(consumer: TestConnector): MessagingProvider = {
+    new MessagingProvider {
+      override def getConsumer(
+        whiskConfig: WhiskConfig,
+        groupId: String,
+        topic: String,
+        maxPeek: Int,
+        maxPollInterval: FiniteDuration)(implicit logging: Logging, actorSystem: ActorSystem): MessageConsumer =
+        consumer
+
+      override def getProducer(config: WhiskConfig, maxRequestSize: Option[ByteSize])(
+        implicit logging: Logging,
+        actorSystem: ActorSystem): MessageProducer = consumer.getProducer()
+
+      override def ensureTopic(config: WhiskConfig,
+                               topic: String,
+                               topicConfig: String,
+                               maxMessageBytes: Option[ByteSize])(implicit logging: Logging): Try[Unit] = Try {}
+    }
   }
 
   def sendAckToScheduler(producer: MessageProducer)(schedulerInstanceId: SchedulerInstanceId,
@@ -110,6 +143,18 @@ class ContainerMessageConsumerTests
   it should "forward ContainerCreationMessage to containerPool" in {
     val pool = TestProbe()
     val mockConsumer = new TestConnector("fakeTopic", 4, true)
+    val msgProvider = fakeMessageProvider(mockConsumer)
+
+    val consumer =
+      new ContainerMessageConsumer(
+        invokerInstance,
+        pool.ref,
+        entityStore,
+        whiskConfig,
+        msgProvider,
+        200.milliseconds,
+        500,
+        sendAckToScheduler(producer))
 
     val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
     val action =
@@ -150,9 +195,21 @@ class ContainerMessageConsumerTests
   it should "send ack(failed) to scheduler when failed to get action from DB " in {
     val pool = TestProbe()
     val creationConsumer = new TestConnector("creation", 4, true)
+    val msgProvider = fakeMessageProvider(creationConsumer)
 
     val ackTopic = "ack"
     val ackConsumer = new TestConnector(ackTopic, 4, true)
+
+    val consumer =
+      new ContainerMessageConsumer(
+        invokerInstance,
+        pool.ref,
+        entityStore,
+        whiskConfig,
+        msgProvider,
+        200.milliseconds,
+        500,
+        sendAckToScheduler(ackConsumer.getProducer()))
 
     val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
     val whiskAction =
@@ -212,5 +269,60 @@ class ContainerMessageConsumerTests
       }, 10, Some(500.millisecond))
       pool.expectNoMessage(2.seconds)
     }
+  }
+
+  it should "drop messages of warm-up action" in {
+    val pool = TestProbe()
+    val mockConsumer = new TestConnector("fakeTopic", 4, true)
+    val msgProvider = fakeMessageProvider(mockConsumer)
+
+    val consumer =
+      new ContainerMessageConsumer(
+        invokerInstance,
+        pool.ref,
+        entityStore,
+        whiskConfig,
+        msgProvider,
+        200.milliseconds,
+        500,
+        sendAckToScheduler(producer))
+
+    val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val action =
+      WhiskAction(
+        WarmUp.warmUpAction.namespace.toPath,
+        WarmUp.warmUpAction.name,
+        exec,
+        limits = ActionLimits(TimeLimit(1.minute)))
+    val doc = put(entityStore, action)
+    val execMetadata =
+      CodeExecMetaDataAsString(exec.manifest, entryPoint = exec.entryPoint)
+
+    val actionMetadata =
+      WhiskActionMetaData(
+        action.namespace,
+        action.name,
+        execMetadata,
+        action.parameters,
+        action.limits,
+        action.version,
+        action.publish,
+        action.annotations)
+
+    val msg =
+      ContainerCreationMessage(
+        transId,
+        invocationNamespace.asString,
+        action.fullyQualifiedName(false),
+        DocRevision.empty,
+        actionMetadata,
+        schedulerInstanceId,
+        schedulerHost,
+        rpcPort,
+        creationId = creationId)
+
+    mockConsumer.send(msg)
+
+    pool.expectNoMessage(1.seconds)
   }
 }

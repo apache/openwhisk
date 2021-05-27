@@ -22,11 +22,17 @@ import java.nio.charset.StandardCharsets
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
+import org.apache.openwhisk.core.WarmUp.isWarmUpAction
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ContainerCreationError.DBFetchError
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.v2.{CreationContainer, DeletionContainer}
-import org.apache.openwhisk.core.database.{ArtifactStore, DocumentTypeMismatchException, DocumentUnreadable, NoDocumentException}
+import org.apache.openwhisk.core.database.{
+  ArtifactStore,
+  DocumentTypeMismatchException,
+  DocumentUnreadable,
+  NoDocumentException
+}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 
@@ -35,17 +41,17 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class ContainerMessageConsumer(
-                                invokerInstanceId: InvokerInstanceId,
-                                containerPool: ActorRef,
-                                entityStore: ArtifactStore[WhiskEntity],
-                                config: WhiskConfig,
-                                msgProvider: MessagingProvider,
-                                longPollDuration: FiniteDuration,
-                                maxPeek: Int,
-                                sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[RecordMetadata])(
-                                implicit actorSystem: ActorSystem,
-                                executionContext: ExecutionContext,
-                                logging: Logging) {
+  invokerInstanceId: InvokerInstanceId,
+  containerPool: ActorRef,
+  entityStore: ArtifactStore[WhiskEntity],
+  config: WhiskConfig,
+  msgProvider: MessagingProvider,
+  longPollDuration: FiniteDuration,
+  maxPeek: Int,
+  sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[RecordMetadata])(
+  implicit actorSystem: ActorSystem,
+  executionContext: ExecutionContext,
+  logging: Logging) {
 
   private val topic = s"${Invoker.topicPrefix}invoker${invokerInstanceId.toInt}"
   private val consumer =
@@ -54,11 +60,16 @@ class ContainerMessageConsumer(
   private def handler(bytes: Array[Byte]): Future[Unit] = Future {
     val raw = new String(bytes, StandardCharsets.UTF_8)
     ContainerMessage.parse(raw) match {
-      case Success(creation: ContainerCreationMessage) =>
-        implicit val transid: TransactionId = creation.transid
+      case Success(creation: ContainerCreationMessage) if isWarmUpAction(creation.action) =>
         logging.info(
           this,
           s"container creation message for ${creation.invocationNamespace}/${creation.action} is received (creationId: ${creation.creationId})")
+        feed ! MessageFeed.Processed
+
+      case Success(creation: ContainerCreationMessage) =>
+        implicit val transid: TransactionId = creation.transid
+        logging
+          .info(this, s"container creation message for ${creation.invocationNamespace}/${creation.action} is received")
         WhiskAction
           .get(entityStore, creation.action.toDocId, creation.revision, fromCache = true)
           .map { action =>
