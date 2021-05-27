@@ -54,7 +54,7 @@ class CreationJobManagerTests
     with BeforeAndAfterEach
     with StreamLogging {
 
-  private val timeout = loadConfigOrThrow[Int](ConfigKeys.schedulerInProgressJobRetentionSecond).seconds
+  private val timeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetentionSecond)
   val blackboxTimeout = FiniteDuration(timeout.toSeconds * 3, TimeUnit.SECONDS)
   implicit val ece: ExecutionContextExecutor = system.dispatcher
   val config = new WhiskConfig(ExecManifest.requiredProperties)
