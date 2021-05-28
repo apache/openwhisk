@@ -17,7 +17,8 @@
 
 package org.apache.openwhisk.http
 
-import akka.actor.ActorSystem
+import akka.Done
+import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging
 import akka.http.scaladsl.{Http, HttpConnectionContext}
 import akka.http.scaladsl.model.{HttpRequest, _}
@@ -29,16 +30,26 @@ import kamon.metric.MeasurementUnit
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
-
+import akka.pattern.after
+import org.apache.openwhisk.common.TransactionId.systemPrefix
+import pureconfig._
+import pureconfig.generic.auto._
 import scala.collection.immutable.Seq
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
+
+case class BasicHttpServiceConfig(shutdownUnreadyDelay: FiniteDuration, shutdownTerminationLimit: FiniteDuration)
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
  * facilities common to all OpenWhisk REST services.
  */
 trait BasicHttpService extends Directives {
+  implicit val logging: Logging
+
+  //start with ready true
+  protected var readyState = true
 
   val OW_EXTRA_LOGGING_HEADER = "X-OW-EXTRA-LOGGING"
 
@@ -164,24 +175,51 @@ trait BasicHttpService extends Directives {
 }
 
 object BasicHttpService {
+  implicit val tid = TransactionId(systemPrefix + "http_service")
 
   /**
    * Starts an HTTP(S) route handler on given port and registers a shutdown hook.
    */
-  def startHttpService(route: Route, port: Int, config: Option[HttpsConfig] = None, interface: String = "0.0.0.0")(
-    implicit actorSystem: ActorSystem,
-    materializer: ActorMaterializer): Unit = {
-    val connectionContext = config.map(Https.connectionContext(_)).getOrElse(HttpConnectionContext)
-    val httpBinding = Http().bindAndHandle(route, interface, port, connectionContext = connectionContext)
-    addShutdownHook(httpBinding)
+  def startHttpService(service: BasicHttpService,
+                       port: Int,
+                       httpsConfig: Option[HttpsConfig] = None,
+                       interface: String = "0.0.0.0")(implicit actorSystem: ActorSystem,
+                                                      materializer: ActorMaterializer,
+                                                      logging: Logging): Unit = {
+    val connectionContext = httpsConfig.map(Https.connectionContext(_)).getOrElse(HttpConnectionContext)
+    val httpBinding = Http().bindAndHandle(service.route, interface, port, connectionContext = connectionContext)
+    logging.info(this, "starting http service...")
+    addShutdownHook(service, httpBinding)
   }
 
-  def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem,
-                                                           materializer: ActorMaterializer): Unit = {
+  def addShutdownHook(service: BasicHttpService,
+                      binding: Future[Http.ServerBinding],
+                      httpServiceConfig: BasicHttpServiceConfig =
+                        loadConfigOrThrow[BasicHttpServiceConfig]("whisk.http"))(implicit actorSystem: ActorSystem,
+                                                                                 materializer: ActorMaterializer,
+                                                                                 logging: Logging): Unit = {
     implicit val executionContext = actorSystem.dispatcher
-    sys.addShutdownHook {
-      Await.result(binding.map(_.unbind()), 30.seconds)
-      Await.result(actorSystem.whenTerminated, 30.seconds)
+
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "http_unready") { () =>
+      logging.info(this, "shutdown unready...")
+      //return 503 status at /ready endpoint for some time before actual termination begins
+      service.readyState = false
+      after(httpServiceConfig.shutdownUnreadyDelay, actorSystem.scheduler) {
+        logging.info(this, "shutdown unready complete...")
+        Future.successful(Done)
+      }
+    }
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseServiceUnbind, "http_termination") { () =>
+      logging.info(this, "shutdown terminating...")
+      binding
+        .flatMap(_.terminate(hardDeadline = httpServiceConfig.shutdownTerminationLimit))
+        .andThen {
+          case Success(_) => logging.info(this, "shutdown termination complete...")
+          case Failure(t) => logging.info(this, s"shutdown termination failed... ${t}")
+        }
+        .map { _ =>
+          Done
+        }
     }
   }
 

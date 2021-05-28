@@ -77,7 +77,7 @@ class Controller(val instance: ControllerInstanceId,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
                  implicit val materializer: ActorMaterializer,
-                 implicit val logging: Logging)
+                 override implicit val logging: Logging)
     extends BasicRasService {
 
   TransactionId.controller.mark(
@@ -289,9 +289,10 @@ object Controller {
         val httpsConfig =
           if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
+        BasicHttpService.startHttpService(controller, port, httpsConfig, interface)(
           actorSystem,
-          controller.materializer)
+          controller.materializer,
+          logger)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")
