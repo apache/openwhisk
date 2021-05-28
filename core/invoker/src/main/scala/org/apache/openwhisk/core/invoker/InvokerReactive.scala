@@ -25,7 +25,6 @@ import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
@@ -68,7 +67,6 @@ class InvokerReactive(
   logging: Logging)
     extends InvokerCore {
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   implicit val cfg: WhiskConfig = config
 
@@ -105,7 +103,7 @@ class InvokerReactive(
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore()
   private val activationStore =
-    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, logging)
 
   private val authStore = WhiskAuthStore.datastore()
 

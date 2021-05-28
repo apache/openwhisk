@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import spray.json.RootJsonFormat
 import org.apache.openwhisk.common.Logging
@@ -31,17 +30,14 @@ import scala.reflect.ClassTag
  * An Spi for providing ArtifactStore implementations
  */
 trait ArtifactStoreProvider extends Spi {
-  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean = false)(
-    implicit jsonFormat: RootJsonFormat[D],
-    docReader: DocumentReader,
-    actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D]
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean = false)(implicit jsonFormat: RootJsonFormat[D],
+                                                                                 docReader: DocumentReader,
+                                                                                 actorSystem: ActorSystem,
+                                                                                 logging: Logging): ArtifactStore[D]
 
-  protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]()(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): Option[AttachmentStore] = {
+  protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]()(implicit
+                                                                        actorSystem: ActorSystem,
+                                                                        logging: Logging): Option[AttachmentStore] = {
     if (ConfigFactory.load().hasPath("whisk.spi.AttachmentStoreProvider")) {
       Some(SpiLoader.get[AttachmentStoreProvider].makeStore[D]())
     } else {

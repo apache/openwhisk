@@ -21,7 +21,6 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActor, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -93,7 +92,6 @@ class FunctionPullingContainerPoolTests
 
   val timeout = 5.seconds
 
-  private implicit val mt = ActorMaterializer()
   private implicit val transId = TransactionId.testing
   private implicit val creationId = CreationId.generate()
 

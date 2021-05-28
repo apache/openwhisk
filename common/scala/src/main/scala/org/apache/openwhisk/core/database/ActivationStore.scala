@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -199,5 +198,5 @@ trait ActivationStore {
 }
 
 trait ActivationStoreProvider extends Spi {
-  def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging): ActivationStore
+  def instance(actorSystem: ActorSystem, logging: Logging): ActivationStore
 }

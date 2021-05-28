@@ -26,7 +26,6 @@ import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
 import akka.testkit.TestKit
 import common.StreamLogging
@@ -106,7 +105,6 @@ class SplunkLogStoreTests
   val context = UserContext(user, request)
 
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val testFlow: Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
     Flow[(HttpRequest, Promise[HttpResponse])]

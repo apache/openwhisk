@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database.azblob
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
@@ -30,8 +29,7 @@ trait AzureBlob extends FlatSpec {
   def azureCdnConfig: String = ""
 
   def makeAzureStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                          logging: Logging,
-                                                          materializer: ActorMaterializer): AttachmentStore = {
+                                                          logging: Logging): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
         |whisk {
         |  azure-blob {

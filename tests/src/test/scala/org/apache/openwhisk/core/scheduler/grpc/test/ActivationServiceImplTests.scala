@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.scheduler.grpc.test
 
 import akka.actor.{Actor, ActorSystem, Props}
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestKit}
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
@@ -61,7 +60,6 @@ class ActivationServiceImplTests
 
   behavior of "ActivationService"
 
-  implicit val mat = ActorMaterializer()
   implicit val ec = system.dispatcher
 
   val messageTransId = TransactionId(TransactionId.testing.meta.id)

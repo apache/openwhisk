@@ -31,7 +31,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import common._
 import common.rest.{HttpConnection, WskRestOperations}
 import pureconfig._
@@ -58,7 +57,6 @@ class ShootComponentsTests
   val wsk = new WskRestOperations
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
-  implicit val materializer = ActorMaterializer()
   implicit val testConfig = PatienceConfig(1.minute)
 
   val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")

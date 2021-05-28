@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.containerpool.v2.test
 
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
@@ -55,7 +54,6 @@ class InvokerHealthManagerTests
 
   override def afterAll = TestKit.shutdownActorSystem(system)
 
-  implicit val mt = ActorMaterializer()
   implicit val ec = system.dispatcher
 
   val config = new WhiskConfig(ExecManifest.requiredProperties)
@@ -351,7 +349,7 @@ class InvokerHealthManagerTests
           TestActor.KeepRunning
 
     })
-    probe.expectMsg(5.seconds, Transition(fsm, Unhealthy, Healthy))
+    probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
 
     dataManagementService.expectMsg(
       UpdateDataOnChange(

@@ -21,7 +21,6 @@ import _root_.rx.RxReactiveStreams
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.model.{ContentType, StatusCodes, Uri}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.microsoft.azure.cosmosdb._
@@ -53,7 +52,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  val materializer: ActorMaterializer,
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol

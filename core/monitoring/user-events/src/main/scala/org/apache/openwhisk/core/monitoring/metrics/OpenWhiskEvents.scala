@@ -21,7 +21,6 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.Http
 import akka.kafka.ConsumerSettings
-import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -42,8 +41,7 @@ object OpenWhiskEvents extends SLF4JLogging {
 
   case class RetryConfig(minBackoff: FiniteDuration, maxBackoff: FiniteDuration, randomFactor: Double, maxRestarts: Int)
 
-  def start(config: Config)(implicit system: ActorSystem,
-                            materializer: ActorMaterializer): Future[Http.ServerBinding] = {
+  def start(config: Config)(implicit system: ActorSystem): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
 
     val prometheusReporter = new PrometheusReporter()
@@ -61,7 +59,7 @@ object OpenWhiskEvents extends SLF4JLogging {
     }
     val port = metricConfig.port
     val api = new PrometheusEventsApi(eventConsumer, prometheusRecorder)
-    val httpBinding = Http().bindAndHandle(api.routes, "0.0.0.0", port)
+    val httpBinding = Http().newServerAt("0.0.0.0", port).bindFlow(api.routes)
     httpBinding.foreach(_ => log.info(s"Started the http server on http://localhost:$port"))(system.dispatcher)
     httpBinding
   }

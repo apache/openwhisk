@@ -25,7 +25,6 @@ import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.Flow
-import akka.stream._
 import com.sksamuel.elastic4s.http.search.SearchHit
 import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
 import com.sksamuel.elastic4s.indexes.IndexRequest
@@ -58,9 +57,7 @@ case class ElasticSearchActivationStoreConfig(protocol: String,
 class ElasticSearchActivationStore(
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
   elasticSearchConfig: ElasticSearchActivationStoreConfig,
-  useBatching: Boolean = false)(implicit actorSystem: ActorSystem,
-                                actorMaterializer: ActorMaterializer,
-                                logging: Logging)
+  useBatching: Boolean = false)(implicit actorSystem: ActorSystem, logging: Logging)
     extends ActivationStore {
 
   import com.sksamuel.elastic4s.http.ElasticDsl._
@@ -426,9 +423,8 @@ object ElasticSearchActivationStore {
 object ElasticSearchActivationStoreProvider extends ActivationStoreProvider {
   import ElasticSearchActivationStore.elasticSearchConfig
 
-  override def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
+  override def instance(actorSystem: ActorSystem, logging: Logging) =
     new ElasticSearchActivationStore(elasticSearchConfig = elasticSearchConfig, useBatching = true)(
       actorSystem,
-      actorMaterializer,
       logging)
 }

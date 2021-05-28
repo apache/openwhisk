@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
@@ -49,20 +48,18 @@ case class CouchDbConfig(provider: String,
 
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
-    implicit jsonFormat: RootJsonFormat[D],
-    docReader: DocumentReader,
-    actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = makeArtifactStore(useBatching, getAttachmentStore())
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(implicit jsonFormat: RootJsonFormat[D],
+                                                                         docReader: DocumentReader,
+                                                                         actorSystem: ActorSystem,
+                                                                         logging: Logging): ArtifactStore[D] =
+    makeArtifactStore(useBatching, getAttachmentStore())
 
   def makeArtifactStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean,
                                                            attachmentStore: Option[AttachmentStore])(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    logging: Logging): ArtifactStore[D] = {
     val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
     require(
       dbConfig.provider == "Cloudant" || dbConfig.provider == "CouchDB",

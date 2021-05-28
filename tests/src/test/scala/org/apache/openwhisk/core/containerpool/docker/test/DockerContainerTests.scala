@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.containerpool.docker.test
 import java.io.IOException
 import java.time.Instant
 
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import common.TimingHelpers
@@ -88,8 +87,6 @@ class DockerContainerTests
   override def beforeEach() = {
     stream.reset()
   }
-
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   /** Reads logs into memory and awaits them */
   def awaitLogs(source: Source[ByteString, Any], timeout: FiniteDuration = 500.milliseconds): Vector[String] =

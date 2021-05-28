@@ -20,10 +20,8 @@ package org.apache.openwhisk.common
 import java.io.{FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
-
-import akka.http.scaladsl.ConnectionContext
+import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import akka.stream.TLSClientAuth
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 object Https {
   case class HttpsConfig(keystorePassword: String, keystoreFlavor: String, keystorePath: String, clientAuth: String)
@@ -35,8 +33,16 @@ object Https {
     cs
   }
 
-  def connectionContext(httpsConfig: HttpsConfig, sslConfig: Option[AkkaSSLConfig] = None) = {
+  def httpsInsecureClient(context: SSLContext): HttpsConnectionContext =
+    ConnectionContext.httpsClient((host, port) => {
+      val engine = context.createSSLEngine(host, port)
+      engine.setUseClientMode(true)
+      // WARNING: this creates an SSL Engine without enabling endpoint identification/verification procedures
+      // Disabling host name verification is a very bad idea, please don't unless you have a very good reason to.
+      engine
+    })
 
+  def applyHttpsConfig(httpsConfig: HttpsConfig, withDisableHostnameVerification: Boolean = false): SSLContext = {
     val keyFactoryType = "SunX509"
     val clientAuth = {
       if (httpsConfig.clientAuth.toBoolean)
@@ -63,7 +69,27 @@ object Https {
 
     val sslContext: SSLContext = SSLContext.getInstance("TLS")
     sslContext.init(keyManagerFactory.getKeyManagers, trustManagerFactory.getTrustManagers, new SecureRandom)
+    sslContext
+  }
 
-    ConnectionContext.https(sslContext, sslConfig, clientAuth = clientAuth)
+  def connectionContextClient(httpsConfig: HttpsConfig,
+                              withDisableHostnameVerification: Boolean = false): HttpsConnectionContext = {
+    val sslContext = applyHttpsConfig(httpsConfig, withDisableHostnameVerification)
+    connectionContextClient(sslContext, withDisableHostnameVerification)
+  }
+
+  def connectionContextClient(sslContext: SSLContext,
+                              withDisableHostnameVerification: Boolean): HttpsConnectionContext = {
+    if (withDisableHostnameVerification) {
+      httpsInsecureClient(sslContext)
+    } else {
+      ConnectionContext.httpsClient(sslContext)
+    }
+  }
+
+  def connectionContextServer(httpsConfig: HttpsConfig,
+                              withDisableHostnameVerification: Boolean = false): HttpsConnectionContext = {
+    val sslContext: SSLContext = applyHttpsConfig(httpsConfig, withDisableHostnameVerification)
+    ConnectionContext.httpsServer(sslContext)
   }
 }

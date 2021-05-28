@@ -21,7 +21,6 @@ import java.time.Instant
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Source
@@ -62,7 +61,7 @@ object DockerToActivationLogStore {
  */
 class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val mat: ActorMaterializer = ActorMaterializer()(system)
+  implicit val actorSystem: ActorSystem = system
 
   /* "json-file" is the log-driver that writes out to file */
   override val containerParameters = Map("--log-driver" -> Set("json-file"))

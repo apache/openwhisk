@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.stream.ActorMaterializer
 import common.{LoggedFunction, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -34,7 +33,6 @@ import scala.concurrent.{Await, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
 class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def await[V](f: Future[V]) = Await.result(f, 10.seconds)
 

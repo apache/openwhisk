@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.database.test.behavior
 
 import java.time.Instant
 
-import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
@@ -49,8 +48,6 @@ trait ArtifactStoreBehaviorBase
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
-
-  protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   protected val prefix = s"artifactTCK_${Random.alphanumeric.take(4).mkString}"
 

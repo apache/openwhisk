@@ -21,7 +21,6 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
 import org.slf4j.LoggerFactory
@@ -100,7 +99,6 @@ object Main {
 
   private def executeWithSystem(conf: Conf)(implicit actorSystem: ActorSystem): Int = {
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
-    implicit val materializer = ActorMaterializer.create(actorSystem)
 
     val admin = new WhiskAdmin(conf)
     val result = Try {
@@ -181,9 +179,7 @@ trait WhiskCommand {
   }
 }
 
-case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem,
-                                  implicit val materializer: ActorMaterializer,
-                                  implicit val logging: Logging) {
+case class WhiskAdmin(conf: Conf)(implicit val actorSystem: ActorSystem, implicit val logging: Logging) {
   implicit val tid = TransactionId(TransactionId.systemPrefix + "cli")
   def executeCommand(): Future[Either[CommandError, String]] = {
     conf.subcommands match {

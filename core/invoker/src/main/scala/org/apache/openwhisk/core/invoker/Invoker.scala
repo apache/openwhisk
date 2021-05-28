@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.invoker
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -202,9 +201,7 @@ object Invoker {
       if (Invoker.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")) else None
 
     val invokerServer = SpiLoader.get[InvokerServerProvider].instance(invoker)
-    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(actorSystem)
   }
 }
 

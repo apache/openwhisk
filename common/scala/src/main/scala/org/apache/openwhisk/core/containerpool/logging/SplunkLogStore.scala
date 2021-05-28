@@ -21,6 +21,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.ConnectionContext
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding.Post
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -32,14 +33,13 @@ import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import akka.stream.OverflowStrategy
 import akka.stream.QueueOfferResult
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import javax.net.ssl.{SSLContext, SSLEngine}
 import pureconfig._
 import pureconfig.generic.auto._
 
@@ -89,7 +89,6 @@ class SplunkLogStore(
     extends LogDriverLogStore(actorSystem) {
   implicit val as = actorSystem
   implicit val ec = as.dispatcher
-  implicit val materializer = ActorMaterializer()
   private val logging = new AkkaLogging(actorSystem.log)
 
   private val splunkApi = Path / "services" / "search" / "jobs" //see http://docs.splunk.com/Documentation/Splunk/6.6.3/RESTREF/RESTsearch#search.2Fjobs
@@ -98,12 +97,22 @@ class SplunkLogStore(
 
   val maxPendingRequests = 500
 
+  def createInsecureSslEngine(host: String, port: Int): SSLEngine = {
+    val engine = SSLContext.getDefault.createSSLEngine(host, port)
+    engine.setUseClientMode(true)
+
+    // WARNING: this creates an SSL Engine without enabling endpoint identification/verification procedures
+    // Disabling host name verification is a very bad idea, please don't unless you have a very good reason to.
+
+    engine
+  }
+
   val defaultHttpFlow = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
     host = splunkConfig.host,
     port = splunkConfig.port,
     connectionContext =
       if (splunkConfig.disableSNI)
-        Http().createClientHttpsContext(AkkaSSLConfig().mapSettings(s => s.withLoose(s.loose.withDisableSNI(true))))
+        ConnectionContext.httpsClient(createInsecureSslEngine _)
       else Http().defaultClientHttpsContext)
 
   override def fetchLogs(namespace: String,

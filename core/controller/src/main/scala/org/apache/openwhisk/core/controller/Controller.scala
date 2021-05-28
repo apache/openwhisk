@@ -24,7 +24,6 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
@@ -76,7 +75,6 @@ class Controller(val instance: ControllerInstanceId,
                  runtimes: Runtimes,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
-                 implicit val materializer: ActorMaterializer,
                  implicit val logging: Logging)
     extends BasicRasService {
 
@@ -90,6 +88,7 @@ class Controller(val instance: ControllerInstanceId,
    * A Route in Akka is technically a function taking a RequestContext as a parameter.
    *
    * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+   *
    * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
    */
   override def routes(implicit transid: TransactionId): Route = {
@@ -121,7 +120,7 @@ class Controller(val instance: ControllerInstanceId,
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   private implicit val activationStore =
-    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, logging)
 
   // register collections
   Collection.initialize(entityStore)
@@ -278,20 +277,12 @@ object Controller {
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
-        val controller = new Controller(
-          instance,
-          ExecManifest.runtimesManifest,
-          config,
-          actorSystem,
-          ActorMaterializer.create(actorSystem),
-          logger)
+        val controller = new Controller(instance, ExecManifest.runtimesManifest, config, actorSystem, logger)
 
         val httpsConfig =
           if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
-          actorSystem,
-          controller.materializer)
+        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(actorSystem)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")

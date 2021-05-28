@@ -219,7 +219,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
   }
 
   /**
-   * This is to decide wether to change from the newState or not.
+   * This is to decide weather to change from the newState or not.
    * If current state is already newState, it will stay, otherwise it will change its state.
    *
    * @param newState the desired state to change.

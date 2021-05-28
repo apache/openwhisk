@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.loadBalancer.test
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
 import java.nio.charset.StandardCharsets
@@ -409,7 +408,6 @@ class ShardingContainerPoolBalancerTests
 
   }
 
-  implicit val am = ActorMaterializer()
   val config = new WhiskConfig(ExecManifest.requiredProperties)
   val invokerMem = 2000.MB
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)

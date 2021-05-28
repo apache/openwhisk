@@ -21,7 +21,6 @@ import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}
@@ -30,16 +29,13 @@ import pureconfig.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class UserEventLauncher(docker: StandaloneDockerClient,
-                        owPort: Int,
-                        kafkaDockerPort: Int,
-                        existingUserEventSvcPort: Option[Int],
-                        workDir: File,
-                        dataDir: File)(implicit logging: Logging,
-                                       ec: ExecutionContext,
-                                       actorSystem: ActorSystem,
-                                       materializer: ActorMaterializer,
-                                       tid: TransactionId) {
+class UserEventLauncher(
+  docker: StandaloneDockerClient,
+  owPort: Int,
+  kafkaDockerPort: Int,
+  existingUserEventSvcPort: Option[Int],
+  workDir: File,
+  dataDir: File)(implicit logging: Logging, ec: ExecutionContext, actorSystem: ActorSystem, tid: TransactionId) {
 
   //owPort+1 is used by Api Gateway
   private val userEventPort = existingUserEventSvcPort.getOrElse(checkOrAllocatePort(owPort + 2))

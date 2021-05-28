@@ -26,7 +26,6 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.management.scaladsl.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
@@ -152,8 +151,7 @@ class ShardingContainerPoolBalancer(
   val invokerPoolFactory: InvokerPoolFactory,
   implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
@@ -334,10 +332,8 @@ class ShardingContainerPoolBalancer(
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = {
+  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                                  logging: Logging): LoadBalancer = {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(

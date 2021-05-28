@@ -114,7 +114,8 @@ class LeaseKeepAliveService(etcdClient: EtcdClient, instanceId: InstanceId, watc
 
   private def startKeepAliveService(lease: Lease): Future[SetWatcher] = {
     val worker =
-      actorSystem.scheduler.schedule(initialDelay = 0.second, interval = 500.milliseconds)(keepAliveOnce(lease))
+      actorSystem.scheduler.scheduleAtFixedRate(initialDelay = 0.second, interval = 500.milliseconds)(() =>
+        keepAliveOnce(lease))
 
     /**
      * To verify that lease has been deleted since timeout,

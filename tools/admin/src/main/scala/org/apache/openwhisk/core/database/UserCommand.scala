@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
@@ -144,7 +143,6 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
   def exec(cmd: ScallopConfBase)(implicit system: ActorSystem,
                                  logging: Logging,
-                                 materializer: ActorMaterializer,
                                  transid: TransactionId): Future[Either[CommandError, String]] = {
     implicit val executionContext = system.dispatcher
     val authStore = UserCommand.createDataStore()
@@ -283,7 +281,7 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 
   def changeUserState(authStore: AuthStore, subjects: List[String], blocked: Boolean)(
     implicit transid: TransactionId,
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext): Future[Either[CommandError, String]] = {
     Source(subjects)
       .mapAsync(1)(changeUserState(authStore, _, blocked))
@@ -320,18 +318,10 @@ class UserCommand extends Subcommand("user") with WhiskCommand {
 }
 
 object UserCommand {
-  def createDataStore()(implicit system: ActorSystem,
-                        logging: Logging,
-                        materializer: ActorMaterializer): ArtifactStore[WhiskAuth] =
+  def createDataStore()(implicit system: ActorSystem, logging: Logging): ArtifactStore[WhiskAuth] =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskAuth]()(
-        classTag[WhiskAuth],
-        ExtendedAuthFormat,
-        WhiskDocumentReader,
-        system,
-        logging,
-        materializer)
+      .makeStore[WhiskAuth]()(classTag[WhiskAuth], ExtendedAuthFormat, WhiskDocumentReader, system, logging)
 
   class ExtendedAuth(subject: Subject, namespaces: Set[WhiskNamespace], blocked: Option[Boolean])
       extends WhiskAuth(subject, namespaces) {
