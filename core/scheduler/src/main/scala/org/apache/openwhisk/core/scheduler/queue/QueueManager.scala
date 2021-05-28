@@ -488,9 +488,9 @@ class QueueManager(
     }
   }
 
-  private val logScheduler = context.system.scheduler.schedule(0.seconds, 1.seconds) {
+  private val logScheduler = context.system.scheduler.scheduleAtFixedRate(0.seconds, 1.seconds) (()=>{
     MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_QUEUE, QueuePool.countLeader())
-  }
+  })
 
   private val healthReporter = Scheduler.scheduleWaitAtLeast(1.seconds, 1.seconds) { () =>
     val leaderCount = QueuePool.countLeader()

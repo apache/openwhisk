@@ -465,5 +465,9 @@ etcd_connect_string: "{% set ret = [] %}\
 
 scheduler:
   protocol: "{{ scheduler_protocol | default('http') }}"
+  maxPeek: "{{ scheduler_max_peek | default(128) }}"
+  queueManager:
+    maxSchedulingTimeMs: "{{ scheduler_maxSchedulingTimeMs | default(20000) }}"
+    maxRetriesToGetQueue: "{{ scheduler_maxRetriesToGetQueue | default(13) }}"
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
