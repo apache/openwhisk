@@ -376,10 +376,10 @@ protected[core] abstract class EntitlementProvider(
             .map(value => value.convertTo[String])
             .getOrElse(WhiskAction.defaultPermissions)
 
-          val errorInfo = s"have no permission to download this shared action"
-          val currentDownloadPermission = currentPermissions.charAt(3)
           if (user.namespace.name.asString != entityName.path.root.asString) { // the shared user who download the action
-            if (currentDownloadPermission == '-') {
+            val errorInfo = s"have no permission to download this shared action"
+            val downloadPermissionOfSharedUser = currentPermissions.charAt(3)
+            if (downloadPermissionOfSharedUser == '-') {
               Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
             } else {
               Future.successful(())
