@@ -34,6 +34,7 @@ import org.apache.openwhisk.core.scheduler.message.{
   ReschedulingCreationJob,
   SuccessfulCreationJob
 }
+import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, QueuePool}
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.concurrent.TrieMap
@@ -64,7 +65,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, Int, Array[Byte]
   override def receive: Receive = {
     case RegisterCreationJob(
         ContainerCreationMessage(_, invocationNamespace, action, revision, actionMetaData, _, _, _, _, creationId)) =>
-      val isBlackboxInvocation = actionMetaData.toExecutableWhiskAction.exists(a => a.exec.pull);
+      val isBlackboxInvocation = actionMetaData.toExecutableWhiskAction.exists(a => a.exec.pull)
       registerJob(invocationNamespace, action, revision, creationId, isBlackboxInvocation)
 
     case FinishCreationJob(

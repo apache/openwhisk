@@ -29,6 +29,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.inProgressContainer
 import org.apache.openwhisk.core.scheduler.container._
+import org.apache.openwhisk.core.scheduler.message._
 import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, MemoryQueueValue, QueuePool}
 import org.apache.openwhisk.core.service.{RegisterData, UnregisterData}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -39,7 +40,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 @RunWith(classOf[JUnitRunner])
