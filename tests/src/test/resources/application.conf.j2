@@ -106,7 +106,6 @@ whisk {
         docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
     }
 
-    runtime.resource.role = "openwhisk-runtime-resource-role"
     helm.release = "release"
     runtime.delete.timeout = "30 seconds"
 

@@ -114,8 +114,16 @@ trait ContainerFactory {
     userProvidedImage: Boolean,
     memory: ByteSize,
     cpuShares: Int,
-    action: Option[ExecutableWhiskAction],
-    resourceTags: Option[List[String]] = None)(implicit config: WhiskConfig, logging: Logging): Future[Container]
+    action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
+  }
+
+  def createContainer(tid: TransactionId,
+                      name: String,
+                      actionImage: ExecManifest.ImageName,
+                      userProvidedImage: Boolean,
+                      memory: ByteSize,
+                      cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container]
 
   /** perform any initialization */
   def init(): Unit

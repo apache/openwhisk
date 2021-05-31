@@ -119,7 +119,7 @@ class FunctionPullingContainerProxyTests
       false,
       1.second)
 
-  val timeoutConfig = ContainerProxyTimeoutConfig(5.seconds, 5.seconds, 5.seconds)
+  val timeoutConfig = ContainerProxyTimeoutConfig(5.seconds, 5.seconds)
 
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
 
@@ -217,15 +217,7 @@ class FunctionPullingContainerProxyTests
 
   /** Creates an inspectable factory */
   def createFactory(response: Future[Container]) = LoggedFunction {
-    (_: TransactionId,
-     _: String,
-     _: ImageName,
-     _: Boolean,
-     _: ByteSize,
-     _: Int,
-     _: Option[ExecutableWhiskAction],
-     _: Option[List[String]],
-     _: Option[String]) =>
+    (_: TransactionId, _: String, _: ImageName, _: Boolean, _: ByteSize, _: Int, _: Option[ExecutableWhiskAction]) =>
       response
   }
 
@@ -389,7 +381,7 @@ class FunctionPullingContainerProxyTests
     preWarm(machine, probe)
 
     factory.calls should have size 1
-    val (tid, name, _, _, memory, _, _, _, _) = factory.calls(0)
+    val (tid, name, _, _, memory, _, _) = factory.calls(0)
     tid shouldBe TransactionId.invokerWarmup
     name should fullyMatch regex """wskmyname\d+_\d+_prewarm_actionKind"""
     memory shouldBe memoryLimit
@@ -579,7 +571,7 @@ class FunctionPullingContainerProxyTests
       case RequestActivation(Some(_), None) => true
     }
 
-    val (tid, name, _, _, memory, _, _, _, _) = factory.calls(0)
+    val (tid, name, _, _, memory, _, _) = factory.calls(0)
     tid shouldBe TransactionId.invokerColdstart
     name should fullyMatch regex """wskmyname\d+_\d+_actionSpace_actionName"""
     memory shouldBe memoryLimit

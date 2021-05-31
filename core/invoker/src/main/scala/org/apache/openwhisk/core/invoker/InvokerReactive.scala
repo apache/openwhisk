@@ -202,8 +202,7 @@ class InvokerReactive(
               ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
-            case e: Throwable =>
-              logging.error(this, s"An unknown DB connection error occurred while fetching an action: $e.")
+            case _ =>
               ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
           }
           activationFeed ! MessageFeed.Processed

@@ -28,26 +28,23 @@ package activation;
 
 //#services
 service ActivationService {
-
     rpc FetchActivation (FetchRequest) returns (FetchResponse) {}
-
     rpc RescheduleActivation (RescheduleRequest) returns (RescheduleResponse) {}
-
 }
 //#services
 
 //#messages
 // The request message
 message FetchRequest {
-    string transactionId = 1;
-    string invocationNamespace = 2;
-    string fqn = 3;
-    string rev = 4;
-    string containerId = 5;
-    bool warmed = 6;
+    string invocationNamespace = 1;
+    string fqn = 2;
+    string rev = 3;
+    string containerId = 4;
+    bool warmed = 5;
     // This allows optional value
-    google.protobuf.Int64Value lastDuration = 7;
-    bool alive = 8;
+    google.protobuf.Int64Value lastDuration = 6;
+    // to record alive containers
+    bool alive = 7;
 }
 
 // The response message

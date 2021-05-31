@@ -172,9 +172,7 @@ class FunctionPullingContainerProxy(
             Boolean,
             ByteSize,
             Int,
-            Option[ExecutableWhiskAction],
-            Option[List[String]],
-            Option[String]) => Future[Container],
+            Option[ExecutableWhiskAction]) => Future[Container],
   entityStore: ArtifactStore[WhiskEntity],
   namespaceBlacklist: NamespaceBlacklist,
   get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
@@ -228,8 +226,6 @@ class FunctionPullingContainerProxy(
         job.exec.pull,
         job.memoryLimit,
         poolConfig.cpuShare(job.memoryLimit),
-        None,
-        None,
         None)
         .map(container => PreWarmData(container, job.exec.kind, job.memoryLimit, expires = job.ttl.map(_.fromNow)))
         .pipeTo(self)
@@ -237,11 +233,6 @@ class FunctionPullingContainerProxy(
 
     // cold start
     case Event(job: Initialize, _) =>
-      val imagePullSecret = if (job.action.exec.pull) {
-        job.action.annotations.get("imagePullSecret").map(_.convertTo[String])
-      } else {
-        None
-      }
       factory( // create a new container
         TransactionId.invokerColdstart,
         containerName(instance, job.action.namespace.namespace, job.action.name.asString),
@@ -249,9 +240,7 @@ class FunctionPullingContainerProxy(
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
         poolConfig.cpuShare(job.action.limits.memory.megabytes.MB),
-        None,
-        job.action.annotations.get(Annotations.InvokerResourcesAnnotationName).map(_.convertTo[List[String]]),
-        imagePullSecret)
+        None)
         .andThen {
           case Failure(t) =>
             context.parent ! ContainerCreationFailed(t)
@@ -1233,9 +1222,7 @@ object FunctionPullingContainerProxy {
                       Boolean,
                       ByteSize,
                       Int,
-                      Option[ExecutableWhiskAction],
-                      Option[List[String]],
-                      Option[String]) => Future[Container],
+                      Option[ExecutableWhiskAction]) => Future[Container],
             entityStore: ArtifactStore[WhiskEntity],
             namespaceBlacklist: NamespaceBlacklist,
             get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],

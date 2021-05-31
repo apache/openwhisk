@@ -45,7 +45,10 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.containerpool._
-import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, ExecutableWhiskAction, InvokerInstanceId, UUID}
+import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.ExecManifest
+import org.apache.openwhisk.core.entity.InvokerInstanceId
+import org.apache.openwhisk.core.entity.UUID
 
 /**
  * Configuration for mesos timeouts
@@ -122,15 +125,12 @@ class MesosContainerFactory(config: WhiskConfig,
       }
   }
 
-  override def createContainer(
-    tid: TransactionId,
-    name: String,
-    actionImage: ExecManifest.ImageName,
-    userProvidedImage: Boolean,
-    memory: ByteSize,
-    cpuShares: Int,
-    action: Option[ExecutableWhiskAction] = None,
-    resourceTags: Option[List[String]] = None)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+  override def createContainer(tid: TransactionId,
+                               name: String,
+                               actionImage: ExecManifest.ImageName,
+                               userProvidedImage: Boolean,
+                               memory: ByteSize,
+                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val transid = tid
     val image = actionImage.resolveImageName(Some(
       ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig).url))

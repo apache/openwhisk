@@ -176,9 +176,7 @@ class KubernetesContainerTests
         image: String,
         memory: ByteSize = 256.MB,
         env: Map[String, String] = Map.empty,
-        labels: Map[String, String] = Map.empty,
-        resourceTags: Option[List[String]] = None,
-        imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
         Future.failed(ProcessUnsuccessfulException(ExitStatus(1), "", ""))
       }
     }
@@ -494,9 +492,7 @@ class KubernetesContainerTests
         image: String,
         memory: ByteSize = 256.MB,
         env: Map[String, String] = Map.empty,
-        labels: Map[String, String] = Map.empty,
-        resourceTags: Option[List[String]] = None,
-        imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
         Future.failed(KubernetesPodApiException(new Exception("faking fabric8 failure...")))
       }
     }
@@ -516,9 +512,7 @@ class KubernetesContainerTests
         image: String,
         memory: ByteSize = 256.MB,
         env: Map[String, String] = Map.empty,
-        labels: Map[String, String] = Map.empty,
-        resourceTags: Option[List[String]] = None,
-        imagePullSecret: Option[String] = None)(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
         Future.failed(new Exception("faking fabric8 failure..."))
       }
     }

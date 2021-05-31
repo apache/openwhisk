@@ -191,8 +191,6 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       case Some(parent) => findRoot(parent)
       case _            => meta
     }
-
-  def serialize = TransactionId.serdes.write(this).compactPrint
 }
 
 /**
