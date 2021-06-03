@@ -238,6 +238,7 @@ object TransactionId {
   val invokerHealthManager = TransactionId(systemPrefix + "invokerHealthManager") // Invoker startup/shutdown or GC activity
   def invokerHealthActivation = TransactionId(systemPrefix + "invokerHealthActivation") // Invoker health activation
   val invokerWarmup = TransactionId(systemPrefix + "invokerWarmup") // Invoker warmup thread that makes stem-cell containers
+  val invokerColdstart = TransactionId(systemPrefix + "invokerColdstart") //Invoker cold start thread
   val invokerNanny = TransactionId(systemPrefix + "invokerNanny") // Invoker nanny thread
   val dispatcher = TransactionId(systemPrefix + "dispatcher") // Kafka message dispatcher
   val loadbalancer = TransactionId(systemPrefix + "loadbalancer") // Loadbalancer thread
