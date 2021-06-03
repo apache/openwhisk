@@ -41,6 +41,7 @@ object WarmUp {
       revision = DocRevision.empty,
       user = warmUpActionIdentity,
       activationId = new ActivationIdGenerator {}.make(),
+      DocId(warmUpAction.asString),
       rootControllerIndex = controller,
       blocking = false,
       content = None,
@@ -54,6 +55,7 @@ object WarmUp {
         val metadata = WhiskActionMetaData(
           warmUpAction.path,
           warmUpAction.name,
+          DocId(warmUpAction.asString),
           CodeExecMetaDataAsString(manifest, false, entryPoint = None))
         ContainerCreationMessage(
           TransactionId.warmUp,

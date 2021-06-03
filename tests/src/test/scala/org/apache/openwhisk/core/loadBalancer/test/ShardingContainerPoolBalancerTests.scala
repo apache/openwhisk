@@ -39,6 +39,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.common.InvokerHealth
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig

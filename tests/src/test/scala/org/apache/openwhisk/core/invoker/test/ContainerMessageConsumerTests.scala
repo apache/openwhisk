@@ -157,6 +157,7 @@ class ContainerMessageConsumerTests
         sendAckToScheduler(producer))
 
     val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val docId = DocId("testns/testAction@0.0.1")
     val action =
       WhiskAction(EntityPath("testns"), EntityName("testAction"), exec, limits = ActionLimits(TimeLimit(1.minute)))
     put(entityStore, action)
@@ -166,6 +167,7 @@ class ContainerMessageConsumerTests
       WhiskActionMetaData(
         action.namespace,
         action.name,
+        docId,
         execMetadata,
         action.parameters,
         action.limits,
@@ -212,6 +214,7 @@ class ContainerMessageConsumerTests
         sendAckToScheduler(ackConsumer.getProducer()))
 
     val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val docId = DocId("testns/testAction2@0.0.1")
     val whiskAction =
       WhiskAction(EntityPath("testns"), EntityName("testAction2"), exec, limits = ActionLimits(TimeLimit(1.minute)))
     val execMetadata =
@@ -220,6 +223,7 @@ class ContainerMessageConsumerTests
       WhiskActionMetaData(
         whiskAction.namespace,
         whiskAction.name,
+        docId,
         execMetadata,
         whiskAction.parameters,
         whiskAction.limits,
@@ -294,7 +298,7 @@ class ContainerMessageConsumerTests
         WarmUp.warmUpAction.name,
         exec,
         limits = ActionLimits(TimeLimit(1.minute)))
-    val doc = put(entityStore, action)
+    val docId = DocId(action.fullyQualifiedName(true).asString)
     val execMetadata =
       CodeExecMetaDataAsString(exec.manifest, entryPoint = exec.entryPoint)
 
@@ -302,6 +306,7 @@ class ContainerMessageConsumerTests
       WhiskActionMetaData(
         action.namespace,
         action.name,
+        docId,
         execMetadata,
         action.parameters,
         action.limits,
