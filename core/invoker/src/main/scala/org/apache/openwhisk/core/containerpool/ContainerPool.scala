@@ -76,7 +76,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var resent: Option[Run] = None
   val logMessageInterval = 10.seconds
   //periodically emit metrics (don't need to do this for each message!)
-  context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
+  context.system.scheduler.scheduleAtFixedRate(30.seconds, 10.seconds, self, EmitMetrics)
 
   // Key is ColdStartKey, value is the number of cold Start in minute
   var coldStartCount = immutable.Map.empty[ColdStartKey, Int]
@@ -92,7 +92,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     .getOrElse(0)
     .seconds
   if (prewarmConfig.exists(!_.reactive.isEmpty)) {
-    context.system.scheduler.schedule(
+    context.system.scheduler.scheduleAtFixedRate(
       poolConfig.prewarmExpirationCheckInitDelay,
       interval,
       self,

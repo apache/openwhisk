@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.containerpool.mesos.test
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
@@ -327,7 +326,6 @@ class MesosContainerFactoryTest
     val container = await(c)
 
     implicit val tid = TransactionId.testing
-    implicit val m = ActorMaterializer()
     val logs = container
       .logs(actionMemory, false)
       .via(DockerToActivationLogStore.toFormattedString)

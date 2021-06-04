@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.loadBalancer
 
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
@@ -73,8 +72,7 @@ trait LoadBalancerProvider extends Spi {
   def requiredProperties: Map[String, String]
 
   def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
-                                                                         logging: Logging,
-                                                                         materializer: ActorMaterializer): LoadBalancer
+                                                                         logging: Logging): LoadBalancer
 
   /** Return default FeedFactory */
   def createFeedFactory(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,

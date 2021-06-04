@@ -26,7 +26,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.{HttpHeader, HttpMethods, HttpRequest, MediaTypes, StatusCode, StatusCodes, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.IOUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -44,7 +43,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class CouchDBLauncher(docker: StandaloneDockerClient, port: Int, dataDir: File)(implicit logging: Logging,
                                                                                 ec: ExecutionContext,
                                                                                 actorSystem: ActorSystem,
-                                                                                materializer: ActorMaterializer,
                                                                                 tid: TransactionId) {
   case class CouchDBConfig(image: String,
                            user: String,

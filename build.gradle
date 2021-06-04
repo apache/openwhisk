@@ -52,7 +52,7 @@ subprojects {
                     'akka-discovery', 'akka-distributed-data', 'akka-protobuf', 'akka-remote', 'akka-slf4j',
                     'akka-stream', 'akka-stream-testkit', 'akka-testkit']
         def akkaHttp = ['akka-http', 'akka-http-core', 'akka-http-spray-json', 'akka-http-testkit', 'akka-http-xml',
-                        'akka-parsing']
+                        'akka-parsing', 'akka-http2-support']
 
         akka.forEach {
             cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")

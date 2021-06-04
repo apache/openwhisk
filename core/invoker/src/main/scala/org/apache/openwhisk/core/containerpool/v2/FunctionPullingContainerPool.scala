@@ -102,18 +102,16 @@ class FunctionPullingContainerPool(
   private var prewarmConfigQueue = Queue.empty[(CodeExec[_], ByteSize, Option[FiniteDuration])]
   private val prewarmCreateFailedCount = new AtomicInteger(0)
 
-  val logScheduler = context.system.scheduler.schedule(0.seconds, 1.seconds) {
+  val logScheduler = context.system.scheduler.scheduleAtFixedRate(0.seconds, 1.seconds)(() => {
     MetricEmitter.emitHistogramMetric(
       LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("inprogress"),
       memoryConsumptionOf(inProgressPool))
-    MetricEmitter.emitHistogramMetric(
-      LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("busy"),
-      memoryConsumptionOf(busyPool))
-    MetricEmitter.emitHistogramMetric(
-      LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("prewarmed"),
-      memoryConsumptionOf(prewarmedPool))
+    MetricEmitter
+      .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("busy"), memoryConsumptionOf(busyPool))
+    MetricEmitter
+      .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("prewarmed"), memoryConsumptionOf(prewarmedPool))
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("max"), poolConfig.userMemory.toMB)
-  }
+  })
 
   // Key is ColdStartKey, value is the number of cold Start in minute
   var coldStartCount = immutable.Map.empty[ColdStartKey, Int]
@@ -130,16 +128,16 @@ class FunctionPullingContainerPool(
     .seconds
 
   if (prewarmConfig.exists(!_.reactive.isEmpty)) {
-    context.system.scheduler.schedule(
+    context.system.scheduler.scheduleAtFixedRate(
       poolConfig.prewarmExpirationCheckInitDelay,
       interval,
       self,
       AdjustPrewarmedContainer)
   }
 
-  val resourceSubmitter = context.system.scheduler.schedule(0.seconds, poolConfig.memorySyncInterval) {
+  val resourceSubmitter = context.system.scheduler.scheduleAtFixedRate(0.seconds, poolConfig.memorySyncInterval)(() => {
     syncMemoryInfo
-  }
+  })
 
   private def logContainerStart(c: ContainerCreationMessage, action: WhiskAction, containerState: String): Unit = {
     val FQN = c.action
@@ -461,7 +459,7 @@ class FunctionPullingContainerPool(
         if (preWarmScheduler.isEmpty) {
           preWarmScheduler = Some(
             context.system.scheduler
-              .schedule(0.seconds, config.creationDelay, self, PrewarmContainer(config.maxConcurrent)))
+              .scheduleAtFixedRate(0.seconds, config.creationDelay, self, PrewarmContainer(config.maxConcurrent)))
         }
       })
 

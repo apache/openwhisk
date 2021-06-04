@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.monitoring.metrics
 import java.net.ServerSocket
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import pureconfig._
@@ -29,8 +28,7 @@ import pureconfig.generic.auto._
 trait EventsTestHelper {
 
   protected def createConsumer(kport: Int, globalConfig: Config, recorder: MetricRecorder)(
-    implicit system: ActorSystem,
-    materializer: ActorMaterializer) = {
+    implicit system: ActorSystem) = {
     val settings = OpenWhiskEvents
       .eventConsumerSettings(OpenWhiskEvents.defaultConsumerConfig(globalConfig))
       .withBootstrapServers(s"localhost:$kport")

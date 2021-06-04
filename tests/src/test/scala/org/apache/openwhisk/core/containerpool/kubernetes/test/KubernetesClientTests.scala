@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Concat, Sink, Source}
 
 import scala.concurrent.Await
@@ -56,8 +55,6 @@ class KubernetesClientTests
     with WskActorSystem {
 
   import KubernetesClientTests._
-
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val commandTimeout = 500.milliseconds
   def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)

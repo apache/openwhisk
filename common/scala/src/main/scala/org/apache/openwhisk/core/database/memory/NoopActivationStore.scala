@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.memory
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.{Logging, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.{
   ActivationStore,
@@ -89,6 +88,6 @@ object NoopActivationStore extends ActivationStore with WhiskInstants {
 }
 
 object NoopActivationStoreProvider extends ActivationStoreProvider {
-  override def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
+  override def instance(actorSystem: ActorSystem, logging: Logging) =
     NoopActivationStore
 }

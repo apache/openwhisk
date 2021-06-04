@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.invoker.test
 import java.nio.charset.StandardCharsets
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -61,7 +60,6 @@ class ContainerMessageConsumerTests
 
   implicit val actualActorSystem = system // Use system for duplicate system and actorSystem.
   implicit val ec = actualActorSystem.dispatcher
-  implicit val materializer = ActorMaterializer()
   implicit val transId = TransactionId.testing
   implicit val creationId = CreationId.generate()
 

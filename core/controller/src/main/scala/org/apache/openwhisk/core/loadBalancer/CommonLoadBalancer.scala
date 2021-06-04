@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.LongAdder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import pureconfig.generic.auto._
@@ -45,9 +44,9 @@ import scala.util.{Failure, Success}
  */
 abstract class CommonLoadBalancer(config: WhiskConfig,
                                   feedFactory: FeedFactory,
-                                  controllerInstance: ControllerInstanceId)(implicit val actorSystem: ActorSystem,
+                                  controllerInstance: ControllerInstanceId)(implicit
+                                                                            val actorSystem: ActorSystem,
                                                                             logging: Logging,
-                                                                            materializer: ActorMaterializer,
                                                                             messagingProvider: MessagingProvider)
     extends LoadBalancer {
 
@@ -79,7 +78,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
       totalManagedActivationMemory.longValue)
   }
 
-  actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
+  actorSystem.scheduler.scheduleAtFixedRate(10.seconds, 10.seconds)(() => emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))

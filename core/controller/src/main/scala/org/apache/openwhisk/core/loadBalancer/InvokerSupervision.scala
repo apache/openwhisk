@@ -291,7 +291,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   def healthPingingTransitionHandler(state: InvokerState): TransitionHandler = {
     case _ -> `state` =>
       invokeTestAction()
-      setTimer(InvokerActor.timerName, Tick, 1.minute, repeat = true)
+      startTimerAtFixedRate(InvokerActor.timerName, Tick, 1.minute)
     case `state` -> _ => cancelTimer(InvokerActor.timerName)
   }
 

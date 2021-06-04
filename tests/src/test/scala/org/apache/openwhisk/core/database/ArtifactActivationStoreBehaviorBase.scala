@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorBase
 import org.scalatest.FlatSpec
@@ -28,6 +27,6 @@ trait ArtifactActivationStoreBehaviorBase extends FlatSpec with ActivationStoreB
   override val context = UserContext(WhiskAuthHelpers.newIdentity())
 
   override lazy val activationStore = {
-    ArtifactActivationStoreProvider.instance(actorSystem, ActorMaterializer.create(actorSystem), logging)
+    ArtifactActivationStoreProvider.instance(actorSystem, logging)
   }
 }

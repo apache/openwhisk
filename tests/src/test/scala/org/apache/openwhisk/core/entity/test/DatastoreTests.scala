@@ -23,7 +23,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.WhiskInstants
 import org.mockito.Mockito._
@@ -44,7 +43,6 @@ class DatastoreTests
     with StreamLogging
     with WhiskInstants {
 
-  implicit val materializer = ActorMaterializer()
   val namespace = EntityPath("test namespace")
   val datastore = WhiskEntityStore.datastore()
   val authstore = WhiskAuthStore.datastore()

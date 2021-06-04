@@ -48,7 +48,6 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpHeader
-import akka.stream.ActorMaterializer
 import common.WskActorSystem
 import pureconfig._
 
@@ -56,8 +55,6 @@ import pureconfig._
 class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem with WskTestHelpers {
 
   behavior of "Headers at general API"
-
-  implicit val materializer = ActorMaterializer()
 
   val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val whiskAuth = WhiskProperties.getBasicAuth
