@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorIdentity, ActorRef, ActorRefFactory, ActorSystem, Identify, Props}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import com.ibm.etcd.api.RangeResponse
@@ -70,7 +69,6 @@ class QueueManagerTests
     TestKit.shutdownActorSystem(system)
   }
   override def beforeEach = QueuePool.clear()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val askTimeout = Timeout(5 seconds)
   implicit val ec = system.dispatcher
 
