@@ -243,6 +243,7 @@ object ConfigKeys {
   val runtimesRegistry = s"$containerFactory.runtimes-registry"
   val userImagesRegistry = s"$containerFactory.user-images-registry"
   val containerPool = "whisk.container-pool"
+  val containerCreationMaxPeek = "whisk.invoker.container-creation.max-peek"
   val blacklist = "whisk.blacklist"
 
   val kubernetes = "whisk.kubernetes"
@@ -294,6 +295,7 @@ object ConfigKeys {
 
   val azBlob = "whisk.azure-blob"
 
+  val schedulerGrpcService = "whisk.scheduler.grpc"
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
   val schedulerQueue = "whisk.scheduler.queue"
   val schedulerQueueManager = "whisk.scheduler.queue-manager"

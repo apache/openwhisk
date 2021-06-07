@@ -307,4 +307,8 @@ class InvokerReactive(
     complete("not supported")
   }
 
+  override def backfillPrewarm(): Route = {
+    complete("not supported")
+  }
+
 }

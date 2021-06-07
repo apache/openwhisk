@@ -961,7 +961,9 @@ class ContainerProxy(factory: (TransactionId,
   }
 }
 
-final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration,
+                                             pauseGrace: FiniteDuration,
+                                             keepingDuration: FiniteDuration)
 final case class ContainerProxyHealthCheckConfig(enabled: Boolean, checkPeriod: FiniteDuration, maxFails: Int)
 final case class ContainerProxyActivationErrorLogConfig(applicationErrors: Boolean,
                                                         developerErrors: Boolean,
