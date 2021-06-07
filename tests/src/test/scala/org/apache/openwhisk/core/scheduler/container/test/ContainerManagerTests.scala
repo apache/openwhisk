@@ -50,6 +50,7 @@ import org.apache.openwhisk.core.scheduler.message.{
   ReschedulingCreationJob,
   SuccessfulCreationJob
 }
+import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, MemoryQueueValue, QueuePool}
 import org.apache.openwhisk.core.service.WatchEndpointInserted
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.junit.runner.RunWith
@@ -59,8 +60,8 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsBoolean, JsString}
-
 import pureconfig.generic.auto._
+
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}

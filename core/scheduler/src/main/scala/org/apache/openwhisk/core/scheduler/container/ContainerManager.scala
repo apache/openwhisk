@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.scheduler.container
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
-
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -33,7 +32,6 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.{
   Annotations,
   ByteSize,
-  DocInfo,
   DocRevision,
   FullyQualifiedEntityName,
   InvokerInstanceId,
@@ -55,6 +53,7 @@ import org.apache.openwhisk.core.scheduler.message.{
   ReschedulingCreationJob,
   SuccessfulCreationJob
 }
+import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, QueuePool}
 import org.apache.openwhisk.core.service.{
   DeleteEvent,
   PutEvent,
@@ -570,28 +569,3 @@ object ContainerManager {
 }
 
 case class NoCapacityException(msg: String) extends Exception(msg)
-
-/**
- * TODO This needs to be moved to the QueueManager component that will be added later.
- */
-object QueuePool {
-  private val _queuePool = TrieMap[MemoryQueueKey, MemoryQueueValue]()
-
-  private[scheduler] def get(key: MemoryQueueKey) = _queuePool.get(key)
-
-  private[scheduler] def put(key: MemoryQueueKey, value: MemoryQueueValue) = _queuePool.put(key, value)
-
-  private[scheduler] def remove(key: MemoryQueueKey) = _queuePool.remove(key)
-
-  private[scheduler] def countLeader() = _queuePool.count(_._2.isLeader)
-
-  private[scheduler] def clear() = _queuePool.clear()
-
-  private[scheduler] def size = _queuePool.size
-
-  private[scheduler] def values = _queuePool.values
-
-  private[scheduler] def keys = _queuePool.keys
-}
-case class MemoryQueueKey(invocationNamespace: String, docInfo: DocInfo)
-case class MemoryQueueValue(queue: ActorRef, isLeader: Boolean)
