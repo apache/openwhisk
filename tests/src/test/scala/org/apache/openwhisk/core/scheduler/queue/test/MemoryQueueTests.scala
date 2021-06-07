@@ -7,7 +7,7 @@ import java.{lang, util}
 import akka.actor.ActorRef
 import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import com.google.protobuf.ByteString
@@ -84,7 +84,7 @@ class MemoryQueueTests
     Client.forEndpoints(hostAndPorts).withPlainText().build()
   }
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer = Materializer
 
   def registerCallback(c: ActorRef) = {
     c ! SubscribeTransitionCallBack(testActor)
