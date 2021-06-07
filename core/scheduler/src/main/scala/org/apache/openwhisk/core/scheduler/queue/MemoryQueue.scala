@@ -172,7 +172,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private[queue] var limit: Option[Int] = None
   private[queue] var initialized = false
 
-  private val logScheduler: Cancellable = context.system.scheduler.schedule(0.seconds, 1.seconds) {
+  private val logScheduler: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0.seconds, 1.seconds) { () =>
     MetricEmitter.emitGaugeMetric(
       LoggingMarkers.SCHEDULER_QUEUE_WAITING_ACTIVATION(s"$invocationNamespace/$action"),
       queue.size)
@@ -616,7 +616,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
   onTransition {
     case Uninitialized -> _ => unstashAll()
-    case _ -> Flushing      => setTimer("StopQueue", StateTimeout, queueConfig.flushGrace, repeat = true)
+    case _ -> Flushing      => startTimerWithFixedDelay("StopQueue", StateTimeout, queueConfig.flushGrace)
     case Flushing -> _      => cancelTimer("StopQueue")
   }
 
