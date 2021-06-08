@@ -21,7 +21,6 @@ import akka.Done
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.grpc.internal.ClientClosedException
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import common.StreamLogging
 import io.grpc.StatusRuntimeException
@@ -59,7 +58,6 @@ class ActivationClientProxyTests
 
   override def afterAll: Unit = TestKit.shutdownActorSystem(system)
 
-  implicit val mat = ActorMaterializer()
   implicit val ec = system.dispatcher
 
   val timeout = 20.seconds

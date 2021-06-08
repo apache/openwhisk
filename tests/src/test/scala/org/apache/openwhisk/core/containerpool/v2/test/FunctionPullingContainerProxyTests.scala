@@ -26,7 +26,6 @@ import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.http.scaladsl.model
 import akka.io.Tcp.Connect
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
@@ -86,7 +85,6 @@ class FunctionPullingContainerProxyTests
     super.afterAll()
   }
 
-  implicit val mat = ActorMaterializer()
   implicit val ece: ExecutionContextExecutor = system.dispatcher
 
   val timeout = 20.seconds

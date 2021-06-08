@@ -21,7 +21,6 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, FSM, Props, Stash}
 import akka.grpc.internal.ClientClosedException
 import akka.pattern.pipe
-import akka.stream.ActorMaterializer
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
@@ -73,7 +72,6 @@ class ActivationClientProxy(
   containerId: ContainerId,
   activationClientFactory: (String, FullyQualifiedEntityName, String, Int, Boolean) => Future[ActivationServiceClient])(
   implicit actorSystem: ActorSystem,
-  mat: ActorMaterializer,
   logging: Logging)
     extends FSM[ActivationClientProxyState, ActivationClientProxyData]
     with Stash {
@@ -406,13 +404,12 @@ object ActivationClientProxy {
             schedulerHost: String,
             rpcPort: Int,
             containerId: ContainerId,
-            activationClientFactory: (String,
-                                      FullyQualifiedEntityName,
-                                      String,
-                                      Int,
-                                      Boolean) => Future[ActivationServiceClient])(implicit actorSystem: ActorSystem,
-                                                                                   mat: ActorMaterializer,
-                                                                                   logging: Logging) = {
+            activationClientFactory: (
+              String,
+              FullyQualifiedEntityName,
+              String,
+              Int,
+              Boolean) => Future[ActivationServiceClient])(implicit actorSystem: ActorSystem, logging: Logging) = {
     Props(
       new ActivationClientProxy(
         invocationNamespace,

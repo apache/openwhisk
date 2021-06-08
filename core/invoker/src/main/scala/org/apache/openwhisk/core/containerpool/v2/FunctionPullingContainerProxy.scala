@@ -25,7 +25,6 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId, _}
 import org.apache.openwhisk.core.ConfigKeys
@@ -194,7 +193,7 @@ class FunctionPullingContainerProxy(
   poolConfig: ContainerPoolConfig,
   timeoutConfig: ContainerProxyTimeoutConfig,
   healtCheckConfig: ContainerProxyHealthCheckConfig,
-  testTcp: Option[ActorRef])(implicit actorSystem: ActorSystem, mat: ActorMaterializer, logging: Logging)
+  testTcp: Option[ActorRef])(implicit actorSystem: ActorSystem, logging: Logging)
     extends FSM[ProxyState, Data]
     with Stash {
   startWith(Uninitialized, NonexistentData())
@@ -373,7 +372,7 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
-      setTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
+      startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
 
     // 2. read executable action data from db
@@ -506,7 +505,7 @@ class FunctionPullingContainerProxy(
     // 1. request activation message to client
     case Event(activationResult: RunActivationCompleted, data: WarmData) =>
       // create timeout
-      setTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
+      startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       data.clientProxy ! RequestActivation(activationResult.duration)
       stay() using data
 
@@ -613,7 +612,7 @@ class FunctionPullingContainerProxy(
         logging.info(
           this,
           s"Remain running activations ${runningActivations.keySet().toString()} when received ClientClosed")
-        setTimer(RunningActivationTimeoutName, ClientClosed, runningActivationTimeout)
+        startSingleTimer(RunningActivationTimeoutName, ClientClosed, runningActivationTimeout)
         stay
       }
 
@@ -674,7 +673,7 @@ class FunctionPullingContainerProxy(
           // since akka port will no be used, we can put any value except 0 here
           data.clientProxy ! RequestActivation(
             newScheduler = Some(SchedulerEndpoints(job.schedulerHost, job.rpcPort, 10)))
-          setTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
+          startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
           timedOut = false
         }
         .recover {
@@ -715,7 +714,7 @@ class FunctionPullingContainerProxy(
       logging.info(
         this,
         s"This is the remaining container for ${data.action}. The container will stop after $warmedContainerKeepingTimeout.")
-      setTimer(KeepingTimeoutName, Remove, warmedContainerKeepingTimeout)
+      startSingleTimer(KeepingTimeoutName, Remove, warmedContainerKeepingTimeout)
       stay
 
     case Event(Remove | GracefulShutdown, data: WarmData) =>
@@ -777,7 +776,7 @@ class FunctionPullingContainerProxy(
         }
       }
       unstashAll()
-    case _ -> Paused   => setTimer(IdleTimeoutName, StateTimeout, idleTimeout)
+    case _ -> Paused   => startSingleTimer(IdleTimeoutName, StateTimeout, idleTimeout)
     case _ -> Removing => unstashAll()
   }
 
@@ -1245,7 +1244,7 @@ object FunctionPullingContainerProxy {
             timeoutConfig: ContainerProxyTimeoutConfig,
             healthCheckConfig: ContainerProxyHealthCheckConfig =
               loadConfigOrThrow[ContainerProxyHealthCheckConfig](ConfigKeys.containerProxyHealth),
-            tcp: Option[ActorRef] = None)(implicit actorSystem: ActorSystem, mat: ActorMaterializer, logging: Logging) =
+            tcp: Option[ActorRef] = None)(implicit actorSystem: ActorSystem, logging: Logging) =
     Props(
       new FunctionPullingContainerProxy(
         factory,
