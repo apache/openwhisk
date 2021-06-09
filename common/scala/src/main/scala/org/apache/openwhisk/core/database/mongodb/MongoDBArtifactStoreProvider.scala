@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database.mongodb
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database._
@@ -51,12 +50,10 @@ object MongoDBClient {
 
 object MongoDBArtifactStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
-    implicit jsonFormat: RootJsonFormat[D],
-    docReader: DocumentReader,
-    actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(implicit jsonFormat: RootJsonFormat[D],
+                                                                         docReader: DocumentReader,
+                                                                         actorSystem: ActorSystem,
+                                                                         logging: Logging): ArtifactStore[D] = {
     val dbConfig = loadConfigOrThrow[MongoDBConfig](ConfigKeys.mongodb)
     makeArtifactStore(dbConfig, getAttachmentStore())
   }
@@ -66,8 +63,7 @@ object MongoDBArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    logging: Logging): ArtifactStore[D] = {
 
     val inliningConfig = loadConfigOrThrow[InliningConfig](ConfigKeys.db)
 
@@ -83,10 +79,8 @@ object MongoDBArtifactStoreProvider extends ArtifactStoreProvider {
       attachmentStore)
   }
 
-  private def handlerAndMapper[D](entityType: ClassTag[D])(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): (DocumentHandler, MongoDBViewMapper) = {
+  private def handlerAndMapper[D](entityType: ClassTag[D])(implicit actorSystem: ActorSystem,
+                                                           logging: Logging): (DocumentHandler, MongoDBViewMapper) = {
     entityType.runtimeClass match {
       case x if x == classOf[WhiskEntity] =>
         (WhisksHandler, WhisksViewMapper)
