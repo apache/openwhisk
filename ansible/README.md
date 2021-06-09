@@ -196,6 +196,43 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 - To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
+### Deploying Using MongoDB
+
+You can choose MongoDB instead of CouchDB as the database backend to store entities.
+
+- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production).
+  You need to execute `pip install pymongo` first
+
+```
+ansible-playbook -i environments/<environment> mongodb.yml -e mongodb_data_volume="/tmp/mongo-data"
+```
+
+- Then execute
+
+```
+cd <openwhisk_home>
+./gradlew distDocker
+cd ansible
+ansible-playbook -i environments/<environment> initMongodb.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> apigateway.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> openwhisk.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017" -e db_artifact_backend="MongoDB"
+
+# installs a catalog of public packages and actions
+ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
+```
+
+Available parameters for ansible are
+```
+  mongodb:
+    connect_string: "{{ mongodb_connect_string }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
+```
+
 ### Using ElasticSearch to Store Activations
 
 You can use ElasticSearch (ES) to store activations separately while other entities remain stored in CouchDB. There is an Ansible playbook to setup a simple ES cluster for testing and development purposes.
