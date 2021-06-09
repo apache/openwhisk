@@ -68,7 +68,6 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 | Module | Description | Module Status |
 |---	|---	|---    |
 | [openwhisk-deploy-kube](https://github.com/apache/openwhisk-deploy-kube) | The Apache OpenWhisk Kubernetes Deployment repository supports deploying the Apache OpenWhisk system on Kubernetes and OpenShift clusters. | [![Build Status](https://travis-ci.org/apache/openwhisk-deploy-kube.svg?branch=master)](https://travis-ci.org/apache/openwhisk-deploy-kube) |
-| [openwhisk-deploy-mesos](https://github.com/apache/openwhisk-deploy-mesos) | Apache OpenWhisk deployment scripts and configuration files for running under Apache Mesos. | [![Build Status](https://travis-ci.org/apache/openwhisk-deploy-mesos.svg?branch=master)](https://travis-ci.org/apache/openwhisk-deploy-mesos) |
 
 
 ## Packages
@@ -112,7 +111,6 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 
 | Module | Description |
 |---	|---	|
-| [openwhisk-external-resources](https://github.com/apache/openwhisk-external-resources) | ✨ Curated list of awesome OpenWhisk things ✨ |
 | [openwhisk-test](https://github.com/apache/openwhisk-test) | Test repo. for Apache OpenWhisk client-side tooling. |
 | [openwhisk-website](https://github.com/apache/openwhisk-website) | Apache OpenWhisk website (openwhisk.apache.org) content; built using Jekyll |
 
@@ -125,7 +123,9 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 | [openwhisk-client-python](https://github.com/apache/openwhisk-client-python) | [DEPRECATED] - REST API of OpenWhisk can be used directly from Python |
 | [openwhisk-client-swift](https://github.com/apache/openwhisk-client-swift) | [DEPRECATED] - openwhisk-client-swift is a Swift client SDK for OpenWhisk with support for iOS, WatchOS2, and Darwin CLI apps |
 | [openwhisk-debugger](https://github.com/apache/openwhisk-debugger) | [DEPRECATED] - The OpenWhisk debugger project |
+| [openwhisk-deploy-mesos](https://github.com/apache/openwhisk-deploy-mesos) | Apache OpenWhisk deployment scripts and configuration files for running under Apache Mesos. |
 | [openwhisk-deploy-openshift](https://github.com/apache/openwhisk-deploy-openshift) | [DEPRECATED] - This project can be used to deploy Apache OpenWhisk to the OpenShift platform |
+| [openwhisk-external-resources](https://github.com/apache/openwhisk-external-resources) | ✨ Curated list of awesome OpenWhisk things ✨ |
 | [openwhisk-package-jira](https://github.com/apache/openwhisk-package-jira) | [DEPRECATED] - Interact with JIRA software software development tool used for issue tracking, and project management functions |
 | [openwhisk-package-rss](https://github.com/apache/openwhisk-package-rss) | [DEPRECATED] - RSS feed package |
 | [openwhisk-package-template](https://github.com/apache/openwhisk-package-template) | [DEPRECATED] - This is a template to be use when creating new packages for OpenWhisk |
