@@ -1360,9 +1360,10 @@ class FunctionPullingContainerProxyTests
     val (client, clientFactory) = testClient
     val instanceId = InvokerInstanceId(0, userMemory = defaultUserMemory)
 
+    val pool = TestProbe()
     val probe = TestProbe()
     val machine =
-      probe.childActorOf(
+      pool.childActorOf(
         FunctionPullingContainerProxy
           .props(
             factory,
@@ -1399,7 +1400,7 @@ class FunctionPullingContainerProxyTests
         ""))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
-    expectInitialized(probe)
+    expectInitialized(pool)
     client.expectMsg(RequestActivation())
     client.send(machine, message)
 
@@ -1412,7 +1413,7 @@ class FunctionPullingContainerProxyTests
     machine ! StateTimeout
     client.send(machine, RetryRequestActivation)
     probe.expectMsg(Transition(machine, Running, Pausing))
-    probe.expectMsgType[ContainerIsPaused]
+    pool.expectMsgType[ContainerIsPaused]
     dataManagementService.expectMsgAllOf(
       RegisterData(
         ContainerKeys
@@ -1440,10 +1441,9 @@ class FunctionPullingContainerProxyTests
           Some(instanceId),
           Some(testContainerId)),
         ""))
-    inAnyOrder {
-      probe.expectMsg(Transition(machine, Paused, Running))
-      probe.expectMsgType[Resumed]
-    }
+
+    probe.expectMsg(Transition(machine, Paused, Running))
+    pool.expectMsgType[Resumed]
 
     awaitAssert {
       factory.calls should have size 1

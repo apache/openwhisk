@@ -19,8 +19,7 @@ package org.apache.openwhisk.core.database.mongodb
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream}
 
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink, Source, StreamConverters}
+import akka.stream.scaladsl.{Keep, Sink, StreamConverters}
 import akka.stream.testkit.TestSubscriber
 import akka.util.ByteString
 import common.WskActorSystem
@@ -44,8 +43,6 @@ class MongoDBAsyncStreamGraphTests
     with WskActorSystem
     with MockitoSugar
     with IntegrationPatience {
-
-  implicit val mat = ActorMaterializer()
 
   behavior of "MongoDBAsyncStreamSource"
 
@@ -79,7 +76,7 @@ class MongoDBAsyncStreamGraphTests
     doThrow(exception).when(inputStream).read(any())
     val asyncStream = AsyncStreamHelper.toAsyncInputStream(inputStream)
 
-    val (ioResult, p) = MongoDBAsyncStreamSource(asyncStream).toMat(Sink.asPublisher(false))(Keep.both).run()
+    val (_, p) = MongoDBAsyncStreamSource(asyncStream).toMat(Sink.asPublisher(false))(Keep.both).run()
     val c = TestSubscriber.manualProbe[ByteString]()
     p.subscribe(c)
 
@@ -89,7 +86,6 @@ class MongoDBAsyncStreamGraphTests
     val error = c.expectError()
     error.getCause should be theSameInstanceAs exception
 
-    ioResult.futureValue.status.isFailure shouldBe true
   }
 
   behavior of "MongoDBAsyncStreamSink"
@@ -123,21 +119,6 @@ class MongoDBAsyncStreamGraphTests
     ioResult.futureValue.count shouldBe 4000
     outputStream.toByteArray shouldBe bytes
     outputStream.closed shouldBe true
-  }
-
-  it should "onError with failure and return a failed IOResult when writing to failed stream" in {
-    val os = new ByteArrayOutputStream()
-    val asyncStream = AsyncStreamHelper.toAsyncOutputStream(os)
-
-    val sink = MongoDBAsyncStreamSink(asyncStream)
-    val ioResult = Source(1 to 10)
-      .map { n ⇒
-        if (n == 7) throw new Error("bees!")
-        n
-      }
-      .map(ByteString(_))
-      .runWith(sink)
-    ioResult.futureValue.status.isFailure shouldBe true
   }
 
   private def randomBytes(size: Int): Array[Byte] = {
