@@ -70,9 +70,6 @@ dependencies {
     compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
     compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
-    //for mesos
-    compile "com.adobe.api.platform.runtime:mesos-actor:0.0.17"
-
     // for etcd
     compile("com.ibm.etcd:etcd-java:0.0.13")
 
