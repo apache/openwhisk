@@ -46,8 +46,6 @@ If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for 
 The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
 ##### Activate docker0 network (local dev only)
-
-> This is an optional step for local deployment.
  
 The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
