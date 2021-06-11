@@ -76,7 +76,7 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 When using [pyenv](https://github.com/pyenv/pyenv) to manage your versions of python, the [ansible python interpreter](https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html) will use your system's default python, which may have a different version. 
 
-To make sure you're using the same version of python with ansible, execute: 
+To make sure ansible uses the same version of python which you configured, execute: 
 
 ```bash
 echo -e "\nansible_python_interpreter: `which python`\n" >> ./environments/local/group_vars/all

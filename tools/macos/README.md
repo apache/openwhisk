@@ -71,12 +71,47 @@ cd /your/path/to/openwhisk
 Follow instructions in [ansible/README.md](../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../docs/cli.md)
+
+#### Using brew
+
+```bash
+brew install wsk 
+wsk property set --apihost https://localhost
+wsk property set --auth `cat ansible/files/auth.guest`
+```
+#### Other methods
+For more instructions see [Configure CLI doc](../../docs/cli.md).
 
 ### Use the wsk CLI
 ```bash
-bin/wsk action invoke /whisk.system/utils/echo -p message hello --result
+wsk action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"
 }
+```
+
+# Develop
+
+## Running unit tests
+
+> Unit tests require [Ansible setup](../../ansible/README.md) at the moment.
+
+Bellow are the ansible commands required to prepare your machine:
+
+```bash
+cd ./ansible
+
+ansible-playbook setup.yml -e mode=HA
+ansible-playbook couchdb.yml
+ansible-playbook initdb.yml
+ansible-playbook wipe.yml
+
+ansible-playbook properties.yml
+```
+
+To run the unit tests execute the command bellow from the project's root folder: 
+```bash
+# go back to project's root folder
+cd ../
+./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean 
 ```
