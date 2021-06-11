@@ -55,7 +55,7 @@ case class CreateNewQueue(activationMessage: ActivationMessage,
                           action: FullyQualifiedEntityName,
                           actionMetadata: WhiskActionMetaData)
 
-case class QueueManagerConfig(maxRetriesToGetQueue: Int, maxSchedulingTimeMs: Int)
+case class QueueManagerConfig(maxRetriesToGetQueue: Int, maxSchedulingTime: FiniteDuration)
 
 class QueueManager(
   entityStore: ArtifactStore[WhiskEntity],
@@ -321,13 +321,13 @@ class QueueManager(
     implicit val transid = msg.transid
 
     // Drop the message that has not been scheduled for a long time
-    val schedulingWaitTime = Interval(msg.transid.meta.start, Instant.now()).duration.toMillis
-    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME, schedulingWaitTime)
+    val schedulingWaitTime = Interval(msg.transid.meta.start, Instant.now()).duration
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME, schedulingWaitTime.toMillis)
 
-    if (schedulingWaitTime > queueManagerConfig.maxSchedulingTimeMs) {
+    if (schedulingWaitTime > queueManagerConfig.maxSchedulingTime) {
       logging.warn(
         this,
-        s"[${msg.activationId}] the activation message has not been scheduled for ${queueManagerConfig.maxSchedulingTimeMs}ms")
+        s"[${msg.activationId}] the activation message has not been scheduled for ${queueManagerConfig.maxSchedulingTime.toSeconds} sec")
       completeErrorActivation(msg, "The activation has not been processed")
     } else {
       QueuePool.get(MemoryQueueKey(msg.user.namespace.name.asString, msg.action.toDocId.asDocInfo(msg.revision))) match {
@@ -488,7 +488,7 @@ class QueueManager(
     }
   }
 
-  private val logScheduler = context.system.scheduler.scheduleAtFixedRate(0.seconds, 1.seconds) (()=>{
+  private val logScheduler = context.system.scheduler.scheduleAtFixedRate(0.seconds, 1.seconds)(() => {
     MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_QUEUE, QueuePool.countLeader())
   })
 

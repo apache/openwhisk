@@ -520,7 +520,7 @@ class QueueManagerTests
           store,
           childFactory,
           mockConsumer,
-          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTimeMs = 10000)))
+          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
     queueManager ! activationMessage
     Thread.sleep(100)
@@ -552,7 +552,7 @@ class QueueManagerTests
           store,
           childFactory,
           mockConsumer,
-          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTimeMs = 10000)))
+          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
     queueManager ! activationMessage
     Thread.sleep(100)
@@ -593,7 +593,7 @@ class QueueManagerTests
           store,
           childFactory,
           mockConsumer,
-          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTimeMs = 10000)))
+          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
     // send old activation message
     queueManager ! oldActivationMessage
@@ -638,7 +638,7 @@ class QueueManagerTests
           store,
           childFactory,
           mockConsumer,
-          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTimeMs = 10000)))
+          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
     // send old activation message
     queueManager ! oldActivationMessage
