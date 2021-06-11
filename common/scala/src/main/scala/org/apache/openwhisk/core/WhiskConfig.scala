@@ -208,6 +208,7 @@ object ConfigKeys {
 
   val couchdb = "whisk.couchdb"
   val cosmosdb = "whisk.cosmosdb"
+  val mongodb = "whisk.mongodb"
   val kafka = "whisk.kafka"
   val kafkaCommon = s"$kafka.common"
   val kafkaProducer = s"$kafka.producer"

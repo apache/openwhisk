@@ -15,20 +15,25 @@
 # limitations under the License.
 #
 ---
-# Checks, that the Database exists
-# dbName - name of the database to check
-# dbUser - name of the user which should have access rights
-# dbPass - password of the user which should have access
+# This playbook will initialize the immortal DBs in the database account.
+# This step is usually done only once per deployment.
 
-- name: check if {{ dbName }} with {{ db.provider }} exists
-  uri:
-    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
-    method: HEAD
-    status_code: 200
-    user: "{{ dbUser }}"
-    password: "{{ dbPass }}"
-    force_basic_auth: yes
-  when: db.artifact_store.backend == "CouchDB"
-
-# the collection in MongoDB doesn't need to be created in advance, so just skip it
-# - name: check if {{ dbName }} on MongoDB exists
+- hosts: ansible
+  tasks:
+  - name: create necessary auth keys
+    mongodb:
+      connect_string: "{{ db.mongodb.connect_string }}"
+      database: "{{ db.mongodb.database }}"
+      collection: "whiskauth"
+      doc:
+        _id: "{{ item }}"
+        subject: "{{ item }}"
+        namespaces:
+          - name: "{{ item }}"
+            uuid: "{{ key.split(':')[0] }}"
+            key: "{{ key.split(':')[1] }}"
+      mode: "doc"
+      force_update: True
+    vars:
+      key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
+    with_items: "{{ db.authkeys }}"

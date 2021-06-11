@@ -15,20 +15,24 @@
 # limitations under the License.
 #
 ---
-# Checks, that the Database exists
-# dbName - name of the database to check
-# dbUser - name of the user which should have access rights
-# dbPass - password of the user which should have access
+# This role will run a MongoDB server on the db group, this is only for test, please use
+# shared cluster for production env
 
-- name: check if {{ dbName }} with {{ db.provider }} exists
-  uri:
-    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
-    method: HEAD
-    status_code: 200
-    user: "{{ dbUser }}"
-    password: "{{ dbPass }}"
-    force_basic_auth: yes
-  when: db.artifact_store.backend == "CouchDB"
+- name: (re)start mongodb
+  vars:
+    mongodb_image: "{{ mongodb.docker_image | default('mongo:' ~ mongodb.version ) }}"
+  docker_container:
+    name: mongodb
+    image: "{{ mongodb_image }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "mongodb"
+    user: "mongodb"
+    volumes:
+      - "{{ db.mongodb.data_volume }}:/data/db"
+    ports:
+      - "27017:27017"
 
-# the collection in MongoDB doesn't need to be created in advance, so just skip it
-# - name: check if {{ dbName }} on MongoDB exists
+- name: wait until the MongoDB in this host is up and running
+  local_action: wait_for host={{ ansible_host }} port=27017 state=started delay=5 timeout=60

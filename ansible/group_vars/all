@@ -278,6 +278,8 @@ db:
     invoker:
       user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
+  artifact_store:
+    backend: "{{ db_artifact_backend | default('CouchDB') }}"
   activation_store:
     backend: "{{ db_activation_backend | default('CouchDB') }}"
   elasticsearch:
@@ -299,6 +301,10 @@ db:
       admin:
         username: "{{ elastic_username | default('admin') }}"
         password: "{{ elastic_password | default('admin') }}"
+  mongodb:
+    connect_string: "{{ mongodb_connect_string | default('mongodb://172.17.0.1:27017') }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
 
 apigateway:
   port:
@@ -326,6 +332,8 @@ elasticsearch_connect_string: "{% set ret = [] %}\
                                {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port+loop.index-1)|string) ) }}\
                                {% endfor %}\
                                {{ ret | join(',') }}"
+mongodb:
+  version: 4.4.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run

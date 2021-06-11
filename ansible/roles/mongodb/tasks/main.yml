@@ -15,20 +15,13 @@
 # limitations under the License.
 #
 ---
-# Checks, that the Database exists
-# dbName - name of the database to check
-# dbUser - name of the user which should have access rights
-# dbPass - password of the user which should have access
+# This role will deploy a database server. Use the role if you want to use CouchCB locally.
+# In deploy mode it will start the MongoDB container.
+# In clean mode it will remove the MongoDB container.
 
-- name: check if {{ dbName }} with {{ db.provider }} exists
-  uri:
-    url: "{{ db.protocol }}://{{ db.host }}:{{ db.port }}/{{ dbName }}"
-    method: HEAD
-    status_code: 200
-    user: "{{ dbUser }}"
-    password: "{{ dbPass }}"
-    force_basic_auth: yes
-  when: db.artifact_store.backend == "CouchDB"
+- import_tasks: deploy.yml
+  when: mode == "deploy"
 
-# the collection in MongoDB doesn't need to be created in advance, so just skip it
-# - name: check if {{ dbName }} on MongoDB exists
+- import_tasks: clean.yml
+  when: mode == "clean"
+
