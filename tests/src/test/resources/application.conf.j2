@@ -140,6 +140,11 @@ whisk {
 
     scheduler {
         protocol = "{{ scheduler.protocol }}"
+        queue-manager {
+            max-scheduling-time     = "{{ scheduler.queueManager.maxSchedulingTime }}"
+            max-retries-to-get-queue    = "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
+        }
+        max-peek = "{{ scheduler.maxPeek }}"
     }
 
 }
