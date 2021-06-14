@@ -155,7 +155,7 @@ ansible-playbook -i environments/$ENVIRONMENT prereq.yml
 cd <openwhisk_home>
 ./gradlew distDocker
 cd ansible
-ansible-playbook -i couchdb.yml
+ansible-playbook -i environments/$ENVIRONMENT couchdb.yml
 ansible-playbook -i environments/$ENVIRONMENT initdb.yml
 ansible-playbook -i environments/$ENVIRONMENT wipe.yml
 ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml
