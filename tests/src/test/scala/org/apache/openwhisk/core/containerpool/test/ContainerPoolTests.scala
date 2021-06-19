@@ -134,7 +134,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, None, 100)
+    ContainerPoolConfig(userMemory, 0.5, false, 2.second, 1.minute, None, 100, 3, false, 1.second)
 
   behavior of "ContainerPool"
 
@@ -805,9 +805,20 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
+    val prewarmExpirationCheckInitDelay = FiniteDuration(2, TimeUnit.SECONDS)
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
     val poolConfig =
-      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+      ContainerPoolConfig(
+        MemoryLimit.STD_MEMORY * 4,
+        0.5,
+        false,
+        prewarmExpirationCheckInitDelay,
+        prewarmExpirationCheckIntervel,
+        None,
+        100,
+        3,
+        false,
+        1.second)
     val initialCount = 2
     val pool =
       system.actorOf(
@@ -840,9 +851,20 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
+    val prewarmExpirationCheckInitDelay = 2.seconds
     val prewarmExpirationCheckIntervel = 2.seconds
     val poolConfig =
-      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 12, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+      ContainerPoolConfig(
+        MemoryLimit.STD_MEMORY * 12,
+        0.5,
+        false,
+        prewarmExpirationCheckInitDelay,
+        prewarmExpirationCheckIntervel,
+        None,
+        100,
+        3,
+        false,
+        1.second)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
@@ -1215,7 +1237,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "remove expired in order of expiration" in {
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 1)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 1, 3, false, 1.second)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     //use a second kind so that we know sorting is not isolated to the expired of each kind
     val exec2 = CodeExecAsString(RuntimeManifest("actionKind2", ImageName("testImage")), "testCode", None)
@@ -1239,7 +1261,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   it should "remove only the prewarmExpirationLimit of expired prewarms" in {
     //limit prewarm removal to 2
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 2)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 2, 3, false, 1.second)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     val prewarmConfig =
@@ -1265,7 +1287,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   it should "remove only the expired prewarms regardless of minCount" in {
     //limit prewarm removal to 100
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 100)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 100, 3, false, 1.second)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     //minCount is 2 - should leave at least 2 prewarms when removing expired

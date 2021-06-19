@@ -241,6 +241,13 @@ Components = [
                   'deploy elasticsearch',
                   modes = 'clean'),
 
+    makeComponent('mongodb',
+                  'deploy mongodb',
+                  modes = 'clean'),
+
+    makeComponent('initMongoDB',
+                  'initialize mongodb with guest/system keys'),
+
     makeComponent('build',
                   'build system',
                   yaml = False,

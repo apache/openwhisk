@@ -24,7 +24,6 @@ import org.scalatest.junit.JUnitRunner
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
-import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
@@ -49,7 +48,6 @@ class PoolingRestClientTests
     with ScalaFutures
     with StreamLogging {
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

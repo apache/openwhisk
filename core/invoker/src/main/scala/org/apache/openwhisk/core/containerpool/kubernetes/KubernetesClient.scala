@@ -31,7 +31,7 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.pattern.after
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
-import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
+import akka.stream.{Attributes, Outlet, SourceShape}
 import akka.util.ByteString
 
 import collection.JavaConverters._
@@ -123,7 +123,6 @@ class KubernetesClient(
     extends KubernetesApi
     with ProcessRunner {
   implicit protected val ec = executionContext
-  implicit protected val am = ActorMaterializer()
   implicit protected val scheduler = as.scheduler
   implicit protected val kubeRestClient = testClient.getOrElse {
     val configBuilder = new ConfigBuilder()

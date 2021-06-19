@@ -24,7 +24,6 @@ import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import akka.stream.alpakka.s3.headers.CannedAcl
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.s3.{S3Attributes, S3Exception, S3Headers, S3Settings}
@@ -61,15 +60,13 @@ object S3AttachmentStoreProvider extends AttachmentStoreProvider {
   }
 
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                              logging: Logging,
-                                                              materializer: ActorMaterializer): AttachmentStore = {
+                                                              logging: Logging): AttachmentStore = {
     val config = loadConfigOrThrow[S3Config](ConfigKeys.s3)
     new S3AttachmentStore(s3Settings(actorSystem.settings.config), config.bucket, config.prefixFor[D], config.signer)
   }
 
   def makeStore[D <: DocumentSerializer: ClassTag](config: Config)(implicit actorSystem: ActorSystem,
-                                                                   logging: Logging,
-                                                                   materializer: ActorMaterializer): AttachmentStore = {
+                                                                   logging: Logging): AttachmentStore = {
     val s3config = loadConfigOrThrow[S3Config](config, ConfigKeys.s3)
     new S3AttachmentStore(s3Settings(config), s3config.bucket, s3config.prefixFor[D], s3config.signer)
   }
@@ -84,8 +81,7 @@ trait UrlSigner {
 
 class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, urlSigner: Option[UrlSigner])(
   implicit system: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends AttachmentStore {
 
   private val s3attributes = S3Attributes.settings(s3Settings)

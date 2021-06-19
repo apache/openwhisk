@@ -19,6 +19,6 @@
 ./copyJMXFiles.sh
 
 export SCHEDULER_OPTS
-SCHEDULER_OPTS="$SCHEDULER_OPTS -Dakka.remote.netty.tcp.bind-hostname=$(hostname -i) $(./transformEnvironment.sh)"
+SCHEDULER_OPTS="$SCHEDULER_OPTS -Dakka.remote.artery.bind.hostname=$(hostname -i) $(./transformEnvironment.sh)"
 
 exec scheduler/bin/scheduler "$@"

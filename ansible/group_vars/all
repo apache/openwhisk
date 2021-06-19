@@ -139,6 +139,8 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  topicsPrefix: "{{ kafka_topics_prefix | default('') }}"
+  topicsUserEventPrefix: "{{ kafka_topics_userEvent_prefix | default(kafka_topics_prefix) | default('') }}"
   ssl:
     client_authentication: required
     keystore:
@@ -151,7 +153,7 @@ kafka:
     protocols:
     - TLSv1.2
   protocol: "{{ kafka_protocol_for_setup }}"
-  version: 2.12-2.3.1
+  version: "{{ kafka_version | default('2.13-2.7.0') }}"
   port: 9072
   advertisedPort: 9093
   ras:
@@ -219,6 +221,8 @@ invoker:
     keystore:
       password: "{{ invoker_keystore_password | default('openwhisk') }}"
       name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
+  reactiveSpi: "{{ invokerReactive_spi | default('') }}"
+  serverSpi: "{{ invokerServer_spi | default('') }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
@@ -274,6 +278,8 @@ db:
     invoker:
       user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
+  artifact_store:
+    backend: "{{ db_artifact_backend | default('CouchDB') }}"
   activation_store:
     backend: "{{ db_activation_backend | default('CouchDB') }}"
   elasticsearch:
@@ -295,6 +301,10 @@ db:
       admin:
         username: "{{ elastic_username | default('admin') }}"
         password: "{{ elastic_password | default('admin') }}"
+  mongodb:
+    connect_string: "{{ mongodb_connect_string | default('mongodb://172.17.0.1:27017') }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
 
 apigateway:
   port:
@@ -322,6 +332,8 @@ elasticsearch_connect_string: "{% set ret = [] %}\
                                {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port+loop.index-1)|string) ) }}\
                                {% endfor %}\
                                {{ ret | join(',') }}"
+mongodb:
+  version: 4.4.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
@@ -452,5 +464,10 @@ etcd_connect_string: "{% set ret = [] %}\
                       {{ ret | join(',') }}"
 
 scheduler:
+  protocol: "{{ scheduler_protocol | default('http') }}"
+  maxPeek: "{{ scheduler_max_peek | default(128) }}"
+  queueManager:
+    maxSchedulingTime: "{{ scheduler_maxSchedulingTime | default('20 second') }}"
+    maxRetriesToGetQueue: "{{ scheduler_maxRetriesToGetQueue | default(13) }}"
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"

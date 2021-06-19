@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "publish": false,
     "exec": {
-        "kind": "nodejs:10",
+        "kind": "nodejs:14",
         "code": "/**\n *  word count utility\n */\nfunction main(params) {\n    var str = params.payload.toString();\n    var words = str.split(\" \");\n    var count = words.length;\n    console.log(\"The message '\"+str+\"' has\", count, 'words');\n    return { count: count };\n}\n"
     },
     "annotations": [],

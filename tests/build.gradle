@@ -228,7 +228,7 @@ dependencies {
     compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
-    compile "org.testcontainers:elasticsearch:1.12.3"
+    compile "org.testcontainers:elasticsearch:1.15.3"
 
     compile project(':common:scala')
     compile project(':core:controller')

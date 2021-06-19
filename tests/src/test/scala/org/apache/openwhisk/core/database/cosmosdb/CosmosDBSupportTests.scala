@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.IndexKind.Range
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.DocumentCollection
@@ -49,8 +48,6 @@ class CosmosDBSupportTests
     with WskActorSystem {
 
   behavior of "CosmosDB init"
-
-  protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   it should "create and update index" in {
     val testDb = createTestDB()

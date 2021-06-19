@@ -24,7 +24,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Accept, RawHeader}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
 import akka.testkit.TestKit
 import common.StreamLogging
@@ -52,7 +51,6 @@ class ElasticSearchLogStoreTests
     with StreamLogging {
 
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val uuid = UUID()
   private val tenantId = s"testSpace_${uuid}"

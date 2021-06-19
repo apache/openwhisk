@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database.s3
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.scalatest.FlatSpec
 import org.apache.openwhisk.common.Logging
@@ -31,8 +30,7 @@ trait S3Aws extends FlatSpec {
   def cloudFrontConfig: String = ""
 
   def makeS3Store[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                       logging: Logging,
-                                                       materializer: ActorMaterializer): AttachmentStore = {
+                                                       logging: Logging): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
        |whisk {
        |   s3 {

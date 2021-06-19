@@ -22,7 +22,8 @@ import java.nio.file.{Files, Path}
 import java.time.Instant
 import java.util.EnumSet
 
-import akka.stream.ActorMaterializer
+import akka.actor.ActorSystem
+import akka.stream.RestartSettings
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
 import akka.util.ByteString
@@ -37,10 +38,9 @@ import scala.concurrent.duration._
 class ActivationFileStorage(logFilePrefix: String,
                             logPath: Path,
                             writeResultToFile: Boolean,
-                            actorMaterializer: ActorMaterializer,
+                            actorSystem: ActorSystem,
                             logging: Logging) {
-
-  implicit val materializer = actorMaterializer
+  implicit val system: ActorSystem = actorSystem
 
   private var logFile = logPath
   private val bufferSize = 100.MB
@@ -48,27 +48,28 @@ class ActivationFileStorage(logFilePrefix: String,
   private val writeToFile: Sink[ByteString, _] = MergeHub
     .source[ByteString]
     .batchWeighted(bufferSize.toBytes, _.length, identity)(_ ++ _)
-    .to(RestartSink.withBackoff(minBackoff = 1.seconds, maxBackoff = 60.seconds, randomFactor = 0.2) { () =>
-      LogRotatorSink(() => {
-        val maxSize = bufferSize.toBytes
-        var bytesRead = maxSize
-        element =>
-          {
-            val size = element.size
+    .to(RestartSink.withBackoff(RestartSettings(minBackoff = 1.seconds, maxBackoff = 60.seconds, randomFactor = 0.2)) {
+      () =>
+        LogRotatorSink(() => {
+          val maxSize = bufferSize.toBytes
+          var bytesRead = maxSize
+          element =>
+            {
+              val size = element.size
 
-            if (bytesRead + size > maxSize) {
-              logFile = logPath.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
+              if (bytesRead + size > maxSize) {
+                logFile = logPath.resolve(s"$logFilePrefix-${Instant.now.toEpochMilli}.log")
 
-              logging.info(this, s"Rotating log file to '$logFile'")
-              createLogFile(logFile)
-              bytesRead = size
-              Some(logFile)
-            } else {
-              bytesRead += size
-              None
+                logging.info(this, s"Rotating log file to '$logFile'")
+                createLogFile(logFile)
+                bytesRead = size
+                Some(logFile)
+              } else {
+                bytesRead += size
+                None
+              }
             }
-          }
-      })
+        })
     })
     .run()
 

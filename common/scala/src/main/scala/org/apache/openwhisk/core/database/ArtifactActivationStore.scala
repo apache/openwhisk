@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database
 import java.time.Instant
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.entity._
@@ -28,13 +27,12 @@ import org.apache.openwhisk.core.entity._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging)
-    extends ActivationStore {
+class ArtifactActivationStore(actorSystem: ActorSystem, logging: Logging) extends ActivationStore {
 
   implicit val executionContext = actorSystem.dispatcher
 
   private val artifactStore: ArtifactStore[WhiskActivation] =
-    WhiskActivationStore.datastore()(actorSystem, logging, actorMaterializer)
+    WhiskActivationStore.datastore()(actorSystem, logging)
 
   def store(activation: WhiskActivation, context: UserContext)(
     implicit transid: TransactionId,
@@ -131,6 +129,6 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
 }
 
 object ArtifactActivationStoreProvider extends ActivationStoreProvider {
-  override def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
-    new ArtifactActivationStore(actorSystem, actorMaterializer, logging)
+  override def instance(actorSystem: ActorSystem, logging: Logging) =
+    new ArtifactActivationStore(actorSystem, logging)
 }

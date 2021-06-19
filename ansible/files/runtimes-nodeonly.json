@@ -3,7 +3,7 @@
         "This file describes the different languages (aka. managed action runtimes) supported by the system",
         "as well as blackbox images that support the runtime specification.",
         "Only actions with runtime families / kinds defined here can be created / read / updated / deleted / invoked.",
-        "Define a list of runtime families (example: 'nodejs') with at least one kind per family (example: 'nodejs:10').",
+        "Define a list of runtime families (example: 'nodejs') with at least one kind per family (example: 'nodejs:14').",
         "Each runtime family needs a default kind (default: true).",
         "When removing or renaming runtime families or runtime kinds from this file, preexisting actions",
         "with the affected kinds can no longer be read / updated / deleted / invoked. In order to remove or rename",
@@ -16,11 +16,11 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs:10",
+                "kind": "nodejs:14",
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "action-nodejs-v10",
+                    "name": "action-nodejs-v14",
                     "tag": "nightly"
                 },
                 "deprecated": false,

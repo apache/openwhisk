@@ -14,4 +14,14 @@ whisk {
       WhiskActivation = "{{ db.whisk.activations }}"
     }
   }
+  {% if db.artifact_store.backend == 'MongoDB' %}
+  mongodb {
+    uri         = "{{ db.mongodb.connect_string }}"
+    database    = "{{ db.mongodb.database }}"
+  }
+
+  spi {
+    ArtifactStoreProvider = org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider
+  }
+  {% endif %}
 }

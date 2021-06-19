@@ -23,13 +23,13 @@ import java.util.concurrent.atomic.LongAdder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -44,9 +44,9 @@ import scala.util.{Failure, Success}
  */
 abstract class CommonLoadBalancer(config: WhiskConfig,
                                   feedFactory: FeedFactory,
-                                  controllerInstance: ControllerInstanceId)(implicit val actorSystem: ActorSystem,
+                                  controllerInstance: ControllerInstanceId)(implicit
+                                                                            val actorSystem: ActorSystem,
                                                                             logging: Logging,
-                                                                            materializer: ActorMaterializer,
                                                                             messagingProvider: MessagingProvider)
     extends LoadBalancer {
 
@@ -78,7 +78,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
       totalManagedActivationMemory.longValue)
   }
 
-  actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
+  actorSystem.scheduler.scheduleAtFixedRate(10.seconds, 10.seconds)(() => emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))
@@ -177,7 +177,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
                                         invoker: InvokerInstanceId): Future[RecordMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
-    val topic = s"invoker${invoker.toInt}"
+    val topic = s"${Controller.topicPrefix}invoker${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(

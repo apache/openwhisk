@@ -23,7 +23,6 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
@@ -85,28 +84,22 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
 object WhiskAuthStore {
   implicit val docReader = WhiskDocumentReader
 
-  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+  def datastore()(implicit system: ActorSystem, logging: Logging) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth]()
 }
 
 object WhiskEntityStore {
 
-  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+  def datastore()(implicit system: ActorSystem, logging: Logging) =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity]()(
-        classTag[WhiskEntity],
-        WhiskEntityJsonFormat,
-        WhiskDocumentReader,
-        system,
-        logging,
-        materializer)
+      .makeStore[WhiskEntity]()(classTag[WhiskEntity], WhiskEntityJsonFormat, WhiskDocumentReader, system, logging)
 }
 
 object WhiskActivationStore {
   implicit val docReader = WhiskDocumentReader
 
-  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+  def datastore()(implicit system: ActorSystem, logging: Logging) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](useBatching = true)
 }
 

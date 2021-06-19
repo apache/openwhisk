@@ -71,7 +71,8 @@ class DockerToActivationFileLogStoreTests
     val testActor = TestProbe()
 
     val container = new TestContainer(testSource)
-    val store = new TestLogStoreTo(Flow[ByteString].map(_.utf8String).to(Sink.actorRef(testActor.ref, ())))
+    val store =
+      new TestLogStoreTo(Flow[ByteString].map(_.utf8String).to(Sink.actorRef(testActor.ref, (), (_: Throwable) => _)))
 
     val collected = store.collectLogs(TransactionId.testing, user, successfulActivation, container, action)
 
@@ -93,7 +94,8 @@ class DockerToActivationFileLogStoreTests
     val testActor = TestProbe()
 
     val container = new TestContainer(Source(toByteString(logs)))
-    val store = new TestLogStoreTo(Flow[ByteString].map(_.utf8String).to(Sink.actorRef(testActor.ref, ())))
+    val store =
+      new TestLogStoreTo(Flow[ByteString].map(_.utf8String).to(Sink.actorRef(testActor.ref, (), (_: Throwable) => _)))
 
     val ex = the[LogCollectingException] thrownBy await(
       store.collectLogs(TransactionId.testing, user, developerErrorActivation, container, action))

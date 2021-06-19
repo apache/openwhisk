@@ -20,8 +20,10 @@ package org.apache.openwhisk.core.containerpool.v2
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.util.Timeout
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.containerpool.ContainerRemoved
 import org.apache.openwhisk.core.database.{ArtifactStore, NoDocumentException}
 import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.size._
@@ -66,7 +68,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
   }
 
   when(Unhealthy) {
-    case Event(ContainerRemoved, _) =>
+    case Event(ContainerRemoved(_), _) =>
       healthActionProxy = None
       startTestAction(self)
       stay
@@ -90,7 +92,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
       // Initialized messages sent by ContainerProxy for HealthManger
       stay()
 
-    case Event(ContainerRemoved, _) =>
+    case Event(ContainerRemoved(_), _) =>
       // Drop messages sent by ContainerProxy for HealthManger
       healthActionProxy = None
       stay()
@@ -217,7 +219,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
   }
 
   /**
-   * This is to decide wether to change from the newState or not.
+   * This is to decide weather to change from the newState or not.
    * If current state is already newState, it will stay, otherwise it will change its state.
    *
    * @param newState the desired state to change.
@@ -347,23 +349,6 @@ object InvokerHealthManager {
             entityStore: ArtifactStore[WhiskEntity])(implicit actorSystem: ActorSystem, logging: Logging): Props = {
     Props(new InvokerHealthManager(instanceId, childFactory, dataManagementService, entityStore))
   }
-}
-
-// States an Invoker can be in
-sealed trait InvokerState {
-  val asString: String
-}
-
-case object Offline extends InvokerState {
-  val asString = "down"
-}
-
-case object Healthy extends InvokerState {
-  val asString = "up"
-}
-
-case object Unhealthy extends InvokerState {
-  val asString = "unhealthy"
 }
 
 //recevied from ContainerProxy actor

@@ -21,7 +21,6 @@ import java.net.UnknownHostException
 import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
@@ -56,7 +55,6 @@ class CacheInvalidatorTests
     with ScalaFutures
     with TryValues {
 
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private implicit val logging = new AkkaLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 

@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.scheduler.queue.test
 
-import akka.stream.ActorMaterializer
 import com.sksamuel.elastic4s.http.ElasticDsl._
 import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
 import common._
@@ -66,7 +65,6 @@ class ElasticSearchDurationCheckerTests
   val wskadmin: RunCliCmd = new RunCliCmd {
     override def baseCommand: mutable.Buffer[String] = WskAdmin.baseCommand
   }
-  implicit val mt: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeoutConfig: PatienceConfig = PatienceConfig(5 seconds, 15 milliseconds)
 
@@ -139,7 +137,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(namespace),
         EntityName(actionName),
-        js10MetaData(Some("jsMain"), binary = false),
+        jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
     val run1 = wsk.action.invoke(actionName, Map())
@@ -210,7 +208,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace/$packageName"),
         EntityName(actionName),
-        js10MetaData(Some("jsMain"), binary = false),
+        jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
     var totalDuration = 0L
@@ -288,7 +286,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace/$boundPackageName"),
         EntityName(actionName),
-        js10MetaData(Some("jsMain"), binary = false),
+        jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency),
         binding = Some(EntityPath(s"$namespace/$packageName")))
 
@@ -365,7 +363,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace"),
         EntityName(actionName),
-        js10MetaData(Some("jsMain"), binary = false),
+        jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
     val durationCheckResult: DurationCheckResult =
@@ -385,7 +383,7 @@ class ElasticSearchDurationCheckerTests
         WhiskActionMetaData(
           EntityPath(s"$namespace/$boundPackageName"),
           EntityName(actionName),
-          js10MetaData(Some("jsMain"), false),
+          jsMetaData(Some("jsMain"), false),
           limits = actionLimits(actionMem, concurrency),
           binding = Some(EntityPath(s"${namespace}/${packageName}")))
 

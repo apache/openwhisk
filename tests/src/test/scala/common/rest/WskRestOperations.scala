@@ -31,10 +31,9 @@ import akka.http.scaladsl.model.StatusCodes.{Accepted, NotFound, OK}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, OAuth2BearerToken}
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import common.TestUtils.{ANY_ERROR_EXIT, DONTCARE_EXIT, RunResult, SUCCESS_EXIT}
+import common.rest.SSL.httpsConfig
 import common.{
   DeleteFromCollectionOperations,
   HasActivation,
@@ -47,7 +46,7 @@ import common.{
 import javax.net.ssl._
 import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.apache.openwhisk.common.Https.HttpsConfig
-import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
+import org.apache.openwhisk.common.{AkkaLogging, Https, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.utils.retry
 import org.scalatest.Matchers
@@ -103,10 +102,7 @@ object SSL {
   }
 
   def httpsConnectionContext(implicit system: ActorSystem): HttpsConnectionContext = {
-    val sslConfig = AkkaSSLConfig().mapSettings { s =>
-      s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
-    }
-    new HttpsConnectionContext(SSL.nonValidatingContext(httpsConfig.clientAuth.toBoolean), Some(sslConfig))
+    Https.connectionContextClient(httpsConfig, true)
   }
 }
 
@@ -115,6 +111,7 @@ object HttpConnection {
   /**
    * Returns either the https context that is tailored for self-signed certificates on the controller, or
    * a default connection context used in Http.SingleRequest
+   *
    * @param protocol protocol used to communicate with controller API
    * @param system actor system
    * @return https connection context
@@ -816,8 +813,8 @@ class RestNamespaceOperations(implicit val actorSystem: ActorSystem) extends Nam
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
-  override def list(expectedExitCode: Int = OK.intValue, nameSort: Option[Boolean] = None)(
-    implicit wp: WskProps): RestResult = {
+  override def list(expectedExitCode: Int = OK.intValue, nameSort: Option[Boolean] = None)(implicit
+                                                                                           wp: WskProps): RestResult = {
     val entPath = Path(s"$basePath/namespaces")
     val resp = requestEntity(GET, entPath)
     val result = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))
@@ -1145,13 +1142,9 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   implicit val config: PatienceConfig = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val actorSystem: ActorSystem
   lazy implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-  lazy implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  lazy val sslConfig: AkkaSSLConfig = AkkaSSLConfig().mapSettings {
-    _.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
-  }
-
-  lazy val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext(), Some(sslConfig))
+  lazy val connectionContext =
+    Https.connectionContextClient(SSL.nonValidatingContext(httpsConfig.clientAuth.toBoolean), true)
 
   def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))

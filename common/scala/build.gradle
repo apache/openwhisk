@@ -70,9 +70,6 @@ dependencies {
     compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
     compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
-    //for mesos
-    compile "com.adobe.api.platform.runtime:mesos-actor:0.0.17"
-
     // for etcd
     compile("com.ibm.etcd:etcd-java:0.0.13")
 
@@ -90,6 +87,8 @@ dependencies {
     compile "com.microsoft.azure:azure-cosmosdb:2.6.2"
 
     compile "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
+    //for mongo
+    compile "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
 
     compile ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http

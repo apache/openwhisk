@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.cosmosdb
 import java.io.Closeable
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
@@ -48,8 +47,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    logging: Logging): ArtifactStore[D] = {
     val tag = implicitly[ClassTag[D]]
     val config = CosmosDBConfig(ConfigFactory.load(), tag.runtimeClass.getSimpleName)
     makeStoreForClient(config, getOrCreateReference(config), getAttachmentStore())
@@ -60,8 +58,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
+    logging: Logging): CosmosDBArtifactStore[D] = {
 
     makeStoreForClient(config, createReference(config).reference(), attachmentStore)
   }
@@ -72,8 +69,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): CosmosDBArtifactStore[D] = {
+    logging: Logging): CosmosDBArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
@@ -90,8 +86,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
     implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): (String, DocumentHandler, CosmosDBViewMapper) = {
+    logging: Logging): (String, DocumentHandler, CosmosDBViewMapper) = {
     val entityClass = entityType.runtimeClass
     if (entityClass == classOf[WhiskEntity]) ("whisks", WhisksHandler, WhisksViewMapper)
     else if (entityClass == classOf[WhiskActivation]) ("activations", ActivationHandler, ActivationViewMapper)

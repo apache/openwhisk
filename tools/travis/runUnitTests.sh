@@ -32,4 +32,7 @@ cat "$ROOTDIR/tests/src/test/resources/application.conf"
 
 ./distDocker.sh
 
+# yet another hack to hit docker rate limits early...
+docker pull alpine:3.5
+
 ./runTests.sh

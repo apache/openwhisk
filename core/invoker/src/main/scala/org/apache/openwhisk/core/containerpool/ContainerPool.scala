@@ -76,7 +76,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var resent: Option[Run] = None
   val logMessageInterval = 10.seconds
   //periodically emit metrics (don't need to do this for each message!)
-  context.system.scheduler.schedule(30.seconds, 10.seconds, self, EmitMetrics)
+  context.system.scheduler.scheduleAtFixedRate(30.seconds, 10.seconds, self, EmitMetrics)
 
   // Key is ColdStartKey, value is the number of cold Start in minute
   var coldStartCount = immutable.Map.empty[ColdStartKey, Int]
@@ -91,7 +91,13 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         .nextInt(v.toSeconds.toInt))
     .getOrElse(0)
     .seconds
-  context.system.scheduler.schedule(2.seconds, interval, self, AdjustPrewarmedContainer)
+  if (prewarmConfig.exists(!_.reactive.isEmpty)) {
+    context.system.scheduler.scheduleAtFixedRate(
+      poolConfig.prewarmExpirationCheckInitDelay,
+      interval,
+      self,
+      AdjustPrewarmedContainer)
+  }
 
   def logContainerStart(r: Run, containerState: String, activeActivations: Int, container: Option[Container]): Unit = {
     val namespaceName = r.msg.user.namespace.name.asString
@@ -590,9 +596,9 @@ object ContainerPool {
               }
               .sortBy(_._2.expires.getOrElse(now))
 
-            // emit expired container counter metric with memory + kind
-            MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
             if (expiredPrewarmedContainer.nonEmpty) {
+              // emit expired container counter metric with memory + kind
+              MetricEmitter.emitCounterMetric(LoggingMarkers.CONTAINER_POOL_PREWARM_EXPIRED(memory.toString, kind))
               logging.info(
                 this,
                 s"[kind: ${kind} memory: ${memory.toString}] ${expiredPrewarmedContainer.size} expired prewarmed containers")

@@ -176,6 +176,10 @@
         "{{ kafka_topics_health_retentionMS | default() }}"
       "CONFIG_whisk_kafka_topics_health_segmentBytes":
         "{{ kafka_topics_health_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_prefix":
+        "{{ kafka.topicsPrefix }}"
+      "CONFIG_whisk_kafka_topics_userEvent_prefix":
+        "{{ kafka.topicsUserEventPrefix }}"
       "CONFIG_whisk_kafka_common_securityProtocol":
         "{{ kafka.protocol }}"
       "CONFIG_whisk_kafka_common_sslTruststoreLocation":
@@ -292,6 +296,19 @@
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
 
+- name: setup mongodb artifact store env
+  set_fact:
+    mongodb_env:
+      "CONFIG_whisk_mongodb_uri": "{{ db.mongodb.connect_string }}"
+      "CONFIG_whisk_mongodb_database": "{{ db.mongodb.database }}"
+      "CONFIG_whisk_spi_ArtifactStoreProvider": "org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider"
+  when: db.artifact_store.backend == "MongoDB"
+
+- name: merge mongodb artifact store env
+  set_fact:
+    env: "{{ env | combine(mongodb_env) }}"
+  when: db.artifact_store.backend == "MongoDB"
+
 - name: populate volumes for controller
   set_fact:
     controller_volumes:
@@ -361,4 +378,4 @@
   register: result
   until: result.status == 200
   retries: 12
-  delay: 5
+  delay: 10

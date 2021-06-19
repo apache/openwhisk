@@ -21,7 +21,6 @@ import java.io.IOException
 import java.time.{Instant, ZoneId}
 
 import akka.NotUsed
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import common.TimingHelpers
@@ -75,8 +74,6 @@ class KubernetesContainerTests
   override def beforeEach() = {
     stream.reset()
   }
-
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def instantDT(instant: Instant): Instant = Instant.from(instant.atZone(ZoneId.of("GMT+0")))
 

@@ -216,6 +216,8 @@
       "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_invoker_retentionMs": "{{ kafka_topics_invoker_retentionMS | default() }}"
       "CONFIG_whisk_kakfa_topics_invoker_segmentBytes": "{{ kafka_topics_invoker_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_prefix": "{{ kafka.topicsPrefix }}"
+      "CONFIG_whisk_kafka_topics_userEvent_prefix": "{{ kafka.topicsUserEventPrefix }}"
       "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}"
       "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
@@ -259,6 +261,8 @@
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      "CONFIG_whisk_spi_InvokerProvider": "{{ invoker.reactiveSpi }}"
+      "CONFIG_whisk_spi_InvokerServerProvider": "{{ invoker.serverSpi }}"
       "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
       "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
@@ -278,7 +282,11 @@
       "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
       "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
       "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
-      "CONFIG_whisk_containerPool_prewarmExpirationCheckInterval": "{{ container_pool_prewarm_expirationCheckInterval | default('1 minute') }}"
+      "CONFIG_whisk_containerPool_prewarmExpirationCheckInitDelay": "{{ container_pool_prewarm_expirationCheckInitDelay | default('10 minutes') }}"
+      "CONFIG_whisk_containerPool_prewarmExpirationCheckInterval": "{{ container_pool_prewarm_expirationCheckInterval | default('10 minutes') }}"
+      "CONFIG_whisk_containerPool_prewarmExpirationCheckIntervalVariance": "{{ container_pool_prewarm_expirationCheckIntervalVariance | default('10 seconds') }}"
+      "CONFIG_whisk_containerPool_prewarmPromotion": "{{ container_pool_strict | default('false') | lower }}"
+      "CONFIG_whisk_containerPool_prewarmMaxRetryLimit": "{{ container_pool_prewarm_max_retry_limit | default(5) }}"
 
 - name: extend invoker dns env
   set_fact:
@@ -306,6 +314,19 @@
   set_fact:
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
+
+- name: setup mongodb artifact store env
+  set_fact:
+    mongodb_env:
+      "CONFIG_whisk_mongodb_uri": "{{ db.mongodb.connect_string }}"
+      "CONFIG_whisk_mongodb_database": "{{ db.mongodb.database }}"
+      "CONFIG_whisk_spi_ArtifactStoreProvider": "org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider"
+  when: db.artifact_store.backend == "MongoDB"
+
+- name: merge mongodb artifact store env
+  set_fact:
+    env: "{{ env | combine(mongodb_env) }}"
+  when: db.artifact_store.backend == "MongoDB"
 
 - name: include plugins
   include_tasks: "{{ inv_item }}.yml"

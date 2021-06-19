@@ -28,3 +28,7 @@
     user: "{{ dbUser }}"
     password: "{{ dbPass }}"
     force_basic_auth: yes
+  when: db.artifact_store.backend == "CouchDB"
+
+# the collection in MongoDB doesn't need to be created in advance, so just skip it
+# - name: check if {{ dbName }} on MongoDB exists

@@ -27,15 +27,15 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 #### Ubuntu users
 ```shell script
 sudo apt-get install python-pip
-sudo pip install ansible==2.5.2
-sudo pip install jinja2==2.9.6
+sudo pip install ansible==4.1.0
+sudo pip install jinja2==3.0.1
 ```
 
 #### Docker for Mac users
 ```shell script
 sudo easy_install pip
-sudo pip install ansible==2.5.2
-pip install jinja2==2.9.6
+sudo pip install ansible==4.1.0
+pip install jinja2==3.0.1
 ```
 Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
 You need to depend on the workarounds until Docker provides official methods.
@@ -45,8 +45,8 @@ If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for 
 ##### Enable Docker remote API
 The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
-##### Activate docker0 network
-This is an optional step for local deployment.
+##### Activate docker0 network (local dev only)
+ 
 The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
 An expedient workaround is to add alias for `docker0` network to loopback interface.
@@ -70,6 +70,16 @@ use `-i environments/docker-machine`.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
+#### Ansible with pyenv (local dev only)
+
+When using [pyenv](https://github.com/pyenv/pyenv) to manage your versions of python, the [ansible python interpreter](https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html) will use your system's default python, which may have a different version. 
+
+To make sure ansible uses the same version of python which you configured, execute: 
+
+```bash
+echo -e "\nansible_python_interpreter: `which python`\n" >> ./environments/local/group_vars/all
+```
+
 #### Preserving configuration and log directories on reboot
 When using the local Ansible environment, configuration and log data is stored in `/tmp` by default. However, operating
 system such as Linux and Mac clean the `/tmp` directory on reboot, resulting in failures when OpenWhisk tries to start
@@ -77,9 +87,11 @@ up again. To avoid this problem, export the `OPENWHISK_TMP_DIR` variable assigni
 directory before deploying OpenWhisk.
 
 #### Setup
-
-The following step must be executed once per development environment.
+ 
+This step should be executed once per development environment.
 It will generate the `hosts` configuration file based on your environment settings.
+
+> This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`.
 
 The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
 You may elect to enable high-availability (HA) mode by passing tne Ansible option `-e mode=HA` when executing this playbook.
@@ -98,7 +110,6 @@ db_host=
 db_port=
 ```
 
-This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`. If you want to use Cloudant, you have to modify the file.
 For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```shell script
@@ -112,7 +123,7 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/$ENVIRONMENT setup.yml
 ```
 
-Alternatively, if you want to use Cloudant as your datastore:
+##### Use Cloudant as a datastore
 
 ```shell script
 export OW_DB=Cloudant
@@ -126,7 +137,8 @@ ansible-playbook -i environments/$ENVIRONMENT setup.yml
 ```
 
 #### Install Prerequisites
-This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.`
+
+> This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.
 
 This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment.
 
@@ -143,7 +155,7 @@ ansible-playbook -i environments/$ENVIRONMENT prereq.yml
 cd <openwhisk_home>
 ./gradlew distDocker
 cd ansible
-ansible-playbook -i couchdb.yml
+ansible-playbook -i environments/$ENVIRONMENT couchdb.yml
 ansible-playbook -i environments/$ENVIRONMENT initdb.yml
 ansible-playbook -i environments/$ENVIRONMENT wipe.yml
 ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml
@@ -195,6 +207,43 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 - Run `postdeploy.yml` after deployment to install a catalog of useful packages.
 - To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
+
+### Deploying Using MongoDB
+
+You can choose MongoDB instead of CouchDB as the database backend to store entities.
+
+- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production).
+  You need to execute `pip install pymongo` first
+
+```
+ansible-playbook -i environments/<environment> mongodb.yml -e mongodb_data_volume="/tmp/mongo-data"
+```
+
+- Then execute
+
+```
+cd <openwhisk_home>
+./gradlew distDocker
+cd ansible
+ansible-playbook -i environments/<environment> initMongodb.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> apigateway.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> openwhisk.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017" -e db_artifact_backend="MongoDB"
+
+# installs a catalog of public packages and actions
+ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
+```
+
+Available parameters for ansible are
+```
+  mongodb:
+    connect_string: "{{ mongodb_connect_string }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
+```
 
 ### Using ElasticSearch to Store Activations
 
