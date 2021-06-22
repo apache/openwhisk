@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.yarn
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
@@ -37,7 +36,6 @@ class YARNContainerInfoActor(actorSystem: ActorSystem,
     extends Actor {
 
   implicit val as: ActorSystem = actorSystem
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
   val containerStartTimeoutMS = 60000

@@ -27,7 +27,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
-import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import akka.http.scaladsl.model.HttpMethods.POST
 import common.StreamLogging
@@ -47,7 +46,6 @@ class ElasticSearchRestClientTests
     with StreamLogging {
 
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val defaultResponseSource =
     """{"stream":"stdout","activationId":"197d60b33137424ebd60b33137d24ea3","action":"guest/someAction","@version":"1","@timestamp":"2018-03-27T15:48:09.112Z","type":"user_logs","tenant":"19bc46b1-71f6-4ed5-8c54-816aa4f8c502","message":"namespace     : user@email.com\n","time_date":"2018-03-27T15:48:08.716152793Z"}"""

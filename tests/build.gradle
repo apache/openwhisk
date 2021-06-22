@@ -89,6 +89,7 @@ ext.testSets = [
     "REQUIRE_SCHEDULER" : [
         "includes" : [
             "org/apache/openwhisk/common/etcd/**",
+            "org/apache/openwhisk/core/containerpool/v2/test/**",
             "org/apache/openwhisk/core/scheduler/**",
             "org/apache/openwhisk/core/service/**",
         ]
@@ -227,7 +228,7 @@ dependencies {
     compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
 
     compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
-    compile "org.testcontainers:elasticsearch:1.12.3"
+    compile "org.testcontainers:elasticsearch:1.15.3"
 
     compile project(':common:scala')
     compile project(':core:controller')

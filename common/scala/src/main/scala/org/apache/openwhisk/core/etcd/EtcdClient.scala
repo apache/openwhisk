@@ -27,14 +27,13 @@ import java.util.concurrent.Executors
 
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.etcd.EtcdType._
+import org.apache.openwhisk.core.service.Lease
 import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol
 
 import scala.language.implicitConversions
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContextExecutor, Future, Promise}
-
-case class Lease(id: Long, ttl: Long)
 
 object RichListenableFuture {
   implicit def convertToFuture[T](lf: ListenableFuture[T])(implicit ece: ExecutionContextExecutor): Future[T] = {

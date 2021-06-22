@@ -34,7 +34,6 @@ import akka.io.Tcp.Connected
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
-import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
 
@@ -267,7 +266,6 @@ class ContainerProxy(factory: (TransactionId,
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
   implicit val ac = context.system
-  implicit val materializer = ActorMaterializer()
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
   //track buffer processing state to avoid extra transitions near end of buffer - this provides a pseudo-state between Running and Ready
@@ -1128,7 +1126,7 @@ class TCPPingClient(tcp: ActorRef,
   private def restartPing() = {
     cancelPing() //just in case restart is called twice
     scheduledPing = Some(
-      context.system.scheduler.schedule(config.checkPeriod, config.checkPeriod, self, HealthPingSend))
+      context.system.scheduler.scheduleAtFixedRate(config.checkPeriod, config.checkPeriod, self, HealthPingSend))
   }
   private def cancelPing() = {
     scheduledPing.foreach(_.cancel())

@@ -28,7 +28,8 @@ import com.ibm.etcd.client.{EtcdClient => Client}
 import common.{StreamLogging, WskActorSystem}
 import io.grpc.{StatusRuntimeException, Status => GrpcStatus}
 import org.apache.openwhisk.core.etcd.EtcdType._
-import org.apache.openwhisk.core.etcd.{EtcdFollower, EtcdLeader, EtcdLeadershipApi, Lease}
+import org.apache.openwhisk.core.etcd.{EtcdFollower, EtcdLeader, EtcdLeadershipApi}
+import org.apache.openwhisk.core.service.Lease
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures

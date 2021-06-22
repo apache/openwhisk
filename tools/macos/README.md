@@ -26,10 +26,10 @@ If you prefer to use Docker-machine, you can follow instructions in [docker-mach
 
 The following are required to build and deploy OpenWhisk from a Mac host:
 
-- [Docker 18.06.3](https://docs.docker.com/docker-for-mac/install/)
-- [Open JDK 10](https://adoptopenjdk.net/releases.html#x64_mac)
-- [Scala 2.11](http://scala-lang.org/download/)
-- [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
+- [Docker 18.06.3+](https://docs.docker.com/docker-for-mac/install/)
+- [Open JDK 11](https://adoptopenjdk.net/releases.html#x64_mac)
+- [Scala 2.12](http://scala-lang.org/download/)
+- [Ansible 4.1.0](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 
 **Tips:**
  1. Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continuous integration and deployment.<br>
@@ -44,10 +44,10 @@ echo '
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install cask
 brew tap homebrew/cask
-# install for AdoptOpenJDK (java10)
+# install for AdoptOpenJDK (java11)
 brew tap AdoptOpenJDK/openjdk
-# install java 10
-brew cask install adoptopenjdk10
+# install java 11
+brew install --cask adoptopenjdk11
 # install scala
 brew install scala
 # install gnu tar
@@ -55,7 +55,7 @@ brew install gnu-tar
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
+pip install docker==5.0.0 ansible==4.1.0 jinja2==3.0.1 couchdb==1.2 httplib2==0.19.1 requests==2.25.1 six=1.16.0
 ```
 
 Make sure you correctly configure the environment variable $JAVA_HOME.
@@ -71,12 +71,47 @@ cd /your/path/to/openwhisk
 Follow instructions in [ansible/README.md](../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../docs/cli.md)
+
+#### Using brew
+
+```bash
+brew install wsk 
+wsk property set --apihost https://localhost
+wsk property set --auth `cat ansible/files/auth.guest`
+```
+#### Other methods
+For more instructions see [Configure CLI doc](../../docs/cli.md).
 
 ### Use the wsk CLI
 ```bash
-bin/wsk action invoke /whisk.system/utils/echo -p message hello --result
+wsk action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"
 }
+```
+
+# Develop
+
+## Running unit tests
+
+> Unit tests require [Ansible setup](../../ansible/README.md) at the moment.
+
+Bellow are the ansible commands required to prepare your machine:
+
+```bash
+cd ./ansible
+
+ansible-playbook setup.yml -e mode=HA
+ansible-playbook couchdb.yml
+ansible-playbook initdb.yml
+ansible-playbook wipe.yml
+
+ansible-playbook properties.yml
+```
+
+To run the unit tests execute the command bellow from the project's root folder: 
+```bash
+# go back to project's root folder
+cd ../
+./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean 
 ```

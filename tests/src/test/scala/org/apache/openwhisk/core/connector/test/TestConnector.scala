@@ -72,6 +72,8 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
     producer.close()
   }
 
+  def getProducer(): MessageProducer = producer
+
   private val producer = new MessageProducer {
     def send(topic: String, msg: Message, retry: Int = 0): Future[RecordMetadata] = {
       queue.synchronized {

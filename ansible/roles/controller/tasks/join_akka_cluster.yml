@@ -32,7 +32,7 @@
     env: >-
       {{ env | combine({
         'CONFIG_akka_cluster_seedNodes_' ~ seedNode.0:
-          'akka.tcp://controller-actor-system@'~seedNode.1~':'~(controller.akka.cluster.basePort+seedNode.0)
+          'akka://controller-actor-system@'~seedNode.1~':'~(controller.akka.cluster.basePort+seedNode.0)
       }) }}
   with_indexed_items: "{{ controller.akka.cluster.seedNodes }}"
   loop_control:
@@ -42,11 +42,11 @@
   vars:
     akka_env:
       "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
-      "CONFIG_akka_remote_netty_tcp_hostname":
+      "CONFIG_akka_remote_artery_canonical_hostname":
         "{{ controller.akka.cluster.host[(controller_index | int)] }}"
-      "CONFIG_akka_remote_netty_tcp_port":
+      "CONFIG_akka_remote_artery_canonical_port":
         "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
-      "CONFIG_akka_remote_netty_tcp_bindPort":
+      "CONFIG_akka_remote_artery_bind_port":
         "{{ controller.akka.cluster.bindPort }}"
   set_fact:
     env: "{{ env | combine(akka_env) }}"

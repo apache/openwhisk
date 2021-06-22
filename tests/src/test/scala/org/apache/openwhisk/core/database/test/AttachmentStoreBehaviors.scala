@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.test
 import java.io.ByteArrayInputStream
 
 import akka.http.scaladsl.model.ContentTypes
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source, StreamConverters}
 import akka.util.{ByteString, ByteStringBuilder}
 import common.{StreamLogging, WskActorSystem}
@@ -46,8 +45,6 @@ trait AttachmentStoreBehaviors
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
-
-  protected implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   protected val prefix = s"attachmentTCK_${Random.alphanumeric.take(4).mkString}"
 

@@ -21,7 +21,6 @@ import java.io.ByteArrayInputStream
 import java.util.Base64
 
 import akka.http.scaladsl.model.{ContentType, StatusCodes}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Source, StreamConverters}
 import akka.util.ByteString
 import common.{StreamLogging, WskActorSystem}
@@ -59,7 +58,6 @@ class AttachmentCompatibilityTests
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
-  implicit val materializer = ActorMaterializer()
 
   val creds = WhiskAuthHelpers.newIdentity()
   val namespace = EntityPath(creds.subject.asString)
@@ -116,7 +114,7 @@ class AttachmentCompatibilityTests
   it should "read existing base64 encoded code string" in {
     implicit val tid: TransactionId = transid()
     val exec = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "code": "SGVsbG8gT3BlbldoaXNr"
                |}""".stripMargin.parseJson.asJsObject
     val (id, action) = makeActionJson(namespace, aname(), exec)
@@ -129,7 +127,7 @@ class AttachmentCompatibilityTests
   it should "read existing simple code string" in {
     implicit val tid: TransactionId = transid()
     val exec = """{
-                 |  "kind": "nodejs:10",
+                 |  "kind": "nodejs:14",
                  |  "code": "while (true)"
                  |}""".stripMargin.parseJson.asJsObject
     val (id, action) = makeActionJson(namespace, aname(), exec)
@@ -248,7 +246,6 @@ class AttachmentCompatibilityTests
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
         actorSystem,
-        logging,
-        materializer)
+        logging)
 
 }

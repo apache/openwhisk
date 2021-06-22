@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.rogach.scallop.throwError
 import org.scalatest.concurrent.ScalaFutures
@@ -38,7 +37,6 @@ trait WhiskAdminCliTestBase
     with ScalaFutures
     with Matchers {
 
-  implicit val materializer = ActorMaterializer()
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
   protected val authStore = WhiskAuthStore.datastore()

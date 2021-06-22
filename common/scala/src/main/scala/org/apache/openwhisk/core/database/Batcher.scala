@@ -17,11 +17,13 @@
 
 package org.apache.openwhisk.core.database
 
+import akka.Done
+import akka.actor.ActorSystem
+
 import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
-
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.stream.scaladsl.{Sink, Source}
 
 /**
@@ -44,16 +46,24 @@ import akka.stream.scaladsl.{Sink, Source}
  * @param batchSize maximum size of a batch
  * @param concurrency number of batches being handled in parallel
  * @param operation operation taking the batch
-
  * @tparam T the type to be batched
  * @tparam R return type of a single element after operation
  */
-class Batcher[T, R](batchSize: Int, concurrency: Int)(operation: Seq[T] => Future[Seq[R]])(
-  implicit materializer: ActorMaterializer,
-  ec: ExecutionContext) {
+class Batcher[T, R](batchSize: Int, concurrency: Int)(operation: Seq[T] => Future[Seq[R]])(implicit
+                                                                                           system: ActorSystem,
+                                                                                           ec: ExecutionContext) {
+
+  val cm: PartialFunction[Any, CompletionStrategy] = {
+    case Done =>
+      CompletionStrategy.immediately
+  }
 
   private val stream = Source
-    .actorRef[(T, Promise[R])](Int.MaxValue, OverflowStrategy.dropNew)
+    .actorRef[(T, Promise[R])](
+      completionMatcher = cm,
+      failureMatcher = PartialFunction.empty[Any, Throwable],
+      bufferSize = Int.MaxValue,
+      overflowStrategy = OverflowStrategy.dropNew)
     .batch(batchSize, Queue(_))((queue, element) => queue :+ element)
     .mapAsyncUnordered(concurrency) { els =>
       val elements = els.map(_._1)

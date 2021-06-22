@@ -24,4 +24,6 @@ object Annotations {
   val RawHttpAnnotationName = "raw-http"
   val RequireWhiskAuthAnnotation = "require-whisk-auth"
   val ProvideApiKeyAnnotationName = "provide-api-key"
+  val InvokerResourcesAnnotationName = "invoker-resources"
+  val InvokerResourcesStrictPolicyAnnotationName = "invoker-resources-strict-policy"
 }

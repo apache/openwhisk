@@ -42,6 +42,9 @@ python -m pip install --user pydocumentdb
 # Support the revises log upload script
 python -m pip install --user humanize requests
 
+# Scan code before compiling the code
+./scan.sh
+
 # Basic check that all code compiles and depdendencies are downloaded correctly.
 # Compiling the tests will compile all components as well.
 #

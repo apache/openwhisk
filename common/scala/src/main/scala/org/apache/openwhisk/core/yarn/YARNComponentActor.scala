@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.yarn
 
 import akka.actor.{Actor, ActorSystem}
 import akka.http.scaladsl.model.{HttpMethods, StatusCodes}
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.yarn.YARNComponentActor.{CreateContainerAsync, RemoveContainer}
@@ -41,7 +40,6 @@ class YARNComponentActor(actorSystem: ActorSystem,
     extends Actor {
 
   implicit val as: ActorSystem = actorSystem
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
   //Adding a container via the YARN REST API is actually done by flexing the component's container pool to a certain size.

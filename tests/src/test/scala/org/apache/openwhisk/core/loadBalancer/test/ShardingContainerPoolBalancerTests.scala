@@ -20,13 +20,13 @@ package org.apache.openwhisk.core.loadBalancer.test
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
 import java.nio.charset.StandardCharsets
 
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
@@ -36,10 +36,8 @@ import org.scalatest.Matchers
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.common.NestedSemaphore
+import org.apache.openwhisk.common.{InvokerHealth, Logging, NestedSemaphore, TransactionId}
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
-import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.connector.CompletionMessage
@@ -67,7 +65,6 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.loadBalancer.FeedFactory
 import org.apache.openwhisk.core.loadBalancer.InvokerPoolFactory
-import org.apache.openwhisk.core.loadBalancer.InvokerState._
 import org.apache.openwhisk.core.loadBalancer._
 
 /**
@@ -411,7 +408,6 @@ class ShardingContainerPoolBalancerTests
 
   }
 
-  implicit val am = ActorMaterializer()
   val config = new WhiskConfig(ExecManifest.requiredProperties)
   val invokerMem = 2000.MB
   val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
@@ -421,7 +417,7 @@ class ShardingContainerPoolBalancerTests
     WhiskActionMetaData(
       namespace,
       name,
-      js10MetaData(Some("jsMain"), false),
+      jsMetaData(Some("jsMain"), false),
       limits = actionLimits(actionMem, concurrency))
   val maxContainers = invokerMem.toMB.toInt / actionMetaData.limits.memory.megabytes
   val numInvokers = 3

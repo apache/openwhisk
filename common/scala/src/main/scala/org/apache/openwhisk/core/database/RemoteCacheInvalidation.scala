@@ -24,12 +24,11 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import akka.actor.ActorSystem
 import akka.actor.Props
 import spray.json._
 import org.apache.openwhisk.common.Logging
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.Message
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.connector.MessagingProvider
@@ -41,6 +40,7 @@ import org.apache.openwhisk.core.entity.WhiskPackage
 import org.apache.openwhisk.core.entity.WhiskRule
 import org.apache.openwhisk.core.entity.WhiskTrigger
 import org.apache.openwhisk.spi.SpiLoader
+import pureconfig._
 
 case class CacheInvalidationMessage(key: CacheKey, instanceId: String) extends Message {
   override def serialize = CacheInvalidationMessage.serdes.write(this).compactPrint
@@ -101,5 +101,6 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
 }
 
 object RemoteCacheInvalidation {
-  val cacheInvalidationTopic = "cacheInvalidation"
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+  val cacheInvalidationTopic = topicPrefix + "cacheInvalidation"
 }

@@ -44,8 +44,7 @@ trait CouchDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
       actorSystem,
-      logging,
-      materializer)
+      logging)
 
   override val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader

@@ -203,15 +203,19 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  val fraction = "whisk.fraction"
   val buildInformation = "whisk.info"
 
   val couchdb = "whisk.couchdb"
   val cosmosdb = "whisk.cosmosdb"
+  val mongodb = "whisk.mongodb"
   val kafka = "whisk.kafka"
   val kafkaCommon = s"$kafka.common"
   val kafkaProducer = s"$kafka.producer"
   val kafkaConsumer = s"$kafka.consumer"
   val kafkaTopics = s"$kafka.topics"
+  val kafkaTopicsPrefix = s"$kafkaTopics.prefix"
+  val kafkaTopicsUserEventPrefix = s"$kafkaTopics.user-event.prefix"
 
   val memory = "whisk.memory"
   val timeLimit = "whisk.time-limit"
@@ -292,6 +296,10 @@ object ConfigKeys {
   val azBlob = "whisk.azure-blob"
 
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
+  val schedulerQueueManager = "whisk.scheduler.queue-manager"
+  val schedulerInProgressJobRetentionSecond = "whisk.scheduler.in-progress-job-retention"
 
   val whiskClusterName = "whisk.cluster.name"
+
+  val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retryInterval"
 }

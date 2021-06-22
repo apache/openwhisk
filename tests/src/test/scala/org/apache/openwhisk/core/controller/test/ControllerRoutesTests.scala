@@ -48,7 +48,7 @@ class ControllerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach
     configureBuildInfo()
 
     val controller =
-      new Controller(instance, Runtimes(Set.empty, Set.empty, None), whiskConfig, system, materializer, logger)
+      new Controller(instance, Runtimes(Set.empty, Set.empty, None), whiskConfig, system, logger)
     Get("/invokers/ready") ~> Route.seal(controller.internalInvokerHealth) ~> check {
       status shouldBe InternalServerError
       responseAs[JsObject].fields("unhealthy") shouldBe JsString("0/0")

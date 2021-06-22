@@ -19,14 +19,36 @@ github:
   description: "Apache OpenWhisk is an open source serverless cloud platform"
   homepage: https://openwhisk.apache.org/
   labels:
-  - openwhisk
-  - apache
-  - serverless
-  - faas
-  - functions-as-a-service
-  - cloud
-  - serverless-architectures
-  - serverless-functions
-  - docker
-  - kubernetes
-  - functions
+    - openwhisk
+    - apache
+    - serverless
+    - faas
+    - functions-as-a-service
+    - cloud
+    - serverless-architectures
+    - serverless-functions
+    - docker
+    - kubernetes
+    - functions
+  protected_branches:
+    master:
+      required_status_checks:
+        strict: false
+        contexts:
+          - "Travis CI - Pull Request"
+      required_pull_request_reviews:
+        required_appoving_review_count: 1
+      required_signatures: false
+  enabled_merge_buttons:
+    merge: false
+    squash: true
+    rebase: true
+  features:
+    issues: true
+
+notifications:
+  commits: commits@openwhisk.apache.org
+  issues_status: issues@openwhisk.apache.org
+  issues_comment: issues@openwhisk.apache.org
+  pullrequests_status: issues@openwhisk.apache.org
+  pullrequests_comment: issues@openwhisk.apache.org

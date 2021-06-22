@@ -26,8 +26,8 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.management.scaladsl.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common._
@@ -36,7 +36,7 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.common.LoggingMarkers._
-import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 
@@ -151,8 +151,7 @@ class ShardingContainerPoolBalancer(
   val invokerPoolFactory: InvokerPoolFactory,
   implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
@@ -333,10 +332,8 @@ class ShardingContainerPoolBalancer(
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = {
+  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                                  logging: Logging): LoadBalancer = {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(
@@ -352,7 +349,11 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           InvokerPool.props(
             (f, i) => f.actorOf(InvokerActor.props(i, instance)),
             (m, i) => sendActivationToInvoker(messagingProducer, m, i),
-            messagingProvider.getConsumer(whiskConfig, s"health${instance.asString}", "health", maxPeek = 128),
+            messagingProvider.getConsumer(
+              whiskConfig,
+              s"${Controller.topicPrefix}health${instance.asString}",
+              s"${Controller.topicPrefix}health",
+              maxPeek = 128),
             monitor))
       }
 

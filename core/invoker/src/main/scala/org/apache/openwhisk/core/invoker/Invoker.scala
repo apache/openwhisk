@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.stream.ActorMaterializer
+import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -71,6 +71,8 @@ object Invoker {
   }
 
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
+
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
   /**
    * An object which records the environment variables required for this component to run.
@@ -174,7 +176,7 @@ object Invoker {
     initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
-    val topicName = topicBaseName + assignedInvokerId
+    val topicName = topicPrefix + topicBaseName + assignedInvokerId
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance =
@@ -199,9 +201,7 @@ object Invoker {
       if (Invoker.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")) else None
 
     val invokerServer = SpiLoader.get[InvokerServerProvider].instance(invoker)
-    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(actorSystem)
   }
 }
 
@@ -217,7 +217,10 @@ trait InvokerProvider extends Spi {
 }
 
 // this trait can be used to add common implementation
-trait InvokerCore {}
+trait InvokerCore {
+  def enable(): Route
+  def disable(): Route
+}
 
 /**
  * An Spi for providing RestAPI implementation for invoker.
@@ -226,10 +229,4 @@ trait InvokerCore {}
 trait InvokerServerProvider extends Spi {
   def instance(
     invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService
-}
-
-object DefaultInvokerServer extends InvokerServerProvider {
-  override def instance(
-    invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService =
-    new BasicRasService {}
 }

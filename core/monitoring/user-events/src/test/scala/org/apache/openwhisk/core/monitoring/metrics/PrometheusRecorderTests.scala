@@ -38,7 +38,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
   val namespaceGuest = "guest"
   val actionWithCustomPackage = "apimgmt/createApiOne"
   val actionWithDefaultPackage = "createApi"
-  val kind = "nodejs:10"
+  val kind = "nodejs:14"
   val memory = "256"
   createCustomTopic(EventConsumer.userEventTopic)
 

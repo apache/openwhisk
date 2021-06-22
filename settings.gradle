@@ -61,9 +61,9 @@ gradle.ext.scalafmt = [
     config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]
 
-gradle.ext.akka = [version : '2.5.26']
+gradle.ext.akka = [version : '2.6.12']
 gradle.ext.akka_kafka = [version : '2.0.2']
-gradle.ext.akka_http = [version : '10.1.11']
+gradle.ext.akka_http = [version : '10.2.4']
 gradle.ext.akka_management = [version : '1.0.5']
 
 gradle.ext.curator = [version : '4.0.0']

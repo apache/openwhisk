@@ -191,6 +191,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       case Some(parent) => findRoot(parent)
       case _            => meta
     }
+
+  def serialize = TransactionId.serdes.write(this).compactPrint
 }
 
 /**
@@ -232,11 +234,13 @@ object TransactionId {
 
   val systemPrefix = "sid_"
 
-  var containerCreation = TransactionId(systemPrefix + "containerCreation")
   val unknown = TransactionId(systemPrefix + "unknown")
   val testing = TransactionId(systemPrefix + "testing") // Common id for for unit testing
   val invoker = TransactionId(systemPrefix + "invoker") // Invoker startup/shutdown or GC activity
+  val invokerHealthManager = TransactionId(systemPrefix + "invokerHealthManager") // Invoker startup/shutdown or GC activity
+  def invokerHealthActivation = TransactionId(systemPrefix + "invokerHealthActivation") // Invoker health activation
   val invokerWarmup = TransactionId(systemPrefix + "invokerWarmup") // Invoker warmup thread that makes stem-cell containers
+  val invokerColdstart = TransactionId(systemPrefix + "invokerColdstart") //Invoker cold start thread
   val invokerNanny = TransactionId(systemPrefix + "invokerNanny") // Invoker nanny thread
   val dispatcher = TransactionId(systemPrefix + "dispatcher") // Kafka message dispatcher
   val loadbalancer = TransactionId(systemPrefix + "loadbalancer") // Loadbalancer thread
@@ -244,6 +248,9 @@ object TransactionId {
   val controller = TransactionId(systemPrefix + "controller") // Controller startup
   val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
   val actionHealthPing = TransactionId(systemPrefix + "actionHealth")
+  var containerCreation = TransactionId(systemPrefix + "containerCreation")
+  var containerDeletion = TransactionId(systemPrefix + "containerDeletion")
+  val warmUp = TransactionId(systemPrefix + "warmUp")
 
   private val dict = ('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9')
 

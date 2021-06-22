@@ -59,7 +59,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
                  |  "updated": 1533623651650,
                  |  "entityType": "action",
                  |  "exec": {
-                 |    "kind": "nodejs:10",
+                 |    "kind": "nodejs:14",
                  |    "code": "foo",
                  |    "binary": false
                  |  },
@@ -82,7 +82,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
 
   it should "properly determine binary property" in {
     val j1 = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "code": "SGVsbG8gT3BlbldoaXNr",
                |  "binary": false
                |}""".stripMargin.parseJson.asJsObject
@@ -91,7 +91,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
     }
 
     val j2 = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "code": "while (true)",
                |  "binary": false
                |}""".stripMargin.parseJson.asJsObject
@@ -101,7 +101,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
 
     //Defaults to binary
     val j3 = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "code": "while (true)"
                |}""".stripMargin.parseJson.asJsObject
     Exec.serdes.read(j3) should matchPattern {
@@ -128,7 +128,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
 
   it should "read code stored as jar property" in {
     val j1 = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "jar": "SGVsbG8gT3BlbldoaXNr",
                |  "binary": false
                |}""".stripMargin.parseJson.asJsObject
@@ -143,7 +143,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
         |  "runtimes": {
         |    "nodejs": [
         |      {
-        |        "kind": "nodejs:10",
+        |        "kind": "nodejs:14",
         |        "default": true,
         |        "image": {
         |          "prefix": "openwhisk",
@@ -164,7 +164,7 @@ class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAnd
       new TestConfig(Map(WhiskConfig.runtimesManifest -> oldManifestJson), ExecManifest.requiredProperties)
     ExecManifest.initialize(oldConfig)
     val j1 = """{
-               |  "kind": "nodejs:10",
+               |  "kind": "nodejs:14",
                |  "code": "SGVsbG8gT3BlbldoaXNr",
                |  "binary": false
              |}""".stripMargin.parseJson.asJsObject

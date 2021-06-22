@@ -24,7 +24,6 @@ import java.util.Properties
 import akka.actor.ActorSystem
 import akka.event.slf4j.SLF4JLogging
 import akka.http.scaladsl.model.Uri
-import akka.stream.ActorMaterializer
 import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
@@ -176,11 +175,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
      |  "runtimes": {
      |    "nodejs": [
      |      {
-     |        "kind": "nodejs:10",
+     |        "kind": "nodejs:14",
      |        "default": true,
      |        "image": {
      |          "prefix": "openwhisk",
-     |          "name": "action-nodejs-v10",
+     |          "name": "action-nodejs-v14",
      |          "tag": "latest"
      |        },
      |        "deprecated": false,
@@ -222,7 +221,6 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     initialize(conf)
     //Create actor system only after initializing the config
     implicit val actorSystem: ActorSystem = ActorSystem("standalone-actor-system")
-    implicit val materializer: ActorMaterializer = ActorMaterializer.create(actorSystem)
     implicit val logger: Logging = createLogging(actorSystem, conf)
     implicit val ec: ExecutionContext = actorSystem.dispatcher
 
@@ -277,8 +275,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     }
   }
 
-  def startServer(
-    conf: Conf)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer, logging: Logging): Unit = {
+  def startServer(conf: Conf)(implicit actorSystem: ActorSystem, logging: Logging): Unit = {
     if (canInstallUserAndActions(conf)) {
       bootstrapUsers()
     }
@@ -340,9 +337,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     Controller.start(Array("standalone"))
   }
 
-  private def bootstrapUsers()(implicit actorSystem: ActorSystem,
-                               materializer: ActorMaterializer,
-                               logging: Logging): Unit = {
+  private def bootstrapUsers()(implicit actorSystem: ActorSystem, logging: Logging): Unit = {
     implicit val userTid: TransactionId = TransactionId(systemPrefix + "userBootstrap")
     getUsers().foreach {
       case (subject, key) =>
@@ -482,8 +477,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def startCouchDb(dataDir: File, dockerClient: StandaloneDockerClient)(
     implicit logging: Logging,
     as: ActorSystem,
-    ec: ExecutionContext,
-    materializer: ActorMaterializer): ServiceContainer = {
+    ec: ExecutionContext): ServiceContainer = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "couchDB")
     val port = checkOrAllocatePort(5984)
     val dbDataDir = new File(dataDir, "couchdb")
@@ -501,8 +495,7 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   private def startKafka(workDir: File, dockerClient: StandaloneDockerClient, conf: Conf, kafkaUi: Boolean)(
     implicit logging: Logging,
     as: ActorSystem,
-    ec: ExecutionContext,
-    materializer: ActorMaterializer): (Int, Seq[ServiceContainer]) = {
+    ec: ExecutionContext): (Int, Seq[ServiceContainer]) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "kafka")
     val kafkaPort = getPort(conf.kafkaPort.toOption, preferredKafkaPort)
     val kafkaDockerPort = getPort(conf.kafkaDockerPort.toOption, preferredKafkaDockerPort)
@@ -536,11 +529,9 @@ object StandaloneOpenWhisk extends SLF4JLogging {
                               existingUserEventSvcPort: Option[Int],
                               workDir: File,
                               dataDir: File,
-                              dockerClient: StandaloneDockerClient)(
-    implicit logging: Logging,
-    as: ActorSystem,
-    ec: ExecutionContext,
-    materializer: ActorMaterializer): Seq[ServiceContainer] = {
+                              dockerClient: StandaloneDockerClient)(implicit logging: Logging,
+                                                                    as: ActorSystem,
+                                                                    ec: ExecutionContext): Seq[ServiceContainer] = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "userevents")
     val k = new UserEventLauncher(dockerClient, owPort, kafkaDockerPort, existingUserEventSvcPort, workDir, dataDir)
 
@@ -562,9 +553,8 @@ object StandaloneOpenWhisk extends SLF4JLogging {
     setSysProp("whisk.docker.standalone.container-factory.pull-standard-images", "false")
   }
 
-  private def createPgLauncher(
-    owPort: Int,
-    conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext, materializer: ActorMaterializer) = {
+  private def createPgLauncher(owPort: Int,
+                               conf: Conf)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext) = {
     implicit val tid: TransactionId = TransactionId(systemPrefix + "playground")
     val pgPort = getPort(conf.uiPort.toOption, preferredPgPort)
     new PlaygroundLauncher(

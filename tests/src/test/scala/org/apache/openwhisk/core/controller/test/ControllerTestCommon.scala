@@ -109,7 +109,7 @@ protected trait ControllerTestCommon
   val entityStore = WhiskEntityStore.datastore()
   val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
-  val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+  val activationStore = SpiLoader.get[ActivationStoreProvider].instance(actorSystem, logging)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>

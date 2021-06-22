@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+import "google/protobuf/wrappers.proto";
+
+//#options
+option java_multiple_files = true;
+option java_package = "org.apache.openwhisk.grpc";
+option java_outer_classname = "ActivationProto";
+
+package activation;
+//#options
+
+//#services
+service ActivationService {
+    rpc FetchActivation (FetchRequest) returns (FetchResponse) {}
+    rpc RescheduleActivation (RescheduleRequest) returns (RescheduleResponse) {}
+}
+//#services
+
+//#messages
+// The request message
+message FetchRequest {
+    string transactionId = 1;
+    string invocationNamespace = 2;
+    string fqn = 3;
+    string rev = 4;
+    string containerId = 5;
+    bool warmed = 6;
+    // This allows optional value
+    google.protobuf.Int64Value lastDuration = 7;
+    // to record alive containers
+    bool alive = 8;
+}
+
+// The response message
+message FetchResponse {
+    string activationMessage = 1;
+}
+
+message RescheduleRequest {
+    string invocationNamespace = 1;
+    string fqn = 2;
+    string rev = 3;
+    string activationMessage = 4;
+}
+
+message RescheduleResponse {
+    // if reschedule request is failed, then it will be `false`
+    bool isRescheduled = 1;
+}
+
