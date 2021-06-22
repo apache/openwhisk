@@ -208,7 +208,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // this can also happen if createContainer fails to start a new container, or
             // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
             // (and a new container would over commit the pool)
-            val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
+            val isErrorLogged = r.retryLogDeadline.forall(_.isOverdue)
             val retryLogDeadline = if (isErrorLogged) {
               logging.warn(
                 this,
@@ -238,7 +238,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(warmData: WarmedData) =>
-      val oldData = freePool.get(sender()).getOrElse(busyPool(sender()))
+      val oldData = freePool.getOrElse(sender(), busyPool(sender()))
       val newData =
         warmData.copy(lastUsed = oldData.lastUsed, activeActivationCount = oldData.activeActivationCount - 1)
       if (newData.activeActivationCount < 0) {

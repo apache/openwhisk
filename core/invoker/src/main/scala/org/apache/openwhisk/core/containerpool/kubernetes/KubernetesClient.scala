@@ -171,7 +171,7 @@ class KubernetesClient(
           s"Failed create pod for '$name': ${e.getClass} (Caused by: ${e.getCause}) - ${e.getMessage}; stacktrace: $stackTrace",
           ErrorLevel)
         Future.failed(KubernetesPodApiException(e))
-      case Success(createdPod) => {
+      case Success(createdPod) =>
         //call to api-server succeeded; wait for the pod to become ready; catch any failure to end the transaction timer
         waitForPod(namespace, createdPod, start.start, config.timeouts.run)
           .map { readyPod =>
@@ -199,7 +199,6 @@ class KubernetesClient(
               }
               Future.failed(e)
           }
-      }
     }
   }
 
@@ -421,7 +420,7 @@ object KubernetesRestLogSourceStage {
                 lines: Queue[TypedLogLine] = Queue.empty[TypedLogLine]): Queue[TypedLogLine] = {
     if (!src.exhausted()) {
       (for {
-        line <- Option(src.readUtf8Line()) if !line.isEmpty
+        line <- Option(src.readUtf8Line()) if line.nonEmpty
         timestampDelimiter = line.indexOf(" ")
         // Kubernetes is ignoring nanoseconds in sinceTime, so we have to filter additionally here
         rawTimestamp = line.substring(0, timestampDelimiter)
