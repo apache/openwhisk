@@ -142,11 +142,22 @@ class ElasticSearchActivationStore(
       .map { res =>
         if (res.status == StatusCodes.OK.intValue || res.status == StatusCodes.Created.intValue) {
           res.result.items.map { bulkRes =>
-            if (bulkRes.status == StatusCodes.OK.intValue || bulkRes.status == StatusCodes.Created.intValue)
+            if (bulkRes.status == StatusCodes.OK.intValue || bulkRes.status == StatusCodes.Created.intValue) {
+              transid
+                .finished(
+                  this,
+                  start,
+                  s"[PUT] 'activations' completed document: '${bulkRes.id}', response: '${DocInfo(bulkRes.id)}'")
               Right(DocInfo(bulkRes.id))
-            else
+            } else {
+              transid.failed(
+                this,
+                start,
+                s"'activations' failed to put documents, http status: '${bulkRes.status}'",
+                ErrorLevel)
               Left(PutException(
                 s"Unexpected error: ${bulkRes.error.map(e => s"${e.`type`}:${e.reason}").getOrElse("unknown")}, code: ${bulkRes.status} on 'bulk_put'"))
+            }
           }
         } else {
           transid.failed(
@@ -193,7 +204,10 @@ class ElasticSearchActivationStore(
           throw GetException("Unexpected http response code: " + res.status)
         }
       } recoverWith {
-      case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
+      case _: DeserializationException =>
+        transid
+          .finished(this, start, s"[GET] 'activations' failed to get document: '$activationId'; failed to deserialize")
+        throw DocumentUnreadable(Messages.corruptedEntity)
     }
 
     reportFailure(
