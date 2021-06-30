@@ -409,7 +409,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
     InvokerPool.healthAction(controllerInstance).map { action =>
       val activationMessage = ActivationMessage(
         // Use the sid of the InvokerSupervisor as tid
-        transid = transid,
+        transid = TransactionId(transid.id),
         action = action.fullyQualifiedName(true),
         // Use empty DocRevision to force the invoker to pull the action from db all the time
         revision = DocRevision.empty,

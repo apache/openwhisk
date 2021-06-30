@@ -120,6 +120,7 @@ class InvokerReactive(
   /** Initialize message consumers */
   private val topic = s"${Invoker.topicPrefix}invoker${instance.toInt}"
   private val maximumContainers = (poolConfig.userMemory / MemoryLimit.MIN_MEMORY).toInt
+  private val maximumHealthcheckAge = loadConfigOrThrow[FiniteDuration]("whisk.max-healthcheck-activation-age")
   private val msgProvider = SpiLoader.get[MessagingProvider]
 
   //number of peeked messages - increasing the concurrentPeekFactor improves concurrent usage, but adds risk for message loss in case of crash
@@ -232,8 +233,15 @@ class InvokerReactive(
         //set trace context to continue tracing
         WhiskTracerProvider.tracer.setTraceContext(transid, msg.traceContext)
 
-        if (!namespaceBlacklist.isBlacklisted(msg.user)) {
-          val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
+        if (transid.id.contains("invokerHealth") && transid.deltaToStart > maximumHealthcheckAge.toMillis) {
+          // Do not process message because healthcheck is too old to be indicative of service health.
+          activationFeed ! MessageFeed.Processed
+          logging.warn(
+            this,
+            s"invokerHealth activation is too old to process with an age of ${transid.deltaToStart} milliseconds.")
+          Future.successful(())
+        } else if (!namespaceBlacklist.isBlacklisted(msg.user)) {
+          transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
           handleActivationMessage(msg)
         } else {
           // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol

@@ -320,7 +320,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         // guard this
         invoker.foreach(invokerPool ! InvocationFinishedMessage(_, invocationResult))
-      case None if tid == TransactionId.invokerHealth =>
+      case None if tid.id == TransactionId.invokerHealth.id =>
         // Health actions do not have an ActivationEntry as they are written on the message bus directly. Their result
         // is important to pass to the invokerPool because they are used to determine if the invoker can be considered
         // healthy again.
