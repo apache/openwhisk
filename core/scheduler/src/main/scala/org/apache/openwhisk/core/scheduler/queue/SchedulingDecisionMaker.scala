@@ -41,7 +41,7 @@ class SchedulingDecisionMaker(
       stateName,
       _) = snapshot
     val totalContainers = existing + inProgress
-    val availableMsg = currentMsg + incoming
+    val availableMsg = currentMsg + incoming.get()
 
     if (limit <= 0) {
       // this is an error case, the limit should be bigger than 0

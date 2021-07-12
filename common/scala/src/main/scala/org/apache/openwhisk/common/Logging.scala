@@ -366,10 +366,6 @@ object LoggingMarkers {
    *
    * MetricEmitter.emitCounterMetric(LoggingMarkers.MY_COUNTER(GreenCounter))
    */
-
-  def SCHEDULER_QUEUE_WAITING_ACTIVATION(action: String) =
-    LogMarkerToken(scheduler, "queueActivation", counter, Some(action), Map("action" -> action))(MeasurementUnit.none)
-
   def SCHEDULER_NAMESPACE_CONTAINER(namespace: String) =
     LogMarkerToken(scheduler, "namespaceContainer", counter, Some(namespace), Map("namespace" -> namespace))(
       MeasurementUnit.none)

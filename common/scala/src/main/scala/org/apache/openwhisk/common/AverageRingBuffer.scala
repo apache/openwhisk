@@ -32,18 +32,33 @@ object AverageRingBuffer {
 class AverageRingBuffer(private val maxSize: Int) {
   private var elements = Vector.empty[Double]
   private var sum = 0.0
+  private var max = 0.0
+  private var min = 0.0
 
   def nonEmpty: Boolean = elements.nonEmpty
 
-  def average: Double = sum / elements.size
+  def  average: Double = {
+    val size = elements.size
+    if (size > 2) {
+      (sum - max - min) / (size - 2)
+    } else {
+      sum / size
+    }
+  }
 
-  def add(el: Double): Unit = {
+  def add(el: Double): Unit = synchronized {
     if (elements.size == maxSize) {
       sum = sum + el - elements.head
       elements = elements.tail :+ el
     } else {
       sum += el
       elements = elements :+ el
+    }
+    if (el > max) {
+      max = el
+    }
+    if (el < min) {
+      min = el
     }
   }
 

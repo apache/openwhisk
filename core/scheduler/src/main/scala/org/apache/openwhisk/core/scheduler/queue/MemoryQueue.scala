@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.scheduler.queue
 
 import java.time.{Duration, Instant}
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
@@ -33,19 +34,9 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
 import org.apache.openwhisk.core.scheduler.SchedulerEndpoints
-import org.apache.openwhisk.core.scheduler.message.{
-  ContainerCreation,
-  ContainerDeletion,
-  FailedCreationJob,
-  SuccessfulCreationJob
-}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
-import org.apache.openwhisk.core.scheduler.message.{
-  ContainerCreation,
-  ContainerDeletion,
-  FailedCreationJob,
-  SuccessfulCreationJob
-}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -57,7 +48,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
+import scala.concurrent.{ExecutionContextExecutor, Future, Promise, duration}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -165,7 +156,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private[queue] var creationIds = Set.empty[String]
 
   private[queue] var queue = Queue.empty[TimeSeriesActivationEntry]
-  private[queue] var in: Int = 0
+  private[queue] var in = new AtomicInteger(0)
   private[queue] val namespaceContainerCount = NamespaceContainerCount(invocationNamespace, etcdClient, watcherService)
   private[queue] var averageDuration: Option[Double] = None
   private[queue] var averageDurationBuffer = AverageRingBuffer(queueConfig.durationBufferSize)
@@ -923,16 +914,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def handleActivationMessage(msg: ActivationMessage) = {
     logging.info(this, s"[$invocationNamespace:$action:$stateName] got a new activation message ${msg.activationId}")(
       msg.transid)
-    in += 1
+    in.incrementAndGet()
     takeUncompletedRequest()
       .map { res =>
         res.trySuccess(Right(msg))
-        in -= 1
+        in.decrementAndGet()
         stay
       }
       .getOrElse {
         queue = queue.enqueue(TimeSeriesActivationEntry(Instant.now, msg))
-        in -= 1
+        in.decrementAndGet()
         tryEnableActionThrottling()
       }
   }
@@ -1093,7 +1084,7 @@ object MemoryQueue {
 }
 
 case class QueueSnapshot(initialized: Boolean,
-                         incomingMsgCount: Int,
+                         incomingMsgCount: AtomicInteger,
                          currentMsgCount: Int,
                          existingContainerCount: Int,
                          inProgressContainerCount: Int,
