@@ -1,5 +1,7 @@
 package org.apache.openwhisk.core.scheduler.queue.test
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
@@ -29,7 +31,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = false,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -52,7 +54,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = false,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -79,7 +81,7 @@ class SchedulingDecisionMakerTests
     states.foreach { state =>
       val msg = QueueSnapshot(
         initialized = false,
-        incomingMsgCount = 0,
+        incomingMsgCount = new AtomicInteger(0),
         currentMsgCount = 0,
         existingContainerCount = 1,
         inProgressContainerCount = 2,
@@ -105,7 +107,7 @@ class SchedulingDecisionMakerTests
     states.foreach { state =>
       val msg = QueueSnapshot(
         initialized = false,
-        incomingMsgCount = 0,
+        incomingMsgCount = new AtomicInteger(0),
         currentMsgCount = 0,
         existingContainerCount = 3,
         inProgressContainerCount = 5,
@@ -129,7 +131,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 0, // there is no container for this action
       inProgressContainerCount = 0,
@@ -153,7 +155,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 1, // there are some containers for this action
       inProgressContainerCount = 1,
@@ -177,7 +179,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = false, // this queue is not initialized yet
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -199,7 +201,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = false, // this queue is not initialized yet
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 1,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -222,7 +224,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = false, // this queue is not initialized yet
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
       existingContainerCount = 1,
       inProgressContainerCount = 1,
@@ -246,7 +248,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 1, // if there is no message, it won't add a container.
+      incomingMsgCount = new AtomicInteger(1), // if there is no message, it won't add a container.
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -270,7 +272,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0, // if there is no message, it won't add a container.
+      incomingMsgCount = new AtomicInteger(0), // if there is no message, it won't add a container.
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -294,7 +296,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0, // it should add a container even if there is no message this is because all messages are dropped in the Paused state
+      incomingMsgCount = new AtomicInteger(0), // it should add a container even if there is no message this is because all messages are dropped in the Paused state
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -317,7 +319,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0, // it should add a container even if there is no message this is because all messages are dropped in the Waiting state
+      incomingMsgCount = new AtomicInteger(0), // it should add a container even if there is no message this is because all messages are dropped in the Waiting state
       currentMsgCount = 0,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -340,7 +342,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -363,7 +365,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 1,
@@ -386,7 +388,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 6,
       existingContainerCount = 1,
       inProgressContainerCount = 1,
@@ -409,7 +411,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 6,
@@ -432,7 +434,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 6,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -457,7 +459,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -482,7 +484,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 10,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -509,7 +511,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 4,
+      incomingMsgCount = new AtomicInteger(4),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -535,7 +537,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 4,
+      incomingMsgCount = new AtomicInteger(4),
       currentMsgCount = 2,
       existingContainerCount = 1,
       inProgressContainerCount = 0,
@@ -562,7 +564,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 4,
       existingContainerCount = 5,
       inProgressContainerCount = 0,
@@ -588,7 +590,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 4,
       existingContainerCount = 0,
       inProgressContainerCount = 0,
@@ -611,7 +613,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 4,
       existingContainerCount = 1, // some containers are running and in-progress
       inProgressContainerCount = 1,
@@ -637,7 +639,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 4,
       existingContainerCount = 1,
       inProgressContainerCount = 2, // some containers are in progress
@@ -663,7 +665,7 @@ class SchedulingDecisionMakerTests
 
     val msg = QueueSnapshot(
       initialized = true,
-      incomingMsgCount = 0,
+      incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 4,
       existingContainerCount = 1,
       inProgressContainerCount = 2, // some containers are in progress
