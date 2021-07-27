@@ -254,7 +254,6 @@ object ConfigKeys {
   val splunk = s"$logStore.splunk"
   val logStoreElasticSearch = s"$logStore.elasticsearch"
 
-  val mesos = "whisk.mesos"
   val yarn = "whisk.yarn"
 
   val containerProxy = "whisk.container-proxy"
