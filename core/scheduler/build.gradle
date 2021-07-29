@@ -65,7 +65,6 @@ dependencies {
     }
 
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-
     compile project(':common:scala')
 }
 
