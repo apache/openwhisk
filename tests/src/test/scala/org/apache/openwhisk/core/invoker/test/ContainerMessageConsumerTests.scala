@@ -154,7 +154,7 @@ class ContainerMessageConsumerTests
         500,
         sendAckToScheduler(producer))
 
-    val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val exec = CodeExecAsString(RuntimeManifest("nodejs:14", ImageName("testImage")), "testCode", None)
     val action =
       WhiskAction(EntityPath("testns"), EntityName("testAction"), exec, limits = ActionLimits(TimeLimit(1.minute)))
     put(entityStore, action)
@@ -209,7 +209,7 @@ class ContainerMessageConsumerTests
         500,
         sendAckToScheduler(ackConsumer.getProducer()))
 
-    val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val exec = CodeExecAsString(RuntimeManifest("nodejs:14", ImageName("testImage")), "testCode", None)
     val whiskAction =
       WhiskAction(EntityPath("testns"), EntityName("testAction2"), exec, limits = ActionLimits(TimeLimit(1.minute)))
     val execMetadata =
@@ -285,7 +285,7 @@ class ContainerMessageConsumerTests
         500,
         sendAckToScheduler(producer))
 
-    val exec = CodeExecAsString(RuntimeManifest("nodejs:10", ImageName("testImage")), "testCode", None)
+    val exec = CodeExecAsString(RuntimeManifest("nodejs:14", ImageName("testImage")), "testCode", None)
     val action =
       WhiskAction(
         WarmUp.warmUpAction.namespace.toPath,

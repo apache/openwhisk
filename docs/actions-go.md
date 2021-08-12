@@ -21,7 +21,7 @@
 
 # Creating and Invoking Go Actions
 
-The `action-golang-v1.11` runtime can execute actions written in the Go programming language in OpenWhisk, either as precompiled binary or compiling sources on the fly.
+The `action-golang-v1.15` runtime can execute actions written in the Go programming language in OpenWhisk, either as precompiled binary or compiling sources on the fly.
 
 ## Entry Point
 
@@ -68,7 +68,7 @@ You can also have multiple source files in an action, packages and vendor folder
 
 ## Deployment
 
-The runtime `action-golang-v1.11` accepts:
+The runtime `action-golang-v1.15` accepts:
 
 - executable binaries in Linux ELF executable compiled for the AMD64 architecture
 - zip files containing a binary executable named `exec` at the top level, again a Linux ELF executable compiled for the AMD64 architecture
@@ -113,7 +113,7 @@ When you send the sources, you will have to zip the content of the `src` folder,
 cd src
 zip -r ../hello.zip *
 cd ..
-wsk action create hellozip hello.zip --kind go:1.11
+wsk action create hellozip hello.zip --kind go:1.15
 ```
 
 Check the example [golang-main-package](https://github.com/apache/openwhisk-runtime-go/tree/master/examples/golang-main-package) and the associated `Makefile`.
@@ -166,13 +166,13 @@ If you need to use vendor folder in the main package, you need to create a direc
 
 ## Precompiling Go Sources Offline
 
-Compiling sources on the image can take some time when the images is initialized. You can speed up precompiling the sources using the image `action-golang-v1.11` as an offline compiler. You need `docker` for doing that.
+Compiling sources on the image can take some time when the images is initialized. You can speed up precompiling the sources using the image `action-golang-v1.15` as an offline compiler. You need `docker` for doing that.
 
 The images accepts a `-compile <main>` flag, and expects you provide sources in standard input. It will then compile them, emit the binary in standard output and errors in stderr. The output is always a zip file containing an executable.
 
 If you have a single source maybe in file `main.go`, with a function named `Main` just do this:
 
-`docker run openwhisk/action-golang-v1.11 -compile main <main.go >main.zip`
+`docker run openwhisk/action-golang-v1.15 -compile main <main.go >main.zip`
 
 If you have multiple sources in current directory, even with a subfolder with sources, you can compile it all with:
 
@@ -180,14 +180,14 @@ If you have multiple sources in current directory, even with a subfolder with so
 cd src
 zip -r ../src.zip *
 cd ..
-docker -i run openwhisk/action-golang-v1.11 -compile main <src.zip >exec.zip
+docker -i run openwhisk/action-golang-v1.15 -compile main <src.zip >exec.zip
 ```
 
 Note that the output is always a zip file in  Linux AMD64 format so the executable can be run only inside a Docker Linux container.
 
 Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/openwhisk-runtime-go/tree/master/examples) for a collection of tested Makefiles. The  generated executable is suitable to be deployed in OpenWhisk, so you can do:
 
-`wsk action create my-action exec.zip --kind go:1.11`
+`wsk action create my-action exec.zip --kind go:1.15`
 
 You can also use just the `openwhisk/actionloop` as runtime, it is smaller.
 
