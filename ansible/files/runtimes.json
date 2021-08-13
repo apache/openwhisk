@@ -62,7 +62,7 @@
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "actionloop-python-v3.7",
+                    "name": "action-python-v3.7",
                     "tag": "nightly"
                 },
                 "deprecated": false,
