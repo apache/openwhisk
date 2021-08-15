@@ -29,6 +29,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpHeader
@@ -909,6 +910,21 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(Found)
             header("location").get.toString shouldBe "location: http://openwhisk.org"
+          }
+        }
+      }
+    }
+
+    it should s"use non-standard action status code to terminate an http response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        allowedMethods.foreach { m =>
+          actionResult = Some(JsObject(webApiDirectives.statusCode -> JsNumber(444)))
+          invocationsAllowed += 1
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(StatusCodes.custom(444, ""))
           }
         }
       }
@@ -1957,11 +1973,16 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
     it should s"allowed string based status code (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
-      invocationsAllowed += 2
+      invocationsAllowed += 3
 
       actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("200")))
       Head(s"$testRoutePath/$systemId/proxy/export_c.http") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
+      }
+
+      actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("444")))
+      Head(s"$testRoutePath/$systemId/proxy/export_c.http") ~> Route.seal(routes(creds)) ~> check {
+        status should be(StatusCodes.custom(444, ""))
       }
 
       actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("xyz")))
