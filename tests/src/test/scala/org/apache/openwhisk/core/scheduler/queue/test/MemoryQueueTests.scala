@@ -7,7 +7,6 @@ import java.{lang, util}
 import akka.actor.ActorRef
 import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
 import akka.pattern.ask
-import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import com.google.protobuf.ByteString
@@ -83,8 +82,6 @@ class MemoryQueueTests
     val hostAndPorts = "172.17.0.1:2379"
     Client.forEndpoints(hostAndPorts).withPlainText().build()
   }
-
-  implicit val materializer = Materializer
 
   def registerCallback(c: ActorRef) = {
     c ! SubscribeTransitionCallBack(testActor)
@@ -1410,8 +1407,8 @@ class MemoryQueueTests
 
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 2
-    memoryQueue.creationIds.size shouldBe 2
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 4
+    memoryQueue.creationIds.size shouldBe 0
+    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
 
     mockEtcdClient.publishEvents(
@@ -1455,10 +1452,12 @@ class MemoryQueueTests
         Some(ContainerId("test-containerId4"))),
       "test-value")
 
+    memoryQueue.creationIds.size shouldBe 0
+
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 0
-    memoryQueue.creationIds.size shouldBe 2
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 4
+    memoryQueue.creationIds.size shouldBe 1 //if there is no container, the queue tries to create one container
+    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 0
   }
 

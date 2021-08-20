@@ -148,7 +148,7 @@ class MemoryQueueTestsFixture
 
   // Watcher
   val watcherName = s"memory-queue-$fqn-$revision"
-  val watcherNameForNamespace = s"namespace-container-count-$testInvocationNamespace"
+  val watcherNameForNamespace = s"container-counter-$testInvocationNamespace"
   val testCreationId = CreationId.generate()
 
   // ack
