@@ -29,6 +29,7 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.MediaTypes._
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.headers._
@@ -40,7 +41,7 @@ import akka.http.scaladsl.model.headers.`Timeout-Access`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.{OPTIONS}
+import akka.http.scaladsl.model.HttpMethods.OPTIONS
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpResponse
 import spray.json._
@@ -248,17 +249,18 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
       val body = fields.get("body")
 
-      val code = fields.get(rp.statusCode).map {
-        case JsNumber(c) =>
-          // the following throws an exception if the code is not a whole number or a valid code
-          StatusCode.int2StatusCode(c.toIntExact)
-        case JsString(c) =>
-          // parse the string to an Int (not a BigInt) matching JsNumber case match above
-          // c.toInt could throw an exception if the string isn't an integer
-          StatusCode.int2StatusCode(c.toInt)
+      val intCode = fields.get(rp.statusCode).map {
+        // the following throws an exception if the code is not a whole number or a valid code
+        case JsNumber(c) => c.toIntExact
+
+        // parse the string to an Int (not a BigInt) matching JsNumber case match above
+        // c.toInt could throw an exception if the string isn't an integer
+        case JsString(c) => c.toInt
 
         case _ => throw new Throwable("Illegal status code")
       }
+
+      val code: Option[StatusCode] = intCode.map(c => StatusCodes.getForKey(c).getOrElse(StatusCodes.custom(c, "")))
 
       body.collect {
         case JsString(str) if str.nonEmpty   => interpretHttpResponse(code.getOrElse(OK), headers, str, transid)
@@ -268,7 +270,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
     } getOrElse {
       // either the result was not a JsObject or there was an exception validating the
-      // response as an http result
+      // response as an http result (including an invalid status code)
       terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid, jsonPrettyPrinter)
     }
   }
