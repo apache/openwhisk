@@ -33,7 +33,7 @@ class HealthActionAck(producer: MessageProducer)(implicit logging: Logging, ec: 
                      acknowledegment: AcknowledegmentMessage): Future[Any] = {
     implicit val transid: TransactionId = tid
 
-    logging.debug(this, s"health action is successfully invoked")
+    logging.debug(this, s"health action was successfully invoked")
     if (activationResult.response.isContainerError || activationResult.response.isWhiskError) {
       val actionPath =
         activationResult.annotations.getAs[String](WhiskActivation.pathAnnotation).getOrElse("unknown_path")

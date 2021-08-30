@@ -401,7 +401,7 @@ class FPCInvokerReactive(config: WhiskConfig,
     consumer = None
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
-    complete("Success disable invoker")
+    complete("Successfully disabled invoker")
   }
 
   override def backfillPrewarm(): Route = {
