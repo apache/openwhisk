@@ -71,6 +71,7 @@ object Messages {
     s"Too many requests in the last minute (count: $count, allowed: $allowed)."
 
   /** Standard message for too many concurrent activation requests within a time window. */
+  val tooManyConcurrentRequests = s"Too many concurrent requests in flight."
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
     s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
 
@@ -225,6 +226,7 @@ object Messages {
   }
 
   val namespacesBlacklisted = "The action was not invoked due to a blacklisted namespace."
+  val namespaceLimitUnderZero = "The namespace limit is less than or equal to 0."
 
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
   val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."

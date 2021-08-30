@@ -366,6 +366,26 @@ object LoggingMarkers {
    *
    * MetricEmitter.emitCounterMetric(LoggingMarkers.MY_COUNTER(GreenCounter))
    */
+  def SCHEDULER_NAMESPACE_CONTAINER(namespace: String) =
+    LogMarkerToken(scheduler, "namespaceContainer", counter, Some(namespace), Map("namespace" -> namespace))(
+      MeasurementUnit.none)
+  def SCHEDULER_NAMESPACE_INPROGRESS_CONTAINER(namespace: String) =
+    LogMarkerToken(scheduler, "namespaceInProgressContainer", counter, Some(namespace), Map("namespace" -> namespace))(
+      MeasurementUnit.none)
+  def SCHEDULER_ACTION_CONTAINER(namespace: String, action: String) =
+    LogMarkerToken(
+      scheduler,
+      "actionContainer",
+      counter,
+      Some(namespace),
+      Map("namespace" -> namespace, "action" -> action))(MeasurementUnit.none)
+  def SCHEDULER_ACTION_INPROGRESS_CONTAINER(namespace: String, action: String) =
+    LogMarkerToken(
+      scheduler,
+      "actionInProgressContainer",
+      counter,
+      Some(namespace),
+      Map("namespace" -> namespace, "action" -> action))(MeasurementUnit.none)
 
   /*
    * Controller related markers

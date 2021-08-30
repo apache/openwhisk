@@ -65,6 +65,7 @@ dependencies {
     }
 
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
     compile project(':common:scala')
 }
 
