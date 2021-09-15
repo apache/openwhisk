@@ -19,24 +19,22 @@ package org.apache.openwhisk.core.controller.test
 
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.{sprayJsonMarshaller, sprayJsonUnmarshaller}
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.controller.WhiskActionsApi
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages._
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.Success
 
 /**
@@ -60,10 +58,10 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val alternateNamespace = EntityPath(alternateCreds.subject.asString)
 
   // test actions
-  val echo = MakeName.next("echo")
-  val conductor = MakeName.next("conductor")
-  val step = MakeName.next("step")
-  val missing = MakeName.next("missingAction") // undefined
+  val echo = MakeName.next("echo")()
+  val conductor = MakeName.next("conductor")()
+  val step = MakeName.next("step")()
+  val missing = MakeName.next("missingAction")() // undefined
   val invalid = "invalid#Action" // invalid name
 
   val testString = "this is a test"
@@ -320,7 +318,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   // fake load balancer to emulate a handful of actions
   class FakeLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
-      extends DegenerateLoadBalancerService(config) {
+      extends DegenerateLoadBalancerService(config)(ec) {
 
     private def respond(action: ExecutableWhiskActionMetaData, msg: ActivationMessage, result: JsObject) = {
       val response =
@@ -343,7 +341,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Future.successful {
           action.name match {
             case `echo` => // echo action
-              Future(Right(respond(action, msg, args)))
+              Future(Right(respond(action, msg, args)))(ec)
             case `conductor` => // see tests/dat/actions/conductor.js
               val result =
                 if (args.fields.get("error") isDefined) args
@@ -359,14 +357,14 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
                   val params = Map("params" -> JsObject(wrappedParams ++ escapedParams))
                   JsObject(params ++ action ++ state)
                 }
-              Future(Right(respond(action, msg, result)))
+              Future(Right(respond(action, msg, result)))(ec)
             case `step` => // see tests/dat/actions/step.js
               val result = args.fields.get("n") map { n =>
                 JsObject("n" -> (n.convertTo[BigDecimal] + 1).toJson)
               } getOrElse {
                 JsObject("error" -> "missing parameter".toJson)
               }
-              Future(Right(respond(action, msg, result)))
+              Future(Right(respond(action, msg, result)))(ec)
             case _ =>
               Future.failed(new IllegalArgumentException("Unknown action invoked in conductor test"))
           }
